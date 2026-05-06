@@ -62,3 +62,72 @@ Examples:
 V1 should support the data model for multiple memberships from the start.
 
 The UI can stay simple and show a default active context first.
+
+---
+
+## ADR 002 — Facility management starts simple
+
+## Status
+
+Accepted
+
+## Decision
+
+V1 will use a simple facility model.
+
+Facilities belong primarily to the admin and club operations area.
+
+V1 should support:
+
+- creating facilities or locations
+- assigning a facility/location to a session
+- showing simple booking/conflict warnings
+- showing a basic facility overview
+
+V1 does not need full facility operations yet.
+
+## Not included in V1
+
+- advanced recurring reservations
+- complex blackout periods
+- partial hall divisions
+- approval workflows
+- external facility owners
+- automatic rescheduling
+- detailed capacity/resource planning
+
+## Reasoning
+
+Facility management can become a large product module by itself.
+
+For the first version, it should support the session workflow without distracting from the core product:
+
+- teams
+- sessions
+- availability
+- attendance
+- load
+- invites
+
+## Future direction
+
+The simple model should be expandable into a full facility system later.
+
+Future Option B can include:
+
+- halls
+- courts/rooms
+- recurring bookings
+- conflict resolution
+- holidays and blackout windows
+- facility admins
+- availability calendars
+- booking approvals
+
+## Product impact
+
+Admin users manage facilities.
+
+Coaches mainly select facilities while planning sessions and see conflict warnings when something is already booked.
+
+Athletes do not manage facilities; they only see the assigned location for a session.
