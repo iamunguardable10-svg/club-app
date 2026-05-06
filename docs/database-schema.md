@@ -267,6 +267,7 @@ department_lead_invite
 - Coach invites usually have club_id, department_id, optional team_id and role.
 - Athlete invites have club_id, department_id, team_id and role = athlete.
 - Department lead invites have club_id, department_id and role = department_lead.
+- In V1, accepting a valid invite creates the membership directly. No separate approval queue is required.
 
 ---
 
@@ -308,9 +309,11 @@ meeting
 other
 ```
 
-## Notes
+## V1 rule
 
-V1 sessions are team-based.
+V1 sessions belong to exactly one team.
+
+This keeps session planning, availability, attendance and load simple.
 
 Future versions may support multi-team sessions.
 
@@ -432,6 +435,10 @@ submitted_at timestamptz not null default now()
 session_load = RPE × duration_minutes
 ```
 
+Load can be submitted after a session even before coach attendance has been finalized.
+
+Analytics should prefer finalized attendance once available.
+
 ## Future expansion
 
 Load is a potential USP.
@@ -451,6 +458,8 @@ Future versions should support:
 # 13. facilities
 
 Simple V1 facility model.
+
+Facilities belong to the club in V1.
 
 ## Fields
 
@@ -560,20 +569,10 @@ Can view own sessions, submit availability and submit load.
 
 ---
 
-# Important open questions
+# Confirmed V1 schema assumptions
 
-These should be resolved before final SQL migration:
-
-1. Should sessions support multiple teams in V1 or only one team?
-2. Should team memberships require approval or be direct through invite?
-3. Should assistant coaches always be allowed to create sessions, or should that be configurable?
-4. Should facilities belong to club only, or also department later?
-5. Should load entries be allowed without finalized attendance?
-
-Current V1 assumptions:
-
-1. One team per session.
-2. Invite creates membership directly.
-3. Assistant coaches can create sessions in assigned teams.
-4. Facilities belong to club.
-5. Load can be submitted after session, even before coach finalizes attendance, but analytics prefer finalized attendance.
+1. One session belongs to one team.
+2. Accepting an invite creates the membership directly.
+3. Assistant coaches can create sessions for assigned teams.
+4. Facilities belong to the club in V1.
+5. Load can be submitted after the session even before attendance is finalized; analytics should prefer finalized attendance later.
