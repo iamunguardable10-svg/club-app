@@ -131,3 +131,68 @@ Admin users manage facilities.
 Coaches mainly select facilities while planning sessions and see conflict warnings when something is already booked.
 
 Athletes do not manage facilities; they only see the assigned location for a session.
+
+---
+
+## ADR 003 — Notifications start as simple in-app signals
+
+## Status
+
+Accepted
+
+## Decision
+
+V1 will not implement a full push notification system.
+
+V1 should support simple in-app signals such as:
+
+- new session created
+- attendance needs finalization
+- athlete reported late/maybe/no
+- load entry missing
+- invite accepted
+
+These signals can appear as simple alerts, badges or an activity feed inside the app.
+
+## Not included in V1
+
+- native push notifications
+- advanced reminder schedules
+- notification preferences
+- quiet hours
+- escalation rules
+- background jobs for reminders
+- multi-channel delivery such as push, email and SMS
+
+## Reasoning
+
+Notifications can become a large infrastructure topic.
+
+The first version should focus on core product value:
+
+- club setup
+- roles
+- invites
+- sessions
+- availability
+- attendance
+- load foundation
+
+## Future direction
+
+A later version can expand into a notification engine with:
+
+- push notifications
+- email reminders
+- attendance reminders
+- RPE/load reminders
+- coach alerts
+- smart reminders
+- user-level preferences
+- role-based notification rules
+
+## Product impact
+
+The data model should allow future notifications, but V1 UI should stay simple.
+
+No critical V1 workflow should depend on external push infrastructure.
