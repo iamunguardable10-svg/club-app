@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 const areas = [
   { href: '/admin/setup', title: 'Admin', text: 'Create club structure, departments, teams, roles and facilities.' },
+  { href: '/department/overview', title: 'Department', text: 'Coordinate teams, coaches, schedules and department facilities.' },
   { href: '/coach/today', title: 'Coach', text: 'See today, availability, attendance, load and team decisions.' },
   { href: '/athlete/home', title: 'Athlete', text: 'See calendar, report availability and submit load.' },
 ];
@@ -18,7 +19,20 @@ export default function HomePage() {
           V1 is a clean foundation: role-based workspaces, invite flows, team join codes, sessions, availability, attendance and load placeholders.
         </p>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
+        <div className="mt-6 rounded-2xl border border-amber-500/30 bg-amber-950/20 p-5">
+          <p className="text-sm font-bold text-amber-200">Temporary product review mode</p>
+          <p className="mt-2 text-sm leading-6 text-amber-100/80">
+            Use the demo page to jump between all workspaces without creating different accounts during early development.
+          </p>
+          <Link
+            href="/demo"
+            className="mt-4 inline-block rounded-xl bg-amber-300 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-amber-200"
+          >
+            Open demo navigation
+          </Link>
+        </div>
+
+        <div className="mt-8 grid gap-4 md:grid-cols-4">
           {areas.map((area) => (
             <Link
               key={area.href}
