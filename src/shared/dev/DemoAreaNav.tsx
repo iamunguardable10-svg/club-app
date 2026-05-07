@@ -52,6 +52,7 @@ const sections = [
       { href: '/auth/signup', label: 'Signup' },
       { href: '/app', label: 'Workspace router' },
       { href: '/onboarding', label: 'No-membership onboarding' },
+      { href: '/onboarding/create-club', label: 'Create club setup' },
       { href: '/invite/demo-token', label: 'Invite placeholder' },
       { href: '/join/DEMO01', label: 'Join code placeholder' },
     ],
