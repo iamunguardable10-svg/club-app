@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 
 export function SignupForm() {
+  const router = useRouter();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,7 +22,7 @@ export function SignupForm() {
 
     const supabase = createBrowserSupabaseClient();
 
-    const { error: signupError } = await supabase.auth.signUp({
+    const { data, error: signupError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -33,6 +35,11 @@ export function SignupForm() {
     if (signupError) {
       setError(signupError.message);
       setIsLoading(false);
+      return;
+    }
+
+    if (data.session) {
+      router.replace('/app');
       return;
     }
 
