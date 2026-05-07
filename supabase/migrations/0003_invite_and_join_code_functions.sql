@@ -30,13 +30,14 @@ create table if not exists public.team_join_codes (
   use_count integer not null default 0 check (use_count >= 0),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint team_join_codes_max_uses_check check (max_uses is null or use_count <= max_uses)
+  constraint team_join_codes_use_count_lte_max_uses_check check (max_uses is null or use_count <= max_uses)
 );
 
 create index if not exists idx_team_join_codes_code on public.team_join_codes(code);
 create index if not exists idx_team_join_codes_team_id on public.team_join_codes(team_id);
 create index if not exists idx_team_join_codes_club_id on public.team_join_codes(club_id);
 
+drop trigger if exists set_team_join_codes_updated_at on public.team_join_codes;
 create trigger set_team_join_codes_updated_at
 before update on public.team_join_codes
 for each row execute function public.set_updated_at();
@@ -175,7 +176,6 @@ begin
     raise exception 'invite_expired';
   end if;
 
-  -- Department lead invite creates a club_membership.
   if v_invite.invite_type = 'department_lead_invite' then
     if v_invite.role <> 'department_lead' or v_invite.department_id is null then
       raise exception 'invalid_department_lead_invite';
@@ -199,8 +199,6 @@ begin
     do update set status = 'active'
     returning id into v_membership_id;
 
-  -- Coach invite creates a team_membership when team_id is present.
-  -- If team_id is null, V1 cannot create a team-level coach assignment yet.
   elsif v_invite.invite_type = 'coach_invite' then
     if v_invite.role not in ('head_coach', 'assistant_coach') then
       raise exception 'invalid_coach_role';
