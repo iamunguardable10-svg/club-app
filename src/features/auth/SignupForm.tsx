@@ -2,11 +2,22 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
+
+function getSafeNextPath(next: string | null) {
+  if (!next || !next.startsWith('/') || next.startsWith('//')) {
+    return '/app';
+  }
+
+  return next;
+}
 
 export function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = getSafeNextPath(searchParams.get('next'));
+  const loginHref = `/auth/login?next=${encodeURIComponent(nextPath)}`;
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -39,11 +50,11 @@ export function SignupForm() {
     }
 
     if (data.session) {
-      router.replace('/app');
+      router.replace(nextPath);
       return;
     }
 
-    setMessage('Account created. Check your email if confirmation is required, then sign in.');
+    setMessage('Account created. Check your email if confirmation is required, then sign in to continue.');
     setIsLoading(false);
   }
 
@@ -55,6 +66,12 @@ export function SignupForm() {
         <p className="mt-2 text-sm leading-6 text-slate-400">
           Create your account first. Club, coach and athlete roles are assigned later through memberships, invites or team codes.
         </p>
+
+        {nextPath !== '/app' ? (
+          <div className="mt-4 rounded-xl border border-emerald-900/70 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-200">
+            After signup, you will continue to: <span className="font-bold">{nextPath}</span>
+          </div>
+        ) : null}
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <label className="block">
@@ -99,7 +116,12 @@ export function SignupForm() {
           ) : null}
 
           {message ? (
-            <div className="rounded-xl border border-emerald-900/70 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-200">{message}</div>
+            <div className="rounded-xl border border-emerald-900/70 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-200">
+              <p>{message}</p>
+              <Link href={loginHref} className="mt-2 inline-block font-bold text-emerald-100 underline">
+                Continue to login
+              </Link>
+            </div>
           ) : null}
 
           <button
@@ -113,7 +135,7 @@ export function SignupForm() {
 
         <p className="mt-5 text-sm text-slate-400">
           Already have an account?{' '}
-          <Link href="/auth/login" className="font-bold text-violet-300 hover:text-violet-200">
+          <Link href={loginHref} className="font-bold text-violet-300 hover:text-violet-200">
             Sign in
           </Link>
         </p>
