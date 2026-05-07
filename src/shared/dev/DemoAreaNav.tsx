@@ -2,6 +2,16 @@ import Link from 'next/link';
 
 const sections = [
   {
+    title: 'Real entry flows',
+    description: 'Use these to test the actual product paths with auth-aware redirects.',
+    links: [
+      { href: '/onboarding/create-club/start', label: 'Create Club Setup' },
+      { href: '/auth/signup?next=/onboarding/create-club', label: 'Signup → Club setup' },
+      { href: '/auth/login?next=/onboarding/create-club', label: 'Login → Club setup' },
+      { href: '/onboarding', label: 'No-membership onboarding' },
+    ],
+  },
+  {
     title: 'Admin Workspace',
     description: 'Club setup, departments, global teams, coaches and facilities.',
     links: [
@@ -45,14 +55,12 @@ const sections = [
     ],
   },
   {
-    title: 'Auth / Onboarding',
-    description: 'Authentication and onboarding entry points.',
+    title: 'Auth / Utilities',
+    description: 'Authentication, workspace routing and placeholder invite/join pages.',
     links: [
       { href: '/auth/login', label: 'Login' },
       { href: '/auth/signup', label: 'Signup' },
       { href: '/app', label: 'Workspace router' },
-      { href: '/onboarding', label: 'No-membership onboarding' },
-      { href: '/onboarding/create-club', label: 'Create club setup' },
       { href: '/invite/demo-token', label: 'Invite placeholder' },
       { href: '/join/DEMO01', label: 'Join code placeholder' },
     ],
@@ -65,9 +73,9 @@ export function DemoAreaNav() {
       <div className="mx-auto max-w-6xl">
         <div className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-5">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Temporary demo mode</p>
-          <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">View all workspaces without login</h1>
+          <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Product review navigation</h1>
           <p className="mt-4 max-w-3xl text-sm leading-6 text-amber-100/80">
-            This page is only for fast product review while the app is still under construction. It bypasses real role-based navigation and should be removed or hidden before production launch.
+            This page is only for fast product review while the app is still under construction. Real entry flows are listed first. Workspace links below are direct UI previews and bypass normal role-based routing.
           </p>
         </div>
 
