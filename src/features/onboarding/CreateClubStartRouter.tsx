@@ -5,6 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 
+function isMissingAuthSessionError(message?: string) {
+  return message?.toLowerCase().includes('auth session missing') ?? false;
+}
+
 export function CreateClubStartRouter() {
   const router = useRouter();
   const [status, setStatus] = useState<'checking' | 'needs_auth' | 'redirecting' | 'error'>('checking');
@@ -23,7 +27,7 @@ export function CreateClubStartRouter() {
 
       if (!isMounted) return;
 
-      if (userError) {
+      if (userError && !isMissingAuthSessionError(userError.message)) {
         setStatus('error');
         setError(userError.message);
         return;
