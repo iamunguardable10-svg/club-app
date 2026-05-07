@@ -2,20 +2,20 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 
 export function LoginForm() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsLoading(true);
     setError(null);
-    setMessage(null);
 
     const supabase = createBrowserSupabaseClient();
 
@@ -30,8 +30,7 @@ export function LoginForm() {
       return;
     }
 
-    setMessage('Login successful. Workspace routing comes next.');
-    setIsLoading(false);
+    router.replace('/app');
   }
 
   return (
@@ -70,10 +69,6 @@ export function LoginForm() {
 
           {error ? (
             <div className="rounded-xl border border-red-900/70 bg-red-950/40 px-4 py-3 text-sm text-red-200">{error}</div>
-          ) : null}
-
-          {message ? (
-            <div className="rounded-xl border border-emerald-900/70 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-200">{message}</div>
           ) : null}
 
           <button
