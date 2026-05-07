@@ -2,11 +2,22 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
+
+function getSafeNextPath(next: string | null) {
+  if (!next || !next.startsWith('/') || next.startsWith('//')) {
+    return '/app';
+  }
+
+  return next;
+}
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = getSafeNextPath(searchParams.get('next'));
+  const signupHref = `/auth/signup?next=${encodeURIComponent(nextPath)}`;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -30,7 +41,7 @@ export function LoginForm() {
       return;
     }
 
-    router.replace('/app');
+    router.replace(nextPath);
   }
 
   return (
@@ -41,6 +52,12 @@ export function LoginForm() {
         <p className="mt-2 text-sm leading-6 text-slate-400">
           Sign in with email and password. Roles and workspaces are resolved after authentication through memberships.
         </p>
+
+        {nextPath !== '/app' ? (
+          <div className="mt-4 rounded-xl border border-emerald-900/70 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-200">
+            After login, you will continue to: <span className="font-bold">{nextPath}</span>
+          </div>
+        ) : null}
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <label className="block">
@@ -82,7 +99,7 @@ export function LoginForm() {
 
         <p className="mt-5 text-sm text-slate-400">
           No account yet?{' '}
-          <Link href="/auth/signup" className="font-bold text-sky-300 hover:text-sky-200">
+          <Link href={signupHref} className="font-bold text-sky-300 hover:text-sky-200">
             Create account
           </Link>
         </p>
