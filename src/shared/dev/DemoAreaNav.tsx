@@ -5,9 +5,9 @@ const sections = [
     title: 'Real entry flows',
     description: 'Use these to test the actual product paths with auth-aware redirects.',
     links: [
-      { href: '/onboarding/create-club/start', label: 'Create Club Setup' },
-      { href: '/auth/signup?next=/onboarding/create-club', label: 'Signup → Club setup' },
-      { href: '/auth/login?next=/onboarding/create-club', label: 'Login → Club setup' },
+      { href: '/onboarding/create-club', label: 'Create Club Setup' },
+      { href: '/auth/signup', label: 'Signup' },
+      { href: '/auth/login', label: 'Login' },
       { href: '/onboarding', label: 'No-membership onboarding' },
     ],
   },
