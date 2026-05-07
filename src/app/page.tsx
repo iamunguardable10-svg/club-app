@@ -19,18 +19,24 @@ export default function HomePage() {
           V1 is a clean foundation: role-based workspaces, invite flows, team join codes, sessions, availability, attendance and load placeholders.
         </p>
 
-        <div className="mt-6 rounded-2xl border border-amber-500/30 bg-amber-950/20 p-5">
-          <p className="text-sm font-bold text-amber-200">Temporary product review mode</p>
-          <p className="mt-2 text-sm leading-6 text-amber-100/80">
-            Use the demo page to jump between all workspaces without creating different accounts during early development.
-          </p>
-          <Link
-            href="/demo"
-            className="mt-4 inline-block rounded-xl bg-amber-300 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-amber-200"
-          >
-            Open demo navigation
-          </Link>
-        </div>
+        <section className="mt-7 rounded-3xl border border-sky-500/30 bg-slate-950/80 p-5">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-300">Start here</p>
+          <h2 className="mt-2 text-2xl font-black">Choose your entry point</h2>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Link href="/onboarding/create-club/start" className="rounded-2xl bg-emerald-400 px-4 py-4 text-center text-sm font-black text-slate-950 transition hover:bg-emerald-300">
+              Create Club Setup
+            </Link>
+            <Link href="/auth/signup" className="rounded-2xl bg-violet-400 px-4 py-4 text-center text-sm font-black text-slate-950 transition hover:bg-violet-300">
+              Create Account
+            </Link>
+            <Link href="/auth/login" className="rounded-2xl bg-sky-400 px-4 py-4 text-center text-sm font-black text-slate-950 transition hover:bg-sky-300">
+              Login
+            </Link>
+            <Link href="/demo" className="rounded-2xl bg-amber-300 px-4 py-4 text-center text-sm font-black text-slate-950 transition hover:bg-amber-200">
+              Demo Review
+            </Link>
+          </div>
+        </section>
 
         <div className="mt-8 grid gap-4 md:grid-cols-4">
           {areas.map((area) => (
