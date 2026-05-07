@@ -13,6 +13,16 @@ function getSafeNextPath(next: string | null) {
   return next;
 }
 
+function getEmailRedirectTo(nextPath: string) {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+
+  const url = new URL('/auth/callback', window.location.origin);
+  url.searchParams.set('next', nextPath);
+  return url.toString();
+}
+
 export function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -37,6 +47,7 @@ export function SignupForm() {
       email,
       password,
       options: {
+        emailRedirectTo: getEmailRedirectTo(nextPath),
         data: {
           full_name: fullName,
         },
@@ -54,7 +65,7 @@ export function SignupForm() {
       return;
     }
 
-    setMessage('Account created. Check your email if confirmation is required, then sign in to continue.');
+    setMessage('Account created. Check your email and confirm it. After confirmation, you will be redirected back here automatically.');
     setIsLoading(false);
   }
 
@@ -119,7 +130,7 @@ export function SignupForm() {
             <div className="rounded-xl border border-emerald-900/70 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-200">
               <p>{message}</p>
               <Link href={loginHref} className="mt-2 inline-block font-bold text-emerald-100 underline">
-                Continue to login
+                Continue to login manually
               </Link>
             </div>
           ) : null}
