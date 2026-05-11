@@ -65,11 +65,14 @@ export function DemoAdminSetupDashboard() {
             <p className="mt-2 text-sm leading-6 text-slate-400">Structure layer between club and teams.</p>
           </div>
 
-          <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Facilities</p>
+          <Link href="/demo/admin/facilities" className="rounded-3xl border border-emerald-700/60 bg-slate-950/70 p-5 transition hover:border-emerald-300 hover:bg-emerald-950/20">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Facilities</p>
+              <span className="text-sm font-black text-emerald-300">Manage →</span>
+            </div>
             <p className="mt-3 text-4xl font-black">{setup.facilities.length}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Global club facilities.</p>
-          </div>
+            <p className="mt-2 text-sm leading-6 text-slate-400">Global club facilities. Open local facility assignment.</p>
+          </Link>
 
           <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">Demo status</p>
@@ -93,14 +96,21 @@ export function DemoAdminSetupDashboard() {
           </div>
 
           <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Infrastructure</p>
-            <h2 className="mt-2 text-xl font-black">Global facilities</h2>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Infrastructure</p>
+                <h2 className="mt-2 text-xl font-black">Global facilities</h2>
+              </div>
+              <Link href="/demo/admin/facilities" className="rounded-xl border border-emerald-500/70 px-3 py-2 text-xs font-bold text-emerald-200 hover:bg-emerald-950/40">
+                Manage →
+              </Link>
+            </div>
             <div className="mt-4 space-y-2">
               {setup.facilities.length > 0 ? (
                 setup.facilities.map((facility) => (
                   <div key={facility} className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
                     <p className="font-bold text-white">{facility}</p>
-                    <p className="mt-1 text-xs text-slate-500">Department assignment comes later.</p>
+                    <p className="mt-1 text-xs text-slate-500">Department assignment is managed on the local facilities page.</p>
                   </div>
                 ))
               ) : (
@@ -116,11 +126,11 @@ export function DemoAdminSetupDashboard() {
           <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
             <Link href="/admin/coaches" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-sky-400">
               <p className="font-black">Invite department leads</p>
-              <p className="mt-2 text-sm leading-6 text-slate-400">Demo link to the future admin coach flow.</p>
+              <p className="mt-2 text-sm leading-6 text-slate-400">Placeholder link to the future admin coach flow.</p>
             </Link>
-            <Link href="/admin/facilities" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-emerald-400">
+            <Link href="/demo/admin/facilities" className="rounded-2xl border border-emerald-700/60 bg-slate-900/60 p-4 transition hover:border-emerald-300">
               <p className="font-black">Assign facilities</p>
-              <p className="mt-2 text-sm leading-6 text-slate-400">Demo link to facility assignment.</p>
+              <p className="mt-2 text-sm leading-6 text-slate-400">Local demo facility assignment without login.</p>
             </Link>
             <Link href="/department/teams" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-violet-400">
               <p className="font-black">Create department teams</p>
