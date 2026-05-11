@@ -46,6 +46,7 @@ export function AdminFacilitiesManager() {
   const [assignments, setAssignments] = useState<DepartmentFacility[]>([]);
   const [newFacilityName, setNewFacilityName] = useState('');
   const [newFacilityAddress, setNewFacilityAddress] = useState('');
+  const [newFacilityDepartmentIds, setNewFacilityDepartmentIds] = useState<string[]>([]);
   const [selectedFacilityId, setSelectedFacilityId] = useState('');
   const [selectedDepartmentIds, setSelectedDepartmentIds] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -149,6 +150,14 @@ export function AdminFacilitiesManager() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  function toggleNewFacilityDepartment(departmentId: string) {
+    setNewFacilityDepartmentIds((current) =>
+      current.includes(departmentId)
+        ? current.filter((currentDepartmentId) => currentDepartmentId !== departmentId)
+        : [...current, departmentId],
+    );
+  }
+
   async function handleCreateFacility(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -158,12 +167,19 @@ export function AdminFacilitiesManager() {
     setError(null);
 
     const supabase = createBrowserSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    const { error: insertError } = await supabase.from('facilities').insert({
-      club_id: clubId,
-      name: newFacilityName.trim(),
-      address: newFacilityAddress.trim() || null,
-    });
+    const { data: insertedFacility, error: insertError } = await supabase
+      .from('facilities')
+      .insert({
+        club_id: clubId,
+        name: newFacilityName.trim(),
+        address: newFacilityAddress.trim() || null,
+      })
+      .select('id')
+      .single();
 
     if (insertError) {
       setError(insertError.message);
@@ -172,8 +188,30 @@ export function AdminFacilitiesManager() {
       return;
     }
 
+    const facilityId = insertedFacility?.id as string | undefined;
+
+    if (facilityId && newFacilityDepartmentIds.length > 0) {
+      const { error: assignmentError } = await supabase.from('department_facilities').insert(
+        newFacilityDepartmentIds.map((departmentId) => ({
+          club_id: clubId,
+          department_id: departmentId,
+          facility_id: facilityId,
+          created_by: user?.id ?? null,
+        })),
+      );
+
+      if (assignmentError) {
+        setError(assignmentError.message);
+        setState('error');
+        setIsSaving(false);
+        return;
+      }
+    }
+
     setNewFacilityName('');
     setNewFacilityAddress('');
+    setNewFacilityDepartmentIds([]);
+    setSelectedFacilityId(facilityId ?? '');
     setIsSaving(false);
     await loadAdminData();
   }
@@ -309,7 +347,6 @@ export function AdminFacilitiesManager() {
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-4xl font-black">{facilities.length}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-400">Click a facility to open the future facility calendar.</p>
             </div>
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -317,15 +354,10 @@ export function AdminFacilitiesManager() {
               <Link
                 key={facility.id}
                 href={`/admin/facilities/${facility.id}/calendar`}
-                className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20"
+                className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-black text-white">{facility.name}</p>
-                    <p className="mt-1 text-xs text-slate-500">{facility.address || 'No address set yet'}</p>
-                  </div>
-                  <span className="text-xs font-black text-emerald-300">Calendar →</span>
-                </div>
+                <p className="font-black text-white">{facility.name}</p>
+                <p className="mt-1 text-xs text-slate-500">{facility.address || 'No address set yet'}</p>
               </Link>
             ))}
           </div>
@@ -336,7 +368,7 @@ export function AdminFacilitiesManager() {
             <form onSubmit={handleCreateFacility} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Create</p>
               <h2 className="mt-2 text-xl font-black">Add global facility</h2>
-              <div className="mt-4 space-y-3">
+              <div className="mt-4 space-y-4">
                 <label className="block">
                   <span className="text-sm font-bold text-slate-200">Name</span>
                   <input
@@ -356,6 +388,22 @@ export function AdminFacilitiesManager() {
                     className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400"
                   />
                 </label>
+                <div>
+                  <p className="text-sm font-bold text-slate-200">Assign to departments optional</p>
+                  <div className="mt-2 space-y-2">
+                    {departments.map((department) => (
+                      <label key={department.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm">
+                        <span className="font-bold text-slate-100">{department.name}</span>
+                        <input
+                          type="checkbox"
+                          checked={newFacilityDepartmentIds.includes(department.id)}
+                          onChange={() => toggleNewFacilityDepartment(department.id)}
+                          className="h-4 w-4"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
                 <button
                   type="submit"
                   disabled={isSaving}
@@ -368,9 +416,9 @@ export function AdminFacilitiesManager() {
 
             <form onSubmit={handleAssignFacility} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Assign</p>
-              <h2 className="mt-2 text-xl font-black">Assign one facility to multiple departments</h2>
+              <h2 className="mt-2 text-xl font-black">Assign existing facility</h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                Select a facility, then choose every department that may use it.
+                Select an existing facility, then choose every department that may use it.
               </p>
               <div className="mt-4 space-y-4">
                 <label className="block">
@@ -449,7 +497,7 @@ export function AdminFacilitiesManager() {
                                 href={`/admin/facilities/${assignment.facility_id}/calendar`}
                                 className="text-sm font-bold text-slate-200 hover:text-emerald-300"
                               >
-                                {facility?.name ?? 'Unknown facility'} →
+                                {facility?.name ?? 'Unknown facility'}
                               </Link>
                               <button
                                 type="button"
