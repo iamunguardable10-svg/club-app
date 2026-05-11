@@ -441,8 +441,9 @@ Important UI decisions:
 - Do not show a team list on `/admin/setup`.
 - Teams should live inside department/team subpages, not on the global admin setup overview.
 - The facility summary card and the global facilities panel include direct `Manage →` links to `/admin/facilities`.
-- Facilities listed on the dashboard now link directly to their future calendar placeholder.
+- Facilities listed on the dashboard link directly to their future calendar placeholder.
 - Dashboard facility cards show compact department usage chips: first two departments plus `+X more` if needed.
+- The large `Calendar →` label was removed from facility cards. The entire card is clickable, with a small `Tap to open calendar` hint to reduce visual clutter on mobile.
 
 ### Admin facilities manager
 
@@ -519,8 +520,9 @@ Recent demo routing fix:
 
 - Demo setup facility links now point to `/demo/admin/facilities`, not `/admin/facilities`.
 - This prevents the local demo flow from requiring login when the user wants to test facility assignment.
-- Facilities listed on the demo dashboard now link directly to their local calendar placeholder.
+- Facilities listed on the demo dashboard link directly to their local calendar placeholder.
 - Demo dashboard facility cards show compact department usage chips: first two departments plus `+X more` if needed.
+- The large `Calendar →` label was removed from facility cards. The entire card is clickable, with a small `Tap to open calendar` hint to reduce visual clutter on mobile.
 
 ### Local browser-only demo facility assignment
 
