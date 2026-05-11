@@ -339,6 +339,26 @@ Purpose:
 - allow default facility per team
 - reduce coach session-creation friction
 
+### 0006_create_initial_club_setup.sql
+
+Added the guided admin setup RPC:
+
+```txt
+create_initial_club_setup(...)
+```
+
+This function atomically:
+
+1. Creates a club
+2. Creates the current user as club_admin
+3. Creates multiple departments
+4. Creates multiple global facilities
+5. Optionally creates teams in one selected department
+
+Important product decision:
+
+Teams are optional during initial setup. They can be created by the club admin, but in larger clubs this can be delegated to department leads later.
+
 ---
 
 ## Supabase status
@@ -359,6 +379,7 @@ Applied migrations:
 0003_invite_and_join_code_functions
 0004_profile_creation_trigger
 0005_facility_scoping
+0006_create_initial_club_setup
 ```
 
 ---
@@ -392,9 +413,20 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY
 /auth/signup
 /app
 /onboarding
+/onboarding/create-club
 /invite/[token]
 /join/[code]
 ```
+
+### Local demo mode
+
+```txt
+/demo
+/demo/create-club
+/demo/admin/setup
+```
+
+Local demo routes are browser-only and store data in `localStorage`. They do not write to Supabase and do not require login.
 
 ### Admin
 
@@ -481,6 +513,86 @@ no membership    → /onboarding
 
 ---
 
+## Implemented product flows
+
+### Real authenticated admin setup
+
+Route:
+
+```txt
+/onboarding/create-club
+```
+
+Purpose:
+
+- authenticated user creates the first club setup
+- multiple departments can be created
+- multiple global facilities can be created
+- teams can optionally be created for one selected department
+- user becomes club_admin
+- redirects to `/admin/setup`
+
+Storage:
+
+```txt
+Supabase
+```
+
+### Admin setup dashboard
+
+Route:
+
+```txt
+/admin/setup
+```
+
+Purpose:
+
+- show the created club
+- show setup progress
+- show department count/list
+- show global facility count/list
+- guide the admin toward the next operational steps
+
+Important UI decision:
+
+Do not show a team list on `/admin/setup`.
+
+Reason:
+
+Teams should live inside department/team subpages, not on the global admin setup overview.
+
+### Local browser-only demo setup
+
+Routes:
+
+```txt
+/demo/create-club
+/demo/admin/setup
+```
+
+Purpose:
+
+- allow product testing without login
+- allow entering demo club/departments/facilities/teams
+- store data only in browser localStorage
+- avoid writing test data into Supabase
+
+Storage:
+
+```txt
+localStorage only
+```
+
+Important distinction:
+
+```txt
+/onboarding/create-club → real authenticated Supabase write
+/demo/create-club       → local browser-only demo write
+```
+
+---
+
 ## Current implementation status
 
 Working / prepared:
@@ -495,10 +607,13 @@ Working / prepared:
 - profile creation trigger
 - workspace routing
 - placeholder pages for Admin, Department, Coach and Athlete
+- real authenticated club setup flow
+- real admin setup dashboard
+- local browser-only demo setup flow
+- local browser-only demo admin setup dashboard
 
 Still placeholder / not fully implemented:
 
-- real club creation UI
 - real department management UI
 - real team management UI
 - real coach invite UI
@@ -514,27 +629,25 @@ Still placeholder / not fully implemented:
 
 ## Next recommended steps
 
-1. Build onboarding actions:
-   - create club
-   - accept invite
-   - join team by code
+1. Make Admin Facilities functional:
+   - show global facilities
+   - add/edit facilities
+   - assign facilities to departments
 
-2. Implement admin setup flow:
-   - create club
-   - create first department
-   - create first team
-   - create first facility
-   - create club_admin membership
+2. Make Department Teams functional:
+   - show teams under a department
+   - create teams inside a department
+   - set default facility per team later
 
-3. Implement team join code flow:
-   - preview team by code
-   - join team by code
-   - redirect athlete to athlete workspace
-
-4. Implement coach invite flow:
+3. Implement coach invite flow:
    - preview invite by token
    - accept invite
    - redirect coach to coach workspace
+
+4. Implement athlete team join code flow:
+   - preview team by code
+   - join team by code
+   - redirect athlete to athlete workspace
 
 5. Implement session creation foundation:
    - team selection
@@ -555,4 +668,6 @@ Still placeholder / not fully implemented:
 7. Athletes do not see teammate load data.
 8. Club admins manage structure, not necessarily individual performance data.
 9. Departments are the operational layer between club and teams.
-10. The product should become a real club/team operating system, not a generic AI demo app.
+10. Teams should not clutter `/admin/setup`; team detail belongs in department/team screens.
+11. The product should become a real club/team operating system, not a generic AI demo app.
+12. Local demo mode must remain easy to remove before production launch.
