@@ -4,17 +4,43 @@ type FacilityCalendarPageProps = {
   params: Promise<{
     facilityId: string;
   }>;
+  searchParams?: Promise<{
+    from?: string;
+  }>;
 };
 
-export default async function FacilityCalendarPage({ params }: FacilityCalendarPageProps) {
+function getBackTarget(from?: string) {
+  if (from === 'departments') {
+    return {
+      href: '/admin/departments',
+      label: '← Back to departments',
+    };
+  }
+
+  if (from === 'overview') {
+    return {
+      href: '/admin/overview',
+      label: '← Back to overview',
+    };
+  }
+
+  return {
+    href: '/admin/facilities',
+    label: '← Back to facilities',
+  };
+}
+
+export default async function FacilityCalendarPage({ params, searchParams }: FacilityCalendarPageProps) {
   const { facilityId } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const backTarget = getBackTarget(resolvedSearchParams?.from);
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#064E3B_0,#070A12_45%)] px-4 py-8 text-white sm:px-8">
       <div className="mx-auto max-w-5xl space-y-5">
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 shadow-sm">
-          <Link href="/admin/facilities" className="inline-flex items-center text-sm font-black text-emerald-300 hover:text-emerald-200">
-            ← Back to facilities
+          <Link href={backTarget.href} className="inline-flex items-center text-sm font-black text-emerald-300 hover:text-emerald-200">
+            {backTarget.label}
           </Link>
           <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-emerald-300">Facility calendar</p>
           <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Facility calendar placeholder</h1>
