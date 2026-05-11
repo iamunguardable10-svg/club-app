@@ -50,14 +50,14 @@ function isMissingAuthSessionError(message?: string) {
 
 function UsageChips({ items, emptyText }: { items: string[]; emptyText: string }) {
   if (items.length === 0) {
-    return <p className="mt-3 text-xs text-slate-500">{emptyText}</p>;
+    return <p className="mt-2 text-xs text-slate-500">{emptyText}</p>;
   }
 
   const visibleItems = items.slice(0, 2);
   const hiddenCount = items.length - visibleItems.length;
 
   return (
-    <div className="mt-3 flex flex-wrap gap-2">
+    <div className="mt-2 flex flex-wrap gap-2">
       {visibleItems.map((item) => (
         <span key={item} className="rounded-full border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-1 text-xs font-bold text-emerald-200">
           {item}
@@ -272,7 +272,7 @@ export function AdminDepartmentsManager() {
         <p className="text-xs font-black uppercase tracking-[0.24em] text-violet-300">Admin departments</p>
         <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Departments for {club?.name}</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-          Departments are the operating layer between the club and teams. Keep the overview compact; open a department when you need its teams, facilities and invites.
+          Departments are the operating layer between the club and teams. Tap a department card to open its dedicated workspace.
         </p>
       </section>
 
@@ -325,21 +325,31 @@ export function AdminDepartmentsManager() {
                 const hasLeadInvite = pendingInvites.some((invite) => invite.role === 'department_lead');
 
                 return (
-                  <article key={department.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+                  <article
+                    key={department.id}
+                    role="link"
+                    tabIndex={0}
+                    onClick={() => router.push(`/admin/departments/${department.id}`)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') router.push(`/admin/departments/${department.id}`);
+                    }}
+                    className="cursor-pointer rounded-2xl border border-slate-800 bg-slate-900/60 p-5 transition hover:border-violet-400/70 hover:bg-slate-900"
+                  >
                     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                       <div>
                         <h2 className="text-xl font-black text-white">{department.name}</h2>
                         <p className="mt-1 text-xs text-slate-500">{department.sport || 'No sport label set'}</p>
-                        <UsageChips items={facilityNames} emptyText="No facilities assigned yet." />
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Link href={`/admin/people?department=${department.id}`} className="rounded-xl border border-amber-500/60 px-3 py-2 text-xs font-black text-amber-200 hover:bg-amber-950/40">
-                          Invite people
-                        </Link>
-                        <Link href={`/admin/departments/${department.id}`} className="rounded-xl border border-violet-500/60 px-3 py-2 text-xs font-black text-violet-200 hover:bg-violet-950/40">
-                          Open department
-                        </Link>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          router.push(`/admin/people?department=${department.id}`);
+                        }}
+                        className="w-fit rounded-xl border border-amber-500/60 px-3 py-2 text-xs font-black text-amber-200 hover:bg-amber-950/40"
+                      >
+                        Invite people
+                      </button>
                     </div>
 
                     <div className="mt-4 grid gap-2 sm:grid-cols-3">
@@ -350,6 +360,7 @@ export function AdminDepartmentsManager() {
                       <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
                         <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Facilities</p>
                         <p className="mt-1 text-sm font-black text-slate-100">{facilityNames.length === 0 ? 'Needs assignment' : 'Assigned'}</p>
+                        <UsageChips items={facilityNames} emptyText="No facilities assigned yet." />
                       </div>
                       <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
                         <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Lead invite</p>
