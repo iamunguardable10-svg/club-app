@@ -199,11 +199,14 @@ export function AdminSetupDashboard() {
             <p className="mt-2 text-sm leading-6 text-slate-400">Structure layer between club and teams. Teams are managed in department pages.</p>
           </div>
 
-          <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Facilities</p>
+          <Link href="/admin/facilities" className="rounded-3xl border border-emerald-700/60 bg-slate-950/70 p-5 transition hover:border-emerald-300 hover:bg-emerald-950/20">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Facilities</p>
+              <span className="text-sm font-black text-emerald-300">Manage →</span>
+            </div>
             <p className="mt-3 text-4xl font-black">{facilities.length}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Global club facilities. Department assignment comes next.</p>
-          </div>
+            <p className="mt-2 text-sm leading-6 text-slate-400">Global club facilities. Open facility management and department assignment.</p>
+          </Link>
 
           <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">Next focus</p>
@@ -244,8 +247,8 @@ export function AdminSetupDashboard() {
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Infrastructure</p>
                 <h2 className="mt-2 text-xl font-black">Global facilities</h2>
               </div>
-              <Link href="/admin/facilities" className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-bold text-slate-200 hover:border-emerald-400">
-                Manage
+              <Link href="/admin/facilities" className="rounded-xl border border-emerald-500/70 px-3 py-2 text-xs font-bold text-emerald-200 hover:bg-emerald-950/40">
+                Manage →
               </Link>
             </div>
 
@@ -272,7 +275,7 @@ export function AdminSetupDashboard() {
               <p className="font-black">Invite department leads</p>
               <p className="mt-2 text-sm leading-6 text-slate-400">Delegate operations before teams become too much admin work.</p>
             </Link>
-            <Link href="/admin/facilities" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-emerald-400">
+            <Link href="/admin/facilities" className="rounded-2xl border border-emerald-700/60 bg-slate-900/60 p-4 transition hover:border-emerald-300">
               <p className="font-black">Assign facilities</p>
               <p className="mt-2 text-sm leading-6 text-slate-400">Scope global facilities to departments for cleaner coach workflows.</p>
             </Link>
