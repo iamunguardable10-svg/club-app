@@ -31,15 +31,14 @@ export function DemoAdminFacilitiesManager() {
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [assignments, setAssignments] = useState<DemoAssignment[]>([]);
   const [newFacility, setNewFacility] = useState('');
-  const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedFacility, setSelectedFacility] = useState('');
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
 
   useEffect(() => {
     const currentSetup = getDemoClubSetup();
     const currentAssignments = getAssignments();
     setSetup(currentSetup);
     setAssignments(currentAssignments);
-    setSelectedDepartment(currentSetup?.departments[0] ?? '');
     setSelectedFacility(currentSetup?.facilities[0] ?? '');
   }, []);
 
@@ -54,6 +53,14 @@ export function DemoAdminFacilitiesManager() {
 
     return map;
   }, [assignments]);
+
+  const assignedDepartmentsForSelectedFacility = useMemo(() => {
+    return new Set(
+      assignments
+        .filter((assignment) => assignment.facility === selectedFacility)
+        .map((assignment) => assignment.department),
+    );
+  }, [assignments, selectedFacility]);
 
   function persistSetup(nextSetup: DemoClubSetup) {
     saveDemoClubSetup(nextSetup);
@@ -81,19 +88,32 @@ export function DemoAdminFacilitiesManager() {
     setNewFacility('');
   }
 
+  function toggleDepartment(department: string) {
+    setSelectedDepartments((current) =>
+      current.includes(department)
+        ? current.filter((currentDepartment) => currentDepartment !== department)
+        : [...current, department],
+    );
+  }
+
   function handleAssign(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedDepartment || !selectedFacility) return;
+    if (!selectedFacility || selectedDepartments.length === 0) return;
 
-    const exists = assignments.some(
-      (assignment) => assignment.department === selectedDepartment && assignment.facility === selectedFacility,
-    );
+    const existingKeys = new Set(assignments.map((assignment) => `${assignment.department}::${assignment.facility}`));
+    const additions = selectedDepartments
+      .filter((department) => !existingKeys.has(`${department}::${selectedFacility}`))
+      .map((department) => ({ department, facility: selectedFacility }));
 
-    if (exists) return;
+    if (additions.length === 0) {
+      setSelectedDepartments([]);
+      return;
+    }
 
-    const nextAssignments = [...assignments, { department: selectedDepartment, facility: selectedFacility }];
+    const nextAssignments = [...assignments, ...additions];
     setAssignments(nextAssignments);
     saveAssignments(nextAssignments);
+    setSelectedDepartments([]);
   }
 
   function handleRemove(department: string, facility: string) {
@@ -128,33 +148,20 @@ export function DemoAdminFacilitiesManager() {
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#92400E_0,#070A12_45%)] px-4 py-8 text-white sm:px-8">
       <div className="mx-auto max-w-6xl space-y-5">
         <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo facilities</p>
-          <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <h1 className="text-3xl font-black tracking-tight sm:text-5xl">Facilities for {setup.clubName}</h1>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-100/80">
-                Browser-only facility assignment. This does not write to Supabase and does not require login.
-              </p>
-            </div>
-            <Link href="/demo/admin/setup" className="rounded-xl border border-amber-400/70 px-4 py-3 text-sm font-black text-amber-100 hover:bg-amber-950/50">
-              Back to local setup
-            </Link>
-          </div>
+          <Link href="/demo/admin/setup" className="inline-flex items-center text-sm font-black text-amber-200 hover:text-amber-100">
+            ← Back to local setup
+          </Link>
+          <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo facilities</p>
+          <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Facilities for {setup.clubName}</h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-100/80">
+            Browser-only facility assignment. Assign one facility to one or multiple departments without writing to Supabase.
+          </p>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Global facilities</p>
-            <p className="mt-3 text-4xl font-black">{setup.facilities.length}</p>
-          </div>
-          <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Departments</p>
-            <p className="mt-3 text-4xl font-black">{setup.departments.length}</p>
-          </div>
-          <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Assignments</p>
-            <p className="mt-3 text-4xl font-black">{assignments.length}</p>
-          </div>
+        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Global facilities</p>
+          <p className="mt-3 text-4xl font-black">{setup.facilities.length}</p>
+          <p className="mt-2 text-sm leading-6 text-slate-400">Created at club level. Assignment happens per facility below.</p>
         </section>
 
         <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
@@ -180,19 +187,11 @@ export function DemoAdminFacilitiesManager() {
 
             <form onSubmit={handleAssign} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Assign</p>
-              <h2 className="mt-2 text-xl font-black">Assign facility to department</h2>
-              <div className="mt-4 space-y-3">
-                <select
-                  value={selectedDepartment}
-                  onChange={(event) => setSelectedDepartment(event.target.value)}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-400"
-                >
-                  {setup.departments.map((department) => (
-                    <option key={department} value={department}>
-                      {department}
-                    </option>
-                  ))}
-                </select>
+              <h2 className="mt-2 text-xl font-black">Assign one facility to multiple departments</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Select a facility, then choose every department that may use it.
+              </p>
+              <div className="mt-4 space-y-4">
                 <select
                   value={selectedFacility}
                   onChange={(event) => setSelectedFacility(event.target.value)}
@@ -204,11 +203,36 @@ export function DemoAdminFacilitiesManager() {
                     </option>
                   ))}
                 </select>
+
+                <div className="space-y-2">
+                  {setup.departments.map((department) => {
+                    const alreadyAssigned = assignedDepartmentsForSelectedFacility.has(department);
+                    const checked = selectedDepartments.includes(department) || alreadyAssigned;
+
+                    return (
+                      <label key={department} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm">
+                        <span>
+                          <span className="font-bold text-slate-100">{department}</span>
+                          {alreadyAssigned ? <span className="ml-2 text-xs font-bold text-emerald-300">already assigned</span> : null}
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={alreadyAssigned}
+                          onChange={() => toggleDepartment(department)}
+                          className="h-4 w-4"
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+
                 <button
                   type="submit"
-                  className="w-full rounded-xl bg-violet-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-violet-300"
+                  disabled={selectedDepartments.length === 0}
+                  className="w-full rounded-xl bg-violet-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-violet-300 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Assign locally
+                  Assign selected departments
                 </button>
               </div>
             </form>
