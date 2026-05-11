@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { AdminShell } from '@/shared/admin/AdminShell';
 import { getDemoClubSetup, type DemoClubSetup } from '@/shared/dev/demoStorage';
 
@@ -51,6 +52,8 @@ function roleLabel(role: DemoInviteRole) {
 }
 
 export function DemoAdminPeopleManager() {
+  const searchParams = useSearchParams();
+  const requestedDepartment = searchParams.get('department') ?? '';
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [invites, setInvites] = useState<DemoInvite[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState('');
@@ -62,11 +65,15 @@ export function DemoAdminPeopleManager() {
   useEffect(() => {
     const currentSetup = getDemoClubSetup();
     const currentInvites = getDemoInvites();
+    const initialDepartment = currentSetup?.departments.includes(requestedDepartment)
+      ? requestedDepartment
+      : currentSetup?.departments[0] ?? '';
+
     setSetup(currentSetup);
     setInvites(currentInvites);
-    setSelectedDepartment(currentSetup?.departments[0] ?? '');
+    setSelectedDepartment(initialDepartment);
     setSelectedTeam(currentSetup?.teams[0] ?? '');
-  }, []);
+  }, [requestedDepartment]);
 
   const pendingInvites = useMemo(() => invites.filter((invite) => invite.status === 'pending'), [invites]);
   const nonPendingInvites = useMemo(() => invites.filter((invite) => invite.status !== 'pending'), [invites]);
