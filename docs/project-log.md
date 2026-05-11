@@ -1,12 +1,10 @@
 # Project Log
 
-This document summarizes the current state of the Club App / TeamLoad OS project.
-
-It is a high-level changelog and decision log for product, architecture, database and implementation progress.
+This document summarizes the current state of the Club App / TeamLoad OS project. It is the central changelog and decision log for product, architecture, database and implementation progress.
 
 ---
 
-## Current product vision
+## Product vision
 
 Club App / TeamLoad OS is a club operating system for:
 
@@ -15,97 +13,22 @@ Club App / TeamLoad OS is a club operating system for:
 - coaches
 - athletes
 
-The product should support:
+The product should support club structure, departments, teams, coaches, athletes, sessions, availability, attendance, load tracking, facilities, department operations and invite/join flows.
 
-- club structure
-- departments
-- teams
-- coaches
-- athletes
-- sessions
-- availability
-- attendance
-- load tracking
-- facilities
-- department operations
-- invite and join flows
-
-The system should not be a generic overloaded dashboard. It should give each role exactly the information needed for its operational job.
+The system must not become a generic overloaded dashboard. Each role should see exactly the information needed for its operational job.
 
 ---
 
 ## Core workspace model
 
-The app is separated into four major workspaces:
-
 ```txt
-Admin Workspace
-Department Workspace
-Coach Workspace
-Athlete Workspace
+Admin Workspace       → club setup, departments, facilities, high-level role management
+Department Workspace  → department operations, teams, schedule, coaches, facility usage
+Coach Workspace       → assigned teams, today, attendance, load, sessions
+Athlete Workspace     → own sessions, own availability, own load
 ```
 
-### Admin Workspace
-
-Purpose:
-
-- club setup
-- global club structure
-- departments
-- facilities
-- high-level role management
-
-Primary user:
-
-- club_admin
-
-### Department Workspace
-
-Purpose:
-
-- department-level operations
-- teams in the department
-- department schedule
-- department coaches
-- department facility usage
-
-Primary users:
-
-- club_admin
-- department_lead
-
-### Coach Workspace
-
-Purpose:
-
-- own assigned teams
-- today's session decisions
-- availability
-- attendance
-- load overview
-- team sessions
-
-Primary users:
-
-- head_coach
-- assistant_coach
-
-### Athlete Workspace
-
-Purpose:
-
-- own sessions
-- own availability
-- own load reporting
-- own team context
-
-Primary user:
-
-- athlete
-
----
-
-## Confirmed V1 roles
+Confirmed V1 roles:
 
 ```txt
 club_admin
@@ -115,15 +38,14 @@ assistant_coach
 athlete
 ```
 
-Important principle:
+Important role principle:
 
-Do not store one global role on the user.
-
+```txt
+Do not store one global user role.
 Roles come from memberships.
+```
 
----
-
-## Confirmed structure
+Confirmed hierarchy:
 
 ```txt
 club
@@ -131,16 +53,7 @@ club
     └── team
 ```
 
-Teams are always subordinate to departments.
-
-Users can have multiple memberships.
-
-Examples:
-
-- athlete in multiple teams
-- coach assigned to multiple teams
-- club admin who also coaches
-- department lead managing one department
+Teams are always subordinate to departments. Users can have multiple memberships.
 
 ---
 
@@ -156,13 +69,9 @@ Used for responsibility roles:
 - head_coach
 - assistant_coach
 
-Personal invites are controlled and role-specific.
-
 ### Reusable team join codes
 
 Used for athletes.
-
-A coach can generate one reusable team code/link for all athletes on a team.
 
 Example:
 
@@ -170,27 +79,13 @@ Example:
 /join/U18ABC
 ```
 
-Athlete flow:
-
-```txt
-open link or enter code
-→ login/signup
-→ confirm team
-→ join as athlete
-→ athlete workspace
-```
-
-A reusable team code can only create athlete memberships.
+A reusable team code can only create athlete memberships. It must not grant coach/admin rights.
 
 ---
 
 ## Facility model
 
-Facilities are created globally at club level.
-
-But coaches should not see every facility in the whole club by default.
-
-V1 facility scoping:
+Facilities are created globally at club level, then assigned to departments.
 
 ```txt
 club facilities
@@ -199,14 +94,14 @@ club facilities
 → optional default facility per team
 ```
 
-### Key decisions
+Key decisions:
 
 - club_admin creates global facilities
-- department_lead selects facilities for their department
-- coach sees primarily department-scoped facilities
-- team can have a default facility
+- department_lead can later manage facilities for their department
+- coach should primarily see department-scoped facilities
+- team can later have a default facility
 
-This reduces session creation friction for coaches.
+This prevents coaches from seeing every facility in the whole club while creating sessions.
 
 ---
 
@@ -220,48 +115,12 @@ session_load = RPE × duration_minutes
 
 Load is a future USP and should be expanded later.
 
-Future ideas:
-
-- acute load
-- chronic load
-- ACWR-like signals
-- monotony
-- strain
-- return-to-load
-- wellness correlation
-- coach alerts
-
 Privacy decision:
 
 - athlete sees own load
 - teammates do not see each other's load
 - coaches see load for assigned teams
 - club_admin does not automatically see individual load data
-
----
-
-## Notifications
-
-V1 uses simple in-app signals only.
-
-Examples:
-
-- invite accepted
-- session created
-- athlete marked late/maybe/out
-- attendance needs finalization
-- load missing
-
-No full push notification system in V1.
-
-Future versions can add:
-
-- push notifications
-- email reminders
-- attendance reminders
-- load reminders
-- notification preferences
-- smart coach alerts
 
 ---
 
@@ -291,7 +150,7 @@ Also enabled RLS on all core tables.
 
 ### 0002_rls_policies.sql
 
-Added V1 Row Level Security policies and helper functions.
+Added V1 RLS policies and helper functions.
 
 Key access decisions:
 
@@ -312,13 +171,9 @@ Added:
 - join_team_by_code(code)
 - create_team_join_code(team_id, code, expires_at, max_uses)
 
-Also added RLS for team join codes.
-
 ### 0004_profile_creation_trigger.sql
 
 Added automatic profile creation after Supabase Auth signup.
-
-Flow:
 
 ```txt
 auth.users insert
@@ -341,7 +196,7 @@ Purpose:
 
 ### 0006_create_initial_club_setup.sql
 
-Added the guided admin setup RPC:
+Added guided admin setup RPC:
 
 ```txt
 create_initial_club_setup(...)
@@ -392,7 +247,7 @@ Vercel project:
 club-app
 ```
 
-Vercel is connected to GitHub and deploys automatically from the main branch.
+Vercel is connected to GitHub and deploys automatically from `main`.
 
 Environment variables configured:
 
@@ -424,6 +279,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY
 /demo
 /demo/create-club
 /demo/admin/setup
+/demo/admin/facilities
 ```
 
 Local demo routes are browser-only and store data in `localStorage`. They do not write to Supabase and do not require login.
@@ -525,7 +381,7 @@ Route:
 
 Purpose:
 
-- authenticated user creates the first club setup
+- authenticated user creates first club setup
 - multiple departments can be created
 - multiple global facilities can be created
 - teams can optionally be created for one selected department
@@ -552,7 +408,7 @@ Purpose:
 - show setup progress
 - show department count/list
 - show global facility count/list
-- guide the admin toward the next operational steps
+- guide the admin toward next operational steps
 
 Important UI decision:
 
@@ -561,6 +417,34 @@ Do not show a team list on `/admin/setup`.
 Reason:
 
 Teams should live inside department/team subpages, not on the global admin setup overview.
+
+### Admin facilities manager
+
+Route:
+
+```txt
+/admin/facilities
+```
+
+Purpose:
+
+- load the admin's club context
+- show global facilities
+- show departments
+- show department-facility assignments
+- create a new global facility
+- assign a facility to a department
+- remove a facility assignment
+
+Storage:
+
+```txt
+Supabase
+```
+
+Product effect:
+
+This is the first real implementation of the facility-scoping model. It prepares the later coach session-creation flow where coaches should only see relevant department facilities.
 
 ### Local browser-only demo setup
 
@@ -584,11 +468,33 @@ Storage:
 localStorage only
 ```
 
+### Local browser-only demo facility assignment
+
+Route:
+
+```txt
+/demo/admin/facilities
+```
+
+Purpose:
+
+- test facility creation and department assignment without login
+- store assignments only in browser localStorage
+- preview the future coach filtering logic without database writes
+
+Storage:
+
+```txt
+localStorage only
+```
+
 Important distinction:
 
 ```txt
 /onboarding/create-club → real authenticated Supabase write
-/demo/create-club       → local browser-only demo write
+/admin/facilities      → real authenticated Supabase write
+/demo/create-club      → local browser-only demo write
+/demo/admin/facilities → local browser-only demo write
 ```
 
 ---
@@ -609,8 +515,10 @@ Working / prepared:
 - placeholder pages for Admin, Department, Coach and Athlete
 - real authenticated club setup flow
 - real admin setup dashboard
+- real admin facilities manager
 - local browser-only demo setup flow
 - local browser-only demo admin setup dashboard
+- local browser-only demo facility assignment flow
 
 Still placeholder / not fully implemented:
 
@@ -622,34 +530,28 @@ Still placeholder / not fully implemented:
 - real availability flow
 - real attendance finalization
 - real load entry flow
-- real facility assignment UI
 - real protected layouts/server-side auth enforcement
 
 ---
 
 ## Next recommended steps
 
-1. Make Admin Facilities functional:
-   - show global facilities
-   - add/edit facilities
-   - assign facilities to departments
-
-2. Make Department Teams functional:
+1. Make Department Teams functional:
    - show teams under a department
    - create teams inside a department
    - set default facility per team later
 
-3. Implement coach invite flow:
+2. Implement coach invite flow:
    - preview invite by token
    - accept invite
    - redirect coach to coach workspace
 
-4. Implement athlete team join code flow:
+3. Implement athlete team join code flow:
    - preview team by code
    - join team by code
    - redirect athlete to athlete workspace
 
-5. Implement session creation foundation:
+4. Implement session creation foundation:
    - team selection
    - default facility
    - department-scoped facility list
