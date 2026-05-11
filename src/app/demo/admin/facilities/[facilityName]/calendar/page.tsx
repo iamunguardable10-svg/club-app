@@ -4,18 +4,44 @@ type DemoFacilityCalendarPageProps = {
   params: Promise<{
     facilityName: string;
   }>;
+  searchParams?: Promise<{
+    from?: string;
+  }>;
 };
 
-export default async function DemoFacilityCalendarPage({ params }: DemoFacilityCalendarPageProps) {
+function getBackTarget(from?: string) {
+  if (from === 'departments') {
+    return {
+      href: '/demo/admin/departments',
+      label: '← Back to local departments',
+    };
+  }
+
+  if (from === 'overview') {
+    return {
+      href: '/demo/admin/overview',
+      label: '← Back to local overview',
+    };
+  }
+
+  return {
+    href: '/demo/admin/facilities',
+    label: '← Back to local facilities',
+  };
+}
+
+export default async function DemoFacilityCalendarPage({ params, searchParams }: DemoFacilityCalendarPageProps) {
   const { facilityName } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const backTarget = getBackTarget(resolvedSearchParams?.from);
   const decodedFacilityName = decodeURIComponent(facilityName);
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#92400E_0,#070A12_45%)] px-4 py-8 text-white sm:px-8">
       <div className="mx-auto max-w-5xl space-y-5">
         <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6 shadow-sm">
-          <Link href="/demo/admin/facilities" className="inline-flex items-center text-sm font-black text-amber-200 hover:text-amber-100">
-            ← Back to local facilities
+          <Link href={backTarget.href} className="inline-flex items-center text-sm font-black text-amber-200 hover:text-amber-100">
+            {backTarget.label}
           </Link>
           <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo facility calendar</p>
           <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">{decodedFacilityName}</h1>
