@@ -2,8 +2,17 @@ import Link from 'next/link';
 
 const sections = [
   {
+    title: 'Local demo flows',
+    description: 'Browser-only testing without login and without Supabase writes.',
+    links: [
+      { href: '/demo/create-club', label: 'Local Create Club' },
+      { href: '/demo/admin/setup', label: 'Local Admin Setup' },
+      { href: '/demo', label: 'Demo navigation' },
+    ],
+  },
+  {
     title: 'Real entry flows',
-    description: 'Use these to test the actual product paths with auth-aware redirects.',
+    description: 'Use these to test the actual product paths with auth-aware redirects and Supabase writes.',
     links: [
       { href: '/onboarding/create-club', label: 'Create Club Setup' },
       { href: '/auth/signup', label: 'Signup' },
@@ -75,7 +84,7 @@ export function DemoAreaNav() {
           <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Temporary demo mode</p>
           <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Product review navigation</h1>
           <p className="mt-4 max-w-3xl text-sm leading-6 text-amber-100/80">
-            This page is only for fast product review while the app is still under construction. Real entry flows are listed first. Workspace links below are direct UI previews and bypass normal role-based routing.
+            Local demo flows are listed first and store data only in your browser. Workspace links below are direct UI previews and bypass normal role-based routing.
           </p>
         </div>
 
