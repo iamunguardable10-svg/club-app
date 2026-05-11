@@ -173,15 +173,11 @@ export function DemoAdminSetupDashboard() {
                   <Link
                     key={facility}
                     href={`/demo/admin/facilities/${encodeFacilityName(facility)}/calendar`}
-                    className="block rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20"
+                    className="block rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-bold text-white">{facility}</p>
-                        <UsageSummary departments={departmentsByFacility.get(facility) ?? []} />
-                      </div>
-                      <span className="text-xs font-black text-emerald-300">Calendar →</span>
-                    </div>
+                    <p className="font-bold text-white">{facility}</p>
+                    <UsageSummary departments={departmentsByFacility.get(facility) ?? []} />
+                    <p className="mt-3 text-xs font-bold text-emerald-300/80">Tap to open calendar</p>
                   </Link>
                 ))
               ) : (
