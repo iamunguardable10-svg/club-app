@@ -27,6 +27,10 @@ function saveAssignments(assignments: DemoAssignment[]) {
   window.localStorage.setItem(DEMO_FACILITY_ASSIGNMENTS_KEY, JSON.stringify(assignments));
 }
 
+function encodeFacilityName(facility: string) {
+  return encodeURIComponent(facility);
+}
+
 export function DemoAdminFacilitiesManager() {
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [assignments, setAssignments] = useState<DemoAssignment[]>([]);
@@ -161,7 +165,21 @@ export function DemoAdminFacilitiesManager() {
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Global facilities</p>
           <p className="mt-3 text-4xl font-black">{setup.facilities.length}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-400">Created at club level. Assignment happens per facility below.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-400">Click a facility to open the future local facility calendar.</p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {setup.facilities.map((facility) => (
+              <Link
+                key={facility}
+                href={`/demo/admin/facilities/${encodeFacilityName(facility)}/calendar`}
+                className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-black text-white">{facility}</p>
+                  <span className="text-xs font-black text-emerald-300">Calendar →</span>
+                </div>
+              </Link>
+            ))}
+          </div>
         </section>
 
         <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
@@ -256,7 +274,12 @@ export function DemoAdminFacilitiesManager() {
                       {departmentAssignments.length > 0 ? (
                         departmentAssignments.map((assignment) => (
                           <div key={`${assignment.department}-${assignment.facility}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
-                            <span className="text-sm font-bold text-slate-200">{assignment.facility}</span>
+                            <Link
+                              href={`/demo/admin/facilities/${encodeFacilityName(assignment.facility)}/calendar`}
+                              className="text-sm font-bold text-slate-200 hover:text-emerald-300"
+                            >
+                              {assignment.facility} →
+                            </Link>
                             <button
                               type="button"
                               onClick={() => handleRemove(assignment.department, assignment.facility)}
