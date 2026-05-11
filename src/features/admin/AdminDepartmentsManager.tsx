@@ -8,10 +8,7 @@ import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 
 type ClubMembership = { club_id: string };
 
-type Club = {
-  id: string;
-  name: string;
-};
+type Club = { id: string; name: string };
 
 type Department = {
   id: string;
@@ -20,20 +17,9 @@ type Department = {
   created_at: string;
 };
 
-type Facility = {
-  id: string;
-  name: string;
-};
-
-type DepartmentFacility = {
-  department_id: string;
-  facility_id: string;
-};
-
-type Team = {
-  id: string;
-  department_id: string;
-};
+type Facility = { id: string; name: string };
+type DepartmentFacility = { department_id: string; facility_id: string };
+type Team = { id: string; department_id: string };
 
 type Invite = {
   id: string;
@@ -48,7 +34,7 @@ function isMissingAuthSessionError(message?: string) {
   return message?.toLowerCase().includes('auth session missing') ?? false;
 }
 
-function UsageChips({ items, emptyText }: { items: string[]; emptyText: string }) {
+function UsageChips({ items, emptyText }: { items: Facility[]; emptyText: string }) {
   if (items.length === 0) {
     return <p className="mt-2 text-xs text-slate-500">{emptyText}</p>;
   }
@@ -59,9 +45,14 @@ function UsageChips({ items, emptyText }: { items: string[]; emptyText: string }
   return (
     <div className="mt-2 flex flex-wrap gap-2">
       {visibleItems.map((item) => (
-        <span key={item} className="rounded-full border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-1 text-xs font-bold text-emerald-200">
-          {item}
-        </span>
+        <Link
+          key={item.id}
+          href={`/admin/facilities/${item.id}/calendar`}
+          onClick={(event) => event.stopPropagation()}
+          className="rounded-full border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-1 text-xs font-bold text-emerald-200 transition hover:border-emerald-300 hover:bg-emerald-950/60"
+        >
+          {item.name}
+        </Link>
       ))}
       {hiddenCount > 0 ? (
         <span className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs font-bold text-slate-300">
@@ -90,14 +81,14 @@ export function AdminDepartmentsManager() {
 
   const facilityById = useMemo(() => new Map(facilities.map((facility) => [facility.id, facility])), [facilities]);
 
-  const facilityNamesByDepartment = useMemo(() => {
-    const map = new Map<string, string[]>();
+  const facilitiesByDepartment = useMemo(() => {
+    const map = new Map<string, Facility[]>();
 
     for (const assignment of assignments) {
       const facility = facilityById.get(assignment.facility_id);
       if (!facility) continue;
       const current = map.get(assignment.department_id) ?? [];
-      if (!current.includes(facility.name)) current.push(facility.name);
+      if (!current.some((currentFacility) => currentFacility.id === facility.id)) current.push(facility);
       map.set(assignment.department_id, current);
     }
 
@@ -319,7 +310,7 @@ export function AdminDepartmentsManager() {
           <div className="mt-4 grid gap-3">
             {departments.length > 0 ? (
               departments.map((department) => {
-                const facilityNames = facilityNamesByDepartment.get(department.id) ?? [];
+                const departmentFacilities = facilitiesByDepartment.get(department.id) ?? [];
                 const teamCount = teamCountByDepartment.get(department.id) ?? 0;
                 const pendingInvites = pendingInvitesByDepartment.get(department.id) ?? [];
                 const hasLeadInvite = pendingInvites.some((invite) => invite.role === 'department_lead');
@@ -359,8 +350,8 @@ export function AdminDepartmentsManager() {
                       </div>
                       <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
                         <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Facilities</p>
-                        <p className="mt-1 text-sm font-black text-slate-100">{facilityNames.length === 0 ? 'Needs assignment' : 'Assigned'}</p>
-                        <UsageChips items={facilityNames} emptyText="No facilities assigned yet." />
+                        <p className="mt-1 text-sm font-black text-slate-100">{departmentFacilities.length === 0 ? 'Needs assignment' : 'Assigned'}</p>
+                        <UsageChips items={departmentFacilities} emptyText="No facilities assigned yet." />
                       </div>
                       <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
                         <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Lead invite</p>
