@@ -145,13 +145,14 @@ export function AdminPeopleManager() {
     const loadedDepartments = (departmentsResult.data ?? []) as Department[];
     const loadedTeams = (teamsResult.data ?? []) as Team[];
     const initialDepartment = loadedDepartments.find((department) => department.id === requestedDepartmentId) ?? loadedDepartments[0];
+    const initialTeam = loadedTeams.find((team) => team.department_id === initialDepartment?.id);
 
     setClub(clubResult.data as Club);
     setDepartments(loadedDepartments);
     setTeams(loadedTeams);
     setInvites((invitesResult.data ?? []) as Invite[]);
-    setSelectedDepartmentId((current) => current || initialDepartment?.id || '');
-    setSelectedTeamId((current) => current || loadedTeams.find((team) => team.department_id === initialDepartment?.id)?.id || '');
+    setSelectedDepartmentId(initialDepartment?.id || '');
+    setSelectedTeamId(initialTeam?.id || '');
     setState('ready');
   }
 
