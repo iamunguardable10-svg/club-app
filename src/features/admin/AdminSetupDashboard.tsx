@@ -26,10 +26,39 @@ type Facility = {
   address: string | null;
 };
 
+type DepartmentFacility = {
+  department_id: string;
+  facility_id: string;
+};
+
 type LoadState = 'loading' | 'ready' | 'no_admin_membership' | 'error';
 
 function isMissingAuthSessionError(message?: string) {
   return message?.toLowerCase().includes('auth session missing') ?? false;
+}
+
+function UsageSummary({ departments }: { departments: string[] }) {
+  if (departments.length === 0) {
+    return <p className="mt-2 text-xs text-slate-500">Not assigned to a department yet.</p>;
+  }
+
+  const visibleDepartments = departments.slice(0, 2);
+  const hiddenCount = departments.length - visibleDepartments.length;
+
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {visibleDepartments.map((department) => (
+        <span key={department} className="rounded-full border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-1 text-xs font-bold text-emerald-200">
+          {department}
+        </span>
+      ))}
+      {hiddenCount > 0 ? (
+        <span className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs font-bold text-slate-300">
+          +{hiddenCount} more
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 export function AdminSetupDashboard() {
@@ -39,6 +68,7 @@ export function AdminSetupDashboard() {
   const [club, setClub] = useState<Club | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [facilityAssignments, setFacilityAssignments] = useState<DepartmentFacility[]>([]);
 
   const setupScore = useMemo(() => {
     let score = 0;
@@ -47,6 +77,23 @@ export function AdminSetupDashboard() {
     if (facilities.length > 0) score += 1;
     return score;
   }, [club, departments.length, facilities.length]);
+
+  const departmentsById = useMemo(() => new Map(departments.map((department) => [department.id, department])), [departments]);
+
+  const departmentNamesByFacility = useMemo(() => {
+    const map = new Map<string, string[]>();
+
+    for (const assignment of facilityAssignments) {
+      const department = departmentsById.get(assignment.department_id);
+      if (!department) continue;
+
+      const current = map.get(assignment.facility_id) ?? [];
+      if (!current.includes(department.name)) current.push(department.name);
+      map.set(assignment.facility_id, current);
+    }
+
+    return map;
+  }, [departmentsById, facilityAssignments]);
 
   useEffect(() => {
     let isMounted = true;
@@ -97,15 +144,16 @@ export function AdminSetupDashboard() {
 
       const clubId = adminMembership.club_id;
 
-      const [clubResult, departmentsResult, facilitiesResult] = await Promise.all([
+      const [clubResult, departmentsResult, facilitiesResult, assignmentsResult] = await Promise.all([
         supabase.from('clubs').select('id, name, city, country').eq('id', clubId).single(),
         supabase.from('departments').select('id, name, sport').eq('club_id', clubId).order('name'),
         supabase.from('facilities').select('id, name, address').eq('club_id', clubId).order('name'),
+        supabase.from('department_facilities').select('department_id, facility_id').eq('club_id', clubId),
       ]);
 
       if (!isMounted) return;
 
-      const firstError = clubResult.error ?? departmentsResult.error ?? facilitiesResult.error;
+      const firstError = clubResult.error ?? departmentsResult.error ?? facilitiesResult.error ?? assignmentsResult.error;
 
       if (firstError) {
         setState('error');
@@ -116,6 +164,7 @@ export function AdminSetupDashboard() {
       setClub(clubResult.data as Club);
       setDepartments((departmentsResult.data ?? []) as Department[]);
       setFacilities((facilitiesResult.data ?? []) as Facility[]);
+      setFacilityAssignments((assignmentsResult.data ?? []) as DepartmentFacility[]);
       setState('ready');
     }
 
@@ -255,10 +304,20 @@ export function AdminSetupDashboard() {
             <div className="mt-4 space-y-2">
               {facilities.length > 0 ? (
                 facilities.map((facility) => (
-                  <div key={facility.id} className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
-                    <p className="font-bold text-white">{facility.name}</p>
-                    <p className="mt-1 text-xs text-slate-500">{facility.address || 'No address set yet'}</p>
-                  </div>
+                  <Link
+                    key={facility.id}
+                    href={`/admin/facilities/${facility.id}/calendar`}
+                    className="block rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-bold text-white">{facility.name}</p>
+                        <p className="mt-1 text-xs text-slate-500">{facility.address || 'No address set yet'}</p>
+                        <UsageSummary departments={departmentNamesByFacility.get(facility.id) ?? []} />
+                      </div>
+                      <span className="text-xs font-black text-emerald-300">Calendar →</span>
+                    </div>
+                  </Link>
                 ))
               ) : (
                 <p className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-400">No facilities yet.</p>
