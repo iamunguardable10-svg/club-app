@@ -441,6 +441,8 @@ Important UI decisions:
 - Do not show a team list on `/admin/setup`.
 - Teams should live inside department/team subpages, not on the global admin setup overview.
 - The facility summary card and the global facilities panel include direct `Manage →` links to `/admin/facilities`.
+- Facilities listed on the dashboard now link directly to their future calendar placeholder.
+- Dashboard facility cards show compact department usage chips: first two departments plus `+X more` if needed.
 
 ### Admin facilities manager
 
@@ -517,6 +519,8 @@ Recent demo routing fix:
 
 - Demo setup facility links now point to `/demo/admin/facilities`, not `/admin/facilities`.
 - This prevents the local demo flow from requiring login when the user wants to test facility assignment.
+- Facilities listed on the demo dashboard now link directly to their local calendar placeholder.
+- Demo dashboard facility cards show compact department usage chips: first two departments plus `+X more` if needed.
 
 ### Local browser-only demo facility assignment
 
@@ -648,12 +652,13 @@ Still placeholder / not fully implemented:
 4. Load is strategically important but should start simple.
 5. Facilities should be scoped to departments to reduce coach friction.
 6. One facility can belong to multiple departments.
-7. Department-managed training locations solve local communication, not just access control.
-8. Club-admin governance should remain possible even for future department-managed facilities.
-9. Coaches finalize attendance; athletes submit availability.
-10. Athletes do not see teammate load data.
-11. Club admins manage structure, not necessarily individual performance data.
-12. Departments are the operational layer between club and teams.
-13. Teams should not clutter `/admin/setup`; team detail belongs in department/team screens.
-14. The product should become a real club/team operating system, not a generic AI demo app.
-15. Local demo mode must remain easy to remove before production launch.
+7. Dashboard links should act as navigation into the relevant operational object, not only display static summary data.
+8. Department-managed training locations solve local communication, not just access control.
+9. Club-admin governance should remain possible even for future department-managed facilities.
+10. Coaches finalize attendance; athletes submit availability.
+11. Athletes do not see teammate load data.
+12. Club admins manage structure, not necessarily individual performance data.
+13. Departments are the operational layer between club and teams.
+14. Teams should not clutter `/admin/setup`; team detail belongs in department/team screens.
+15. The product should become a real club/team operating system, not a generic AI demo app.
+16. Local demo mode must remain easy to remove before production launch.
