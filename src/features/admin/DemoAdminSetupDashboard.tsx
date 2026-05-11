@@ -177,7 +177,6 @@ export function DemoAdminSetupDashboard() {
                   >
                     <p className="font-bold text-white">{facility}</p>
                     <UsageSummary departments={departmentsByFacility.get(facility) ?? []} />
-                    <p className="mt-3 text-xs font-bold text-emerald-300/80">Tap to open calendar</p>
                   </Link>
                 ))
               ) : (
