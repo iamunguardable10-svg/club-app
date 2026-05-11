@@ -111,12 +111,16 @@ Club Facility
 → can be assigned to multiple departments
 → visible in Admin Facilities by default
 
-Department Facility
+Department Facility / Department Training Location
 → created later by department_lead
 → primarily belongs to one department
+→ examples: park, outdoor court, department-specific training spot, external gym, meeting room
+→ immediately understandable for coaches/athletes in that department
 → should not clutter Admin Setup by default
 → should still remain optionally visible to club_admin for governance, conflicts and cleanup
 ```
+
+The reason for department-internal training locations is not only permissions. It also solves communication: if Basketball creates `Westpark Court` or `Outdoor Conditioning Park`, every coach and athlete in Basketball knows exactly what is meant when that location appears in a session.
 
 The app should not completely hide department-managed facilities from club admins. Instead, future UI should use filters such as `Show department-managed facilities`.
 
@@ -601,6 +605,7 @@ Still placeholder / not fully implemented:
 - real load entry flow
 - real protected layouts/server-side auth enforcement
 - real facility calendar data and booking logic
+- department-managed training locations
 
 ---
 
@@ -611,20 +616,26 @@ Still placeholder / not fully implemented:
    - create teams inside a department
    - set default facility per team later
 
-2. Implement coach invite flow:
+2. Implement department-managed training locations:
+   - department_lead creates department-specific locations
+   - coaches can use them in sessions
+   - admin can optionally inspect them through filters
+
+3. Implement coach invite flow:
    - preview invite by token
    - accept invite
    - redirect coach to coach workspace
 
-3. Implement athlete team join code flow:
+4. Implement athlete team join code flow:
    - preview team by code
    - join team by code
    - redirect athlete to athlete workspace
 
-4. Implement session creation foundation:
+5. Implement session creation foundation:
    - team selection
    - default facility
    - department-scoped facility list
+   - department-managed training locations
    - session participants
 
 ---
@@ -637,11 +648,12 @@ Still placeholder / not fully implemented:
 4. Load is strategically important but should start simple.
 5. Facilities should be scoped to departments to reduce coach friction.
 6. One facility can belong to multiple departments.
-7. Club-admin governance should remain possible even for future department-managed facilities.
-8. Coaches finalize attendance; athletes submit availability.
-9. Athletes do not see teammate load data.
-10. Club admins manage structure, not necessarily individual performance data.
-11. Departments are the operational layer between club and teams.
-12. Teams should not clutter `/admin/setup`; team detail belongs in department/team screens.
-13. The product should become a real club/team operating system, not a generic AI demo app.
-14. Local demo mode must remain easy to remove before production launch.
+7. Department-managed training locations solve local communication, not just access control.
+8. Club-admin governance should remain possible even for future department-managed facilities.
+9. Coaches finalize attendance; athletes submit availability.
+10. Athletes do not see teammate load data.
+11. Club admins manage structure, not necessarily individual performance data.
+12. Departments are the operational layer between club and teams.
+13. Teams should not clutter `/admin/setup`; team detail belongs in department/team screens.
+14. The product should become a real club/team operating system, not a generic AI demo app.
+15. Local demo mode must remain easy to remove before production launch.
