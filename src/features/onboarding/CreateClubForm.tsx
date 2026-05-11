@@ -75,7 +75,7 @@ export function CreateClubForm() {
       return;
     }
 
-    router.replace('/admin/setup');
+    router.replace('/admin/overview');
   }
 
   return (
