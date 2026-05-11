@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { AdminShell } from '@/shared/admin/AdminShell';
 import { getDemoClubSetup, saveDemoClubSetup, type DemoClubSetup } from '@/shared/dev/demoStorage';
 
@@ -48,14 +49,14 @@ function getDemoInvites(): DemoInvite[] {
 
 function UsageChips({ items, emptyText }: { items: string[]; emptyText: string }) {
   if (items.length === 0) {
-    return <p className="mt-3 text-xs text-slate-500">{emptyText}</p>;
+    return <p className="mt-2 text-xs text-slate-500">{emptyText}</p>;
   }
 
   const visibleItems = items.slice(0, 2);
   const hiddenCount = items.length - visibleItems.length;
 
   return (
-    <div className="mt-3 flex flex-wrap gap-2">
+    <div className="mt-2 flex flex-wrap gap-2">
       {visibleItems.map((item) => (
         <span key={item} className="rounded-full border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-1 text-xs font-bold text-emerald-200">
           {item}
@@ -75,6 +76,7 @@ function encodeDepartment(department: string) {
 }
 
 export function DemoAdminDepartmentsManager() {
+  const router = useRouter();
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [assignments, setAssignments] = useState<DemoAssignment[]>([]);
   const [invites, setInvites] = useState<DemoInvite[]>([]);
@@ -148,7 +150,7 @@ export function DemoAdminDepartmentsManager() {
         <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo departments</p>
         <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Departments for {setup.clubName}</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-100/80">
-          Browser-only department management preview. Departments are the structure layer for teams, coaches, facilities and department-specific locations.
+          Browser-only department management preview. Tap a department card to open its dedicated workspace.
         </p>
       </section>
 
@@ -177,23 +179,34 @@ export function DemoAdminDepartmentsManager() {
               const facilityNames = facilitiesByDepartment.get(department) ?? [];
               const pendingInvites = pendingInvitesByDepartment.get(department) ?? [];
               const hasLeadInvite = pendingInvites.some((invite) => invite.role === 'department_lead');
+              const encodedDepartment = encodeDepartment(department);
 
               return (
-                <article key={department} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+                <article
+                  key={department}
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => router.push(`/demo/admin/departments/${encodedDepartment}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') router.push(`/demo/admin/departments/${encodedDepartment}`);
+                  }}
+                  className="cursor-pointer rounded-2xl border border-slate-800 bg-slate-900/60 p-5 transition hover:border-violet-400/70 hover:bg-slate-900"
+                >
                   <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
                       <h2 className="text-xl font-black text-white">{department}</h2>
                       <p className="mt-1 text-xs text-slate-500">Local demo department</p>
-                      <UsageChips items={facilityNames} emptyText="No facilities assigned yet." />
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Link href={`/demo/admin/people?department=${encodeDepartment(department)}`} className="rounded-xl border border-amber-500/60 px-3 py-2 text-xs font-black text-amber-200 hover:bg-amber-950/40">
-                        Invite people
-                      </Link>
-                      <Link href={`/demo/admin/departments/${encodeDepartment(department)}`} className="rounded-xl border border-violet-500/60 px-3 py-2 text-xs font-black text-violet-200 hover:bg-violet-950/40">
-                        Open department
-                      </Link>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        router.push(`/demo/admin/people?department=${encodedDepartment}`);
+                      }}
+                      className="w-fit rounded-xl border border-amber-500/60 px-3 py-2 text-xs font-black text-amber-200 hover:bg-amber-950/40"
+                    >
+                      Invite people
+                    </button>
                   </div>
 
                   <div className="mt-4 grid gap-2 sm:grid-cols-3">
@@ -204,6 +217,7 @@ export function DemoAdminDepartmentsManager() {
                     <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
                       <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Facilities</p>
                       <p className="mt-1 text-sm font-black text-slate-100">{facilityNames.length === 0 ? 'Needs assignment' : 'Assigned'}</p>
+                      <UsageChips items={facilityNames} emptyText="No facilities assigned yet." />
                     </div>
                     <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
                       <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Lead invite</p>
