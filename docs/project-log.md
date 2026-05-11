@@ -97,6 +97,7 @@ club facilities
 Key decisions:
 
 - club_admin creates global facilities
+- one facility can be assigned to multiple departments
 - department_lead can later manage facilities for their department
 - coach should primarily see department-scoped facilities
 - team can later have a default facility
@@ -191,6 +192,7 @@ Added:
 Purpose:
 
 - scope global club facilities to departments
+- allow one facility to be assigned to multiple departments
 - allow default facility per team
 - reduce coach session-creation friction
 
@@ -414,7 +416,7 @@ Important UI decisions:
 
 - Do not show a team list on `/admin/setup`.
 - Teams should live inside department/team subpages, not on the global admin setup overview.
-- The facility summary card and the global facilities panel now include direct `Manage →` links to `/admin/facilities`, so admins do not have to find facility management only through the recommended next steps.
+- The facility summary card and the global facilities panel include direct `Manage →` links to `/admin/facilities`.
 
 ### Admin facilities manager
 
@@ -428,10 +430,9 @@ Purpose:
 
 - load the admin's club context
 - show global facilities
-- show departments
-- show department-facility assignments
 - create a new global facility
-- assign a facility to a department
+- assign one facility to one or multiple departments via checkboxes
+- show department-facility assignments
 - remove a facility assignment
 
 Storage:
@@ -439,6 +440,12 @@ Storage:
 ```txt
 Supabase
 ```
+
+Recent UX decisions:
+
+- Removed separate Departments and Assignments KPI cards from the facility page because they are not useful enough on this screen.
+- Added a clear back link at the top of the page.
+- Changed the assignment UI from `one department + one facility` to `one facility + multiple departments`.
 
 Product effect:
 
@@ -490,6 +497,12 @@ Storage:
 ```txt
 localStorage only
 ```
+
+Recent UX decisions:
+
+- Removed separate Departments and Assignments KPI cards from the demo facility page.
+- Added a clear back link at the top of the demo facility page.
+- Changed assignment UI to allow assigning one facility to multiple departments at once.
 
 Important distinction:
 
@@ -569,10 +582,11 @@ Still placeholder / not fully implemented:
 3. Each role should see only operationally relevant information.
 4. Load is strategically important but should start simple.
 5. Facilities should be scoped to departments to reduce coach friction.
-6. Coaches finalize attendance; athletes submit availability.
-7. Athletes do not see teammate load data.
-8. Club admins manage structure, not necessarily individual performance data.
-9. Departments are the operational layer between club and teams.
-10. Teams should not clutter `/admin/setup`; team detail belongs in department/team screens.
-11. The product should become a real club/team operating system, not a generic AI demo app.
-12. Local demo mode must remain easy to remove before production launch.
+6. One facility can belong to multiple departments.
+7. Coaches finalize attendance; athletes submit availability.
+8. Athletes do not see teammate load data.
+9. Club admins manage structure, not necessarily individual performance data.
+10. Departments are the operational layer between club and teams.
+11. Teams should not clutter `/admin/setup`; team detail belongs in department/team screens.
+12. The product should become a real club/team operating system, not a generic AI demo app.
+13. Local demo mode must remain easy to remove before production launch.
