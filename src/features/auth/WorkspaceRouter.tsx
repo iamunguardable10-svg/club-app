@@ -22,7 +22,7 @@ function getWorkspacePath({
   teamMemberships: TeamMembership[];
 }) {
   if (clubMemberships.some((membership) => membership.role === 'club_admin')) {
-    return '/admin/setup';
+    return '/admin/overview';
   }
 
   if (clubMemberships.some((membership) => membership.role === 'department_lead')) {
