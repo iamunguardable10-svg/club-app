@@ -58,9 +58,14 @@ function UsageChips({ items, emptyText }: { items: string[]; emptyText: string }
   return (
     <div className="mt-2 flex flex-wrap gap-2">
       {visibleItems.map((item) => (
-        <span key={item} className="rounded-full border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-1 text-xs font-bold text-emerald-200">
+        <Link
+          key={item}
+          href={`/demo/admin/facilities/${encodeURIComponent(item)}/calendar`}
+          onClick={(event) => event.stopPropagation()}
+          className="rounded-full border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-1 text-xs font-bold text-emerald-200 transition hover:border-emerald-300 hover:bg-emerald-950/60"
+        >
           {item}
-        </span>
+        </Link>
       ))}
       {hiddenCount > 0 ? (
         <span className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs font-bold text-slate-300">
