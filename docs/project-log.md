@@ -410,13 +410,11 @@ Purpose:
 - show global facility count/list
 - guide the admin toward next operational steps
 
-Important UI decision:
+Important UI decisions:
 
-Do not show a team list on `/admin/setup`.
-
-Reason:
-
-Teams should live inside department/team subpages, not on the global admin setup overview.
+- Do not show a team list on `/admin/setup`.
+- Teams should live inside department/team subpages, not on the global admin setup overview.
+- The facility summary card and the global facilities panel now include direct `Manage →` links to `/admin/facilities`, so admins do not have to find facility management only through the recommended next steps.
 
 ### Admin facilities manager
 
@@ -467,6 +465,11 @@ Storage:
 ```txt
 localStorage only
 ```
+
+Recent demo routing fix:
+
+- Demo setup facility links now point to `/demo/admin/facilities`, not `/admin/facilities`.
+- This prevents the local demo flow from requiring login when the user wants to test facility assignment.
 
 ### Local browser-only demo facility assignment
 
