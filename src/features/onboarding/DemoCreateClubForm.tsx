@@ -53,7 +53,7 @@ export function DemoCreateClubForm() {
       createdAt: new Date().toISOString(),
     });
 
-    router.push('/demo/admin/setup');
+    router.push('/demo/admin/overview');
   }
 
   return (
