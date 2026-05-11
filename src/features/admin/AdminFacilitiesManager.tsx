@@ -46,8 +46,8 @@ export function AdminFacilitiesManager() {
   const [assignments, setAssignments] = useState<DepartmentFacility[]>([]);
   const [newFacilityName, setNewFacilityName] = useState('');
   const [newFacilityAddress, setNewFacilityAddress] = useState('');
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
   const [selectedFacilityId, setSelectedFacilityId] = useState('');
+  const [selectedDepartmentIds, setSelectedDepartmentIds] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
   const clubId = club?.id ?? '';
@@ -65,6 +65,14 @@ export function AdminFacilitiesManager() {
 
     return map;
   }, [assignments]);
+
+  const assignedDepartmentIdsForSelectedFacility = useMemo(() => {
+    return new Set(
+      assignments
+        .filter((assignment) => assignment.facility_id === selectedFacilityId)
+        .map((assignment) => assignment.department_id),
+    );
+  }, [assignments, selectedFacilityId]);
 
   async function loadAdminData() {
     setState('loading');
@@ -126,14 +134,12 @@ export function AdminFacilitiesManager() {
       return;
     }
 
-    const loadedDepartments = (departmentsResult.data ?? []) as Department[];
     const loadedFacilities = (facilitiesResult.data ?? []) as Facility[];
 
     setClub(clubResult.data as Club);
-    setDepartments(loadedDepartments);
+    setDepartments((departmentsResult.data ?? []) as Department[]);
     setFacilities(loadedFacilities);
     setAssignments((assignmentsResult.data ?? []) as DepartmentFacility[]);
-    setSelectedDepartmentId((current) => current || loadedDepartments[0]?.id || '');
     setSelectedFacilityId((current) => current || loadedFacilities[0]?.id || '');
     setState('ready');
   }
@@ -172,10 +178,18 @@ export function AdminFacilitiesManager() {
     await loadAdminData();
   }
 
+  function toggleDepartment(departmentId: string) {
+    setSelectedDepartmentIds((current) =>
+      current.includes(departmentId)
+        ? current.filter((currentDepartmentId) => currentDepartmentId !== departmentId)
+        : [...current, departmentId],
+    );
+  }
+
   async function handleAssignFacility(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!clubId || !selectedDepartmentId || !selectedFacilityId) return;
+    if (!clubId || !selectedFacilityId || selectedDepartmentIds.length === 0) return;
 
     setIsSaving(true);
     setError(null);
@@ -186,12 +200,28 @@ export function AdminFacilitiesManager() {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const { error: insertError } = await supabase.from('department_facilities').insert({
-      club_id: clubId,
-      department_id: selectedDepartmentId,
-      facility_id: selectedFacilityId,
-      created_by: user?.id ?? null,
-    });
+    const existingDepartmentIds = new Set(
+      assignments
+        .filter((assignment) => assignment.facility_id === selectedFacilityId)
+        .map((assignment) => assignment.department_id),
+    );
+
+    const rowsToInsert = selectedDepartmentIds
+      .filter((departmentId) => !existingDepartmentIds.has(departmentId))
+      .map((departmentId) => ({
+        club_id: clubId,
+        department_id: departmentId,
+        facility_id: selectedFacilityId,
+        created_by: user?.id ?? null,
+      }));
+
+    if (rowsToInsert.length === 0) {
+      setSelectedDepartmentIds([]);
+      setIsSaving(false);
+      return;
+    }
+
+    const { error: insertError } = await supabase.from('department_facilities').insert(rowsToInsert);
 
     if (insertError) {
       setError(insertError.message);
@@ -200,6 +230,7 @@ export function AdminFacilitiesManager() {
       return;
     }
 
+    setSelectedDepartmentIds([]);
     setIsSaving(false);
     await loadAdminData();
   }
@@ -263,35 +294,23 @@ export function AdminFacilitiesManager() {
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#064E3B_0,#070A12_45%)] px-4 py-8 text-white sm:px-8">
       <div className="mx-auto max-w-6xl space-y-5">
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-300">Admin facilities</p>
-          <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <h1 className="text-3xl font-black tracking-tight sm:text-5xl">Facilities for {club?.name}</h1>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-                Admin creates global facilities. Then facilities are assigned to departments so coaches later see only relevant halls and rooms.
-              </p>
-            </div>
-            <Link href="/admin/setup" className="rounded-xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-200 hover:border-emerald-400">
-              Back to setup
-            </Link>
-          </div>
+          <Link href="/admin/setup" className="inline-flex items-center text-sm font-black text-emerald-300 hover:text-emerald-200">
+            ← Back to setup
+          </Link>
+          <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-emerald-300">Admin facilities</p>
+          <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Facilities for {club?.name}</h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
+            Create global facilities and assign each facility to one or multiple departments. Coaches later use this filter instead of seeing every hall in the club.
+          </p>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Global facilities</p>
-            <p className="mt-3 text-4xl font-black">{facilities.length}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Created at club level.</p>
-          </div>
-          <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Departments</p>
-            <p className="mt-3 text-4xl font-black">{departments.length}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Can receive facility access.</p>
-          </div>
-          <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Assignments</p>
-            <p className="mt-3 text-4xl font-black">{assignments.length}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Department facility links.</p>
+        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Global facilities</p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-4xl font-black">{facilities.length}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-400">Created at club level. Assignment happens per facility below.</p>
+            </div>
           </div>
         </section>
 
@@ -332,22 +351,11 @@ export function AdminFacilitiesManager() {
 
             <form onSubmit={handleAssignFacility} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Assign</p>
-              <h2 className="mt-2 text-xl font-black">Assign facility to department</h2>
-              <div className="mt-4 space-y-3">
-                <label className="block">
-                  <span className="text-sm font-bold text-slate-200">Department</span>
-                  <select
-                    value={selectedDepartmentId}
-                    onChange={(event) => setSelectedDepartmentId(event.target.value)}
-                    className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-400"
-                  >
-                    {departments.map((department) => (
-                      <option key={department.id} value={department.id}>
-                        {department.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+              <h2 className="mt-2 text-xl font-black">Assign one facility to multiple departments</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Select a facility, then choose every department that may use it.
+              </p>
+              <div className="mt-4 space-y-4">
                 <label className="block">
                   <span className="text-sm font-bold text-slate-200">Facility</span>
                   <select
@@ -362,12 +370,39 @@ export function AdminFacilitiesManager() {
                     ))}
                   </select>
                 </label>
+
+                <div>
+                  <p className="text-sm font-bold text-slate-200">Departments</p>
+                  <div className="mt-2 space-y-2">
+                    {departments.map((department) => {
+                      const alreadyAssigned = assignedDepartmentIdsForSelectedFacility.has(department.id);
+                      const checked = selectedDepartmentIds.includes(department.id) || alreadyAssigned;
+
+                      return (
+                        <label key={department.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm">
+                          <span>
+                            <span className="font-bold text-slate-100">{department.name}</span>
+                            {alreadyAssigned ? <span className="ml-2 text-xs font-bold text-emerald-300">already assigned</span> : null}
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={alreadyAssigned}
+                            onChange={() => toggleDepartment(department.id)}
+                            className="h-4 w-4"
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <button
                   type="submit"
-                  disabled={isSaving || departments.length === 0 || facilities.length === 0}
+                  disabled={isSaving || departments.length === 0 || facilities.length === 0 || selectedDepartmentIds.length === 0}
                   className="w-full rounded-xl bg-violet-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-violet-300 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Assign facility
+                  Assign selected departments
                 </button>
               </div>
             </form>
