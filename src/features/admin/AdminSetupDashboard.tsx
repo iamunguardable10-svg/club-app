@@ -312,7 +312,6 @@ export function AdminSetupDashboard() {
                     <p className="font-bold text-white">{facility.name}</p>
                     <p className="mt-1 text-xs text-slate-500">{facility.address || 'No address set yet'}</p>
                     <UsageSummary departments={departmentNamesByFacility.get(facility.id) ?? []} />
-                    <p className="mt-3 text-xs font-bold text-emerald-300/80">Tap to open calendar</p>
                   </Link>
                 ))
               ) : (
