@@ -307,16 +307,12 @@ export function AdminSetupDashboard() {
                   <Link
                     key={facility.id}
                     href={`/admin/facilities/${facility.id}/calendar`}
-                    className="block rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20"
+                    className="block rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-bold text-white">{facility.name}</p>
-                        <p className="mt-1 text-xs text-slate-500">{facility.address || 'No address set yet'}</p>
-                        <UsageSummary departments={departmentNamesByFacility.get(facility.id) ?? []} />
-                      </div>
-                      <span className="text-xs font-black text-emerald-300">Calendar →</span>
-                    </div>
+                    <p className="font-bold text-white">{facility.name}</p>
+                    <p className="mt-1 text-xs text-slate-500">{facility.address || 'No address set yet'}</p>
+                    <UsageSummary departments={departmentNamesByFacility.get(facility.id) ?? []} />
+                    <p className="mt-3 text-xs font-bold text-emerald-300/80">Tap to open calendar</p>
                   </Link>
                 ))
               ) : (
