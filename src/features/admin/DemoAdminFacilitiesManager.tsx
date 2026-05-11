@@ -35,6 +35,7 @@ export function DemoAdminFacilitiesManager() {
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [assignments, setAssignments] = useState<DemoAssignment[]>([]);
   const [newFacility, setNewFacility] = useState('');
+  const [newFacilityDepartments, setNewFacilityDepartments] = useState<string[]>([]);
   const [selectedFacility, setSelectedFacility] = useState('');
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
 
@@ -71,6 +72,14 @@ export function DemoAdminFacilitiesManager() {
     setSetup(nextSetup);
   }
 
+  function toggleNewFacilityDepartment(department: string) {
+    setNewFacilityDepartments((current) =>
+      current.includes(department)
+        ? current.filter((currentDepartment) => currentDepartment !== department)
+        : [...current, department],
+    );
+  }
+
   function handleAddFacility(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!setup || !newFacility.trim()) return;
@@ -79,6 +88,7 @@ export function DemoAdminFacilitiesManager() {
 
     if (setup.facilities.includes(facilityName)) {
       setNewFacility('');
+      setNewFacilityDepartments([]);
       return;
     }
 
@@ -87,9 +97,19 @@ export function DemoAdminFacilitiesManager() {
       facilities: [...setup.facilities, facilityName],
     };
 
+    const existingKeys = new Set(assignments.map((assignment) => `${assignment.department}::${assignment.facility}`));
+    const additions = newFacilityDepartments
+      .filter((department) => !existingKeys.has(`${department}::${facilityName}`))
+      .map((department) => ({ department, facility: facilityName }));
+
+    const nextAssignments = [...assignments, ...additions];
+
     persistSetup(nextSetup);
+    setAssignments(nextAssignments);
+    saveAssignments(nextAssignments);
     setSelectedFacility(facilityName);
     setNewFacility('');
+    setNewFacilityDepartments([]);
   }
 
   function toggleDepartment(department: string) {
@@ -165,18 +185,14 @@ export function DemoAdminFacilitiesManager() {
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Global facilities</p>
           <p className="mt-3 text-4xl font-black">{setup.facilities.length}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-400">Click a facility to open the future local facility calendar.</p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {setup.facilities.map((facility) => (
               <Link
                 key={facility}
                 href={`/demo/admin/facilities/${encodeFacilityName(facility)}/calendar`}
-                className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20"
+                className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-black text-white">{facility}</p>
-                  <span className="text-xs font-black text-emerald-300">Calendar →</span>
-                </div>
+                <p className="font-black text-white">{facility}</p>
               </Link>
             ))}
           </div>
@@ -187,13 +203,31 @@ export function DemoAdminFacilitiesManager() {
             <form onSubmit={handleAddFacility} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Create</p>
               <h2 className="mt-2 text-xl font-black">Add demo facility</h2>
-              <div className="mt-4 space-y-3">
+              <div className="mt-4 space-y-4">
                 <input
                   value={newFacility}
                   onChange={(event) => setNewFacility(event.target.value)}
                   placeholder="New Hall"
                   className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400"
                 />
+
+                <div>
+                  <p className="text-sm font-bold text-slate-200">Assign to departments optional</p>
+                  <div className="mt-2 space-y-2">
+                    {setup.departments.map((department) => (
+                      <label key={department} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm">
+                        <span className="font-bold text-slate-100">{department}</span>
+                        <input
+                          type="checkbox"
+                          checked={newFacilityDepartments.includes(department)}
+                          onChange={() => toggleNewFacilityDepartment(department)}
+                          className="h-4 w-4"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 <button
                   type="submit"
                   className="w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
@@ -205,9 +239,9 @@ export function DemoAdminFacilitiesManager() {
 
             <form onSubmit={handleAssign} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Assign</p>
-              <h2 className="mt-2 text-xl font-black">Assign one facility to multiple departments</h2>
+              <h2 className="mt-2 text-xl font-black">Assign existing facility</h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                Select a facility, then choose every department that may use it.
+                Select an existing facility, then choose every department that may use it.
               </p>
               <div className="mt-4 space-y-4">
                 <select
@@ -278,7 +312,7 @@ export function DemoAdminFacilitiesManager() {
                               href={`/demo/admin/facilities/${encodeFacilityName(assignment.facility)}/calendar`}
                               className="text-sm font-bold text-slate-200 hover:text-emerald-300"
                             >
-                              {assignment.facility} →
+                              {assignment.facility}
                             </Link>
                             <button
                               type="button"
