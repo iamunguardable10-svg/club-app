@@ -101,8 +101,26 @@ Key decisions:
 - department_lead can later manage facilities for their department
 - coach should primarily see department-scoped facilities
 - team can later have a default facility
+- facilities should link to a facility calendar view
 
-This prevents coaches from seeing every facility in the whole club while creating sessions.
+Facility visibility recommendation:
+
+```txt
+Club Facility
+→ created/managed by club_admin
+→ can be assigned to multiple departments
+→ visible in Admin Facilities by default
+
+Department Facility
+→ created later by department_lead
+→ primarily belongs to one department
+→ should not clutter Admin Setup by default
+→ should still remain optionally visible to club_admin for governance, conflicts and cleanup
+```
+
+The app should not completely hide department-managed facilities from club admins. Instead, future UI should use filters such as `Show department-managed facilities`.
+
+This prevents coaches from seeing every facility in the whole club while still preserving club-level governance.
 
 ---
 
@@ -282,6 +300,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY
 /demo/create-club
 /demo/admin/setup
 /demo/admin/facilities
+/demo/admin/facilities/[facilityName]/calendar
 ```
 
 Local demo routes are browser-only and store data in `localStorage`. They do not write to Supabase and do not require login.
@@ -294,6 +313,7 @@ Local demo routes are browser-only and store data in `localStorage`. They do not
 /admin/teams
 /admin/coaches
 /admin/facilities
+/admin/facilities/[facilityId]/calendar
 ```
 
 ### Department
@@ -434,6 +454,7 @@ Purpose:
 - assign one facility to one or multiple departments via checkboxes
 - show department-facility assignments
 - remove a facility assignment
+- link each facility to a future facility calendar placeholder
 
 Storage:
 
@@ -446,10 +467,25 @@ Recent UX decisions:
 - Removed separate Departments and Assignments KPI cards from the facility page because they are not useful enough on this screen.
 - Added a clear back link at the top of the page.
 - Changed the assignment UI from `one department + one facility` to `one facility + multiple departments`.
+- Facility cards and assigned facility rows now link to calendar placeholders.
 
 Product effect:
 
 This is the first real implementation of the facility-scoping model. It prepares the later coach session-creation flow where coaches should only see relevant department facilities.
+
+### Admin facility calendar placeholder
+
+Route:
+
+```txt
+/admin/facilities/[facilityId]/calendar
+```
+
+Purpose:
+
+- placeholder for future facility bookings
+- future weekly/monthly facility usage
+- future conflicts and double-booking view
 
 ### Local browser-only demo setup
 
@@ -491,6 +527,7 @@ Purpose:
 - test facility creation and department assignment without login
 - store assignments only in browser localStorage
 - preview the future coach filtering logic without database writes
+- link local facilities to local calendar placeholders
 
 Storage:
 
@@ -503,6 +540,20 @@ Recent UX decisions:
 - Removed separate Departments and Assignments KPI cards from the demo facility page.
 - Added a clear back link at the top of the demo facility page.
 - Changed assignment UI to allow assigning one facility to multiple departments at once.
+- Facility cards and assigned facility rows now link to local calendar placeholders.
+
+### Local demo facility calendar placeholder
+
+Route:
+
+```txt
+/demo/admin/facilities/[facilityName]/calendar
+```
+
+Purpose:
+
+- browser-only preview of the future facility calendar screen
+- no Supabase writes
 
 Important distinction:
 
@@ -532,9 +583,11 @@ Working / prepared:
 - real authenticated club setup flow
 - real admin setup dashboard
 - real admin facilities manager
+- admin facility calendar placeholder
 - local browser-only demo setup flow
 - local browser-only demo admin setup dashboard
 - local browser-only demo facility assignment flow
+- local demo facility calendar placeholder
 
 Still placeholder / not fully implemented:
 
@@ -547,6 +600,7 @@ Still placeholder / not fully implemented:
 - real attendance finalization
 - real load entry flow
 - real protected layouts/server-side auth enforcement
+- real facility calendar data and booking logic
 
 ---
 
@@ -583,10 +637,11 @@ Still placeholder / not fully implemented:
 4. Load is strategically important but should start simple.
 5. Facilities should be scoped to departments to reduce coach friction.
 6. One facility can belong to multiple departments.
-7. Coaches finalize attendance; athletes submit availability.
-8. Athletes do not see teammate load data.
-9. Club admins manage structure, not necessarily individual performance data.
-10. Departments are the operational layer between club and teams.
-11. Teams should not clutter `/admin/setup`; team detail belongs in department/team screens.
-12. The product should become a real club/team operating system, not a generic AI demo app.
-13. Local demo mode must remain easy to remove before production launch.
+7. Club-admin governance should remain possible even for future department-managed facilities.
+8. Coaches finalize attendance; athletes submit availability.
+9. Athletes do not see teammate load data.
+10. Club admins manage structure, not necessarily individual performance data.
+11. Departments are the operational layer between club and teams.
+12. Teams should not clutter `/admin/setup`; team detail belongs in department/team screens.
+13. The product should become a real club/team operating system, not a generic AI demo app.
+14. Local demo mode must remain easy to remove before production launch.
