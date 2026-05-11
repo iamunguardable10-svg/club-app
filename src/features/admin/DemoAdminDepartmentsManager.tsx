@@ -60,7 +60,7 @@ function UsageChips({ items, emptyText }: { items: string[]; emptyText: string }
       {visibleItems.map((item) => (
         <Link
           key={item}
-          href={`/demo/admin/facilities/${encodeURIComponent(item)}/calendar`}
+          href={`/demo/admin/facilities/${encodeURIComponent(item)}/calendar?from=departments`}
           onClick={(event) => event.stopPropagation()}
           className="rounded-full border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-1 text-xs font-bold text-emerald-200 transition hover:border-emerald-300 hover:bg-emerald-950/60"
         >
