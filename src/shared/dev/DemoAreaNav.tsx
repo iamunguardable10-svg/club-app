@@ -7,6 +7,7 @@ const sections = [
     links: [
       { href: '/demo/create-club', label: 'Local Create Club' },
       { href: '/demo/admin/setup', label: 'Local Admin Setup' },
+      { href: '/demo/admin/facilities', label: 'Local Facility Assignment' },
       { href: '/demo', label: 'Demo navigation' },
     ],
   },
