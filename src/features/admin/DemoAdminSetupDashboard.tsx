@@ -1,15 +1,77 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { clearDemoClubSetup, getDemoClubSetup, type DemoClubSetup } from '@/shared/dev/demoStorage';
 
+type DemoAssignment = {
+  department: string;
+  facility: string;
+};
+
+const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
+
+function getAssignments(): DemoAssignment[] {
+  if (typeof window === 'undefined') return [];
+  const raw = window.localStorage.getItem(DEMO_FACILITY_ASSIGNMENTS_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as DemoAssignment[];
+  } catch {
+    return [];
+  }
+}
+
+function encodeFacilityName(facility: string) {
+  return encodeURIComponent(facility);
+}
+
+function UsageSummary({ departments }: { departments: string[] }) {
+  if (departments.length === 0) {
+    return <p className="mt-2 text-xs text-slate-500">Not assigned to a department yet.</p>;
+  }
+
+  const visibleDepartments = departments.slice(0, 2);
+  const hiddenCount = departments.length - visibleDepartments.length;
+
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {visibleDepartments.map((department) => (
+        <span key={department} className="rounded-full border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-1 text-xs font-bold text-emerald-200">
+          {department}
+        </span>
+      ))}
+      {hiddenCount > 0 ? (
+        <span className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs font-bold text-slate-300">
+          +{hiddenCount} more
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export function DemoAdminSetupDashboard() {
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
+  const [assignments, setAssignments] = useState<DemoAssignment[]>([]);
 
   useEffect(() => {
     setSetup(getDemoClubSetup());
+    setAssignments(getAssignments());
   }, []);
+
+  const departmentsByFacility = useMemo(() => {
+    const map = new Map<string, string[]>();
+
+    for (const assignment of assignments) {
+      const current = map.get(assignment.facility) ?? [];
+      if (!current.includes(assignment.department)) {
+        current.push(assignment.department);
+      }
+      map.set(assignment.facility, current);
+    }
+
+    return map;
+  }, [assignments]);
 
   function handleClear() {
     clearDemoClubSetup();
@@ -108,10 +170,19 @@ export function DemoAdminSetupDashboard() {
             <div className="mt-4 space-y-2">
               {setup.facilities.length > 0 ? (
                 setup.facilities.map((facility) => (
-                  <div key={facility} className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
-                    <p className="font-bold text-white">{facility}</p>
-                    <p className="mt-1 text-xs text-slate-500">Department assignment is managed on the local facilities page.</p>
-                  </div>
+                  <Link
+                    key={facility}
+                    href={`/demo/admin/facilities/${encodeFacilityName(facility)}/calendar`}
+                    className="block rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-bold text-white">{facility}</p>
+                        <UsageSummary departments={departmentsByFacility.get(facility) ?? []} />
+                      </div>
+                      <span className="text-xs font-black text-emerald-300">Calendar →</span>
+                    </div>
+                  </Link>
                 ))
               ) : (
                 <p className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-400">No demo facilities.</p>
