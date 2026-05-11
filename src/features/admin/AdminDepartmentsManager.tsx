@@ -47,7 +47,7 @@ function UsageChips({ items, emptyText }: { items: Facility[]; emptyText: string
       {visibleItems.map((item) => (
         <Link
           key={item.id}
-          href={`/admin/facilities/${item.id}/calendar`}
+          href={`/admin/facilities/${item.id}/calendar?from=departments`}
           onClick={(event) => event.stopPropagation()}
           className="rounded-full border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-1 text-xs font-bold text-emerald-200 transition hover:border-emerald-300 hover:bg-emerald-950/60"
         >
