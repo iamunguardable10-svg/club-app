@@ -1,5 +1,5 @@
-import { DemoAreaNav } from '@/shared/dev/DemoAreaNav';
+import { redirect } from 'next/navigation';
 
 export default function DemoPage() {
-  return <DemoAreaNav />;
+  redirect('/demo/create-club');
 }
