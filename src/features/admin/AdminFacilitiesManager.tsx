@@ -309,8 +309,25 @@ export function AdminFacilitiesManager() {
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-4xl font-black">{facilities.length}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-400">Created at club level. Assignment happens per facility below.</p>
+              <p className="mt-2 text-sm leading-6 text-slate-400">Click a facility to open the future facility calendar.</p>
             </div>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {facilities.map((facility) => (
+              <Link
+                key={facility.id}
+                href={`/admin/facilities/${facility.id}/calendar`}
+                className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-black text-white">{facility.name}</p>
+                    <p className="mt-1 text-xs text-slate-500">{facility.address || 'No address set yet'}</p>
+                  </div>
+                  <span className="text-xs font-black text-emerald-300">Calendar →</span>
+                </div>
+              </Link>
+            ))}
           </div>
         </section>
 
@@ -428,7 +445,12 @@ export function AdminFacilitiesManager() {
                           const facility = facilityById.get(assignment.facility_id);
                           return (
                             <div key={assignment.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
-                              <span className="text-sm font-bold text-slate-200">{facility?.name ?? 'Unknown facility'}</span>
+                              <Link
+                                href={`/admin/facilities/${assignment.facility_id}/calendar`}
+                                className="text-sm font-bold text-slate-200 hover:text-emerald-300"
+                              >
+                                {facility?.name ?? 'Unknown facility'} →
+                              </Link>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveAssignment(assignment.id)}
