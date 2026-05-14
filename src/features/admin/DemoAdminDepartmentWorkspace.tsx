@@ -1,13 +1,27 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { AdminShell } from '@/shared/admin/AdminShell';
-import { getDemoClubSetup, getDemoTeams, saveDemoTeams, type DemoClubSetup, type DemoTeam } from '@/shared/dev/demoStorage';
+import { getDemoClubSetup, getDemoTeams, saveDemoClubSetup, saveDemoTeams, type DemoClubSetup, type DemoTeam } from '@/shared/dev/demoStorage';
 
 type DemoAssignment = {
   department: string;
   facility: string;
+};
+
+type DemoFacilityMeta = {
+  facility: string;
+  scope: 'club_shared' | 'department_only';
+  ownerDepartment: string | null;
+};
+
+type DemoFacilityRequest = {
+  id: string;
+  facility: string;
+  department: string;
+  createdAt: string;
+  status: 'open' | 'resolved';
 };
 
 type DemoInvite = {
@@ -21,34 +35,65 @@ type DemoInvite = {
   expiresAt: string | null;
 };
 
+type FacilityDraftStep = 'name' | 'usage' | 'shared_confirm' | 'reported';
+
 const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
+const DEMO_FACILITY_META_KEY = 'club-app.demo.facility-meta';
+const DEMO_FACILITY_REQUESTS_KEY = 'club-app.demo.facility-requests';
 const DEMO_INVITES_KEY = 'club-app.demo.invites';
 
-function getAssignments(): DemoAssignment[] {
-  if (typeof window === 'undefined') return [];
-  const raw = window.localStorage.getItem(DEMO_FACILITY_ASSIGNMENTS_KEY);
-  if (!raw) return [];
+function readJson<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback;
+  const raw = window.localStorage.getItem(key);
+  if (!raw) return fallback;
   try {
-    return JSON.parse(raw) as DemoAssignment[];
+    return JSON.parse(raw) as T;
   } catch {
-    return [];
+    return fallback;
   }
+}
+
+function writeJson<T>(key: string, value: T) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(key, JSON.stringify(value));
+}
+
+function getAssignments(): DemoAssignment[] {
+  return readJson<DemoAssignment[]>(DEMO_FACILITY_ASSIGNMENTS_KEY, []);
+}
+
+function saveAssignments(assignments: DemoAssignment[]) {
+  writeJson(DEMO_FACILITY_ASSIGNMENTS_KEY, assignments);
+}
+
+function getFacilityMeta(setup: DemoClubSetup | null): DemoFacilityMeta[] {
+  const stored = readJson<DemoFacilityMeta[]>(DEMO_FACILITY_META_KEY, []);
+  const known = new Set(stored.map((meta) => meta.facility));
+  const inferred = (setup?.facilities ?? [])
+    .filter((facility) => !known.has(facility))
+    .map((facility) => ({ facility, scope: 'club_shared' as const, ownerDepartment: null }));
+
+  return [...stored, ...inferred];
+}
+
+function saveFacilityMeta(meta: DemoFacilityMeta[]) {
+  writeJson(DEMO_FACILITY_META_KEY, meta);
 }
 
 function getDemoInvites(): DemoInvite[] {
-  if (typeof window === 'undefined') return [];
-  const raw = window.localStorage.getItem(DEMO_INVITES_KEY);
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw) as DemoInvite[];
-  } catch {
-    return [];
-  }
+  return readJson<DemoInvite[]>(DEMO_INVITES_KEY, []);
 }
 
 function saveDemoInvites(invites: DemoInvite[]) {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(DEMO_INVITES_KEY, JSON.stringify(invites));
+  writeJson(DEMO_INVITES_KEY, invites);
+}
+
+function getFacilityRequests(): DemoFacilityRequest[] {
+  return readJson<DemoFacilityRequest[]>(DEMO_FACILITY_REQUESTS_KEY, []);
+}
+
+function saveFacilityRequests(requests: DemoFacilityRequest[]) {
+  writeJson(DEMO_FACILITY_REQUESTS_KEY, requests);
 }
 
 function createToken() {
@@ -71,8 +116,12 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [teams, setTeams] = useState<DemoTeam[]>([]);
   const [assignments, setAssignments] = useState<DemoAssignment[]>([]);
+  const [facilityMeta, setFacilityMeta] = useState<DemoFacilityMeta[]>([]);
   const [invites, setInvites] = useState<DemoInvite[]>([]);
   const [newTeamName, setNewTeamName] = useState('');
+  const [selectedExistingFacility, setSelectedExistingFacility] = useState('');
+  const [facilityDraftName, setFacilityDraftName] = useState('');
+  const [facilityDraftStep, setFacilityDraftStep] = useState<FacilityDraftStep>('name');
   const [isEditMode, setIsEditMode] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
@@ -81,6 +130,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
     setSetup(currentSetup);
     setTeams(getDemoTeams(currentSetup));
     setAssignments(getAssignments());
+    setFacilityMeta(getFacilityMeta(currentSetup));
     setInvites(getDemoInvites());
   }, []);
 
@@ -90,6 +140,15 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
     () => assignments.filter((assignment) => assignment.department === departmentName).map((assignment) => assignment.facility),
     [assignments, departmentName],
   );
+
+  const metaByFacility = useMemo(() => new Map(facilityMeta.map((meta) => [meta.facility, meta])), [facilityMeta]);
+
+  const availableSharedFacilities = useMemo(() => {
+    return (setup?.facilities ?? []).filter((facility) => {
+      const meta = metaByFacility.get(facility);
+      return (meta?.scope ?? 'club_shared') === 'club_shared' && !departmentFacilities.includes(facility);
+    });
+  }, [departmentFacilities, metaByFacility, setup?.facilities]);
 
   const pendingHeadInviteByTeam = useMemo(() => {
     const map = new Map<string, DemoInvite>();
@@ -107,13 +166,12 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
   const missingDefaultFacilityCount = departmentTeams.filter((team) => !team.defaultFacility).length;
 
   const attentionItems = useMemo(() => {
-    const items: { title: string; description: string; href?: string }[] = [];
+    const items: { title: string; description: string }[] = [];
 
     if (departmentTeams.length > 0 && departmentFacilities.length === 0) {
       items.push({
-        title: 'No local department facilities assigned',
-        description: 'Assign demo facilities to this department before choosing team defaults.',
-        href: '/demo/admin/facilities?from=departments',
+        title: 'No local department halls assigned',
+        description: 'Add a hall directly here. The demo asks whether the hall is department-only or should be reported as shared before saving anything.',
       });
     }
 
@@ -139,6 +197,26 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
     saveDemoTeams(nextTeams);
   }
 
+  function persistSetup(nextSetup: DemoClubSetup) {
+    setSetup(nextSetup);
+    saveDemoClubSetup(nextSetup);
+  }
+
+  function persistAssignments(nextAssignments: DemoAssignment[]) {
+    setAssignments(nextAssignments);
+    saveAssignments(nextAssignments);
+  }
+
+  function persistFacilityMeta(nextMeta: DemoFacilityMeta[]) {
+    setFacilityMeta(nextMeta);
+    saveFacilityMeta(nextMeta);
+  }
+
+  function resetFacilityDraft() {
+    setFacilityDraftName('');
+    setFacilityDraftStep('name');
+  }
+
   function getInviteUrl(token: string) {
     if (typeof window === 'undefined') return `/invite/${token}`;
     return `${window.location.origin}/invite/${token}`;
@@ -150,7 +228,63 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
     window.setTimeout(() => setCopiedToken(null), 1500);
   }
 
-  function handleCreateTeam(event: React.FormEvent<HTMLFormElement>) {
+  function handleFacilityDraftNameSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!facilityDraftName.trim()) return;
+    setFacilityDraftStep('usage');
+  }
+
+  function handleAssignExistingFacility(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedExistingFacility) return;
+
+    const exists = assignments.some((assignment) => assignment.department === departmentName && assignment.facility === selectedExistingFacility);
+    if (!exists) {
+      persistAssignments([...assignments, { department: departmentName, facility: selectedExistingFacility }]);
+    }
+
+    setSelectedExistingFacility('');
+  }
+
+  function handleCreateDepartmentOnlyFacility() {
+    if (!setup || !facilityDraftName.trim()) return;
+    const facilityName = facilityDraftName.trim();
+
+    if (setup.facilities.includes(facilityName)) {
+      resetFacilityDraft();
+      return;
+    }
+
+    persistSetup({ ...setup, facilities: [...setup.facilities, facilityName] });
+    persistFacilityMeta([
+      ...facilityMeta,
+      {
+        facility: facilityName,
+        scope: 'department_only',
+        ownerDepartment: departmentName,
+      },
+    ]);
+    persistAssignments([...assignments, { department: departmentName, facility: facilityName }]);
+    resetFacilityDraft();
+  }
+
+  function handleReportSharedFacility() {
+    if (!facilityDraftName.trim()) return;
+
+    const requests = getFacilityRequests();
+    const request: DemoFacilityRequest = {
+      id: crypto.randomUUID(),
+      facility: facilityDraftName.trim(),
+      department: departmentName,
+      createdAt: new Date().toISOString(),
+      status: 'open',
+    };
+
+    saveFacilityRequests([request, ...requests]);
+    setFacilityDraftStep('reported');
+  }
+
+  function handleCreateTeam(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!newTeamName.trim()) return;
 
@@ -211,6 +345,8 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
     );
   }
 
+  const showFacilitySetup = isEditMode || departmentFacilities.length === 0;
+
   return (
     <AdminShell mode="demo">
       <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6 shadow-sm">
@@ -243,24 +379,12 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">Needs attention</p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {attentionItems.map((item) => {
-              const content = (
-                <>
-                  <p className="font-black text-amber-100">{item.title}</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-400">{item.description}</p>
-                </>
-              );
-
-              return item.href ? (
-                <Link key={item.title} href={item.href} className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-4 transition hover:border-amber-400/60">
-                  {content}
-                </Link>
-              ) : (
-                <div key={item.title} className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-4">
-                  {content}
-                </div>
-              );
-            })}
+            {attentionItems.map((item) => (
+              <div key={item.title} className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-4">
+                <p className="font-black text-amber-100">{item.title}</p>
+                <p className="mt-2 text-sm leading-6 text-slate-400">{item.description}</p>
+              </div>
+            ))}
           </div>
         </section>
       ) : null}
@@ -276,25 +400,152 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
 
         {departmentFacilities.length > 0 ? (
           <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {departmentFacilities.map((facility) => (
-              <Link
-                key={facility}
-                href={`/demo/admin/facilities/${encodeFacilityName(facility)}/calendar?from=departments`}
-                className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300"
-              >
-                <p className="font-black text-white">{facility}</p>
-                <p className="mt-1 text-xs text-slate-500">Open facility calendar</p>
-              </Link>
-            ))}
+            {departmentFacilities.map((facility) => {
+              const meta = metaByFacility.get(facility);
+              return (
+                <Link
+                  key={facility}
+                  href={`/demo/admin/facilities/${encodeFacilityName(facility)}/calendar?from=departments`}
+                  className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300"
+                >
+                  <p className="font-black text-white">{facility}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {meta?.scope === 'department_only' ? 'Department-only hall' : 'Shared club facility'} · Open calendar
+                  </p>
+                </Link>
+              );
+            })}
           </div>
         ) : (
-          <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-            <p className="text-sm font-bold text-slate-300">No local halls assigned to this department yet.</p>
-            <Link href="/demo/admin/facilities?from=departments" className="mt-3 inline-block rounded-lg border border-emerald-500/60 px-3 py-2 text-xs font-black text-emerald-200 hover:bg-emerald-950/40">
-              Assign facilities
-            </Link>
-          </div>
+          <p className="mt-5 rounded-2xl border border-amber-500/20 bg-amber-950/10 p-4 text-sm font-bold text-amber-100">
+            No local halls are assigned yet. Add one here without leaving the department flow.
+          </p>
         )}
+
+        {showFacilitySetup ? (
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <form onSubmit={handleAssignExistingFacility} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-sky-300">Assign existing shared facility</p>
+              <p className="mt-2 text-sm leading-6 text-slate-400">Use this only if the hall already exists as a shared club facility.</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+                <select
+                  value={selectedExistingFacility}
+                  onChange={(event) => setSelectedExistingFacility(event.target.value)}
+                  disabled={availableSharedFacilities.length === 0}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-sm font-bold outline-none focus:border-sky-400 disabled:opacity-60"
+                >
+                  <option value="">{availableSharedFacilities.length > 0 ? 'Select shared club facility' : 'No shared facilities available'}</option>
+                  {availableSharedFacilities.map((facility) => (
+                    <option key={facility} value={facility}>
+                      {facility}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  disabled={!selectedExistingFacility}
+                  className="rounded-xl bg-sky-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Assign
+                </button>
+              </div>
+            </form>
+
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">Add a new hall</p>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                The hall is not saved yet. First enter a name, then confirm whether only this department uses it or whether it should be reported as shared.
+              </p>
+
+              {facilityDraftStep === 'name' ? (
+                <form onSubmit={handleFacilityDraftNameSubmit} className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+                  <input
+                    value={facilityDraftName}
+                    onChange={(event) => setFacilityDraftName(event.target.value)}
+                    placeholder="Main Hall"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-emerald-400"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!facilityDraftName.trim()}
+                    className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Continue
+                  </button>
+                </form>
+              ) : null}
+
+              {facilityDraftStep === 'usage' ? (
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Hall name</p>
+                    <p className="mt-1 font-black text-white">{facilityDraftName.trim()}</p>
+                  </div>
+                  <p className="text-sm font-bold text-slate-200">Who uses this hall?</p>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={handleCreateDepartmentOnlyFacility}
+                      className="rounded-xl border border-emerald-500/60 px-4 py-3 text-left text-sm font-black text-emerald-200 hover:bg-emerald-950/40"
+                    >
+                      Only {departmentName}
+                      <span className="mt-1 block text-xs font-bold leading-5 text-slate-400">
+                        Save as department-only. Check this is not used by another department.
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFacilityDraftStep('shared_confirm')}
+                      className="rounded-xl border border-amber-500/60 px-4 py-3 text-left text-sm font-black text-amber-200 hover:bg-amber-950/40"
+                    >
+                      Also other departments
+                      <span className="mt-1 block text-xs font-bold leading-5 text-slate-400">
+                        Review the name before reporting it to admins.
+                      </span>
+                    </button>
+                  </div>
+                  <button type="button" onClick={() => setFacilityDraftStep('name')} className="text-xs font-black text-slate-400 hover:text-slate-200">
+                    Change name
+                  </button>
+                </div>
+              ) : null}
+
+              {facilityDraftStep === 'shared_confirm' ? (
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3">
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">Check shared facility name</p>
+                    <p className="mt-1 text-xl font-black text-white">{facilityDraftName.trim()}</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-300">
+                      This hall may affect multiple departments. Verify the exact club-wide name before reporting it to admins.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleReportSharedFacility}
+                    className="w-full rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200"
+                  >
+                    Report shared facility to admin
+                  </button>
+                  <button type="button" onClick={() => setFacilityDraftStep('usage')} className="text-xs font-black text-slate-400 hover:text-slate-200">
+                    Back to usage choice
+                  </button>
+                </div>
+              ) : null}
+
+              {facilityDraftStep === 'reported' ? (
+                <div className="mt-4 rounded-xl border border-sky-500/30 bg-sky-950/20 p-4">
+                  <p className="font-black text-sky-100">Reported to admin</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                    The admin can review the facility name and decide whether to create or assign it as a shared club facility.
+                  </p>
+                  <button type="button" onClick={resetFacilityDraft} className="mt-3 text-xs font-black text-sky-200 hover:text-sky-100">
+                    Add another hall
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       {isEditMode || departmentTeams.length === 0 ? (
@@ -367,25 +618,19 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                             </button>
                           )}
 
-                          {needsFacilityAction ? (
-                            departmentFacilities.length > 0 ? (
-                              <select
-                                value=""
-                                onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)}
-                                className="w-full rounded-lg border border-emerald-500/50 bg-slate-950 px-2.5 py-1.5 text-xs font-black text-emerald-200 outline-none focus:border-emerald-300 sm:w-fit"
-                              >
-                                <option value="">Set default facility</option>
-                                {departmentFacilities.map((facility) => (
-                                  <option key={facility} value={facility}>
-                                    {facility}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : (
-                              <Link href="/demo/admin/facilities?from=departments" className="w-fit rounded-lg border border-emerald-500/60 px-2.5 py-1.5 text-xs font-black text-emerald-200 hover:bg-emerald-950/40">
-                                Assign facilities
-                              </Link>
-                            )
+                          {needsFacilityAction && departmentFacilities.length > 0 ? (
+                            <select
+                              value=""
+                              onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)}
+                              className="w-full rounded-lg border border-emerald-500/50 bg-slate-950 px-2.5 py-1.5 text-xs font-black text-emerald-200 outline-none focus:border-emerald-300 sm:w-fit"
+                            >
+                              <option value="">Set default facility</option>
+                              {departmentFacilities.map((facility) => (
+                                <option key={facility} value={facility}>
+                                  {facility}
+                                </option>
+                              ))}
+                            </select>
                           ) : null}
                         </div>
                       ) : null}
@@ -431,9 +676,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                               ))}
                             </select>
                           ) : (
-                            <Link href="/demo/admin/facilities?from=departments" className="mt-2 inline-block rounded-lg border border-emerald-500/60 px-2.5 py-1.5 text-xs font-black text-emerald-200 hover:bg-emerald-950/40">
-                              Assign department facilities
-                            </Link>
+                            <p className="mt-2 text-xs leading-5 text-slate-500">Add a hall above before setting a default facility.</p>
                           )}
                         </div>
                       </div>
