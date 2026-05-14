@@ -39,6 +39,11 @@ function isMissingAuthSessionError(message?: string) {
   return message?.toLowerCase().includes('auth session missing') ?? false;
 }
 
+function confirmAction(message: string) {
+  if (typeof window === 'undefined') return false;
+  return window.confirm(message);
+}
+
 export function AdminFacilitiesManager() {
   const router = useRouter();
   const [state, setState] = useState<LoadState>('loading');
@@ -67,9 +72,7 @@ export function AdminFacilitiesManager() {
     return { href: '/admin/overview', label: '← Back to overview' };
   }, [backContext]);
 
-  const departmentById = useMemo(() => new Map(departments.map((department) => [department.id, department])), [departments]);
   const facilityById = useMemo(() => new Map(facilities.map((facility) => [facility.id, facility])), [facilities]);
-
   const globalFacilities = useMemo(() => facilities.filter((facility) => facility.scope !== 'department_only'), [facilities]);
 
   const departmentOnlyFacilitiesByDepartment = useMemo(() => {
@@ -101,11 +104,7 @@ export function AdminFacilitiesManager() {
   }, [assignments, facilityById]);
 
   const assignedDepartmentIdsForSelectedFacility = useMemo(() => {
-    return new Set(
-      assignments
-        .filter((assignment) => assignment.facility_id === selectedFacilityId)
-        .map((assignment) => assignment.department_id),
-    );
+    return new Set(assignments.filter((assignment) => assignment.facility_id === selectedFacilityId).map((assignment) => assignment.department_id));
   }, [assignments, selectedFacilityId]);
 
   const createMatch = useMemo(() => {
@@ -219,17 +218,13 @@ export function AdminFacilitiesManager() {
 
   function toggleNewFacilityDepartment(departmentId: string) {
     setNewFacilityDepartmentIds((current) =>
-      current.includes(departmentId)
-        ? current.filter((currentDepartmentId) => currentDepartmentId !== departmentId)
-        : [...current, departmentId],
+      current.includes(departmentId) ? current.filter((currentDepartmentId) => currentDepartmentId !== departmentId) : [...current, departmentId],
     );
   }
 
   function toggleDepartment(departmentId: string) {
     setSelectedDepartmentIds((current) =>
-      current.includes(departmentId)
-        ? current.filter((currentDepartmentId) => currentDepartmentId !== departmentId)
-        : [...current, departmentId],
+      current.includes(departmentId) ? current.filter((currentDepartmentId) => currentDepartmentId !== departmentId) : [...current, departmentId],
     );
   }
 
@@ -241,12 +236,7 @@ export function AdminFacilitiesManager() {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const existingDepartmentIds = new Set(
-      assignments
-        .filter((assignment) => assignment.facility_id === facilityId)
-        .map((assignment) => assignment.department_id),
-    );
-
+    const existingDepartmentIds = new Set(assignments.filter((assignment) => assignment.facility_id === facilityId).map((assignment) => assignment.department_id));
     const rowsToInsert = departmentIds
       .filter((departmentId) => !existingDepartmentIds.has(departmentId))
       .map((departmentId) => ({
@@ -317,11 +307,7 @@ export function AdminFacilitiesManager() {
     const supabase = createBrowserSupabaseClient();
 
     try {
-      const { error: updateError } = await supabase
-        .from('facilities')
-        .update({ scope: 'club_shared', owner_department_id: null })
-        .eq('id', facilityId);
-
+      const { error: updateError } = await supabase.from('facilities').update({ scope: 'club_shared', owner_department_id: null }).eq('id', facilityId);
       if (updateError) throw updateError;
 
       const departmentIdsToAssign = Array.from(new Set([facility.owner_department_id, ...additionalDepartmentIds].filter(Boolean) as string[]));
@@ -359,6 +345,12 @@ export function AdminFacilitiesManager() {
   }
 
   async function handleRemoveAssignment(assignmentId: string) {
+    const assignment = assignments.find((item) => item.id === assignmentId);
+    const facility = assignment ? facilityById.get(assignment.facility_id) : null;
+    const department = assignment ? departments.find((item) => item.id === assignment.department_id) : null;
+
+    if (!confirmAction(`Remove ${facility?.name ?? 'this facility'} from ${department?.name ?? 'this department'}?`)) return;
+
     setIsSaving(true);
     setError(null);
 
@@ -367,13 +359,51 @@ export function AdminFacilitiesManager() {
 
     if (deleteError) {
       setError(deleteError.message);
-      setState('error');
       setIsSaving(false);
       return;
     }
 
     setIsSaving(false);
     await loadAdminData();
+  }
+
+  async function handleDeleteFacility(facilityId: string) {
+    const facility = facilityById.get(facilityId);
+    if (!facility) return;
+
+    const assignedDepartmentCount = assignments.filter((assignment) => assignment.facility_id === facilityId).length;
+    const confirmMessage =
+      facility.scope === 'department_only'
+        ? `Delete department-only facility ${facility.name}? This cannot be undone.`
+        : `Delete global facility ${facility.name}? This also removes ${assignedDepartmentCount} department assignment${assignedDepartmentCount === 1 ? '' : 's'}.`;
+
+    if (!confirmAction(confirmMessage)) return;
+
+    setIsSaving(true);
+    setError(null);
+
+    const supabase = createBrowserSupabaseClient();
+
+    try {
+      const { error: teamUpdateError } = await supabase.from('teams').update({ default_facility_id: null }).eq('default_facility_id', facilityId);
+      if (teamUpdateError) throw teamUpdateError;
+
+      const { error: assignmentDeleteError } = await supabase.from('department_facilities').delete().eq('facility_id', facilityId);
+      if (assignmentDeleteError) throw assignmentDeleteError;
+
+      const { error: facilityDeleteError } = await supabase.from('facilities').delete().eq('id', facilityId);
+      if (facilityDeleteError) throw facilityDeleteError;
+
+      if (selectedFacilityId === facilityId) {
+        setSelectedFacilityId('');
+      }
+
+      await loadAdminData();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Could not delete facility.');
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   if (state === 'loading') {
@@ -454,14 +484,22 @@ export function AdminFacilitiesManager() {
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {globalFacilities.map((facility) => (
-              <Link
-                key={facility.id}
-                href={`/admin/facilities/${facility.id}/calendar?from=facilities`}
-                className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300"
-              >
-                <p className="font-black text-white">{facility.name}</p>
-                <p className="mt-1 text-xs text-slate-500">{facility.address || 'No address set yet'}</p>
-              </Link>
+              <article key={facility.id} className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20">
+                <Link href={`/admin/facilities/${facility.id}/calendar?from=facilities`} className="block">
+                  <p className="font-black text-white">{facility.name}</p>
+                  <p className="mt-1 text-xs text-slate-500">{facility.address || 'No address set yet'}</p>
+                </Link>
+                {isEditMode ? (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteFacility(facility.id)}
+                    disabled={isSaving}
+                    className="mt-3 rounded-lg border border-red-500/60 px-2.5 py-1.5 text-xs font-black text-red-200 hover:bg-red-950/40 disabled:opacity-50"
+                  >
+                    Delete facility
+                  </button>
+                ) : null}
+              </article>
             ))}
             {globalFacilities.length === 0 ? <p className="text-sm text-slate-500">No global facilities yet.</p> : null}
           </div>
@@ -498,10 +536,7 @@ export function AdminFacilitiesManager() {
                               const facility = facilityById.get(assignment.facility_id);
                               return (
                                 <div key={assignment.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
-                                  <Link
-                                    href={`/admin/facilities/${assignment.facility_id}/calendar?from=facilities`}
-                                    className="text-sm font-bold text-slate-200 hover:text-emerald-300"
-                                  >
+                                  <Link href={`/admin/facilities/${assignment.facility_id}/calendar?from=facilities`} className="text-sm font-bold text-slate-200 hover:text-emerald-300">
                                     {facility?.name ?? 'Unknown facility'}
                                     {facility?.address ? <span className="block text-xs text-slate-500">{facility.address}</span> : null}
                                   </Link>
@@ -533,14 +568,24 @@ export function AdminFacilitiesManager() {
                                 <p className="text-sm font-black text-slate-100">{facility.name}</p>
                                 <p className="mt-1 text-xs text-slate-500">{facility.address || 'No address'}</p>
                                 {isEditMode ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleMakeFacilityGlobal(facility.id)}
-                                    disabled={isSaving}
-                                    className="mt-2 rounded-lg border border-violet-500/60 px-2.5 py-1.5 text-xs font-black text-violet-200 hover:bg-violet-950/40 disabled:opacity-50"
-                                  >
-                                    Make global
-                                  </button>
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMakeFacilityGlobal(facility.id)}
+                                      disabled={isSaving}
+                                      className="rounded-lg border border-violet-500/60 px-2.5 py-1.5 text-xs font-black text-violet-200 hover:bg-violet-950/40 disabled:opacity-50"
+                                    >
+                                      Make global
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteFacility(facility.id)}
+                                      disabled={isSaving}
+                                      className="rounded-lg border border-red-500/60 px-2.5 py-1.5 text-xs font-black text-red-200 hover:bg-red-950/40 disabled:opacity-50"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
                                 ) : null}
                               </div>
                             ))
@@ -610,21 +655,12 @@ export function AdminFacilitiesManager() {
                     {departments.map((department) => (
                       <label key={department.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm">
                         <span className="font-bold text-slate-100">{department.name}</span>
-                        <input
-                          type="checkbox"
-                          checked={newFacilityDepartmentIds.includes(department.id)}
-                          onChange={() => toggleNewFacilityDepartment(department.id)}
-                          className="h-4 w-4"
-                        />
+                        <input type="checkbox" checked={newFacilityDepartmentIds.includes(department.id)} onChange={() => toggleNewFacilityDepartment(department.id)} className="h-4 w-4" />
                       </label>
                     ))}
                   </div>
                 </div>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
-                >
+                <button type="submit" disabled={isSaving} className="w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60">
                   Add separate global facility
                 </button>
               </div>
@@ -635,11 +671,7 @@ export function AdminFacilitiesManager() {
               <h2 className="mt-2 text-xl font-black">Assign existing global facility</h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">Select a global facility, then choose every department that may use it.</p>
               <div className="mt-4 space-y-4">
-                <select
-                  value={selectedFacilityId}
-                  onChange={(event) => setSelectedFacilityId(event.target.value)}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-400"
-                >
+                <select value={selectedFacilityId} onChange={(event) => setSelectedFacilityId(event.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-400">
                   {globalFacilities.map((facility) => (
                     <option key={facility.id} value={facility.id}>
                       {facility.name} — {facility.address || 'No address'}
@@ -658,23 +690,13 @@ export function AdminFacilitiesManager() {
                           <span className="font-bold text-slate-100">{department.name}</span>
                           {alreadyAssigned ? <span className="ml-2 text-xs font-bold text-emerald-300">already assigned</span> : null}
                         </span>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          disabled={alreadyAssigned}
-                          onChange={() => toggleDepartment(department.id)}
-                          className="h-4 w-4"
-                        />
+                        <input type="checkbox" checked={checked} disabled={alreadyAssigned} onChange={() => toggleDepartment(department.id)} className="h-4 w-4" />
                       </label>
                     );
                   })}
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={isSaving || departments.length === 0 || globalFacilities.length === 0 || selectedDepartmentIds.length === 0}
-                  className="w-full rounded-xl bg-violet-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-violet-300 disabled:cursor-not-allowed disabled:opacity-60"
-                >
+                <button type="submit" disabled={isSaving || departments.length === 0 || globalFacilities.length === 0 || selectedDepartmentIds.length === 0} className="w-full rounded-xl bg-violet-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-violet-300 disabled:cursor-not-allowed disabled:opacity-60">
                   Assign selected departments
                 </button>
               </div>
