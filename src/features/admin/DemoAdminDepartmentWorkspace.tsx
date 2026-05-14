@@ -311,7 +311,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                         <span className="hidden lg:inline">No session yet</span>
                       </p>
 
-                      {!isEditMode && (true || needsFacilityAction) ? (
+                      {!isEditMode ? (
                         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                           {pendingHeadInvite ? (
                             <button
