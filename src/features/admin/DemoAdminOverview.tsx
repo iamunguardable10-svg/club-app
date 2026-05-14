@@ -10,7 +10,16 @@ type DemoAssignment = {
   facility: string;
 };
 
+type DemoFacilityRequest = {
+  id: string;
+  facility: string;
+  department: string;
+  createdAt: string;
+  status: 'open' | 'resolved';
+};
+
 const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
+const DEMO_FACILITY_REQUESTS_KEY = 'club-app.demo.facility-requests';
 
 const managementAreas = [
   {
@@ -46,19 +55,46 @@ function getAssignments(): DemoAssignment[] {
   }
 }
 
+function getFacilityRequests(): DemoFacilityRequest[] {
+  if (typeof window === 'undefined') return [];
+  const raw = window.localStorage.getItem(DEMO_FACILITY_REQUESTS_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as DemoFacilityRequest[];
+  } catch {
+    return [];
+  }
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  return `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} ${date.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`;
+}
+
 export function DemoAdminOverview() {
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [assignments, setAssignments] = useState<DemoAssignment[]>([]);
+  const [requests, setRequests] = useState<DemoFacilityRequest[]>([]);
 
   useEffect(() => {
     setSetup(getDemoClubSetup());
     setAssignments(getAssignments());
+    setRequests(getFacilityRequests());
   }, []);
+
+  const openRequests = useMemo(() => requests.filter((request) => request.status === 'open'), [requests]);
 
   const needsAttention = useMemo(() => {
     if (!setup) return ['Create a local demo club setup first.'];
 
     const items: string[] = [];
+
+    if (openRequests.length > 0) {
+      items.push('There are local demo facility requests from departments that need admin review.');
+    }
 
     if (setup.departments.length === 0) {
       items.push('Create your first department so teams and coaches can be organized.');
@@ -78,7 +114,7 @@ export function DemoAdminOverview() {
     }
 
     return items.slice(0, 4);
-  }, [assignments, setup]);
+  }, [assignments, openRequests.length, setup]);
 
   if (!setup) {
     return (
@@ -115,6 +151,36 @@ export function DemoAdminOverview() {
               <div key={item} className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-4">
                 <p className="text-sm font-bold leading-6 text-amber-100">{item}</p>
               </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {openRequests.length > 0 ? (
+        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">Meldungen</p>
+          <h2 className="mt-2 text-xl font-black">Local facility requests</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-400">
+            Departments reported halls that may be shared across the club. Check the exact name before creating or assigning them globally.
+          </p>
+          <div className="mt-4 space-y-3">
+            {openRequests.map((request) => (
+              <article key={request.id} className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="font-black text-amber-100">Shared facility request: {request.facility}</p>
+                    <p className="mt-1 text-xs font-bold text-slate-500">
+                      {request.department} · {formatDateTime(request.createdAt)}
+                    </p>
+                  </div>
+                  <Link href="/demo/admin/facilities?from=overview" className="w-fit rounded-lg border border-amber-500/60 px-3 py-2 text-xs font-black text-amber-200 hover:bg-amber-950/40">
+                    Review in facilities
+                  </Link>
+                </div>
+                <p className="mt-3 text-sm leading-6 text-slate-300">
+                  {request.department} reports that this hall may be used by multiple departments. Verify the exact club-wide name before creating or assigning it.
+                </p>
+              </article>
             ))}
           </div>
         </section>
