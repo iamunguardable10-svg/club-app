@@ -28,6 +28,7 @@ type DraftState = {
 
 const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
 const DEMO_FACILITY_REQUESTS_KEY = 'club-app.demo.facility-requests';
+const FACILITIES_CHANGED_EVENT = 'club-app.demo.facilities-changed';
 
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
@@ -59,6 +60,11 @@ function getRequests() {
 
 function saveRequests(requests: DemoFacilityRequest[]) {
   writeJson(DEMO_FACILITY_REQUESTS_KEY, requests);
+}
+
+function notifyFacilitiesChanged() {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(FACILITIES_CHANGED_EVENT));
 }
 
 function confirmAction(message: string) {
@@ -129,8 +135,8 @@ export function DemoFacilityRequestsInbox() {
     });
   }
 
-  function createAssignmentsForFacility(facility: string, departments: string[]) {
-    const existingKeys = new Set(assignments.map((assignment) => `${assignment.department}::${assignment.facility}`));
+  function createAssignmentsForFacility(facility: string, departments: string[], sourceAssignments = assignments) {
+    const existingKeys = new Set(sourceAssignments.map((assignment) => `${assignment.department}::${assignment.facility}`));
     return departments.filter((department) => !existingKeys.has(`${department}::${facility}`)).map((department) => ({ department, facility }));
   }
 
@@ -156,14 +162,15 @@ export function DemoFacilityRequestsInbox() {
 
     const match = getMatch(draft);
     const departments = Array.from(new Set([request.department, ...draft.departments]));
-    const facilityName = match?.candidate.id ?? draft.name.trim();
+    const finalFacilityName = draft.name.trim();
+    const matchedName = match?.candidate.id;
 
     const nextDetails = match
       ? (setup.facilityDetails ?? []).map((facility) =>
-          facility.name === match.candidate.id
+          facility.name === matchedName
             ? {
                 ...facility,
-                name: draft.name.trim(),
+                name: finalFacilityName,
                 address: draft.address.trim(),
                 scope: 'club_shared' as const,
                 ownerDepartment: null,
@@ -173,31 +180,30 @@ export function DemoFacilityRequestsInbox() {
       : [
           ...(setup.facilityDetails ?? []),
           {
-            name: draft.name.trim(),
+            name: finalFacilityName,
             address: draft.address.trim(),
             scope: 'club_shared' as const,
             ownerDepartment: null,
           },
         ];
 
-    const finalFacilityName = match ? draft.name.trim() : facilityName;
+    const baseAssignments = assignments
+      .filter((assignment) => assignment.facility !== matchedName)
+      .concat(assignments.filter((assignment) => assignment.facility === matchedName).map((assignment) => ({ ...assignment, facility: finalFacilityName })));
+
     const nextSetup = {
       ...setup,
-      facilities: Array.from(new Set([...setup.facilities.filter((name) => name !== match?.candidate.id), finalFacilityName])),
+      facilities: Array.from(new Set([...setup.facilities.filter((name) => name !== matchedName), finalFacilityName])),
       facilityDetails: nextDetails,
     };
-
-    const nextAssignments = [
-      ...assignments.filter((assignment) => assignment.facility !== match?.candidate.id),
-      ...assignments.filter((assignment) => assignment.facility === match?.candidate.id).map((assignment) => ({ ...assignment, facility: finalFacilityName })),
-      ...createAssignmentsForFacility(finalFacilityName, departments),
-    ];
+    const nextAssignments = [...baseAssignments, ...createAssignmentsForFacility(finalFacilityName, departments, baseAssignments)];
     const nextRequests = requests.map((item) => (item.id === request.id ? { ...item, status: 'resolved' as const } : item));
 
     saveDemoClubSetup(nextSetup);
     saveAssignments(nextAssignments);
     saveRequests(nextRequests);
     loadData();
+    notifyFacilitiesChanged();
   }
 
   function handleReject(request: DemoFacilityRequest) {
@@ -215,6 +221,7 @@ export function DemoFacilityRequestsInbox() {
       ),
     );
     loadData();
+    notifyFacilitiesChanged();
   }
 
   if (!setup || openRequests.length === 0) return null;
@@ -224,9 +231,7 @@ export function DemoFacilityRequestsInbox() {
       <div className="mx-auto max-w-6xl rounded-3xl border border-amber-500/30 bg-amber-950/10 p-5">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">Local facility requests</p>
         <h2 className="mt-2 text-xl font-black">Shared facility requests from departments</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-400">
-          Review local demo requests, adjust details, assign departments, approve or reject.
-        </p>
+        <p className="mt-2 text-sm leading-6 text-slate-400">Review local demo requests, adjust details, assign departments, approve or reject.</p>
 
         <div className="mt-4 space-y-4">
           {openRequests.map((request) => {
@@ -244,26 +249,14 @@ export function DemoFacilityRequestsInbox() {
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className="font-black text-amber-100">{request.facility}</p>
-                    <p className="mt-1 text-xs font-bold text-slate-500">
-                      {request.department} · {formatDateTime(request.createdAt)}
-                    </p>
+                    <p className="mt-1 text-xs font-bold text-slate-500">{request.department} · {formatDateTime(request.createdAt)}</p>
                   </div>
                   <span className="w-fit rounded-full border border-amber-500/40 px-3 py-1 text-xs font-black text-amber-200">Open</span>
                 </div>
 
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <input
-                    value={draft.name}
-                    onChange={(event) => updateDraft(request.id, { name: event.target.value })}
-                    placeholder="Facility name"
-                    className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-amber-400"
-                  />
-                  <input
-                    value={draft.address}
-                    onChange={(event) => updateDraft(request.id, { address: event.target.value })}
-                    placeholder="Address"
-                    className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-amber-400"
-                  />
+                  <input value={draft.name} onChange={(event) => updateDraft(request.id, { name: event.target.value })} placeholder="Facility name" className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-amber-400" />
+                  <input value={draft.address} onChange={(event) => updateDraft(request.id, { address: event.target.value })} placeholder="Address" className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-amber-400" />
                 </div>
 
                 {warning ? <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm font-bold text-amber-100">{warning}</p> : null}
@@ -274,40 +267,16 @@ export function DemoFacilityRequestsInbox() {
                     return (
                       <label key={department} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm">
                         <span className="font-bold text-slate-100">{department}</span>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          disabled={department === request.department}
-                          onChange={() => toggleDepartment(request.id, department)}
-                          className="h-4 w-4"
-                        />
+                        <input type="checkbox" checked={checked} disabled={department === request.department} onChange={() => toggleDepartment(request.id, department)} className="h-4 w-4" />
                       </label>
                     );
                   })}
                 </div>
 
                 <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto_auto]">
-                  <input
-                    value={draft.rejectionReason}
-                    onChange={(event) => updateDraft(request.id, { rejectionReason: event.target.value })}
-                    placeholder="Optional rejection note"
-                    className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-red-400"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleApprove(request)}
-                    disabled={!draft.name.trim() || !draft.address.trim()}
-                    className="rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Approve request
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleReject(request)}
-                    className="rounded-xl border border-red-500/60 px-4 py-3 text-sm font-black text-red-200 transition hover:bg-red-950/40"
-                  >
-                    Reject
-                  </button>
+                  <input value={draft.rejectionReason} onChange={(event) => updateDraft(request.id, { rejectionReason: event.target.value })} placeholder="Optional rejection note" className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-red-400" />
+                  <button type="button" onClick={() => handleApprove(request)} disabled={!draft.name.trim() || !draft.address.trim()} className="rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60">Approve request</button>
+                  <button type="button" onClick={() => handleReject(request)} className="rounded-xl border border-red-500/60 px-4 py-3 text-sm font-black text-red-200 transition hover:bg-red-950/40">Reject</button>
                 </div>
               </article>
             );
