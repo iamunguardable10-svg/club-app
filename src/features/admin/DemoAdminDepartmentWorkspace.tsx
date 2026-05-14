@@ -3,13 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AdminShell } from '@/shared/admin/AdminShell';
-import {
-  getDemoClubSetup,
-  getDemoTeams,
-  saveDemoTeams,
-  type DemoClubSetup,
-  type DemoTeam,
-} from '@/shared/dev/demoStorage';
+import { getDemoClubSetup, getDemoTeams, saveDemoTeams, type DemoClubSetup, type DemoTeam } from '@/shared/dev/demoStorage';
 
 type DemoAssignment = {
   department: string;
@@ -86,10 +80,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
     setInvites(getDemoInvites());
   }, []);
 
-  const departmentTeams = useMemo(
-    () => teams.filter((team) => team.department === departmentName),
-    [departmentName, teams],
-  );
+  const departmentTeams = useMemo(() => teams.filter((team) => team.department === departmentName), [departmentName, teams]);
 
   const departmentFacilities = useMemo(
     () => assignments.filter((assignment) => assignment.department === departmentName).map((assignment) => assignment.facility),
@@ -233,9 +224,11 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
           <button
             type="button"
             onClick={() => setIsEditMode((current) => !current)}
-            className={isEditMode
-              ? 'w-fit rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200'
-              : 'w-fit rounded-xl border border-amber-500/70 px-4 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-950/40'}
+            className={
+              isEditMode
+                ? 'w-fit rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200'
+                : 'w-fit rounded-xl border border-amber-500/70 px-4 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-950/40'
+            }
           >
             {isEditMode ? 'Done editing' : 'Edit department'}
           </button>
@@ -268,7 +261,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
         </section>
       ) : null}
 
-      {(isEditMode || departmentTeams.length === 0) ? (
+      {isEditMode || departmentTeams.length === 0 ? (
         <form onSubmit={handleCreateTeam} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">{departmentTeams.length === 0 ? 'First team' : 'Edit mode'}</p>
           <h2 className="mt-2 text-xl font-black">{departmentTeams.length === 0 ? 'Create the first local team' : 'Add local team'}</h2>
@@ -301,7 +294,6 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
             departmentTeams.map((team) => {
               const pendingHeadInvite = pendingHeadInviteByTeam.get(team.name);
               const headCoachLabel = pendingHeadInvite ? 'Head coach invited' : 'No head coach';
-              const needsHeadCoachAction = !pendingHeadInvite;
               const needsFacilityAction = !team.defaultFacility;
 
               return (
@@ -319,17 +311,9 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                         <span className="hidden lg:inline">No session yet</span>
                       </p>
 
-                      {!isEditMode && (needsHeadCoachAction || needsFacilityAction) ? (
+                      {!isEditMode && (true || needsFacilityAction) ? (
                         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                          {needsHeadCoachAction ? (
-                            <button
-                              type="button"
-                              onClick={() => handleInviteHeadCoach(team.name)}
-                              className="w-fit rounded-lg border border-amber-500/70 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40"
-                            >
-                              Invite head coach
-                            </button>
-                          ) : pendingHeadInvite ? (
+                          {pendingHeadInvite ? (
                             <button
                               type="button"
                               onClick={() => handleCopy(pendingHeadInvite.token)}
@@ -337,7 +321,15 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                             >
                               {copiedToken === pendingHeadInvite.token ? 'Copied invite' : 'Copy head coach invite'}
                             </button>
-                          ) : null}
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleInviteHeadCoach(team.name)}
+                              className="w-fit rounded-lg border border-amber-500/70 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40"
+                            >
+                              Invite head coach
+                            </button>
+                          )}
 
                           {needsFacilityAction ? (
                             departmentFacilities.length > 0 ? (
@@ -415,9 +407,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
               );
             })
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">
-              No local teams in this department yet.
-            </p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">No local teams in this department yet.</p>
           )}
         </div>
       </section>
