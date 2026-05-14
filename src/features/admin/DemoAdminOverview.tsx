@@ -15,7 +15,7 @@ type DemoFacilityRequest = {
   facility: string;
   department: string;
   createdAt: string;
-  status: 'open' | 'resolved';
+  status: 'open' | 'resolved' | 'rejected';
 };
 
 const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
@@ -92,10 +92,6 @@ export function DemoAdminOverview() {
 
     const items: string[] = [];
 
-    if (openRequests.length > 0) {
-      items.push('There are local demo facility requests from departments that need admin review.');
-    }
-
     if (setup.departments.length === 0) {
       items.push('Create your first department so teams and coaches can be organized.');
     }
@@ -114,7 +110,7 @@ export function DemoAdminOverview() {
     }
 
     return items.slice(0, 4);
-  }, [assignments, openRequests.length, setup]);
+  }, [assignments, setup]);
 
   if (!setup) {
     return (
