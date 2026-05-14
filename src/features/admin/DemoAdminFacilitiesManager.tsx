@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { getDemoClubSetup, saveDemoClubSetup, type DemoClubSetup } from '@/shared/dev/demoStorage';
+import { getDemoClubSetup, saveDemoClubSetup, type DemoClubSetup, type DemoFacilityDetails } from '@/shared/dev/demoStorage';
+import { findBestFacilityLocationMatch, getFacilityMatchWarning } from '@/shared/lib/facilities/matching';
 
 type DemoAssignment = {
   department: string;
@@ -34,10 +35,14 @@ function encodeFacilityName(facility: string) {
 export function DemoAdminFacilitiesManager() {
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [assignments, setAssignments] = useState<DemoAssignment[]>([]);
-  const [newFacility, setNewFacility] = useState('');
+  const [newFacilityName, setNewFacilityName] = useState('');
+  const [newFacilityAddress, setNewFacilityAddress] = useState('');
   const [newFacilityDepartments, setNewFacilityDepartments] = useState<string[]>([]);
   const [selectedFacility, setSelectedFacility] = useState('');
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [expandedDepartments, setExpandedDepartments] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [backContext, setBackContext] = useState<string | null>(null);
 
   const backTarget = useMemo(() => {
@@ -57,8 +62,31 @@ export function DemoAdminFacilitiesManager() {
     const currentAssignments = getAssignments();
     setSetup(currentSetup);
     setAssignments(currentAssignments);
-    setSelectedFacility(currentSetup?.facilities[0] ?? '');
+    setSelectedFacility(currentSetup?.facilityDetails?.find((facility) => facility.scope !== 'department_only')?.name ?? currentSetup?.facilities[0] ?? '');
+    setExpandedDepartments(currentSetup?.departments ?? []);
   }, []);
+
+  const facilityDetails = useMemo(() => setup?.facilityDetails ?? [], [setup]);
+
+  const facilityByName = useMemo(() => new Map(facilityDetails.map((facility) => [facility.name, facility])), [facilityDetails]);
+
+  const globalFacilities = useMemo(
+    () => facilityDetails.filter((facility) => facility.scope !== 'department_only'),
+    [facilityDetails],
+  );
+
+  const departmentOnlyFacilitiesByDepartment = useMemo(() => {
+    const map = new Map<string, DemoFacilityDetails[]>();
+
+    for (const facility of facilityDetails) {
+      if (facility.scope !== 'department_only' || !facility.ownerDepartment) continue;
+      const current = map.get(facility.ownerDepartment) ?? [];
+      current.push(facility);
+      map.set(facility.ownerDepartment, current);
+    }
+
+    return map;
+  }, [facilityDetails]);
 
   const assignmentsByDepartment = useMemo(() => {
     const map = new Map<string, DemoAssignment[]>();
@@ -80,9 +108,35 @@ export function DemoAdminFacilitiesManager() {
     );
   }, [assignments, selectedFacility]);
 
+  const createMatch = useMemo(() => {
+    if (!newFacilityName.trim() || !newFacilityAddress.trim()) return null;
+    return findBestFacilityLocationMatch({
+      name: newFacilityName,
+      address: newFacilityAddress,
+      candidates: facilityDetails.map((facility) => ({
+        id: facility.name,
+        name: facility.name,
+        address: facility.address,
+        scope: facility.scope,
+        ownerDepartmentId: facility.ownerDepartment ?? null,
+      })),
+    });
+  }, [facilityDetails, newFacilityAddress, newFacilityName]);
+
+  const createWarning = createMatch ? getFacilityMatchWarning(createMatch) : null;
+
   function persistSetup(nextSetup: DemoClubSetup) {
     saveDemoClubSetup(nextSetup);
-    setSetup(nextSetup);
+    setSetup(getDemoClubSetup());
+  }
+
+  function persistAssignments(nextAssignments: DemoAssignment[]) {
+    setAssignments(nextAssignments);
+    saveAssignments(nextAssignments);
+  }
+
+  function toggleExpandedDepartment(department: string) {
+    setExpandedDepartments((current) => (current.includes(department) ? current.filter((item) => item !== department) : [...current, department]));
   }
 
   function toggleNewFacilityDepartment(department: string) {
@@ -93,35 +147,81 @@ export function DemoAdminFacilitiesManager() {
     );
   }
 
+  function createAssignmentsForFacility(facility: string, departments: string[]) {
+    const existingKeys = new Set(assignments.map((assignment) => `${assignment.department}::${assignment.facility}`));
+    return departments
+      .filter((department) => !existingKeys.has(`${department}::${facility}`))
+      .map((department) => ({ department, facility }));
+  }
+
   function handleAddFacility(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!setup || !newFacility.trim()) return;
+    setError(null);
 
-    const facilityName = newFacility.trim();
-
-    if (setup.facilities.includes(facilityName)) {
-      setNewFacility('');
-      setNewFacilityDepartments([]);
+    if (!setup || !newFacilityName.trim() || !newFacilityAddress.trim()) {
+      setError('Add a facility name and address.');
       return;
     }
 
-    const nextSetup = {
+    const facilityName = newFacilityName.trim();
+    const address = newFacilityAddress.trim();
+
+    if (facilityDetails.some((facility) => facility.name.toLowerCase() === facilityName.toLowerCase())) {
+      setError('A local demo facility with this name already exists. Select it below or make the existing department-only facility global.');
+      return;
+    }
+
+    const nextSetup: DemoClubSetup = {
       ...setup,
       facilities: [...setup.facilities, facilityName],
+      facilityDetails: [
+        ...(setup.facilityDetails ?? []),
+        {
+          name: facilityName,
+          address,
+          scope: 'club_shared',
+          ownerDepartment: null,
+        },
+      ],
     };
 
-    const existingKeys = new Set(assignments.map((assignment) => `${assignment.department}::${assignment.facility}`));
-    const additions = newFacilityDepartments
-      .filter((department) => !existingKeys.has(`${department}::${facilityName}`))
-      .map((department) => ({ department, facility: facilityName }));
-
-    const nextAssignments = [...assignments, ...additions];
+    const nextAssignments = [...assignments, ...createAssignmentsForFacility(facilityName, newFacilityDepartments)];
 
     persistSetup(nextSetup);
-    setAssignments(nextAssignments);
-    saveAssignments(nextAssignments);
+    persistAssignments(nextAssignments);
     setSelectedFacility(facilityName);
-    setNewFacility('');
+    setNewFacilityName('');
+    setNewFacilityAddress('');
+    setNewFacilityDepartments([]);
+  }
+
+  function handleMakeFacilityGlobal(facilityName: string) {
+    if (!setup) return;
+    const existingFacility = facilityByName.get(facilityName);
+    if (!existingFacility) return;
+
+    const departmentsToAssign = Array.from(new Set([existingFacility.ownerDepartment, ...newFacilityDepartments].filter(Boolean) as string[]));
+    const nextDetails = (setup.facilityDetails ?? []).map((facility) =>
+      facility.name === facilityName
+        ? {
+            ...facility,
+            scope: 'club_shared' as const,
+            ownerDepartment: null,
+          }
+        : facility,
+    );
+
+    const nextSetup = {
+      ...setup,
+      facilities: setup.facilities.includes(facilityName) ? setup.facilities : [...setup.facilities, facilityName],
+      facilityDetails: nextDetails,
+    };
+
+    persistSetup(nextSetup);
+    persistAssignments([...assignments, ...createAssignmentsForFacility(facilityName, departmentsToAssign)]);
+    setSelectedFacility(facilityName);
+    setNewFacilityName('');
+    setNewFacilityAddress('');
     setNewFacilityDepartments([]);
   }
 
@@ -137,28 +237,19 @@ export function DemoAdminFacilitiesManager() {
     event.preventDefault();
     if (!selectedFacility || selectedDepartments.length === 0) return;
 
-    const existingKeys = new Set(assignments.map((assignment) => `${assignment.department}::${assignment.facility}`));
-    const additions = selectedDepartments
-      .filter((department) => !existingKeys.has(`${department}::${selectedFacility}`))
-      .map((department) => ({ department, facility: selectedFacility }));
+    const additions = createAssignmentsForFacility(selectedFacility, selectedDepartments);
 
     if (additions.length === 0) {
       setSelectedDepartments([]);
       return;
     }
 
-    const nextAssignments = [...assignments, ...additions];
-    setAssignments(nextAssignments);
-    saveAssignments(nextAssignments);
+    persistAssignments([...assignments, ...additions]);
     setSelectedDepartments([]);
   }
 
   function handleRemove(department: string, facility: string) {
-    const nextAssignments = assignments.filter(
-      (assignment) => !(assignment.department === department && assignment.facility === facility),
-    );
-    setAssignments(nextAssignments);
-    saveAssignments(nextAssignments);
+    persistAssignments(assignments.filter((assignment) => !(assignment.department === department && assignment.facility === facility)));
   }
 
   if (!setup) {
@@ -188,42 +279,187 @@ export function DemoAdminFacilitiesManager() {
           <Link href={backTarget.href} className="inline-flex items-center text-sm font-black text-amber-200 hover:text-amber-100">
             {backTarget.label}
           </Link>
-          <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo facilities</p>
-          <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Facilities for {setup.clubName}</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-100/80">
-            Browser-only facility assignment. Assign one facility to one or multiple departments without writing to Supabase.
-          </p>
-        </section>
-
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Global facilities</p>
-          <p className="mt-3 text-4xl font-black">{setup.facilities.length}</p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {setup.facilities.map((facility) => (
-              <Link
-                key={facility}
-                href={`/demo/admin/facilities/${encodeFacilityName(facility)}/calendar?from=facilities`}
-                className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300"
-              >
-                <p className="font-black text-white">{facility}</p>
-              </Link>
-            ))}
+          <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo facilities</p>
+              <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Facilities for {setup.clubName}</h1>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-100/80">
+                Browser-only facility manager split into global club facilities and department-only facilities.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsEditMode((current) => !current)}
+              className={
+                isEditMode
+                  ? 'w-fit rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200'
+                  : 'w-fit rounded-xl border border-amber-500/70 px-4 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-950/40'
+              }
+            >
+              {isEditMode ? 'Done editing' : 'Edit facilities'}
+            </button>
           </div>
         </section>
 
-        <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="space-y-5">
+        {error ? <section className="rounded-2xl border border-red-900/70 bg-red-950/40 px-4 py-3 text-sm text-red-200">{error}</section> : null}
+
+        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Global facilities</p>
+              <h2 className="mt-2 text-xl font-black">Shared club facilities</h2>
+            </div>
+            <span className="text-sm font-bold text-slate-400">{globalFacilities.length} global</span>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {globalFacilities.map((facility) => (
+              <Link
+                key={facility.name}
+                href={`/demo/admin/facilities/${encodeFacilityName(facility.name)}/calendar?from=facilities`}
+                className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300"
+              >
+                <p className="font-black text-white">{facility.name}</p>
+                <p className="mt-1 text-xs text-slate-500">{facility.address}</p>
+              </Link>
+            ))}
+            {globalFacilities.length === 0 ? <p className="text-sm text-slate-500">No global facilities yet.</p> : null}
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Department facilities</p>
+          <h2 className="mt-2 text-xl font-black">Department access and local locations</h2>
+          <div className="mt-5 space-y-3">
+            {setup.departments.map((department) => {
+              const isExpanded = expandedDepartments.includes(department);
+              const departmentAssignments = assignmentsByDepartment.get(department) ?? [];
+              const departmentOnlyFacilities = departmentOnlyFacilitiesByDepartment.get(department) ?? [];
+
+              return (
+                <section key={department} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+                  <button type="button" onClick={() => toggleExpandedDepartment(department)} className="flex w-full items-center justify-between gap-3 text-left">
+                    <span>
+                      <span className="block font-black">{department}</span>
+                      <span className="mt-1 block text-xs font-bold text-slate-500">
+                        {departmentAssignments.length} shared assigned · {departmentOnlyFacilities.length} department-only
+                      </span>
+                    </span>
+                    <span className="text-sm font-black text-sky-300">{isExpanded ? 'Hide' : 'Show'}</span>
+                  </button>
+
+                  {isExpanded ? (
+                    <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                      <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
+                        <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">Shared access</p>
+                        <div className="mt-3 space-y-2">
+                          {departmentAssignments.length > 0 ? (
+                            departmentAssignments.map((assignment) => {
+                              const facility = facilityByName.get(assignment.facility);
+                              return (
+                                <div key={`${assignment.department}-${assignment.facility}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+                                  <Link
+                                    href={`/demo/admin/facilities/${encodeFacilityName(assignment.facility)}/calendar?from=facilities`}
+                                    className="text-sm font-bold text-slate-200 hover:text-emerald-300"
+                                  >
+                                    {assignment.facility}
+                                    {facility?.address ? <span className="block text-xs text-slate-500">{facility.address}</span> : null}
+                                  </Link>
+                                  {isEditMode ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemove(assignment.department, assignment.facility)}
+                                      className="text-xs font-bold text-red-300 hover:text-red-200"
+                                    >
+                                      Remove
+                                    </button>
+                                  ) : null}
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <p className="text-sm text-slate-500">No shared facilities assigned.</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
+                        <p className="text-xs font-black uppercase tracking-[0.16em] text-violet-300">Department-only</p>
+                        <div className="mt-3 space-y-2">
+                          {departmentOnlyFacilities.length > 0 ? (
+                            departmentOnlyFacilities.map((facility) => (
+                              <div key={facility.name} className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+                                <p className="text-sm font-black text-slate-100">{facility.name}</p>
+                                <p className="mt-1 text-xs text-slate-500">{facility.address}</p>
+                                {isEditMode ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMakeFacilityGlobal(facility.name)}
+                                    className="mt-2 rounded-lg border border-violet-500/60 px-2.5 py-1.5 text-xs font-black text-violet-200 hover:bg-violet-950/40"
+                                  >
+                                    Make global
+                                  </button>
+                                ) : null}
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-slate-500">No department-only facilities.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </section>
+              );
+            })}
+          </div>
+        </section>
+
+        {isEditMode ? (
+          <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
             <form onSubmit={handleAddFacility} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Create</p>
-              <h2 className="mt-2 text-xl font-black">Add demo facility</h2>
+              <h2 className="mt-2 text-xl font-black">Add global facility</h2>
+              {createWarning ? (
+                <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-950/20 p-3">
+                  <p className="text-sm font-bold leading-6 text-amber-100">{createWarning}</p>
+                  {createMatch?.candidate.scope === 'department_only' ? (
+                    <button
+                      type="button"
+                      onClick={() => handleMakeFacilityGlobal(createMatch.candidate.id)}
+                      className="mt-3 rounded-lg bg-amber-300 px-3 py-2 text-xs font-black text-slate-950 hover:bg-amber-200"
+                    >
+                      Make existing hall global
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="mt-4 space-y-4">
-                <input
-                  value={newFacility}
-                  onChange={(event) => setNewFacility(event.target.value)}
-                  placeholder="New Hall"
-                  className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400"
-                />
-
+                <label className="block">
+                  <span className="text-sm font-bold text-slate-200">Name</span>
+                  <input
+                    required
+                    value={newFacilityName}
+                    onChange={(event) => {
+                      setNewFacilityName(event.target.value);
+                      setError(null);
+                    }}
+                    placeholder="Main Hall"
+                    className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm font-bold text-slate-200">Address</span>
+                  <input
+                    required
+                    value={newFacilityAddress}
+                    onChange={(event) => {
+                      setNewFacilityAddress(event.target.value);
+                      setError(null);
+                    }}
+                    placeholder="Street, city"
+                    className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400"
+                  />
+                </label>
                 <div>
                   <p className="text-sm font-bold text-slate-200">Assign to departments optional</p>
                   <div className="mt-2 space-y-2">
@@ -240,31 +476,28 @@ export function DemoAdminFacilitiesManager() {
                     ))}
                   </div>
                 </div>
-
                 <button
                   type="submit"
                   className="w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
                 >
-                  Add local facility
+                  Add separate global facility
                 </button>
               </div>
             </form>
 
             <form onSubmit={handleAssign} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Assign</p>
-              <h2 className="mt-2 text-xl font-black">Assign existing facility</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                Select an existing facility, then choose every department that may use it.
-              </p>
+              <h2 className="mt-2 text-xl font-black">Assign existing global facility</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">Select a global facility, then choose every department that may use it.</p>
               <div className="mt-4 space-y-4">
                 <select
                   value={selectedFacility}
                   onChange={(event) => setSelectedFacility(event.target.value)}
                   className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-400"
                 >
-                  {setup.facilities.map((facility) => (
-                    <option key={facility} value={facility}>
-                      {facility}
+                  {globalFacilities.map((facility) => (
+                    <option key={facility.name} value={facility.name}>
+                      {facility.name} — {facility.address}
                     </option>
                   ))}
                 </select>
@@ -294,58 +527,15 @@ export function DemoAdminFacilitiesManager() {
 
                 <button
                   type="submit"
-                  disabled={selectedDepartments.length === 0}
+                  disabled={selectedDepartments.length === 0 || !selectedFacility}
                   className="w-full rounded-xl bg-violet-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-violet-300 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Assign selected departments
                 </button>
               </div>
             </form>
-          </div>
-
-          <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Department access</p>
-            <h2 className="mt-2 text-xl font-black">Local facility assignments</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-400">
-              This previews the future filtering layer for coaches.
-            </p>
-
-            <div className="mt-5 space-y-4">
-              {setup.departments.map((department) => {
-                const departmentAssignments = assignmentsByDepartment.get(department) ?? [];
-
-                return (
-                  <section key={department} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-                    <h3 className="font-black">{department}</h3>
-                    <div className="mt-3 space-y-2">
-                      {departmentAssignments.length > 0 ? (
-                        departmentAssignments.map((assignment) => (
-                          <div key={`${assignment.department}-${assignment.facility}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
-                            <Link
-                              href={`/demo/admin/facilities/${encodeFacilityName(assignment.facility)}/calendar?from=facilities`}
-                              className="text-sm font-bold text-slate-200 hover:text-emerald-300"
-                            >
-                              {assignment.facility}
-                            </Link>
-                            <button
-                              type="button"
-                              onClick={() => handleRemove(assignment.department, assignment.facility)}
-                              className="text-xs font-bold text-red-300 hover:text-red-200"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-slate-500">No facilities assigned yet.</p>
-                      )}
-                    </div>
-                  </section>
-                );
-              })}
-            </div>
-          </div>
-        </section>
+          </section>
+        ) : null}
       </div>
     </main>
   );
