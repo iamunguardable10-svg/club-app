@@ -63,12 +63,11 @@ type Session = {
   team_id: string;
   title: string;
   starts_at: string;
-  session_type: string;
   status: 'scheduled' | 'cancelled' | 'completed';
 };
 
 type LoadState = 'loading' | 'ready' | 'no_access' | 'not_found' | 'error';
-type FacilityDraftStep = 'name' | 'usage' | 'shared_confirm' | 'reported';
+type FacilityDraftStep = 'idle' | 'name' | 'usage' | 'shared_confirm' | 'reported';
 
 function isMissingAuthSessionError(message?: string) {
   return message?.toLowerCase().includes('auth session missing') ?? false;
@@ -112,9 +111,9 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
   const [invites, setInvites] = useState<Invite[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [newTeamName, setNewTeamName] = useState('');
-  const [selectedExistingFacilityId, setSelectedExistingFacilityId] = useState('');
+  const [selectedExistingFacilityIds, setSelectedExistingFacilityIds] = useState<string[]>([]);
   const [facilityDraftName, setFacilityDraftName] = useState('');
-  const [facilityDraftStep, setFacilityDraftStep] = useState<FacilityDraftStep>('name');
+  const [facilityDraftStep, setFacilityDraftStep] = useState<FacilityDraftStep>('idle');
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
@@ -184,7 +183,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
     if (teams.length > 0 && departmentFacilities.length === 0) {
       items.push({
         title: 'No department halls assigned',
-        description: 'Add a hall directly here. The flow asks whether the hall is department-only or should be shared across the club before anything is saved.',
+        description: 'Select existing shared club facilities first. If the hall is not listed, create a new one from the fallback below.',
       });
     }
 
@@ -290,7 +289,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
         .eq('status', 'pending'),
       supabase
         .from('sessions')
-        .select('id, team_id, title, starts_at, session_type, status')
+        .select('id, team_id, title, starts_at, status')
         .eq('department_id', resolvedDepartment.id)
         .eq('status', 'scheduled')
         .gte('starts_at', new Date().toISOString())
@@ -342,7 +341,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
     setTeams((teamsResult.data ?? []) as Team[]);
     setFacilities(loadedFacilities);
     setAssignedFacilityIds(assignedIds);
-    setSelectedExistingFacilityId((current) => current || loadedFacilities.find((facility) => facility.scope === 'club_shared' && !assignedIds.has(facility.id))?.id || '');
+    setSelectedExistingFacilityIds((current) => current.filter((facilityId) => loadedFacilities.some((facility) => facility.id === facilityId && !assignedIds.has(facility.id))));
     setMemberships(loadedMemberships);
     setProfiles(loadedProfiles);
     setInvites((invitesResult.data ?? []) as Invite[]);
@@ -357,7 +356,13 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
 
   function resetFacilityDraft() {
     setFacilityDraftName('');
-    setFacilityDraftStep('name');
+    setFacilityDraftStep('idle');
+  }
+
+  function toggleExistingFacility(facilityId: string) {
+    setSelectedExistingFacilityIds((current) =>
+      current.includes(facilityId) ? current.filter((currentFacilityId) => currentFacilityId !== facilityId) : [...current, facilityId],
+    );
   }
 
   function getInviteUrl(token: string) {
@@ -437,9 +442,9 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
     await loadDepartmentData();
   }
 
-  async function handleAssignExistingFacility(event: FormEvent<HTMLFormElement>) {
+  async function handleAssignExistingFacilities(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!clubId || !department || !selectedExistingFacilityId) return;
+    if (!clubId || !department || selectedExistingFacilityIds.length === 0) return;
 
     setIsSaving(true);
     setError(null);
@@ -449,12 +454,14 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
       data: { user },
     } = await supabase.auth.getUser();
 
-    const { error: insertError } = await supabase.from('department_facilities').insert({
-      club_id: clubId,
-      department_id: department.id,
-      facility_id: selectedExistingFacilityId,
-      created_by: user?.id ?? null,
-    });
+    const { error: insertError } = await supabase.from('department_facilities').insert(
+      selectedExistingFacilityIds.map((facilityId) => ({
+        club_id: clubId,
+        department_id: department.id,
+        facility_id: facilityId,
+        created_by: user?.id ?? null,
+      })),
+    );
 
     if (insertError) {
       setError(insertError.message);
@@ -462,7 +469,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
       return;
     }
 
-    setSelectedExistingFacilityId('');
+    setSelectedExistingFacilityIds([]);
     setIsSaving(false);
     await loadDepartmentData();
   }
@@ -766,75 +773,97 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
               </Link>
             ))}
           </div>
-        ) : (
-          <p className="mt-5 rounded-2xl border border-amber-500/20 bg-amber-950/10 p-4 text-sm font-bold text-amber-100">
-            No halls are assigned yet. Add one here without leaving the department flow.
-          </p>
-        )}
+        ) : null}
 
         {showFacilitySetup ? (
-          <div className="mt-5 grid gap-4 lg:grid-cols-2">
-            <form onSubmit={handleAssignExistingFacility} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-sky-300">Assign existing shared facility</p>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                Use this only if the hall already exists as a shared club facility.
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
-                <select
-                  value={selectedExistingFacilityId}
-                  onChange={(event) => setSelectedExistingFacilityId(event.target.value)}
-                  disabled={availableSharedFacilities.length === 0 || isSaving}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-sm font-bold outline-none focus:border-sky-400 disabled:opacity-60"
-                >
-                  <option value="">{availableSharedFacilities.length > 0 ? 'Select shared club facility' : 'No shared facilities available'}</option>
-                  {availableSharedFacilities.map((facility) => (
-                    <option key={facility.id} value={facility.id}>
-                      {facility.name}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="submit"
-                  disabled={isSaving || !selectedExistingFacilityId}
-                  className="rounded-xl bg-sky-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Assign
-                </button>
+          <form onSubmit={handleAssignExistingFacilities} className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-sky-300">Add hall to department</p>
+                <h3 className="mt-2 text-lg font-black">Assign existing shared club facilities</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  First check whether the hall already exists. You can select multiple halls and assign them in one step.
+                </p>
               </div>
-            </form>
+              <button
+                type="submit"
+                disabled={isSaving || selectedExistingFacilityIds.length === 0}
+                className="w-fit rounded-xl bg-sky-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Assign selected
+              </button>
+            </div>
 
-            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-4">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">Add a new hall</p>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                The hall is not saved yet. First enter a name, then confirm whether only this department uses it or whether it should be shared.
+            {availableSharedFacilities.length > 0 ? (
+              <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {availableSharedFacilities.map((facility) => (
+                  <label
+                    key={facility.id}
+                    className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm transition hover:border-sky-400"
+                  >
+                    <span className="font-black text-slate-100">{facility.name}</span>
+                    <input
+                      type="checkbox"
+                      checked={selectedExistingFacilityIds.includes(facility.id)}
+                      onChange={() => toggleExistingFacility(facility.id)}
+                      className="h-4 w-4"
+                    />
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm font-bold text-slate-400">
+                No shared club facilities are available to assign right now.
               </p>
+            )}
+
+            <div className="mt-4 border-t border-slate-800 pt-4">
+              {facilityDraftStep === 'idle' ? (
+                <button
+                  type="button"
+                  onClick={() => setFacilityDraftStep('name')}
+                  className="rounded-xl border border-emerald-500/70 px-4 py-3 text-sm font-black text-emerald-200 hover:bg-emerald-950/40"
+                >
+                  Hall not listed? Create new hall
+                </button>
+              ) : null}
 
               {facilityDraftStep === 'name' ? (
-                <form onSubmit={handleFacilityDraftNameSubmit} className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
-                  <input
-                    value={facilityDraftName}
-                    onChange={(event) => setFacilityDraftName(event.target.value)}
-                    placeholder="Main Hall"
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-emerald-400"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!facilityDraftName.trim()}
-                    className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Continue
-                  </button>
-                </form>
+                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">Create new hall</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                    The hall is not saved yet. Enter the name first; then we will ask whether only this department uses it or whether it should be shared.
+                  </p>
+                  <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                    <input
+                      value={facilityDraftName}
+                      onChange={(event) => setFacilityDraftName(event.target.value)}
+                      placeholder="Main Hall"
+                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-emerald-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={(event) => handleFacilityDraftNameSubmit(event as unknown as FormEvent<HTMLFormElement>)}
+                      disabled={!facilityDraftName.trim()}
+                      className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Continue
+                    </button>
+                    <button type="button" onClick={resetFacilityDraft} className="text-xs font-black text-slate-400 hover:text-slate-200">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
               ) : null}
 
               {facilityDraftStep === 'usage' ? (
-                <div className="mt-4 space-y-3">
+                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-4">
                   <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Hall name</p>
                     <p className="mt-1 font-black text-white">{facilityDraftName.trim()}</p>
                   </div>
-                  <p className="text-sm font-bold text-slate-200">Who uses this hall?</p>
-                  <div className="grid gap-2 md:grid-cols-2">
+                  <p className="mt-4 text-sm font-bold text-slate-200">Who uses this hall?</p>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
                     <button
                       type="button"
                       disabled={isSaving}
@@ -843,7 +872,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                     >
                       Only {department?.name}
                       <span className="mt-1 block text-xs font-bold leading-5 text-slate-400">
-                        Save as department-only. Check this is not used by another department.
+                        Save as department-only. Check this hall is not used by another department.
                       </span>
                     </button>
                     <button
@@ -857,48 +886,46 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                       </span>
                     </button>
                   </div>
-                  <button type="button" onClick={() => setFacilityDraftStep('name')} className="text-xs font-black text-slate-400 hover:text-slate-200">
+                  <button type="button" onClick={() => setFacilityDraftStep('name')} className="mt-3 text-xs font-black text-slate-400 hover:text-slate-200">
                     Change name
                   </button>
                 </div>
               ) : null}
 
               {facilityDraftStep === 'shared_confirm' ? (
-                <div className="mt-4 space-y-3">
-                  <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3">
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">Check shared facility name</p>
-                    <p className="mt-1 text-xl font-black text-white">{facilityDraftName.trim()}</p>
-                    <p className="mt-2 text-sm leading-6 text-slate-300">
-                      This hall may affect multiple departments. Verify the exact club-wide name before saving or reporting it.
-                    </p>
-                  </div>
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">Check shared facility name</p>
+                  <p className="mt-1 text-xl font-black text-white">{facilityDraftName.trim()}</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    This hall may affect multiple departments. Verify the exact club-wide name before saving or reporting it.
+                  </p>
                   <button
                     type="button"
                     disabled={isSaving}
                     onClick={handleSaveSharedFacilityOrRequest}
-                    className="w-full rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="mt-4 w-full rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isClubAdmin ? 'Save as shared club facility' : 'Report shared facility to admin'}
                   </button>
-                  <button type="button" onClick={() => setFacilityDraftStep('usage')} className="text-xs font-black text-slate-400 hover:text-slate-200">
+                  <button type="button" onClick={() => setFacilityDraftStep('usage')} className="mt-3 text-xs font-black text-slate-400 hover:text-slate-200">
                     Back to usage choice
                   </button>
                 </div>
               ) : null}
 
               {facilityDraftStep === 'reported' ? (
-                <div className="mt-4 rounded-xl border border-sky-500/30 bg-sky-950/20 p-4">
+                <div className="rounded-2xl border border-sky-500/30 bg-sky-950/20 p-4">
                   <p className="font-black text-sky-100">Reported to admin</p>
                   <p className="mt-2 text-sm leading-6 text-slate-400">
                     The admin can review the facility name and decide whether to create or assign it as a shared club facility.
                   </p>
                   <button type="button" onClick={resetFacilityDraft} className="mt-3 text-xs font-black text-sky-200 hover:text-sky-100">
-                    Add another hall
+                    Close
                   </button>
                 </div>
               ) : null}
             </div>
-          </div>
+          </form>
         ) : null}
       </section>
 
