@@ -52,6 +52,15 @@ type Invite = {
   status: 'pending' | 'accepted' | 'revoked' | 'expired';
 };
 
+type Session = {
+  id: string;
+  team_id: string;
+  title: string;
+  starts_at: string;
+  session_type: string;
+  status: 'scheduled' | 'cancelled' | 'completed';
+};
+
 type LoadState = 'loading' | 'ready' | 'no_access' | 'not_found' | 'error';
 
 function isMissingAuthSessionError(message?: string) {
@@ -71,6 +80,16 @@ function personLabel(profile: Profile | undefined, fallback: string) {
   return profile.full_name || profile.email || fallback;
 }
 
+function formatNextSession(session?: Session) {
+  if (!session) return 'No session yet';
+
+  const startsAt = new Date(session.starts_at);
+  return `Next ${startsAt.toLocaleDateString(undefined, { weekday: 'short' })} ${startsAt.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`;
+}
+
 export function AdminDepartmentWorkspace({ departmentId }: { departmentId: string }) {
   const router = useRouter();
   const [state, setState] = useState<LoadState>('loading');
@@ -83,12 +102,14 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
   const [memberships, setMemberships] = useState<TeamMembership[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [newTeamName, setNewTeamName] = useState('');
-  const [showAddTeam, setShowAddTeam] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   const clubId = department?.club_id ?? '';
+
   const departmentFacilities = useMemo(
     () => facilities.filter((facility) => assignedFacilityIds.has(facility.id)),
     [assignedFacilityIds, facilities],
@@ -121,6 +142,16 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
     return map;
   }, [invites]);
 
+  const nextSessionByTeam = useMemo(() => {
+    const map = new Map<string, Session>();
+
+    for (const session of sessions) {
+      if (!map.has(session.team_id)) map.set(session.team_id, session);
+    }
+
+    return map;
+  }, [sessions]);
+
   const missingHeadCoachCount = useMemo(() => {
     return teams.filter((team) => {
       const teamMemberships = membershipsByTeam.get(team.id) ?? [];
@@ -128,32 +159,30 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
     }).length;
   }, [membershipsByTeam, teams]);
 
-  const missingDefaultFacilityCount = useMemo(
-    () => teams.filter((team) => !team.default_facility_id).length,
-    [teams],
-  );
+  const missingDefaultFacilityCount = useMemo(() => teams.filter((team) => !team.default_facility_id).length, [teams]);
+
   const attentionItems = useMemo(() => {
     const items: { title: string; description: string; href?: string }[] = [];
-
-    if (missingHeadCoachCount > 0) {
-      items.push({
-        title: `${missingHeadCoachCount} ${missingHeadCoachCount === 1 ? 'team needs' : 'teams need'} a head coach`,
-        description: 'Invite a head coach directly from the affected team row.',
-      });
-    }
-
-    if (missingDefaultFacilityCount > 0) {
-      items.push({
-        title: `${missingDefaultFacilityCount} ${missingDefaultFacilityCount === 1 ? 'team needs' : 'teams need'} a default facility`,
-        description: 'Set the default facility from the team row so session creation starts with the right location.',
-      });
-    }
 
     if (teams.length > 0 && departmentFacilities.length === 0) {
       items.push({
         title: 'No department facilities assigned',
         description: 'Assign facilities to this department before choosing team defaults.',
         href: '/admin/facilities',
+      });
+    }
+
+    if (missingHeadCoachCount > 0) {
+      items.push({
+        title: `${missingHeadCoachCount} ${missingHeadCoachCount === 1 ? 'team needs' : 'teams need'} a head coach`,
+        description: 'Use Edit Mode to create head coach invite links for affected teams.',
+      });
+    }
+
+    if (missingDefaultFacilityCount > 0) {
+      items.push({
+        title: `${missingDefaultFacilityCount} ${missingDefaultFacilityCount === 1 ? 'team needs' : 'teams need'} a default facility`,
+        description: 'Use Edit Mode to set the default facility for faster session creation later.',
       });
     }
 
@@ -223,7 +252,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
       return;
     }
 
-    const [clubResult, teamsResult, facilitiesResult, assignmentsResult, membershipsResult, invitesResult] = await Promise.all([
+    const [clubResult, teamsResult, facilitiesResult, assignmentsResult, membershipsResult, invitesResult, sessionsResult] = await Promise.all([
       supabase.from('clubs').select('id, name').eq('id', resolvedDepartment.club_id).single(),
       supabase
         .from('teams')
@@ -243,6 +272,14 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
         .eq('department_id', resolvedDepartment.id)
         .in('role', ['head_coach', 'assistant_coach'])
         .eq('status', 'pending'),
+      supabase
+        .from('sessions')
+        .select('id, team_id, title, starts_at, session_type, status')
+        .eq('department_id', resolvedDepartment.id)
+        .eq('status', 'scheduled')
+        .gte('starts_at', new Date().toISOString())
+        .order('starts_at', { ascending: true })
+        .limit(50),
     ]);
 
     const firstError =
@@ -251,7 +288,8 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
       facilitiesResult.error ??
       assignmentsResult.error ??
       membershipsResult.error ??
-      invitesResult.error;
+      invitesResult.error ??
+      sessionsResult.error;
 
     if (firstError) {
       setError(firstError.message);
@@ -286,6 +324,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
     setMemberships(loadedMemberships);
     setProfiles(loadedProfiles);
     setInvites((invitesResult.data ?? []) as Invite[]);
+    setSessions((sessionsResult.data ?? []) as Session[]);
     setState('ready');
   }
 
@@ -337,21 +376,18 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
     }
 
     setNewTeamName('');
-    setShowAddTeam(false);
     setIsSaving(false);
     await loadDepartmentData();
   }
 
   async function handleSetDefaultFacility(teamId: string, facilityId: string) {
-    if (!facilityId) return;
-
     setIsSaving(true);
     setError(null);
 
     const supabase = createBrowserSupabaseClient();
     const { error: updateError } = await supabase
       .from('teams')
-      .update({ default_facility_id: facilityId })
+      .update({ default_facility_id: facilityId || null })
       .eq('id', teamId);
 
     if (updateError) {
@@ -450,22 +486,24 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
     <AdminShell>
       <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 shadow-sm">
         <Link href="/admin/departments" className="inline-flex items-center text-sm font-black text-violet-300 hover:text-violet-200">
-          Back to departments
+          ← Back to departments
         </Link>
         <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-violet-300">Department workspace</p>
             <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">{department?.name}</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-              Team setup for {club?.name}. The team list is the source of truth for coaches, athlete count and default training facility.
+              Teams are shown as a calm overview. Switch to Edit Mode when you want to add teams, invite coaches or change default facilities.
             </p>
           </div>
           <button
             type="button"
-            onClick={() => setShowAddTeam((current) => !current)}
-            className="w-fit rounded-xl border border-violet-500/70 px-4 py-3 text-sm font-black text-violet-200 hover:bg-violet-950/40"
+            onClick={() => setIsEditMode((current) => !current)}
+            className={isEditMode
+              ? 'w-fit rounded-xl bg-violet-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-violet-200'
+              : 'w-fit rounded-xl border border-violet-500/70 px-4 py-3 text-sm font-black text-violet-200 transition hover:bg-violet-950/40'}
           >
-            {showAddTeam ? 'Close' : 'Add team'}
+            {isEditMode ? 'Done editing' : 'Edit department'}
           </button>
         </div>
       </section>
@@ -498,9 +536,9 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
         </section>
       ) : null}
 
-      {showAddTeam || teams.length === 0 ? (
+      {(isEditMode || teams.length === 0) ? (
         <form onSubmit={handleCreateTeam} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">{teams.length === 0 ? 'First team' : 'Setup action'}</p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">{teams.length === 0 ? 'First team' : 'Edit mode'}</p>
           <h2 className="mt-2 text-xl font-black">{teams.length === 0 ? 'Create the first team' : 'Add team'}</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
             <input
@@ -539,77 +577,84 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
               const athleteCount = teamMemberships.filter((membership) => membership.role === 'athlete').length;
               const pendingHeadInvite = pendingHeadInviteByTeam.get(team.id);
               const defaultFacility = team.default_facility_id ? facilityById.get(team.default_facility_id) : null;
+              const headCoachLabel = headCoaches.length > 0
+                ? headCoaches.map((membership) => personLabel(profileById.get(membership.user_id), 'Head coach')).join(', ')
+                : pendingHeadInvite
+                  ? 'Head coach invited'
+                  : 'No head coach';
+              const nextSession = nextSessionByTeam.get(team.id);
 
               return (
-                <article key={team.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-                  <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr_0.8fr_1fr] lg:items-start">
-                    <div>
+                <article key={team.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-slate-700">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
                       <h3 className="text-xl font-black text-white">{team.name}</h3>
-                      <p className="mt-1 text-xs text-slate-500">Team in {department?.name}</p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Coaches</p>
-                      {headCoaches.length > 0 ? (
-                        <p className="mt-2 text-sm font-black text-slate-100">
-                          {headCoaches.map((membership) => personLabel(profileById.get(membership.user_id), 'Head coach')).join(', ')}
-                        </p>
-                      ) : pendingHeadInvite ? (
-                        <div className="mt-2 space-y-2">
-                          <p className="text-sm font-black text-amber-200">Head coach invited</p>
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(pendingHeadInvite.token)}
-                            className="rounded-lg border border-amber-500/60 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40"
-                          >
-                            {copiedToken === pendingHeadInvite.token ? 'Copied' : 'Copy invite'}
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={isSaving}
-                          onClick={() => handleInviteHeadCoach(team.id)}
-                          className="mt-2 rounded-lg border border-amber-500/70 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Invite head coach
-                        </button>
-                      )}
-                      <p className="mt-2 text-xs leading-5 text-slate-500">
-                        Assistants:{' '}
-                        {assistantCoaches.length > 0
-                          ? assistantCoaches.map((membership) => personLabel(profileById.get(membership.user_id), 'Assistant coach')).join(', ')
-                          : 'none assigned'}
+                      <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-sm font-bold text-slate-300">
+                        <span>{headCoachLabel}</span>
+                        <span className="hidden sm:inline text-slate-600">·</span>
+                        <span className="hidden sm:inline">{athleteCount} players</span>
+                        <span className="hidden md:inline text-slate-600">·</span>
+                        <span className="hidden md:inline">{defaultFacility?.name ?? 'No default facility'}</span>
+                        <span className="hidden lg:inline text-slate-600">·</span>
+                        <span className="hidden lg:inline">{formatNextSession(nextSession)}</span>
                       </p>
                     </div>
 
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Players</p>
-                      <p className="mt-2 text-3xl font-black text-slate-100">{athleteCount}</p>
-                    </div>
+                    {isEditMode ? (
+                      <div className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 lg:w-[360px]">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Head coach</p>
+                          {pendingHeadInvite ? (
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(pendingHeadInvite.token)}
+                              className="mt-2 rounded-lg border border-amber-500/60 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40"
+                            >
+                              {copiedToken === pendingHeadInvite.token ? 'Copied invite' : 'Copy pending invite'}
+                            </button>
+                          ) : headCoaches.length > 0 ? (
+                            <p className="mt-2 text-sm font-black text-slate-100">{headCoachLabel}</p>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={isSaving}
+                              onClick={() => handleInviteHeadCoach(team.id)}
+                              className="mt-2 rounded-lg border border-amber-500/70 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Invite head coach
+                            </button>
+                          )}
+                          <p className="mt-2 text-xs leading-5 text-slate-500">
+                            Assistants: {assistantCoaches.length > 0
+                              ? assistantCoaches.map((membership) => personLabel(profileById.get(membership.user_id), 'Assistant coach')).join(', ')
+                              : 'none assigned'}
+                          </p>
+                        </div>
 
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Default facility</p>
-                      {departmentFacilities.length > 0 ? (
-                        <select
-                          value={team.default_facility_id ?? ''}
-                          onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)}
-                          disabled={isSaving}
-                          className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold outline-none focus:border-emerald-400 disabled:opacity-60"
-                        >
-                          <option value="">{defaultFacility ? defaultFacility.name : 'Set facility'}</option>
-                          {departmentFacilities.map((facility) => (
-                            <option key={facility.id} value={facility.id}>
-                              {facility.name}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <Link href="/admin/facilities" className="mt-2 inline-block rounded-lg border border-emerald-500/60 px-2.5 py-1.5 text-xs font-black text-emerald-200 hover:bg-emerald-950/40">
-                          Assign department facilities
-                        </Link>
-                      )}
-                    </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Default facility</p>
+                          {departmentFacilities.length > 0 ? (
+                            <select
+                              value={team.default_facility_id ?? ''}
+                              onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)}
+                              disabled={isSaving}
+                              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold outline-none focus:border-emerald-400 disabled:opacity-60"
+                            >
+                              <option value="">No default facility</option>
+                              {departmentFacilities.map((facility) => (
+                                <option key={facility.id} value={facility.id}>
+                                  {facility.name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <Link href="/admin/facilities" className="mt-2 inline-block rounded-lg border border-emerald-500/60 px-2.5 py-1.5 text-xs font-black text-emerald-200 hover:bg-emerald-950/40">
+                              Assign department facilities
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </article>
               );
