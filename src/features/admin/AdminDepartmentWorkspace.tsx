@@ -30,6 +30,7 @@ type Team = {
 type Facility = {
   id: string;
   name: string;
+  address: string | null;
   scope: 'club_shared' | 'department_only';
   owner_department_id: string | null;
 };
@@ -81,6 +82,25 @@ function createInviteToken() {
     .join('');
 }
 
+function normalizeText(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ß/g, 'ss')
+    .replace(/\s+/g, ' ');
+}
+
+function normalizeStreet(address: string) {
+  const firstLine = address.split(',')[0] ?? address;
+  return normalizeText(firstLine)
+    .replace(/\b\d+[a-z]?\b/g, '')
+    .replace(/[.,;:/\\-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function personLabel(profile: Profile | undefined, fallback: string) {
   if (!profile) return fallback;
   return profile.full_name || profile.email || fallback;
@@ -112,8 +132,10 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
   const [newTeamName, setNewTeamName] = useState('');
   const [selectedExistingFacilityIds, setSelectedExistingFacilityIds] = useState<string[]>([]);
   const [facilityDraftName, setFacilityDraftName] = useState('');
+  const [facilityDraftAddress, setFacilityDraftAddress] = useState('');
   const [facilityDraftStep, setFacilityDraftStep] = useState<FacilityDraftStep>('idle');
   const [facilityDraftError, setFacilityDraftError] = useState<string | null>(null);
+  const [facilityDraftWarning, setFacilityDraftWarning] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
@@ -268,7 +290,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
     const [clubResult, teamsResult, facilitiesResult, assignmentsResult, membershipsResult, invitesResult, sessionsResult] = await Promise.all([
       supabase.from('clubs').select('id, name').eq('id', resolvedDepartment.club_id).single(),
       supabase.from('teams').select('id, name, default_facility_id').eq('department_id', resolvedDepartment.id).order('name'),
-      supabase.from('facilities').select('id, name, scope, owner_department_id').eq('club_id', resolvedDepartment.club_id).order('name'),
+      supabase.from('facilities').select('id, name, address, scope, owner_department_id').eq('club_id', resolvedDepartment.club_id).order('name'),
       supabase.from('department_facilities').select('facility_id').eq('department_id', resolvedDepartment.id),
       supabase
         .from('team_memberships')
@@ -322,6 +344,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
 
     const loadedFacilities = ((facilitiesResult.data ?? []) as Facility[]).map((facility) => ({
       ...facility,
+      address: facility.address ?? null,
       scope: facility.scope ?? 'club_shared',
       owner_department_id: facility.owner_department_id ?? null,
     }));
@@ -346,24 +369,39 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [departmentId]);
 
-  function facilityExists(name: string) {
-    const normalizedName = name.trim().toLowerCase();
-    return facilities.some((facility) => facility.name.toLowerCase() === normalizedName);
+  function findMatchingStreet(address: string) {
+    const normalizedStreet = normalizeStreet(address);
+    if (!normalizedStreet) return null;
+    return facilities.find((facility) => facility.address && normalizeStreet(facility.address) === normalizedStreet) ?? null;
   }
 
   function resetFacilityDraft() {
     setFacilityDraftName('');
+    setFacilityDraftAddress('');
     setFacilityDraftError(null);
+    setFacilityDraftWarning(null);
     setFacilityDraftStep('idle');
   }
 
   function continueFacilityDraft() {
     const facilityName = facilityDraftName.trim();
-    if (!facilityName) return;
+    const address = facilityDraftAddress.trim();
 
-    if (facilityExists(facilityName)) {
-      setFacilityDraftError('This hall already exists. Select it from the existing shared facilities instead of creating a duplicate.');
+    if (!facilityName) {
+      setFacilityDraftError('Enter a hall name.');
       return;
+    }
+
+    if (!address) {
+      setFacilityDraftError('Enter the hall address.');
+      return;
+    }
+
+    const matchingStreet = findMatchingStreet(address);
+    if (matchingStreet) {
+      setFacilityDraftWarning(`Possible same location: ${matchingStreet.name} already uses ${matchingStreet.address}. Check carefully before creating another hall.`);
+    } else {
+      setFacilityDraftWarning(null);
     }
 
     setFacilityDraftError(null);
@@ -418,14 +456,10 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
   }
 
   async function handleCreateDepartmentOnlyFacility() {
-    if (!clubId || !department || !facilityDraftName.trim()) return;
+    if (!clubId || !department || !facilityDraftName.trim() || !facilityDraftAddress.trim()) return;
 
     const facilityName = facilityDraftName.trim();
-    if (facilityExists(facilityName)) {
-      setFacilityDraftError('This hall already exists. Select it from the existing shared facilities instead of creating a duplicate.');
-      setFacilityDraftStep('name');
-      return;
-    }
+    const address = facilityDraftAddress.trim();
 
     setIsSaving(true);
     setError(null);
@@ -436,7 +470,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
       .insert({
         club_id: clubId,
         name: facilityName,
-        address: null,
+        address,
         scope: 'department_only',
         owner_department_id: department.id,
       })
@@ -468,9 +502,10 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
   }
 
   async function handleSaveSharedFacilityOrRequest() {
-    if (!clubId || !department || !facilityDraftName.trim()) return;
+    if (!clubId || !department || !facilityDraftName.trim() || !facilityDraftAddress.trim()) return;
 
     const facilityName = facilityDraftName.trim();
+    const address = facilityDraftAddress.trim();
     setIsSaving(true);
     setError(null);
 
@@ -481,26 +516,21 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
 
     try {
       if (isClubAdmin) {
-        const existingFacility = facilities.find((facility) => facility.name.toLowerCase() === facilityName.toLowerCase());
-        let facilityId = existingFacility?.id;
+        const { data: insertedFacility, error: facilityError } = await supabase
+          .from('facilities')
+          .insert({
+            club_id: clubId,
+            name: facilityName,
+            address,
+            scope: 'club_shared',
+            owner_department_id: null,
+          })
+          .select('id')
+          .single();
 
-        if (!facilityId) {
-          const { data: insertedFacility, error: facilityError } = await supabase
-            .from('facilities')
-            .insert({
-              club_id: clubId,
-              name: facilityName,
-              address: null,
-              scope: 'club_shared',
-              owner_department_id: null,
-            })
-            .select('id')
-            .single();
-
-          if (facilityError) throw facilityError;
-          facilityId = insertedFacility?.id as string | undefined;
-          if (!facilityId) throw new Error('Shared facility was created without an id.');
-        }
+        if (facilityError) throw facilityError;
+        const facilityId = insertedFacility?.id as string | undefined;
+        if (!facilityId) throw new Error('Shared facility was created without an id.');
 
         await persistDepartmentAssignments([facilityId]);
         resetFacilityDraft();
@@ -516,7 +546,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
         actor_id: user?.id ?? null,
         event_type: 'facility_request.shared',
         title: `Shared facility request: ${facilityName}`,
-        body: `${department.name} reports that "${facilityName}" may be used by multiple departments. Admin should verify the exact facility name before creating or assigning it as a shared club facility.`,
+        body: `${department.name} reports that "${facilityName}" at "${address}" may be used by multiple departments. Admin should verify the exact facility name and address before creating or assigning it as a shared club facility.`,
       });
 
       if (eventError) throw eventError;
@@ -737,7 +767,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
               >
                 <p className="font-black text-white">{facility.name}</p>
                 <p className="mt-1 text-xs text-slate-500">
-                  {facility.scope === 'department_only' ? 'Department-only hall' : 'Shared club facility'} · Open calendar
+                  {facility.scope === 'department_only' ? 'Department-only hall' : 'Shared club facility'} · {facility.address || 'No address'}
                 </p>
               </Link>
             ))}
@@ -771,7 +801,10 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                     key={facility.id}
                     className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm transition hover:border-sky-400"
                   >
-                    <span className="font-black text-slate-100">{facility.name}</span>
+                    <span>
+                      <span className="block font-black text-slate-100">{facility.name}</span>
+                      {facility.address ? <span className="mt-1 block text-xs font-bold text-slate-500">{facility.address}</span> : null}
+                    </span>
                     <input
                       type="checkbox"
                       checked={selectedExistingFacilityIds.includes(facility.id)}
@@ -806,20 +839,36 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                       {facilityDraftError}
                     </p>
                   ) : null}
-                  <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                  {facilityDraftWarning ? (
+                    <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm font-bold text-amber-100">
+                      {facilityDraftWarning}
+                    </p>
+                  ) : null}
+                  <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_auto_auto]">
                     <input
                       value={facilityDraftName}
                       onChange={(event) => {
                         setFacilityDraftName(event.target.value);
                         setFacilityDraftError(null);
                       }}
-                      placeholder="Main Hall"
+                      placeholder="Hall name"
+                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-emerald-400"
+                    />
+                    <input
+                      required
+                      value={facilityDraftAddress}
+                      onChange={(event) => {
+                        setFacilityDraftAddress(event.target.value);
+                        setFacilityDraftError(null);
+                        setFacilityDraftWarning(null);
+                      }}
+                      placeholder="Street, city"
                       className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-emerald-400"
                     />
                     <button
                       type="button"
                       onClick={continueFacilityDraft}
-                      disabled={!facilityDraftName.trim()}
+                      disabled={!facilityDraftName.trim() || !facilityDraftAddress.trim()}
                       className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Continue
@@ -833,9 +882,20 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
 
               {facilityDraftStep === 'usage' ? (
                 <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-4">
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Hall name</p>
-                    <p className="mt-1 font-black text-white">{facilityDraftName.trim()}</p>
+                  {facilityDraftWarning ? (
+                    <p className="mb-3 rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm font-bold text-amber-100">
+                      {facilityDraftWarning}
+                    </p>
+                  ) : null}
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Hall name</p>
+                      <p className="mt-1 font-black text-white">{facilityDraftName.trim()}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Address</p>
+                      <p className="mt-1 font-black text-white">{facilityDraftAddress.trim()}</p>
+                    </div>
                   </div>
                   <p className="mt-4 text-sm font-bold text-slate-200">Who uses this hall?</p>
                   <div className="mt-3 grid gap-2 md:grid-cols-2">
@@ -847,7 +907,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                     >
                       Only {department?.name}
                       <span className="mt-1 block text-xs font-bold leading-5 text-slate-400">
-                        Save as department-only. Check this hall is not used by another department.
+                        Save as department-only. If the warning above appears, check carefully before continuing.
                       </span>
                     </button>
                     <button
@@ -857,22 +917,23 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                     >
                       Also other departments
                       <span className="mt-1 block text-xs font-bold leading-5 text-slate-400">
-                        Review the name before creating it as shared or reporting it to admins.
+                        Review the name and address before creating it as shared or reporting it to admins.
                       </span>
                     </button>
                   </div>
                   <button type="button" onClick={() => setFacilityDraftStep('name')} className="mt-3 text-xs font-black text-slate-400 hover:text-slate-200">
-                    Change name
+                    Change details
                   </button>
                 </div>
               ) : null}
 
               {facilityDraftStep === 'shared_confirm' ? (
                 <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">Check shared facility name</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">Check shared facility details</p>
                   <p className="mt-1 text-xl font-black text-white">{facilityDraftName.trim()}</p>
+                  <p className="mt-1 text-sm font-bold text-amber-100">{facilityDraftAddress.trim()}</p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
-                    This hall may affect multiple departments. Verify the exact club-wide name before saving or reporting it.
+                    This hall may affect multiple departments. Verify the exact club-wide name and address before saving or reporting it.
                   </p>
                   <button
                     type="button"
@@ -892,7 +953,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                 <div className="rounded-2xl border border-sky-500/30 bg-sky-950/20 p-4">
                   <p className="font-black text-sky-100">Reported to admin</p>
                   <p className="mt-2 text-sm leading-6 text-slate-400">
-                    The admin can review the facility name and decide whether to create or assign it as a shared club facility.
+                    The admin can review the facility name and address and decide whether to create or assign it as a shared club facility.
                   </p>
                   <button type="button" onClick={resetFacilityDraft} className="mt-3 text-xs font-black text-sky-200 hover:text-sky-100">
                     Close
