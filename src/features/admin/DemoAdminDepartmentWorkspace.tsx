@@ -122,6 +122,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
   const [selectedExistingFacilities, setSelectedExistingFacilities] = useState<string[]>([]);
   const [facilityDraftName, setFacilityDraftName] = useState('');
   const [facilityDraftStep, setFacilityDraftStep] = useState<FacilityDraftStep>('idle');
+  const [facilityDraftError, setFacilityDraftError] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
@@ -205,13 +206,39 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
     saveFacilityMeta(nextMeta);
   }
 
+  function facilityExists(name: string) {
+    return (setup?.facilities ?? []).some((facility) => facility.toLowerCase() === name.trim().toLowerCase());
+  }
+
+  function persistDepartmentAssignments(facilitiesToAssign: string[]) {
+    const requestedFacilities = Array.from(new Set([...selectedExistingFacilities, ...facilitiesToAssign]));
+    if (requestedFacilities.length === 0) return;
+
+    const existingKeys = new Set(assignments.map((assignment) => `${assignment.department}::${assignment.facility}`));
+    const additions = requestedFacilities
+      .filter((facility) => !existingKeys.has(`${departmentName}::${facility}`))
+      .map((facility) => ({ department: departmentName, facility }));
+
+    if (additions.length > 0) persistAssignments([...assignments, ...additions]);
+    setSelectedExistingFacilities([]);
+  }
+
   function resetFacilityDraft() {
     setFacilityDraftName('');
+    setFacilityDraftError(null);
     setFacilityDraftStep('idle');
   }
 
   function continueFacilityDraft() {
-    if (!facilityDraftName.trim()) return;
+    const facilityName = facilityDraftName.trim();
+    if (!facilityName) return;
+
+    if (facilityExists(facilityName)) {
+      setFacilityDraftError('This hall already exists. Select it from the existing shared facilities instead of creating a duplicate.');
+      return;
+    }
+
+    setFacilityDraftError(null);
     setFacilityDraftStep('usage');
   }
 
@@ -222,23 +249,16 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
   }
 
   function handleAssignExistingFacilities() {
-    if (selectedExistingFacilities.length === 0) return;
-
-    const existingKeys = new Set(assignments.map((assignment) => `${assignment.department}::${assignment.facility}`));
-    const additions = selectedExistingFacilities
-      .filter((facility) => !existingKeys.has(`${departmentName}::${facility}`))
-      .map((facility) => ({ department: departmentName, facility }));
-
-    if (additions.length > 0) persistAssignments([...assignments, ...additions]);
-    setSelectedExistingFacilities([]);
+    persistDepartmentAssignments([]);
   }
 
   function handleCreateDepartmentOnlyFacility() {
     if (!setup || !facilityDraftName.trim()) return;
     const facilityName = facilityDraftName.trim();
 
-    if (setup.facilities.includes(facilityName)) {
-      resetFacilityDraft();
+    if (facilityExists(facilityName)) {
+      setFacilityDraftError('This hall already exists. Select it from the existing shared facilities instead of creating a duplicate.');
+      setFacilityDraftStep('name');
       return;
     }
 
@@ -251,7 +271,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
         ownerDepartment: departmentName,
       },
     ]);
-    persistAssignments([...assignments, { department: departmentName, facility: facilityName }]);
+    persistDepartmentAssignments([facilityName]);
     resetFacilityDraft();
   }
 
@@ -471,10 +491,18 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
               {facilityDraftStep === 'name' ? (
                 <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-4">
                   <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">Create new hall</p>
+                  {facilityDraftError ? (
+                    <p className="mt-3 rounded-xl border border-red-900/70 bg-red-950/30 px-4 py-3 text-sm font-bold text-red-100">
+                      {facilityDraftError}
+                    </p>
+                  ) : null}
                   <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                     <input
                       value={facilityDraftName}
-                      onChange={(event) => setFacilityDraftName(event.target.value)}
+                      onChange={(event) => {
+                        setFacilityDraftName(event.target.value);
+                        setFacilityDraftError(null);
+                      }}
                       placeholder="Main Hall"
                       className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-emerald-400"
                     />
