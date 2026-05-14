@@ -135,14 +135,11 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
   }, []);
 
   const departmentTeams = useMemo(() => teams.filter((team) => team.department === departmentName), [departmentName, teams]);
-
   const departmentFacilities = useMemo(
     () => assignments.filter((assignment) => assignment.department === departmentName).map((assignment) => assignment.facility),
     [assignments, departmentName],
   );
-
   const metaByFacility = useMemo(() => new Map(facilityMeta.map((meta) => [meta.facility, meta])), [facilityMeta]);
-
   const availableSharedFacilities = useMemo(() => {
     return (setup?.facilities ?? []).filter((facility) => {
       const meta = metaByFacility.get(facility);
@@ -152,13 +149,9 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
 
   const pendingHeadInviteByTeam = useMemo(() => {
     const map = new Map<string, DemoInvite>();
-
     for (const invite of invites) {
-      if (invite.status === 'pending' && invite.role === 'head_coach' && invite.team) {
-        map.set(invite.team, invite);
-      }
+      if (invite.status === 'pending' && invite.role === 'head_coach' && invite.team) map.set(invite.team, invite);
     }
-
     return map;
   }, [invites]);
 
@@ -217,31 +210,18 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
     setFacilityDraftStep('idle');
   }
 
+  function continueFacilityDraft() {
+    if (!facilityDraftName.trim()) return;
+    setFacilityDraftStep('usage');
+  }
+
   function toggleExistingFacility(facility: string) {
     setSelectedExistingFacilities((current) =>
       current.includes(facility) ? current.filter((currentFacility) => currentFacility !== facility) : [...current, facility],
     );
   }
 
-  function getInviteUrl(token: string) {
-    if (typeof window === 'undefined') return `/invite/${token}`;
-    return `${window.location.origin}/invite/${token}`;
-  }
-
-  async function handleCopy(token: string) {
-    await navigator.clipboard.writeText(getInviteUrl(token));
-    setCopiedToken(token);
-    window.setTimeout(() => setCopiedToken(null), 1500);
-  }
-
-  function handleFacilityDraftNameSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!facilityDraftName.trim()) return;
-    setFacilityDraftStep('usage');
-  }
-
-  function handleAssignExistingFacilities(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function handleAssignExistingFacilities() {
     if (selectedExistingFacilities.length === 0) return;
 
     const existingKeys = new Set(assignments.map((assignment) => `${assignment.department}::${assignment.facility}`));
@@ -249,10 +229,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
       .filter((facility) => !existingKeys.has(`${departmentName}::${facility}`))
       .map((facility) => ({ department: departmentName, facility }));
 
-    if (additions.length > 0) {
-      persistAssignments([...assignments, ...additions]);
-    }
-
+    if (additions.length > 0) persistAssignments([...assignments, ...additions]);
     setSelectedExistingFacilities([]);
   }
 
@@ -281,7 +258,6 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
   function handleReportSharedFacility() {
     if (!facilityDraftName.trim()) return;
 
-    const requests = getFacilityRequests();
     const request: DemoFacilityRequest = {
       id: crypto.randomUUID(),
       facility: facilityDraftName.trim(),
@@ -290,8 +266,19 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
       status: 'open',
     };
 
-    saveFacilityRequests([request, ...requests]);
+    saveFacilityRequests([request, ...getFacilityRequests()]);
     setFacilityDraftStep('reported');
+  }
+
+  function getInviteUrl(token: string) {
+    if (typeof window === 'undefined') return `/invite/${token}`;
+    return `${window.location.origin}/invite/${token}`;
+  }
+
+  async function handleCopy(token: string) {
+    await navigator.clipboard.writeText(getInviteUrl(token));
+    setCopiedToken(token);
+    window.setTimeout(() => setCopiedToken(null), 1500);
   }
 
   function handleCreateTeam(event: FormEvent<HTMLFormElement>) {
@@ -300,7 +287,6 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
 
     const teamName = newTeamName.trim();
     const duplicateTeam = departmentTeams.some((team) => team.name.toLowerCase() === teamName.toLowerCase());
-
     if (duplicateTeam) {
       setNewTeamName('');
       return;
@@ -429,7 +415,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
         ) : null}
 
         {showFacilitySetup ? (
-          <form onSubmit={handleAssignExistingFacilities} className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-sky-300">Add hall to department</p>
@@ -439,7 +425,8 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                 </p>
               </div>
               <button
-                type="submit"
+                type="button"
+                onClick={handleAssignExistingFacilities}
                 disabled={selectedExistingFacilities.length === 0}
                 className="w-fit rounded-xl bg-sky-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -484,10 +471,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
               {facilityDraftStep === 'name' ? (
                 <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-4">
                   <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">Create new hall</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-400">
-                    The hall is not saved yet. Enter the name first; then we will ask whether only this department uses it or whether it should be shared.
-                  </p>
-                  <form onSubmit={handleFacilityDraftNameSubmit} className="mt-4 flex flex-col gap-3 sm:flex-row">
+                  <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                     <input
                       value={facilityDraftName}
                       onChange={(event) => setFacilityDraftName(event.target.value)}
@@ -495,7 +479,8 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                       className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-emerald-400"
                     />
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={continueFacilityDraft}
                       disabled={!facilityDraftName.trim()}
                       className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -504,7 +489,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                     <button type="button" onClick={resetFacilityDraft} className="text-xs font-black text-slate-400 hover:text-slate-200">
                       Cancel
                     </button>
-                  </form>
+                  </div>
                 </div>
               ) : null}
 
@@ -575,7 +560,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                 </div>
               ) : null}
             </div>
-          </form>
+          </div>
         ) : null}
       </section>
 
