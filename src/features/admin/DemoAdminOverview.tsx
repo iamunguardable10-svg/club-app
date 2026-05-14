@@ -77,8 +77,6 @@ export function DemoAdminOverview() {
       }
     }
 
-    items.push('Invite department leads once the department structure is ready.');
-
     return items.slice(0, 4);
   }, [assignments, setup]);
 
@@ -109,16 +107,18 @@ export function DemoAdminOverview() {
         </p>
       </section>
 
-      <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">Needs attention</p>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {needsAttention.map((item) => (
-            <div key={item} className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-4">
-              <p className="text-sm font-bold leading-6 text-amber-100">{item}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      {needsAttention.length > 0 ? (
+        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">Needs attention</p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {needsAttention.map((item) => (
+              <div key={item} className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-4">
+                <p className="text-sm font-bold leading-6 text-amber-100">{item}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Management areas</p>

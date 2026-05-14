@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AdminShell } from '@/shared/admin/AdminShell';
-import { getDemoClubSetup, type DemoClubSetup } from '@/shared/dev/demoStorage';
+import { getDemoClubSetup, getDemoTeams, type DemoClubSetup, type DemoTeam } from '@/shared/dev/demoStorage';
 
 type DemoInviteRole = 'department_lead' | 'head_coach' | 'assistant_coach';
 
@@ -55,6 +55,7 @@ export function DemoAdminPeopleManager() {
   const searchParams = useSearchParams();
   const requestedDepartment = searchParams.get('department') ?? '';
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
+  const [teams, setTeams] = useState<DemoTeam[]>([]);
   const [invites, setInvites] = useState<DemoInvite[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedRole, setSelectedRole] = useState<DemoInviteRole>('department_lead');
@@ -64,19 +65,36 @@ export function DemoAdminPeopleManager() {
 
   useEffect(() => {
     const currentSetup = getDemoClubSetup();
+    const currentTeams = getDemoTeams(currentSetup);
     const currentInvites = getDemoInvites();
     const initialDepartment = currentSetup?.departments.includes(requestedDepartment)
       ? requestedDepartment
       : currentSetup?.departments[0] ?? '';
+    const initialTeam = currentTeams.find((team) => team.department === initialDepartment);
 
     setSetup(currentSetup);
+    setTeams(currentTeams);
     setInvites(currentInvites);
     setSelectedDepartment(initialDepartment);
-    setSelectedTeam(currentSetup?.teams[0] ?? '');
+    setSelectedTeam(initialTeam?.name ?? '');
   }, [requestedDepartment]);
 
+  const teamsForSelectedDepartment = useMemo(() => {
+    return teams.filter((team) => team.department === selectedDepartment);
+  }, [selectedDepartment, teams]);
   const pendingInvites = useMemo(() => invites.filter((invite) => invite.status === 'pending'), [invites]);
   const nonPendingInvites = useMemo(() => invites.filter((invite) => invite.status !== 'pending'), [invites]);
+
+  useEffect(() => {
+    if (selectedRole === 'department_lead') {
+      setSelectedTeam('');
+      return;
+    }
+
+    if (!selectedTeam || !teamsForSelectedDepartment.some((team) => team.name === selectedTeam)) {
+      setSelectedTeam(teamsForSelectedDepartment[0]?.name ?? '');
+    }
+  }, [selectedDepartment, selectedRole, selectedTeam, teamsForSelectedDepartment]);
 
   function getInviteUrl(token: string) {
     if (typeof window === 'undefined') return `/invite/${token}`;
@@ -190,14 +208,14 @@ export function DemoAdminPeopleManager() {
                   onChange={(event) => setSelectedTeam(event.target.value)}
                   className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400"
                 >
-                  {setup.teams.length > 0 ? (
-                    setup.teams.map((team) => (
-                      <option key={team} value={team}>
-                        {team}
+                  {teamsForSelectedDepartment.length > 0 ? (
+                    teamsForSelectedDepartment.map((team) => (
+                      <option key={team.id} value={team.name}>
+                        {team.name}
                       </option>
                     ))
                   ) : (
-                    <option value="">No demo teams yet</option>
+                    <option value="">No demo teams in this department yet</option>
                   )}
                 </select>
                 <p className="mt-2 text-xs leading-5 text-slate-500">
@@ -219,7 +237,7 @@ export function DemoAdminPeopleManager() {
 
             <button
               type="submit"
-              disabled={setup.departments.length === 0 || (selectedRole !== 'department_lead' && setup.teams.length === 0)}
+              disabled={setup.departments.length === 0 || (selectedRole !== 'department_lead' && teamsForSelectedDepartment.length === 0)}
               className="w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Create local invite link

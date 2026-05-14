@@ -574,6 +574,36 @@ Important distinction:
 /demo/admin/facilities → local browser-only demo write
 ```
 
+### Department team workspace
+
+Routes:
+
+```txt
+/admin/departments/[departmentId]
+/demo/admin/departments/[departmentName]
+```
+
+Purpose:
+
+- make the team list the central department surface
+- show head coach, assistant coaches, athlete count and default facility per team
+- let admins or department leads invite a missing head coach directly from the team row
+- let admins or department leads set a missing default facility directly from the team row
+- keep `Add team` as a secondary setup action because teams are not created frequently
+- show attention messages only when something is actually missing or problematic
+
+Storage:
+
+```txt
+Real route → Supabase
+Demo route → localStorage
+```
+
+Technical note:
+
+- A profile RLS update was added so club admins and department leads can read profile names for people in the teams/departments they manage.
+- Team season is not shown in the V1 department team list. It remains in the schema for a later active season model.
+
 ---
 
 ## Current implementation status
@@ -593,16 +623,17 @@ Working / prepared:
 - real authenticated club setup flow
 - real admin setup dashboard
 - real admin facilities manager
+- real department team workspace
 - admin facility calendar placeholder
 - local browser-only demo setup flow
 - local browser-only demo admin setup dashboard
 - local browser-only demo facility assignment flow
+- local browser-only demo department team workspace
 - local demo facility calendar placeholder
 
 Still placeholder / not fully implemented:
 
-- real department management UI
-- real team management UI
+- team detail pages
 - real coach invite UI
 - real athlete join-code UI
 - real session creation UI
@@ -617,27 +648,31 @@ Still placeholder / not fully implemented:
 
 ## Next recommended steps
 
-1. Make Department Teams functional:
-   - show teams under a department
-   - create teams inside a department
-   - set default facility per team later
+1. Implement invite acceptance:
+   - preview invite by token
+   - accept invite
+   - redirect coach to coach workspace
 
 2. Implement department-managed training locations:
    - department_lead creates department-specific locations
    - coaches can use them in sessions
    - admin can optionally inspect them through filters
 
-3. Implement coach invite flow:
-   - preview invite by token
-   - accept invite
-   - redirect coach to coach workspace
+3. Extend team operations:
+   - team detail pages
+   - assistant coach shortcut actions
+   - athlete count drill-in
 
-4. Implement athlete team join code flow:
+4. Add a central attention page:
+   - aggregate missing setup and operational issues across admin, department and coach workspaces
+   - keep routine reminders out of warning surfaces
+
+5. Implement athlete team join code flow:
    - preview team by code
    - join team by code
    - redirect athlete to athlete workspace
 
-5. Implement session creation foundation:
+6. Implement session creation foundation:
    - team selection
    - default facility
    - department-scoped facility list

@@ -4,7 +4,13 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AdminShell } from '@/shared/admin/AdminShell';
-import { getDemoClubSetup, saveDemoClubSetup, type DemoClubSetup } from '@/shared/dev/demoStorage';
+import {
+  getDemoClubSetup,
+  getDemoTeams,
+  saveDemoClubSetup,
+  type DemoClubSetup,
+  type DemoTeam,
+} from '@/shared/dev/demoStorage';
 
 type DemoAssignment = {
   department: string;
@@ -83,12 +89,15 @@ function encodeDepartment(department: string) {
 export function DemoAdminDepartmentsManager() {
   const router = useRouter();
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
+  const [teams, setTeams] = useState<DemoTeam[]>([]);
   const [assignments, setAssignments] = useState<DemoAssignment[]>([]);
   const [invites, setInvites] = useState<DemoInvite[]>([]);
   const [newDepartmentName, setNewDepartmentName] = useState('');
 
   useEffect(() => {
-    setSetup(getDemoClubSetup());
+    const currentSetup = getDemoClubSetup();
+    setSetup(currentSetup);
+    setTeams(getDemoTeams(currentSetup));
     setAssignments(getAssignments());
     setInvites(getDemoInvites());
   }, []);
@@ -113,6 +122,14 @@ export function DemoAdminDepartmentsManager() {
     }
     return map;
   }, [invites]);
+
+  const teamCountByDepartment = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const team of teams) {
+      map.set(team.department, (map.get(team.department) ?? 0) + 1);
+    }
+    return map;
+  }, [teams]);
 
   function handleCreateDepartment(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -183,6 +200,7 @@ export function DemoAdminDepartmentsManager() {
             {setup.departments.map((department) => {
               const facilityNames = facilitiesByDepartment.get(department) ?? [];
               const pendingInvites = pendingInvitesByDepartment.get(department) ?? [];
+              const teamCount = teamCountByDepartment.get(department) ?? 0;
               const hasLeadInvite = pendingInvites.some((invite) => invite.role === 'department_lead');
               const encodedDepartment = encodeDepartment(department);
 
@@ -217,7 +235,7 @@ export function DemoAdminDepartmentsManager() {
                   <div className="mt-4 grid gap-2 sm:grid-cols-3">
                     <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
                       <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Teams</p>
-                      <p className="mt-1 text-sm font-black text-slate-100">Preview later</p>
+                      <p className="mt-1 text-sm font-black text-slate-100">{teamCount === 0 ? 'Not created yet' : `${teamCount} linked`}</p>
                     </div>
                     <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
                       <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Facilities</p>

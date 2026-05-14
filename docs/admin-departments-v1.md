@@ -84,17 +84,20 @@ link to local People & Invites with department preselected
 open local department detail placeholder
 ```
 
-## Department detail placeholders
+## Department detail workspace
 
-The detail pages are placeholders for now.
+The department detail pages now act as the team operations setup surface.
 
-Future modules:
+The central object is the team list, not the team creation form.
+
+Each team row shows:
 
 ```txt
-Teams
-Facilities
-People
-Schedule
+team name
+head coach name or pending invite state
+assistant coach names
+athlete count
+default facility
 ```
 
 Routes:
@@ -103,6 +106,16 @@ Routes:
 /admin/departments/[departmentId]
 /demo/admin/departments/[departmentName]
 ```
+
+Team creation remains available, but it is a secondary action. In normal use, teams are created once during setup or season turnover and should not dominate the department page.
+
+If a team is missing a head coach, the department page can create a head coach invite directly from the team row. The invite is still stored in the existing `invites` table and uses the existing team-based coach invite model.
+
+If a team is missing a default facility, the department page can set `teams.default_facility_id` directly from the department-scoped facility list. V1 allows this for `club_admin` and `department_lead`, because default facility is structure, not one-off session planning.
+
+Attention messages are shown only for real missing setup or operational problems. If all teams have the required structure, the attention section is hidden instead of showing neutral reminders.
+
+Season is intentionally not shown in the V1 department team list. The schema still has `teams.season`, but per-team season editing would add noise before there is a global or department-level active season model.
 
 ## People & Invites integration
 
@@ -123,7 +136,8 @@ This means the department page can prepare coach invite context, but real coach 
 
 ## Next recommended steps
 
-1. Build team management inside department context.
-2. Use department detail pages as the place for department teams, facilities and people.
-3. Extend coach invites once teams are fully manageable.
+1. Implement invite acceptance for `/invite/[token]`.
+2. Add assistant coach invite shortcuts once head coach flow feels right.
+3. Add team detail pages after sessions and athlete join codes need a dedicated surface.
 4. Add department-managed training locations after teams/facility context is stable.
+5. Consider a central attention page once multiple workspaces produce real issues.
