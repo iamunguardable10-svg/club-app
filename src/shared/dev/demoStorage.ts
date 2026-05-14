@@ -26,8 +26,16 @@ export type DemoTeam = {
   createdAt: string;
 };
 
+type LegacyDemoFacilityMeta = {
+  facility: string;
+  scope: 'club_shared' | 'department_only';
+  ownerDepartment: string | null;
+  address?: string | null;
+};
+
 const DEMO_CLUB_SETUP_KEY = 'club-app.demo.club-setup';
 const DEMO_TEAMS_KEY = 'club-app.demo.teams';
+const LEGACY_DEMO_FACILITY_META_KEY = 'club-app.demo.facility-meta';
 
 const DEFAULT_DEMO_FACILITY_ADDRESSES: Record<string, string> = {
   'Main Hall': 'Sportstraße 1, Munich',
@@ -43,21 +51,45 @@ function inferDemoFacilityAddress(name: string, setup?: Pick<DemoClubSetup, 'cit
   return DEFAULT_DEMO_FACILITY_ADDRESSES[name] ?? `${name} Street 1, ${city}, ${country}`;
 }
 
+function getLegacyFacilityDetails() {
+  if (typeof window === 'undefined') return [] as DemoFacilityDetails[];
+
+  const raw = window.localStorage.getItem(LEGACY_DEMO_FACILITY_META_KEY);
+  if (!raw) return [] as DemoFacilityDetails[];
+
+  try {
+    return (JSON.parse(raw) as LegacyDemoFacilityMeta[]).map((meta) => ({
+      name: meta.facility,
+      address: meta.address?.trim() || '',
+      scope: meta.scope,
+      ownerDepartment: meta.ownerDepartment ?? null,
+    }));
+  } catch {
+    return [] as DemoFacilityDetails[];
+  }
+}
+
 export function normalizeDemoClubSetup(data: DemoClubSetup): DemoClubSetup {
   const existingDetails = new Map((data.facilityDetails ?? []).map((facility) => [facility.name, facility]));
-  const facilityDetails = data.facilities.map((facilityName) => {
+  const legacyDetails = new Map(getLegacyFacilityDetails().map((facility) => [facility.name, facility]));
+  const allFacilityNames = Array.from(new Set([...data.facilities, ...Array.from(existingDetails.keys()), ...Array.from(legacyDetails.keys())]));
+
+  const facilityDetails = allFacilityNames.map((facilityName) => {
+    const legacy = legacyDetails.get(facilityName);
     const existing = existingDetails.get(facilityName);
+    const preferred = legacy?.scope === 'department_only' ? legacy : existing ?? legacy;
 
     return {
       name: facilityName,
-      address: existing?.address?.trim() || inferDemoFacilityAddress(facilityName, data),
-      scope: existing?.scope ?? 'club_shared',
-      ownerDepartment: existing?.ownerDepartment ?? null,
+      address: preferred?.address?.trim() || inferDemoFacilityAddress(facilityName, data),
+      scope: preferred?.scope ?? 'club_shared',
+      ownerDepartment: preferred?.ownerDepartment ?? null,
     } satisfies DemoFacilityDetails;
   });
 
   return {
     ...data,
+    facilities: facilityDetails.map((facility) => facility.name),
     facilityDetails,
   };
 }
@@ -87,6 +119,7 @@ export function clearDemoClubSetup() {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(DEMO_CLUB_SETUP_KEY);
   window.localStorage.removeItem(DEMO_TEAMS_KEY);
+  window.localStorage.removeItem(LEGACY_DEMO_FACILITY_META_KEY);
 }
 
 function createInitialDemoTeams(setup: DemoClubSetup): DemoTeam[] {
