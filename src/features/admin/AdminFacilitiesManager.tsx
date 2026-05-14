@@ -50,8 +50,17 @@ export function AdminFacilitiesManager() {
   const [selectedFacilityId, setSelectedFacilityId] = useState('');
   const [selectedDepartmentIds, setSelectedDepartmentIds] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [backContext, setBackContext] = useState<string | null>(null);
 
   const clubId = club?.id ?? '';
+
+  const backTarget = useMemo(() => {
+    if (backContext === 'departments') {
+      return { href: '/admin/departments', label: '← Back to departments' };
+    }
+
+    return { href: '/admin/overview', label: '← Back to overview' };
+  }, [backContext]);
 
   const facilityById = useMemo(() => new Map(facilities.map((facility) => [facility.id, facility])), [facilities]);
 
@@ -146,6 +155,9 @@ export function AdminFacilitiesManager() {
   }
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setBackContext(new URLSearchParams(window.location.search).get('from'));
+    }
     loadAdminData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -332,8 +344,8 @@ export function AdminFacilitiesManager() {
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#064E3B_0,#070A12_45%)] px-4 py-8 text-white sm:px-8">
       <div className="mx-auto max-w-6xl space-y-5">
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 shadow-sm">
-          <Link href="/admin/setup" className="inline-flex items-center text-sm font-black text-emerald-300 hover:text-emerald-200">
-            ← Back to setup
+          <Link href={backTarget.href} className="inline-flex items-center text-sm font-black text-emerald-300 hover:text-emerald-200">
+            {backTarget.label}
           </Link>
           <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-emerald-300">Admin facilities</p>
           <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Facilities for {club?.name}</h1>
@@ -353,7 +365,7 @@ export function AdminFacilitiesManager() {
             {facilities.map((facility) => (
               <Link
                 key={facility.id}
-                href={`/admin/facilities/${facility.id}/calendar`}
+                href={`/admin/facilities/${facility.id}/calendar?from=facilities`}
                 className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300"
               >
                 <p className="font-black text-white">{facility.name}</p>
@@ -494,7 +506,7 @@ export function AdminFacilitiesManager() {
                           return (
                             <div key={assignment.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
                               <Link
-                                href={`/admin/facilities/${assignment.facility_id}/calendar`}
+                                href={`/admin/facilities/${assignment.facility_id}/calendar?from=facilities`}
                                 className="text-sm font-bold text-slate-200 hover:text-emerald-300"
                               >
                                 {facility?.name ?? 'Unknown facility'}
