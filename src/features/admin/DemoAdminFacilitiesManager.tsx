@@ -19,7 +19,7 @@ type DemoAssignment = {
 
 const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
 
-function getAssignments(): DemoAssignment[] {
+function readAssignments(): DemoAssignment[] {
   if (typeof window === 'undefined') return [];
   const raw = window.localStorage.getItem(DEMO_FACILITY_ASSIGNMENTS_KEY);
   if (!raw) return [];
@@ -30,7 +30,7 @@ function getAssignments(): DemoAssignment[] {
   }
 }
 
-function saveAssignments(assignments: DemoAssignment[]) {
+function writeAssignments(assignments: DemoAssignment[]) {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(DEMO_FACILITY_ASSIGNMENTS_KEY, JSON.stringify(assignments));
 }
@@ -52,31 +52,33 @@ export function DemoAdminFacilitiesManager() {
   const [newFacilityDepartments, setNewFacilityDepartments] = useState<string[]>([]);
   const [selectedFacility, setSelectedFacility] = useState('');
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
-  const [isEditMode, setIsEditMode] = useState(false);
   const [expandedDepartments, setExpandedDepartments] = useState<string[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [backContext, setBackContext] = useState<string | null>(null);
 
-  const backTarget = useMemo(() => {
-    if (backContext === 'departments') {
-      return { href: '/demo/admin/departments', label: '← Back to local departments' };
-    }
+  function loadLocalData() {
+    const currentSetup = getDemoClubSetup();
+    const currentAssignments = readAssignments();
+    const firstGlobal = currentSetup?.facilityDetails?.find((facility) => facility.scope !== 'department_only')?.name ?? '';
 
-    return { href: '/demo/admin/overview', label: '← Back to local overview' };
-  }, [backContext]);
+    setSetup(currentSetup);
+    setAssignments(currentAssignments);
+    setSelectedFacility((current) => current || firstGlobal);
+    setExpandedDepartments(currentSetup?.departments ?? []);
+  }
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setBackContext(new URLSearchParams(window.location.search).get('from'));
     }
-
-    const currentSetup = getDemoClubSetup();
-    const currentAssignments = getAssignments();
-    setSetup(currentSetup);
-    setAssignments(currentAssignments);
-    setSelectedFacility(currentSetup?.facilityDetails?.find((facility) => facility.scope !== 'department_only')?.name ?? currentSetup?.facilities[0] ?? '');
-    setExpandedDepartments(currentSetup?.departments ?? []);
+    loadLocalData();
   }, []);
+
+  const backTarget = useMemo(() => {
+    if (backContext === 'departments') return { href: '/demo/admin/departments', label: '← Back to local departments' };
+    return { href: '/demo/admin/overview', label: '← Back to local overview' };
+  }, [backContext]);
 
   const facilityDetails = useMemo(() => setup?.facilityDetails ?? [], [setup]);
   const facilityByName = useMemo(() => new Map(facilityDetails.map((facility) => [facility.name, facility])), [facilityDetails]);
@@ -95,17 +97,19 @@ export function DemoAdminFacilitiesManager() {
     return map;
   }, [facilityDetails]);
 
-  const assignmentsByDepartment = useMemo(() => {
+  const sharedAssignmentsByDepartment = useMemo(() => {
     const map = new Map<string, DemoAssignment[]>();
 
     for (const assignment of assignments) {
+      const facility = facilityByName.get(assignment.facility);
+      if (facility?.scope === 'department_only') continue;
       const current = map.get(assignment.department) ?? [];
       current.push(assignment);
       map.set(assignment.department, current);
     }
 
     return map;
-  }, [assignments]);
+  }, [assignments, facilityByName]);
 
   const assignedDepartmentsForSelectedFacility = useMemo(() => {
     return new Set(assignments.filter((assignment) => assignment.facility === selectedFacility).map((assignment) => assignment.department));
@@ -135,7 +139,12 @@ export function DemoAdminFacilitiesManager() {
 
   function persistAssignments(nextAssignments: DemoAssignment[]) {
     setAssignments(nextAssignments);
-    saveAssignments(nextAssignments);
+    writeAssignments(nextAssignments);
+  }
+
+  function createAssignmentsForFacility(facility: string, departments: string[], sourceAssignments = assignments) {
+    const existingKeys = new Set(sourceAssignments.map((assignment) => `${assignment.department}::${assignment.facility}`));
+    return departments.filter((department) => !existingKeys.has(`${department}::${facility}`)).map((department) => ({ department, facility }));
   }
 
   function toggleExpandedDepartment(department: string) {
@@ -143,12 +152,11 @@ export function DemoAdminFacilitiesManager() {
   }
 
   function toggleNewFacilityDepartment(department: string) {
-    setNewFacilityDepartments((current) => (current.includes(department) ? current.filter((currentDepartment) => currentDepartment !== department) : [...current, department]));
+    setNewFacilityDepartments((current) => (current.includes(department) ? current.filter((item) => item !== department) : [...current, department]));
   }
 
-  function createAssignmentsForFacility(facility: string, departments: string[]) {
-    const existingKeys = new Set(assignments.map((assignment) => `${assignment.department}::${assignment.facility}`));
-    return departments.filter((department) => !existingKeys.has(`${department}::${facility}`)).map((department) => ({ department, facility }));
+  function toggleDepartment(department: string) {
+    setSelectedDepartments((current) => (current.includes(department) ? current.filter((item) => item !== department) : [...current, department]));
   }
 
   function handleAddFacility(event: React.FormEvent<HTMLFormElement>) {
@@ -163,12 +171,12 @@ export function DemoAdminFacilitiesManager() {
     const facilityName = newFacilityName.trim();
     const address = newFacilityAddress.trim();
 
-    if (facilityDetails.some((facility) => facility.name.toLowerCase() === facilityName.toLowerCase())) {
-      setError('A local demo facility with this name already exists. Select it below or make the existing department-only facility global.');
+    if (facilityByName.has(facilityName)) {
+      setError('A local demo facility with this name already exists. Use the existing facility or rename this one.');
       return;
     }
 
-    const nextSetup: DemoClubSetup = {
+    persistSetup({
       ...setup,
       facilities: [...setup.facilities, facilityName],
       facilityDetails: [
@@ -180,9 +188,7 @@ export function DemoAdminFacilitiesManager() {
           ownerDepartment: null,
         },
       ],
-    };
-
-    persistSetup(nextSetup);
+    });
     persistAssignments([...assignments, ...createAssignmentsForFacility(facilityName, newFacilityDepartments)]);
     setSelectedFacility(facilityName);
     setNewFacilityName('');
@@ -190,12 +196,12 @@ export function DemoAdminFacilitiesManager() {
     setNewFacilityDepartments([]);
   }
 
-  function handleMakeFacilityGlobal(facilityName: string) {
+  function handleMakeFacilityGlobal(facilityName: string, extraDepartments: string[] = []) {
     if (!setup) return;
     const existingFacility = facilityByName.get(facilityName);
     if (!existingFacility) return;
 
-    const departmentsToAssign = Array.from(new Set([existingFacility.ownerDepartment, ...newFacilityDepartments].filter(Boolean) as string[]));
+    const departmentsToAssign = Array.from(new Set([existingFacility.ownerDepartment, ...extraDepartments].filter(Boolean) as string[]));
     const nextDetails = (setup.facilityDetails ?? []).map((facility) =>
       facility.name === facilityName
         ? {
@@ -218,21 +224,11 @@ export function DemoAdminFacilitiesManager() {
     setNewFacilityDepartments([]);
   }
 
-  function toggleDepartment(department: string) {
-    setSelectedDepartments((current) => (current.includes(department) ? current.filter((currentDepartment) => currentDepartment !== department) : [...current, department]));
-  }
-
   function handleAssign(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedFacility || selectedDepartments.length === 0) return;
 
     const additions = createAssignmentsForFacility(selectedFacility, selectedDepartments);
-
-    if (additions.length === 0) {
-      setSelectedDepartments([]);
-      return;
-    }
-
     persistAssignments([...assignments, ...additions]);
     setSelectedDepartments([]);
   }
@@ -268,8 +264,7 @@ export function DemoAdminFacilitiesManager() {
     saveDemoTeams(teams.map((team) => (team.defaultFacility === facilityName ? { ...team, defaultFacility: null } : team)));
 
     if (selectedFacility === facilityName) {
-      const nextGlobalFacility = nextSetup.facilityDetails?.find((details) => details.scope !== 'department_only')?.name ?? '';
-      setSelectedFacility(nextGlobalFacility);
+      setSelectedFacility(nextSetup.facilityDetails?.find((details) => details.scope !== 'department_only')?.name ?? '');
     }
   }
 
@@ -349,7 +344,7 @@ export function DemoAdminFacilitiesManager() {
           <div className="mt-5 space-y-3">
             {setup.departments.map((department) => {
               const isExpanded = expandedDepartments.includes(department);
-              const departmentAssignments = assignmentsByDepartment.get(department) ?? [];
+              const sharedAssignments = sharedAssignmentsByDepartment.get(department) ?? [];
               const departmentOnlyFacilities = departmentOnlyFacilitiesByDepartment.get(department) ?? [];
 
               return (
@@ -358,7 +353,7 @@ export function DemoAdminFacilitiesManager() {
                     <span>
                       <span className="block font-black">{department}</span>
                       <span className="mt-1 block text-xs font-bold text-slate-500">
-                        {departmentAssignments.length} shared assigned · {departmentOnlyFacilities.length} department-only
+                        {sharedAssignments.length} shared assigned · {departmentOnlyFacilities.length} department-only
                       </span>
                     </span>
                     <span className="text-sm font-black text-sky-300">{isExpanded ? 'Hide' : 'Show'}</span>
@@ -369,8 +364,8 @@ export function DemoAdminFacilitiesManager() {
                       <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
                         <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">Shared access</p>
                         <div className="mt-3 space-y-2">
-                          {departmentAssignments.length > 0 ? (
-                            departmentAssignments.map((assignment) => {
+                          {sharedAssignments.length > 0 ? (
+                            sharedAssignments.map((assignment) => {
                               const facility = facilityByName.get(assignment.facility);
                               return (
                                 <div key={`${assignment.department}-${assignment.facility}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
@@ -434,7 +429,7 @@ export function DemoAdminFacilitiesManager() {
                 <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-950/20 p-3">
                   <p className="text-sm font-bold leading-6 text-amber-100">{createWarning}</p>
                   {createMatch?.candidate.scope === 'department_only' ? (
-                    <button type="button" onClick={() => handleMakeFacilityGlobal(createMatch.candidate.id)} className="mt-3 rounded-lg bg-amber-300 px-3 py-2 text-xs font-black text-slate-950 hover:bg-amber-200">
+                    <button type="button" onClick={() => handleMakeFacilityGlobal(createMatch.candidate.id, newFacilityDepartments)} className="mt-3 rounded-lg bg-amber-300 px-3 py-2 text-xs font-black text-slate-950 hover:bg-amber-200">
                       Make existing hall global
                     </button>
                   ) : null}
