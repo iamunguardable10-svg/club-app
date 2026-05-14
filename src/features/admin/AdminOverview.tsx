@@ -91,10 +91,6 @@ export function AdminOverview() {
   const needsAttention = useMemo(() => {
     const items: string[] = [];
 
-    if (facilityRequests.length > 0) {
-      items.push('There are facility requests from departments that need admin review.');
-    }
-
     if (departments.length === 0) {
       items.push('Create your first department so teams and coaches can be organized.');
     }
@@ -113,7 +109,7 @@ export function AdminOverview() {
     }
 
     return items.slice(0, 4);
-  }, [assignments, departments.length, facilities, facilityRequests.length]);
+  }, [assignments, departments.length, facilities]);
 
   useEffect(() => {
     let isMounted = true;
