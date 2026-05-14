@@ -18,6 +18,7 @@ type DemoAssignment = {
 };
 
 const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
+const FACILITIES_CHANGED_EVENT = 'club-app.demo.facilities-changed';
 
 function readAssignments(): DemoAssignment[] {
   if (typeof window === 'undefined') return [];
@@ -64,15 +65,20 @@ export function DemoAdminFacilitiesManager() {
 
     setSetup(currentSetup);
     setAssignments(currentAssignments);
-    setSelectedFacility((current) => current || firstGlobal);
-    setExpandedDepartments(currentSetup?.departments ?? []);
+    setSelectedFacility((current) => (current && currentSetup?.facilityDetails?.some((facility) => facility.name === current) ? current : firstGlobal));
+    setExpandedDepartments((current) => (current.length > 0 ? current : currentSetup?.departments ?? []));
   }
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setBackContext(new URLSearchParams(window.location.search).get('from'));
+      window.addEventListener(FACILITIES_CHANGED_EVENT, loadLocalData);
     }
     loadLocalData();
+
+    return () => {
+      if (typeof window !== 'undefined') window.removeEventListener(FACILITIES_CHANGED_EVENT, loadLocalData);
+    };
   }, []);
 
   const backTarget = useMemo(() => {
@@ -283,6 +289,82 @@ export function DemoAdminFacilitiesManager() {
     );
   }
 
+  const editTools = isEditMode ? (
+    <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+      <form onSubmit={handleAddFacility} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Create</p>
+        <h2 className="mt-2 text-xl font-black">Add global facility</h2>
+        {createWarning ? (
+          <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-950/20 p-3">
+            <p className="text-sm font-bold leading-6 text-amber-100">{createWarning}</p>
+            {createMatch?.candidate.scope === 'department_only' ? (
+              <button type="button" onClick={() => handleMakeFacilityGlobal(createMatch.candidate.id, newFacilityDepartments)} className="mt-3 rounded-lg bg-amber-300 px-3 py-2 text-xs font-black text-slate-950 hover:bg-amber-200">
+                Make existing hall global
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+        <div className="mt-4 space-y-4">
+          <label className="block">
+            <span className="text-sm font-bold text-slate-200">Name</span>
+            <input required value={newFacilityName} onChange={(event) => { setNewFacilityName(event.target.value); setError(null); }} placeholder="Main Hall" className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400" />
+          </label>
+          <label className="block">
+            <span className="text-sm font-bold text-slate-200">Address</span>
+            <input required value={newFacilityAddress} onChange={(event) => { setNewFacilityAddress(event.target.value); setError(null); }} placeholder="Street, city" className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400" />
+          </label>
+          <div>
+            <p className="text-sm font-bold text-slate-200">Assign to departments optional</p>
+            <div className="mt-2 space-y-2">
+              {setup.departments.map((department) => (
+                <label key={department} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm">
+                  <span className="font-bold text-slate-100">{department}</span>
+                  <input type="checkbox" checked={newFacilityDepartments.includes(department)} onChange={() => toggleNewFacilityDepartment(department)} className="h-4 w-4" />
+                </label>
+              ))}
+            </div>
+          </div>
+          <button type="submit" className="w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300">
+            Add separate global facility
+          </button>
+        </div>
+      </form>
+
+      <form onSubmit={handleAssign} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Assign</p>
+        <h2 className="mt-2 text-xl font-black">Assign existing global facility</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-400">Select a global facility, then choose every department that may use it.</p>
+        <div className="mt-4 space-y-4">
+          <select value={selectedFacility} onChange={(event) => setSelectedFacility(event.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-400">
+            {globalFacilities.map((facility) => (
+              <option key={facility.name} value={facility.name}>{facility.name} — {facility.address}</option>
+            ))}
+          </select>
+
+          <div className="space-y-2">
+            {setup.departments.map((department) => {
+              const alreadyAssigned = assignedDepartmentsForSelectedFacility.has(department);
+              const checked = selectedDepartments.includes(department) || alreadyAssigned;
+              return (
+                <label key={department} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm">
+                  <span>
+                    <span className="font-bold text-slate-100">{department}</span>
+                    {alreadyAssigned ? <span className="ml-2 text-xs font-bold text-emerald-300">already assigned</span> : null}
+                  </span>
+                  <input type="checkbox" checked={checked} disabled={alreadyAssigned} onChange={() => toggleDepartment(department)} className="h-4 w-4" />
+                </label>
+              );
+            })}
+          </div>
+
+          <button type="submit" disabled={selectedDepartments.length === 0 || !selectedFacility} className="w-full rounded-xl bg-violet-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-violet-300 disabled:cursor-not-allowed disabled:opacity-60">
+            Assign selected departments
+          </button>
+        </div>
+      </form>
+    </section>
+  ) : null;
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#92400E_0,#070A12_45%)] px-4 py-8 text-white sm:px-8">
       <div className="mx-auto max-w-6xl space-y-5">
@@ -311,6 +393,8 @@ export function DemoAdminFacilitiesManager() {
         </section>
 
         {error ? <section className="rounded-2xl border border-red-900/70 bg-red-950/40 px-4 py-3 text-sm text-red-200">{error}</section> : null}
+
+        {editTools}
 
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
           <div className="flex items-end justify-between gap-3">
@@ -419,82 +503,6 @@ export function DemoAdminFacilitiesManager() {
             })}
           </div>
         </section>
-
-        {isEditMode ? (
-          <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-            <form onSubmit={handleAddFacility} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Create</p>
-              <h2 className="mt-2 text-xl font-black">Add global facility</h2>
-              {createWarning ? (
-                <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-950/20 p-3">
-                  <p className="text-sm font-bold leading-6 text-amber-100">{createWarning}</p>
-                  {createMatch?.candidate.scope === 'department_only' ? (
-                    <button type="button" onClick={() => handleMakeFacilityGlobal(createMatch.candidate.id, newFacilityDepartments)} className="mt-3 rounded-lg bg-amber-300 px-3 py-2 text-xs font-black text-slate-950 hover:bg-amber-200">
-                      Make existing hall global
-                    </button>
-                  ) : null}
-                </div>
-              ) : null}
-              <div className="mt-4 space-y-4">
-                <label className="block">
-                  <span className="text-sm font-bold text-slate-200">Name</span>
-                  <input required value={newFacilityName} onChange={(event) => { setNewFacilityName(event.target.value); setError(null); }} placeholder="Main Hall" className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400" />
-                </label>
-                <label className="block">
-                  <span className="text-sm font-bold text-slate-200">Address</span>
-                  <input required value={newFacilityAddress} onChange={(event) => { setNewFacilityAddress(event.target.value); setError(null); }} placeholder="Street, city" className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400" />
-                </label>
-                <div>
-                  <p className="text-sm font-bold text-slate-200">Assign to departments optional</p>
-                  <div className="mt-2 space-y-2">
-                    {setup.departments.map((department) => (
-                      <label key={department} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm">
-                        <span className="font-bold text-slate-100">{department}</span>
-                        <input type="checkbox" checked={newFacilityDepartments.includes(department)} onChange={() => toggleNewFacilityDepartment(department)} className="h-4 w-4" />
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <button type="submit" className="w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300">
-                  Add separate global facility
-                </button>
-              </div>
-            </form>
-
-            <form onSubmit={handleAssign} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Assign</p>
-              <h2 className="mt-2 text-xl font-black">Assign existing global facility</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-400">Select a global facility, then choose every department that may use it.</p>
-              <div className="mt-4 space-y-4">
-                <select value={selectedFacility} onChange={(event) => setSelectedFacility(event.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-400">
-                  {globalFacilities.map((facility) => (
-                    <option key={facility.name} value={facility.name}>{facility.name} — {facility.address}</option>
-                  ))}
-                </select>
-
-                <div className="space-y-2">
-                  {setup.departments.map((department) => {
-                    const alreadyAssigned = assignedDepartmentsForSelectedFacility.has(department);
-                    const checked = selectedDepartments.includes(department) || alreadyAssigned;
-                    return (
-                      <label key={department} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm">
-                        <span>
-                          <span className="font-bold text-slate-100">{department}</span>
-                          {alreadyAssigned ? <span className="ml-2 text-xs font-bold text-emerald-300">already assigned</span> : null}
-                        </span>
-                        <input type="checkbox" checked={checked} disabled={alreadyAssigned} onChange={() => toggleDepartment(department)} className="h-4 w-4" />
-                      </label>
-                    );
-                  })}
-                </div>
-
-                <button type="submit" disabled={selectedDepartments.length === 0 || !selectedFacility} className="w-full rounded-xl bg-violet-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-violet-300 disabled:cursor-not-allowed disabled:opacity-60">
-                  Assign selected departments
-                </button>
-              </div>
-            </form>
-          </section>
-        ) : null}
       </div>
     </main>
   );
