@@ -38,8 +38,21 @@ export function DemoAdminFacilitiesManager() {
   const [newFacilityDepartments, setNewFacilityDepartments] = useState<string[]>([]);
   const [selectedFacility, setSelectedFacility] = useState('');
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
+  const [backContext, setBackContext] = useState<string | null>(null);
+
+  const backTarget = useMemo(() => {
+    if (backContext === 'departments') {
+      return { href: '/demo/admin/departments', label: '← Back to local departments' };
+    }
+
+    return { href: '/demo/admin/overview', label: '← Back to local overview' };
+  }, [backContext]);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setBackContext(new URLSearchParams(window.location.search).get('from'));
+    }
+
     const currentSetup = getDemoClubSetup();
     const currentAssignments = getAssignments();
     setSetup(currentSetup);
@@ -172,8 +185,8 @@ export function DemoAdminFacilitiesManager() {
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#92400E_0,#070A12_45%)] px-4 py-8 text-white sm:px-8">
       <div className="mx-auto max-w-6xl space-y-5">
         <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6 shadow-sm">
-          <Link href="/demo/admin/setup" className="inline-flex items-center text-sm font-black text-amber-200 hover:text-amber-100">
-            ← Back to local setup
+          <Link href={backTarget.href} className="inline-flex items-center text-sm font-black text-amber-200 hover:text-amber-100">
+            {backTarget.label}
           </Link>
           <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo facilities</p>
           <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Facilities for {setup.clubName}</h1>
@@ -189,7 +202,7 @@ export function DemoAdminFacilitiesManager() {
             {setup.facilities.map((facility) => (
               <Link
                 key={facility}
-                href={`/demo/admin/facilities/${encodeFacilityName(facility)}/calendar`}
+                href={`/demo/admin/facilities/${encodeFacilityName(facility)}/calendar?from=facilities`}
                 className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300"
               >
                 <p className="font-black text-white">{facility}</p>
@@ -309,7 +322,7 @@ export function DemoAdminFacilitiesManager() {
                         departmentAssignments.map((assignment) => (
                           <div key={`${assignment.department}-${assignment.facility}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
                             <Link
-                              href={`/demo/admin/facilities/${encodeFacilityName(assignment.facility)}/calendar`}
+                              href={`/demo/admin/facilities/${encodeFacilityName(assignment.facility)}/calendar?from=facilities`}
                               className="text-sm font-bold text-slate-200 hover:text-emerald-300"
                             >
                               {assignment.facility}
