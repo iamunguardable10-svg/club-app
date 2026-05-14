@@ -42,6 +42,13 @@ type DraftState = {
   rejectionReason: string;
 };
 
+const ADMIN_FACILITIES_CHANGED_EVENT = 'club-app.admin.facilities-changed';
+
+function notifyFacilitiesChanged() {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(ADMIN_FACILITIES_CHANGED_EVENT));
+}
+
 function formatDateTime(value: string) {
   const date = new Date(value);
   return `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} ${date.toLocaleTimeString(undefined, {
@@ -254,6 +261,7 @@ export function AdminFacilityRequestsPanel({
 
       await loadRequests();
       await onChanged?.();
+      notifyFacilitiesChanged();
     } catch (approveError) {
       setError(approveError instanceof Error ? approveError.message : 'Could not approve facility request.');
     } finally {
@@ -287,6 +295,7 @@ export function AdminFacilityRequestsPanel({
       if (rejectError) throw rejectError;
       await loadRequests();
       await onChanged?.();
+      notifyFacilitiesChanged();
     } catch (rejectError) {
       setError(rejectError instanceof Error ? rejectError.message : 'Could not reject facility request.');
     } finally {
@@ -343,19 +352,11 @@ export function AdminFacilityRequestsPanel({
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 <label className="block">
                   <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Facility name</span>
-                  <input
-                    value={draft.name}
-                    onChange={(event) => updateDraft(request.id, { name: event.target.value })}
-                    className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-amber-400"
-                  />
+                  <input value={draft.name} onChange={(event) => updateDraft(request.id, { name: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-amber-400" />
                 </label>
                 <label className="block">
                   <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Address</span>
-                  <input
-                    value={draft.address}
-                    onChange={(event) => updateDraft(request.id, { address: event.target.value })}
-                    className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-amber-400"
-                  />
+                  <input value={draft.address} onChange={(event) => updateDraft(request.id, { address: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-amber-400" />
                 </label>
               </div>
 
@@ -372,13 +373,7 @@ export function AdminFacilityRequestsPanel({
                           {department.name}
                           {department.id === request.department_id ? <span className="ml-2 text-xs text-amber-300">requesting</span> : null}
                         </span>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          disabled={department.id === request.department_id}
-                          onChange={() => toggleDepartment(request.id, department.id)}
-                          className="h-4 w-4"
-                        />
+                        <input type="checkbox" checked={checked} disabled={department.id === request.department_id} onChange={() => toggleDepartment(request.id, department.id)} className="h-4 w-4" />
                       </label>
                     );
                   })}
@@ -386,26 +381,11 @@ export function AdminFacilityRequestsPanel({
               </div>
 
               <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto_auto]">
-                <input
-                  value={draft.rejectionReason}
-                  onChange={(event) => updateDraft(request.id, { rejectionReason: event.target.value })}
-                  placeholder="Optional rejection note"
-                  className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-red-400"
-                />
-                <button
-                  type="button"
-                  disabled={isSaving || !draft.name.trim() || !draft.address.trim()}
-                  onClick={() => handleApprove(request, match ? 'use_match' : 'create_new')}
-                  className="rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
-                >
+                <input value={draft.rejectionReason} onChange={(event) => updateDraft(request.id, { rejectionReason: event.target.value })} placeholder="Optional rejection note" className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-red-400" />
+                <button type="button" disabled={isSaving || !draft.name.trim() || !draft.address.trim()} onClick={() => handleApprove(request, match ? 'use_match' : 'create_new')} className="rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60">
                   {match ? 'Approve using match' : 'Approve request'}
                 </button>
-                <button
-                  type="button"
-                  disabled={isSaving}
-                  onClick={() => handleReject(request)}
-                  className="rounded-xl border border-red-500/60 px-4 py-3 text-sm font-black text-red-200 transition hover:bg-red-950/40 disabled:cursor-not-allowed disabled:opacity-60"
-                >
+                <button type="button" disabled={isSaving} onClick={() => handleReject(request)} className="rounded-xl border border-red-500/60 px-4 py-3 text-sm font-black text-red-200 transition hover:bg-red-950/40 disabled:cursor-not-allowed disabled:opacity-60">
                   Reject
                 </button>
               </div>
