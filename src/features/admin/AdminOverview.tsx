@@ -30,6 +30,15 @@ type DepartmentFacility = {
   facility_id: string;
 };
 
+type ActivityEvent = {
+  id: string;
+  department_id: string | null;
+  event_type: string;
+  title: string;
+  body: string | null;
+  created_at: string;
+};
+
 type LoadState = 'loading' | 'ready' | 'no_admin_membership' | 'error';
 
 const managementAreas = [
@@ -59,6 +68,14 @@ function isMissingAuthSessionError(message?: string) {
   return message?.toLowerCase().includes('auth session missing') ?? false;
 }
 
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  return `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} ${date.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`;
+}
+
 export function AdminOverview() {
   const router = useRouter();
   const [state, setState] = useState<LoadState>('loading');
@@ -67,9 +84,16 @@ export function AdminOverview() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [assignments, setAssignments] = useState<DepartmentFacility[]>([]);
+  const [messages, setMessages] = useState<ActivityEvent[]>([]);
+
+  const departmentById = useMemo(() => new Map(departments.map((department) => [department.id, department])), [departments]);
 
   const needsAttention = useMemo(() => {
     const items: string[] = [];
+
+    if (messages.length > 0) {
+      items.push('There are facility requests from departments that need admin review.');
+    }
 
     if (departments.length === 0) {
       items.push('Create your first department so teams and coaches can be organized.');
@@ -89,7 +113,7 @@ export function AdminOverview() {
     }
 
     return items.slice(0, 4);
-  }, [assignments, departments.length, facilities]);
+  }, [assignments, departments.length, facilities, messages.length]);
 
   useEffect(() => {
     let isMounted = true;
@@ -140,16 +164,23 @@ export function AdminOverview() {
 
       const clubId = adminMembership.club_id;
 
-      const [clubResult, departmentsResult, facilitiesResult, assignmentsResult] = await Promise.all([
+      const [clubResult, departmentsResult, facilitiesResult, assignmentsResult, messagesResult] = await Promise.all([
         supabase.from('clubs').select('id, name, city, country').eq('id', clubId).single(),
         supabase.from('departments').select('id, name').eq('club_id', clubId).order('name'),
         supabase.from('facilities').select('id, name').eq('club_id', clubId).order('name'),
         supabase.from('department_facilities').select('department_id, facility_id').eq('club_id', clubId),
+        supabase
+          .from('activity_events')
+          .select('id, department_id, event_type, title, body, created_at')
+          .eq('club_id', clubId)
+          .eq('event_type', 'facility_request.shared')
+          .order('created_at', { ascending: false })
+          .limit(6),
       ]);
 
       if (!isMounted) return;
 
-      const firstError = clubResult.error ?? departmentsResult.error ?? facilitiesResult.error ?? assignmentsResult.error;
+      const firstError = clubResult.error ?? departmentsResult.error ?? facilitiesResult.error ?? assignmentsResult.error ?? messagesResult.error;
 
       if (firstError) {
         setError(firstError.message);
@@ -161,6 +192,7 @@ export function AdminOverview() {
       setDepartments((departmentsResult.data ?? []) as Department[]);
       setFacilities((facilitiesResult.data ?? []) as Facility[]);
       setAssignments((assignmentsResult.data ?? []) as DepartmentFacility[]);
+      setMessages((messagesResult.data ?? []) as ActivityEvent[]);
       setState('ready');
     }
 
@@ -226,6 +258,34 @@ export function AdminOverview() {
               <div key={item} className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-4">
                 <p className="text-sm font-bold leading-6 text-amber-100">{item}</p>
               </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {messages.length > 0 ? (
+        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">Meldungen</p>
+          <h2 className="mt-2 text-xl font-black">Facility requests</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-400">
+            Departments reported halls that may be shared across the club. Check the exact name before creating or assigning them globally.
+          </p>
+          <div className="mt-4 space-y-3">
+            {messages.map((message) => (
+              <article key={message.id} className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="font-black text-amber-100">{message.title}</p>
+                    <p className="mt-1 text-xs font-bold text-slate-500">
+                      {message.department_id ? departmentById.get(message.department_id)?.name ?? 'Unknown department' : 'Club'} · {formatDateTime(message.created_at)}
+                    </p>
+                  </div>
+                  <Link href="/admin/facilities?from=overview" className="w-fit rounded-lg border border-amber-500/60 px-3 py-2 text-xs font-black text-amber-200 hover:bg-amber-950/40">
+                    Review in facilities
+                  </Link>
+                </div>
+                {message.body ? <p className="mt-3 text-sm leading-6 text-slate-300">{message.body}</p> : null}
+              </article>
             ))}
           </div>
         </section>
