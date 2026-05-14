@@ -75,7 +75,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
   const [assignments, setAssignments] = useState<DemoAssignment[]>([]);
   const [invites, setInvites] = useState<DemoInvite[]>([]);
   const [newTeamName, setNewTeamName] = useState('');
-  const [showAddTeam, setShowAddTeam] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   useEffect(() => {
@@ -90,10 +90,12 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
     () => teams.filter((team) => team.department === departmentName),
     [departmentName, teams],
   );
+
   const departmentFacilities = useMemo(
     () => assignments.filter((assignment) => assignment.department === departmentName).map((assignment) => assignment.facility),
     [assignments, departmentName],
   );
+
   const pendingHeadInviteByTeam = useMemo(() => {
     const map = new Map<string, DemoInvite>();
 
@@ -105,30 +107,32 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
 
     return map;
   }, [invites]);
+
   const missingHeadCoachCount = departmentTeams.filter((team) => !pendingHeadInviteByTeam.has(team.name)).length;
   const missingDefaultFacilityCount = departmentTeams.filter((team) => !team.defaultFacility).length;
+
   const attentionItems = useMemo(() => {
     const items: { title: string; description: string; href?: string }[] = [];
-
-    if (missingHeadCoachCount > 0) {
-      items.push({
-        title: `${missingHeadCoachCount} ${missingHeadCoachCount === 1 ? 'team needs' : 'teams need'} a head coach`,
-        description: 'Create a local head coach invite directly from the affected team row.',
-      });
-    }
-
-    if (missingDefaultFacilityCount > 0) {
-      items.push({
-        title: `${missingDefaultFacilityCount} ${missingDefaultFacilityCount === 1 ? 'team needs' : 'teams need'} a default facility`,
-        description: 'Set the local default facility from the team row.',
-      });
-    }
 
     if (departmentTeams.length > 0 && departmentFacilities.length === 0) {
       items.push({
         title: 'No local department facilities assigned',
         description: 'Assign demo facilities to this department before choosing team defaults.',
         href: '/demo/admin/facilities',
+      });
+    }
+
+    if (missingHeadCoachCount > 0) {
+      items.push({
+        title: `${missingHeadCoachCount} ${missingHeadCoachCount === 1 ? 'team needs' : 'teams need'} a head coach`,
+        description: 'Use Edit Mode to create local head coach invite links for affected teams.',
+      });
+    }
+
+    if (missingDefaultFacilityCount > 0) {
+      items.push({
+        title: `${missingDefaultFacilityCount} ${missingDefaultFacilityCount === 1 ? 'team needs' : 'teams need'} a default facility`,
+        description: 'Use Edit Mode to set the local default facility from the team row.',
       });
     }
 
@@ -174,12 +178,10 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
       },
     ]);
     setNewTeamName('');
-    setShowAddTeam(false);
   }
 
   function handleSetDefaultFacility(teamId: string, facility: string) {
-    if (!facility) return;
-    persistTeams(teams.map((team) => (team.id === teamId ? { ...team, defaultFacility: facility } : team)));
+    persistTeams(teams.map((team) => (team.id === teamId ? { ...team, defaultFacility: facility || null } : team)));
   }
 
   async function handleInviteHeadCoach(teamName: string) {
@@ -218,22 +220,24 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
     <AdminShell mode="demo">
       <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6 shadow-sm">
         <Link href="/demo/admin/departments" className="inline-flex items-center text-sm font-black text-amber-200 hover:text-amber-100">
-          Back to local departments
+          ← Back to local departments
         </Link>
         <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local department workspace</p>
             <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">{departmentName}</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-100/80">
-              Browser-only team overview for {setup.clubName}. This mirrors the real department team workflow without writing to Supabase.
+              Browser-only team overview for {setup.clubName}. Normal Mode stays calm; Edit Mode exposes team setup controls.
             </p>
           </div>
           <button
             type="button"
-            onClick={() => setShowAddTeam((current) => !current)}
-            className="w-fit rounded-xl border border-amber-500/70 px-4 py-3 text-sm font-black text-amber-200 hover:bg-amber-950/40"
+            onClick={() => setIsEditMode((current) => !current)}
+            className={isEditMode
+              ? 'w-fit rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200'
+              : 'w-fit rounded-xl border border-amber-500/70 px-4 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-950/40'}
           >
-            {showAddTeam ? 'Close' : 'Add team'}
+            {isEditMode ? 'Done editing' : 'Edit department'}
           </button>
         </div>
       </section>
@@ -264,9 +268,9 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
         </section>
       ) : null}
 
-      {showAddTeam || departmentTeams.length === 0 ? (
+      {(isEditMode || departmentTeams.length === 0) ? (
         <form onSubmit={handleCreateTeam} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">{departmentTeams.length === 0 ? 'First team' : 'Setup action'}</p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">{departmentTeams.length === 0 ? 'First team' : 'Edit mode'}</p>
           <h2 className="mt-2 text-xl font-black">{departmentTeams.length === 0 ? 'Create the first local team' : 'Add local team'}</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
             <input
@@ -296,66 +300,71 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
           {departmentTeams.length > 0 ? (
             departmentTeams.map((team) => {
               const pendingHeadInvite = pendingHeadInviteByTeam.get(team.name);
+              const headCoachLabel = pendingHeadInvite ? 'Head coach invited' : 'No head coach';
 
               return (
-                <article key={team.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-                  <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr_0.8fr_1fr] lg:items-start">
-                    <div>
+                <article key={team.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-slate-700">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
                       <h3 className="text-xl font-black text-white">{team.name}</h3>
-                      <p className="mt-1 text-xs text-slate-500">Local demo team</p>
+                      <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-sm font-bold text-slate-300">
+                        <span>{headCoachLabel}</span>
+                        <span className="hidden sm:inline text-slate-600">·</span>
+                        <span className="hidden sm:inline">0 players</span>
+                        <span className="hidden md:inline text-slate-600">·</span>
+                        <span className="hidden md:inline">{team.defaultFacility ?? 'No default facility'}</span>
+                        <span className="hidden lg:inline text-slate-600">·</span>
+                        <span className="hidden lg:inline">No session yet</span>
+                      </p>
                     </div>
 
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Coaches</p>
-                      {pendingHeadInvite ? (
-                        <div className="mt-2 space-y-2">
-                          <p className="text-sm font-black text-amber-200">Head coach invited</p>
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(pendingHeadInvite.token)}
-                            className="rounded-lg border border-amber-500/60 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40"
-                          >
-                            {copiedToken === pendingHeadInvite.token ? 'Copied' : 'Copy invite'}
-                          </button>
+                    {isEditMode ? (
+                      <div className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 lg:w-[360px]">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Head coach</p>
+                          {pendingHeadInvite ? (
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(pendingHeadInvite.token)}
+                              className="mt-2 rounded-lg border border-amber-500/60 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40"
+                            >
+                              {copiedToken === pendingHeadInvite.token ? 'Copied invite' : 'Copy pending invite'}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleInviteHeadCoach(team.name)}
+                              className="mt-2 rounded-lg border border-amber-500/70 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40"
+                            >
+                              Invite head coach
+                            </button>
+                          )}
+                          <p className="mt-2 text-xs leading-5 text-slate-500">Assistants: none assigned</p>
                         </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleInviteHeadCoach(team.name)}
-                          className="mt-2 rounded-lg border border-amber-500/70 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40"
-                        >
-                          Invite head coach
-                        </button>
-                      )}
-                      <p className="mt-2 text-xs leading-5 text-slate-500">Assistants: none assigned</p>
-                    </div>
 
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Players</p>
-                      <p className="mt-2 text-3xl font-black text-slate-100">0</p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Default facility</p>
-                      {departmentFacilities.length > 0 ? (
-                        <select
-                          value={team.defaultFacility ?? ''}
-                          onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)}
-                          className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold outline-none focus:border-emerald-400"
-                        >
-                          <option value="">{team.defaultFacility ?? 'Set facility'}</option>
-                          {departmentFacilities.map((facility) => (
-                            <option key={facility} value={facility}>
-                              {facility}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <Link href="/demo/admin/facilities" className="mt-2 inline-block rounded-lg border border-emerald-500/60 px-2.5 py-1.5 text-xs font-black text-emerald-200 hover:bg-emerald-950/40">
-                          Assign department facilities
-                        </Link>
-                      )}
-                    </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Default facility</p>
+                          {departmentFacilities.length > 0 ? (
+                            <select
+                              value={team.defaultFacility ?? ''}
+                              onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)}
+                              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold outline-none focus:border-emerald-400"
+                            >
+                              <option value="">No default facility</option>
+                              {departmentFacilities.map((facility) => (
+                                <option key={facility} value={facility}>
+                                  {facility}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <Link href="/demo/admin/facilities" className="mt-2 inline-block rounded-lg border border-emerald-500/60 px-2.5 py-1.5 text-xs font-black text-emerald-200 hover:bg-emerald-950/40">
+                              Assign department facilities
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </article>
               );
