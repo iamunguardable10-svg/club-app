@@ -125,14 +125,14 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
     if (missingHeadCoachCount > 0) {
       items.push({
         title: `${missingHeadCoachCount} ${missingHeadCoachCount === 1 ? 'team needs' : 'teams need'} a head coach`,
-        description: 'Use Edit Mode to create local head coach invite links for affected teams.',
+        description: 'Use the inline quick action on the affected team or Edit Mode for broader management.',
       });
     }
 
     if (missingDefaultFacilityCount > 0) {
       items.push({
         title: `${missingDefaultFacilityCount} ${missingDefaultFacilityCount === 1 ? 'team needs' : 'teams need'} a default facility`,
-        description: 'Use Edit Mode to set the local default facility from the team row.',
+        description: 'Use the inline quick action on the affected team or Edit Mode for broader management.',
       });
     }
 
@@ -227,7 +227,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
             <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local department workspace</p>
             <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">{departmentName}</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-100/80">
-              Browser-only team overview for {setup.clubName}. Normal Mode stays calm; Edit Mode exposes team setup controls.
+              Browser-only team overview for {setup.clubName}. Missing essentials can be fixed inline; Edit Mode exposes broader setup controls.
             </p>
           </div>
           <button
@@ -301,11 +301,13 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
             departmentTeams.map((team) => {
               const pendingHeadInvite = pendingHeadInviteByTeam.get(team.name);
               const headCoachLabel = pendingHeadInvite ? 'Head coach invited' : 'No head coach';
+              const needsHeadCoachAction = !pendingHeadInvite;
+              const needsFacilityAction = !team.defaultFacility;
 
               return (
                 <article key={team.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-slate-700">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <h3 className="text-xl font-black text-white">{team.name}</h3>
                       <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-sm font-bold text-slate-300">
                         <span>{headCoachLabel}</span>
@@ -316,6 +318,49 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                         <span className="hidden lg:inline text-slate-600">·</span>
                         <span className="hidden lg:inline">No session yet</span>
                       </p>
+
+                      {!isEditMode && (needsHeadCoachAction || needsFacilityAction) ? (
+                        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                          {needsHeadCoachAction ? (
+                            <button
+                              type="button"
+                              onClick={() => handleInviteHeadCoach(team.name)}
+                              className="w-fit rounded-lg border border-amber-500/70 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40"
+                            >
+                              Invite head coach
+                            </button>
+                          ) : pendingHeadInvite ? (
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(pendingHeadInvite.token)}
+                              className="w-fit rounded-lg border border-amber-500/60 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40"
+                            >
+                              {copiedToken === pendingHeadInvite.token ? 'Copied invite' : 'Copy head coach invite'}
+                            </button>
+                          ) : null}
+
+                          {needsFacilityAction ? (
+                            departmentFacilities.length > 0 ? (
+                              <select
+                                value=""
+                                onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)}
+                                className="w-full rounded-lg border border-emerald-500/50 bg-slate-950 px-2.5 py-1.5 text-xs font-black text-emerald-200 outline-none focus:border-emerald-300 sm:w-fit"
+                              >
+                                <option value="">Set default facility</option>
+                                {departmentFacilities.map((facility) => (
+                                  <option key={facility} value={facility}>
+                                    {facility}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <Link href="/demo/admin/facilities" className="w-fit rounded-lg border border-emerald-500/60 px-2.5 py-1.5 text-xs font-black text-emerald-200 hover:bg-emerald-950/40">
+                                Assign facilities
+                              </Link>
+                            )
+                          ) : null}
+                        </div>
+                      ) : null}
                     </div>
 
                     {isEditMode ? (
