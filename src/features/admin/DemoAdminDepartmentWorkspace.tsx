@@ -63,6 +63,10 @@ function createTeamId(department: string, team: string) {
   return `${department}-${team}-${Date.now()}`.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 }
 
+function encodeFacilityName(facility: string) {
+  return encodeURIComponent(facility);
+}
+
 export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentName: string }) {
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [teams, setTeams] = useState<DemoTeam[]>([]);
@@ -109,7 +113,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
       items.push({
         title: 'No local department facilities assigned',
         description: 'Assign demo facilities to this department before choosing team defaults.',
-        href: '/demo/admin/facilities',
+        href: '/demo/admin/facilities?from=departments',
       });
     }
 
@@ -261,6 +265,38 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
         </section>
       ) : null}
 
+      <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Facilities</p>
+            <h2 className="mt-2 text-xl font-black">Department halls</h2>
+          </div>
+          <span className="text-sm font-bold text-slate-400">{departmentFacilities.length} assigned</span>
+        </div>
+
+        {departmentFacilities.length > 0 ? (
+          <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {departmentFacilities.map((facility) => (
+              <Link
+                key={facility}
+                href={`/demo/admin/facilities/${encodeFacilityName(facility)}/calendar?from=departments`}
+                className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300"
+              >
+                <p className="font-black text-white">{facility}</p>
+                <p className="mt-1 text-xs text-slate-500">Open facility calendar</p>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+            <p className="text-sm font-bold text-slate-300">No local halls assigned to this department yet.</p>
+            <Link href="/demo/admin/facilities?from=departments" className="mt-3 inline-block rounded-lg border border-emerald-500/60 px-3 py-2 text-xs font-black text-emerald-200 hover:bg-emerald-950/40">
+              Assign facilities
+            </Link>
+          </div>
+        )}
+      </section>
+
       {isEditMode || departmentTeams.length === 0 ? (
         <form onSubmit={handleCreateTeam} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">{departmentTeams.length === 0 ? 'First team' : 'Edit mode'}</p>
@@ -346,7 +382,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                                 ))}
                               </select>
                             ) : (
-                              <Link href="/demo/admin/facilities" className="w-fit rounded-lg border border-emerald-500/60 px-2.5 py-1.5 text-xs font-black text-emerald-200 hover:bg-emerald-950/40">
+                              <Link href="/demo/admin/facilities?from=departments" className="w-fit rounded-lg border border-emerald-500/60 px-2.5 py-1.5 text-xs font-black text-emerald-200 hover:bg-emerald-950/40">
                                 Assign facilities
                               </Link>
                             )
@@ -395,7 +431,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                               ))}
                             </select>
                           ) : (
-                            <Link href="/demo/admin/facilities" className="mt-2 inline-block rounded-lg border border-emerald-500/60 px-2.5 py-1.5 text-xs font-black text-emerald-200 hover:bg-emerald-950/40">
+                            <Link href="/demo/admin/facilities?from=departments" className="mt-2 inline-block rounded-lg border border-emerald-500/60 px-2.5 py-1.5 text-xs font-black text-emerald-200 hover:bg-emerald-950/40">
                               Assign department facilities
                             </Link>
                           )}
