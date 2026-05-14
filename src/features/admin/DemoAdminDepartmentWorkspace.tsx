@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AdminShell } from '@/shared/admin/AdminShell';
 import { getDemoClubSetup, getDemoTeams, saveDemoClubSetup, saveDemoTeams, type DemoClubSetup, type DemoTeam } from '@/shared/dev/demoStorage';
@@ -14,11 +14,13 @@ type DemoFacilityMeta = {
   facility: string;
   scope: 'club_shared' | 'department_only';
   ownerDepartment: string | null;
+  address?: string | null;
 };
 
 type DemoFacilityRequest = {
   id: string;
   facility: string;
+  address?: string | null;
   department: string;
   createdAt: string;
   status: 'open' | 'resolved';
@@ -58,6 +60,25 @@ function writeJson<T>(key: string, value: T) {
   window.localStorage.setItem(key, JSON.stringify(value));
 }
 
+function normalizeText(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ß/g, 'ss')
+    .replace(/\s+/g, ' ');
+}
+
+function normalizeStreet(address: string) {
+  const firstLine = address.split(',')[0] ?? address;
+  return normalizeText(firstLine)
+    .replace(/\b\d+[a-z]?\b/g, '')
+    .replace(/[.,;:/\\-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function getAssignments(): DemoAssignment[] {
   return readJson<DemoAssignment[]>(DEMO_FACILITY_ASSIGNMENTS_KEY, []);
 }
@@ -71,7 +92,7 @@ function getFacilityMeta(setup: DemoClubSetup | null): DemoFacilityMeta[] {
   const known = new Set(stored.map((meta) => meta.facility));
   const inferred = (setup?.facilities ?? [])
     .filter((facility) => !known.has(facility))
-    .map((facility) => ({ facility, scope: 'club_shared' as const, ownerDepartment: null }));
+    .map((facility) => ({ facility, scope: 'club_shared' as const, ownerDepartment: null, address: null }));
 
   return [...stored, ...inferred];
 }
@@ -121,8 +142,10 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
   const [newTeamName, setNewTeamName] = useState('');
   const [selectedExistingFacilities, setSelectedExistingFacilities] = useState<string[]>([]);
   const [facilityDraftName, setFacilityDraftName] = useState('');
+  const [facilityDraftAddress, setFacilityDraftAddress] = useState('');
   const [facilityDraftStep, setFacilityDraftStep] = useState<FacilityDraftStep>('idle');
   const [facilityDraftError, setFacilityDraftError] = useState<string | null>(null);
+  const [facilityDraftWarning, setFacilityDraftWarning] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
@@ -206,8 +229,14 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
     saveFacilityMeta(nextMeta);
   }
 
-  function facilityExists(name: string) {
-    return (setup?.facilities ?? []).some((facility) => facility.toLowerCase() === name.trim().toLowerCase());
+  function findMatchingStreet(address: string) {
+    const normalizedStreet = normalizeStreet(address);
+    if (!normalizedStreet) return null;
+
+    return facilityMeta.find((meta) => {
+      if (!meta.address) return false;
+      return normalizeStreet(meta.address) === normalizedStreet;
+    });
   }
 
   function persistDepartmentAssignments(facilitiesToAssign: string[]) {
@@ -225,17 +254,31 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
 
   function resetFacilityDraft() {
     setFacilityDraftName('');
+    setFacilityDraftAddress('');
     setFacilityDraftError(null);
+    setFacilityDraftWarning(null);
     setFacilityDraftStep('idle');
   }
 
   function continueFacilityDraft() {
     const facilityName = facilityDraftName.trim();
-    if (!facilityName) return;
+    const address = facilityDraftAddress.trim();
 
-    if (facilityExists(facilityName)) {
-      setFacilityDraftError('This hall already exists. Select it from the existing shared facilities instead of creating a duplicate.');
+    if (!facilityName) {
+      setFacilityDraftError('Enter a hall name.');
       return;
+    }
+
+    if (!address) {
+      setFacilityDraftError('Enter the hall address.');
+      return;
+    }
+
+    const matchingStreet = findMatchingStreet(address);
+    if (matchingStreet) {
+      setFacilityDraftWarning(`Possible same location: ${matchingStreet.facility} already uses ${matchingStreet.address}. Check carefully before creating another hall.`);
+    } else {
+      setFacilityDraftWarning(null);
     }
 
     setFacilityDraftError(null);
@@ -253,22 +296,23 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
   }
 
   function handleCreateDepartmentOnlyFacility() {
-    if (!setup || !facilityDraftName.trim()) return;
+    if (!setup || !facilityDraftName.trim() || !facilityDraftAddress.trim()) return;
     const facilityName = facilityDraftName.trim();
+    const address = facilityDraftAddress.trim();
 
-    if (facilityExists(facilityName)) {
-      setFacilityDraftError('This hall already exists. Select it from the existing shared facilities instead of creating a duplicate.');
-      setFacilityDraftStep('name');
-      return;
+    if (setup.facilities.includes(facilityName)) {
+      setFacilityDraftWarning('A hall with this name already exists. This is allowed only if the address is different and this is truly another hall.');
     }
 
-    persistSetup({ ...setup, facilities: [...setup.facilities, facilityName] });
+    const nextSetup = setup.facilities.includes(facilityName) ? setup : { ...setup, facilities: [...setup.facilities, facilityName] };
+    persistSetup(nextSetup);
     persistFacilityMeta([
-      ...facilityMeta,
+      ...facilityMeta.filter((meta) => meta.facility !== facilityName),
       {
         facility: facilityName,
         scope: 'department_only',
         ownerDepartment: departmentName,
+        address,
       },
     ]);
     persistDepartmentAssignments([facilityName]);
@@ -276,16 +320,18 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
   }
 
   function handleReportSharedFacility() {
-    if (!facilityDraftName.trim()) return;
+    if (!facilityDraftName.trim() || !facilityDraftAddress.trim()) return;
 
     const request: DemoFacilityRequest = {
       id: crypto.randomUUID(),
       facility: facilityDraftName.trim(),
+      address: facilityDraftAddress.trim(),
       department: departmentName,
       createdAt: new Date().toISOString(),
       status: 'open',
     };
 
+    persistDepartmentAssignments([]);
     saveFacilityRequests([request, ...getFacilityRequests()]);
     setFacilityDraftStep('reported');
   }
@@ -301,7 +347,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
     window.setTimeout(() => setCopiedToken(null), 1500);
   }
 
-  function handleCreateTeam(event: FormEvent<HTMLFormElement>) {
+  function handleCreateTeam(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!newTeamName.trim()) return;
 
@@ -426,7 +472,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                 >
                   <p className="font-black text-white">{facility}</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {meta?.scope === 'department_only' ? 'Department-only hall' : 'Shared club facility'} · Open calendar
+                    {meta?.scope === 'department_only' ? 'Department-only hall' : 'Shared club facility'} · {meta?.address || 'No address'}
                   </p>
                 </Link>
               );
@@ -456,20 +502,26 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
 
             {availableSharedFacilities.length > 0 ? (
               <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {availableSharedFacilities.map((facility) => (
-                  <label
-                    key={facility}
-                    className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm transition hover:border-sky-400"
-                  >
-                    <span className="font-black text-slate-100">{facility}</span>
-                    <input
-                      type="checkbox"
-                      checked={selectedExistingFacilities.includes(facility)}
-                      onChange={() => toggleExistingFacility(facility)}
-                      className="h-4 w-4"
-                    />
-                  </label>
-                ))}
+                {availableSharedFacilities.map((facility) => {
+                  const meta = metaByFacility.get(facility);
+                  return (
+                    <label
+                      key={facility}
+                      className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm transition hover:border-sky-400"
+                    >
+                      <span>
+                        <span className="block font-black text-slate-100">{facility}</span>
+                        {meta?.address ? <span className="mt-1 block text-xs font-bold text-slate-500">{meta.address}</span> : null}
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={selectedExistingFacilities.includes(facility)}
+                        onChange={() => toggleExistingFacility(facility)}
+                        className="h-4 w-4"
+                      />
+                    </label>
+                  );
+                })}
               </div>
             ) : (
               <p className="mt-4 rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm font-bold text-slate-400">
@@ -496,20 +548,36 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                       {facilityDraftError}
                     </p>
                   ) : null}
-                  <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                  {facilityDraftWarning ? (
+                    <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm font-bold text-amber-100">
+                      {facilityDraftWarning}
+                    </p>
+                  ) : null}
+                  <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_auto_auto]">
                     <input
                       value={facilityDraftName}
                       onChange={(event) => {
                         setFacilityDraftName(event.target.value);
                         setFacilityDraftError(null);
                       }}
-                      placeholder="Main Hall"
+                      placeholder="Hall name"
+                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-emerald-400"
+                    />
+                    <input
+                      required
+                      value={facilityDraftAddress}
+                      onChange={(event) => {
+                        setFacilityDraftAddress(event.target.value);
+                        setFacilityDraftError(null);
+                        setFacilityDraftWarning(null);
+                      }}
+                      placeholder="Street, city"
                       className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-emerald-400"
                     />
                     <button
                       type="button"
                       onClick={continueFacilityDraft}
-                      disabled={!facilityDraftName.trim()}
+                      disabled={!facilityDraftName.trim() || !facilityDraftAddress.trim()}
                       className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Continue
@@ -523,9 +591,20 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
 
               {facilityDraftStep === 'usage' ? (
                 <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-4">
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Hall name</p>
-                    <p className="mt-1 font-black text-white">{facilityDraftName.trim()}</p>
+                  {facilityDraftWarning ? (
+                    <p className="mb-3 rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm font-bold text-amber-100">
+                      {facilityDraftWarning}
+                    </p>
+                  ) : null}
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Hall name</p>
+                      <p className="mt-1 font-black text-white">{facilityDraftName.trim()}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Address</p>
+                      <p className="mt-1 font-black text-white">{facilityDraftAddress.trim()}</p>
+                    </div>
                   </div>
                   <p className="mt-4 text-sm font-bold text-slate-200">Who uses this hall?</p>
                   <div className="mt-3 grid gap-2 md:grid-cols-2">
@@ -536,7 +615,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                     >
                       Only {departmentName}
                       <span className="mt-1 block text-xs font-bold leading-5 text-slate-400">
-                        Save as department-only. Check this hall is not used by another department.
+                        Save as department-only. If the warning above appears, check carefully before continuing.
                       </span>
                     </button>
                     <button
@@ -546,22 +625,23 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                     >
                       Also other departments
                       <span className="mt-1 block text-xs font-bold leading-5 text-slate-400">
-                        Review the name before reporting it to admins.
+                        Review the name and address before reporting it to admins.
                       </span>
                     </button>
                   </div>
                   <button type="button" onClick={() => setFacilityDraftStep('name')} className="mt-3 text-xs font-black text-slate-400 hover:text-slate-200">
-                    Change name
+                    Change details
                   </button>
                 </div>
               ) : null}
 
               {facilityDraftStep === 'shared_confirm' ? (
                 <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">Check shared facility name</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">Check shared facility details</p>
                   <p className="mt-1 text-xl font-black text-white">{facilityDraftName.trim()}</p>
+                  <p className="mt-1 text-sm font-bold text-amber-100">{facilityDraftAddress.trim()}</p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
-                    This hall may affect multiple departments. Verify the exact club-wide name before reporting it to admins.
+                    This hall may affect multiple departments. Verify the exact club-wide name and address before reporting it.
                   </p>
                   <button
                     type="button"
@@ -580,7 +660,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                 <div className="rounded-2xl border border-sky-500/30 bg-sky-950/20 p-4">
                   <p className="font-black text-sky-100">Reported to admin</p>
                   <p className="mt-2 text-sm leading-6 text-slate-400">
-                    The admin can review the facility name and decide whether to create or assign it as a shared club facility.
+                    The admin can review the facility name and address and decide whether to create or assign it as a shared club facility.
                   </p>
                   <button type="button" onClick={resetFacilityDraft} className="mt-3 text-xs font-black text-sky-200 hover:text-sky-100">
                     Close
