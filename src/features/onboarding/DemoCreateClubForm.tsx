@@ -11,13 +11,32 @@ function parseList(value: string) {
     .filter(Boolean);
 }
 
+function parseFacilityLines(value: string) {
+  return value
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [namePart, addressPart] = line.split('|').map((part) => part.trim());
+      return {
+        name: namePart,
+        address: addressPart || '',
+        scope: 'club_shared' as const,
+        ownerDepartment: null,
+      };
+    })
+    .filter((facility) => facility.name);
+}
+
 export function DemoCreateClubForm() {
   const router = useRouter();
   const [clubName, setClubName] = useState('Demo Club');
   const [city, setCity] = useState('Munich');
   const [country, setCountry] = useState('Germany');
   const [departments, setDepartments] = useState('Basketball\nFootball\nFencing');
-  const [facilities, setFacilities] = useState('Main Hall\nCourt 1\nCourt 2\nWeight Room');
+  const [facilities, setFacilities] = useState(
+    'Main Hall | Sportstraße 1, Munich\nCourt 1 | Sportstraße 1, Munich\nCourt 2 | Sportstraße 1, Munich\nWeight Room | Sportstraße 1, Munich',
+  );
   const [selectedTeamDepartment, setSelectedTeamDepartment] = useState('Basketball');
   const [teams, setTeams] = useState('U14 Boys\nU16 Boys\nU18 Boys\nFirst Team');
   const [createTeamsNow, setCreateTeamsNow] = useState(true);
@@ -30,6 +49,7 @@ export function DemoCreateClubForm() {
     setError(null);
 
     const departmentNames = parseList(departments);
+    const facilityDetails = parseFacilityLines(facilities);
 
     if (!clubName.trim()) {
       setError('Add a club name.');
@@ -41,12 +61,18 @@ export function DemoCreateClubForm() {
       return;
     }
 
+    if (facilityDetails.some((facility) => !facility.address.trim())) {
+      setError('Add an address for every facility. Use: Main Hall | Sportstraße 1, Munich');
+      return;
+    }
+
     saveDemoClubSetup({
       clubName: clubName.trim(),
       city: city.trim(),
       country: country.trim(),
       departments: departmentNames,
-      facilities: parseList(facilities),
+      facilities: facilityDetails.map((facility) => facility.name),
+      facilityDetails,
       createTeamsNow,
       selectedTeamDepartment: createTeamsNow ? selectedTeamDepartment : '',
       teams: createTeamsNow ? parseList(teams) : [],
@@ -121,7 +147,7 @@ export function DemoCreateClubForm() {
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Step 3</p>
             <h2 className="mt-2 text-xl font-black">Global facilities</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Add halls, courts, rooms or locations.</p>
+            <p className="mt-2 text-sm leading-6 text-slate-400">Add one facility per line using: Hall name | Street, city.</p>
             <textarea
               value={facilities}
               onChange={(event) => setFacilities(event.target.value)}
