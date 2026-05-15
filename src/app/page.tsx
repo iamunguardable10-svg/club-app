@@ -82,16 +82,37 @@ function fadeUp(delay = 0) {
   } as const;
 }
 
-function OperationsCube() {
+function OperationsModel() {
+  const nodes = [
+    { label: 'Club', position: 'left-1/2 top-0 -translate-x-1/2', tone: 'border-sky-300/30 bg-sky-300/10 text-sky-200' },
+    { label: 'Departments', position: 'left-0 top-[34%]', tone: 'border-emerald-300/30 bg-emerald-300/10 text-emerald-200' },
+    { label: 'Teams', position: 'right-0 top-[34%]', tone: 'border-violet-300/30 bg-violet-300/10 text-violet-200' },
+    { label: 'Facilities', position: 'left-[10%] bottom-0', tone: 'border-amber-300/30 bg-amber-300/10 text-amber-200' },
+    { label: 'Sessions', position: 'right-[10%] bottom-0', tone: 'border-sky-300/30 bg-sky-300/10 text-sky-200' },
+  ];
+
   return (
-    <div className="landing-cube-stage hidden h-36 w-36 place-items-center md:grid">
-      <div className="landing-cube">
-        <div className="landing-cube-face landing-cube-face-front">Club</div>
-        <div className="landing-cube-face landing-cube-face-back">Load</div>
-        <div className="landing-cube-face landing-cube-face-right">Teams</div>
-        <div className="landing-cube-face landing-cube-face-left">Roles</div>
-        <div className="landing-cube-face landing-cube-face-top">Data</div>
-        <div className="landing-cube-face landing-cube-face-bottom">Flow</div>
+    <div className="hidden h-40 w-56 shrink-0 md:block" aria-hidden="true">
+      <div className="relative h-full w-full [perspective:900px]">
+        <div className="absolute inset-6 rounded-full border border-sky-300/10 landing-orbit" />
+        <div className="absolute inset-0 [transform:rotateX(58deg)_rotateZ(-12deg)]">
+          <div className="absolute inset-x-8 top-1/2 h-px bg-gradient-to-r from-transparent via-sky-300/30 to-transparent" />
+          <div className="absolute inset-y-6 left-1/2 w-px bg-gradient-to-b from-transparent via-emerald-300/30 to-transparent" />
+          <div className="absolute left-[18%] top-[28%] h-px w-[66%] rotate-45 bg-gradient-to-r from-transparent via-violet-300/25 to-transparent" />
+          <div className="absolute left-[18%] top-[70%] h-px w-[66%] -rotate-45 bg-gradient-to-r from-transparent via-amber-300/25 to-transparent" />
+        </div>
+
+        <div className="absolute left-1/2 top-1/2 grid h-20 w-28 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-2xl border border-white/15 bg-slate-950/90 p-3 text-center shadow-[0_18px_80px_rgba(14,165,233,0.18)] [transform:translateZ(42px)]">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">TeamLoad</p>
+          <p className="mt-1 text-sm font-black text-white">Operating model</p>
+          <p className="mt-1 text-[10px] font-bold text-emerald-300">Load-ready data</p>
+        </div>
+
+        {nodes.map((node) => (
+          <div key={node.label} className={`absolute ${node.position} rounded-full border px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] shadow-[0_14px_50px_rgba(15,23,42,0.45)] backdrop-blur ${node.tone}`}>
+            {node.label}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -231,8 +252,8 @@ function InteractiveStorySection() {
   const { scrollYProgress } = useScroll({ target: storyRef, offset: ['start center', 'end center'] });
 
   const progressScale = useTransform(scrollYProgress, [0, 1], reduceMotion ? [1, 1] : [0, 1]);
-  const cubeRotate = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [-8, 8]);
-  const cubeY = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [12, -12]);
+  const modelRotate = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [-5, 5]);
+  const modelY = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [10, -10]);
 
   const structureOpacity = useTransform(scrollYProgress, [0, 0.2, 0.32], [1, 1, 0]);
   const availabilityOpacity = useTransform(scrollYProgress, [0.18, 0.32, 0.48, 0.6], [0, 1, 1, 0]);
@@ -277,15 +298,16 @@ function InteractiveStorySection() {
             <div className="pointer-events-none absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-emerald-400/10 blur-3xl" />
 
             <div className="relative flex items-center justify-between gap-5 rounded-[1.5rem] border border-slate-800 bg-slate-950/80 p-5">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Scroll progress</p>
-                <p className="mt-1 text-xl font-black">Structure → Availability → Attendance → Load</p>
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Connected operating model</p>
+                <p className="mt-1 text-xl font-black">Club data becomes one system</p>
+                <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">Departments, teams, facilities, sessions and load history stay connected instead of living in separate tools.</p>
                 <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-800">
                   <motion.div style={{ scaleX: progressScale }} className="h-full origin-left rounded-full bg-gradient-to-r from-emerald-400 via-sky-300 to-violet-300" />
                 </div>
               </div>
-              <motion.div style={{ y: cubeY, rotateZ: cubeRotate }}>
-                <OperationsCube />
+              <motion.div style={{ y: modelY, rotateZ: modelRotate }}>
+                <OperationsModel />
               </motion.div>
             </div>
 
