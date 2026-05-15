@@ -85,6 +85,14 @@ function previewItems(items: string[], emptyAction: React.ReactNode) {
   );
 }
 
+function formatDepartmentMessages(teamCount: number, coachGapCount: number, defaultFacilityGapCount: number) {
+  if (teamCount === 0) return 'No teams yet';
+  const messages: string[] = [];
+  if (coachGapCount > 0) messages.push(`${coachGapCount} coach gap${coachGapCount === 1 ? '' : 's'}`);
+  if (defaultFacilityGapCount > 0) messages.push(`${defaultFacilityGapCount} facility gap${defaultFacilityGapCount === 1 ? '' : 's'}`);
+  return messages.length > 0 ? messages.join(' · ') : 'Ready';
+}
+
 function FacilityPreview({ department, items }: { department: string; items: string[] }) {
   if (items.length === 0) {
     return (
@@ -297,18 +305,11 @@ export function DemoAdminDepartmentsManager() {
                     <h2 className="text-xl font-black text-white">{department}</h2>
                     <p className="mt-1 text-xs text-slate-500">Local demo department</p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {!leadInvite || leadInvite.status !== 'accepted' ? (
-                      <button type="button" onClick={(event) => { event.stopPropagation(); handleInviteLead(department); }} className="w-fit rounded-xl border border-amber-500/60 px-3 py-2 text-xs font-black text-amber-200 hover:bg-amber-950/40">
-                        {leadInvite?.status === 'pending' ? (copiedToken === leadInvite.token ? 'Copied invite' : 'Copy lead invite') : 'Invite lead'}
-                      </button>
-                    ) : null}
-                    {isEditMode ? (
-                      <button type="button" onClick={(event) => { event.stopPropagation(); setPendingDelete({ department }); }} className="w-fit rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-200 hover:bg-red-950/40">
-                        Delete
-                      </button>
-                    ) : null}
-                  </div>
+                  {isEditMode ? (
+                    <button type="button" onClick={(event) => { event.stopPropagation(); setPendingDelete({ department }); }} className="w-fit rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-200 hover:bg-red-950/40">
+                      Delete
+                    </button>
+                  ) : null}
                 </div>
 
                 <div className="mt-4 grid gap-2 lg:grid-cols-4">
@@ -322,11 +323,18 @@ export function DemoAdminDepartmentsManager() {
                   </div>
                   <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Department Lead</p>
-                    {leadLabel ? <p className="mt-1 text-sm font-black text-slate-100">{leadLabel}</p> : <button type="button" onClick={(event) => { event.stopPropagation(); handleInviteLead(department); }} className="mt-2 rounded-lg border border-amber-500/60 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40">Invite lead</button>}
+                    {leadInvite?.status === 'pending' ? (
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-black text-amber-100">Invite pending</span>
+                        <button type="button" onClick={(event) => { event.stopPropagation(); handleInviteLead(department); }} className="rounded-lg border border-amber-500/60 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40">
+                          {copiedToken === leadInvite.token ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    ) : leadLabel ? <p className="mt-1 text-sm font-black text-slate-100">{leadLabel}</p> : <button type="button" onClick={(event) => { event.stopPropagation(); handleInviteLead(department); }} className="mt-2 rounded-lg border border-amber-500/60 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40">Invite lead</button>}
                   </div>
                   <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Meldungen</p>
-                    <p className="mt-1 text-sm font-black text-slate-100">{departmentTeams.length === 0 ? 'No teams yet' : `${coachGapCount} coach gaps · ${defaultFacilityGapCount} facility gaps`}</p>
+                    <p className="mt-1 text-sm font-black text-slate-100">{formatDepartmentMessages(departmentTeams.length, coachGapCount, defaultFacilityGapCount)}</p>
                   </div>
                 </div>
               </article>
