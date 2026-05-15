@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 const LINKED_ATTRIBUTE = 'data-club-app-team-default-facility-linked';
 const INLINE_SELECT_ATTRIBUTE = 'data-club-app-inline-default-facility-select';
 const SELECT_CHANGE_ATTRIBUTE = 'data-club-app-default-facility-change-bound';
+const CLEANED_CONTAINER_ATTRIBUTE = 'data-club-app-default-facility-container-cleaned';
 
 function readFacilityLinks() {
   const links = new Map<string, string>();
@@ -63,10 +64,32 @@ function linkDefaults() {
   });
 }
 
+function isDefaultFacilitySelect(select: HTMLSelectElement) {
+  const optionText = Array.from(select.options)
+    .map((option) => option.textContent?.trim().toLowerCase() ?? '')
+    .join(' ');
+  const localText = select.closest('div, article')?.textContent?.toLowerCase() ?? '';
+  return optionText.includes('default facility') || optionText.includes('set default') || localText.includes('default facility');
+}
+
+function getDefaultFacilitySelects(article: HTMLElement) {
+  return Array.from(article.querySelectorAll<HTMLSelectElement>('select')).filter(isDefaultFacilitySelect);
+}
+
+function isInsideMetaLine(article: HTMLElement, select: HTMLSelectElement) {
+  const metaLine = article.querySelector('h3 + p');
+  return Boolean(metaLine?.contains(select));
+}
+
+function styleInlineSelect(select: HTMLSelectElement) {
+  select.setAttribute(INLINE_SELECT_ATTRIBUTE, 'true');
+  select.className = 'rounded-lg border border-emerald-500/50 bg-slate-950 px-2.5 py-1 text-xs font-black text-emerald-200 outline-none focus:border-emerald-300 disabled:opacity-60';
+}
+
 function replaceSelectWithSelectedFacility(select: HTMLSelectElement) {
   const selectedFacilityName = select.options[select.selectedIndex]?.textContent?.trim();
   const selectedValue = select.value;
-  if (!selectedValue || !selectedFacilityName || selectedFacilityName === 'Set default facility') return;
+  if (!selectedValue || !selectedFacilityName || selectedFacilityName === 'Set default facility' || selectedFacilityName === 'No default facility') return;
 
   const article = select.closest('article');
   const teamName = article?.querySelector('h3')?.textContent?.trim();
@@ -92,28 +115,77 @@ function bindImmediateSelectUpdate(select: HTMLSelectElement) {
   });
 }
 
+function findDefaultFacilityPlaceholder(article: HTMLElement) {
+  return Array.from(article.querySelectorAll<HTMLSpanElement>('h3 + p span')).find((span) => span.textContent?.trim() === 'No default facility');
+}
+
+function cleanOldSelectContainer(select: HTMLSelectElement) {
+  const container = select.closest<HTMLElement>('.mt-3.flex, div.grid.gap-3.rounded-2xl, div.rounded-2xl');
+  if (!container || container.getAttribute(CLEANED_CONTAINER_ATTRIBUTE) === 'true') return;
+
+  container.setAttribute(CLEANED_CONTAINER_ATTRIBUTE, 'true');
+
+  Array.from(container.querySelectorAll<HTMLElement>('p, label, span')).forEach((element) => {
+    if (element.textContent?.trim().toLowerCase() === 'default facility') {
+      element.style.display = 'none';
+    }
+  });
+
+  const hasDeleteButton = Boolean(container.querySelector('[data-club-app-team-delete-button="true"]'));
+  const hasOtherInputs = Array.from(container.querySelectorAll('input, textarea, button')).some((element) => element.getAttribute('data-club-app-team-delete-button') !== 'true');
+
+  if (!hasDeleteButton && !hasOtherInputs) {
+    container.style.display = 'none';
+  }
+}
+
+function removeDuplicateSelect(article: HTMLElement, select: HTMLSelectElement, keepSelect: HTMLSelectElement) {
+  if (select === keepSelect) return;
+  const container = select.closest<HTMLElement>('.mt-3.flex, div.grid.gap-3.rounded-2xl, div.rounded-2xl');
+  select.remove();
+  if (container) {
+    const hasVisibleControls = Array.from(container.querySelectorAll<HTMLElement>('select, input, textarea, button')).some((element) => element.offsetParent !== null || element.getAttribute('data-club-app-team-delete-button') === 'true');
+    const hasDeleteButton = Boolean(container.querySelector('[data-club-app-team-delete-button="true"]'));
+    if (!hasVisibleControls && !hasDeleteButton) container.style.display = 'none';
+  }
+}
+
+function cleanDefaultFacilityActionLabels(article: HTMLElement) {
+  article.querySelectorAll<HTMLElement>('div.grid.gap-3.rounded-2xl, div.rounded-2xl').forEach((container) => {
+    const hasDefaultSelect = getDefaultFacilitySelects(container as HTMLElement).length > 0;
+    const hasDeleteButton = Boolean(container.querySelector('[data-club-app-team-delete-button="true"]'));
+    if (hasDefaultSelect || !hasDeleteButton) return;
+
+    Array.from(container.querySelectorAll<HTMLElement>('p, label, span')).forEach((element) => {
+      if (element.textContent?.trim().toLowerCase() === 'default facility') {
+        element.style.display = 'none';
+      }
+    });
+  });
+}
+
 function inlineMissingDefaultFacilitySelectors() {
   document.querySelectorAll<HTMLElement>('article').forEach((article) => {
-    const select = article.querySelector<HTMLSelectElement>('select');
-    if (!select) return;
-
-    bindImmediateSelectUpdate(select);
-
-    if (select.getAttribute(INLINE_SELECT_ATTRIBUTE) === 'true') return;
-
-    const defaultFacilitySpan = Array.from(article.querySelectorAll<HTMLSpanElement>('h3 + p span')).find(
-      (span) => span.textContent?.trim() === 'No default facility',
-    );
-    if (!defaultFacilitySpan) return;
-
-    select.setAttribute(INLINE_SELECT_ATTRIBUTE, 'true');
-    select.className = 'rounded-lg border border-emerald-500/50 bg-slate-950 px-2.5 py-1 text-xs font-black text-emerald-200 outline-none focus:border-emerald-300 disabled:opacity-60';
-    defaultFacilitySpan.replaceWith(select);
-
-    const oldContainer = article.querySelector<HTMLElement>('.mt-3.flex');
-    if (oldContainer && oldContainer.children.length === 0) {
-      oldContainer.style.display = 'none';
+    const defaultFacilitySelects = getDefaultFacilitySelects(article);
+    if (defaultFacilitySelects.length === 0) {
+      cleanDefaultFacilityActionLabels(article);
+      return;
     }
+
+    const alreadyInline = defaultFacilitySelects.find((select) => isInsideMetaLine(article, select));
+    const selectToKeep = alreadyInline ?? defaultFacilitySelects[0];
+    bindImmediateSelectUpdate(selectToKeep);
+    styleInlineSelect(selectToKeep);
+
+    const placeholder = findDefaultFacilityPlaceholder(article);
+    if (placeholder && !isInsideMetaLine(article, selectToKeep)) {
+      const originalParent = selectToKeep.parentElement;
+      placeholder.replaceWith(selectToKeep);
+      if (originalParent instanceof HTMLElement) cleanOldSelectContainer(originalParent as unknown as HTMLSelectElement);
+    }
+
+    defaultFacilitySelects.forEach((select) => removeDuplicateSelect(article, select, selectToKeep));
+    cleanDefaultFacilityActionLabels(article);
   });
 }
 
