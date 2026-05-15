@@ -222,16 +222,28 @@ function buildWarningAreas({
 }
 
 function OverviewAreaCard({ area, onDismiss }: { area: OverviewArea; onDismiss: (key: string) => void }) {
+  const targetHref = area.warning?.href ?? area.href;
+
+  function openTarget() {
+    window.location.href = targetHref;
+  }
+
   return (
-    <article className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 transition hover:border-slate-700">
+    <article
+      role="link"
+      tabIndex={0}
+      onClick={openTarget}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') openTarget();
+      }}
+      className="cursor-pointer rounded-2xl border border-slate-800 bg-slate-900/60 p-5 transition hover:border-emerald-400/70 hover:bg-slate-900"
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-xl font-black text-white">{area.title}</h2>
           <p className="mt-2 text-sm leading-6 text-slate-400">{area.description}</p>
         </div>
-        <Link href={area.href} className="w-fit rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-slate-100 transition hover:border-white/30 hover:bg-slate-950/60">
-          {area.actionLabel}
-        </Link>
+        <span className="w-fit rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-slate-100">{area.actionLabel}</span>
       </div>
 
       {area.warning ? (
@@ -241,14 +253,16 @@ function OverviewAreaCard({ area, onDismiss }: { area: OverviewArea; onDismiss: 
               <p className="text-sm font-black">{area.warning.title}</p>
               <p className="mt-1 text-xs font-bold leading-5 opacity-80">{area.warning.description}</p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Link href={area.warning.href} className="rounded-lg border border-white/20 px-2.5 py-1.5 text-xs font-black hover:bg-white/10">
-                {area.warning.actionLabel}
-              </Link>
-              <button type="button" onClick={() => onDismiss(area.warning!.key)} className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-black opacity-80 hover:bg-white/10 hover:opacity-100">
-                Ignore
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDismiss(area.warning!.key);
+              }}
+              className="w-fit rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-black opacity-80 hover:bg-white/10 hover:opacity-100"
+            >
+              Ignore
+            </button>
           </div>
         </div>
       ) : (
