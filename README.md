@@ -48,6 +48,25 @@ Preferred stack:
 - Supabase Auth + Postgres + RLS
 - Feature-based architecture
 
+## Environment variables
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_GEOAPIFY_API_KEY=
+```
+
+`NEXT_PUBLIC_GEOAPIFY_API_KEY` enables Geoapify address autocomplete on facility address fields. If it is missing or Geoapify cannot be reached, facility address fields keep working as normal manual inputs.
+
+## Facility address input principle
+
+Facility names and facility addresses are intentionally separate:
+
+- The facility name is the internal club or department name, for example `Main Hall` or `U18 Gym`.
+- The address field can search by official venue name, school name, hall name or street address.
+- Geoapify may fill the address, but it must not automatically overwrite the internal facility name.
+- Demo flows and real Supabase-backed flows should use the same input behavior whenever possible.
+
 ## Key principle
 
 Every screen must answer a real operational question.
