@@ -24,6 +24,29 @@ function getReadableFacilityLabel(anchor: HTMLAnchorElement, fallbackSeed: strin
   return firstText || anchor.textContent?.trim() || fallbackSeed;
 }
 
+function getNearestDepartmentLabel(anchor: HTMLAnchorElement) {
+  const explicitContext = anchor.closest('[data-department-id], [data-demo-department]');
+  const explicitDepartmentId = explicitContext?.getAttribute('data-department-id');
+  const explicitDemoDepartment = explicitContext?.getAttribute('data-demo-department');
+
+  if (explicitDepartmentId || explicitDemoDepartment) {
+    return { departmentId: explicitDepartmentId, departmentName: explicitDemoDepartment };
+  }
+
+  const departmentSection = anchor.closest('section');
+  const sectionDepartmentLabel = departmentSection?.querySelector('button .block.font-black')?.textContent?.trim();
+  if (sectionDepartmentLabel && !sectionDepartmentLabel.toLowerCase().includes('facility')) {
+    return { departmentId: null, departmentName: sectionDepartmentLabel };
+  }
+
+  const pageDepartmentTitle = document.querySelector('h1')?.textContent?.trim();
+  if (pageDepartmentTitle && !pageDepartmentTitle.toLowerCase().includes('facilities')) {
+    return { departmentId: null, departmentName: pageDepartmentTitle };
+  }
+
+  return { departmentId: null, departmentName: null };
+}
+
 function ensureAccentDot(anchor: HTMLAnchorElement, color: string) {
   if (anchor.querySelector('[data-club-app-facility-accent-dot="true"]')) return;
 
@@ -46,15 +69,12 @@ function appendContextToFacilityLink(anchor: HTMLAnchorElement) {
   if (!href) return;
   if (!href.includes('/facilities/') || !href.includes('/calendar')) return;
 
-  const closestDepartment = anchor.closest('[data-department-id], [data-demo-department]');
-  const departmentId = closestDepartment?.getAttribute('data-department-id');
-  const demoDepartment = closestDepartment?.getAttribute('data-demo-department');
-
-  if (!departmentId && !demoDepartment) return;
+  const { departmentId, departmentName } = getNearestDepartmentLabel(anchor);
+  if (!departmentId && !departmentName) return;
 
   const url = new URL(href, window.location.origin);
   if (departmentId && !url.searchParams.has('departmentId')) url.searchParams.set('departmentId', departmentId);
-  if (demoDepartment && !url.searchParams.has('department')) url.searchParams.set('department', demoDepartment);
+  if (departmentName && !url.searchParams.has('departmentName')) url.searchParams.set('departmentName', departmentName);
 
   anchor.setAttribute('href', `${url.pathname}${url.search}`);
 }
