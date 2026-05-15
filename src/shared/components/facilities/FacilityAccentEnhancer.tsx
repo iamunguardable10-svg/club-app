@@ -104,11 +104,11 @@ function enhanceFacilityLabels() {
     if (label.getAttribute(ENHANCED_ATTRIBUTE) === 'true') return;
     if (!label.querySelector('input[type="checkbox"]')) return;
 
-    const title = label.querySelector('span span, span')?.textContent?.trim();
-    if (!title) return;
+    const titleElement = label.querySelector('span span');
+    const subtitleElement = titleElement?.nextElementSibling;
+    const title = titleElement?.textContent?.trim();
 
-    const lower = title.toLowerCase();
-    if (lower.includes('department') || lower.includes('basketball') || lower.includes('football')) return;
+    if (!title || !subtitleElement?.textContent?.trim()) return;
 
     const accent = getFacilityAccent(title);
     label.setAttribute(ENHANCED_ATTRIBUTE, 'true');
