@@ -1,9 +1,9 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, type ReactNode } from 'react';
 import Link from 'next/link';
-import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
-import { ArrowRight, BarChart3, Building2, CalendarDays, CheckCircle2, LayoutDashboard, ShieldCheck, Sparkles, Users, Zap } from 'lucide-react';
+import { motion, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
+import { ArrowRight, BarChart3, Building2, CalendarDays, CheckCircle2, LayoutDashboard, Sparkles, Users, Zap } from 'lucide-react';
 
 const trustItems = ['No login required', 'Demo data stays local', 'Same flow as real setup'];
 
@@ -212,9 +212,9 @@ function StoryDashboardState({
 }: {
   title: string;
   eyebrow: string;
-  children: React.ReactNode;
-  opacity: ReturnType<typeof useTransform>;
-  scale: ReturnType<typeof useTransform>;
+  children: ReactNode;
+  opacity: MotionValue<number>;
+  scale: MotionValue<number>;
 }) {
   return (
     <motion.div style={{ opacity, scale }} className="absolute inset-0 rounded-[1.5rem] border border-slate-800 bg-slate-950/90 p-5 shadow-2xl">
