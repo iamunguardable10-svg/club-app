@@ -2,6 +2,12 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  createInitialFacilityDraftRows,
+  FacilityRowsEditor,
+  getCompletedFacilityDraftRows,
+  type FacilityDraftRow,
+} from '@/shared/components/facilities/FacilityRowsEditor';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 
 function parseList(value: string) {
@@ -11,13 +17,32 @@ function parseList(value: string) {
     .filter(Boolean);
 }
 
+type InitialClubSetupResult = {
+  club_id?: string;
+  facilities?: Array<{
+    id?: string;
+    name?: string;
+  }>;
+};
+
+function normalizeName(value: string) {
+  return value.trim().toLowerCase();
+}
+
 export function CreateClubForm() {
   const router = useRouter();
   const [clubName, setClubName] = useState('');
   const [city, setCity] = useState('');
   const [country, setCountry] = useState('Germany');
   const [departments, setDepartments] = useState('Basketball\nFootball\nFencing');
-  const [facilities, setFacilities] = useState('Main Hall\nCourt 1\nCourt 2\nWeight Room');
+  const [facilities, setFacilities] = useState<FacilityDraftRow[]>(
+    createInitialFacilityDraftRows([
+      { name: 'Main Hall' },
+      { name: 'Court 1' },
+      { name: 'Court 2' },
+      { name: 'Weight Room' },
+    ]),
+  );
   const [selectedTeamDepartment, setSelectedTeamDepartment] = useState('Basketball');
   const [teams, setTeams] = useState('U14 Boys\nU16 Boys\nU18 Boys\nFirst Team');
   const [createTeamsNow, setCreateTeamsNow] = useState(true);
@@ -50,7 +75,8 @@ export function CreateClubForm() {
     }
 
     const departmentNames = parseList(departments);
-    const facilityNames = parseList(facilities);
+    const facilityRows = getCompletedFacilityDraftRows(facilities);
+    const facilityNames = facilityRows.map((facility) => facility.name);
     const teamNames = createTeamsNow ? parseList(teams) : [];
 
     if (departmentNames.length === 0) {
@@ -59,7 +85,7 @@ export function CreateClubForm() {
       return;
     }
 
-    const { error: rpcError } = await supabase.rpc('create_initial_club_setup', {
+    const { data: setupData, error: rpcError } = await supabase.rpc('create_initial_club_setup', {
       p_club_name: clubName,
       p_city: city || null,
       p_country: country || null,
@@ -73,6 +99,34 @@ export function CreateClubForm() {
       setError(rpcError.message);
       setIsLoading(false);
       return;
+    }
+
+    const setupResult = setupData as InitialClubSetupResult | null;
+    const createdFacilitiesByName = new Map(
+      (setupResult?.facilities ?? [])
+        .filter((facility) => facility.id && facility.name)
+        .map((facility) => [normalizeName(facility.name ?? ''), facility.id as string]),
+    );
+
+    const facilityAddressUpdates = facilityRows
+      .filter((facility) => facility.address)
+      .map((facility) => ({
+        id: createdFacilitiesByName.get(normalizeName(facility.name)),
+        address: facility.address,
+      }))
+      .filter((update): update is { id: string; address: string } => Boolean(update.id));
+
+    if (facilityAddressUpdates.length > 0) {
+      const updateResults = await Promise.all(
+        facilityAddressUpdates.map((update) => supabase.from('facilities').update({ address: update.address }).eq('id', update.id)),
+      );
+      const updateError = updateResults.find((result) => result.error)?.error;
+
+      if (updateError) {
+        setError(updateError.message);
+        setIsLoading(false);
+        return;
+      }
     }
 
     router.replace('/admin/overview');
@@ -146,12 +200,8 @@ export function CreateClubForm() {
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Step 3</p>
             <h2 className="mt-2 text-xl font-black">Global facilities</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Add the club's halls, courts, rooms or locations. Department scoping comes after setup.</p>
-            <textarea
-              value={facilities}
-              onChange={(event) => setFacilities(event.target.value)}
-              className="mt-4 min-h-36 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400"
-            />
+            <p className="mt-2 text-sm leading-6 text-slate-400">Add the club's halls, courts, rooms or locations. Addresses are optional during setup and can be completed later.</p>
+            <FacilityRowsEditor facilities={facilities} onChange={setFacilities} />
           </section>
 
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
