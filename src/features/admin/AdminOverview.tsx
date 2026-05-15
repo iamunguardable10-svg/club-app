@@ -39,41 +39,223 @@ type FacilityRequest = {
   created_at: string;
 };
 
+type Invite = {
+  id: string;
+  department_id: string | null;
+  role: 'department_lead' | 'head_coach' | 'assistant_coach';
+  status: 'pending' | 'accepted' | 'revoked' | 'expired';
+};
+
+type DepartmentLeadMembership = {
+  department_id: string | null;
+  user_id: string;
+};
+
+type OverviewWarning = {
+  key: string;
+  title: string;
+  description: string;
+  href: string;
+  actionLabel: string;
+  tone?: 'amber' | 'sky' | 'emerald';
+};
+
+type OverviewArea = {
+  title: string;
+  description: string;
+  href: string;
+  actionLabel: string;
+  warning: OverviewWarning | null;
+  fallbackStatus: string;
+};
+
 type LoadState = 'loading' | 'ready' | 'no_admin_membership' | 'error';
 
-const managementAreas = [
-  {
-    title: 'Departments',
-    description: 'Manage departments, department leads and the club structure.',
-    href: '/admin/departments',
-  },
-  {
-    title: 'Facilities',
-    description: 'Create halls, assign departments and open facility calendars.',
-    href: '/admin/facilities',
-  },
-  {
-    title: 'People & Invites',
-    description: 'Invite department leads, coaches and future club admins.',
-    href: '/admin/people',
-  },
-  {
-    title: 'Settings',
-    description: 'Club profile, permissions and future admin configuration.',
-    href: '/admin/settings',
-  },
-];
+const REAL_DISMISSED_OVERVIEW_WARNINGS_KEY = 'club-app.admin.overview-dismissed-warnings';
 
 function isMissingAuthSessionError(message?: string) {
   return message?.toLowerCase().includes('auth session missing') ?? false;
 }
 
-function formatDateTime(value: string) {
-  const date = new Date(value);
-  return `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} ${date.toLocaleTimeString(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-  })}`;
+function readDismissedWarnings(clubId: string) {
+  if (typeof window === 'undefined') return [];
+  const raw = window.localStorage.getItem(`${REAL_DISMISSED_OVERVIEW_WARNINGS_KEY}:${clubId}`);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as string[];
+  } catch {
+    return [];
+  }
+}
+
+function saveDismissedWarnings(clubId: string, keys: string[]) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(`${REAL_DISMISSED_OVERVIEW_WARNINGS_KEY}:${clubId}`, JSON.stringify(keys));
+}
+
+function pluralize(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function warningToneClass(tone: OverviewWarning['tone'] = 'amber') {
+  if (tone === 'sky') return 'border-sky-500/30 bg-sky-950/20 text-sky-100';
+  if (tone === 'emerald') return 'border-emerald-500/30 bg-emerald-950/20 text-emerald-100';
+  return 'border-amber-500/30 bg-amber-950/20 text-amber-100';
+}
+
+function buildWarningAreas({
+  departments,
+  facilities,
+  assignments,
+  facilityRequests,
+  invites,
+  leadMemberships,
+  dismissed,
+}: {
+  departments: Department[];
+  facilities: Facility[];
+  assignments: DepartmentFacility[];
+  facilityRequests: FacilityRequest[];
+  invites: Invite[];
+  leadMemberships: DepartmentLeadMembership[];
+  dismissed: string[];
+}): OverviewArea[] {
+  const openRequests = facilityRequests.filter((request) => request.status === 'open');
+  const assignedDepartmentIds = new Set(assignments.map((assignment) => assignment.department_id));
+  const assignedFacilityIds = new Set(assignments.map((assignment) => assignment.facility_id));
+  const departmentsWithoutFacilities = departments.filter((department) => !assignedDepartmentIds.has(department.id));
+  const unassignedFacilities = facilities.filter((facility) => !assignedFacilityIds.has(facility.id));
+  const departmentLeadDepartmentIds = new Set([
+    ...leadMemberships.map((membership) => membership.department_id).filter(Boolean),
+    ...invites.filter((invite) => invite.role === 'department_lead' && ['pending', 'accepted'].includes(invite.status)).map((invite) => invite.department_id).filter(Boolean),
+  ]);
+  const departmentsWithoutLead = departments.filter((department) => !departmentLeadDepartmentIds.has(department.id));
+
+  const rawAreas: OverviewArea[] = [
+    {
+      title: 'Departments',
+      description: 'Department structure, teams and department-specific setup live here.',
+      href: '/admin/departments',
+      actionLabel: 'Open departments',
+      fallbackStatus: 'Department details are managed on the departments page.',
+      warning:
+        departments.length === 0
+          ? {
+              key: 'overview:departments:none',
+              title: 'No departments created yet',
+              description: 'Create the first department before teams, halls and staff can be organized.',
+              href: '/admin/departments',
+              actionLabel: 'Open departments',
+            }
+          : departmentsWithoutFacilities.length > 0
+            ? {
+                key: 'overview:departments:setup-gaps',
+                title: `${pluralize(departmentsWithoutFacilities.length, 'department')} need hall setup`,
+                description: 'Some departments have no assigned halls. Open Departments for the exact cards and quick actions.',
+                href: '/admin/departments',
+                actionLabel: 'Open departments',
+              }
+            : null,
+    },
+    {
+      title: 'Facilities',
+      description: 'Shared halls, department-only halls and facility requests are managed here.',
+      href: '/admin/facilities',
+      actionLabel: 'Open facilities',
+      fallbackStatus: 'No active facility warning on overview.',
+      warning:
+        openRequests.length > 0
+          ? {
+              key: 'overview:facilities:requests',
+              title: `${pluralize(openRequests.length, 'facility request')} open`,
+              description: 'A department reported a hall that may need to become shared/global. Review it in Facilities.',
+              href: '/admin/facilities?from=overview',
+              actionLabel: 'Review facilities',
+            }
+          : facilities.length === 0
+            ? {
+                key: 'overview:facilities:none',
+                title: 'No facilities created yet',
+                description: 'Create or assign the first hall from Facilities or from a department workspace.',
+                href: '/admin/facilities',
+                actionLabel: 'Open facilities',
+              }
+            : unassignedFacilities.length > 0
+              ? {
+                  key: 'overview:facilities:unassigned',
+                  title: `${pluralize(unassignedFacilities.length, 'facility', 'facilities')} unassigned`,
+                  description: 'Some global facilities are not assigned to any department. Manage them in Facilities.',
+                  href: '/admin/facilities?from=overview',
+                  actionLabel: 'Open facilities',
+                }
+              : null,
+    },
+    {
+      title: 'Staff',
+      description: 'Department leads, coaches and pending invites belong here.',
+      href: '/admin/people',
+      actionLabel: 'Open staff',
+      fallbackStatus: 'No active staff warning on overview.',
+      warning:
+        departments.length > 0 && departmentsWithoutLead.length > 0
+          ? {
+              key: 'overview:staff:missing-leads',
+              title: `${pluralize(departmentsWithoutLead.length, 'department lead')} missing or not invited`,
+              description: 'Invite missing department leads from Departments now; Staff becomes the central role and invite page next.',
+              href: '/admin/departments',
+              actionLabel: 'Open departments',
+              tone: 'sky',
+            }
+          : null,
+    },
+    {
+      title: 'Settings',
+      description: 'Club profile, setup preferences and admin configuration.',
+      href: '/admin/settings',
+      actionLabel: 'Open settings',
+      fallbackStatus: 'Settings are available when club-level details need adjustment.',
+      warning: null,
+    },
+  ];
+
+  return rawAreas.map((area) => ({ ...area, warning: area.warning && dismissed.includes(area.warning.key) ? null : area.warning }));
+}
+
+function OverviewAreaCard({ area, onDismiss }: { area: OverviewArea; onDismiss: (key: string) => void }) {
+  return (
+    <article className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 transition hover:border-slate-700">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-xl font-black text-white">{area.title}</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-400">{area.description}</p>
+        </div>
+        <Link href={area.href} className="w-fit rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-slate-100 transition hover:border-white/30 hover:bg-slate-950/60">
+          {area.actionLabel}
+        </Link>
+      </div>
+
+      {area.warning ? (
+        <div className={`mt-4 rounded-xl border p-3 ${warningToneClass(area.warning.tone)}`}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-sm font-black">{area.warning.title}</p>
+              <p className="mt-1 text-xs font-bold leading-5 opacity-80">{area.warning.description}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href={area.warning.href} className="rounded-lg border border-white/20 px-2.5 py-1.5 text-xs font-black hover:bg-white/10">
+                {area.warning.actionLabel}
+              </Link>
+              <button type="button" onClick={() => onDismiss(area.warning!.key)} className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-black opacity-80 hover:bg-white/10 hover:opacity-100">
+                Ignore
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-4 rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-xs font-bold leading-5 text-slate-500">{area.fallbackStatus}</p>
+      )}
+    </article>
+  );
 }
 
 export function AdminOverview() {
@@ -85,31 +267,16 @@ export function AdminOverview() {
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [assignments, setAssignments] = useState<DepartmentFacility[]>([]);
   const [facilityRequests, setFacilityRequests] = useState<FacilityRequest[]>([]);
+  const [invites, setInvites] = useState<Invite[]>([]);
+  const [leadMemberships, setLeadMemberships] = useState<DepartmentLeadMembership[]>([]);
+  const [dismissedWarnings, setDismissedWarnings] = useState<string[]>([]);
 
-  const departmentById = useMemo(() => new Map(departments.map((department) => [department.id, department])), [departments]);
-
-  const needsAttention = useMemo(() => {
-    const items: string[] = [];
-
-    if (departments.length === 0) {
-      items.push('Create your first department so teams and coaches can be organized.');
-    }
-
-    if (facilities.length === 0) {
-      items.push('Create your first facility or training location.');
-    }
-
-    if (facilities.length > 0) {
-      const assignedFacilityIds = new Set(assignments.map((assignment) => assignment.facility_id));
-      const unassignedFacilities = facilities.filter((facility) => !assignedFacilityIds.has(facility.id));
-
-      if (unassignedFacilities.length > 0) {
-        items.push('Some facilities are not assigned to any department yet.');
-      }
-    }
-
-    return items.slice(0, 4);
-  }, [assignments, departments.length, facilities]);
+  const clubId = club?.id ?? '';
+  const areas = useMemo(
+    () => buildWarningAreas({ departments, facilities, assignments, facilityRequests, invites, leadMemberships, dismissed: dismissedWarnings }),
+    [assignments, departments, dismissedWarnings, facilities, facilityRequests, invites, leadMemberships],
+  );
+  const activeWarningCount = areas.filter((area) => area.warning).length;
 
   useEffect(() => {
     let isMounted = true;
@@ -158,25 +325,27 @@ export function AdminOverview() {
         return;
       }
 
-      const clubId = adminMembership.club_id;
+      const resolvedClubId = adminMembership.club_id;
 
-      const [clubResult, departmentsResult, facilitiesResult, assignmentsResult, requestsResult] = await Promise.all([
-        supabase.from('clubs').select('id, name, city, country').eq('id', clubId).single(),
-        supabase.from('departments').select('id, name').eq('club_id', clubId).order('name'),
-        supabase.from('facilities').select('id, name').eq('club_id', clubId).order('name'),
-        supabase.from('department_facilities').select('department_id, facility_id').eq('club_id', clubId),
+      const [clubResult, departmentsResult, facilitiesResult, assignmentsResult, requestsResult, invitesResult, leadMembershipsResult] = await Promise.all([
+        supabase.from('clubs').select('id, name, city, country').eq('id', resolvedClubId).single(),
+        supabase.from('departments').select('id, name').eq('club_id', resolvedClubId).order('name'),
+        supabase.from('facilities').select('id, name').eq('club_id', resolvedClubId).order('name'),
+        supabase.from('department_facilities').select('department_id, facility_id').eq('club_id', resolvedClubId),
         supabase
           .from('facility_requests')
           .select('id, department_id, facility_name, facility_address, status, created_at')
-          .eq('club_id', clubId)
+          .eq('club_id', resolvedClubId)
           .eq('status', 'open')
           .order('created_at', { ascending: false })
-          .limit(6),
+          .limit(12),
+        supabase.from('invites').select('id, department_id, role, status').eq('club_id', resolvedClubId).in('role', ['department_lead', 'head_coach', 'assistant_coach']),
+        supabase.from('club_memberships').select('department_id, user_id').eq('club_id', resolvedClubId).eq('role', 'department_lead').eq('status', 'active'),
       ]);
 
       if (!isMounted) return;
 
-      const firstError = clubResult.error ?? departmentsResult.error ?? facilitiesResult.error ?? assignmentsResult.error ?? requestsResult.error;
+      const firstError = clubResult.error ?? departmentsResult.error ?? facilitiesResult.error ?? assignmentsResult.error ?? requestsResult.error ?? invitesResult.error ?? leadMembershipsResult.error;
 
       if (firstError) {
         setError(firstError.message);
@@ -189,6 +358,9 @@ export function AdminOverview() {
       setFacilities((facilitiesResult.data ?? []) as Facility[]);
       setAssignments((assignmentsResult.data ?? []) as DepartmentFacility[]);
       setFacilityRequests((requestsResult.data ?? []) as FacilityRequest[]);
+      setInvites((invitesResult.data ?? []) as Invite[]);
+      setLeadMemberships((leadMembershipsResult.data ?? []) as DepartmentLeadMembership[]);
+      setDismissedWarnings(readDismissedWarnings(resolvedClubId));
       setState('ready');
     }
 
@@ -198,6 +370,19 @@ export function AdminOverview() {
       isMounted = false;
     };
   }, [router]);
+
+  function dismissWarning(key: string) {
+    if (!clubId) return;
+    const next = Array.from(new Set([...dismissedWarnings, key]));
+    setDismissedWarnings(next);
+    saveDismissedWarnings(clubId, next);
+  }
+
+  function resetDismissedWarnings() {
+    if (!clubId) return;
+    setDismissedWarnings([]);
+    saveDismissedWarnings(clubId, []);
+  }
 
   if (state === 'loading') {
     return (
@@ -239,77 +424,31 @@ export function AdminOverview() {
   return (
     <AdminShell>
       <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-sky-300">Admin overview</p>
-        <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">{club?.name ?? 'Club overview'}</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-          Manage the club structure, locations and people from one calm starting point.
-        </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-sky-300">Admin overview</p>
+            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">{club?.name ?? 'Club overview'}</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">Club-level start page. It only shows high-level warnings; details stay inside Departments, Facilities and Staff.</p>
+          </div>
+          {dismissedWarnings.length > 0 ? (
+            <button type="button" onClick={resetDismissedWarnings} className="w-fit rounded-xl border border-sky-500/60 px-3 py-2 text-xs font-black text-sky-200 hover:bg-sky-950/40">
+              Reset ignored warnings
+            </button>
+          ) : null}
+        </div>
       </section>
 
-      {needsAttention.length > 0 ? (
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">Needs attention</p>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {needsAttention.map((item) => (
-              <div key={item} className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-4">
-                <p className="text-sm font-bold leading-6 text-amber-100">{item}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {facilityRequests.length > 0 ? (
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">Meldungen</p>
-          <h2 className="mt-2 text-xl font-black">Facility requests</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-400">
-            Departments requested shared/global halls. Open Facilities to approve, adjust details, assign departments or reject requests.
-          </p>
-          <div className="mt-4 space-y-3">
-            {facilityRequests.map((request) => (
-              <article key={request.id} className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="font-black text-amber-100">{request.facility_name}</p>
-                    <p className="mt-1 text-xs font-bold text-slate-500">
-                      {departmentById.get(request.department_id)?.name ?? 'Unknown department'} · {formatDateTime(request.created_at)}
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-slate-300">{request.facility_address}</p>
-                  </div>
-                  <Link href="/admin/facilities?from=overview" className="w-fit rounded-lg border border-amber-500/60 px-3 py-2 text-xs font-black text-amber-200 hover:bg-amber-950/40">
-                    Review in facilities
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
       <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Management areas</p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Overview cards</p>
+            <h2 className="mt-2 text-xl font-black">Club control center</h2>
+          </div>
+          <span className="text-sm font-bold text-slate-500">{activeWarningCount === 0 ? 'No active overview warnings' : `${activeWarningCount} active warning${activeWarningCount === 1 ? '' : 's'}`}</span>
+        </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {managementAreas.map((area) => (
-            <Link key={area.href} href={area.href} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 transition hover:border-emerald-400 hover:bg-emerald-950/20">
-              <h2 className="text-xl font-black">{area.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-400">{area.description}</p>
-            </Link>
-          ))}
+          {areas.map((area) => <OverviewAreaCard key={area.title} area={area} onDismiss={dismissWarning} />)}
         </div>
-      </section>
-
-      <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Setup checklist</p>
-        <div className="mt-4 grid gap-2 md:grid-cols-2">
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm font-bold text-slate-200">Club created</div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm font-bold text-slate-200">Departments created</div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm font-bold text-slate-200">Facilities created</div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm font-bold text-slate-200">People & invites next</div>
-        </div>
-        <Link href="/admin/setup" className="mt-4 inline-block rounded-xl border border-violet-500/70 px-4 py-3 text-sm font-black text-violet-200 hover:bg-violet-950/40">
-          Continue guided setup
-        </Link>
       </section>
     </AdminShell>
   );
