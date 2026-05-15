@@ -239,7 +239,7 @@ export default function HomePage() {
       <section className="border-y border-white/10 bg-white/[0.025] py-3">
         <div className="landing-marquee flex w-[200%] gap-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
           {[...Array(2)].map((_, groupIndex) => (
-            <div key={groupIndex} className="flex min-w-1/2 flex-1 justify-around gap-4">
+            <div key={groupIndex} className="flex w-1/2 shrink-0 justify-around gap-4">
               <span>Club setup</span>
               <span>Departments</span>
               <span>Teams</span>
