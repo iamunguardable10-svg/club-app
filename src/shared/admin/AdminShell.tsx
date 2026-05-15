@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { FacilityAccentEnhancer } from '@/shared/components/facilities/FacilityAccentEnhancer';
 import { TeamDefaultFacilityLinkEnhancer } from '@/shared/components/facilities/TeamDefaultFacilityLinkEnhancer';
+import { TeamDeleteEnhancer } from '@/shared/components/facilities/TeamDeleteEnhancer';
 
 type AdminShellProps = {
   children: React.ReactNode;
@@ -11,7 +12,7 @@ const realLinks = [
   { href: '/admin/overview', label: 'Overview' },
   { href: '/admin/departments', label: 'Departments' },
   { href: '/admin/facilities', label: 'Facilities' },
-  { href: '/admin/people', label: 'People' },
+  { href: '/admin/people', label: 'Staff' },
   { href: '/admin/settings', label: 'Settings' },
 ];
 
@@ -19,7 +20,7 @@ const demoLinks = [
   { href: '/demo/admin/overview', label: 'Overview' },
   { href: '/demo/admin/departments', label: 'Departments' },
   { href: '/demo/admin/facilities', label: 'Facilities' },
-  { href: '/demo/admin/people', label: 'People' },
+  { href: '/demo/admin/people', label: 'Staff' },
   { href: '/demo/admin/settings', label: 'Settings' },
 ];
 
@@ -31,6 +32,7 @@ export function AdminShell({ children, mode = 'real' }: AdminShellProps) {
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#172554_0,#070A12_45%)] px-4 py-6 text-white sm:px-8">
       <FacilityAccentEnhancer />
       <TeamDefaultFacilityLinkEnhancer />
+      <TeamDeleteEnhancer mode={mode} />
       <div className="mx-auto max-w-6xl space-y-5">
         <nav className={`rounded-3xl border p-3 shadow-sm ${accentClass}`} aria-label="Admin navigation">
           <div className="flex flex-wrap gap-2">
