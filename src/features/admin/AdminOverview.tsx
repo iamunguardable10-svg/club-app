@@ -236,13 +236,10 @@ function OverviewAreaCard({ area, onDismiss }: { area: OverviewArea; onDismiss: 
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') openTarget();
       }}
-      className="group relative cursor-pointer overflow-hidden rounded-3xl border border-slate-800 bg-[linear-gradient(135deg,rgba(15,23,42,0.96),rgba(2,6,23,0.78))] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.24)] ring-1 ring-white/5 transition duration-200 hover:-translate-y-0.5 hover:border-emerald-400/70 hover:bg-slate-900 hover:shadow-[0_24px_70px_rgba(16,185,129,0.12)] focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+      className="relative cursor-pointer overflow-hidden rounded-3xl border border-slate-800 bg-[linear-gradient(135deg,rgba(15,23,42,0.96),rgba(2,6,23,0.78))] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.24)] ring-1 ring-white/5 transition duration-200 hover:-translate-y-0.5 hover:border-emerald-400/70 hover:bg-slate-900 hover:shadow-[0_24px_70px_rgba(16,185,129,0.12)] focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
     >
-      <div className="pointer-events-none absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-slate-950/60 text-lg font-black text-slate-400 shadow-inner transition group-hover:border-emerald-400/50 group-hover:text-emerald-200">
-        ›
-      </div>
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-60" />
-      <div className="pr-12">
+      <div>
         <h2 className="text-xl font-black text-white">{area.title}</h2>
         <p className="mt-2 text-sm leading-6 text-slate-400">{area.description}</p>
       </div>
