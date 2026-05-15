@@ -35,7 +35,7 @@ a {
     transform: translate3d(0, 0, 0) rotate(var(--rotate, 0deg));
   }
   50% {
-    transform: translate3d(0, -18px, 24px) rotate(calc(var(--rotate, 0deg) + 1.5deg));
+    transform: translate3d(0, -14px, 18px) rotate(calc(var(--rotate, 0deg) + 0.9deg));
   }
 }
 
@@ -45,7 +45,7 @@ a {
     transform: translate3d(0, 0, 0) rotate(var(--rotate, 0deg));
   }
   50% {
-    transform: translate3d(0, -10px, 12px) rotate(calc(var(--rotate, 0deg) - 1deg));
+    transform: translate3d(0, -9px, 10px) rotate(calc(var(--rotate, 0deg) - 0.7deg));
   }
 }
 
@@ -100,13 +100,24 @@ a {
 }
 
 .landing-stage {
-  perspective: 1400px;
+  perspective: 2200px;
   transform-style: preserve-3d;
+  overflow: visible;
 }
 
 .landing-board {
   transform-style: preserve-3d;
-  transform: rotateX(10deg) rotateY(-13deg) rotateZ(1deg);
+  transform-origin: center center;
+  transform: rotateX(4deg) rotateY(-5deg) rotateZ(0.35deg) scale(0.96);
+}
+
+.landing-product-panel {
+  backface-visibility: hidden;
+  transform: translateZ(34px);
+}
+
+.landing-depth-panel {
+  transform: translateZ(18px);
 }
 
 .landing-float {
@@ -146,6 +157,18 @@ a {
 
 .landing-marquee {
   animation: landing-marquee 24s linear infinite;
+}
+
+@media (max-width: 1350px) {
+  .landing-board {
+    transform: rotateX(2.5deg) rotateY(-2.5deg) rotateZ(0deg) scale(0.9);
+  }
+}
+
+@media (max-width: 1180px) {
+  .landing-board {
+    transform: rotateX(1deg) rotateY(-1.5deg) rotateZ(0deg) scale(0.86);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
