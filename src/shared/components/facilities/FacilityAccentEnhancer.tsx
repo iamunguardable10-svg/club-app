@@ -47,23 +47,6 @@ function getNearestDepartmentLabel(anchor: HTMLAnchorElement) {
   return { departmentId: null, departmentName: null };
 }
 
-function ensureAccentDot(anchor: HTMLAnchorElement, color: string) {
-  if (anchor.querySelector('[data-club-app-facility-accent-dot="true"]')) return;
-
-  const dot = document.createElement('span');
-  dot.setAttribute('data-club-app-facility-accent-dot', 'true');
-  dot.className = 'mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle';
-  dot.style.backgroundColor = color;
-  dot.style.boxShadow = `0 0 18px ${color}`;
-
-  const title = anchor.querySelector('p, span');
-  if (title) {
-    title.prepend(dot);
-  } else {
-    anchor.prepend(dot);
-  }
-}
-
 function appendContextToFacilityLink(anchor: HTMLAnchorElement) {
   const href = anchor.getAttribute('href');
   if (!href) return;
@@ -79,6 +62,26 @@ function appendContextToFacilityLink(anchor: HTMLAnchorElement) {
   anchor.setAttribute('href', `${url.pathname}${url.search}`);
 }
 
+function getAccentTarget(anchor: HTMLAnchorElement): HTMLElement {
+  const anchorClass = anchor.getAttribute('class') ?? '';
+  const anchorIsCard = anchorClass.includes('rounded') && anchorClass.includes('border');
+  if (anchorIsCard) return anchor;
+
+  const parentCard = anchor.closest<HTMLElement>('article.rounded-xl, div.rounded-xl, div.rounded-2xl, article.rounded-2xl');
+  return parentCard ?? anchor;
+}
+
+function applyAccent(target: HTMLElement, seed: string, label: string) {
+  if (target.getAttribute(ENHANCED_ATTRIBUTE) === 'true') return;
+
+  const accent = getFacilityAccent(seed || label);
+  target.setAttribute(ENHANCED_ATTRIBUTE, 'true');
+  target.setAttribute('data-facility-accent', accent.name);
+  target.style.borderColor = `${accent.hex}66`;
+  target.style.background = `linear-gradient(90deg, ${accent.softHex}, rgba(15, 23, 42, 0.58))`;
+  target.style.boxShadow = `inset 3px 0 0 ${accent.hex}`;
+}
+
 function enhanceFacilityAnchor(anchor: HTMLAnchorElement) {
   if (anchor.getAttribute(ENHANCED_ATTRIBUTE) === 'true') return;
 
@@ -90,13 +93,8 @@ function enhanceFacilityAnchor(anchor: HTMLAnchorElement) {
   appendContextToFacilityLink(anchor);
 
   const label = getReadableFacilityLabel(anchor, seed);
-  const accent = getFacilityAccent(seed || label);
-
-  anchor.style.borderColor = `${accent.hex}66`;
-  anchor.style.background = `linear-gradient(90deg, ${accent.softHex}, rgba(15, 23, 42, 0.58))`;
-  anchor.style.boxShadow = `inset 3px 0 0 ${accent.hex}`;
-  anchor.setAttribute('data-facility-accent', accent.name);
-  ensureAccentDot(anchor, accent.hex);
+  const target = getAccentTarget(anchor);
+  applyAccent(target, seed || label, label);
 }
 
 function enhanceFacilityLabels() {
@@ -109,12 +107,7 @@ function enhanceFacilityLabels() {
     const title = titleElement?.textContent?.trim();
 
     if (!title || !subtitleElement?.textContent?.trim()) return;
-
-    const accent = getFacilityAccent(title);
-    label.setAttribute(ENHANCED_ATTRIBUTE, 'true');
-    label.style.borderColor = `${accent.hex}55`;
-    label.style.background = `linear-gradient(90deg, ${accent.softHex}, rgba(15, 23, 42, 0.52))`;
-    label.style.boxShadow = `inset 3px 0 0 ${accent.hex}`;
+    applyAccent(label, title, title);
   });
 }
 
