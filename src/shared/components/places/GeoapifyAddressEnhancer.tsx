@@ -6,7 +6,6 @@ import { fetchGeoapifyAddressSuggestions, getGeoapifyApiKey, type GeoapifyAddres
 const ADDRESS_PLACEHOLDERS = new Set(['Street, city', 'Search venue name or address', 'Address']);
 const ADDRESS_SEARCH_PLACEHOLDER = 'Search hall name, venue or address';
 const ENHANCED_ATTRIBUTE = 'data-club-app-geoapify-enhanced';
-const HINT_ATTRIBUTE = 'data-club-app-geoapify-hint';
 const LIST_ATTRIBUTE = 'data-club-app-geoapify-list';
 const SELECTED_PLACE_NAME_ATTRIBUTE = 'data-club-app-geoapify-place-name';
 const SELECTED_PLACE_ID_ATTRIBUTE = 'data-club-app-geoapify-place-id';
@@ -29,24 +28,6 @@ function setNativeInputValue(input: HTMLInputElement, value: string) {
   input.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
-function getAddressHint(input: HTMLInputElement) {
-  const nextSibling = input.nextElementSibling;
-  return nextSibling?.getAttribute(HINT_ATTRIBUTE) === 'true' ? (nextSibling as HTMLSpanElement) : null;
-}
-
-function ensureAddressHint(input: HTMLInputElement, message: string, tone: 'ready' | 'manual' = 'ready') {
-  const existingHint = getAddressHint(input);
-  const hint = existingHint ?? document.createElement('span');
-
-  hint.setAttribute(HINT_ATTRIBUTE, 'true');
-  hint.className = tone === 'ready' ? 'mt-1 block text-xs font-bold leading-5 text-emerald-300' : 'mt-1 block text-xs font-bold leading-5 text-amber-200';
-  hint.textContent = message;
-
-  if (!existingHint) {
-    input.insertAdjacentElement('afterend', hint);
-  }
-}
-
 function prepareAddressInputUi(input: HTMLInputElement) {
   input.placeholder = ADDRESS_SEARCH_PLACEHOLDER;
   input.autocomplete = 'off';
@@ -62,13 +43,7 @@ function createSuggestionsList(input: HTMLInputElement) {
   const list = document.createElement('div');
   list.setAttribute(LIST_ATTRIBUTE, 'true');
   list.className = 'mt-2 hidden max-h-72 w-full overflow-auto rounded-xl border border-slate-700 bg-slate-950 p-2 shadow-2xl';
-
-  const hint = getAddressHint(input);
-  if (hint) {
-    hint.insertAdjacentElement('afterend', list);
-  } else {
-    input.insertAdjacentElement('afterend', list);
-  }
+  input.insertAdjacentElement('afterend', list);
 
   return list;
 }
@@ -111,7 +86,6 @@ function renderSuggestions(input: HTMLInputElement, list: HTMLDivElement | null,
 
       if (suggestion.name) {
         input.setAttribute(SELECTED_PLACE_NAME_ATTRIBUTE, suggestion.name);
-        ensureAddressHint(input, `Official place selected: ${suggestion.name}. Internal hall name was not changed.`);
       } else {
         input.removeAttribute(SELECTED_PLACE_NAME_ATTRIBUTE);
       }
@@ -132,7 +106,6 @@ function renderSuggestions(input: HTMLInputElement, list: HTMLDivElement | null,
 function enhanceAddressInput(input: HTMLInputElement) {
   input.setAttribute(ENHANCED_ATTRIBUTE, 'true');
   prepareAddressInputUi(input);
-  ensureAddressHint(input, 'Search by hall name, official venue, school or street address. The internal hall name stays separate.');
 
   const list = createSuggestionsList(input);
   let debounceTimeout: number | null = null;
@@ -162,7 +135,6 @@ function enhanceAddressInput(input: HTMLInputElement) {
         renderSuggestions(input, list, suggestions);
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
-        ensureAddressHint(input, 'Address search is temporarily unavailable. You can still enter the address manually.', 'manual');
         clearSuggestions(list);
       }
     }, DEBOUNCE_MS);
@@ -177,7 +149,6 @@ function prepareManualAddressInputs() {
   document.querySelectorAll<HTMLInputElement>('input').forEach((input) => {
     if (!isPotentialAddressInput(input)) return;
     prepareAddressInputUi(input);
-    ensureAddressHint(input, 'You can search by hall name or enter the address manually.', 'manual');
   });
 }
 
