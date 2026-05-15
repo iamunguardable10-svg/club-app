@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { fetchGeoapifyAddressSuggestions, getGeoapifyApiKey, type GeoapifyAddressSuggestion } from '@/shared/lib/geoapify/addressAutocomplete';
 
-const ADDRESS_PLACEHOLDERS = new Set(['Street, city', 'Search venue name or address']);
+const ADDRESS_PLACEHOLDERS = new Set(['Street, city', 'Search venue name or address', 'Address']);
 const ADDRESS_SEARCH_PLACEHOLDER = 'Search hall name, venue or address';
 const ENHANCED_ATTRIBUTE = 'data-club-app-geoapify-enhanced';
 const HINT_ATTRIBUTE = 'data-club-app-geoapify-hint';
