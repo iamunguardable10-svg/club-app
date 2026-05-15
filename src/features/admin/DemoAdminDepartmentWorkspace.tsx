@@ -380,12 +380,21 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
           {departmentTeams.length > 0 ? (
             departmentTeams.map((team) => {
               const defaultFacility = team.defaultFacility ? facilityByName.get(team.defaultFacility) : null;
+              const needsDefaultFacility = !defaultFacility;
               return (
                 <article key={team.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-slate-700">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
                       <h3 className="text-xl font-black text-white">{team.name}</h3>
                       <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-sm font-bold text-slate-300"><span>No head coach</span><span className="hidden sm:inline text-slate-600">·</span><span className="hidden sm:inline">0 players</span><span className="hidden md:inline text-slate-600">·</span><span className="hidden md:inline">{defaultFacility?.name ?? 'No default facility'}</span></p>
+                      {!isEditMode && needsDefaultFacility && departmentFacilities.length > 0 ? (
+                        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                          <select value="" onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)} className="w-full rounded-lg border border-emerald-500/50 bg-slate-950 px-2.5 py-1.5 text-xs font-black text-emerald-200 outline-none focus:border-emerald-300 sm:w-fit">
+                            <option value="">Set default facility</option>
+                            {departmentFacilities.map((facility) => <option key={facility} value={facility}>{facility}</option>)}
+                          </select>
+                        </div>
+                      ) : null}
                     </div>
                     {isEditMode ? (
                       <div className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 lg:w-[360px]">
