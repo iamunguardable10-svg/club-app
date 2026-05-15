@@ -91,7 +91,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-[92rem] gap-8 px-4 pb-12 pt-5 sm:px-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-center lg:pb-18 lg:pt-8 xl:gap-12">
+      <section className="mx-auto grid max-w-[92rem] gap-8 px-4 pb-12 pt-5 sm:px-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-center lg:pb-16 lg:pt-8 xl:gap-12">
         <div className="relative z-10">
           <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-2 text-xs font-black uppercase tracking-[0.22em] text-sky-200 shadow-[0_0_40px_rgba(56,189,248,0.16)]">
             <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_16px_rgba(110,231,183,0.95)]" />
@@ -203,7 +203,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="absolute bottom-20 left-4 w-[52%] max-w-[28rem] sm:bottom-16 lg:bottom-18 xl:bottom-20">
+          <div className="absolute bottom-20 left-4 w-[52%] max-w-[28rem] sm:bottom-16 lg:bottom-16 xl:bottom-20">
             <div className="landing-depth-panel landing-float-soft landing-float-delay rounded-[1.6rem] border border-violet-400/20 bg-slate-950/95 p-5 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
               <p className="text-xs font-black uppercase tracking-[0.22em] text-violet-300">Club structure</p>
               <div className="mt-4 grid gap-2">
@@ -216,7 +216,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="absolute bottom-24 right-4 w-[40%] min-w-[15rem] max-w-[24rem] sm:bottom-22 lg:bottom-24">
+          <div className="absolute bottom-24 right-4 w-[40%] min-w-[15rem] max-w-[24rem] sm:bottom-20 lg:bottom-24">
             <div className="landing-depth-panel landing-float-soft rounded-[1.4rem] border border-emerald-400/20 bg-slate-950/95 p-4 shadow-2xl shadow-emerald-950/30 backdrop-blur-xl">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Upcoming sessions</p>
               <div className="mt-4 space-y-2">
