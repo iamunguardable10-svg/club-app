@@ -7,7 +7,6 @@ const ADDRESS_PLACEHOLDERS = new Set(['Street, city', 'Search venue name or addr
 const ADDRESS_SEARCH_PLACEHOLDER = 'Search hall name, venue or address';
 const ENHANCED_ATTRIBUTE = 'data-club-app-geoapify-enhanced';
 const HINT_ATTRIBUTE = 'data-club-app-geoapify-hint';
-const WRAPPER_ATTRIBUTE = 'data-club-app-geoapify-wrapper';
 const LIST_ATTRIBUTE = 'data-club-app-geoapify-list';
 const SELECTED_PLACE_NAME_ATTRIBUTE = 'data-club-app-geoapify-place-name';
 const SELECTED_PLACE_ID_ATTRIBUTE = 'data-club-app-geoapify-place-id';
@@ -30,9 +29,13 @@ function setNativeInputValue(input: HTMLInputElement, value: string) {
   input.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
-function ensureAddressHint(input: HTMLInputElement, message: string, tone: 'ready' | 'manual' = 'ready') {
+function getAddressHint(input: HTMLInputElement) {
   const nextSibling = input.nextElementSibling;
-  const existingHint = nextSibling?.getAttribute(HINT_ATTRIBUTE) === 'true' ? (nextSibling as HTMLSpanElement) : null;
+  return nextSibling?.getAttribute(HINT_ATTRIBUTE) === 'true' ? (nextSibling as HTMLSpanElement) : null;
+}
+
+function ensureAddressHint(input: HTMLInputElement, message: string, tone: 'ready' | 'manual' = 'ready') {
+  const existingHint = getAddressHint(input);
   const hint = existingHint ?? document.createElement('span');
 
   hint.setAttribute(HINT_ATTRIBUTE, 'true');
@@ -44,40 +47,40 @@ function ensureAddressHint(input: HTMLInputElement, message: string, tone: 'read
   }
 }
 
-function ensureWrapper(input: HTMLInputElement) {
-  const parent = input.parentElement;
-  if (parent?.getAttribute(WRAPPER_ATTRIBUTE) === 'true') return parent;
-
-  const wrapper = document.createElement('div');
-  wrapper.setAttribute(WRAPPER_ATTRIBUTE, 'true');
-  wrapper.className = 'relative';
-  input.insertAdjacentElement('beforebegin', wrapper);
-  wrapper.appendChild(input);
-  return wrapper;
-}
-
 function prepareAddressInputUi(input: HTMLInputElement) {
   input.placeholder = ADDRESS_SEARCH_PLACEHOLDER;
   input.autocomplete = 'off';
 }
 
-function createSuggestionsList(wrapper: HTMLElement) {
-  const existing = wrapper.querySelector<HTMLDivElement>(`[${LIST_ATTRIBUTE}="true"]`);
+function createSuggestionsList(input: HTMLInputElement) {
+  const parent = input.parentElement;
+  if (!parent) return null;
+
+  const existing = parent.querySelector<HTMLDivElement>(`[${LIST_ATTRIBUTE}="true"]`);
   if (existing) return existing;
 
   const list = document.createElement('div');
   list.setAttribute(LIST_ATTRIBUTE, 'true');
-  list.className = 'absolute z-50 mt-2 hidden max-h-72 w-full overflow-auto rounded-xl border border-slate-700 bg-slate-950 p-2 shadow-2xl';
-  wrapper.appendChild(list);
+  list.className = 'mt-2 hidden max-h-72 w-full overflow-auto rounded-xl border border-slate-700 bg-slate-950 p-2 shadow-2xl';
+
+  const hint = getAddressHint(input);
+  if (hint) {
+    hint.insertAdjacentElement('afterend', list);
+  } else {
+    input.insertAdjacentElement('afterend', list);
+  }
+
   return list;
 }
 
-function clearSuggestions(list: HTMLDivElement) {
+function clearSuggestions(list: HTMLDivElement | null) {
+  if (!list) return;
   list.innerHTML = '';
   list.classList.add('hidden');
 }
 
-function renderSuggestions(input: HTMLInputElement, list: HTMLDivElement, suggestions: GeoapifyAddressSuggestion[]) {
+function renderSuggestions(input: HTMLInputElement, list: HTMLDivElement | null, suggestions: GeoapifyAddressSuggestion[]) {
+  if (!list) return;
   list.innerHTML = '';
 
   if (suggestions.length === 0) {
@@ -131,8 +134,7 @@ function enhanceAddressInput(input: HTMLInputElement) {
   prepareAddressInputUi(input);
   ensureAddressHint(input, 'Search by hall name, official venue, school or street address. The internal hall name stays separate.');
 
-  const wrapper = ensureWrapper(input);
-  const list = createSuggestionsList(wrapper);
+  const list = createSuggestionsList(input);
   let debounceTimeout: number | null = null;
   let abortController: AbortController | null = null;
 
