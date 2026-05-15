@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 
 const LINKED_ATTRIBUTE = 'data-club-app-team-default-facility-linked';
+const INLINE_SELECT_ATTRIBUTE = 'data-club-app-inline-default-facility-select';
 
 function readFacilityLinks() {
   const links = new Map<string, string>();
@@ -58,10 +59,37 @@ function linkDefaults() {
   });
 }
 
+function inlineMissingDefaultFacilitySelectors() {
+  document.querySelectorAll<HTMLElement>('article').forEach((article) => {
+    const select = article.querySelector<HTMLSelectElement>('select');
+    if (!select) return;
+    if (select.getAttribute(INLINE_SELECT_ATTRIBUTE) === 'true') return;
+
+    const defaultFacilitySpan = Array.from(article.querySelectorAll<HTMLSpanElement>('h3 + p span')).find(
+      (span) => span.textContent?.trim() === 'No default facility',
+    );
+    if (!defaultFacilitySpan) return;
+
+    select.setAttribute(INLINE_SELECT_ATTRIBUTE, 'true');
+    select.className = 'rounded-lg border border-emerald-500/50 bg-slate-950 px-2.5 py-1 text-xs font-black text-emerald-200 outline-none focus:border-emerald-300 disabled:opacity-60';
+    defaultFacilitySpan.replaceWith(select);
+
+    const oldContainer = article.querySelector<HTMLElement>('.mt-3.flex');
+    if (oldContainer && oldContainer.children.length === 0) {
+      oldContainer.style.display = 'none';
+    }
+  });
+}
+
+function enhanceTeamFacilityReferences() {
+  inlineMissingDefaultFacilitySelectors();
+  linkDefaults();
+}
+
 export function TeamDefaultFacilityLinkEnhancer() {
   useEffect(() => {
-    linkDefaults();
-    const observer = new MutationObserver(linkDefaults);
+    enhanceTeamFacilityReferences();
+    const observer = new MutationObserver(enhanceTeamFacilityReferences);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, []);
