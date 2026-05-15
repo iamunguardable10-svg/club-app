@@ -70,7 +70,7 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.03)_1px,transparent_1px)] bg-[size:72px_72px]" />
       </div>
 
-      <header className="mx-auto flex max-w-7xl items-center justify-between px-4 py-5 sm:px-8">
+      <header className="mx-auto flex max-w-[92rem] items-center justify-between px-4 py-5 sm:px-8">
         <Link href="/" className="flex items-center gap-3">
           <span className="grid h-11 w-11 place-items-center rounded-2xl border border-sky-400/30 bg-sky-400/10 text-lg font-black text-sky-200 shadow-[0_0_40px_rgba(56,189,248,0.18)]">T</span>
           <span className="text-sm font-black tracking-tight text-white sm:text-base">TeamLoad OS</span>
@@ -91,18 +91,18 @@ export default function HomePage() {
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-7xl gap-10 px-4 pb-12 pt-5 sm:px-8 lg:grid-cols-[0.98fr_1.02fr] lg:items-center lg:pb-20 lg:pt-10">
-        <div>
+      <section className="mx-auto grid max-w-[92rem] gap-8 px-4 pb-12 pt-5 sm:px-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-center lg:pb-18 lg:pt-8 xl:gap-12">
+        <div className="relative z-10">
           <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-2 text-xs font-black uppercase tracking-[0.22em] text-sky-200 shadow-[0_0_40px_rgba(56,189,248,0.16)]">
             <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_16px_rgba(110,231,183,0.95)]" />
             Club App / TeamLoad OS
           </div>
 
-          <h1 className="mt-6 max-w-4xl text-5xl font-black tracking-tight text-white sm:text-7xl lg:text-8xl">
+          <h1 className="mt-6 max-w-[9.6ch] text-[4.35rem] font-black leading-[0.88] tracking-tight text-white sm:text-[5.4rem] lg:text-[5.9rem] xl:text-[6.7rem] 2xl:text-[7.4rem]">
             One operating system for <span className="bg-gradient-to-r from-sky-300 via-blue-400 to-violet-400 bg-clip-text text-transparent">modern sports clubs.</span>
           </h1>
 
-          <p className="mt-6 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
+          <p className="mt-6 max-w-xl text-base leading-8 text-slate-300 sm:text-lg">
             Structure departments, teams, coaches, athletes, facilities and sessions — then manage availability, attendance and load from role-based workspaces.
           </p>
 
@@ -128,7 +128,7 @@ export default function HomePage() {
 
           <p className="mt-4 text-sm font-bold text-slate-500">Start with the demo in seconds. No signup, no database writes.</p>
 
-          <div className="mt-8 grid max-w-2xl gap-3 sm:grid-cols-3">
+          <div className="mt-8 grid max-w-xl gap-3 sm:grid-cols-3">
             {metrics.map((metric) => (
               <div key={metric.label} className="group rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-white/20 hover:bg-white/[0.07]">
                 <div className={`text-xl font-black transition group-hover:scale-110 ${metric.color}`}>{metric.icon}</div>
@@ -139,15 +139,15 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="landing-stage relative min-h-[38rem] lg:min-h-[46rem]">
+        <div className="landing-stage relative min-h-[35rem] overflow-visible sm:min-h-[40rem] lg:min-h-[42rem] xl:min-h-[46rem]">
           <div className="absolute inset-0 rounded-[2.3rem] border border-white/10 bg-white/[0.03] shadow-[0_50px_140px_rgba(15,23,42,0.65)] backdrop-blur-xl" />
           <div className="absolute left-1/2 top-1/2 h-[28rem] w-[28rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-sky-400/10 landing-orbit" />
           <div className="absolute left-[18%] top-[12%] h-3 w-3 rounded-full bg-sky-300 shadow-[0_0_28px_rgba(125,211,252,0.9)] landing-glow-pulse" />
           <div className="absolute right-[10%] top-[22%] h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_28px_rgba(110,231,183,0.9)] landing-glow-pulse" />
           <div className="absolute bottom-[20%] left-[12%] h-2.5 w-2.5 rounded-full bg-violet-300 shadow-[0_0_28px_rgba(196,181,253,0.9)] landing-glow-pulse" />
 
-          <div className="landing-board absolute inset-x-2 top-4 sm:inset-x-7 lg:top-8">
-            <div className="landing-float rounded-[1.8rem] border border-sky-400/25 bg-slate-950/95 p-4 shadow-2xl shadow-blue-950/50 backdrop-blur-xl sm:p-5">
+          <div className="landing-board absolute left-1/2 top-8 w-[min(100%,54rem)] -translate-x-1/2 sm:top-10 lg:top-8 xl:top-10">
+            <div className="landing-product-panel landing-float rounded-[1.8rem] border border-sky-400/25 bg-slate-950/95 p-4 shadow-2xl shadow-blue-950/50 backdrop-blur-xl sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-300">Today cockpit</p>
@@ -203,8 +203,8 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="absolute bottom-20 left-0 right-[28%] sm:left-4">
-            <div className="landing-float-soft landing-float-delay rounded-[1.6rem] border border-violet-400/20 bg-slate-950/95 p-5 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
+          <div className="absolute bottom-20 left-4 w-[52%] max-w-[28rem] sm:bottom-16 lg:bottom-18 xl:bottom-20">
+            <div className="landing-depth-panel landing-float-soft landing-float-delay rounded-[1.6rem] border border-violet-400/20 bg-slate-950/95 p-5 shadow-2xl shadow-violet-950/30 backdrop-blur-xl">
               <p className="text-xs font-black uppercase tracking-[0.22em] text-violet-300">Club structure</p>
               <div className="mt-4 grid gap-2">
                 {['Basketball → U18 Boys', 'Football → First Team', 'Facilities → Main Hall'].map((item) => (
@@ -216,8 +216,8 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="absolute bottom-28 right-0 w-[48%] sm:right-5">
-            <div className="landing-float-soft rounded-[1.4rem] border border-emerald-400/20 bg-slate-950/95 p-4 shadow-2xl shadow-emerald-950/30 backdrop-blur-xl">
+          <div className="absolute bottom-24 right-4 w-[40%] min-w-[15rem] max-w-[24rem] sm:bottom-22 lg:bottom-24">
+            <div className="landing-depth-panel landing-float-soft rounded-[1.4rem] border border-emerald-400/20 bg-slate-950/95 p-4 shadow-2xl shadow-emerald-950/30 backdrop-blur-xl">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Upcoming sessions</p>
               <div className="mt-4 space-y-2">
                 {sessionRows.map((row, index) => (
