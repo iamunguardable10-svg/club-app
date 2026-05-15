@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import Link from 'next/link';
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, BarChart3, Building2, CalendarDays, CheckCircle2, LayoutDashboard, ShieldCheck, Sparkles, Users, Zap } from 'lucide-react';
@@ -79,6 +80,21 @@ function fadeUp(delay = 0) {
     viewport: { once: true, margin: '-80px' },
     transition: { duration: 0.65, delay, ease: [0.22, 1, 0.36, 1] },
   } as const;
+}
+
+function OperationsCube() {
+  return (
+    <div className="landing-cube-stage hidden h-36 w-36 place-items-center md:grid">
+      <div className="landing-cube">
+        <div className="landing-cube-face landing-cube-face-front">Club</div>
+        <div className="landing-cube-face landing-cube-face-back">Load</div>
+        <div className="landing-cube-face landing-cube-face-right">Teams</div>
+        <div className="landing-cube-face landing-cube-face-left">Roles</div>
+        <div className="landing-cube-face landing-cube-face-top">Data</div>
+        <div className="landing-cube-face landing-cube-face-bottom">Flow</div>
+      </div>
+    </div>
+  );
 }
 
 function ProductScene() {
@@ -187,6 +203,148 @@ function ProductScene() {
   );
 }
 
+function StoryDashboardState({
+  title,
+  eyebrow,
+  children,
+  opacity,
+  scale,
+}: {
+  title: string;
+  eyebrow: string;
+  children: React.ReactNode;
+  opacity: ReturnType<typeof useTransform>;
+  scale: ReturnType<typeof useTransform>;
+}) {
+  return (
+    <motion.div style={{ opacity, scale }} className="absolute inset-0 rounded-[1.5rem] border border-slate-800 bg-slate-950/90 p-5 shadow-2xl">
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-300">{eyebrow}</p>
+      <h3 className="mt-2 text-2xl font-black tracking-tight">{title}</h3>
+      <div className="mt-5">{children}</div>
+    </motion.div>
+  );
+}
+
+function InteractiveStorySection() {
+  const storyRef = useRef<HTMLElement | null>(null);
+  const reduceMotion = useReducedMotion();
+  const { scrollYProgress } = useScroll({ target: storyRef, offset: ['start center', 'end center'] });
+
+  const progressScale = useTransform(scrollYProgress, [0, 1], reduceMotion ? [1, 1] : [0, 1]);
+  const cubeRotate = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [-8, 8]);
+  const cubeY = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [12, -12]);
+
+  const structureOpacity = useTransform(scrollYProgress, [0, 0.2, 0.32], [1, 1, 0]);
+  const availabilityOpacity = useTransform(scrollYProgress, [0.18, 0.32, 0.48, 0.6], [0, 1, 1, 0]);
+  const attendanceOpacity = useTransform(scrollYProgress, [0.46, 0.6, 0.74, 0.86], [0, 1, 1, 0]);
+  const loadOpacity = useTransform(scrollYProgress, [0.72, 0.86, 1], [0, 1, 1]);
+
+  const structureScale = useTransform(scrollYProgress, [0, 0.32], [1, 0.96]);
+  const availabilityScale = useTransform(scrollYProgress, [0.18, 0.32, 0.6], [0.96, 1, 0.96]);
+  const attendanceScale = useTransform(scrollYProgress, [0.46, 0.6, 0.86], [0.96, 1, 0.96]);
+  const loadScale = useTransform(scrollYProgress, [0.72, 0.86, 1], [0.96, 1, 1]);
+
+  return (
+    <section ref={storyRef} id="story" className="mx-auto max-w-7xl px-4 py-16 sm:px-8 lg:py-24">
+      <motion.div {...fadeUp()} className="max-w-3xl">
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Interactive product story</p>
+        <h2 className="mt-3 text-4xl font-black tracking-tight sm:text-6xl">The product changes as the club works.</h2>
+        <p className="mt-5 text-base leading-8 text-slate-400">Scroll through the operating loop. The dashboard shifts from structure to availability, attendance and load history.</p>
+      </motion.div>
+
+      <div className="mt-10 grid gap-8 lg:grid-cols-[0.86fr_1.14fr]">
+        <div className="space-y-5">
+          {storySteps.map((step, index) => {
+            const Icon = step.icon;
+            return (
+              <motion.div key={step.title} {...fadeUp(index * 0.08)} className="group rounded-[2rem] border border-slate-800 bg-slate-950/70 p-6 transition hover:-translate-y-1 hover:border-emerald-400/50 hover:bg-slate-900/90">
+                <div className="flex items-start gap-4">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-emerald-400/10 text-emerald-300 ring-1 ring-emerald-300/15"><Icon className="h-6 w-6" /></div>
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">{step.eyebrow}</p>
+                    <h3 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">{step.title}</h3>
+                    <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">{step.text}</p>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        <div className="hidden lg:block">
+          <div className="sticky top-24 overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 shadow-[0_40px_140px_rgba(14,165,233,0.14)] backdrop-blur-xl">
+            <div className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full bg-sky-400/20 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-emerald-400/10 blur-3xl" />
+
+            <div className="relative flex items-center justify-between gap-5 rounded-[1.5rem] border border-slate-800 bg-slate-950/80 p-5">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Scroll progress</p>
+                <p className="mt-1 text-xl font-black">Structure → Availability → Attendance → Load</p>
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-800">
+                  <motion.div style={{ scaleX: progressScale }} className="h-full origin-left rounded-full bg-gradient-to-r from-emerald-400 via-sky-300 to-violet-300" />
+                </div>
+              </div>
+              <motion.div style={{ y: cubeY, rotateZ: cubeRotate }}>
+                <OperationsCube />
+              </motion.div>
+            </div>
+
+            <div className="relative mt-5 h-[31rem]">
+              <StoryDashboardState eyebrow="Structure" title="Club model becomes clean data." opacity={structureOpacity} scale={structureScale}>
+                <div className="grid gap-3">
+                  {['Basketball Department', 'U18 Boys', 'Main Hall', 'Coach role assigned'].map((item) => (
+                    <div key={item} className="rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3 text-sm font-black text-slate-200">{item}</div>
+                  ))}
+                </div>
+              </StoryDashboardState>
+
+              <StoryDashboardState eyebrow="Availability" title="Coaches see the real picture early." opacity={availabilityOpacity} scale={availabilityScale}>
+                <div className="grid gap-3">
+                  {[
+                    ['Ready', '14', 'bg-emerald-400/10 text-emerald-200'],
+                    ['Maybe / late', '3', 'bg-amber-300/10 text-amber-200'],
+                    ['Missing', '2', 'bg-red-400/10 text-red-200'],
+                  ].map(([label, value, classes]) => (
+                    <div key={label} className={`flex items-center justify-between rounded-2xl px-4 py-4 ring-1 ring-white/5 ${classes}`}>
+                      <span className="text-sm font-black uppercase tracking-[0.14em]">{label}</span>
+                      <span className="text-3xl font-black">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </StoryDashboardState>
+
+              <StoryDashboardState eyebrow="Attendance" title="Sessions become confirmed records." opacity={attendanceOpacity} scale={attendanceScale}>
+                <div className="space-y-3">
+                  {['U18 Boys Training · confirmed', 'Strength Session · pending', 'First Team · confirmed', 'Individual Shooting · review'].map((item, index) => (
+                    <div key={item} className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3 text-sm font-bold text-slate-200">
+                      <span>{item}</span>
+                      <span className={index === 1 || index === 3 ? 'text-amber-300' : 'text-emerald-300'}>●</span>
+                    </div>
+                  ))}
+                </div>
+              </StoryDashboardState>
+
+              <StoryDashboardState eyebrow="Load history" title="The club starts learning from itself." opacity={loadOpacity} scale={loadScale}>
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
+                  <div className="flex items-center justify-between text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    <span>Team load trend</span>
+                    <span className="text-emerald-300">Stable</span>
+                  </div>
+                  <div className="mt-5 grid grid-cols-12 items-end gap-1">
+                    {[38, 52, 46, 66, 72, 58, 84, 64, 78, 70, 88, 76].map((height, index) => (
+                      <span key={`${height}-${index}`} className="rounded-t bg-gradient-to-t from-violet-500/60 to-sky-300" style={{ height: `${height}px` }} />
+                    ))}
+                  </div>
+                </div>
+              </StoryDashboardState>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function HomePage() {
   const reduceMotion = useReducedMotion();
 
@@ -280,52 +438,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="story" className="mx-auto max-w-7xl px-4 py-16 sm:px-8 lg:py-24">
-        <motion.div {...fadeUp()} className="max-w-3xl">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Scroll story</p>
-          <h2 className="mt-3 text-4xl font-black tracking-tight sm:text-6xl">From setup to decisions.</h2>
-          <p className="mt-5 text-base leading-8 text-slate-400">A premium homepage only converts if the story is clear: structure first, then reliable operational data.</p>
-        </motion.div>
-
-        <div className="mt-10 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="hidden lg:block">
-            <div className="sticky top-24 rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
-              <div className="rounded-[1.5rem] border border-slate-800 bg-slate-950/85 p-5">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-sky-400/10 text-sky-300"><ShieldCheck className="h-6 w-6" /></div>
-                  <div><p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Operating loop</p><p className="font-black">Structure → Sessions → Attendance → Load</p></div>
-                </div>
-                <div className="mt-6 space-y-3">
-                  {storySteps.map((step) => (
-                    <div key={step.title} className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-                      <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{step.eyebrow}</p>
-                      <p className="mt-1 text-sm font-black text-slate-200">{step.title}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-5">
-            {storySteps.map((step, index) => {
-              const Icon = step.icon;
-              return (
-                <motion.div key={step.title} {...fadeUp(index * 0.08)} className="group rounded-[2rem] border border-slate-800 bg-slate-950/70 p-6 transition hover:-translate-y-1 hover:border-emerald-400/50 hover:bg-slate-900/90">
-                  <div className="flex items-start gap-4">
-                    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-emerald-400/10 text-emerald-300 ring-1 ring-emerald-300/15"><Icon className="h-6 w-6" /></div>
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">{step.eyebrow}</p>
-                      <h3 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">{step.title}</h3>
-                      <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">{step.text}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+      <InteractiveStorySection />
 
       <section id="roles" className="mx-auto max-w-7xl px-4 py-16 sm:px-8">
         <motion.div {...fadeUp()} className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
