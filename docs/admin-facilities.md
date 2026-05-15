@@ -1,12 +1,12 @@
 # Admin Facility and Department Flows
 
-This document records the current product and implementation decisions for admin-side facility management, department workspaces and duplicate facility handling.
+This document records the current product and implementation decisions for admin-side facility management, department workspaces, duplicate facility handling and near-term facility calendar preparation.
 
 ## Admin navigation model
 
 The admin area is not built around a permanent setup tab.
 
-The intended structure is:
+Intended structure:
 
 ```txt
 Admin overview
@@ -16,7 +16,7 @@ Admin overview
 └─ Settings
 ```
 
-### Principles
+Principles:
 
 - Setup is a temporary onboarding/completion flow, not a permanent main navigation item.
 - Overview is the central admin start page after setup has been completed or intentionally skipped.
@@ -29,7 +29,7 @@ The department workspace is department-focused. It is used by admins and later b
 
 ### Classic Mode
 
-Classic Mode should prioritize readability:
+Classic Mode prioritizes readability:
 
 - department title and basic context
 - assigned department halls
@@ -62,7 +62,7 @@ On smaller screens, lower-priority details can collapse or hide. The team name s
 
 Adding halls to a department is intentionally subordinate to the assignment flow.
 
-The flow is:
+Flow:
 
 ```txt
 Add hall to department
@@ -77,7 +77,7 @@ Add hall to department
    └─ save or report depending on role/context
 ```
 
-### Rules
+Rules:
 
 - If the department has zero halls, the add/assign flow may be visible in Classic Mode to remove setup friction.
 - Once at least one hall is assigned, add/assign controls should be shown only in Edit Mode.
@@ -161,15 +161,17 @@ Header
 
 ## Per-department editing inside the Facility Manager
 
-The Facility Manager should support department-focused editing directly inside each expandable department section.
+The Facility Manager supports department-focused editing directly inside each expandable department section.
 
-This is separate from the global edit tools at the top of the page. The global tools answer the question:
+This is separate from the global edit tools at the top of the page.
+
+Global tools answer:
 
 ```txt
 Which global facility do I want to create or assign?
 ```
 
-The per-department tools answer the question:
+Per-department tools answer:
 
 ```txt
 What does this specific department still need?
@@ -179,34 +181,42 @@ What does this specific department still need?
 
 Inside each department section, the `Shared access` box supports assigning additional shared club facilities.
 
-The UI should stay compact. It should not render a long checkbox list for every department.
+The previous interaction was rejected:
 
-Current interaction model:
+```txt
+Dropdown → Add → Dropdown → Add → Assign selected
+```
+
+Current interaction:
 
 ```txt
 Shared access
 ├─ already assigned shared halls
-├─ dropdown: Select shared club facility
-├─ Add
-├─ selected queue: Hall A, Hall B, ...
+├─ checkbox cards for all still-available shared halls
 └─ Assign selected shared halls
 ```
 
 Rules:
 
-- Only `club_shared` facilities are available in this dropdown.
-- Already assigned shared halls are not shown as assignable again.
-- Halls already added to the local queue are not shown again.
-- The user can queue multiple shared halls and assign them in one action.
-- Removing an existing shared assignment must require confirmation.
+- Only `club_shared` facilities are available.
+- Already assigned shared halls are not shown again.
+- Department-only halls are not shown here.
+- The user can select multiple halls directly.
+- Assigning selected halls happens in one action.
+- Removing an existing shared assignment requires confirmation.
 
-The current dropdown is a standard select, not yet a searchable combobox. If clubs grow to many facilities, this should become a proper search combobox later.
+This is implemented in both:
+
+```txt
+src/features/admin/AdminFacilitiesManager.tsx
+src/features/admin/DemoAdminFacilitiesManager.tsx
+```
 
 ### Department-only creation
 
 Inside each department section, the `Department-only` box supports creating a new local hall for that department.
 
-Current interaction model:
+Current interaction:
 
 ```txt
 Department-only
@@ -225,7 +235,7 @@ facility.owner_department_id = department.id
 
 The created hall should also be assigned to the owning department through `department_facilities`, so it appears immediately in the department's facilities and can later be used as a team default facility.
 
-Department-only halls must not appear in the global facilities list or in other departments' shared access dropdowns.
+Department-only halls must not appear in the global facilities list or in other departments' shared access options.
 
 ### Promote department-only to global
 
@@ -243,6 +253,90 @@ facility.owner_department_id = null
 ```
 
 The old owner department should remain assigned. Additional departments can then be assigned from global tools or per-department shared access controls.
+
+## Facility accents
+
+Facilities now have a subtle visual accent system.
+
+Current utility:
+
+```txt
+src/shared/lib/facilities/accent.ts
+```
+
+The accent is deterministic:
+
+```txt
+facility.id or facility.name
+→ hash
+→ fixed accent palette
+```
+
+This means newly created halls automatically receive a stable color without a database migration.
+
+Current enhancer:
+
+```txt
+src/shared/components/facilities/FacilityAccentEnhancer.tsx
+```
+
+It adds:
+
+- subtle colored border
+- soft tinted background
+- left accent line
+- small dot on facility links
+
+The enhancer is mounted in:
+
+```txt
+src/shared/admin/AdminShell.tsx
+src/app/admin/facilities/page.tsx
+src/app/demo/admin/facilities/page.tsx
+```
+
+This is intentionally a lightweight implementation. The long-term plan is to replace DOM-based enhancement with explicit React components such as:
+
+```txt
+FacilityChip
+FacilityOption
+```
+
+See also:
+
+```txt
+docs/facility-accents-and-calendar-context.md
+```
+
+## Facility links and future calendar context
+
+Facility references should link to the facility calendar.
+
+Links should carry source context so the future calendar can highlight the relevant department or team.
+
+Real route examples:
+
+```txt
+/admin/facilities/[facilityId]/calendar?from=departments&departmentId=...
+/admin/facilities/[facilityId]/calendar?from=facilities&departmentId=...
+/admin/facilities/[facilityId]/calendar?from=team&departmentId=...&teamId=...
+```
+
+Demo route examples:
+
+```txt
+/demo/admin/facilities/[facilityName]/calendar?from=departments&departmentName=Basketball
+/demo/admin/facilities/[facilityName]/calendar?from=facilities&departmentName=Basketball
+/demo/admin/facilities/[facilityName]/calendar?from=team&departmentName=Basketball&teamName=U18%20Boys
+```
+
+Future calendar behavior:
+
+- use the facility accent in the calendar header/event borders
+- highlight events from the selected department
+- strongly highlight events from the selected team when `teamId` or `teamName` is present
+- dim unrelated departments or teams
+- for department-only halls, only the owner department should normally be relevant
 
 ## Facility requests
 
@@ -290,13 +384,13 @@ After approve or reject, the screen should update immediately without requiring 
 
 Address inputs are enhanced globally through Geoapify.
 
-The current shared enhancer is:
+Current enhancer:
 
 ```txt
 src/shared/components/places/GeoapifyAddressEnhancer.tsx
 ```
 
-It enhances address-like inputs based on known placeholders. Current supported placeholders include:
+Supported address-like placeholders include:
 
 ```txt
 Street, city
@@ -304,19 +398,19 @@ Search venue name or address
 Address
 ```
 
-The `Address` placeholder was added so the new department-only address fields in the Facility Manager are also enhanced.
-
-### Important UI rule
-
-Facility name and address should stay separate.
-
-Geoapify may suggest an official place or venue name, but selecting a suggestion should fill the address field. It should not automatically overwrite the internal hall name. The app may show a hint such as:
+The persistent helper text under the address input was removed. The placeholder is enough:
 
 ```txt
-Official place selected: <place name>. Internal hall name was not changed.
+Search hall name, venue or address
 ```
 
-This keeps the club's internal naming flexible while still storing a more reliable physical location.
+Important UI rule:
+
+```txt
+Selecting an address suggestion must not overwrite the internal hall name.
+```
+
+Facility name and address stay separate.
 
 ## Address-first facility matching
 
@@ -330,7 +424,7 @@ Names are weak identifiers because many clubs and departments can have generic n
 - School Gym
 - Weight Room
 
-The strongest current matching signals are:
+Strongest current matching signals:
 
 ```txt
 1. exact normalized address
@@ -344,20 +438,6 @@ The matching helper lives in:
 src/shared/lib/facilities/matching.ts
 ```
 
-It currently exposes:
-
-```ts
-normalizeText()
-normalizeAddress()
-normalizeStreet()
-findBestFacilityLocationMatch()
-getFacilityMatchWarning()
-```
-
-### Matching behavior
-
-When a new facility is being created, the app checks existing facilities in the club.
-
 If a possible match exists:
 
 ```txt
@@ -366,14 +446,6 @@ or same street
 → show warning
 → do not auto-merge
 → user/admin must intentionally decide
-```
-
-Name is used only as an additional signal:
-
-```txt
-same address + same name      = very likely same facility
-same address + different name = likely same facility, naming mismatch
-same street + same/different name = possible same location, needs review
 ```
 
 ## Admin reaction when creating a global facility
@@ -389,8 +461,6 @@ Possible same facility found
 └─ Cancel / adjust details
 ```
 
-The primary action should be `Make existing hall global` when the match is based on address or street.
-
 Technically, making an existing hall global means:
 
 ```ts
@@ -402,7 +472,7 @@ The old owner department assignment must remain or be created if missing. Additi
 
 ## Demo facility data
 
-Demo facilities now have structured facility details.
+Demo facilities have structured facility details.
 
 ```ts
 type DemoFacilityDetails = {
@@ -423,33 +493,28 @@ Old demo setups without addresses are normalized on load and receive inferred ad
 
 Legacy demo facility metadata from `club-app.demo.facility-meta` should be migrated into `DemoClubSetup.facilityDetails` when loading local demo state.
 
-New demo facility input uses this format:
+## Known follow-ups
+
+### Explicit FacilityChip / FacilityOption components
+
+The current accent/context implementation is partly DOM-enhancer based. This is acceptable short-term, but should be replaced by explicit components.
+
+Target components:
 
 ```txt
-Main Hall | Sportstraße 1, Munich
-Court 1 | Sportstraße 1, Munich
-Court 2 | Sportstraße 1, Munich
-Weight Room | Sportstraße 1, Munich
+FacilityChip
+FacilityOption
 ```
-
-## Known follow-up
 
 ### Searchable facility selection
 
-The per-department shared-access assignment currently uses a standard dropdown plus queue.
+The per-department shared-access assignment currently uses checkbox cards. This is better than the previous dropdown queue.
 
-This is acceptable for small and medium clubs, but if a club has many facilities, the dropdown should become a searchable combobox:
-
-```txt
-Search shared club facility...
-→ filtered results
-→ add to queue
-→ assign selected
-```
+If a club has many facilities, this should later become a searchable multi-select combobox.
 
 ### Unified address input component
 
-Address autocomplete is currently applied globally through `GeoapifyAddressEnhancer` by scanning inputs.
+Address autocomplete is currently applied globally by scanning inputs.
 
 A later cleanup could replace this implicit placeholder-based enhancement with an explicit shared component:
 
