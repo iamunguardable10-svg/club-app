@@ -28,3 +28,134 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+@keyframes landing-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(var(--rotate, 0deg));
+  }
+  50% {
+    transform: translate3d(0, -18px, 24px) rotate(calc(var(--rotate, 0deg) + 1.5deg));
+  }
+}
+
+@keyframes landing-float-soft {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(var(--rotate, 0deg));
+  }
+  50% {
+    transform: translate3d(0, -10px, 12px) rotate(calc(var(--rotate, 0deg) - 1deg));
+  }
+}
+
+@keyframes landing-pulse-glow {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes landing-shimmer {
+  0% {
+    transform: translateX(-140%);
+  }
+  100% {
+    transform: translateX(140%);
+  }
+}
+
+@keyframes landing-orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes landing-bar-rise {
+  from {
+    transform: scaleY(0.25);
+    opacity: 0.35;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@keyframes landing-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.landing-stage {
+  perspective: 1400px;
+  transform-style: preserve-3d;
+}
+
+.landing-board {
+  transform-style: preserve-3d;
+  transform: rotateX(10deg) rotateY(-13deg) rotateZ(1deg);
+}
+
+.landing-float {
+  animation: landing-float 7s ease-in-out infinite;
+}
+
+.landing-float-soft {
+  animation: landing-float-soft 8s ease-in-out infinite;
+}
+
+.landing-float-delay {
+  animation-delay: -2.4s;
+}
+
+.landing-glow-pulse {
+  animation: landing-pulse-glow 4s ease-in-out infinite;
+}
+
+.landing-orbit {
+  animation: landing-orbit 26s linear infinite;
+}
+
+.landing-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.32) 45%, transparent 65%);
+  transform: translateX(-140%);
+  animation: landing-shimmer 3.2s ease-in-out infinite;
+}
+
+.landing-bar {
+  transform-origin: bottom;
+  animation: landing-bar-rise 1.15s ease-out both;
+  animation-delay: var(--delay, 0ms);
+}
+
+.landing-marquee {
+  animation: landing-marquee 24s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-float,
+  .landing-float-soft,
+  .landing-glow-pulse,
+  .landing-orbit,
+  .landing-shimmer::after,
+  .landing-bar,
+  .landing-marquee {
+    animation: none !important;
+  }
+}
