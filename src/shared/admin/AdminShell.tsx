@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { DepartmentWorkspaceModeEnhancer } from '@/shared/components/departments/DepartmentWorkspaceModeEnhancer';
 import { FacilityAccentEnhancer } from '@/shared/components/facilities/FacilityAccentEnhancer';
 import { TeamDefaultFacilityLinkEnhancer } from '@/shared/components/facilities/TeamDefaultFacilityLinkEnhancer';
 import { TeamDeleteEnhancer } from '@/shared/components/facilities/TeamDeleteEnhancer';
@@ -33,6 +34,7 @@ export function AdminShell({ children, mode = 'real' }: AdminShellProps) {
       <FacilityAccentEnhancer />
       <TeamDefaultFacilityLinkEnhancer />
       <TeamDeleteEnhancer mode={mode} />
+      <DepartmentWorkspaceModeEnhancer />
       <div className="mx-auto max-w-6xl space-y-5">
         <nav className={`rounded-3xl border p-3 shadow-sm ${accentClass}`} aria-label="Admin navigation">
           <div className="flex flex-wrap gap-2">
