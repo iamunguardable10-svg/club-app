@@ -51,8 +51,7 @@ export function DemoAdminFacilitiesManager() {
   const [newFacilityDepartments, setNewFacilityDepartments] = useState<string[]>([]);
   const [selectedFacility, setSelectedFacility] = useState('');
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
-  const [departmentSharedSelect, setDepartmentSharedSelect] = useState<Record<string, string>>({});
-  const [departmentSharedQueue, setDepartmentSharedQueue] = useState<Record<string, string[]>>({});
+  const [departmentSharedSelections, setDepartmentSharedSelections] = useState<Record<string, string[]>>({});
   const [departmentOnlyDrafts, setDepartmentOnlyDrafts] = useState<Record<string, DepartmentOnlyDraft>>({});
   const [expandedDepartments, setExpandedDepartments] = useState<string[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -164,33 +163,25 @@ export function DemoAdminFacilitiesManager() {
 
   function getAvailableSharedFacilities(department: string) {
     const assigned = new Set((sharedAssignmentsByDepartment.get(department) ?? []).map((assignment) => assignment.facility));
-    const queued = new Set(departmentSharedQueue[department] ?? []);
-    return globalFacilities.filter((facility) => !assigned.has(facility.name) && !queued.has(facility.name));
+    return globalFacilities.filter((facility) => !assigned.has(facility.name));
   }
 
-  function addDepartmentSharedSelection(department: string) {
-    const selected = departmentSharedSelect[department];
-    if (!selected) return;
-    setDepartmentSharedQueue((current) => ({
-      ...current,
-      [department]: Array.from(new Set([...(current[department] ?? []), selected])),
-    }));
-    setDepartmentSharedSelect((current) => ({ ...current, [department]: '' }));
+  function toggleDepartmentSharedSelection(department: string, facility: string) {
+    setDepartmentSharedSelections((current) => {
+      const selected = current[department] ?? [];
+      return {
+        ...current,
+        [department]: selected.includes(facility) ? selected.filter((item) => item !== facility) : [...selected, facility],
+      };
+    });
   }
 
-  function removeDepartmentQueuedShared(department: string, facility: string) {
-    setDepartmentSharedQueue((current) => ({
-      ...current,
-      [department]: (current[department] ?? []).filter((item) => item !== facility),
-    }));
-  }
-
-  function assignDepartmentQueuedShared(department: string) {
-    const queued = departmentSharedQueue[department] ?? [];
-    if (queued.length === 0) return;
-    const additions = queued.flatMap((facility) => createAssignmentsForFacility(facility, [department]));
+  function assignDepartmentSharedSelections(department: string) {
+    const selected = departmentSharedSelections[department] ?? [];
+    if (selected.length === 0) return;
+    const additions = selected.flatMap((facility) => createAssignmentsForFacility(facility, [department]));
     persistAssignments([...assignments, ...additions]);
-    setDepartmentSharedQueue((current) => ({ ...current, [department]: [] }));
+    setDepartmentSharedSelections((current) => ({ ...current, [department]: [] }));
   }
 
   function updateDepartmentOnlyDraft(department: string, patch: Partial<DepartmentOnlyDraft>) {
@@ -224,12 +215,7 @@ export function DemoAdminFacilitiesManager() {
       facilities: [...setup.facilities, facilityName],
       facilityDetails: [
         ...(setup.facilityDetails ?? []),
-        {
-          name: facilityName,
-          address,
-          scope: 'department_only',
-          ownerDepartment: department,
-        },
+        { name: facilityName, address, scope: 'department_only', ownerDepartment: department },
       ],
     });
     persistAssignments([...assignments, ...createAssignmentsForFacility(facilityName, [department])]);
@@ -257,10 +243,7 @@ export function DemoAdminFacilitiesManager() {
     persistSetup({
       ...setup,
       facilities: [...setup.facilities, facilityName],
-      facilityDetails: [
-        ...(setup.facilityDetails ?? []),
-        { name: facilityName, address, scope: 'club_shared', ownerDepartment: null },
-      ],
+      facilityDetails: [...(setup.facilityDetails ?? []), { name: facilityName, address, scope: 'club_shared', ownerDepartment: null }],
     });
     persistAssignments([...assignments, ...createAssignmentsForFacility(facilityName, newFacilityDepartments)]);
     setSelectedFacility(facilityName);
@@ -304,9 +287,10 @@ export function DemoAdminFacilitiesManager() {
     const facility = facilityByName.get(facilityName);
     if (!facility) return;
     const assignedDepartmentCount = assignments.filter((assignment) => assignment.facility === facilityName).length;
-    const confirmMessage = facility.scope === 'department_only'
-      ? `Delete department-only facility ${facilityName}? This cannot be undone.`
-      : `Delete global facility ${facilityName}? This also removes ${assignedDepartmentCount} department assignment${assignedDepartmentCount === 1 ? '' : 's'}.`;
+    const confirmMessage =
+      facility.scope === 'department_only'
+        ? `Delete department-only facility ${facilityName}? This cannot be undone.`
+        : `Delete global facility ${facilityName}? This also removes ${assignedDepartmentCount} department assignment${assignedDepartmentCount === 1 ? '' : 's'}.`;
     if (!confirmAction(confirmMessage)) return;
 
     const nextSetup: DemoClubSetup = {
@@ -350,7 +334,9 @@ export function DemoAdminFacilitiesManager() {
           <label className="block"><span className="text-sm font-bold text-slate-200">Address</span><input required value={newFacilityAddress} onChange={(event) => { setNewFacilityAddress(event.target.value); setError(null); }} placeholder="Street, city" className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400" /></label>
           <div>
             <p className="text-sm font-bold text-slate-200">Assign to departments optional</p>
-            <div className="mt-2 space-y-2">{setup.departments.map((department) => <label key={department} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm"><span className="font-bold text-slate-100">{department}</span><input type="checkbox" checked={newFacilityDepartments.includes(department)} onChange={() => toggleNewFacilityDepartment(department)} className="h-4 w-4" /></label>)}</div>
+            <div className="mt-2 space-y-2">
+              {setup.departments.map((department) => <label key={department} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm"><span className="font-bold text-slate-100">{department}</span><input type="checkbox" checked={newFacilityDepartments.includes(department)} onChange={() => toggleNewFacilityDepartment(department)} className="h-4 w-4" /></label>)}
+            </div>
           </div>
           <button type="submit" className="w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300">Add separate global facility</button>
         </div>
@@ -408,7 +394,7 @@ export function DemoAdminFacilitiesManager() {
               const sharedAssignments = sharedAssignmentsByDepartment.get(department) ?? [];
               const departmentOnlyFacilities = departmentOnlyFacilitiesByDepartment.get(department) ?? [];
               const availableShared = getAvailableSharedFacilities(department);
-              const queuedShared = departmentSharedQueue[department] ?? [];
+              const selectedShared = departmentSharedSelections[department] ?? [];
               const draft = departmentOnlyDrafts[department] ?? { name: '', address: '' };
 
               return (
@@ -428,16 +414,26 @@ export function DemoAdminFacilitiesManager() {
 
                         {isEditMode ? (
                           <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-950/10 p-3">
-                            <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-300">Assign shared hall</p>
-                            <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
-                              <select value={departmentSharedSelect[department] ?? ''} onChange={(event) => setDepartmentSharedSelect((current) => ({ ...current, [department]: event.target.value }))} className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold outline-none focus:border-emerald-400">
-                                <option value="">Select shared club facility</option>
-                                {availableShared.map((facility) => <option key={facility.name} value={facility.name}>{facility.name} — {facility.address}</option>)}
-                              </select>
-                              <button type="button" onClick={() => addDepartmentSharedSelection(department)} disabled={!departmentSharedSelect[department]} className="rounded-xl border border-emerald-500/60 px-3 py-2 text-xs font-black text-emerald-200 hover:bg-emerald-950/40 disabled:cursor-not-allowed disabled:opacity-50">Add</button>
-                            </div>
-                            {queuedShared.length > 0 ? <div className="mt-3 flex flex-wrap gap-2">{queuedShared.map((facility) => <button key={facility} type="button" onClick={() => removeDepartmentQueuedShared(department, facility)} className="rounded-full border border-emerald-500/50 px-3 py-1 text-xs font-black text-emerald-200">{facility} ×</button>)}</div> : null}
-                            <button type="button" onClick={() => assignDepartmentQueuedShared(department)} disabled={queuedShared.length === 0} className="mt-3 w-full rounded-xl bg-emerald-400 px-3 py-2 text-xs font-black text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50">Assign selected shared halls</button>
+                            <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-300">Assign shared halls</p>
+                            {availableShared.length > 0 ? (
+                              <div className="mt-3 grid gap-2">
+                                {availableShared.map((facility) => {
+                                  const checked = selectedShared.includes(facility.name);
+                                  return (
+                                    <label key={facility.name} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm transition hover:border-emerald-400">
+                                      <span className="min-w-0">
+                                        <span className="block truncate font-black text-slate-100">{facility.name}</span>
+                                        <span className="mt-0.5 block truncate text-xs font-bold text-slate-500">{facility.address}</span>
+                                      </span>
+                                      <input type="checkbox" checked={checked} onChange={() => toggleDepartmentSharedSelection(department, facility.name)} className="h-4 w-4" />
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="mt-3 text-sm text-slate-500">No further shared halls available.</p>
+                            )}
+                            <button type="button" onClick={() => assignDepartmentSharedSelections(department)} disabled={selectedShared.length === 0} className="mt-3 w-full rounded-xl bg-emerald-400 px-3 py-2 text-xs font-black text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50">Assign selected shared halls</button>
                           </div>
                         ) : null}
                       </div>
