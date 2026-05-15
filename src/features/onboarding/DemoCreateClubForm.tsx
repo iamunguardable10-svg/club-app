@@ -2,6 +2,12 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  createInitialFacilityDraftRows,
+  FacilityRowsEditor,
+  getCompletedFacilityDraftRows,
+  type FacilityDraftRow,
+} from '@/shared/components/facilities/FacilityRowsEditor';
 import { saveDemoClubSetup } from '@/shared/dev/demoStorage';
 
 function parseList(value: string) {
@@ -11,31 +17,19 @@ function parseList(value: string) {
     .filter(Boolean);
 }
 
-function parseFacilityLines(value: string) {
-  return value
-    .split('\n')
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [namePart, addressPart] = line.split('|').map((part) => part.trim());
-      return {
-        name: namePart,
-        address: addressPart || '',
-        scope: 'club_shared' as const,
-        ownerDepartment: null,
-      };
-    })
-    .filter((facility) => facility.name);
-}
-
 export function DemoCreateClubForm() {
   const router = useRouter();
   const [clubName, setClubName] = useState('Demo Club');
   const [city, setCity] = useState('Munich');
   const [country, setCountry] = useState('Germany');
   const [departments, setDepartments] = useState('Basketball\nFootball\nFencing');
-  const [facilities, setFacilities] = useState(
-    'Main Hall | Sportstraße 1, Munich\nCourt 1 | Sportstraße 1, Munich\nCourt 2 | Sportstraße 1, Munich\nWeight Room | Sportstraße 1, Munich',
+  const [facilities, setFacilities] = useState<FacilityDraftRow[]>(
+    createInitialFacilityDraftRows([
+      { name: 'Main Hall', address: 'Sportstraße 1, Munich' },
+      { name: 'Court 1', address: 'Sportstraße 1, Munich' },
+      { name: 'Court 2', address: 'Sportstraße 1, Munich' },
+      { name: 'Weight Room', address: 'Sportstraße 1, Munich' },
+    ]),
   );
   const [selectedTeamDepartment, setSelectedTeamDepartment] = useState('Basketball');
   const [teams, setTeams] = useState('U14 Boys\nU16 Boys\nU18 Boys\nFirst Team');
@@ -49,7 +43,13 @@ export function DemoCreateClubForm() {
     setError(null);
 
     const departmentNames = parseList(departments);
-    const facilityDetails = parseFacilityLines(facilities);
+    const facilityRows = getCompletedFacilityDraftRows(facilities);
+    const facilityDetails = facilityRows.map((facility) => ({
+      name: facility.name,
+      address: facility.address,
+      scope: 'club_shared' as const,
+      ownerDepartment: null,
+    }));
 
     if (!clubName.trim()) {
       setError('Add a club name.');
@@ -58,11 +58,6 @@ export function DemoCreateClubForm() {
 
     if (departmentNames.length === 0) {
       setError('Add at least one department.');
-      return;
-    }
-
-    if (facilityDetails.some((facility) => !facility.address.trim())) {
-      setError('Add an address for every facility. Use: Main Hall | Sportstraße 1, Munich');
       return;
     }
 
@@ -147,12 +142,8 @@ export function DemoCreateClubForm() {
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Step 3</p>
             <h2 className="mt-2 text-xl font-black">Global facilities</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Add one facility per line using: Hall name | Street, city.</p>
-            <textarea
-              value={facilities}
-              onChange={(event) => setFacilities(event.target.value)}
-              className="mt-4 min-h-36 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400"
-            />
+            <p className="mt-2 text-sm leading-6 text-slate-400">Add halls, courts, rooms or locations. Addresses are optional during setup and can be completed later.</p>
+            <FacilityRowsEditor facilities={facilities} onChange={setFacilities} />
           </section>
 
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
