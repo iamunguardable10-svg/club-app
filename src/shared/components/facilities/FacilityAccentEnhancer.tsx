@@ -3,7 +3,8 @@
 import { useEffect } from 'react';
 import { getFacilityAccent } from '@/shared/lib/facilities/accent';
 
-const ENHANCED_ATTRIBUTE = 'data-club-app-facility-accent-enhanced';
+const LINK_ENHANCED_ATTRIBUTE = 'data-club-app-facility-link-enhanced';
+const ACCENT_ENHANCED_ATTRIBUTE = 'data-club-app-facility-accent-enhanced';
 const FACILITY_PATH_PATTERN = /\/facilities\/([^/?#]+)\/calendar/;
 
 function getFacilitySeedFromHref(href: string) {
@@ -72,10 +73,10 @@ function getAccentTarget(anchor: HTMLAnchorElement): HTMLElement {
 }
 
 function applyAccent(target: HTMLElement, seed: string, label: string) {
-  if (target.getAttribute(ENHANCED_ATTRIBUTE) === 'true') return;
+  if (target.getAttribute(ACCENT_ENHANCED_ATTRIBUTE) === 'true') return;
 
   const accent = getFacilityAccent(seed || label);
-  target.setAttribute(ENHANCED_ATTRIBUTE, 'true');
+  target.setAttribute(ACCENT_ENHANCED_ATTRIBUTE, 'true');
   target.setAttribute('data-facility-accent', accent.name);
   target.style.borderColor = `${accent.hex}66`;
   target.style.background = `linear-gradient(90deg, ${accent.softHex}, rgba(15, 23, 42, 0.58))`;
@@ -83,13 +84,13 @@ function applyAccent(target: HTMLElement, seed: string, label: string) {
 }
 
 function enhanceFacilityAnchor(anchor: HTMLAnchorElement) {
-  if (anchor.getAttribute(ENHANCED_ATTRIBUTE) === 'true') return;
+  if (anchor.getAttribute(LINK_ENHANCED_ATTRIBUTE) === 'true') return;
 
   const href = anchor.getAttribute('href') ?? '';
   const seed = getFacilitySeedFromHref(href);
   if (!seed) return;
 
-  anchor.setAttribute(ENHANCED_ATTRIBUTE, 'true');
+  anchor.setAttribute(LINK_ENHANCED_ATTRIBUTE, 'true');
   appendContextToFacilityLink(anchor);
 
   const label = getReadableFacilityLabel(anchor, seed);
@@ -99,7 +100,7 @@ function enhanceFacilityAnchor(anchor: HTMLAnchorElement) {
 
 function enhanceFacilityLabels() {
   document.querySelectorAll<HTMLLabelElement>('label').forEach((label) => {
-    if (label.getAttribute(ENHANCED_ATTRIBUTE) === 'true') return;
+    if (label.getAttribute(ACCENT_ENHANCED_ATTRIBUTE) === 'true') return;
     if (!label.querySelector('input[type="checkbox"]')) return;
 
     const titleElement = label.querySelector('span span');
