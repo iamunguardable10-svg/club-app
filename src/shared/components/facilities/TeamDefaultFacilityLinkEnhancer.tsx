@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 
 const LINKED_ATTRIBUTE = 'data-club-app-team-default-facility-linked';
 const INLINE_SELECT_ATTRIBUTE = 'data-club-app-inline-default-facility-select';
+const SELECT_CHANGE_ATTRIBUTE = 'data-club-app-default-facility-change-bound';
 
 function readFacilityLinks() {
   const links = new Map<string, string>();
@@ -33,6 +34,15 @@ function addContext(href: string, source: Element, teamName: string) {
   return `${url.pathname}${url.search}`;
 }
 
+function createDefaultFacilityLink(label: string, href: string, source: Element, teamName: string) {
+  const link = document.createElement('a');
+  link.href = addContext(href, source, teamName);
+  link.textContent = label;
+  link.className = 'rounded-lg border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs font-black text-slate-100 transition hover:border-white/30';
+  link.setAttribute(LINKED_ATTRIBUTE, 'true');
+  return link;
+}
+
 function linkDefaults() {
   const links = readFacilityLinks();
   if (links.size === 0) return;
@@ -49,13 +59,36 @@ function linkDefaults() {
     const teamName = article?.querySelector('h3')?.textContent?.trim();
     if (!teamName) return;
 
-    const link = document.createElement('a');
-    link.href = addContext(href, span, teamName);
-    link.textContent = label;
-    link.className = `${span.className} rounded-lg border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs font-black text-slate-100 transition hover:border-white/30`.trim();
-    link.setAttribute(LINKED_ATTRIBUTE, 'true');
+    span.replaceWith(createDefaultFacilityLink(label, href, span, teamName));
+  });
+}
 
-    span.replaceWith(link);
+function replaceSelectWithSelectedFacility(select: HTMLSelectElement) {
+  const selectedFacilityName = select.options[select.selectedIndex]?.textContent?.trim();
+  const selectedValue = select.value;
+  if (!selectedValue || !selectedFacilityName || selectedFacilityName === 'Set default facility') return;
+
+  const article = select.closest('article');
+  const teamName = article?.querySelector('h3')?.textContent?.trim();
+  if (!teamName) return;
+
+  const href = readFacilityLinks().get(selectedFacilityName);
+  if (href) {
+    select.replaceWith(createDefaultFacilityLink(selectedFacilityName, href, select, teamName));
+  } else {
+    const chip = document.createElement('span');
+    chip.textContent = selectedFacilityName;
+    chip.className = 'rounded-lg border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs font-black text-slate-100';
+    chip.setAttribute(LINKED_ATTRIBUTE, 'true');
+    select.replaceWith(chip);
+  }
+}
+
+function bindImmediateSelectUpdate(select: HTMLSelectElement) {
+  if (select.getAttribute(SELECT_CHANGE_ATTRIBUTE) === 'true') return;
+  select.setAttribute(SELECT_CHANGE_ATTRIBUTE, 'true');
+  select.addEventListener('change', () => {
+    window.setTimeout(() => replaceSelectWithSelectedFacility(select), 0);
   });
 }
 
@@ -63,6 +96,9 @@ function inlineMissingDefaultFacilitySelectors() {
   document.querySelectorAll<HTMLElement>('article').forEach((article) => {
     const select = article.querySelector<HTMLSelectElement>('select');
     if (!select) return;
+
+    bindImmediateSelectUpdate(select);
+
     if (select.getAttribute(INLINE_SELECT_ATTRIBUTE) === 'true') return;
 
     const defaultFacilitySpan = Array.from(article.querySelectorAll<HTMLSpanElement>('h3 + p span')).find(
