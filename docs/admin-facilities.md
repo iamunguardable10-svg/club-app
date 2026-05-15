@@ -37,6 +37,19 @@ Classic Mode prioritizes readability:
 - missing essentials only when action is needed
 - inline quick actions only for unresolved essentials, such as missing head coach or missing default facility
 
+Classic Mode may still expose targeted quick fixes when something blocks normal usage.
+
+Current quick-fix rule:
+
+```txt
+If a team has no default facility
+and the department already has at least one assigned hall,
+show a compact Set default facility select directly on the team card,
+even when Edit Mode is off.
+```
+
+This avoids forcing the user into Edit Mode just to complete an obvious missing team setup field.
+
 ### Edit Mode
 
 Edit Mode exposes broader management actions:
