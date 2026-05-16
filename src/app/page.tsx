@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import { motion, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import {
@@ -12,7 +12,6 @@ import {
   Clock3,
   LayoutDashboard,
   MapPin,
-  ShieldCheck,
   Sparkles,
   Users,
   Zap,
@@ -20,41 +19,10 @@ import {
 
 const trustItems = ['No login required', 'Demo data stays local', 'Same flow as real setup'];
 
-const metrics = [
+const heroMetrics = [
   { label: 'Departments', value: '4', icon: Building2 },
   { label: 'Teams', value: '18', icon: Users },
   { label: 'Ready today', value: '86%', icon: CheckCircle2 },
-];
-
-const roleCards = [
-  {
-    href: '/admin/setup',
-    label: 'Admin',
-    title: 'Build the club structure.',
-    text: 'Create departments, teams, roles and facilities without losing control in chats or spreadsheets.',
-    icon: LayoutDashboard,
-  },
-  {
-    href: '/department/overview',
-    label: 'Department Lead',
-    title: 'Coordinate people and locations.',
-    text: 'Manage teams, coaches, shared resources and department facilities from one workspace.',
-    icon: Building2,
-  },
-  {
-    href: '/coach/today',
-    label: 'Coach',
-    title: 'Know who is ready today.',
-    text: 'See availability, attendance and load signals before training and game-day decisions.',
-    icon: CalendarDays,
-  },
-  {
-    href: '/athlete/home',
-    label: 'Athlete',
-    title: 'Report fast. Stay aligned.',
-    text: 'Check your calendar, submit availability and report load without digging through messages.',
-    icon: Zap,
-  },
 ];
 
 const capabilities = ['Club setup', 'Departments', 'Teams', 'Facilities', 'Availability', 'Attendance', 'Load history', 'Role workspaces'];
@@ -92,6 +60,37 @@ const storySteps = [
   },
 ];
 
+const roleCards = [
+  {
+    href: '/admin/setup',
+    label: 'Admin',
+    title: 'Build the club structure.',
+    text: 'Create departments, teams, roles and facilities without losing control in chats or spreadsheets.',
+    icon: LayoutDashboard,
+  },
+  {
+    href: '/department/overview',
+    label: 'Department Lead',
+    title: 'Coordinate people and locations.',
+    text: 'Manage teams, coaches, shared resources and department facilities from one workspace.',
+    icon: Building2,
+  },
+  {
+    href: '/coach/today',
+    label: 'Coach',
+    title: 'Know who is ready today.',
+    text: 'See availability, attendance and load signals before training and game-day decisions.',
+    icon: CalendarDays,
+  },
+  {
+    href: '/athlete/home',
+    label: 'Athlete',
+    title: 'Report fast. Stay aligned.',
+    text: 'Check your calendar, submit availability and report load without digging through messages.',
+    icon: Zap,
+  },
+];
+
 function fadeUp(delay = 0) {
   return {
     initial: { opacity: 0, y: 22 },
@@ -104,10 +103,10 @@ function fadeUp(delay = 0) {
 function ProductScene() {
   const reduceMotion = useReducedMotion();
   const { scrollYProgress } = useScroll();
-  const y = useTransform(scrollYProgress, [0, 0.35], reduceMotion ? [0, 0] : [0, -44]);
-  const rotateX = useTransform(scrollYProgress, [0, 0.35], reduceMotion ? [0, 0] : [7, 0]);
-  const rotateY = useTransform(scrollYProgress, [0, 0.35], reduceMotion ? [0, 0] : [-7, 0]);
-  const scale = useTransform(scrollYProgress, [0, 0.35], reduceMotion ? [1, 1] : [0.97, 1.02]);
+  const y = useTransform(scrollYProgress, [0, 0.35], reduceMotion ? [0, 0] : [0, -36]);
+  const rotateX = useTransform(scrollYProgress, [0, 0.35], reduceMotion ? [0, 0] : [6, 0]);
+  const rotateY = useTransform(scrollYProgress, [0, 0.35], reduceMotion ? [0, 0] : [-6, 0]);
+  const scale = useTransform(scrollYProgress, [0, 0.35], reduceMotion ? [1, 1] : [0.98, 1.01]);
 
   return (
     <motion.div
@@ -116,6 +115,7 @@ function ProductScene() {
     >
       <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-sky-400/20 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-16 -left-16 h-52 w-52 rounded-full bg-emerald-400/10 blur-3xl" />
+
       <div className="relative overflow-hidden rounded-[1.55rem] border border-slate-700/70 bg-[#08111f]/95 shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-800 bg-slate-950/60 px-4 py-3">
           <div className="flex items-center gap-2">
@@ -207,15 +207,7 @@ function ProductScene() {
   );
 }
 
-function HolographicState({
-  opacity,
-  scale,
-  children,
-}: {
-  opacity: MotionValue<number>;
-  scale: MotionValue<number>;
-  children: React.ReactNode;
-}) {
+function HolographicState({ opacity, scale, children }: { opacity: MotionValue<number>; scale: MotionValue<number>; children: ReactNode }) {
   return (
     <motion.div style={{ opacity, scale }} className="absolute inset-0">
       {children}
@@ -223,55 +215,52 @@ function HolographicState({
   );
 }
 
-function HolographicProductCard() {
-  const cardRef = useRef<HTMLDivElement | null>(null);
+function HolographicProductCard({ scrollYProgress }: { scrollYProgress: MotionValue<number> }) {
   const reduceMotion = useReducedMotion();
-  const { scrollYProgress } = useScroll({ target: cardRef, offset: ['start end', 'end start'] });
+  const progressScale = useTransform(scrollYProgress, [0.04, 0.96], reduceMotion ? [1, 1] : [0, 1]);
 
-  const progressScale = useTransform(scrollYProgress, [0.08, 0.92], reduceMotion ? [1, 1] : [0, 1]);
+  const structureOpacity = useTransform(scrollYProgress, [0, 0.1, 0.22], [1, 1, 0]);
+  const attendanceOpacity = useTransform(scrollYProgress, [0.17, 0.29, 0.41], [0, 1, 0]);
+  const sessionsOpacity = useTransform(scrollYProgress, [0.36, 0.48, 0.60], [0, 1, 0]);
+  const loadOpacity = useTransform(scrollYProgress, [0.55, 0.67, 0.79], [0, 1, 0]);
+  const rolesOpacity = useTransform(scrollYProgress, [0.74, 0.87, 1], [0, 1, 1]);
 
-  const structureOpacity = useTransform(scrollYProgress, [0, 0.12, 0.23], [1, 1, 0]);
-  const attendanceOpacity = useTransform(scrollYProgress, [0.16, 0.28, 0.39], [0, 1, 0]);
-  const sessionsOpacity = useTransform(scrollYProgress, [0.34, 0.46, 0.57], [0, 1, 0]);
-  const loadOpacity = useTransform(scrollYProgress, [0.52, 0.64, 0.75], [0, 1, 0]);
-  const rolesOpacity = useTransform(scrollYProgress, [0.70, 0.84, 1], [0, 1, 1]);
+  const structureScale = useTransform(scrollYProgress, [0, 0.22], [1, 0.97]);
+  const attendanceScale = useTransform(scrollYProgress, [0.17, 0.29, 0.41], [0.97, 1, 0.97]);
+  const sessionsScale = useTransform(scrollYProgress, [0.36, 0.48, 0.60], [0.97, 1, 0.97]);
+  const loadScale = useTransform(scrollYProgress, [0.55, 0.67, 0.79], [0.97, 1, 0.97]);
+  const rolesScale = useTransform(scrollYProgress, [0.74, 0.87, 1], [0.97, 1, 1]);
 
-  const structureScale = useTransform(scrollYProgress, [0, 0.23], [1, 0.97]);
-  const attendanceScale = useTransform(scrollYProgress, [0.16, 0.28, 0.39], [0.97, 1, 0.97]);
-  const sessionsScale = useTransform(scrollYProgress, [0.34, 0.46, 0.57], [0.97, 1, 0.97]);
-  const loadScale = useTransform(scrollYProgress, [0.52, 0.64, 0.75], [0.97, 1, 0.97]);
-  const rolesScale = useTransform(scrollYProgress, [0.70, 0.84, 1], [0.97, 1, 1]);
-
-  const cardY = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [16, -16]);
+  const cardY = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [8, -8]);
 
   return (
-    <div ref={cardRef} className="lg:sticky lg:top-24">
-      <motion.div style={{ y: cardY }} className="relative overflow-hidden rounded-[2.25rem] border border-sky-300/20 bg-slate-950/78 p-4 shadow-[0_42px_160px_rgba(14,165,233,0.18)] backdrop-blur-xl sm:p-5">
+    <div className="sticky top-3 z-20 lg:top-24">
+      <motion.div style={{ y: cardY }} className="relative overflow-hidden rounded-[1.75rem] border border-sky-300/20 bg-slate-950/82 p-3 shadow-[0_32px_120px_rgba(14,165,233,0.2)] backdrop-blur-xl sm:rounded-[2.25rem] sm:p-5">
         <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-400/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-28 -left-28 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.045)_1px,transparent_1px)] bg-[size:44px_44px]" />
 
-        <div className="relative flex items-center justify-between gap-4 border-b border-slate-800 pb-4">
+        <div className="relative flex items-center justify-between gap-4 border-b border-slate-800 pb-3 sm:pb-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-300">Holographic product card</p>
-            <h3 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">TeamLoad OS</h3>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-300 sm:text-xs">Holographic product card</p>
+            <h3 className="mt-1 text-xl font-black tracking-tight sm:mt-2 sm:text-3xl">TeamLoad OS</h3>
           </div>
           <span className="rounded-full bg-emerald-300 px-3 py-1.5 text-xs font-black text-slate-950">Live</span>
         </div>
 
-        <div className="relative mt-4 h-[31rem] sm:h-[34rem]">
+        <div className="relative mt-3 h-[26rem] overflow-hidden sm:mt-4 sm:h-[31rem] lg:h-[34rem]">
           <HolographicState opacity={structureOpacity} scale={structureScale}>
-            <div className="grid h-full content-start gap-4">
-              <div className="rounded-3xl border border-sky-300/20 bg-sky-300/10 p-5">
+            <div className="grid h-full content-start gap-3 sm:gap-4">
+              <div className="rounded-3xl border border-sky-300/20 bg-sky-300/10 p-4 sm:p-5">
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-300">Structure</p>
-                <h4 className="mt-2 text-3xl font-black">One club model.</h4>
+                <h4 className="mt-2 text-2xl font-black sm:text-3xl">One club model.</h4>
                 <p className="mt-2 text-sm leading-6 text-slate-400">Departments, teams, facilities and roles are connected before daily operations start.</p>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {['Basketball Department', 'U18 Boys Team', 'Main Hall', 'Coach owner'].map((item, index) => (
-                  <div key={item} className="rounded-2xl border border-slate-800 bg-slate-900/85 p-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Node {index + 1}</p>
-                    <p className="mt-2 text-sm font-black text-white">{item}</p>
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                {['Basketball', 'U18 Boys', 'Main Hall', 'Coach owner'].map((item, index) => (
+                  <div key={item} className="rounded-2xl border border-slate-800 bg-slate-900/85 p-3 sm:p-4">
+                    <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-500">Node {index + 1}</p>
+                    <p className="mt-2 text-xs font-black text-white sm:text-sm">{item}</p>
                   </div>
                 ))}
               </div>
@@ -288,27 +277,27 @@ function HolographicProductCard() {
           </HolographicState>
 
           <HolographicState opacity={attendanceOpacity} scale={attendanceScale}>
-            <div className="grid h-full content-start gap-4">
-              <div className="rounded-3xl border border-emerald-300/20 bg-emerald-300/10 p-5">
+            <div className="grid h-full content-start gap-3 sm:gap-4">
+              <div className="rounded-3xl border border-emerald-300/20 bg-emerald-300/10 p-4 sm:p-5">
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Attendance</p>
-                <h4 className="mt-2 text-3xl font-black">Know who shows up.</h4>
-                <p className="mt-2 text-sm leading-6 text-slate-400">The coach sees availability and attendance states before the session starts.</p>
+                <h4 className="mt-2 text-2xl font-black sm:text-3xl">Know who shows up.</h4>
+                <p className="mt-2 text-sm leading-6 text-slate-400">Availability and attendance states are visible before the session starts.</p>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 {[
                   ['14', 'expected', 'bg-emerald-400/10 text-emerald-200'],
                   ['3', 'maybe', 'bg-amber-300/10 text-amber-200'],
                   ['2', 'missing', 'bg-red-400/10 text-red-200'],
                 ].map(([value, label, className]) => (
-                  <div key={label} className={`rounded-2xl p-4 ring-1 ring-white/5 ${className}`}>
-                    <p className="text-3xl font-black">{value}</p>
-                    <p className="mt-1 text-[10px] font-black uppercase tracking-[0.14em] opacity-70">{label}</p>
+                  <div key={label} className={`rounded-2xl p-3 ring-1 ring-white/5 sm:p-4 ${className}`}>
+                    <p className="text-2xl font-black sm:text-3xl">{value}</p>
+                    <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] opacity-70 sm:text-[10px]">{label}</p>
                   </div>
                 ))}
               </div>
               <div className="space-y-2">
                 {['Mika · confirmed', 'Jonas · late', 'Noah · confirmed', 'Leo · missing'].map((item, index) => (
-                  <div key={item} className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3 text-sm font-bold text-slate-200">
+                  <div key={item} className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-2.5 text-xs font-bold text-slate-200 sm:px-4 sm:py-3 sm:text-sm">
                     <span>{item}</span>
                     <span className={index === 1 ? 'text-amber-300' : index === 3 ? 'text-red-300' : 'text-emerald-300'}>●</span>
                   </div>
@@ -318,11 +307,11 @@ function HolographicProductCard() {
           </HolographicState>
 
           <HolographicState opacity={sessionsOpacity} scale={sessionsScale}>
-            <div className="grid h-full content-start gap-4">
-              <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5">
+            <div className="grid h-full content-start gap-3 sm:gap-4">
+              <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-4 sm:p-5">
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">Sessions & facilities</p>
-                <h4 className="mt-2 text-3xl font-black">Plan where work happens.</h4>
-                <p className="mt-2 text-sm leading-6 text-slate-400">Facilities and sessions are visible together, not buried in separate calendars.</p>
+                <h4 className="mt-2 text-2xl font-black sm:text-3xl">Plan where work happens.</h4>
+                <p className="mt-2 text-sm leading-6 text-slate-400">Facilities and sessions stay visible together.</p>
               </div>
               <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-4">
                 <div className="flex items-center gap-3">
@@ -335,7 +324,7 @@ function HolographicProductCard() {
               </div>
               <div className="space-y-2">
                 {['U18 Training · 18:30', 'Strength Session · 19:15', 'First Team · 20:00'].map((item, index) => (
-                  <div key={item} className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3 text-sm font-bold text-slate-200">
+                  <div key={item} className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-2.5 text-xs font-bold text-slate-200 sm:px-4 sm:py-3 sm:text-sm">
                     <span>{item}</span>
                     <Clock3 className={index === 0 ? 'h-4 w-4 text-emerald-300' : 'h-4 w-4 text-slate-500'} />
                   </div>
@@ -345,11 +334,11 @@ function HolographicProductCard() {
           </HolographicState>
 
           <HolographicState opacity={loadOpacity} scale={loadScale}>
-            <div className="grid h-full content-start gap-4">
-              <div className="rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-5">
+            <div className="grid h-full content-start gap-3 sm:gap-4">
+              <div className="rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-4 sm:p-5">
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-300">Load</p>
-                <h4 className="mt-2 text-3xl font-black">Create the data foundation.</h4>
-                <p className="mt-2 text-sm leading-6 text-slate-400">Attendance and sessions become load history that supports better planning later.</p>
+                <h4 className="mt-2 text-2xl font-black sm:text-3xl">Create the data foundation.</h4>
+                <p className="mt-2 text-sm leading-6 text-slate-400">Attendance and sessions become load history.</p>
               </div>
               <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-4">
                 <div className="flex items-center justify-between text-xs font-black uppercase tracking-[0.16em] text-slate-500">
@@ -374,17 +363,17 @@ function HolographicProductCard() {
           </HolographicState>
 
           <HolographicState opacity={rolesOpacity} scale={rolesScale}>
-            <div className="grid h-full content-start gap-4">
-              <div className="rounded-3xl border border-violet-300/20 bg-violet-300/10 p-5">
+            <div className="grid h-full content-start gap-3 sm:gap-4">
+              <div className="rounded-3xl border border-violet-300/20 bg-violet-300/10 p-4 sm:p-5">
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-violet-300">Role workspaces</p>
-                <h4 className="mt-2 text-3xl font-black">One system. Different views.</h4>
-                <p className="mt-2 text-sm leading-6 text-slate-400">Admins, department leads, coaches and athletes work from the same operating model.</p>
+                <h4 className="mt-2 text-2xl font-black sm:text-3xl">One system. Different views.</h4>
+                <p className="mt-2 text-sm leading-6 text-slate-400">Each role works from the same operating model.</p>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 {['Admin', 'Department Lead', 'Coach', 'Athlete'].map((role) => (
-                  <div key={role} className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Workspace</p>
-                    <p className="mt-2 text-lg font-black text-white">{role}</p>
+                  <div key={role} className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3 sm:p-4">
+                    <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-500 sm:text-[10px]">Workspace</p>
+                    <p className="mt-2 text-sm font-black text-white sm:text-lg">{role}</p>
                   </div>
                 ))}
               </div>
@@ -395,7 +384,7 @@ function HolographicProductCard() {
           </HolographicState>
         </div>
 
-        <div className="relative mt-5 h-2 overflow-hidden rounded-full bg-slate-800">
+        <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-slate-800 sm:mt-5">
           <motion.div style={{ scaleX: progressScale }} className="h-full origin-left rounded-full bg-gradient-to-r from-emerald-400 via-sky-300 to-violet-300" />
         </div>
       </motion.div>
@@ -404,20 +393,23 @@ function HolographicProductCard() {
 }
 
 function HolographicStorySection() {
+  const storyRef = useRef<HTMLDivElement | null>(null);
+  const { scrollYProgress } = useScroll({ target: storyRef, offset: ['start 10%', 'end 78%'] });
+
   return (
     <section id="story" className="mx-auto max-w-7xl px-4 py-16 sm:px-8 lg:py-24">
       <motion.div {...fadeUp()} className="max-w-3xl">
         <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Interactive product story</p>
         <h2 className="mt-3 text-4xl font-black tracking-tight sm:text-6xl">Scroll the story. Watch the product adapt.</h2>
-        <p className="mt-5 text-base leading-8 text-slate-400">The right side stays fixed. The holographic card changes its product state as the story moves from structure to load.</p>
+        <p className="mt-5 text-base leading-8 text-slate-400">The holographic card stays visible while the story moves from structure to load.</p>
       </motion.div>
 
-      <div className="mt-10 grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
-        <div className="space-y-6 lg:space-y-16">
+      <div ref={storyRef} className="mt-10 grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
+        <div className="order-2 space-y-6 lg:order-1 lg:space-y-16">
           {storySteps.map((step, index) => {
             const Icon = step.icon;
             return (
-              <motion.div key={step.title} {...fadeUp(index * 0.05)} className="min-h-[22rem] rounded-[2rem] border border-slate-800 bg-slate-950/70 p-6 transition hover:border-emerald-400/50 hover:bg-slate-900/90 lg:min-h-[28rem]">
+              <motion.div key={step.title} {...fadeUp(index * 0.05)} className="min-h-[20rem] rounded-[2rem] border border-slate-800 bg-slate-950/70 p-6 transition hover:border-emerald-400/50 hover:bg-slate-900/90 lg:min-h-[28rem]">
                 <div className="flex items-start gap-4">
                   <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-emerald-400/10 text-emerald-300 ring-1 ring-emerald-300/15">
                     <Icon className="h-6 w-6" />
@@ -433,7 +425,9 @@ function HolographicStorySection() {
           })}
         </div>
 
-        <HolographicProductCard />
+        <div className="order-1 lg:order-2">
+          <HolographicProductCard scrollYProgress={scrollYProgress} />
+        </div>
       </div>
     </section>
   );
@@ -504,7 +498,7 @@ export default function HomePage() {
           </div>
 
           <div className="mt-8 grid max-w-xl gap-3 sm:grid-cols-3">
-            {metrics.map((metric, index) => {
+            {heroMetrics.map((metric, index) => {
               const Icon = metric.icon;
               return (
                 <motion.div key={metric.label} {...fadeUp(index * 0.08)} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur">
