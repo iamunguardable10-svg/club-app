@@ -21,9 +21,9 @@ const states = [
   },
   {
     key: 'sessions',
-    eyebrow: 'Sessions',
+    eyebrow: 'Sessions & facilities',
     title: 'Plan where work happens.',
-    text: 'Facilities and sessions stay visible together.',
+    text: 'Facilities and sessions stay visible together, so planning is easier to trust.',
     tone: 'border-amber-300/20 bg-amber-300/10 text-amber-100',
     chips: ['Main Hall', 'U18 · 18:30', 'Strength · 19:15', 'No conflict'],
   },
@@ -31,7 +31,7 @@ const states = [
     key: 'load',
     eyebrow: 'Load',
     title: 'Create the data foundation.',
-    text: 'Attendance and sessions become load history.',
+    text: 'Attendance and sessions become load history for clearer planning.',
     tone: 'border-cyan-300/20 bg-cyan-300/10 text-cyan-100',
     chips: ['Stable trend', 'Moderate load', 'Ready 86%', 'History'],
   },
@@ -39,7 +39,7 @@ const states = [
     key: 'roles',
     eyebrow: 'Roles',
     title: 'One system. Different views.',
-    text: 'Each role works from the same operating model.',
+    text: 'Each role works from the same operating model with the right level of context.',
     tone: 'border-violet-300/20 bg-violet-300/10 text-violet-100',
     chips: ['Admin', 'Coach', 'Athlete', 'Department'],
   },
@@ -106,7 +106,10 @@ export function HolographicProductCard({ scrollYProgress, mobileActive }: { scro
       style={{ y: cardY, opacity: cardOpacity }}
       className={`fixed inset-x-3 top-2 z-50 lg:sticky lg:inset-x-auto lg:top-24 ${mobileActive ? 'pointer-events-auto' : 'pointer-events-none lg:pointer-events-auto'}`}
     >
-      <div className="relative overflow-hidden rounded-[1.55rem] border border-sky-300/20 bg-slate-950/88 p-3 shadow-[0_32px_120px_rgba(14,165,233,0.22)] backdrop-blur-xl sm:rounded-[2.25rem] sm:p-5">
+      <div className="pointer-events-none absolute -inset-x-3 -top-3 bottom-[-1.25rem] rounded-b-[2rem] bg-[#050712] lg:hidden" />
+      <div className="pointer-events-none absolute inset-x-[-0.75rem] bottom-[-4.5rem] hidden h-16 bg-gradient-to-b from-[#050712] to-transparent lg:hidden" />
+
+      <div className="relative overflow-hidden rounded-[1.55rem] border border-sky-300/20 bg-slate-950 p-3 shadow-[0_32px_120px_rgba(14,165,233,0.22)] backdrop-blur-xl sm:rounded-[2.25rem] sm:p-5 lg:bg-slate-950/88">
         <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-400/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-28 -left-28 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.045)_1px,transparent_1px)] bg-[size:44px_44px]" />
