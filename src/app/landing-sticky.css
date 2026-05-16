@@ -1,0 +1,14 @@
+main {
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
+}
+
+@media (max-width: 1023px) {
+  #story > div.mt-10.grid.gap-8 > div.order-1 {
+    display: contents;
+  }
+
+  #story > div.mt-10.grid.gap-8 > div.order-1 > .sticky {
+    align-self: start;
+  }
+}
