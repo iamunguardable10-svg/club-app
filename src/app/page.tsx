@@ -1,8 +1,22 @@
 'use client';
 
+import { useRef } from 'react';
 import Link from 'next/link';
-import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
-import { ArrowRight, BarChart3, Building2, CalendarDays, CheckCircle2, LayoutDashboard, ShieldCheck, Sparkles, Users, Zap } from 'lucide-react';
+import { motion, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
+import {
+  ArrowRight,
+  BarChart3,
+  Building2,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  LayoutDashboard,
+  MapPin,
+  ShieldCheck,
+  Sparkles,
+  Users,
+  Zap,
+} from 'lucide-react';
 
 const trustItems = ['No login required', 'Demo data stays local', 'Same flow as real setup'];
 
@@ -43,34 +57,40 @@ const roleCards = [
   },
 ];
 
+const capabilities = ['Club setup', 'Departments', 'Teams', 'Facilities', 'Availability', 'Attendance', 'Load history', 'Role workspaces'];
+
 const storySteps = [
   {
     eyebrow: '01 · Structure',
-    title: 'Create the operating model once.',
-    text: 'Departments, teams, coaches, athletes and facilities live in one clean system instead of scattered chat threads.',
+    title: 'Build one club operating model.',
+    text: 'Departments, teams, coaches, athletes and facilities become connected product data instead of separate chat threads.',
     icon: Building2,
   },
   {
-    eyebrow: '02 · Availability',
-    title: 'Know who can actually show up.',
-    text: 'Availability becomes visible before coaches prepare training, rosters and game-day decisions.',
+    eyebrow: '02 · Attendance',
+    title: 'Know who is actually coming.',
+    text: 'Expected, late and missing players become visible before coaches prepare the session.',
     icon: CheckCircle2,
   },
   {
-    eyebrow: '03 · Attendance',
-    title: 'Finalize sessions without cleanup.',
-    text: 'Turn planned sessions into confirmed attendance records that coaches and departments can trust.',
+    eyebrow: '03 · Sessions',
+    title: 'Connect sessions with facilities.',
+    text: 'Training times, halls and ownership stay visible across the club, so planning is easier to trust.',
     icon: CalendarDays,
   },
   {
     eyebrow: '04 · Load',
-    title: 'Build the data foundation.',
-    text: 'Every completed session contributes to load history for better planning, health and performance decisions.',
+    title: 'Turn daily activity into load history.',
+    text: 'Every completed session contributes to a clearer readiness and load picture.',
     icon: BarChart3,
   },
+  {
+    eyebrow: '05 · Roles',
+    title: 'Give each role the right workspace.',
+    text: 'Admins, department leads, coaches and athletes use the same system from different perspectives.',
+    icon: Users,
+  },
 ];
-
-const capabilities = ['Club setup', 'Departments', 'Teams', 'Facilities', 'Availability', 'Attendance', 'Load history', 'Role workspaces'];
 
 function fadeUp(delay = 0) {
   return {
@@ -187,6 +207,238 @@ function ProductScene() {
   );
 }
 
+function HolographicState({
+  opacity,
+  scale,
+  children,
+}: {
+  opacity: MotionValue<number>;
+  scale: MotionValue<number>;
+  children: React.ReactNode;
+}) {
+  return (
+    <motion.div style={{ opacity, scale }} className="absolute inset-0">
+      {children}
+    </motion.div>
+  );
+}
+
+function HolographicProductCard() {
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const reduceMotion = useReducedMotion();
+  const { scrollYProgress } = useScroll({ target: cardRef, offset: ['start end', 'end start'] });
+
+  const progressScale = useTransform(scrollYProgress, [0.08, 0.92], reduceMotion ? [1, 1] : [0, 1]);
+
+  const structureOpacity = useTransform(scrollYProgress, [0, 0.12, 0.23], [1, 1, 0]);
+  const attendanceOpacity = useTransform(scrollYProgress, [0.16, 0.28, 0.39], [0, 1, 0]);
+  const sessionsOpacity = useTransform(scrollYProgress, [0.34, 0.46, 0.57], [0, 1, 0]);
+  const loadOpacity = useTransform(scrollYProgress, [0.52, 0.64, 0.75], [0, 1, 0]);
+  const rolesOpacity = useTransform(scrollYProgress, [0.70, 0.84, 1], [0, 1, 1]);
+
+  const structureScale = useTransform(scrollYProgress, [0, 0.23], [1, 0.97]);
+  const attendanceScale = useTransform(scrollYProgress, [0.16, 0.28, 0.39], [0.97, 1, 0.97]);
+  const sessionsScale = useTransform(scrollYProgress, [0.34, 0.46, 0.57], [0.97, 1, 0.97]);
+  const loadScale = useTransform(scrollYProgress, [0.52, 0.64, 0.75], [0.97, 1, 0.97]);
+  const rolesScale = useTransform(scrollYProgress, [0.70, 0.84, 1], [0.97, 1, 1]);
+
+  const cardY = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [16, -16]);
+
+  return (
+    <div ref={cardRef} className="lg:sticky lg:top-24">
+      <motion.div style={{ y: cardY }} className="relative overflow-hidden rounded-[2.25rem] border border-sky-300/20 bg-slate-950/78 p-4 shadow-[0_42px_160px_rgba(14,165,233,0.18)] backdrop-blur-xl sm:p-5">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-400/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 -left-28 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.045)_1px,transparent_1px)] bg-[size:44px_44px]" />
+
+        <div className="relative flex items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-300">Holographic product card</p>
+            <h3 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">TeamLoad OS</h3>
+          </div>
+          <span className="rounded-full bg-emerald-300 px-3 py-1.5 text-xs font-black text-slate-950">Live</span>
+        </div>
+
+        <div className="relative mt-4 h-[31rem] sm:h-[34rem]">
+          <HolographicState opacity={structureOpacity} scale={structureScale}>
+            <div className="grid h-full content-start gap-4">
+              <div className="rounded-3xl border border-sky-300/20 bg-sky-300/10 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-300">Structure</p>
+                <h4 className="mt-2 text-3xl font-black">One club model.</h4>
+                <p className="mt-2 text-sm leading-6 text-slate-400">Departments, teams, facilities and roles are connected before daily operations start.</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {['Basketball Department', 'U18 Boys Team', 'Main Hall', 'Coach owner'].map((item, index) => (
+                  <div key={item} className="rounded-2xl border border-slate-800 bg-slate-900/85 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Node {index + 1}</p>
+                    <p className="mt-2 text-sm font-black text-white">{item}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-4">
+                <div className="flex items-center justify-between text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  <span>Connected model</span>
+                  <span className="text-emerald-300">ready</span>
+                </div>
+                <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-800">
+                  <div className="h-full w-[88%] rounded-full bg-gradient-to-r from-sky-400 to-emerald-300" />
+                </div>
+              </div>
+            </div>
+          </HolographicState>
+
+          <HolographicState opacity={attendanceOpacity} scale={attendanceScale}>
+            <div className="grid h-full content-start gap-4">
+              <div className="rounded-3xl border border-emerald-300/20 bg-emerald-300/10 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Attendance</p>
+                <h4 className="mt-2 text-3xl font-black">Know who shows up.</h4>
+                <p className="mt-2 text-sm leading-6 text-slate-400">The coach sees availability and attendance states before the session starts.</p>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  ['14', 'expected', 'bg-emerald-400/10 text-emerald-200'],
+                  ['3', 'maybe', 'bg-amber-300/10 text-amber-200'],
+                  ['2', 'missing', 'bg-red-400/10 text-red-200'],
+                ].map(([value, label, className]) => (
+                  <div key={label} className={`rounded-2xl p-4 ring-1 ring-white/5 ${className}`}>
+                    <p className="text-3xl font-black">{value}</p>
+                    <p className="mt-1 text-[10px] font-black uppercase tracking-[0.14em] opacity-70">{label}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-2">
+                {['Mika · confirmed', 'Jonas · late', 'Noah · confirmed', 'Leo · missing'].map((item, index) => (
+                  <div key={item} className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3 text-sm font-bold text-slate-200">
+                    <span>{item}</span>
+                    <span className={index === 1 ? 'text-amber-300' : index === 3 ? 'text-red-300' : 'text-emerald-300'}>●</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </HolographicState>
+
+          <HolographicState opacity={sessionsOpacity} scale={sessionsScale}>
+            <div className="grid h-full content-start gap-4">
+              <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">Sessions & facilities</p>
+                <h4 className="mt-2 text-3xl font-black">Plan where work happens.</h4>
+                <p className="mt-2 text-sm leading-6 text-slate-400">Facilities and sessions are visible together, not buried in separate calendars.</p>
+              </div>
+              <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-4">
+                <div className="flex items-center gap-3">
+                  <MapPin className="h-5 w-5 text-amber-300" />
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Facility</p>
+                    <p className="text-lg font-black text-white">Main Hall</p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {['U18 Training · 18:30', 'Strength Session · 19:15', 'First Team · 20:00'].map((item, index) => (
+                  <div key={item} className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3 text-sm font-bold text-slate-200">
+                    <span>{item}</span>
+                    <Clock3 className={index === 0 ? 'h-4 w-4 text-emerald-300' : 'h-4 w-4 text-slate-500'} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </HolographicState>
+
+          <HolographicState opacity={loadOpacity} scale={loadScale}>
+            <div className="grid h-full content-start gap-4">
+              <div className="rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-300">Load</p>
+                <h4 className="mt-2 text-3xl font-black">Create the data foundation.</h4>
+                <p className="mt-2 text-sm leading-6 text-slate-400">Attendance and sessions become load history that supports better planning later.</p>
+              </div>
+              <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-4">
+                <div className="flex items-center justify-between text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  <span>Load trend</span>
+                  <span className="rounded-full bg-emerald-300/15 px-2 py-1 text-emerald-200">stable</span>
+                </div>
+                <div className="mt-5 grid grid-cols-12 items-end gap-1">
+                  {[36, 52, 44, 66, 62, 84, 48, 42, 78, 68, 54, 82].map((height, index) => (
+                    <motion.span
+                      key={`${height}-${index}`}
+                      initial={reduceMotion ? false : { scaleY: 0.25, opacity: 0.4 }}
+                      whileInView={reduceMotion ? undefined : { scaleY: 1, opacity: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.5, delay: index * 0.03 }}
+                      className="origin-bottom rounded-t bg-gradient-to-t from-cyan-500/70 to-emerald-300"
+                      style={{ height: `${height}px` }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </HolographicState>
+
+          <HolographicState opacity={rolesOpacity} scale={rolesScale}>
+            <div className="grid h-full content-start gap-4">
+              <div className="rounded-3xl border border-violet-300/20 bg-violet-300/10 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-violet-300">Role workspaces</p>
+                <h4 className="mt-2 text-3xl font-black">One system. Different views.</h4>
+                <p className="mt-2 text-sm leading-6 text-slate-400">Admins, department leads, coaches and athletes work from the same operating model.</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {['Admin', 'Department Lead', 'Coach', 'Athlete'].map((role) => (
+                  <div key={role} className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Workspace</p>
+                    <p className="mt-2 text-lg font-black text-white">{role}</p>
+                  </div>
+                ))}
+              </div>
+              <Link href="/demo" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-300 px-5 py-4 text-sm font-black text-slate-950 shadow-[0_16px_70px_rgba(252,211,77,0.2)] transition hover:bg-amber-200">
+                Open demo club <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </HolographicState>
+        </div>
+
+        <div className="relative mt-5 h-2 overflow-hidden rounded-full bg-slate-800">
+          <motion.div style={{ scaleX: progressScale }} className="h-full origin-left rounded-full bg-gradient-to-r from-emerald-400 via-sky-300 to-violet-300" />
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function HolographicStorySection() {
+  return (
+    <section id="story" className="mx-auto max-w-7xl px-4 py-16 sm:px-8 lg:py-24">
+      <motion.div {...fadeUp()} className="max-w-3xl">
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Interactive product story</p>
+        <h2 className="mt-3 text-4xl font-black tracking-tight sm:text-6xl">Scroll the story. Watch the product adapt.</h2>
+        <p className="mt-5 text-base leading-8 text-slate-400">The right side stays fixed. The holographic card changes its product state as the story moves from structure to load.</p>
+      </motion.div>
+
+      <div className="mt-10 grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
+        <div className="space-y-6 lg:space-y-16">
+          {storySteps.map((step, index) => {
+            const Icon = step.icon;
+            return (
+              <motion.div key={step.title} {...fadeUp(index * 0.05)} className="min-h-[22rem] rounded-[2rem] border border-slate-800 bg-slate-950/70 p-6 transition hover:border-emerald-400/50 hover:bg-slate-900/90 lg:min-h-[28rem]">
+                <div className="flex items-start gap-4">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-emerald-400/10 text-emerald-300 ring-1 ring-emerald-300/15">
+                    <Icon className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">{step.eyebrow}</p>
+                    <h3 className="mt-3 max-w-xl text-3xl font-black tracking-tight sm:text-4xl">{step.title}</h3>
+                    <p className="mt-4 max-w-xl text-sm leading-7 text-slate-400">{step.text}</p>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        <HolographicProductCard />
+      </div>
+    </section>
+  );
+}
+
 export default function HomePage() {
   const reduceMotion = useReducedMotion();
 
@@ -280,52 +532,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="story" className="mx-auto max-w-7xl px-4 py-16 sm:px-8 lg:py-24">
-        <motion.div {...fadeUp()} className="max-w-3xl">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Scroll story</p>
-          <h2 className="mt-3 text-4xl font-black tracking-tight sm:text-6xl">From setup to decisions.</h2>
-          <p className="mt-5 text-base leading-8 text-slate-400">A premium homepage only converts if the story is clear: structure first, then reliable operational data.</p>
-        </motion.div>
-
-        <div className="mt-10 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="hidden lg:block">
-            <div className="sticky top-24 rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
-              <div className="rounded-[1.5rem] border border-slate-800 bg-slate-950/85 p-5">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-sky-400/10 text-sky-300"><ShieldCheck className="h-6 w-6" /></div>
-                  <div><p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Operating loop</p><p className="font-black">Structure → Sessions → Attendance → Load</p></div>
-                </div>
-                <div className="mt-6 space-y-3">
-                  {storySteps.map((step) => (
-                    <div key={step.title} className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-                      <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{step.eyebrow}</p>
-                      <p className="mt-1 text-sm font-black text-slate-200">{step.title}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-5">
-            {storySteps.map((step, index) => {
-              const Icon = step.icon;
-              return (
-                <motion.div key={step.title} {...fadeUp(index * 0.08)} className="group rounded-[2rem] border border-slate-800 bg-slate-950/70 p-6 transition hover:-translate-y-1 hover:border-emerald-400/50 hover:bg-slate-900/90">
-                  <div className="flex items-start gap-4">
-                    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-emerald-400/10 text-emerald-300 ring-1 ring-emerald-300/15"><Icon className="h-6 w-6" /></div>
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">{step.eyebrow}</p>
-                      <h3 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">{step.title}</h3>
-                      <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">{step.text}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+      <HolographicStorySection />
 
       <section id="roles" className="mx-auto max-w-7xl px-4 py-16 sm:px-8">
         <motion.div {...fadeUp()} className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
