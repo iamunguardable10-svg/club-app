@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { GeoapifyAddressEnhancer } from '@/shared/components/places/GeoapifyAddressEnhancer';
 import './globals.css';
+import './landing-sticky.css';
 
 export const metadata: Metadata = {
   title: 'Club App / TeamLoad OS',
