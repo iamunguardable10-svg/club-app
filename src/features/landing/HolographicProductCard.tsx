@@ -97,9 +97,9 @@ function VisualState({ index, scrollYProgress }: { index: number; scrollYProgres
 
 export function HolographicProductCard({ scrollYProgress, mobileActive }: { scrollYProgress: MotionValue<number>; mobileActive: boolean }) {
   const reduceMotion = useReducedMotion();
-  const progressScale = useTransform(scrollYProgress, [0.03, 0.97], reduceMotion ? [1, 1] : [0, 1]);
-  const cardOpacity = useTransform(scrollYProgress, [0, 0.025, 0.975, 1], [0, 1, 1, 0]);
-  const cardY = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [8, -8]);
+  const progressScale = useTransform(scrollYProgress, [0.01, 0.97], reduceMotion ? [1, 1] : [0, 1]);
+  const cardOpacity = useTransform(scrollYProgress, [0, 0.004, 0.975, 1], [0, 1, 1, 0]);
+  const cardY = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [6, -8]);
 
   return (
     <motion.div
@@ -107,7 +107,7 @@ export function HolographicProductCard({ scrollYProgress, mobileActive }: { scro
       className={`fixed inset-x-3 top-2 z-50 lg:sticky lg:inset-x-auto lg:top-24 ${mobileActive ? 'pointer-events-auto' : 'pointer-events-none lg:pointer-events-auto'}`}
     >
       <div className="pointer-events-none absolute -inset-x-3 -top-3 bottom-[-1.25rem] rounded-b-[2rem] bg-[#050712] lg:hidden" />
-      <div className="pointer-events-none absolute inset-x-[-0.75rem] bottom-[-4.5rem] hidden h-16 bg-gradient-to-b from-[#050712] to-transparent lg:hidden" />
+      <div className="pointer-events-none absolute inset-x-[-0.75rem] bottom-[-4.5rem] h-16 bg-gradient-to-b from-[#050712] to-transparent lg:hidden" />
 
       <div className="relative overflow-hidden rounded-[1.55rem] border border-sky-300/20 bg-slate-950 p-3 shadow-[0_32px_120px_rgba(14,165,233,0.22)] backdrop-blur-xl sm:rounded-[2.25rem] sm:p-5 lg:bg-slate-950/88">
         <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-400/20 blur-3xl" />
