@@ -12,32 +12,32 @@ export const heroMetrics = [
 export const storySteps = [
   {
     eyebrow: '01 · Structure',
-    title: 'Build one club operating model.',
-    text: 'Departments, teams, coaches, athletes and facilities become connected product data instead of separate chat threads.',
+    title: 'One club model.',
+    text: 'Departments, teams, facilities and roles are connected before daily operations start.',
     icon: Building2,
   },
   {
     eyebrow: '02 · Attendance',
-    title: 'Know who is actually coming.',
-    text: 'Expected, late and missing players become visible before coaches prepare the session.',
+    title: 'Know who shows up.',
+    text: 'Availability and attendance states are visible before the session starts.',
     icon: CheckCircle2,
   },
   {
-    eyebrow: '03 · Sessions',
-    title: 'Connect sessions with facilities.',
-    text: 'Training times, halls and ownership stay visible across the club, so planning is easier to trust.',
+    eyebrow: '03 · Sessions & facilities',
+    title: 'Plan where work happens.',
+    text: 'Facilities and sessions stay visible together, so planning is easier to trust.',
     icon: CalendarDays,
   },
   {
     eyebrow: '04 · Load',
-    title: 'Turn daily activity into load history.',
-    text: 'Every completed session contributes to a clearer readiness and load picture.',
+    title: 'Create the data foundation.',
+    text: 'Attendance and sessions become load history for clearer planning.',
     icon: BarChart3,
   },
   {
     eyebrow: '05 · Roles',
-    title: 'Give each role the right workspace.',
-    text: 'Admins, department leads, coaches and athletes use the same system from different perspectives.',
+    title: 'One system. Different views.',
+    text: 'Each role works from the same operating model with the right level of context.',
     icon: Users,
   },
 ];
