@@ -150,14 +150,14 @@ function CapabilityMarquee() {
 function HolographicStorySection() {
   const sectionRef = useRef<HTMLElement | null>(null);
   const [mobileActive, setMobileActive] = useState(false);
-  const { scrollYProgress } = useScroll({ target: sectionRef, offset: ['start start', 'end end'] });
+  const { scrollYProgress } = useScroll({ target: sectionRef, offset: ['start 85%', 'end end'] });
 
   useMotionValueEvent(scrollYProgress, 'change', (latest) => {
-    setMobileActive(latest > 0.015 && latest < 0.985);
+    setMobileActive(latest > 0.002 && latest < 0.985);
   });
 
   return (
-    <section ref={sectionRef} id="story" className="relative mx-auto min-h-[520svh] max-w-7xl px-4 py-16 sm:px-8 lg:min-h-0 lg:py-24">
+    <section ref={sectionRef} id="story" className="relative mx-auto min-h-[545svh] max-w-7xl px-4 py-16 sm:px-8 lg:min-h-0 lg:py-24">
       <motion.div {...fadeUp()} className="max-w-3xl">
         <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Interactive product story</p>
         <h2 className="mt-3 text-4xl font-black tracking-tight sm:text-6xl">Scroll the story. Watch the product adapt.</h2>
@@ -165,7 +165,7 @@ function HolographicStorySection() {
       </motion.div>
 
       <div className="mt-10 grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
-        <div className="space-y-[54svh] pt-[56svh] lg:space-y-16 lg:pt-0">
+        <div className="space-y-[54svh] pt-[76svh] lg:space-y-16 lg:pt-0">
           {storySteps.map((step, index) => {
             const Icon = step.icon;
             return (
