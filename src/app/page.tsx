@@ -77,7 +77,7 @@ const roles = [
   {
     label: 'Coach',
     title: 'Run today with context.',
-    text: 'See attendance, readiness and upcoming sessions from one workspace.',
+    text: 'See attendance, facility assignment and upcoming sessions from one workspace.',
     href: '/coach/today',
     icon: CalendarDays,
   },
@@ -141,8 +141,8 @@ function HeroDashboard() {
         <p className="mt-2 text-3xl font-black">4</p>
       </div>
       <div className="pointer-events-none absolute -right-8 bottom-24 hidden rounded-3xl border border-emerald-300/20 bg-slate-950/80 px-5 py-4 shadow-[0_24px_90px_rgba(52,211,153,0.16)] backdrop-blur-xl lg:block">
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Ready today</p>
-        <p className="mt-2 text-3xl font-black">86%</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Attendance</p>
+        <p className="mt-2 text-3xl font-black">19</p>
       </div>
 
       <div className="relative rounded-[2.5rem] border border-white/10 bg-white/[0.055] p-3 shadow-[0_50px_180px_rgba(14,165,233,0.18)] backdrop-blur-xl">
@@ -186,11 +186,12 @@ function HeroDashboard() {
 
               <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
                 <div className="flex items-center justify-between text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                  <span>Readiness</span>
-                  <span className="text-emerald-300">86%</span>
+                  <span>Facility assignment</span>
+                  <span className="text-emerald-300">confirmed</span>
                 </div>
-                <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-800">
-                  <div className="h-full w-[86%] rounded-full bg-gradient-to-r from-emerald-400 to-sky-300 shadow-[0_0_35px_rgba(52,211,153,0.35)]" />
+                <div className="mt-3 flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950/70 px-3 py-3 text-sm font-bold text-slate-300">
+                  <span>Main Hall · 18:30</span>
+                  <CheckCircle2 className="h-4 w-4 text-emerald-300" />
                 </div>
               </div>
             </div>
