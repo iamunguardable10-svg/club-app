@@ -1,11 +1,11 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import Link from 'next/link';
-import { motion, useMotionValueEvent, useReducedMotion, useScroll } from 'framer-motion';
-import { ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
+import { motion, useInView, useReducedMotion, useScroll } from 'framer-motion';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import { HolographicProductCard } from '@/features/landing/HolographicProductCard';
-import { capabilities, roleCards, storySteps, trustItems } from '@/features/landing/holographicLandingData';
+import { roleCards, storySteps, trustItems } from '@/features/landing/holographicLandingData';
 
 function fadeUp(delay = 0) {
   return {
@@ -84,30 +84,10 @@ function Hero() {
   );
 }
 
-function CapabilityStrip() {
-  return (
-    <section className="border-y border-white/10 bg-white/[0.025] py-3">
-      <div className="landing-marquee flex w-[200%] gap-4 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-        {[...Array(2)].map((_, groupIndex) => (
-          <div key={groupIndex} className="flex w-1/2 shrink-0 justify-around gap-4">
-            {capabilities.map((row) => (
-              <span key={`${groupIndex}-${row}`}>{row}</span>
-            ))}
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function ProductStory() {
   const sectionRef = useRef<HTMLElement | null>(null);
-  const [mobileActive, setMobileActive] = useState(false);
+  const mobileActive = useInView(sectionRef, { margin: '-12% 0px -12% 0px' });
   const { scrollYProgress } = useScroll({ target: sectionRef, offset: ['start start', 'end end'] });
-
-  useMotionValueEvent(scrollYProgress, 'change', (latest) => {
-    setMobileActive(latest > 0.015 && latest < 0.985);
-  });
 
   return (
     <section ref={sectionRef} id="story" className="relative mx-auto min-h-[560svh] max-w-7xl px-4 py-16 sm:px-8 lg:min-h-0 lg:py-28">
@@ -214,7 +194,6 @@ export default function HomePage() {
 
       <Header />
       <Hero />
-      <CapabilityStrip />
       <ProductStory />
       <RoleSection />
       <FinalCta />
