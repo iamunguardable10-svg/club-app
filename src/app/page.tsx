@@ -94,7 +94,7 @@ const loadBars = [36, 58, 44, 74, 62, 88, 54, 42, 78, 66, 48, 72];
 const facilityRows = ['Main Hall · 18:30', 'Court 2 · 19:15', 'Weight room · 20:00'];
 const feedRows = ['Attendance synced', 'Facility confirmed', 'Load window open'];
 
-type StatusTone = 'sky' | 'emerald' | 'amber' | 'red';
+type StatusTone = 'sky' | 'emerald' | 'amber';
 
 function Header() {
   return (
@@ -126,7 +126,6 @@ function StatusPill({ children, tone = 'sky' }: { children: ReactNode; tone?: St
     sky: 'border-sky-300/25 bg-sky-300/10 text-sky-200',
     emerald: 'border-emerald-300/25 bg-emerald-300/10 text-emerald-200',
     amber: 'border-amber-300/25 bg-amber-300/10 text-amber-200',
-    red: 'border-red-300/25 bg-red-300/10 text-red-200',
   }[tone];
 
   return <span className={`rounded-full border px-3 py-1.5 text-xs font-black ${styles}`}>{children}</span>;
@@ -136,14 +135,6 @@ function HeroDashboard() {
   return (
     <div className="relative mx-auto w-full max-w-3xl lg:translate-y-8">
       <div className="pointer-events-none absolute -inset-8 rounded-[3rem] bg-[conic-gradient(from_180deg_at_50%_50%,rgba(56,189,248,0.2),rgba(52,211,153,0.15),rgba(251,191,36,0.16),rgba(56,189,248,0.2))] opacity-70 blur-3xl" />
-      <div className="pointer-events-none absolute -left-8 top-14 hidden rounded-3xl border border-sky-300/20 bg-slate-950/80 px-5 py-4 shadow-[0_24px_90px_rgba(14,165,233,0.18)] backdrop-blur-xl lg:block">
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-sky-300">Departments</p>
-        <p className="mt-2 text-3xl font-black">4</p>
-      </div>
-      <div className="pointer-events-none absolute -right-8 bottom-24 hidden rounded-3xl border border-emerald-300/20 bg-slate-950/80 px-5 py-4 shadow-[0_24px_90px_rgba(52,211,153,0.16)] backdrop-blur-xl lg:block">
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Attendance</p>
-        <p className="mt-2 text-3xl font-black">19</p>
-      </div>
 
       <div className="relative rounded-[2.5rem] border border-white/10 bg-white/[0.055] p-3 shadow-[0_50px_180px_rgba(14,165,233,0.18)] backdrop-blur-xl">
         <div className="pointer-events-none absolute left-12 right-12 top-0 h-px bg-gradient-to-r from-transparent via-sky-300/80 to-transparent" />
