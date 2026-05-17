@@ -91,6 +91,8 @@ function ProductStory() {
 
   return (
     <section ref={sectionRef} id="story" className="relative mx-auto min-h-[560svh] max-w-7xl px-4 py-16 sm:px-8 lg:min-h-0 lg:py-28">
+      <HolographicProductCard scrollYProgress={scrollYProgress} mobileActive={mobileActive} mode="mobile" />
+
       <div className="grid gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
         <div className="lg:order-1">
           <motion.div {...fadeUp()} className="max-w-2xl">
@@ -126,8 +128,8 @@ function ProductStory() {
           </div>
         </div>
 
-        <div className="lg:order-2 lg:sticky lg:top-24">
-          <HolographicProductCard scrollYProgress={scrollYProgress} mobileActive={mobileActive} />
+        <div className="hidden lg:order-2 lg:sticky lg:top-24 lg:block">
+          <HolographicProductCard scrollYProgress={scrollYProgress} mode="desktop" />
         </div>
       </div>
     </section>
