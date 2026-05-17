@@ -80,6 +80,8 @@ const ranges = [
   [0.74, 0.87, 1],
 ] as const;
 
+type ProductCardMode = 'mobile' | 'desktop';
+
 function accentClasses(accent: string) {
   switch (accent) {
     case 'emerald':
@@ -174,18 +176,24 @@ function ProductState({ index, scrollYProgress }: { index: number; scrollYProgre
   );
 }
 
-export function HolographicProductCard({ scrollYProgress, mobileActive }: { scrollYProgress: MotionValue<number>; mobileActive: boolean }) {
+export function HolographicProductCard({ scrollYProgress, mobileActive, mode }: { scrollYProgress: MotionValue<number>; mobileActive?: boolean; mode: ProductCardMode }) {
   const reduceMotion = useReducedMotion();
   const progressScale = useTransform(scrollYProgress, [0.01, 0.97], reduceMotion ? [1, 1] : [0, 1]);
   const cardY = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [5, -8]);
 
+  const modeClass =
+    mode === 'mobile'
+      ? `fixed inset-x-3 top-2 z-50 transition-opacity duration-300 lg:hidden ${mobileActive ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`
+      : 'relative hidden opacity-100 lg:block';
+
   return (
-    <motion.div
-      style={{ y: cardY }}
-      className={`fixed inset-x-3 top-2 z-50 transition-opacity duration-300 lg:sticky lg:inset-x-auto lg:top-24 lg:opacity-100 ${mobileActive ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0 lg:pointer-events-auto'}`}
-    >
-      <div className="pointer-events-none absolute -inset-x-3 -top-3 bottom-[-1.75rem] rounded-b-[2rem] bg-[#050712] lg:hidden" />
-      <div className="pointer-events-none absolute inset-x-[-0.75rem] bottom-[-5.25rem] h-20 bg-gradient-to-b from-[#050712] to-transparent lg:hidden" />
+    <motion.div style={mode === 'mobile' ? { y: cardY } : undefined} className={modeClass}>
+      {mode === 'mobile' ? (
+        <>
+          <div className="pointer-events-none absolute -inset-x-3 -top-3 bottom-[-1.75rem] rounded-b-[2rem] bg-[#050712]" />
+          <div className="pointer-events-none absolute inset-x-[-0.75rem] bottom-[-5.25rem] h-20 bg-gradient-to-b from-[#050712] to-transparent" />
+        </>
+      ) : null}
 
       <div className="relative overflow-hidden rounded-[1.65rem] border border-sky-300/25 bg-[#07111f] p-3 shadow-[0_32px_140px_rgba(14,165,233,0.24),inset_0_1px_0_rgba(255,255,255,0.08)] sm:rounded-[2.25rem] sm:p-5 lg:bg-[#07111f]/95">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(125,211,252,0.2),transparent_28%),radial-gradient(circle_at_80%_100%,rgba(52,211,153,0.16),transparent_30%)]" />
