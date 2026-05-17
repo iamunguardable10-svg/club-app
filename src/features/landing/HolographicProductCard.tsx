@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, useReducedMotion, useTransform, type MotionValue } from 'framer-motion';
-import { BarChart3, Building2, CalendarDays, CheckCircle2, Clock3, MapPin, ShieldCheck, Users } from 'lucide-react';
+import { Building2, ShieldCheck } from 'lucide-react';
 
 const storyStates = [
   {
@@ -87,35 +87,24 @@ function accentClasses(accent: string) {
         ring: 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100',
         text: 'text-emerald-300',
         pill: 'bg-emerald-300 text-slate-950',
-        glow: 'bg-emerald-400/20',
       };
     case 'amber':
       return {
         ring: 'border-amber-300/25 bg-amber-300/10 text-amber-100',
         text: 'text-amber-300',
         pill: 'bg-amber-300 text-slate-950',
-        glow: 'bg-amber-400/16',
       };
     case 'cyan':
       return {
         ring: 'border-cyan-300/25 bg-cyan-300/10 text-cyan-100',
         text: 'text-cyan-300',
         pill: 'bg-cyan-300 text-slate-950',
-        glow: 'bg-cyan-400/18',
-      };
-    case 'slate':
-      return {
-        ring: 'border-sky-300/25 bg-sky-300/10 text-sky-100',
-        text: 'text-sky-300',
-        pill: 'bg-sky-300 text-slate-950',
-        glow: 'bg-sky-400/18',
       };
     default:
       return {
         ring: 'border-sky-300/25 bg-sky-300/10 text-sky-100',
         text: 'text-sky-300',
         pill: 'bg-sky-300 text-slate-950',
-        glow: 'bg-sky-400/18',
       };
   }
 }
