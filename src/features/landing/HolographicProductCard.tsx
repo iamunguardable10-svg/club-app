@@ -1,50 +1,77 @@
 'use client';
 
 import { motion, useReducedMotion, useTransform, type MotionValue } from 'framer-motion';
+import { BarChart3, Building2, CalendarDays, CheckCircle2, Clock3, MapPin, ShieldCheck, Users } from 'lucide-react';
 
-const states = [
+const storyStates = [
   {
     key: 'structure',
-    eyebrow: 'Structure',
-    title: 'One club model.',
-    text: 'Departments, teams, facilities and roles are connected before daily operations start.',
-    tone: 'border-sky-300/20 bg-sky-300/10 text-sky-100',
-    chips: ['Basketball', 'U18 Boys', 'Main Hall', 'Coach owner'],
+    label: 'Structure',
+    title: 'Club model',
+    subtitle: 'Basketball department · U18 Boys',
+    accent: 'sky',
+    kpis: [
+      ['4', 'Departments'],
+      ['18', 'Teams'],
+      ['6', 'Facilities'],
+    ],
+    rows: ['Club → Basketball', 'Basketball → U18 Boys', 'U18 Boys → Main Hall'],
   },
   {
     key: 'attendance',
-    eyebrow: 'Attendance',
-    title: 'Know who shows up.',
-    text: 'Availability and attendance states are visible before the session starts.',
-    tone: 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100',
-    chips: ['14 expected', '3 maybe', '2 missing', 'Live roster'],
+    label: 'Attendance',
+    title: 'U18 Boys Training',
+    subtitle: 'Main Hall · 18:30',
+    accent: 'emerald',
+    kpis: [
+      ['14', 'Expected'],
+      ['3', 'Maybe'],
+      ['2', 'Missing'],
+    ],
+    rows: ['Mika · confirmed', 'Jonas · late', 'Leo · missing'],
   },
   {
     key: 'sessions',
-    eyebrow: 'Sessions & facilities',
-    title: 'Plan where work happens.',
-    text: 'Facilities and sessions stay visible together, so planning is easier to trust.',
-    tone: 'border-amber-300/20 bg-amber-300/10 text-amber-100',
-    chips: ['Main Hall', 'U18 · 18:30', 'Strength · 19:15', 'No conflict'],
+    label: 'Sessions',
+    title: 'Facility schedule',
+    subtitle: 'Main Hall availability',
+    accent: 'amber',
+    kpis: [
+      ['18:30', 'U18'],
+      ['19:15', 'Strength'],
+      ['20:00', 'First Team'],
+    ],
+    rows: ['Court assigned', 'No hall conflict', 'Coach owner set'],
   },
   {
     key: 'load',
-    eyebrow: 'Load',
-    title: 'Create the data foundation.',
-    text: 'Attendance and sessions become load history for clearer planning.',
-    tone: 'border-cyan-300/20 bg-cyan-300/10 text-cyan-100',
-    chips: ['Stable trend', 'Moderate load', 'Ready 86%', 'History'],
+    label: 'Load',
+    title: 'Load intelligence',
+    subtitle: 'Stable trend · moderate week',
+    accent: 'cyan',
+    kpis: [
+      ['86%', 'Ready'],
+      ['Stable', 'Trend'],
+      ['12', 'Data points'],
+    ],
+    rows: ['Attendance stored', 'Session load added', 'Coach view updated'],
   },
   {
     key: 'roles',
-    eyebrow: 'Roles',
-    title: 'One system. Different views.',
-    text: 'Each role works from the same operating model with the right level of context.',
-    tone: 'border-violet-300/20 bg-violet-300/10 text-violet-100',
-    chips: ['Admin', 'Coach', 'Athlete', 'Department'],
+    label: 'Roles',
+    title: 'Role workspaces',
+    subtitle: 'One system · different views',
+    accent: 'slate',
+    kpis: [
+      ['Admin', 'Setup'],
+      ['Coach', 'Today'],
+      ['Athlete', 'Report'],
+    ],
+    rows: ['Admin controls structure', 'Coach sees readiness', 'Athlete reports fast'],
   },
 ];
 
+const bars = [34, 58, 44, 72, 64, 88, 52, 38, 78, 62, 48, 76];
 const ranges = [
   [0, 0.1, 0.22],
   [0.17, 0.29, 0.41],
@@ -53,43 +80,106 @@ const ranges = [
   [0.74, 0.87, 1],
 ] as const;
 
-function VisualState({ index, scrollYProgress }: { index: number; scrollYProgress: MotionValue<number> }) {
+function accentClasses(accent: string) {
+  switch (accent) {
+    case 'emerald':
+      return {
+        ring: 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100',
+        text: 'text-emerald-300',
+        pill: 'bg-emerald-300 text-slate-950',
+        glow: 'bg-emerald-400/20',
+      };
+    case 'amber':
+      return {
+        ring: 'border-amber-300/25 bg-amber-300/10 text-amber-100',
+        text: 'text-amber-300',
+        pill: 'bg-amber-300 text-slate-950',
+        glow: 'bg-amber-400/16',
+      };
+    case 'cyan':
+      return {
+        ring: 'border-cyan-300/25 bg-cyan-300/10 text-cyan-100',
+        text: 'text-cyan-300',
+        pill: 'bg-cyan-300 text-slate-950',
+        glow: 'bg-cyan-400/18',
+      };
+    case 'slate':
+      return {
+        ring: 'border-sky-300/25 bg-sky-300/10 text-sky-100',
+        text: 'text-sky-300',
+        pill: 'bg-sky-300 text-slate-950',
+        glow: 'bg-sky-400/18',
+      };
+    default:
+      return {
+        ring: 'border-sky-300/25 bg-sky-300/10 text-sky-100',
+        text: 'text-sky-300',
+        pill: 'bg-sky-300 text-slate-950',
+        glow: 'bg-sky-400/18',
+      };
+  }
+}
+
+function ProductState({ index, scrollYProgress }: { index: number; scrollYProgress: MotionValue<number> }) {
+  const state = storyStates[index];
+  const accent = accentClasses(state.accent);
   const [a, b, c] = ranges[index];
   const opacity = useTransform(scrollYProgress, [a, b, c], index === 0 ? [1, 1, 0] : index === 4 ? [0, 1, 1] : [0, 1, 0]);
-  const scale = useTransform(scrollYProgress, [a, b, c], index === 0 ? [1, 1, 0.97] : index === 4 ? [0.97, 1, 1] : [0.97, 1, 0.97]);
-  const state = states[index];
+  const y = useTransform(scrollYProgress, [a, b, c], index === 0 ? [0, 0, -10] : index === 4 ? [12, 0, 0] : [12, 0, -10]);
+  const scale = useTransform(scrollYProgress, [a, b, c], index === 0 ? [1, 1, 0.985] : index === 4 ? [0.985, 1, 1] : [0.985, 1, 0.985]);
 
   return (
-    <motion.div style={{ opacity, scale }} className="absolute inset-0">
+    <motion.div style={{ opacity, y, scale }} className="absolute inset-0">
       <div className="grid h-full content-start gap-3 sm:gap-4">
-        <div className={`rounded-3xl border p-4 sm:p-5 ${state.tone}`}>
-          <p className="text-xs font-black uppercase tracking-[0.2em] opacity-80">{state.eyebrow}</p>
-          <h4 className="mt-2 text-2xl font-black sm:text-3xl">{state.title}</h4>
-          <p className="mt-2 text-sm leading-6 text-slate-400">{state.text}</p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className={`text-[10px] font-black uppercase tracking-[0.28em] ${accent.text}`}>{state.label}</p>
+            <h4 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">{state.title}</h4>
+            <p className="mt-1 text-sm font-bold text-slate-500">{state.subtitle}</p>
+          </div>
+          <span className={`rounded-full px-3 py-1.5 text-xs font-black ${accent.pill}`}>Live</span>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:gap-3">
-          {state.chips.map((chip, chipIndex) => (
-            <div key={chip} className="rounded-2xl border border-slate-800 bg-slate-900/85 p-3 sm:p-4">
-              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-500">Item {chipIndex + 1}</p>
-              <p className="mt-2 text-xs font-black text-white sm:text-sm">{chip}</p>
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          {state.kpis.map(([value, label], tileIndex) => (
+            <div key={`${value}-${label}`} className={`rounded-2xl border p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${tileIndex === 0 ? accent.ring : 'border-slate-800 bg-slate-900/80 text-slate-100'}`}>
+              <p className="text-xl font-black tracking-tight sm:text-2xl">{value}</p>
+              <p className="mt-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-500">{label}</p>
             </div>
           ))}
         </div>
 
-        {state.key === 'load' ? (
-          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-4">
-            <div className="flex items-center justify-between text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              <span>Load trend</span>
-              <span className="rounded-full bg-emerald-300/15 px-2 py-1 text-emerald-200">stable</span>
-            </div>
-            <div className="mt-5 grid grid-cols-12 items-end gap-1">
-              {[36, 52, 44, 66, 62, 84, 48, 42, 78, 68, 54, 82].map((height) => (
-                <span key={height} className="origin-bottom rounded-t bg-gradient-to-t from-cyan-500/70 to-emerald-300" style={{ height: `${height}px` }} />
+        <div className="grid gap-3 rounded-[1.5rem] border border-slate-800 bg-slate-900/70 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-4">
+          <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+            <span>{state.key === 'load' ? 'Load trend' : 'Operational feed'}</span>
+            <span className={accent.text}>{state.key === 'load' ? 'stable' : 'synced'}</span>
+          </div>
+
+          {state.key === 'load' ? (
+            <div className="grid grid-cols-12 items-end gap-1 pt-4">
+              {bars.map((height, barIndex) => (
+                <motion.span
+                  key={`${height}-${barIndex}`}
+                  initial={{ scaleY: 0.35, opacity: 0.45 }}
+                  whileInView={{ scaleY: 1, opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: barIndex * 0.025 }}
+                  className="origin-bottom rounded-t bg-gradient-to-t from-sky-500/75 to-emerald-300"
+                  style={{ height: `${height}px` }}
+                />
               ))}
             </div>
-          </div>
-        ) : null}
+          ) : (
+            <div className="space-y-2">
+              {state.rows.map((row, rowIndex) => (
+                <div key={row} className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950/72 px-3 py-2.5 text-xs font-bold text-slate-200 sm:text-sm">
+                  <span>{row}</span>
+                  <span className={rowIndex === 1 && state.key === 'attendance' ? 'text-amber-300' : rowIndex === 2 && state.key === 'attendance' ? 'text-red-300' : 'text-emerald-300'}>●</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </motion.div>
   );
@@ -98,38 +188,49 @@ function VisualState({ index, scrollYProgress }: { index: number; scrollYProgres
 export function HolographicProductCard({ scrollYProgress, mobileActive }: { scrollYProgress: MotionValue<number>; mobileActive: boolean }) {
   const reduceMotion = useReducedMotion();
   const progressScale = useTransform(scrollYProgress, [0.01, 0.97], reduceMotion ? [1, 1] : [0, 1]);
-  const cardOpacity = useTransform(scrollYProgress, [0, 0.004, 0.975, 1], [0, 1, 1, 0]);
-  const cardY = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [6, -8]);
+  const cardY = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [5, -8]);
 
   return (
     <motion.div
-      style={{ y: cardY, opacity: cardOpacity }}
-      className={`fixed inset-x-3 top-2 z-50 lg:sticky lg:inset-x-auto lg:top-24 ${mobileActive ? 'pointer-events-auto' : 'pointer-events-none lg:pointer-events-auto'}`}
+      style={{ y: cardY }}
+      className={`fixed inset-x-3 top-2 z-50 transition-opacity duration-300 lg:sticky lg:inset-x-auto lg:top-24 lg:opacity-100 ${mobileActive ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0 lg:pointer-events-auto'}`}
     >
-      <div className="pointer-events-none absolute -inset-x-3 -top-3 bottom-[-1.25rem] rounded-b-[2rem] bg-[#050712] lg:hidden" />
-      <div className="pointer-events-none absolute inset-x-[-0.75rem] bottom-[-4.5rem] h-16 bg-gradient-to-b from-[#050712] to-transparent lg:hidden" />
+      <div className="pointer-events-none absolute -inset-x-3 -top-3 bottom-[-1.75rem] rounded-b-[2rem] bg-[#050712] lg:hidden" />
+      <div className="pointer-events-none absolute inset-x-[-0.75rem] bottom-[-5.25rem] h-20 bg-gradient-to-b from-[#050712] to-transparent lg:hidden" />
 
-      <div className="relative overflow-hidden rounded-[1.55rem] border border-sky-300/20 bg-slate-950 p-3 shadow-[0_32px_120px_rgba(14,165,233,0.22)] backdrop-blur-xl sm:rounded-[2.25rem] sm:p-5 lg:bg-slate-950/88">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-sky-400/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-28 -left-28 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.045)_1px,transparent_1px)] bg-[size:44px_44px]" />
+      <div className="relative overflow-hidden rounded-[1.65rem] border border-sky-300/25 bg-[#07111f] p-3 shadow-[0_32px_140px_rgba(14,165,233,0.24),inset_0_1px_0_rgba(255,255,255,0.08)] sm:rounded-[2.25rem] sm:p-5 lg:bg-[#07111f]/95">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(125,211,252,0.2),transparent_28%),radial-gradient(circle_at_80%_100%,rgba(52,211,153,0.16),transparent_30%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.045)_1px,transparent_1px)] bg-[size:42px_42px]" />
+        <div className="pointer-events-none absolute left-8 right-8 top-0 h-px bg-gradient-to-r from-transparent via-sky-300/70 to-transparent" />
 
-        <div className="relative flex items-center justify-between gap-4 border-b border-slate-800 pb-3 sm:pb-4">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-300 sm:text-xs">Holographic product card</p>
-            <h3 className="mt-1 text-xl font-black tracking-tight sm:mt-2 sm:text-3xl">TeamLoad OS</h3>
+        <div className="relative flex items-center justify-between border-b border-slate-800/90 pb-3 sm:pb-4">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl border border-sky-300/20 bg-sky-300/10 text-sky-200">
+              <Building2 className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-sky-300">TeamLoad OS</p>
+              <p className="text-lg font-black tracking-tight text-white sm:text-2xl">Operations cockpit</p>
+            </div>
           </div>
-          <span className="rounded-full bg-emerald-300 px-3 py-1.5 text-xs font-black text-slate-950">Live</span>
+          <ShieldCheck className="h-5 w-5 text-emerald-300" />
         </div>
 
-        <div className="relative mt-3 h-[22rem] overflow-hidden sm:mt-4 sm:h-[31rem] lg:h-[34rem]">
-          {states.map((state, index) => (
-            <VisualState key={state.key} index={index} scrollYProgress={scrollYProgress} />
+        <div className="relative mt-4 h-[21.5rem] overflow-hidden sm:h-[31rem] lg:h-[34rem]">
+          {storyStates.map((state, index) => (
+            <ProductState key={state.key} index={index} scrollYProgress={scrollYProgress} />
           ))}
         </div>
 
-        <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-slate-800 sm:mt-5">
-          <motion.div style={{ scaleX: progressScale }} className="h-full origin-left rounded-full bg-gradient-to-r from-emerald-400 via-sky-300 to-violet-300" />
+        <div className="relative mt-4 space-y-3">
+          <div className="flex items-center justify-between gap-2 text-[9px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-[10px]">
+            {storyStates.map((state) => (
+              <span key={state.key}>{state.label}</span>
+            ))}
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+            <motion.div style={{ scaleX: progressScale }} className="h-full origin-left rounded-full bg-gradient-to-r from-emerald-400 via-sky-300 to-cyan-300" />
+          </div>
         </div>
       </div>
     </motion.div>
