@@ -143,6 +143,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
   const [composerTeamId, setComposerTeamId] = useState<string | null>(null);
 
   const clubId = department?.club_id ?? '';
+  const currentDepartmentId = department?.id ?? '';
 
   const departmentFacilities = useMemo(
     () => facilities.filter((facility) => assignedFacilityIds.has(facility.id)),
@@ -793,7 +794,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
             {departmentFacilities.map((facility) => (
               <Link
                 key={facility.id}
-                href={`/admin/facilities/${facility.id}/calendar?from=departments`}
+                href={`/admin/facilities/${facility.id}/calendar?from=departments&departmentId=${currentDepartmentId}`}
                 className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300"
               >
                 <p className="font-black text-white">{facility.name}</p>
@@ -1072,7 +1073,13 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                           </button>
                         )}
                         <span className="hidden sm:inline text-slate-600">·</span>
-                        <span className="hidden md:inline">{defaultFacility?.name ?? 'No default facility'}</span>
+                        {defaultFacility ? (
+                          <Link href={`/admin/facilities/${defaultFacility.id}/calendar?from=team&departmentId=${currentDepartmentId}&teamId=${team.id}`} className="hidden md:inline hover:text-emerald-200">
+                            {defaultFacility.name}
+                          </Link>
+                        ) : (
+                          <span className="hidden md:inline">No default facility</span>
+                        )}
                         <span className="hidden sm:inline text-slate-600">·</span>
                         <span className="hidden sm:inline">{athleteCount} players</span>
                         <span className="hidden lg:inline text-slate-600">·</span>

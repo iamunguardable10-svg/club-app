@@ -351,7 +351,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
             {departmentFacilities.map((facilityName) => {
               const facility = facilityByName.get(facilityName);
               return (
-                <Link key={facilityName} href={`/demo/admin/facilities/${encodeFacilityName(facilityName)}/calendar?from=departments`} className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300">
+                <Link key={facilityName} href={`/demo/admin/facilities/${encodeFacilityName(facilityName)}/calendar?from=departments&departmentName=${encodeURIComponent(departmentName)}`} className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300">
                   <p className="font-black text-white">{facilityName}</p>
                   <p className="mt-1 text-xs text-slate-500">{facility?.scope === 'department_only' ? 'Department-only hall' : 'Shared club facility'} · {facility?.address || 'No address'}</p>
                 </Link>
@@ -491,7 +491,13 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                           </button>
                         )}
                         <span className="hidden md:inline text-slate-600">·</span>
-                        <span className="hidden md:inline">{defaultFacility?.name ?? 'No default facility'}</span>
+                        {defaultFacility ? (
+                          <Link href={`/demo/admin/facilities/${encodeFacilityName(defaultFacility.name)}/calendar?from=team&departmentName=${encodeURIComponent(departmentName)}&teamName=${encodeURIComponent(team.name)}`} className="hidden md:inline hover:text-emerald-200">
+                            {defaultFacility.name}
+                          </Link>
+                        ) : (
+                          <span className="hidden md:inline">No default facility</span>
+                        )}
                         <span className="hidden sm:inline text-slate-600">·</span>
                         <span className="hidden sm:inline">0 players</span>
                         <span className="hidden lg:inline text-slate-600">·</span>
