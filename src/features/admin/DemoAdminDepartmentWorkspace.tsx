@@ -22,9 +22,20 @@ type DemoFacilityRequest = {
   status: 'open' | 'resolved' | 'rejected';
 };
 type FacilityDraftStep = 'idle' | 'name' | 'usage' | 'shared_confirm' | 'reported';
+type DemoInvite = {
+  id: string;
+  token: string;
+  role: 'head_coach' | 'assistant_coach';
+  department: string;
+  team: string;
+  status: 'pending' | 'accepted' | 'revoked' | 'expired';
+  createdAt: string;
+  expiresAt: string | null;
+};
 
 const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
 const DEMO_FACILITY_REQUESTS_KEY = 'club-app.demo.facility-requests';
+const DEMO_INVITES_KEY = 'club-app.demo.invites';
 
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
@@ -75,6 +86,12 @@ function encodeFacilityName(facility: string) {
   return encodeURIComponent(facility);
 }
 
+function createInviteToken() {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentName: string }) {
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [teams, setTeams] = useState<DemoTeam[]>([]);
@@ -87,12 +104,15 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
   const [facilityDraftError, setFacilityDraftError] = useState<string | null>(null);
   const [facilityDraftWarning, setFacilityDraftWarning] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [invites, setInvites] = useState<DemoInvite[]>([]);
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   function loadLocalData() {
     const currentSetup = getDemoClubSetup();
     setSetup(currentSetup);
     setTeams(getDemoTeams(currentSetup));
     setAssignments(getAssignments());
+    setInvites(readJson<DemoInvite[]>(DEMO_INVITES_KEY, []));
   }
 
   useEffect(() => {
@@ -116,6 +136,29 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
   function persistTeams(nextTeams: DemoTeam[]) {
     setTeams(nextTeams);
     saveDemoTeams(nextTeams);
+  }
+
+  function persistInvites(nextInvites: DemoInvite[]) {
+    setInvites(nextInvites);
+    writeJson(DEMO_INVITES_KEY, nextInvites);
+  }
+
+  async function handleInvite(role: DemoInvite['role'], team: DemoTeam) {
+    const existing = invites.find((invite) => invite.status === 'pending' && invite.role === role && invite.department === departmentName && invite.team === team.name);
+    const invite = existing ?? {
+      id: crypto.randomUUID(),
+      token: createInviteToken(),
+      role,
+      department: departmentName,
+      team: team.name,
+      status: 'pending' as const,
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+    if (!existing) persistInvites([invite, ...invites]);
+    await navigator.clipboard.writeText(`${window.location.origin}/invite/${invite.token}`);
+    setCopiedToken(invite.token);
+    window.setTimeout(() => setCopiedToken(null), 1500);
   }
 
   function persistAssignments(nextAssignments: DemoAssignment[]) {
@@ -386,13 +429,21 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
                       <h3 className="text-xl font-black text-white">{team.name}</h3>
-                      <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-sm font-bold text-slate-300"><span>No head coach</span><span className="hidden sm:inline text-slate-600">·</span><span className="hidden sm:inline">0 players</span><span className="hidden md:inline text-slate-600">·</span><span className="hidden md:inline">{defaultFacility?.name ?? 'No default facility'}</span></p>
-                      {!isEditMode && needsDefaultFacility && departmentFacilities.length > 0 ? (
+                      <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-sm font-bold text-slate-300"><span>No head coach</span><span className="hidden md:inline text-slate-600">·</span><span className="hidden md:inline">{defaultFacility?.name ?? 'No default facility'}</span><span className="hidden sm:inline text-slate-600">·</span><span className="hidden sm:inline">0 players</span></p>
+                      {!isEditMode ? (
                         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                          <button type="button" onClick={() => handleInvite('head_coach', team)} className="w-fit rounded-lg border border-amber-500/70 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40">
+                            {invites.find((invite) => invite.status === 'pending' && invite.role === 'head_coach' && invite.team === team.name) ? (copiedToken === invites.find((invite) => invite.status === 'pending' && invite.role === 'head_coach' && invite.team === team.name)?.token ? 'Copied invite' : 'Copy head coach invite') : 'Invite head coach'}
+                          </button>
+                          <button type="button" onClick={() => handleInvite('assistant_coach', team)} className="w-fit rounded-lg border border-sky-500/70 px-2.5 py-1.5 text-xs font-black text-sky-200 hover:bg-sky-950/40">
+                            {invites.find((invite) => invite.status === 'pending' && invite.role === 'assistant_coach' && invite.team === team.name) ? (copiedToken === invites.find((invite) => invite.status === 'pending' && invite.role === 'assistant_coach' && invite.team === team.name)?.token ? 'Copied invite' : 'Copy assistant invite') : 'Invite assistant coach'}
+                          </button>
+                          {needsDefaultFacility && departmentFacilities.length > 0 ? (
                           <select value="" onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)} className="w-full rounded-lg border border-emerald-500/50 bg-slate-950 px-2.5 py-1.5 text-xs font-black text-emerald-200 outline-none focus:border-emerald-300 sm:w-fit">
                             <option value="">Set default facility</option>
                             {departmentFacilities.map((facility) => <option key={facility} value={facility}>{facility}</option>)}
                           </select>
+                          ) : null}
                         </div>
                       ) : null}
                     </div>

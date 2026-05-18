@@ -175,6 +175,15 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
     }
     return map;
   }, [invites]);
+  const pendingAssistantInviteByTeam = useMemo(() => {
+    const map = new Map<string, Invite>();
+    for (const invite of invites) {
+      if (invite.status === 'pending' && invite.role === 'assistant_coach' && invite.team_id) {
+        map.set(invite.team_id, invite);
+      }
+    }
+    return map;
+  }, [invites]);
 
   const nextSessionByTeam = useMemo(() => {
     const map = new Map<string, Session>();
@@ -654,6 +663,35 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
     await handleCopy(token);
   }
 
+  async function handleInviteAssistantCoach(teamId: string) {
+    if (!clubId || !department) return;
+    setIsSaving(true);
+    setError(null);
+    const supabase = createBrowserSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const token = createInviteToken();
+    const { error: insertError } = await supabase.from('invites').insert({
+      token,
+      club_id: clubId,
+      department_id: department.id,
+      team_id: teamId,
+      role: 'assistant_coach',
+      invite_type: 'coach_invite',
+      created_by: user?.id ?? null,
+      expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+    if (insertError) {
+      setError(insertError.message);
+      setIsSaving(false);
+      return;
+    }
+    setIsSaving(false);
+    await loadDepartmentData();
+    await handleCopy(token);
+  }
+
   if (state === 'loading') {
     return (
       <AdminShell>
@@ -1005,6 +1043,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
               const assistantCoaches = teamMemberships.filter((membership) => membership.role === 'assistant_coach');
               const athleteCount = teamMemberships.filter((membership) => membership.role === 'athlete').length;
               const pendingHeadInvite = pendingHeadInviteByTeam.get(team.id);
+              const pendingAssistantInvite = pendingAssistantInviteByTeam.get(team.id);
               const defaultFacility = team.default_facility_id ? facilityById.get(team.default_facility_id) : null;
               const headCoachLabel =
                 headCoaches.length > 0
@@ -1024,9 +1063,9 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                       <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-sm font-bold text-slate-300">
                         <span>{headCoachLabel}</span>
                         <span className="hidden sm:inline text-slate-600">·</span>
-                        <span className="hidden sm:inline">{athleteCount} players</span>
-                        <span className="hidden md:inline text-slate-600">·</span>
                         <span className="hidden md:inline">{defaultFacility?.name ?? 'No default facility'}</span>
+                        <span className="hidden sm:inline text-slate-600">·</span>
+                        <span className="hidden sm:inline">{athleteCount} players</span>
                         <span className="hidden lg:inline text-slate-600">·</span>
                         <span className="hidden lg:inline">{formatNextSession(nextSession)}</span>
                       </p>
@@ -1050,6 +1089,27 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                                 className="w-fit rounded-lg border border-amber-500/70 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40 disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 Invite head coach
+                              </button>
+                            )
+                          ) : null}
+
+                          {assistantCoaches.length === 0 ? (
+                            pendingAssistantInvite ? (
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(pendingAssistantInvite.token)}
+                                className="w-fit rounded-lg border border-sky-500/60 px-2.5 py-1.5 text-xs font-black text-sky-200 hover:bg-sky-950/40"
+                              >
+                                {copiedToken === pendingAssistantInvite.token ? 'Copied invite' : 'Copy assistant invite'}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={isSaving}
+                                onClick={() => handleInviteAssistantCoach(team.id)}
+                                className="w-fit rounded-lg border border-sky-500/70 px-2.5 py-1.5 text-xs font-black text-sky-200 hover:bg-sky-950/40 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Invite assistant coach
                               </button>
                             )
                           ) : null}
@@ -1098,7 +1158,16 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                             </button>
                           )}
                           <p className="mt-2 text-xs leading-5 text-slate-500">
-                            Assistants: {assistantCoaches.length > 0 ? assistantCoaches.map((membership) => personLabel(profileById.get(membership.user_id), 'Assistant coach')).join(', ') : 'none assigned'}
+                            Assistants:{' '}
+                            {assistantCoaches.length > 0 ? assistantCoaches.map((membership) => personLabel(profileById.get(membership.user_id), 'Assistant coach')).join(', ') : pendingAssistantInvite ? (
+                              <button type="button" onClick={() => handleCopy(pendingAssistantInvite.token)} className="font-black text-sky-200 underline">
+                                {copiedToken === pendingAssistantInvite.token ? 'copied invite' : 'invite pending'}
+                              </button>
+                            ) : (
+                              <button type="button" onClick={() => handleInviteAssistantCoach(team.id)} className="font-black text-sky-200 underline">
+                                invite assistant coach
+                              </button>
+                            )}
                           </p>
                         </div>
 

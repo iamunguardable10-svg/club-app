@@ -1,4 +1,4 @@
-import { PlaceholderPage } from '@/shared/ui/PlaceholderPage';
+import { InviteAcceptancePage } from '@/features/invite/InviteAcceptancePage';
 
 export default async function InvitePage({
   params,
@@ -7,13 +7,5 @@ export default async function InvitePage({
 }) {
   const { token } = await params;
 
-  return (
-    <PlaceholderPage
-      area="Invite"
-      title="Personal invite"
-      description={`Personal role invite placeholder for token: ${token}`}
-      primaryFocus="This page will preview coach or department-lead invites, require login, then call accept_invite(token)."
-      nextModules={['Invite preview', 'Login/signup gate', 'Accept invite RPC', 'Role assignment', 'Redirect to workspace']}
-    />
-  );
+  return <InviteAcceptancePage token={token} />;
 }

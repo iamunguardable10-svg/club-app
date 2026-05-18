@@ -50,6 +50,8 @@ export function CreateClubForm() {
   const [error, setError] = useState<string | null>(null);
 
   const departmentList = useMemo(() => parseList(departments), [departments]);
+  const completedFacilityCount = useMemo(() => getCompletedFacilityDraftRows(facilities).length, [facilities]);
+  const teamCount = useMemo(() => (createTeamsNow ? parseList(teams).length : 0), [createTeamsNow, teams]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -135,12 +137,20 @@ export function CreateClubForm() {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#172554_0,#070A12_45%)] px-4 py-8 text-white sm:px-8">
       <div className="mx-auto max-w-5xl">
-        <div className="rounded-3xl border border-slate-800 bg-slate-950/75 p-6 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-sky-300">Admin onboarding</p>
-          <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Set up your club</h1>
-          <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-400">
-            Create the first club structure. Start with the club, departments and global facilities. Teams are optional here because department leads can create them later.
-          </p>
+        <div className="overflow-hidden rounded-3xl border border-slate-800 bg-[linear-gradient(135deg,rgba(15,23,42,0.96),rgba(2,6,23,0.78))] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
+          <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-sky-300">Admin onboarding</p>
+              <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Build the club spine</h1>
+              <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-400">Start with the smallest structure that can already run: club, departments, facilities, then optionally the first teams.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3"><p className="text-xs uppercase tracking-[0.16em] text-slate-500">Departments</p><p className="mt-1 text-2xl font-black">{departmentList.length}</p></div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3"><p className="text-xs uppercase tracking-[0.16em] text-slate-500">Facilities</p><p className="mt-1 text-2xl font-black">{completedFacilityCount}</p></div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3"><p className="text-xs uppercase tracking-[0.16em] text-slate-500">Teams now</p><p className="mt-1 text-2xl font-black">{teamCount}</p></div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3"><p className="text-xs uppercase tracking-[0.16em] text-slate-500">Mode</p><p className="mt-1 text-sm font-black">{createTeamsNow ? 'Full start' : 'Lean start'}</p></div>
+            </div>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-6 grid gap-5">
