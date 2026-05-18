@@ -167,8 +167,9 @@ Strict operational access:
 
 - club_admin can see sessions in the club for administration/calendar purposes
 - department_lead can see sessions in their department
-- head_coach and assistant_coach can see sessions of their assigned teams
-- athlete can see sessions of their assigned teams
+- head_coach and assistant_coach can see sessions owned by their assigned teams
+- invited-team staff can see invited sessions so they can accept or decline
+- athlete can see sessions for owner/accepted teams they belong to
 
 ## Optional calendar exception
 
@@ -193,15 +194,27 @@ Not exposed:
 
 - club_admin can create sessions
 - department_lead can create sessions in their department
-- head_coach can create sessions for assigned teams
-- assistant_coach can create sessions for assigned teams
+- head_coach can create sessions for assigned owner teams
+- assistant_coach can create sessions for assigned owner teams
 
 ## Update / delete
 
 - club_admin within club
 - department_lead within department
-- head_coach within assigned teams
-- assistant_coach within assigned teams
+- head_coach within owned assigned teams
+- assistant_coach within owned assigned teams
+
+## Team invitations
+
+- owner-team staff can invite other teams
+- invited-team staff can accept or decline their own team row
+- invited teams do not become owners of the session
+
+## Group / player targeting
+
+- player groups are team-internal
+- team staff manage groups inside assigned teams
+- session groups and session players are editable by session managers only
 
 ---
 
