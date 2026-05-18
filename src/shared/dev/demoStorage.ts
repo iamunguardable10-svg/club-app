@@ -26,6 +26,18 @@ export type DemoTeam = {
   createdAt: string;
 };
 
+export type DemoSession = {
+  id: string;
+  department: string;
+  team: string;
+  title: string;
+  sessionType: string;
+  startsAt: string;
+  endsAt: string;
+  facility: string | null;
+  createdAt: string;
+};
+
 type LegacyDemoFacilityMeta = {
   facility: string;
   scope: 'club_shared' | 'department_only';
@@ -35,6 +47,7 @@ type LegacyDemoFacilityMeta = {
 
 const DEMO_CLUB_SETUP_KEY = 'club-app.demo.club-setup';
 const DEMO_TEAMS_KEY = 'club-app.demo.teams';
+const DEMO_SESSIONS_KEY = 'club-app.demo.sessions';
 const LEGACY_DEMO_FACILITY_META_KEY = 'club-app.demo.facility-meta';
 
 const DEFAULT_DEMO_FACILITY_ADDRESSES: Record<string, string> = {
@@ -119,7 +132,24 @@ export function clearDemoClubSetup() {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(DEMO_CLUB_SETUP_KEY);
   window.localStorage.removeItem(DEMO_TEAMS_KEY);
+  window.localStorage.removeItem(DEMO_SESSIONS_KEY);
   window.localStorage.removeItem(LEGACY_DEMO_FACILITY_META_KEY);
+}
+
+export function saveDemoSessions(sessions: DemoSession[]) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(DEMO_SESSIONS_KEY, JSON.stringify(sessions));
+}
+
+export function getDemoSessions(): DemoSession[] {
+  if (typeof window === 'undefined') return [];
+  const raw = window.localStorage.getItem(DEMO_SESSIONS_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as DemoSession[];
+  } catch {
+    return [];
+  }
 }
 
 function createInitialDemoTeams(setup: DemoClubSetup): DemoTeam[] {

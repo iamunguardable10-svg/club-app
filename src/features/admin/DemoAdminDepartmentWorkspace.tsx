@@ -6,11 +6,16 @@ import { AdminShell } from '@/shared/admin/AdminShell';
 import {
   getDemoClubSetup,
   getDemoTeams,
+  getDemoSessions,
   saveDemoClubSetup,
+  saveDemoSessions,
   saveDemoTeams,
   type DemoClubSetup,
   type DemoTeam,
+  type DemoSession,
 } from '@/shared/dev/demoStorage';
+import { DemoSessionComposer } from '@/features/sessions/DemoSessionComposer';
+import type { SessionComposerPayload } from '@/features/sessions/SessionComposer';
 
 type DemoAssignment = { department: string; facility: string };
 type DemoFacilityRequest = {
@@ -106,6 +111,8 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
   const [isEditMode, setIsEditMode] = useState(false);
   const [invites, setInvites] = useState<DemoInvite[]>([]);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<DemoSession[]>([]);
+  const [composerTeamId, setComposerTeamId] = useState<string | null>(null);
 
   function loadLocalData() {
     const currentSetup = getDemoClubSetup();
@@ -113,6 +120,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
     setTeams(getDemoTeams(currentSetup));
     setAssignments(getAssignments());
     setInvites(readJson<DemoInvite[]>(DEMO_INVITES_KEY, []));
+    setSessions(getDemoSessions());
   }
 
   useEffect(() => {
@@ -127,6 +135,20 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
     () => facilityDetails.filter((facility) => facility.scope !== 'department_only' && !departmentFacilities.includes(facility.name)),
     [departmentFacilities, facilityDetails],
   );
+  const nextSessionByTeam = useMemo(() => {
+    const now = Date.now();
+    const map = new Map<string, DemoSession>();
+    for (const session of sessions) {
+      if (session.department !== departmentName || new Date(session.startsAt).getTime() < now) continue;
+      const team = departmentTeams.find((item) => item.name === session.team);
+      if (!team) continue;
+      const current = map.get(team.id);
+      if (!current || new Date(session.startsAt) < new Date(current.startsAt)) {
+        map.set(team.id, session);
+      }
+    }
+    return map;
+  }, [departmentName, departmentTeams, sessions]);
 
   function persistSetup(nextSetup: DemoClubSetup) {
     saveDemoClubSetup(nextSetup);
@@ -141,6 +163,25 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
   function persistInvites(nextInvites: DemoInvite[]) {
     setInvites(nextInvites);
     writeJson(DEMO_INVITES_KEY, nextInvites);
+  }
+
+  async function handleCreateSession(payload: SessionComposerPayload) {
+    const team = departmentTeams.find((item) => item.id === payload.ownerTeamId);
+    if (!team) throw new Error('Team not found.');
+    const nextSession: DemoSession = {
+      id: crypto.randomUUID(),
+      department: departmentName,
+      team: team.name,
+      title: payload.title,
+      sessionType: payload.sessionType,
+      startsAt: payload.startsAt,
+      endsAt: payload.endsAt,
+      facility: payload.facilityId,
+      createdAt: new Date().toISOString(),
+    };
+    const nextSessions = [nextSession, ...sessions];
+    setSessions(nextSessions);
+    saveDemoSessions(nextSessions);
   }
 
   async function handleInvite(role: DemoInvite['role'], team: DemoTeam) {
@@ -310,7 +351,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
             {departmentFacilities.map((facilityName) => {
               const facility = facilityByName.get(facilityName);
               return (
-                <Link key={facilityName} href={`/demo/admin/facilities/${encodeFacilityName(facilityName)}/calendar?from=departments`} className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300">
+                <Link key={facilityName} href={`/demo/admin/facilities/${encodeFacilityName(facilityName)}/calendar?from=departments&departmentName=${encodeURIComponent(departmentName)}`} className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300">
                   <p className="font-black text-white">{facilityName}</p>
                   <p className="mt-1 text-xs text-slate-500">{facility?.scope === 'department_only' ? 'Department-only hall' : 'Shared club facility'} · {facility?.address || 'No address'}</p>
                 </Link>
@@ -425,6 +466,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
               const defaultFacility = team.defaultFacility ? facilityByName.get(team.defaultFacility) : null;
               const needsDefaultFacility = !defaultFacility;
               const pendingHeadCoachInvite = invites.find((invite) => invite.status === 'pending' && invite.role === 'head_coach' && invite.team === team.name);
+              const nextSession = nextSessionByTeam.get(team.id);
               return (
                 <article key={team.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-slate-700">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -449,9 +491,19 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                           </button>
                         )}
                         <span className="hidden md:inline text-slate-600">·</span>
-                        <span className="hidden md:inline">{defaultFacility?.name ?? 'No default facility'}</span>
+                        {defaultFacility ? (
+                          <Link href={`/demo/admin/facilities/${encodeFacilityName(defaultFacility.name)}/calendar?from=team&departmentName=${encodeURIComponent(departmentName)}&teamName=${encodeURIComponent(team.name)}`} className="hidden md:inline hover:text-emerald-200">
+                            {defaultFacility.name}
+                          </Link>
+                        ) : (
+                          <span className="hidden md:inline">No default facility</span>
+                        )}
                         <span className="hidden sm:inline text-slate-600">·</span>
                         <span className="hidden sm:inline">0 players</span>
+                        <span className="hidden lg:inline text-slate-600">·</span>
+                        <span className="hidden lg:inline">
+                          {nextSession ? `Next ${new Date(nextSession.startsAt).toLocaleDateString(undefined, { weekday: 'short' })} ${new Date(nextSession.startsAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}` : 'No session yet'}
+                        </span>
                       </p>
                       {!isEditMode && needsDefaultFacility ? (
                         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
@@ -462,6 +514,11 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                           </select>
                           ) : null}
                         </div>
+                      ) : null}
+                      {!isEditMode ? (
+                        <button type="button" onClick={() => setComposerTeamId(team.id)} className="mt-3 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200 transition hover:bg-slate-800">
+                          Create session
+                        </button>
                       ) : null}
                     </div>
                     {isEditMode ? (
@@ -486,6 +543,20 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
           )}
         </div>
       </section>
+      <DemoSessionComposer
+        open={composerTeamId !== null}
+        teams={departmentTeams.map((team) => ({
+          id: team.id,
+          name: team.name,
+          departmentId: departmentName,
+          defaultFacilityId: team.defaultFacility,
+        }))}
+        facilities={departmentFacilities.map((facility) => ({ id: facility, name: facility }))}
+        initialTeamId={composerTeamId}
+        lockedTeamId={composerTeamId}
+        onClose={() => setComposerTeamId(null)}
+        onSubmit={handleCreateSession}
+      />
     </AdminShell>
   );
 }

@@ -320,7 +320,8 @@ Sessions can be training, game, recovery, S&C, meeting or other event types.
 id uuid primary key default gen_random_uuid()
 club_id uuid not null references clubs(id) on delete cascade
 department_id uuid not null references departments(id) on delete cascade
-team_id uuid not null references teams(id) on delete cascade
+team_id uuid not null references teams(id) on delete cascade -- legacy compatibility mirror
+owner_team_id uuid not null references teams(id) on delete cascade
 created_by uuid references profiles(id)
 title text not null
 session_type text not null
@@ -348,11 +349,106 @@ other
 
 ## V1 rule
 
-V1 sessions belong to exactly one team.
+V1 sessions have exactly one owner team.
 
-This keeps session planning, availability, attendance and load simple.
+The owner team keeps responsibility, permissions, default department context and default facility context stable.
 
-Future versions may support multi-team sessions.
+Additional teams can be invited through `session_teams`.
+
+---
+
+# 9a. session_teams
+
+Additional team participation for a session.
+
+## Fields
+
+```txt
+id uuid primary key default gen_random_uuid()
+session_id uuid not null references sessions(id) on delete cascade
+team_id uuid not null references teams(id) on delete cascade
+relation_status text not null -- owner | invited | accepted | declined
+invited_by uuid references profiles(id)
+responded_by uuid references profiles(id)
+responded_at timestamptz
+created_at timestamptz not null default now()
+```
+
+## Rule
+
+Every session receives one automatic `owner` row.
+
+Other teams can be invited without taking ownership away from the creating team.
+
+---
+
+# 9b. player_groups
+
+Reusable team-internal athlete groups.
+
+## Fields
+
+```txt
+id uuid primary key default gen_random_uuid()
+team_id uuid not null references teams(id) on delete cascade
+name text not null
+created_by uuid references profiles(id)
+created_at timestamptz not null default now()
+updated_at timestamptz not null default now()
+```
+
+Examples:
+
+```txt
+Starting Five
+Guards
+Rehab
+```
+
+---
+
+# 9c. player_group_members
+
+Members of a reusable team-internal group.
+
+## Fields
+
+```txt
+id uuid primary key default gen_random_uuid()
+group_id uuid not null references player_groups(id) on delete cascade
+team_membership_id uuid not null references team_memberships(id) on delete cascade
+created_at timestamptz not null default now()
+```
+
+---
+
+# 9d. session_groups
+
+Group-level targeting for a session.
+
+## Fields
+
+```txt
+id uuid primary key default gen_random_uuid()
+session_id uuid not null references sessions(id) on delete cascade
+group_id uuid not null references player_groups(id) on delete cascade
+created_at timestamptz not null default now()
+```
+
+---
+
+# 9e. session_players
+
+Individual athlete targeting for a session.
+
+## Fields
+
+```txt
+id uuid primary key default gen_random_uuid()
+session_id uuid not null references sessions(id) on delete cascade
+team_membership_id uuid not null references team_memberships(id) on delete cascade
+created_at timestamptz not null default now()
+```
 
 ---
 

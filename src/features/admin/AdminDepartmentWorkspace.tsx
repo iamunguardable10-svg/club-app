@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AdminShell } from '@/shared/admin/AdminShell';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
+import { SessionComposer, type SessionComposerPayload } from '@/features/sessions/SessionComposer';
 
 type ClubMembership = {
   club_id: string;
@@ -139,8 +140,10 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [composerTeamId, setComposerTeamId] = useState<string | null>(null);
 
   const clubId = department?.club_id ?? '';
+  const currentDepartmentId = department?.id ?? '';
 
   const departmentFacilities = useMemo(
     () => facilities.filter((facility) => assignedFacilityIds.has(facility.id)),
@@ -663,6 +666,26 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
     await handleCopy(token);
   }
 
+  async function handleCreateSession(payload: SessionComposerPayload) {
+    if (!clubId || !department) return;
+    const supabase = createBrowserSupabaseClient();
+    const { error: insertError } = await supabase.from('sessions').insert({
+      club_id: clubId,
+      department_id: department.id,
+      team_id: payload.ownerTeamId,
+      owner_team_id: payload.ownerTeamId,
+      title: payload.title,
+      session_type: payload.sessionType,
+      starts_at: payload.startsAt,
+      ends_at: payload.endsAt,
+      facility_id: payload.facilityId,
+      status: 'scheduled',
+    });
+
+    if (insertError) throw insertError;
+    await loadDepartmentData();
+  }
+
   if (state === 'loading') {
     return (
       <AdminShell>
@@ -771,7 +794,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
             {departmentFacilities.map((facility) => (
               <Link
                 key={facility.id}
-                href={`/admin/facilities/${facility.id}/calendar?from=departments`}
+                href={`/admin/facilities/${facility.id}/calendar?from=departments&departmentId=${currentDepartmentId}`}
                 className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300"
               >
                 <p className="font-black text-white">{facility.name}</p>
@@ -1050,7 +1073,13 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                           </button>
                         )}
                         <span className="hidden sm:inline text-slate-600">·</span>
-                        <span className="hidden md:inline">{defaultFacility?.name ?? 'No default facility'}</span>
+                        {defaultFacility ? (
+                          <Link href={`/admin/facilities/${defaultFacility.id}/calendar?from=team&departmentId=${currentDepartmentId}&teamId=${team.id}`} className="hidden md:inline hover:text-emerald-200">
+                            {defaultFacility.name}
+                          </Link>
+                        ) : (
+                          <span className="hidden md:inline">No default facility</span>
+                        )}
                         <span className="hidden sm:inline text-slate-600">·</span>
                         <span className="hidden sm:inline">{athleteCount} players</span>
                         <span className="hidden lg:inline text-slate-600">·</span>
@@ -1075,6 +1104,16 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                             </select>
                           ) : null}
                         </div>
+                      ) : null}
+
+                      {!isEditMode ? (
+                        <button
+                          type="button"
+                          onClick={() => setComposerTeamId(team.id)}
+                          className="mt-3 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200 transition hover:bg-slate-800"
+                        >
+                          Create session
+                        </button>
                       ) : null}
                     </div>
 
@@ -1136,6 +1175,20 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
           )}
         </div>
       </section>
+      <SessionComposer
+        open={composerTeamId !== null}
+        teams={teams.map((team) => ({
+          id: team.id,
+          name: team.name,
+          departmentId: department?.id ?? '',
+          defaultFacilityId: team.default_facility_id,
+        }))}
+        facilities={departmentFacilities}
+        initialTeamId={composerTeamId}
+        lockedTeamId={composerTeamId}
+        onClose={() => setComposerTeamId(null)}
+        onSubmit={handleCreateSession}
+      />
     </AdminShell>
   );
 }
