@@ -424,22 +424,39 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
             departmentTeams.map((team) => {
               const defaultFacility = team.defaultFacility ? facilityByName.get(team.defaultFacility) : null;
               const needsDefaultFacility = !defaultFacility;
+              const pendingHeadCoachInvite = invites.find((invite) => invite.status === 'pending' && invite.role === 'head_coach' && invite.team === team.name);
               return (
                 <article key={team.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-slate-700">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
                       <h3 className="text-xl font-black text-white">{team.name}</h3>
-                      <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-sm font-bold text-slate-300"><span>No head coach</span><span className="hidden md:inline text-slate-600">·</span><span className="hidden md:inline">{defaultFacility?.name ?? 'No default facility'}</span><span className="hidden sm:inline text-slate-600">·</span><span className="hidden sm:inline">0 players</span></p>
-                      {!isEditMode ? (
+                      <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold text-slate-300">
+                        {pendingHeadCoachInvite ? (
+                          <button
+                            type="button"
+                            onClick={() => handleInvite('head_coach', team)}
+                            className="text-slate-200 underline decoration-slate-500 underline-offset-4 transition hover:text-white"
+                          >
+                            {copiedToken === pendingHeadCoachInvite.token ? 'Invite copied' : 'Invite pending'}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleInvite('head_coach', team)}
+                            className="text-slate-200 underline decoration-slate-500 underline-offset-4 transition hover:text-white"
+                          >
+                            Invite head coach
+                          </button>
+                        )}
+                        <span className="hidden md:inline text-slate-600">·</span>
+                        <span className="hidden md:inline">{defaultFacility?.name ?? 'No default facility'}</span>
+                        <span className="hidden sm:inline text-slate-600">·</span>
+                        <span className="hidden sm:inline">0 players</span>
+                      </p>
+                      {!isEditMode && needsDefaultFacility ? (
                         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                          <button type="button" onClick={() => handleInvite('head_coach', team)} className="w-fit rounded-lg border border-amber-500/70 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40">
-                            {invites.find((invite) => invite.status === 'pending' && invite.role === 'head_coach' && invite.team === team.name) ? (copiedToken === invites.find((invite) => invite.status === 'pending' && invite.role === 'head_coach' && invite.team === team.name)?.token ? 'Copied invite' : 'Copy head coach invite') : 'Invite head coach'}
-                          </button>
-                          <button type="button" onClick={() => handleInvite('assistant_coach', team)} className="w-fit rounded-lg border border-sky-500/70 px-2.5 py-1.5 text-xs font-black text-sky-200 hover:bg-sky-950/40">
-                            {invites.find((invite) => invite.status === 'pending' && invite.role === 'assistant_coach' && invite.team === team.name) ? (copiedToken === invites.find((invite) => invite.status === 'pending' && invite.role === 'assistant_coach' && invite.team === team.name)?.token ? 'Copied invite' : 'Copy assistant invite') : 'Invite assistant coach'}
-                          </button>
                           {needsDefaultFacility && departmentFacilities.length > 0 ? (
-                          <select value="" onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)} className="w-full rounded-lg border border-emerald-500/50 bg-slate-950 px-2.5 py-1.5 text-xs font-black text-emerald-200 outline-none focus:border-emerald-300 sm:w-fit">
+                          <select value="" onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs font-black text-slate-200 outline-none transition focus:border-slate-400 sm:w-fit">
                             <option value="">Set default facility</option>
                             {departmentFacilities.map((facility) => <option key={facility} value={facility}>{facility}</option>)}
                           </select>

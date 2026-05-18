@@ -663,35 +663,6 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
     await handleCopy(token);
   }
 
-  async function handleInviteAssistantCoach(teamId: string) {
-    if (!clubId || !department) return;
-    setIsSaving(true);
-    setError(null);
-    const supabase = createBrowserSupabaseClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    const token = createInviteToken();
-    const { error: insertError } = await supabase.from('invites').insert({
-      token,
-      club_id: clubId,
-      department_id: department.id,
-      team_id: teamId,
-      role: 'assistant_coach',
-      invite_type: 'coach_invite',
-      created_by: user?.id ?? null,
-      expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-    });
-    if (insertError) {
-      setError(insertError.message);
-      setIsSaving(false);
-      return;
-    }
-    setIsSaving(false);
-    await loadDepartmentData();
-    await handleCopy(token);
-  }
-
   if (state === 'loading') {
     return (
       <AdminShell>
@@ -1048,11 +1019,8 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
               const headCoachLabel =
                 headCoaches.length > 0
                   ? headCoaches.map((membership) => personLabel(profileById.get(membership.user_id), 'Head coach')).join(', ')
-                  : pendingHeadInvite
-                    ? 'Head coach invited'
-                    : 'No head coach';
+                  : null;
               const nextSession = nextSessionByTeam.get(team.id);
-              const needsHeadCoachAction = headCoaches.length === 0;
               const needsFacilityAction = !defaultFacility;
 
               return (
@@ -1060,8 +1028,27 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
                       <h3 className="text-xl font-black text-white">{team.name}</h3>
-                      <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-sm font-bold text-slate-300">
-                        <span>{headCoachLabel}</span>
+                      <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold text-slate-300">
+                        {headCoachLabel ? (
+                          <span>{headCoachLabel}</span>
+                        ) : pendingHeadInvite ? (
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(pendingHeadInvite.token)}
+                            className="text-slate-200 underline decoration-slate-500 underline-offset-4 transition hover:text-white"
+                          >
+                            {copiedToken === pendingHeadInvite.token ? 'Invite copied' : 'Invite pending'}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={isSaving}
+                            onClick={() => handleInviteHeadCoach(team.id)}
+                            className="text-slate-200 underline decoration-slate-500 underline-offset-4 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Invite head coach
+                          </button>
+                        )}
                         <span className="hidden sm:inline text-slate-600">·</span>
                         <span className="hidden md:inline">{defaultFacility?.name ?? 'No default facility'}</span>
                         <span className="hidden sm:inline text-slate-600">·</span>
@@ -1070,56 +1057,14 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                         <span className="hidden lg:inline">{formatNextSession(nextSession)}</span>
                       </p>
 
-                      {!isEditMode && (needsHeadCoachAction || needsFacilityAction) ? (
+                      {!isEditMode && needsFacilityAction ? (
                         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                          {needsHeadCoachAction ? (
-                            pendingHeadInvite ? (
-                              <button
-                                type="button"
-                                onClick={() => handleCopy(pendingHeadInvite.token)}
-                                className="w-fit rounded-lg border border-amber-500/60 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40"
-                              >
-                                {copiedToken === pendingHeadInvite.token ? 'Copied invite' : 'Copy head coach invite'}
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={isSaving}
-                                onClick={() => handleInviteHeadCoach(team.id)}
-                                className="w-fit rounded-lg border border-amber-500/70 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                Invite head coach
-                              </button>
-                            )
-                          ) : null}
-
-                          {assistantCoaches.length === 0 ? (
-                            pendingAssistantInvite ? (
-                              <button
-                                type="button"
-                                onClick={() => handleCopy(pendingAssistantInvite.token)}
-                                className="w-fit rounded-lg border border-sky-500/60 px-2.5 py-1.5 text-xs font-black text-sky-200 hover:bg-sky-950/40"
-                              >
-                                {copiedToken === pendingAssistantInvite.token ? 'Copied invite' : 'Copy assistant invite'}
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={isSaving}
-                                onClick={() => handleInviteAssistantCoach(team.id)}
-                                className="w-fit rounded-lg border border-sky-500/70 px-2.5 py-1.5 text-xs font-black text-sky-200 hover:bg-sky-950/40 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                Invite assistant coach
-                              </button>
-                            )
-                          ) : null}
-
                           {needsFacilityAction && departmentFacilities.length > 0 ? (
                             <select
                               value=""
                               onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)}
                               disabled={isSaving}
-                              className="w-full rounded-lg border border-emerald-500/50 bg-slate-950 px-2.5 py-1.5 text-xs font-black text-emerald-200 outline-none focus:border-emerald-300 disabled:opacity-60 sm:w-fit"
+                              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs font-black text-slate-200 outline-none transition focus:border-slate-400 disabled:opacity-60 sm:w-fit"
                             >
                               <option value="">Set default facility</option>
                               {departmentFacilities.map((facility) => (
@@ -1138,36 +1083,23 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                         <div>
                           <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Head coach</p>
                           {pendingHeadInvite ? (
-                            <button
-                              type="button"
-                              onClick={() => handleCopy(pendingHeadInvite.token)}
-                              className="mt-2 rounded-lg border border-amber-500/60 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40"
-                            >
-                              {copiedToken === pendingHeadInvite.token ? 'Copied invite' : 'Copy pending invite'}
+                            <button type="button" onClick={() => handleCopy(pendingHeadInvite.token)} className="mt-2 text-sm font-black text-slate-200 underline decoration-slate-500 underline-offset-4 transition hover:text-white">
+                              {copiedToken === pendingHeadInvite.token ? 'Invite copied' : 'Invite pending'}
                             </button>
                           ) : headCoaches.length > 0 ? (
                             <p className="mt-2 text-sm font-black text-slate-100">{headCoachLabel}</p>
                           ) : (
-                            <button
-                              type="button"
-                              disabled={isSaving}
-                              onClick={() => handleInviteHeadCoach(team.id)}
-                              className="mt-2 rounded-lg border border-amber-500/70 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
+                            <button type="button" disabled={isSaving} onClick={() => handleInviteHeadCoach(team.id)} className="mt-2 text-sm font-black text-slate-200 underline decoration-slate-500 underline-offset-4 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50">
                               Invite head coach
                             </button>
                           )}
                           <p className="mt-2 text-xs leading-5 text-slate-500">
                             Assistants:{' '}
-                            {assistantCoaches.length > 0 ? assistantCoaches.map((membership) => personLabel(profileById.get(membership.user_id), 'Assistant coach')).join(', ') : pendingAssistantInvite ? (
-                              <button type="button" onClick={() => handleCopy(pendingAssistantInvite.token)} className="font-black text-sky-200 underline">
-                                {copiedToken === pendingAssistantInvite.token ? 'copied invite' : 'invite pending'}
-                              </button>
-                            ) : (
-                              <button type="button" onClick={() => handleInviteAssistantCoach(team.id)} className="font-black text-sky-200 underline">
-                                invite assistant coach
-                              </button>
-                            )}
+                            {assistantCoaches.length > 0
+                              ? assistantCoaches.map((membership) => personLabel(profileById.get(membership.user_id), 'Assistant coach')).join(', ')
+                              : pendingAssistantInvite
+                                ? 'invite pending'
+                                : 'manage in Staff'}
                           </p>
                         </div>
 
