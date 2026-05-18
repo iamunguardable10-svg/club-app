@@ -201,9 +201,9 @@ function buildWarningAreas({
           ? {
               key: 'overview:staff:missing-leads',
               title: `${pluralize(departmentsWithoutLead.length, 'department lead')} missing or not invited`,
-              description: 'Invite missing department leads from Departments now; Staff becomes the central role and invite page next.',
-              href: '/admin/departments',
-              actionLabel: 'Open departments',
+              description: 'Open Staff for the central role and invite view.',
+              href: '/admin/people',
+              actionLabel: 'Open staff',
               tone: 'sky',
             }
           : null,

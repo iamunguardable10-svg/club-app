@@ -1,6 +1,6 @@
-# People & Invites V1
+# Staff V1
 
-This document records the V1 implementation of Admin People & Invites.
+This document records the V1 implementation of Admin Staff.
 
 ## Implemented routes
 
@@ -18,7 +18,7 @@ Demo:
 
 ## Product model
 
-People & Invites is the primary admin location for inviting responsibility roles.
+Staff is the primary admin location for role coverage and responsibility invites.
 
 Invites are department-based:
 
@@ -52,9 +52,14 @@ assistant_coach invite
 The page shows:
 
 ```txt
+department leaders by department
+head coaches by team
+assistant coaches by team
+custom coach role slots by team
+role status: missing / pending / accepted
 pending invites
 copyable invite links
-revoke invite action
+revoke invite action with app confirmation
 invite history
 ```
 
@@ -123,6 +128,31 @@ show pending/history
 ```
 
 Demo links are previews and do not write to Supabase.
+
+## Custom team coach roles
+
+Staff Edit Mode can add team-specific coach role slots such as:
+
+```txt
+Strength Coach
+Video Coach
+Rehab Coach
+```
+
+These slots are stored separately from the built-in permission roles:
+
+```txt
+team_coach_role_slots
+```
+
+V1 behavior:
+
+```txt
+custom visible label
+→ invite link is generated from the slot
+→ accepted membership keeps coach_role_slot_id
+→ permissions currently inherit assistant_coach behavior underneath
+```
 
 ## Next recommended steps
 
