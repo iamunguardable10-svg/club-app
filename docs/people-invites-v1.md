@@ -55,6 +55,7 @@ The page shows:
 department leaders by department
 head coaches by team
 assistant coaches by team
+custom coach role slots by team
 role status: missing / pending / accepted
 pending invites
 copyable invite links
@@ -127,6 +128,31 @@ show pending/history
 ```
 
 Demo links are previews and do not write to Supabase.
+
+## Custom team coach roles
+
+Staff Edit Mode can add team-specific coach role slots such as:
+
+```txt
+Strength Coach
+Video Coach
+Rehab Coach
+```
+
+These slots are stored separately from the built-in permission roles:
+
+```txt
+team_coach_role_slots
+```
+
+V1 behavior:
+
+```txt
+custom visible label
+→ invite link is generated from the slot
+→ accepted membership keeps coach_role_slot_id
+→ permissions currently inherit assistant_coach behavior underneath
+```
 
 ## Next recommended steps
 

@@ -37,6 +37,7 @@ club_memberships
 departments
 teams
 team_memberships
+team_coach_role_slots
 invites
 sessions
 session_participants
@@ -209,6 +210,7 @@ team_id uuid not null references teams(id) on delete cascade
 role text not null
 status text not null default 'active'
 joined_at timestamptz not null default now()
+coach_role_slot_id uuid references team_coach_role_slots(id)
 ```
 
 ## Allowed roles V1
@@ -218,6 +220,11 @@ head_coach
 assistant_coach
 athlete
 ```
+
+## Notes
+
+Custom coach labels can attach to a membership through `coach_role_slot_id`.
+The underlying permission role still remains `assistant_coach` in V1.
 
 ## Notes
 
@@ -232,7 +239,36 @@ Example:
 
 ---
 
-# 7. invites
+# 7. team_coach_role_slots
+
+Team-specific named coach slots.
+
+Examples:
+
+- Strength Coach
+- Video Coach
+- Rehab Coach
+
+## Fields
+
+```txt
+id uuid primary key default gen_random_uuid()
+club_id uuid not null references clubs(id) on delete cascade
+department_id uuid not null references departments(id) on delete cascade
+team_id uuid not null references teams(id) on delete cascade
+label text not null
+created_at timestamptz not null default now()
+updated_at timestamptz not null default now()
+```
+
+## V1 rule
+
+These slots define visible team staff positions.
+They do not create new permission classes yet; invited members currently inherit assistant-coach permissions.
+
+---
+
+# 8. invites
 
 Invite tokens are used to onboard coaches and athletes directly into the right context.
 
@@ -252,6 +288,7 @@ status text not null default 'pending'
 expires_at timestamptz
 created_at timestamptz not null default now()
 accepted_at timestamptz
+coach_role_slot_id uuid references team_coach_role_slots(id)
 ```
 
 ## Invite types V1
@@ -271,7 +308,7 @@ department_lead_invite
 
 ---
 
-# 8. sessions
+# 9. sessions
 
 The central operational object.
 
@@ -319,7 +356,7 @@ Future versions may support multi-team sessions.
 
 ---
 
-# 9. session_participants
+# 10. session_participants
 
 Planned participants for a session.
 
@@ -342,7 +379,7 @@ This table enables historical correctness even if team membership changes later.
 
 ---
 
-# 10. availability
+# 11. availability
 
 Athlete pre-session status.
 
@@ -377,7 +414,7 @@ Coaches read availability and act on it.
 
 ---
 
-# 11. attendance_records
+# 12. attendance_records
 
 Coach-finalized attendance.
 
@@ -412,7 +449,7 @@ Load and analytics should be based on finalized attendance when available.
 
 ---
 
-# 12. load_entries
+# 13. load_entries
 
 Athlete load report after session.
 
@@ -455,7 +492,7 @@ Future versions should support:
 
 ---
 
-# 13. facilities
+# 14. facilities
 
 Simple V1 facility model.
 
@@ -475,7 +512,7 @@ updated_at timestamptz not null default now()
 
 ---
 
-# 14. facility_bookings
+# 15. facility_bookings
 
 Simple booking/conflict model.
 
@@ -500,7 +537,7 @@ Do not implement full approval workflows in V1.
 
 ---
 
-# 15. activity_events
+# 16. activity_events
 
 Simple V1 in-app signals.
 

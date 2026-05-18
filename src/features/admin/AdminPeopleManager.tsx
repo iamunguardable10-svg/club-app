@@ -24,9 +24,11 @@ type Invite = {
   status: 'pending' | 'accepted' | 'revoked' | 'expired';
   expires_at: string | null;
   created_at: string;
+  coach_role_slot_id: string | null;
 };
 type ClubMembershipRow = { department_id: string | null; user_id: string; role: 'department_lead' };
-type TeamMembership = { team_id: string; user_id: string; role: 'head_coach' | 'assistant_coach' };
+type TeamMembership = { team_id: string; user_id: string; role: 'head_coach' | 'assistant_coach'; coach_role_slot_id: string | null };
+type CoachRoleSlot = { id: string; club_id: string; department_id: string; team_id: string; label: string };
 type Profile = { id: string; full_name: string; email: string | null };
 type PendingRevoke = Invite | null;
 
@@ -77,6 +79,7 @@ export function AdminPeopleManager() {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [leadMemberships, setLeadMemberships] = useState<ClubMembershipRow[]>([]);
   const [teamMemberships, setTeamMemberships] = useState<TeamMembership[]>([]);
+  const [coachRoleSlots, setCoachRoleSlots] = useState<CoachRoleSlot[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
   const [selectedRole, setSelectedRole] = useState<InviteRole>('department_lead');
@@ -87,6 +90,7 @@ export function AdminPeopleManager() {
   const [pendingRevoke, setPendingRevoke] = useState<PendingRevoke>(null);
   const [expandedDepartments, setExpandedDepartments] = useState<Record<string, boolean>>({});
   const [isEditMode, setIsEditMode] = useState(false);
+  const [newRoleLabelByTeam, setNewRoleLabelByTeam] = useState<Record<string, string>>({});
 
   const clubId = club?.id ?? '';
 
@@ -102,12 +106,13 @@ export function AdminPeopleManager() {
   const pendingInviteByScope = useMemo(() => {
     const map = new Map<string, Invite>();
     for (const invite of pendingInvites) {
-      map.set(`${invite.role}:${invite.department_id ?? ''}:${invite.team_id ?? ''}`, invite);
+      map.set(`${invite.role}:${invite.department_id ?? ''}:${invite.team_id ?? ''}:${invite.coach_role_slot_id ?? ''}`, invite);
     }
     return map;
   }, [pendingInvites]);
   const leadByDepartment = useMemo(() => new Map(leadMemberships.filter((membership) => membership.department_id).map((membership) => [membership.department_id!, membership])), [leadMemberships]);
   const membershipByTeamRole = useMemo(() => new Map(teamMemberships.map((membership) => [`${membership.role}:${membership.team_id}`, membership])), [teamMemberships]);
+  const membershipBySlot = useMemo(() => new Map(teamMemberships.filter((membership) => membership.coach_role_slot_id).map((membership) => [membership.coach_role_slot_id!, membership])), [teamMemberships]);
   const teamsByDepartment = useMemo(() => {
     const map = new Map<string, Team[]>();
     for (const team of teams) {
@@ -117,6 +122,15 @@ export function AdminPeopleManager() {
     }
     return map;
   }, [teams]);
+  const coachRoleSlotsByTeam = useMemo(() => {
+    const map = new Map<string, CoachRoleSlot[]>();
+    for (const slot of coachRoleSlots) {
+      const current = map.get(slot.team_id) ?? [];
+      current.push(slot);
+      map.set(slot.team_id, current);
+    }
+    return map;
+  }, [coachRoleSlots]);
 
   async function loadPeopleData() {
     setState('loading');
@@ -162,21 +176,22 @@ export function AdminPeopleManager() {
 
     const resolvedClubId = adminMembership.club_id;
 
-    const [clubResult, departmentsResult, teamsResult, invitesResult, leadMembershipsResult, teamMembershipsResult] = await Promise.all([
+    const [clubResult, departmentsResult, teamsResult, invitesResult, leadMembershipsResult, teamMembershipsResult, coachRoleSlotsResult] = await Promise.all([
       supabase.from('clubs').select('id, name').eq('id', resolvedClubId).single(),
       supabase.from('departments').select('id, name').eq('club_id', resolvedClubId).order('name'),
       supabase.from('teams').select('id, name, department_id').eq('club_id', resolvedClubId).order('name'),
       supabase
         .from('invites')
-        .select('id, token, role, invite_type, department_id, team_id, status, expires_at, created_at')
+        .select('id, token, role, invite_type, department_id, team_id, status, expires_at, created_at, coach_role_slot_id')
         .eq('club_id', resolvedClubId)
         .in('role', ['department_lead', 'head_coach', 'assistant_coach'])
         .order('created_at', { ascending: false }),
       supabase.from('club_memberships').select('department_id, user_id, role').eq('club_id', resolvedClubId).eq('role', 'department_lead').eq('status', 'active'),
-      supabase.from('team_memberships').select('team_id, user_id, role').eq('club_id', resolvedClubId).in('role', ['head_coach', 'assistant_coach']).eq('status', 'active'),
+      supabase.from('team_memberships').select('team_id, user_id, role, coach_role_slot_id').eq('club_id', resolvedClubId).in('role', ['head_coach', 'assistant_coach']).eq('status', 'active'),
+      supabase.from('team_coach_role_slots').select('id, club_id, department_id, team_id, label').eq('club_id', resolvedClubId).order('label'),
     ]);
 
-    const firstError = clubResult.error ?? departmentsResult.error ?? teamsResult.error ?? invitesResult.error ?? leadMembershipsResult.error ?? teamMembershipsResult.error;
+    const firstError = clubResult.error ?? departmentsResult.error ?? teamsResult.error ?? invitesResult.error ?? leadMembershipsResult.error ?? teamMembershipsResult.error ?? coachRoleSlotsResult.error;
 
     if (firstError) {
       setError(firstError.message);
@@ -208,6 +223,7 @@ export function AdminPeopleManager() {
     setInvites((invitesResult.data ?? []) as Invite[]);
     setLeadMemberships(loadedLeadMemberships);
     setTeamMemberships(loadedTeamMemberships);
+    setCoachRoleSlots((coachRoleSlotsResult.data ?? []) as CoachRoleSlot[]);
     setProfiles(loadedProfiles);
     setExpandedDepartments((current) => Object.keys(current).length > 0 ? current : Object.fromEntries(loadedDepartments.map((department) => [department.id, true])));
     setSelectedDepartmentId(initialDepartment?.id || '');
@@ -301,8 +317,8 @@ export function AdminPeopleManager() {
     await loadPeopleData();
   }
 
-  async function handleQuickInvite(role: InviteRole, departmentId: string, teamId?: string) {
-    const existing = pendingInviteByScope.get(`${role}:${departmentId}:${teamId ?? ''}`);
+  async function handleQuickInvite(role: InviteRole, departmentId: string, teamId?: string, coachRoleSlotId?: string) {
+    const existing = pendingInviteByScope.get(`${role}:${departmentId}:${teamId ?? ''}:${coachRoleSlotId ?? ''}`);
     if (existing) {
       await handleCopy(existing.token);
       return;
@@ -323,6 +339,7 @@ export function AdminPeopleManager() {
       team_id: role === 'department_lead' ? null : teamId ?? null,
       role,
       invite_type: getInviteType(role),
+      coach_role_slot_id: coachRoleSlotId ?? null,
       created_by: user?.id ?? null,
       expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
     });
@@ -334,6 +351,42 @@ export function AdminPeopleManager() {
     setIsSaving(false);
     await loadPeopleData();
     await handleCopy(token);
+  }
+
+  async function handleAddCoachRole(team: Team) {
+    const label = newRoleLabelByTeam[team.id]?.trim();
+    if (!clubId || !label) return;
+    setIsSaving(true);
+    setError(null);
+    const supabase = createBrowserSupabaseClient();
+    const { error: insertError } = await supabase.from('team_coach_role_slots').insert({
+      club_id: clubId,
+      department_id: team.department_id,
+      team_id: team.id,
+      label,
+    });
+    if (insertError) {
+      setError(insertError.message);
+      setIsSaving(false);
+      return;
+    }
+    setNewRoleLabelByTeam((current) => ({ ...current, [team.id]: '' }));
+    setIsSaving(false);
+    await loadPeopleData();
+  }
+
+  async function handleRemoveCoachRole(slotId: string) {
+    setIsSaving(true);
+    setError(null);
+    const supabase = createBrowserSupabaseClient();
+    const { error: deleteError } = await supabase.from('team_coach_role_slots').delete().eq('id', slotId);
+    if (deleteError) {
+      setError(deleteError.message);
+      setIsSaving(false);
+      return;
+    }
+    setIsSaving(false);
+    await loadPeopleData();
   }
 
   async function handleCopy(token: string) {
@@ -402,7 +455,7 @@ export function AdminPeopleManager() {
         <div className="mt-4 grid gap-3">
           {departments.map((department) => {
             const leadMembership = leadByDepartment.get(department.id);
-            const leadInvite = pendingInviteByScope.get(`department_lead:${department.id}:`);
+            const leadInvite = pendingInviteByScope.get(`department_lead:${department.id}::`);
             const leadStatus = leadMembership ? 'accepted' : leadInvite ? 'pending' : 'missing';
             const departmentTeams = teamsByDepartment.get(department.id) ?? [];
             const isExpanded = expandedDepartments[department.id] ?? true;
@@ -432,8 +485,8 @@ export function AdminPeopleManager() {
                   {departmentTeams.length > 0 ? departmentTeams.map((team) => {
                     const headCoach = membershipByTeamRole.get(`head_coach:${team.id}`);
                     const assistantCoach = membershipByTeamRole.get(`assistant_coach:${team.id}`);
-                    const headInvite = pendingInviteByScope.get(`head_coach:${department.id}:${team.id}`);
-                    const assistantInvite = pendingInviteByScope.get(`assistant_coach:${department.id}:${team.id}`);
+                    const headInvite = pendingInviteByScope.get(`head_coach:${department.id}:${team.id}:`);
+                    const assistantInvite = pendingInviteByScope.get(`assistant_coach:${department.id}:${team.id}:`);
                     const headStatus = headCoach ? 'accepted' : headInvite ? 'pending' : 'missing';
                     const assistantStatus = assistantCoach ? 'accepted' : assistantInvite ? 'pending' : 'missing';
 
@@ -451,6 +504,33 @@ export function AdminPeopleManager() {
                             ) : <button type="button" onClick={() => handleQuickInvite('head_coach', department.id, team.id)} className="rounded-lg border border-sky-500/60 px-2.5 py-1 text-xs font-black text-sky-200 hover:bg-sky-950/40">Invite</button>}
                           </div>
                         </div>
+                        {(coachRoleSlotsByTeam.get(team.id) ?? []).map((slot) => {
+                          const membership = membershipBySlot.get(slot.id);
+                          const invite = pendingInviteByScope.get(`assistant_coach:${department.id}:${team.id}:${slot.id}`);
+                          return (
+                            <div key={slot.id}>
+                              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{slot.label}</p>
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
+                                {membership ? <span>{profileLabel(profileById.get(membership.user_id))}</span> : invite ? (
+                                  <>
+                                    <span>Invite pending</span>
+                                    <button type="button" onClick={() => handleQuickInvite('assistant_coach', department.id, team.id, slot.id)} className="rounded-lg border border-amber-500/60 px-2.5 py-1 text-xs font-black text-amber-200 hover:bg-amber-950/40">{copiedToken === invite.token ? 'Copied' : 'Copy'}</button>
+                                  </>
+                                ) : <button type="button" onClick={() => handleQuickInvite('assistant_coach', department.id, team.id, slot.id)} className="rounded-lg border border-sky-500/60 px-2.5 py-1 text-xs font-black text-sky-200 hover:bg-sky-950/40">Invite</button>}
+                                {isEditMode ? <button type="button" onClick={() => handleRemoveCoachRole(slot.id)} className="rounded-lg border border-red-500/60 px-2.5 py-1 text-xs font-black text-red-200 hover:bg-red-950/40">Remove</button> : null}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {isEditMode ? (
+                          <div className="md:col-span-3 rounded-xl border border-dashed border-slate-700 p-3">
+                            <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Add coach role</p>
+                            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                              <input value={newRoleLabelByTeam[team.id] ?? ''} onChange={(event) => setNewRoleLabelByTeam((current) => ({ ...current, [team.id]: event.target.value }))} placeholder="e.g. Strength Coach" className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-400" />
+                              <button type="button" onClick={() => handleAddCoachRole(team)} className="rounded-lg border border-sky-500/60 px-3 py-2 text-xs font-black text-sky-200 hover:bg-sky-950/40">Add role</button>
+                            </div>
+                          </div>
+                        ) : null}
                         <div>
                           <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Assistant Coach</p>
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
