@@ -277,9 +277,9 @@ export function DemoAdminPeopleManager() {
                       {leadStatus === 'accepted' ? <span>Accepted</span> : leadStatus === 'pending' ? (
                         <>
                           <span>Invite pending</span>
-                          <button type="button" onClick={() => handleQuickInvite('department_lead', department)} className="rounded-lg border border-amber-500/60 px-2.5 py-1 text-xs font-black text-amber-200 hover:bg-amber-950/40">{copiedToken === leadInvite?.token ? 'Copied' : 'Copy'}</button>
+                          <button type="button" onClick={() => handleQuickInvite('department_lead', department)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:bg-slate-800">{copiedToken === leadInvite?.token ? 'Copied' : 'Copy'}</button>
                         </>
-                      ) : <button type="button" onClick={() => handleQuickInvite('department_lead', department)} className="rounded-lg border border-sky-500/60 px-2.5 py-1 text-xs font-black text-sky-200 hover:bg-sky-950/40">Invite</button>}
+                      ) : <button type="button" onClick={() => handleQuickInvite('department_lead', department)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:bg-slate-800">Invite</button>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -306,9 +306,9 @@ export function DemoAdminPeopleManager() {
                             {headStatus === 'accepted' ? <span>Accepted</span> : headStatus === 'pending' ? (
                               <>
                                 <span>Invite pending</span>
-                                <button type="button" onClick={() => handleQuickInvite('head_coach', department, team.name)} className="rounded-lg border border-amber-500/60 px-2.5 py-1 text-xs font-black text-amber-200 hover:bg-amber-950/40">{copiedToken === headInvite?.token ? 'Copied' : 'Copy'}</button>
+                                <button type="button" onClick={() => handleQuickInvite('head_coach', department, team.name)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:bg-slate-800">{copiedToken === headInvite?.token ? 'Copied' : 'Copy'}</button>
                               </>
-                            ) : <button type="button" onClick={() => handleQuickInvite('head_coach', department, team.name)} className="rounded-lg border border-sky-500/60 px-2.5 py-1 text-xs font-black text-sky-200 hover:bg-sky-950/40">Invite</button>}
+                            ) : <button type="button" onClick={() => handleQuickInvite('head_coach', department, team.name)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:bg-slate-800">Invite</button>}
                           </div>
                         </div>
                         <div>
@@ -317,16 +317,16 @@ export function DemoAdminPeopleManager() {
                             {assistantStatus === 'accepted' ? <span>Accepted</span> : assistantStatus === 'pending' ? (
                               <>
                                 <span>Invite pending</span>
-                                <button type="button" onClick={() => handleQuickInvite('assistant_coach', department, team.name)} className="rounded-lg border border-amber-500/60 px-2.5 py-1 text-xs font-black text-amber-200 hover:bg-amber-950/40">{copiedToken === assistantInvite?.token ? 'Copied' : 'Copy'}</button>
+                                <button type="button" onClick={() => handleQuickInvite('assistant_coach', department, team.name)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:bg-slate-800">{copiedToken === assistantInvite?.token ? 'Copied' : 'Copy'}</button>
                               </>
-                            ) : <button type="button" onClick={() => handleQuickInvite('assistant_coach', department, team.name)} className="rounded-lg border border-sky-500/60 px-2.5 py-1 text-xs font-black text-sky-200 hover:bg-sky-950/40">Invite</button>}
+                            ) : <button type="button" onClick={() => handleQuickInvite('assistant_coach', department, team.name)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:bg-slate-800">Invite</button>}
                           </div>
                         </div>
                         {extraCoachRoles.filter((role) => role.department === department && role.team === team.name).map((role) => (
                           <div key={role.id}>
                             <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{role.label}</p>
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
-                              <button type="button" onClick={() => handleQuickInvite('assistant_coach', department, team.name)} className="rounded-lg border border-sky-500/60 px-2.5 py-1 text-xs font-black text-sky-200 hover:bg-sky-950/40">Invite</button>
+                              <button type="button" onClick={() => handleQuickInvite('assistant_coach', department, team.name)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:bg-slate-800">Invite</button>
                               {isEditMode ? <button type="button" onClick={() => handleRemoveExtraRole(role.id)} className="rounded-lg border border-red-500/60 px-2.5 py-1 text-xs font-black text-red-200 hover:bg-red-950/40">Remove</button> : null}
                             </div>
                           </div>

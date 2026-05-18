@@ -325,12 +325,12 @@ export function DemoAdminDepartmentsManager() {
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Department Lead</p>
                     {leadInvite?.status === 'pending' ? (
                       <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-black text-amber-100">Invite pending</span>
-                        <button type="button" onClick={(event) => { event.stopPropagation(); handleInviteLead(department); }} className="rounded-lg border border-amber-500/60 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40">
+                        <span className="text-sm font-black text-slate-200">Invite pending</span>
+                        <button type="button" onClick={(event) => { event.stopPropagation(); handleInviteLead(department); }} className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200 transition hover:bg-slate-800">
                           {copiedToken === leadInvite.token ? 'Copied' : 'Copy'}
                         </button>
                       </div>
-                    ) : leadLabel ? <p className="mt-1 text-sm font-black text-slate-100">{leadLabel}</p> : <button type="button" onClick={(event) => { event.stopPropagation(); handleInviteLead(department); }} className="mt-2 rounded-lg border border-amber-500/60 px-2.5 py-1.5 text-xs font-black text-amber-200 hover:bg-amber-950/40">Invite lead</button>}
+                    ) : leadLabel ? <p className="mt-1 text-sm font-black text-slate-100">{leadLabel}</p> : <button type="button" onClick={(event) => { event.stopPropagation(); handleInviteLead(department); }} className="mt-2 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200 transition hover:bg-slate-800">Invite</button>}
                   </div>
                   <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Meldungen</p>
