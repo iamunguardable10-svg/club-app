@@ -1,6 +1,6 @@
-# People & Invites V1
+# Staff V1
 
-This document records the V1 implementation of Admin People & Invites.
+This document records the V1 implementation of Admin Staff.
 
 ## Implemented routes
 
@@ -18,7 +18,7 @@ Demo:
 
 ## Product model
 
-People & Invites is the primary admin location for inviting responsibility roles.
+Staff is the primary admin location for role coverage and responsibility invites.
 
 Invites are department-based:
 
@@ -52,9 +52,13 @@ assistant_coach invite
 The page shows:
 
 ```txt
+department leaders by department
+head coaches by team
+assistant coaches by team
+role status: missing / pending / accepted
 pending invites
 copyable invite links
-revoke invite action
+revoke invite action with app confirmation
 invite history
 ```
 

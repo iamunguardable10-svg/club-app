@@ -116,9 +116,7 @@ High-level examples:
 X department leads missing or not invited
 ```
 
-For now, the action points to Departments because department lead invite quick actions are already there.
-
-Later, once Staff V1 is built, the action should point to:
+The action points to Staff:
 
 ```txt
 /admin/people

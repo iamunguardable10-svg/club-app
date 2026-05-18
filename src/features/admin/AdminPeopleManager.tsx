@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AdminShell } from '@/shared/admin/AdminShell';
+import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 
 type ClubMembership = { club_id: string };
@@ -24,6 +25,10 @@ type Invite = {
   expires_at: string | null;
   created_at: string;
 };
+type ClubMembershipRow = { department_id: string | null; user_id: string; role: 'department_lead' };
+type TeamMembership = { team_id: string; user_id: string; role: 'head_coach' | 'assistant_coach' };
+type Profile = { id: string; full_name: string; email: string | null };
+type PendingRevoke = Invite | null;
 
 type LoadState = 'loading' | 'ready' | 'no_admin_membership' | 'error';
 
@@ -49,6 +54,16 @@ function roleLabel(role: InviteRole) {
   return 'Assistant Coach';
 }
 
+function profileLabel(profile?: Profile) {
+  return profile?.full_name || profile?.email || 'Assigned staff member';
+}
+
+function statusBadge(status: 'missing' | 'pending' | 'accepted') {
+  if (status === 'accepted') return 'border-emerald-500/40 bg-emerald-950/30 text-emerald-200';
+  if (status === 'pending') return 'border-amber-500/40 bg-amber-950/30 text-amber-200';
+  return 'border-slate-700 bg-slate-900 text-slate-300';
+}
+
 export function AdminPeopleManager() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -60,12 +75,16 @@ export function AdminPeopleManager() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
+  const [leadMemberships, setLeadMemberships] = useState<ClubMembershipRow[]>([]);
+  const [teamMemberships, setTeamMemberships] = useState<TeamMembership[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
   const [selectedRole, setSelectedRole] = useState<InviteRole>('department_lead');
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [expiresInDays, setExpiresInDays] = useState('14');
   const [isSaving, setIsSaving] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [pendingRevoke, setPendingRevoke] = useState<PendingRevoke>(null);
 
   const clubId = club?.id ?? '';
 
@@ -75,8 +94,27 @@ export function AdminPeopleManager() {
 
   const departmentById = useMemo(() => new Map(departments.map((department) => [department.id, department])), [departments]);
   const teamById = useMemo(() => new Map(teams.map((team) => [team.id, team])), [teams]);
+  const profileById = useMemo(() => new Map(profiles.map((profile) => [profile.id, profile])), [profiles]);
   const pendingInvites = useMemo(() => invites.filter((invite) => invite.status === 'pending'), [invites]);
   const nonPendingInvites = useMemo(() => invites.filter((invite) => invite.status !== 'pending'), [invites]);
+  const pendingInviteByScope = useMemo(() => {
+    const map = new Map<string, Invite>();
+    for (const invite of pendingInvites) {
+      map.set(`${invite.role}:${invite.department_id ?? ''}:${invite.team_id ?? ''}`, invite);
+    }
+    return map;
+  }, [pendingInvites]);
+  const leadByDepartment = useMemo(() => new Map(leadMemberships.filter((membership) => membership.department_id).map((membership) => [membership.department_id!, membership])), [leadMemberships]);
+  const membershipByTeamRole = useMemo(() => new Map(teamMemberships.map((membership) => [`${membership.role}:${membership.team_id}`, membership])), [teamMemberships]);
+  const teamsByDepartment = useMemo(() => {
+    const map = new Map<string, Team[]>();
+    for (const team of teams) {
+      const current = map.get(team.department_id) ?? [];
+      current.push(team);
+      map.set(team.department_id, current);
+    }
+    return map;
+  }, [teams]);
 
   async function loadPeopleData() {
     setState('loading');
@@ -122,7 +160,7 @@ export function AdminPeopleManager() {
 
     const resolvedClubId = adminMembership.club_id;
 
-    const [clubResult, departmentsResult, teamsResult, invitesResult] = await Promise.all([
+    const [clubResult, departmentsResult, teamsResult, invitesResult, leadMembershipsResult, teamMembershipsResult] = await Promise.all([
       supabase.from('clubs').select('id, name').eq('id', resolvedClubId).single(),
       supabase.from('departments').select('id, name').eq('club_id', resolvedClubId).order('name'),
       supabase.from('teams').select('id, name, department_id').eq('club_id', resolvedClubId).order('name'),
@@ -132,9 +170,11 @@ export function AdminPeopleManager() {
         .eq('club_id', resolvedClubId)
         .in('role', ['department_lead', 'head_coach', 'assistant_coach'])
         .order('created_at', { ascending: false }),
+      supabase.from('club_memberships').select('department_id, user_id, role').eq('club_id', resolvedClubId).eq('role', 'department_lead').eq('status', 'active'),
+      supabase.from('team_memberships').select('team_id, user_id, role').eq('club_id', resolvedClubId).in('role', ['head_coach', 'assistant_coach']).eq('status', 'active'),
     ]);
 
-    const firstError = clubResult.error ?? departmentsResult.error ?? teamsResult.error ?? invitesResult.error;
+    const firstError = clubResult.error ?? departmentsResult.error ?? teamsResult.error ?? invitesResult.error ?? leadMembershipsResult.error ?? teamMembershipsResult.error;
 
     if (firstError) {
       setError(firstError.message);
@@ -144,6 +184,19 @@ export function AdminPeopleManager() {
 
     const loadedDepartments = (departmentsResult.data ?? []) as Department[];
     const loadedTeams = (teamsResult.data ?? []) as Team[];
+    const loadedLeadMemberships = (leadMembershipsResult.data ?? []) as ClubMembershipRow[];
+    const loadedTeamMemberships = (teamMembershipsResult.data ?? []) as TeamMembership[];
+    const profileIds = Array.from(new Set([...loadedLeadMemberships.map((membership) => membership.user_id), ...loadedTeamMemberships.map((membership) => membership.user_id)]));
+    let loadedProfiles: Profile[] = [];
+    if (profileIds.length > 0) {
+      const { data: profileRows, error: profileError } = await supabase.from('profiles').select('id, full_name, email').in('id', profileIds);
+      if (profileError) {
+        setError(profileError.message);
+        setState('error');
+        return;
+      }
+      loadedProfiles = (profileRows ?? []) as Profile[];
+    }
     const initialDepartment = loadedDepartments.find((department) => department.id === requestedDepartmentId) ?? loadedDepartments[0];
     const initialTeam = loadedTeams.find((team) => team.department_id === initialDepartment?.id);
 
@@ -151,6 +204,9 @@ export function AdminPeopleManager() {
     setDepartments(loadedDepartments);
     setTeams(loadedTeams);
     setInvites((invitesResult.data ?? []) as Invite[]);
+    setLeadMemberships(loadedLeadMemberships);
+    setTeamMemberships(loadedTeamMemberships);
+    setProfiles(loadedProfiles);
     setSelectedDepartmentId(initialDepartment?.id || '');
     setSelectedTeamId(initialTeam?.id || '');
     setState('ready');
@@ -252,7 +308,7 @@ export function AdminPeopleManager() {
     return (
       <AdminShell>
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 text-center">
-          <p className="text-sm font-bold text-slate-300">Loading people and invites...</p>
+          <p className="text-sm font-bold text-slate-300">Loading staff...</p>
         </section>
       </AdminShell>
     );
@@ -262,7 +318,7 @@ export function AdminPeopleManager() {
     return (
       <AdminShell>
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6">
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">People & Invites</p>
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Staff</p>
           <h1 className="mt-3 text-3xl font-black">No admin club found</h1>
           <p className="mt-3 text-sm leading-6 text-slate-400">Create a club first before inviting people.</p>
           <Link href="/onboarding/create-club" className="mt-5 inline-block rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950">
@@ -277,8 +333,8 @@ export function AdminPeopleManager() {
     return (
       <AdminShell>
         <section className="rounded-3xl border border-red-900/70 bg-red-950/30 p-6">
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-red-300">People error</p>
-          <h1 className="mt-3 text-3xl font-black">Could not load people</h1>
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-red-300">Staff error</p>
+          <h1 className="mt-3 text-3xl font-black">Could not load staff</h1>
           <p className="mt-3 text-sm leading-6 text-red-100">{error}</p>
         </section>
       </AdminShell>
@@ -288,14 +344,66 @@ export function AdminPeopleManager() {
   return (
     <AdminShell>
       <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-sky-300">People & Invites</p>
-        <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Invite people for {club?.name}</h1>
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-sky-300">Staff</p>
+        <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Staff for {club?.name}</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-          Create department-based invite links for department leads and coaches. V1 uses links, not email sending yet.
+          Central view for department leads, head coaches, assistant coaches and invite state. V1 still uses copyable links instead of email sending.
         </p>
       </section>
 
       {error ? <section className="rounded-2xl border border-red-900/70 bg-red-950/30 px-4 py-3 text-sm text-red-100">{error}</section> : null}
+
+      <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Role coverage</p>
+        <h2 className="mt-2 text-xl font-black">Departments and teams</h2>
+        <div className="mt-4 grid gap-3">
+          {departments.map((department) => {
+            const leadMembership = leadByDepartment.get(department.id);
+            const leadInvite = pendingInviteByScope.get(`department_lead:${department.id}:`);
+            const leadStatus = leadMembership ? 'accepted' : leadInvite ? 'pending' : 'missing';
+            const departmentTeams = teamsByDepartment.get(department.id) ?? [];
+
+            return (
+              <article key={department.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h3 className="text-lg font-black text-white">{department.name}</h3>
+                    <p className="mt-1 text-sm text-slate-400">Department Lead: {leadMembership ? profileLabel(profileById.get(leadMembership.user_id)) : leadInvite ? 'Invite pending' : 'Missing'}</p>
+                  </div>
+                  <span className={`w-fit rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.16em] ${statusBadge(leadStatus)}`}>{leadStatus}</span>
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                  {departmentTeams.length > 0 ? departmentTeams.map((team) => {
+                    const headCoach = membershipByTeamRole.get(`head_coach:${team.id}`);
+                    const assistantCoach = membershipByTeamRole.get(`assistant_coach:${team.id}`);
+                    const headInvite = pendingInviteByScope.get(`head_coach:${department.id}:${team.id}`);
+                    const assistantInvite = pendingInviteByScope.get(`assistant_coach:${department.id}:${team.id}`);
+                    const headStatus = headCoach ? 'accepted' : headInvite ? 'pending' : 'missing';
+                    const assistantStatus = assistantCoach ? 'accepted' : assistantInvite ? 'pending' : 'missing';
+
+                    return (
+                      <div key={team.id} className="grid gap-2 rounded-xl border border-slate-800 bg-slate-950/50 p-3 md:grid-cols-[1fr_1fr_1fr]">
+                        <p className="font-black text-slate-100">{team.name}</p>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Head Coach</p>
+                          <p className="mt-1 text-sm text-slate-200">{headCoach ? profileLabel(profileById.get(headCoach.user_id)) : headInvite ? 'Invite pending' : 'Missing'}</p>
+                          <span className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${statusBadge(headStatus)}`}>{headStatus}</span>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Assistant Coach</p>
+                          <p className="mt-1 text-sm text-slate-200">{assistantCoach ? profileLabel(profileById.get(assistantCoach.user_id)) : assistantInvite ? 'Invite pending' : 'Missing'}</p>
+                          <span className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${statusBadge(assistantStatus)}`}>{assistantStatus}</span>
+                        </div>
+                      </div>
+                    );
+                  }) : <p className="rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-sm text-slate-500">No teams yet. Coach roles become available once teams exist.</p>}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
 
       <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
         <form onSubmit={handleCreateInvite} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
@@ -362,7 +470,7 @@ export function AdminPeopleManager() {
                     </div>
                     <div className="flex gap-2 sm:flex-col">
                       <button type="button" onClick={() => handleCopy(invite.token)} className="rounded-xl border border-sky-500/60 px-3 py-2 text-xs font-black text-sky-200 hover:bg-sky-950/40">{copiedToken === invite.token ? 'Copied' : 'Copy'}</button>
-                      <button type="button" disabled={isSaving} onClick={() => handleRevokeInvite(invite.id)} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-200 hover:bg-red-950/40 disabled:opacity-50">Revoke</button>
+                      <button type="button" disabled={isSaving} onClick={() => setPendingRevoke(invite)} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-200 hover:bg-red-950/40 disabled:opacity-50">Revoke</button>
                     </div>
                   </div>
                 </div>
@@ -383,6 +491,25 @@ export function AdminPeopleManager() {
           )) : <p className="text-sm text-slate-500">No completed, revoked or expired invites yet.</p>}
         </div>
       </section>
+
+      <AppConfirmDialog
+        isOpen={Boolean(pendingRevoke)}
+        title={`Revoke ${pendingRevoke ? roleLabel(pendingRevoke.role) : 'invite'}?`}
+        description="The link will stop working immediately. This does not remove already accepted memberships."
+        confirmLabel="Revoke invite"
+        cancelLabel="Keep invite"
+        tone="danger"
+        isConfirming={isSaving}
+        onCancel={() => {
+          if (isSaving) return;
+          setPendingRevoke(null);
+        }}
+        onConfirm={async () => {
+          if (!pendingRevoke) return;
+          await handleRevokeInvite(pendingRevoke.id);
+          setPendingRevoke(null);
+        }}
+      />
     </AdminShell>
   );
 }
