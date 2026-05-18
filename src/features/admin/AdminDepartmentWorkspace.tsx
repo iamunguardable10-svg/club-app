@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AdminShell } from '@/shared/admin/AdminShell';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
+import { SessionComposer, type SessionComposerPayload } from '@/features/sessions/SessionComposer';
 
 type ClubMembership = {
   club_id: string;
@@ -139,6 +140,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [composerTeamId, setComposerTeamId] = useState<string | null>(null);
 
   const clubId = department?.club_id ?? '';
 
@@ -663,6 +665,26 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
     await handleCopy(token);
   }
 
+  async function handleCreateSession(payload: SessionComposerPayload) {
+    if (!clubId || !department) return;
+    const supabase = createBrowserSupabaseClient();
+    const { error: insertError } = await supabase.from('sessions').insert({
+      club_id: clubId,
+      department_id: department.id,
+      team_id: payload.ownerTeamId,
+      owner_team_id: payload.ownerTeamId,
+      title: payload.title,
+      session_type: payload.sessionType,
+      starts_at: payload.startsAt,
+      ends_at: payload.endsAt,
+      facility_id: payload.facilityId,
+      status: 'scheduled',
+    });
+
+    if (insertError) throw insertError;
+    await loadDepartmentData();
+  }
+
   if (state === 'loading') {
     return (
       <AdminShell>
@@ -1076,6 +1098,16 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                           ) : null}
                         </div>
                       ) : null}
+
+                      {!isEditMode ? (
+                        <button
+                          type="button"
+                          onClick={() => setComposerTeamId(team.id)}
+                          className="mt-3 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200 transition hover:bg-slate-800"
+                        >
+                          Create session
+                        </button>
+                      ) : null}
                     </div>
 
                     {isEditMode ? (
@@ -1136,6 +1168,20 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
           )}
         </div>
       </section>
+      <SessionComposer
+        open={composerTeamId !== null}
+        teams={teams.map((team) => ({
+          id: team.id,
+          name: team.name,
+          departmentId: department?.id ?? '',
+          defaultFacilityId: team.default_facility_id,
+        }))}
+        facilities={departmentFacilities}
+        initialTeamId={composerTeamId}
+        lockedTeamId={composerTeamId}
+        onClose={() => setComposerTeamId(null)}
+        onSubmit={handleCreateSession}
+      />
     </AdminShell>
   );
 }
