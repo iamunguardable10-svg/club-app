@@ -85,6 +85,8 @@ export function AdminPeopleManager() {
   const [isSaving, setIsSaving] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [pendingRevoke, setPendingRevoke] = useState<PendingRevoke>(null);
+  const [expandedDepartments, setExpandedDepartments] = useState<Record<string, boolean>>({});
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const clubId = club?.id ?? '';
 
@@ -207,6 +209,7 @@ export function AdminPeopleManager() {
     setLeadMemberships(loadedLeadMemberships);
     setTeamMemberships(loadedTeamMemberships);
     setProfiles(loadedProfiles);
+    setExpandedDepartments((current) => Object.keys(current).length > 0 ? current : Object.fromEntries(loadedDepartments.map((department) => [department.id, true])));
     setSelectedDepartmentId(initialDepartment?.id || '');
     setSelectedTeamId(initialTeam?.id || '');
     setState('ready');
@@ -298,6 +301,41 @@ export function AdminPeopleManager() {
     await loadPeopleData();
   }
 
+  async function handleQuickInvite(role: InviteRole, departmentId: string, teamId?: string) {
+    const existing = pendingInviteByScope.get(`${role}:${departmentId}:${teamId ?? ''}`);
+    if (existing) {
+      await handleCopy(existing.token);
+      return;
+    }
+
+    if (!clubId) return;
+    setIsSaving(true);
+    setError(null);
+    const supabase = createBrowserSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const token = createInviteToken();
+    const { error: insertError } = await supabase.from('invites').insert({
+      token,
+      club_id: clubId,
+      department_id: departmentId,
+      team_id: role === 'department_lead' ? null : teamId ?? null,
+      role,
+      invite_type: getInviteType(role),
+      created_by: user?.id ?? null,
+      expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+    if (insertError) {
+      setError(insertError.message);
+      setIsSaving(false);
+      return;
+    }
+    setIsSaving(false);
+    await loadPeopleData();
+    await handleCopy(token);
+  }
+
   async function handleCopy(token: string) {
     await navigator.clipboard.writeText(getInviteUrl(token));
     setCopiedToken(token);
@@ -344,11 +382,16 @@ export function AdminPeopleManager() {
   return (
     <AdminShell>
       <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-sky-300">Staff</p>
-        <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Staff for {club?.name}</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-          Central view for department leads, head coaches, assistant coaches and invite state. V1 still uses copyable links instead of email sending.
-        </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-sky-300">Staff</p>
+            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Staff for {club?.name}</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">Central view for department leads, coaches and role coverage. Missing roles can be invited directly where they appear.</p>
+          </div>
+          <button type="button" onClick={() => setIsEditMode((current) => !current)} className={isEditMode ? 'w-fit rounded-xl bg-sky-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-sky-200' : 'w-fit rounded-xl border border-sky-500/70 px-4 py-3 text-sm font-black text-sky-200 transition hover:bg-sky-950/40'}>
+            {isEditMode ? 'Done editing' : 'Edit staff'}
+          </button>
+        </div>
       </section>
 
       {error ? <section className="rounded-2xl border border-red-900/70 bg-red-950/30 px-4 py-3 text-sm text-red-100">{error}</section> : null}
@@ -362,18 +405,30 @@ export function AdminPeopleManager() {
             const leadInvite = pendingInviteByScope.get(`department_lead:${department.id}:`);
             const leadStatus = leadMembership ? 'accepted' : leadInvite ? 'pending' : 'missing';
             const departmentTeams = teamsByDepartment.get(department.id) ?? [];
+            const isExpanded = expandedDepartments[department.id] ?? true;
 
             return (
               <article key={department.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <h3 className="text-lg font-black text-white">{department.name}</h3>
-                    <p className="mt-1 text-sm text-slate-400">Department Lead: {leadMembership ? profileLabel(profileById.get(leadMembership.user_id)) : leadInvite ? 'Invite pending' : 'Missing'}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-400">
+                      <span>Department Lead:</span>
+                      {leadMembership ? <span>{profileLabel(profileById.get(leadMembership.user_id))}</span> : leadInvite ? (
+                        <>
+                          <span>Invite pending</span>
+                          <button type="button" onClick={() => handleQuickInvite('department_lead', department.id)} className="rounded-lg border border-amber-500/60 px-2.5 py-1 text-xs font-black text-amber-200 hover:bg-amber-950/40">{copiedToken === leadInvite.token ? 'Copied' : 'Copy'}</button>
+                        </>
+                      ) : <button type="button" onClick={() => handleQuickInvite('department_lead', department.id)} className="rounded-lg border border-sky-500/60 px-2.5 py-1 text-xs font-black text-sky-200 hover:bg-sky-950/40">Invite</button>}
+                    </div>
                   </div>
-                  <span className={`w-fit rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.16em] ${statusBadge(leadStatus)}`}>{leadStatus}</span>
+                  <div className="flex items-center gap-2">
+                    {leadStatus !== 'missing' ? <span className={`w-fit rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.16em] ${statusBadge(leadStatus)}`}>{leadStatus}</span> : null}
+                    <button type="button" onClick={() => setExpandedDepartments((current) => ({ ...current, [department.id]: !isExpanded }))} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-300 hover:bg-slate-800">{isExpanded ? 'Collapse' : 'Expand'}</button>
+                  </div>
                 </div>
 
-                <div className="mt-4 grid gap-3">
+                {isExpanded ? <div className="mt-4 grid gap-3">
                   {departmentTeams.length > 0 ? departmentTeams.map((team) => {
                     const headCoach = membershipByTeamRole.get(`head_coach:${team.id}`);
                     const assistantCoach = membershipByTeamRole.get(`assistant_coach:${team.id}`);
@@ -387,25 +442,37 @@ export function AdminPeopleManager() {
                         <p className="font-black text-slate-100">{team.name}</p>
                         <div>
                           <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Head Coach</p>
-                          <p className="mt-1 text-sm text-slate-200">{headCoach ? profileLabel(profileById.get(headCoach.user_id)) : headInvite ? 'Invite pending' : 'Missing'}</p>
-                          <span className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${statusBadge(headStatus)}`}>{headStatus}</span>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
+                            {headCoach ? <span>{profileLabel(profileById.get(headCoach.user_id))}</span> : headInvite ? (
+                              <>
+                                <span>Invite pending</span>
+                                <button type="button" onClick={() => handleQuickInvite('head_coach', department.id, team.id)} className="rounded-lg border border-amber-500/60 px-2.5 py-1 text-xs font-black text-amber-200 hover:bg-amber-950/40">{copiedToken === headInvite.token ? 'Copied' : 'Copy'}</button>
+                              </>
+                            ) : <button type="button" onClick={() => handleQuickInvite('head_coach', department.id, team.id)} className="rounded-lg border border-sky-500/60 px-2.5 py-1 text-xs font-black text-sky-200 hover:bg-sky-950/40">Invite</button>}
+                          </div>
                         </div>
                         <div>
                           <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Assistant Coach</p>
-                          <p className="mt-1 text-sm text-slate-200">{assistantCoach ? profileLabel(profileById.get(assistantCoach.user_id)) : assistantInvite ? 'Invite pending' : 'Missing'}</p>
-                          <span className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${statusBadge(assistantStatus)}`}>{assistantStatus}</span>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
+                            {assistantCoach ? <span>{profileLabel(profileById.get(assistantCoach.user_id))}</span> : assistantInvite ? (
+                              <>
+                                <span>Invite pending</span>
+                                <button type="button" onClick={() => handleQuickInvite('assistant_coach', department.id, team.id)} className="rounded-lg border border-amber-500/60 px-2.5 py-1 text-xs font-black text-amber-200 hover:bg-amber-950/40">{copiedToken === assistantInvite.token ? 'Copied' : 'Copy'}</button>
+                              </>
+                            ) : <button type="button" onClick={() => handleQuickInvite('assistant_coach', department.id, team.id)} className="rounded-lg border border-sky-500/60 px-2.5 py-1 text-xs font-black text-sky-200 hover:bg-sky-950/40">Invite</button>}
+                          </div>
                         </div>
                       </div>
                     );
-                  }) : <p className="rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-sm text-slate-500">No teams yet. Coach roles become available once teams exist.</p>}
-                </div>
+                  }) : <Link href={`/admin/departments/${department.id}?mode=edit&focus=teams`} className="rounded-xl border border-sky-500/40 bg-sky-950/20 p-3 text-sm font-bold text-sky-200 hover:bg-sky-950/35">No teams yet — create first team</Link>}
+                </div> : null}
               </article>
             );
           })}
         </div>
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+      {false ? <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
         <form onSubmit={handleCreateInvite} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Create invite</p>
           <h2 className="mt-2 text-xl font-black">Department-based invite</h2>
@@ -478,9 +545,9 @@ export function AdminPeopleManager() {
             }) : <p className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">No pending invites yet.</p>}
           </div>
         </section>
-      </section>
+      </section> : null}
 
-      <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+      {false ? <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Invite history</p>
         <div className="mt-4 space-y-2">
           {nonPendingInvites.length > 0 ? nonPendingInvites.map((invite) => (
@@ -490,7 +557,7 @@ export function AdminPeopleManager() {
             </div>
           )) : <p className="text-sm text-slate-500">No completed, revoked or expired invites yet.</p>}
         </div>
-      </section>
+      </section> : null}
 
       <AppConfirmDialog
         isOpen={Boolean(pendingRevoke)}

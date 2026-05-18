@@ -19,8 +19,15 @@ type DemoInvite = {
   createdAt: string;
   expiresAt: string | null;
 };
+type DemoExtraCoachRole = {
+  id: string;
+  department: string;
+  team: string;
+  label: string;
+};
 
 const DEMO_INVITES_KEY = 'club-app.demo.invites';
+const DEMO_EXTRA_COACH_ROLES_KEY = 'club-app.demo.extra-coach-roles';
 
 function getDemoInvites(): DemoInvite[] {
   if (typeof window === 'undefined') return [];
@@ -52,6 +59,22 @@ function roleLabel(role: DemoInviteRole) {
   return 'Assistant Coach';
 }
 
+function getDemoExtraCoachRoles(): DemoExtraCoachRole[] {
+  if (typeof window === 'undefined') return [];
+  const raw = window.localStorage.getItem(DEMO_EXTRA_COACH_ROLES_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as DemoExtraCoachRole[];
+  } catch {
+    return [];
+  }
+}
+
+function saveDemoExtraCoachRoles(roles: DemoExtraCoachRole[]) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(DEMO_EXTRA_COACH_ROLES_KEY, JSON.stringify(roles));
+}
+
 function statusBadge(status: 'missing' | 'pending' | 'accepted') {
   if (status === 'accepted') return 'border-emerald-500/40 bg-emerald-950/30 text-emerald-200';
   if (status === 'pending') return 'border-amber-500/40 bg-amber-950/30 text-amber-200';
@@ -70,6 +93,10 @@ export function DemoAdminPeopleManager() {
   const [expiresInDays, setExpiresInDays] = useState('14');
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [pendingRevoke, setPendingRevoke] = useState<DemoInvite | null>(null);
+  const [expandedDepartments, setExpandedDepartments] = useState<Record<string, boolean>>({});
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [extraCoachRoles, setExtraCoachRoles] = useState<DemoExtraCoachRole[]>([]);
+  const [newRoleLabelByTeam, setNewRoleLabelByTeam] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const currentSetup = getDemoClubSetup();
@@ -83,8 +110,10 @@ export function DemoAdminPeopleManager() {
     setSetup(currentSetup);
     setTeams(currentTeams);
     setInvites(currentInvites);
+    setExtraCoachRoles(getDemoExtraCoachRoles());
     setSelectedDepartment(initialDepartment);
     setSelectedTeam(initialTeam?.name ?? '');
+    setExpandedDepartments(Object.fromEntries((currentSetup?.departments ?? []).map((department) => [department, true])));
   }, [requestedDepartment]);
 
   const teamsForSelectedDepartment = useMemo(() => {
@@ -122,6 +151,11 @@ export function DemoAdminPeopleManager() {
     saveDemoInvites(nextInvites);
   }
 
+  function persistExtraCoachRoles(nextRoles: DemoExtraCoachRole[]) {
+    setExtraCoachRoles(nextRoles);
+    saveDemoExtraCoachRoles(nextRoles);
+  }
+
   function handleCreateInvite(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!setup || !selectedDepartment) return;
@@ -144,6 +178,39 @@ export function DemoAdminPeopleManager() {
     };
 
     persistInvites([invite, ...invites]);
+  }
+
+  async function handleQuickInvite(role: DemoInviteRole, department: string, team?: string | null) {
+    const existing = invites.find((invite) => invite.status === 'pending' && invite.role === role && invite.department === department && (invite.team ?? null) === (team ?? null));
+    if (existing) {
+      await handleCopy(existing.token);
+      return;
+    }
+
+    const invite: DemoInvite = {
+      id: crypto.randomUUID(),
+      token: createToken(),
+      role,
+      department,
+      team: team ?? null,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+    persistInvites([invite, ...invites]);
+    await handleCopy(invite.token);
+  }
+
+  function handleAddExtraRole(department: string, team: string) {
+    const key = `${department}:${team}`;
+    const label = newRoleLabelByTeam[key]?.trim();
+    if (!label) return;
+    persistExtraCoachRoles([...extraCoachRoles, { id: crypto.randomUUID(), department, team, label }]);
+    setNewRoleLabelByTeam((current) => ({ ...current, [key]: '' }));
+  }
+
+  function handleRemoveExtraRole(roleId: string) {
+    persistExtraCoachRoles(extraCoachRoles.filter((role) => role.id !== roleId));
   }
 
   function handleRevokeInvite(inviteId: string) {
@@ -176,11 +243,18 @@ export function DemoAdminPeopleManager() {
   return (
     <AdminShell mode="demo">
       <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo staff</p>
-        <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Staff</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-100/80">
-          Browser-only staff preview for department leads and coaches. These links are demo data and do not write to Supabase.
-        </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo staff</p>
+            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Staff</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-100/80">
+              Browser-only staff preview for department leads and coaches. Missing roles can be invited directly where they appear.
+            </p>
+          </div>
+          <button type="button" onClick={() => setIsEditMode((current) => !current)} className={isEditMode ? 'w-fit rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200' : 'w-fit rounded-xl border border-amber-500/70 px-4 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-950/40'}>
+            {isEditMode ? 'Done editing' : 'Edit staff'}
+          </button>
+        </div>
       </section>
 
       <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
@@ -191,18 +265,32 @@ export function DemoAdminPeopleManager() {
             const leadInvite = latestInviteByScope.get(`department_lead:${department}:`);
             const leadStatus = leadInvite?.status === 'accepted' ? 'accepted' : leadInvite?.status === 'pending' ? 'pending' : 'missing';
             const departmentTeams = teams.filter((team) => team.department === department);
+            const isExpanded = expandedDepartments[department] ?? true;
 
             return (
               <article key={department} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <h3 className="text-lg font-black text-white">{department}</h3>
-                    <p className="mt-1 text-sm text-slate-400">Department Lead: {leadStatus === 'accepted' ? 'Accepted' : leadStatus === 'pending' ? 'Invite pending' : 'Missing'}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-400">
+                      <span>Department Lead:</span>
+                      {leadStatus === 'accepted' ? <span>Accepted</span> : leadStatus === 'pending' ? (
+                        <>
+                          <span>Invite pending</span>
+                          <button type="button" onClick={() => handleQuickInvite('department_lead', department)} className="rounded-lg border border-amber-500/60 px-2.5 py-1 text-xs font-black text-amber-200 hover:bg-amber-950/40">{copiedToken === leadInvite?.token ? 'Copied' : 'Copy'}</button>
+                        </>
+                      ) : <button type="button" onClick={() => handleQuickInvite('department_lead', department)} className="rounded-lg border border-sky-500/60 px-2.5 py-1 text-xs font-black text-sky-200 hover:bg-sky-950/40">Invite</button>}
+                    </div>
                   </div>
-                  <span className={`w-fit rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.16em] ${statusBadge(leadStatus)}`}>{leadStatus}</span>
+                  <div className="flex items-center gap-2">
+                    {leadStatus !== 'missing' ? <span className={`w-fit rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.16em] ${statusBadge(leadStatus)}`}>{leadStatus}</span> : null}
+                    <button type="button" onClick={() => setExpandedDepartments((current) => ({ ...current, [department]: !isExpanded }))} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-300 hover:bg-slate-800">
+                      {isExpanded ? 'Collapse' : 'Expand'}
+                    </button>
+                  </div>
                 </div>
 
-                <div className="mt-4 grid gap-3">
+                {isExpanded ? <div className="mt-4 grid gap-3">
                   {departmentTeams.length > 0 ? departmentTeams.map((team) => {
                     const headInvite = latestInviteByScope.get(`head_coach:${department}:${team.name}`);
                     const assistantInvite = latestInviteByScope.get(`assistant_coach:${department}:${team.name}`);
@@ -214,158 +302,51 @@ export function DemoAdminPeopleManager() {
                         <p className="font-black text-slate-100">{team.name}</p>
                         <div>
                           <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Head Coach</p>
-                          <p className="mt-1 text-sm text-slate-200">{headStatus === 'accepted' ? 'Accepted' : headStatus === 'pending' ? 'Invite pending' : 'Missing'}</p>
-                          <span className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${statusBadge(headStatus)}`}>{headStatus}</span>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
+                            {headStatus === 'accepted' ? <span>Accepted</span> : headStatus === 'pending' ? (
+                              <>
+                                <span>Invite pending</span>
+                                <button type="button" onClick={() => handleQuickInvite('head_coach', department, team.name)} className="rounded-lg border border-amber-500/60 px-2.5 py-1 text-xs font-black text-amber-200 hover:bg-amber-950/40">{copiedToken === headInvite?.token ? 'Copied' : 'Copy'}</button>
+                              </>
+                            ) : <button type="button" onClick={() => handleQuickInvite('head_coach', department, team.name)} className="rounded-lg border border-sky-500/60 px-2.5 py-1 text-xs font-black text-sky-200 hover:bg-sky-950/40">Invite</button>}
+                          </div>
                         </div>
                         <div>
                           <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Assistant Coach</p>
-                          <p className="mt-1 text-sm text-slate-200">{assistantStatus === 'accepted' ? 'Accepted' : assistantStatus === 'pending' ? 'Invite pending' : 'Missing'}</p>
-                          <span className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${statusBadge(assistantStatus)}`}>{assistantStatus}</span>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
+                            {assistantStatus === 'accepted' ? <span>Accepted</span> : assistantStatus === 'pending' ? (
+                              <>
+                                <span>Invite pending</span>
+                                <button type="button" onClick={() => handleQuickInvite('assistant_coach', department, team.name)} className="rounded-lg border border-amber-500/60 px-2.5 py-1 text-xs font-black text-amber-200 hover:bg-amber-950/40">{copiedToken === assistantInvite?.token ? 'Copied' : 'Copy'}</button>
+                              </>
+                            ) : <button type="button" onClick={() => handleQuickInvite('assistant_coach', department, team.name)} className="rounded-lg border border-sky-500/60 px-2.5 py-1 text-xs font-black text-sky-200 hover:bg-sky-950/40">Invite</button>}
+                          </div>
                         </div>
+                        {extraCoachRoles.filter((role) => role.department === department && role.team === team.name).map((role) => (
+                          <div key={role.id}>
+                            <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{role.label}</p>
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
+                              <button type="button" onClick={() => handleQuickInvite('assistant_coach', department, team.name)} className="rounded-lg border border-sky-500/60 px-2.5 py-1 text-xs font-black text-sky-200 hover:bg-sky-950/40">Invite</button>
+                              {isEditMode ? <button type="button" onClick={() => handleRemoveExtraRole(role.id)} className="rounded-lg border border-red-500/60 px-2.5 py-1 text-xs font-black text-red-200 hover:bg-red-950/40">Remove</button> : null}
+                            </div>
+                          </div>
+                        ))}
+                        {isEditMode ? (
+                          <div className="md:col-span-3 rounded-xl border border-dashed border-slate-700 p-3">
+                            <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Add coach role</p>
+                            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                              <input value={newRoleLabelByTeam[`${department}:${team.name}`] ?? ''} onChange={(event) => setNewRoleLabelByTeam((current) => ({ ...current, [`${department}:${team.name}`]: event.target.value }))} placeholder="e.g. Strength Coach" className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-400" />
+                              <button type="button" onClick={() => handleAddExtraRole(department, team.name)} className="rounded-lg border border-sky-500/60 px-3 py-2 text-xs font-black text-sky-200 hover:bg-sky-950/40">Add role</button>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     );
-                  }) : <p className="rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-sm text-slate-500">No teams yet. Coach roles become available once teams exist.</p>}
-                </div>
+                  }) : <Link href={`/demo/admin/departments/${encodeURIComponent(department)}?mode=edit&focus=teams`} className="rounded-xl border border-sky-500/40 bg-sky-950/20 p-3 text-sm font-bold text-sky-200 hover:bg-sky-950/35">No teams yet — create first team</Link>}
+                </div> : null}
               </article>
             );
           })}
-        </div>
-      </section>
-
-      <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-        <form onSubmit={handleCreateInvite} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Create invite</p>
-          <h2 className="mt-2 text-xl font-black">Department-based invite</h2>
-          <div className="mt-4 space-y-4">
-            <label className="block">
-              <span className="text-sm font-bold text-slate-200">Department</span>
-              <select
-                value={selectedDepartment}
-                onChange={(event) => setSelectedDepartment(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400"
-              >
-                {setup.departments.map((department) => (
-                  <option key={department} value={department}>
-                    {department}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block">
-              <span className="text-sm font-bold text-slate-200">Role</span>
-              <select
-                value={selectedRole}
-                onChange={(event) => setSelectedRole(event.target.value as DemoInviteRole)}
-                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400"
-              >
-                <option value="department_lead">Department Lead</option>
-                <option value="head_coach">Head Coach</option>
-                <option value="assistant_coach">Assistant Coach</option>
-              </select>
-            </label>
-
-            {selectedRole !== 'department_lead' ? (
-              <label className="block">
-                <span className="text-sm font-bold text-slate-200">Team for coach invite</span>
-                <select
-                  value={selectedTeam}
-                  onChange={(event) => setSelectedTeam(event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400"
-                >
-                  {teamsForSelectedDepartment.length > 0 ? (
-                    teamsForSelectedDepartment.map((team) => (
-                      <option key={team.id} value={team.name}>
-                        {team.name}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">No demo teams in this department yet</option>
-                  )}
-                </select>
-                <p className="mt-2 text-xs leading-5 text-slate-500">
-                  Coach invites are team-based in the current V1 acceptance model.
-                </p>
-              </label>
-            ) : null}
-
-            <label className="block">
-              <span className="text-sm font-bold text-slate-200">Expires in days</span>
-              <input
-                type="number"
-                min="1"
-                value={expiresInDays}
-                onChange={(event) => setExpiresInDays(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400"
-              />
-            </label>
-
-            <button
-              type="submit"
-              disabled={setup.departments.length === 0 || (selectedRole !== 'department_lead' && teamsForSelectedDepartment.length === 0)}
-              className="w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Create local invite link
-            </button>
-          </div>
-        </form>
-
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">Pending invites</p>
-          <h2 className="mt-2 text-xl font-black">Links to send</h2>
-          <div className="mt-4 space-y-3">
-            {pendingInvites.length > 0 ? (
-              pendingInvites.map((invite) => (
-                <div key={invite.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="font-black text-white">{roleLabel(invite.role)}</p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {invite.department}{invite.team ? ` · ${invite.team}` : ''}
-                      </p>
-                      <p className="mt-3 break-all rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-xs text-slate-300">
-                        {getInviteUrl(invite.token)}
-                      </p>
-                    </div>
-                    <div className="flex gap-2 sm:flex-col">
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(invite.token)}
-                        className="rounded-xl border border-sky-500/60 px-3 py-2 text-xs font-black text-sky-200 hover:bg-sky-950/40"
-                      >
-                        {copiedToken === invite.token ? 'Copied' : 'Copy'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPendingRevoke(invite)}
-                        className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-200 hover:bg-red-950/40"
-                      >
-                        Revoke
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">No pending demo invites yet.</p>
-            )}
-          </div>
-        </section>
-      </section>
-
-      <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Invite history</p>
-        <div className="mt-4 space-y-2">
-          {nonPendingInvites.length > 0 ? (
-            nonPendingInvites.map((invite) => (
-              <div key={invite.id} className="flex flex-col gap-1 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm font-bold text-slate-200">{roleLabel(invite.role)}</p>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{invite.status}</p>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-slate-500">No completed, revoked or expired demo invites yet.</p>
-          )}
         </div>
       </section>
 
