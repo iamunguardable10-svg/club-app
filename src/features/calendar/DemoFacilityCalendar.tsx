@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
-import { getDemoSessions } from '@/shared/dev/demoStorage';
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
+import { DemoSessionComposer } from '@/features/sessions/DemoSessionComposer';
+import type { SessionComposerPayload } from '@/features/sessions/SessionComposer';
+import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoSessions, type DemoSession } from '@/shared/dev/demoStorage';
 
 type DemoFacilityCalendarProps = {
   facilityName: string;
@@ -10,11 +12,17 @@ type DemoFacilityCalendarProps = {
   departmentName?: string;
   teamName?: string;
 };
+type DraftSession = { startsAt: string; endsAt: string; teamId: string | null; facilityName: string };
+type DragState = { kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date };
 
 const hours = Array.from({ length: 17 }, (_, index) => index + 7);
 const firstHour = hours[0] ?? 7;
 const lastHour = (hours.at(-1) ?? 23) + 1;
 const hourHeight = 80;
+const minutesPerPixel = 60 / hourHeight;
+const slotMinutes = 15;
+const defaultDurationMinutes = 90;
+const dayColumnMinWidth = 150;
 const days = Array.from({ length: 7 }, (_, index) => {
   const date = new Date();
   const day = date.getDay();
@@ -29,25 +37,154 @@ function sameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-function minutesFromDayStart(value: string) {
-  const date = new Date(value);
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function roundToSlot(minutes: number) {
+  return Math.round(minutes / slotMinutes) * slotMinutes;
+}
+
+function minutesFromDayStart(value: string | Date) {
+  const date = typeof value === 'string' ? new Date(value) : value;
   return (date.getHours() - firstHour) * 60 + date.getMinutes();
 }
 
-function sessionDurationMinutes(session: { startsAt: string; endsAt: string }) {
-  const start = new Date(session.startsAt);
-  const end = new Date(session.endsAt);
+function createDateForCalendarMinute(day: Date, minutes: number) {
+  const next = new Date(day);
+  next.setHours(firstHour, 0, 0, 0);
+  next.setMinutes(minutes);
+  return next;
+}
+
+function addMinutes(date: Date, minutes: number) {
+  return new Date(date.getTime() + minutes * 60_000);
+}
+
+function durationMinutes(start: Date, end: Date) {
   return Math.max(30, Math.round((end.getTime() - start.getTime()) / 60_000));
 }
 
+function sessionDurationMinutes(session: { startsAt: string; endsAt: string }) {
+  return durationMinutes(new Date(session.startsAt), new Date(session.endsAt));
+}
+
+function formatTimeRange(startsAt: string, endsAt: string | null) {
+  const start = new Date(startsAt);
+  const end = endsAt ? new Date(endsAt) : addMinutes(start, 60);
+  const formatter = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
+  return `${formatter.format(start)} - ${formatter.format(end)}`;
+}
+
 export function DemoFacilityCalendar({ facilityName, from, departmentName, teamName }: DemoFacilityCalendarProps) {
-  const sessions = useMemo(() => getDemoSessions().filter((session) => session.facility === facilityName), [facilityName]);
+  const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const [sessions, setSessions] = useState<DemoSession[]>([]);
+  const [draft, setDraft] = useState<DraftSession | null>(null);
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<DemoSession | null>(null);
+  const setup = useMemo(() => getDemoClubSetup(), []);
+  const teams = useMemo(() => getDemoTeams(setup), [setup]);
+  const facilities = useMemo(() => (setup?.facilities ?? [facilityName]).map((name) => ({ id: name, name })), [facilityName, setup]);
+
+  useEffect(() => {
+    setSessions(getDemoSessions().filter((session) => session.facility === facilityName));
+  }, [facilityName]);
+
+  const contextTeamId = teamName ? (teams.find((team) => team.name === teamName)?.id ?? null) : null;
+  const firstDepartmentTeamId = departmentName ? (teams.find((team) => team.department === departmentName)?.id ?? null) : null;
+  const fallbackTeamId = contextTeamId ?? firstDepartmentTeamId ?? teams[0]?.id ?? null;
+
+  useEffect(() => {
+    if (!drag || !draft) return;
+    const activeDrag = drag;
+    const activeDraft = draft;
+
+    function dayIndexFromPointer(clientX: number) {
+      const hitIndex = dayRefs.current.findIndex((element) => {
+        if (!element) return false;
+        const rect = element.getBoundingClientRect();
+        return clientX >= rect.left && clientX <= rect.right;
+      });
+      if (hitIndex >= 0) return hitIndex;
+      const currentIndex = days.findIndex((day) => sameDay(new Date(activeDraft.startsAt), day));
+      return currentIndex >= 0 ? currentIndex : 0;
+    }
+
+    function handlePointerMove(event: globalThis.PointerEvent) {
+      const originalDuration = durationMinutes(activeDrag.originalStart, activeDrag.originalEnd);
+      const currentStartMinutes = minutesFromDayStart(activeDrag.originalStart);
+      const deltaMinutes = roundToSlot((event.clientY - activeDrag.startY) * minutesPerPixel);
+      const maxMinutes = (lastHour - firstHour) * 60;
+
+      if (activeDrag.kind === 'resize') {
+        const nextDuration = clamp(originalDuration + deltaMinutes, 30, maxMinutes - currentStartMinutes);
+        setDraft({ ...activeDraft, endsAt: addMinutes(new Date(activeDraft.startsAt), nextDuration).toISOString() });
+        return;
+      }
+
+      const targetDay = days[dayIndexFromPointer(event.clientX)];
+      const nextStartMinutes = clamp(currentStartMinutes + deltaMinutes, 0, maxMinutes - originalDuration);
+      const nextStart = createDateForCalendarMinute(targetDay, nextStartMinutes);
+      setDraft({ ...activeDraft, startsAt: nextStart.toISOString(), endsAt: addMinutes(nextStart, originalDuration).toISOString() });
+    }
+
+    function handlePointerUp() {
+      setDrag(null);
+    }
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp, { once: true });
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [draft, drag]);
+
   const backTarget =
     from === 'departments'
-      ? { href: '/demo/admin/departments', label: '← Back to local departments' }
+      ? { href: '/demo/admin/departments', label: 'Back to local departments' }
       : from === 'overview'
-        ? { href: '/demo/admin/overview', label: '← Back to local overview' }
-        : { href: '/demo/admin/facilities', label: '← Back to local facilities' };
+        ? { href: '/demo/admin/overview', label: 'Back to local overview' }
+        : { href: '/demo/admin/facilities', label: 'Back to local facilities' };
+
+  function handleSlotPointerDown(day: Date, event: PointerEvent<HTMLDivElement>) {
+    if ((event.target as HTMLElement).closest('[data-calendar-session]')) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const clickedMinutes = clamp(roundToSlot((event.clientY - rect.top) * minutesPerPixel), 0, (lastHour - firstHour) * 60 - 30);
+    const start = createDateForCalendarMinute(day, clickedMinutes);
+    const end = addMinutes(start, defaultDurationMinutes);
+    setSelectedSession(null);
+    setDraft({ startsAt: start.toISOString(), endsAt: end.toISOString(), teamId: fallbackTeamId, facilityName });
+  }
+
+  function startDraftDrag(kind: DragState['kind'], event: PointerEvent<HTMLElement>) {
+    if (!draft) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setDrag({ kind, startX: event.clientX, startY: event.clientY, originalStart: new Date(draft.startsAt), originalEnd: new Date(draft.endsAt) });
+  }
+
+  async function handleCreateSession(payload: SessionComposerPayload) {
+    const team = teams.find((item) => item.id === payload.ownerTeamId);
+    if (!team) throw new Error('Choose a team first.');
+    const nextSession: DemoSession = {
+      id: crypto.randomUUID(),
+      department: team.department,
+      team: team.name,
+      title: payload.title,
+      sessionType: payload.sessionType,
+      startsAt: payload.startsAt,
+      endsAt: payload.endsAt,
+      facility: facilityName,
+      createdAt: new Date().toISOString(),
+    };
+    const allSessions = [...getDemoSessions(), nextSession];
+    saveDemoSessions(allSessions);
+    setSessions(allSessions.filter((session) => session.facility === facilityName));
+    setDraft(null);
+    setComposerOpen(false);
+  }
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#92400E_0,#070A12_45%)] px-4 py-8 text-white sm:px-8">
@@ -60,55 +197,93 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
             {teamName ? <span className="rounded-full border border-sky-400/70 bg-sky-950/50 px-3 py-1 text-sky-100">Focus team: {teamName}</span> : null}
             {departmentName ? <span className="rounded-full border border-emerald-400/50 bg-emerald-950/30 px-3 py-1 text-emerald-100">Department: {departmentName}</span> : null}
             {!teamName && !departmentName ? <span className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">Full facility view</span> : null}
+            <span className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">Tap a free slot to draft a session</span>
           </div>
         </section>
 
+        {draft ? (
+          <section className="sticky top-3 z-30 rounded-2xl border border-sky-400/40 bg-slate-950/95 p-4 shadow-2xl backdrop-blur">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Session draft</p>
+                <p className="mt-1 text-sm font-bold text-slate-200">{formatTimeRange(draft.startsAt, draft.endsAt)} | {teams.find((team) => team.id === draft.teamId)?.name ?? 'Team not set'} | {facilityName}</p>
+                <p className="mt-1 text-xs text-slate-500">Drag the draft to move it. Pull the bottom edge to resize duration.</p>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setDraft(null)} className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Cancel</button>
+                <button type="button" onClick={() => setComposerOpen(true)} disabled={!draft.teamId} className="rounded-xl bg-sky-400 px-4 py-2 text-sm font-black text-slate-950 hover:bg-sky-300 disabled:opacity-50">Create session</button>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         <section className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80">
-          <div className="overflow-x-auto">
-            <div className="min-w-[1080px]">
-              <div className="grid grid-cols-[72px_repeat(7,minmax(140px,1fr))] border-b border-slate-800 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+          <div className="overflow-x-auto touch-pan-x">
+            <div style={{ minWidth: `${72 + days.length * dayColumnMinWidth}px` }}>
+              <div className="grid grid-cols-[72px_repeat(7,minmax(150px,1fr))] border-b border-slate-800 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                 <div className="sticky left-0 z-20 bg-slate-950/95 p-3">Time</div>
                 {days.map((day) => <div key={day.toISOString()} className="border-l border-slate-800 p-3">{day.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</div>)}
               </div>
-              <div className="grid grid-cols-[72px_repeat(7,minmax(140px,1fr))]">
+              <div className="grid grid-cols-[72px_repeat(7,minmax(150px,1fr))]">
                 <div className="sticky left-0 z-10 bg-slate-950/95">
-                  {hours.map((hour) => (
-                    <div key={hour} className="h-20 border-b border-slate-900 p-3 text-xs font-bold text-slate-500">{String(hour).padStart(2, '0')}:00</div>
-                  ))}
+                  {hours.map((hour) => <div key={hour} className="h-20 border-b border-slate-900 p-3 text-xs font-bold text-slate-500">{String(hour).padStart(2, '0')}:00</div>)}
                 </div>
-                {days.map((day) => {
+                {days.map((day, dayIndex) => {
                   const daySessions = sessions.filter((session) => sameDay(new Date(session.startsAt), day));
+                  const draftIsOnDay = draft ? sameDay(new Date(draft.startsAt), day) : false;
                   return (
-                    <div key={day.toISOString()} className="relative border-l border-slate-900" style={{ height: `${hours.length * hourHeight}px` }}>
-                      {hours.map((hour) => (
-                        <div key={hour} className="h-20 border-b border-slate-900" />
-                      ))}
+                    <div
+                      key={day.toISOString()}
+                      ref={(element) => { dayRefs.current[dayIndex] = element; }}
+                      onPointerDown={(event) => handleSlotPointerDown(day, event)}
+                      className="relative cursor-crosshair border-l border-slate-900"
+                      style={{ height: `${hours.length * hourHeight}px`, touchAction: 'pan-x pan-y' }}
+                    >
+                      {hours.map((hour) => <div key={hour} className="h-20 border-b border-slate-900" />)}
                       {daySessions.map((session) => {
-                          const tone =
-                            teamName && session.team === teamName
-                              ? 'primary'
-                              : departmentName && session.department === departmentName
-                                ? 'secondary'
-                                : 'muted';
-                          const top = Math.max(0, minutesFromDayStart(session.startsAt) * (hourHeight / 60));
-                          const height = Math.min(
-                            Math.max(44, sessionDurationMinutes(session) * (hourHeight / 60)),
-                            (lastHour - firstHour) * hourHeight - top,
-                          );
-                          const toneClass =
-                            tone === 'primary'
-                              ? 'border-sky-400 bg-sky-950/70 text-white shadow-[0_0_0_1px_rgba(56,189,248,0.35)]'
-                              : tone === 'secondary'
-                                ? 'border-emerald-500/60 bg-emerald-950/35 text-slate-100'
-                                : 'border-slate-800 bg-slate-900/50 text-slate-400';
-                          return (
-                            <article key={session.id} style={{ top, height }} className={`absolute left-2 right-2 overflow-hidden rounded-2xl border p-3 ${toneClass}`}>
-                              <p className="text-xs font-black uppercase tracking-[0.12em]">{session.team}</p>
-                              <p className="mt-1 text-sm font-black">{session.title}</p>
-                              <p className="mt-1 text-xs">{session.department}</p>
-                            </article>
-                          );
-                        })}
+                        const tone = teamName && session.team === teamName ? 'primary' : departmentName && session.department === departmentName ? 'secondary' : 'muted';
+                        const top = Math.max(0, minutesFromDayStart(session.startsAt) * (hourHeight / 60));
+                        const height = Math.min(Math.max(44, sessionDurationMinutes(session) * (hourHeight / 60)), (lastHour - firstHour) * hourHeight - top);
+                        const toneClass =
+                          tone === 'primary'
+                            ? 'border-sky-400 bg-sky-950/70 text-white shadow-[0_0_0_1px_rgba(56,189,248,0.35)]'
+                            : tone === 'secondary'
+                              ? 'border-emerald-500/60 bg-emerald-950/35 text-slate-100'
+                              : 'border-slate-800 bg-slate-900/50 text-slate-400';
+                        return (
+                          <button
+                            type="button"
+                            key={session.id}
+                            data-calendar-session="true"
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onClick={() => setSelectedSession(session)}
+                            style={{ top, height }}
+                            className={`absolute left-2 right-2 overflow-hidden rounded-2xl border p-3 text-left ${toneClass}`}
+                          >
+                            <p className="text-xs font-black uppercase tracking-[0.12em]">{session.team}</p>
+                            <p className="mt-1 text-sm font-black">{session.title}</p>
+                            <p className="mt-1 text-xs">{session.department} | {formatTimeRange(session.startsAt, session.endsAt)}</p>
+                          </button>
+                        );
+                      })}
+                      {draftIsOnDay ? (() => {
+                        const activeDraftRender = draft!;
+                        const top = Math.max(0, minutesFromDayStart(activeDraftRender.startsAt) * (hourHeight / 60));
+                        const height = Math.min(Math.max(44, durationMinutes(new Date(activeDraftRender.startsAt), new Date(activeDraftRender.endsAt)) * (hourHeight / 60)), (lastHour - firstHour) * hourHeight - top);
+                        return (
+                          <article
+                            data-calendar-session="true"
+                            onPointerDown={(event) => startDraftDrag('move', event)}
+                            style={{ top, height }}
+                            className="absolute left-2 right-2 z-20 cursor-grab overflow-hidden rounded-2xl border border-sky-300 bg-sky-500/20 p-3 text-left text-sky-50 shadow-[0_0_0_1px_rgba(125,211,252,0.4)] active:cursor-grabbing"
+                          >
+                            <p className="text-xs font-black uppercase tracking-[0.12em]">New session</p>
+                            <p className="mt-1 text-sm font-black">Training</p>
+                            <p className="mt-1 text-xs">{formatTimeRange(activeDraftRender.startsAt, activeDraftRender.endsAt)}</p>
+                            <button type="button" onPointerDown={(event) => startDraftDrag('resize', event)} className="absolute bottom-1 left-1/2 h-3 w-12 -translate-x-1/2 rounded-full bg-sky-200/80" aria-label="Resize session draft" />
+                          </article>
+                        );
+                      })() : null}
                     </div>
                   );
                 })}
@@ -117,6 +292,39 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
           </div>
         </section>
       </div>
+
+      {selectedSession ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 p-3 backdrop-blur-sm sm:items-center">
+          <section className="w-full max-w-lg rounded-3xl border border-slate-800 bg-slate-950 p-5 shadow-2xl">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Session details</p>
+            <h2 className="mt-2 text-2xl font-black">{selectedSession.title}</h2>
+            <div className="mt-4 grid gap-2 text-sm text-slate-300">
+              <p><span className="font-black text-slate-100">Time:</span> {formatTimeRange(selectedSession.startsAt, selectedSession.endsAt)}</p>
+              <p><span className="font-black text-slate-100">Team:</span> {selectedSession.team}</p>
+              <p><span className="font-black text-slate-100">Department:</span> {selectedSession.department}</p>
+              <p><span className="font-black text-slate-100">Attendance:</span> Planned</p>
+              <p><span className="font-black text-slate-100">Load:</span> Not reported yet</p>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setSelectedSession(null)} className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Close</button>
+              <button type="button" className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-500" disabled>Edit soon</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      <DemoSessionComposer
+        open={composerOpen && Boolean(draft)}
+        teams={teams.map((team) => ({ id: team.id, name: team.name, departmentId: team.department, defaultFacilityId: team.defaultFacility }))}
+        facilities={facilities}
+        initialTeamId={draft?.teamId ?? fallbackTeamId}
+        initialFacilityId={facilityName}
+        initialStartsAt={draft?.startsAt ?? null}
+        initialEndsAt={draft?.endsAt ?? null}
+        lockedFacilityId={facilityName}
+        onClose={() => setComposerOpen(false)}
+        onSubmit={handleCreateSession}
+      />
     </main>
   );
 }
