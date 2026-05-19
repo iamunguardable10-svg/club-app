@@ -20,7 +20,7 @@ type Session = {
   created_by: string | null;
 };
 type DraftSession = { startsAt: string; endsAt: string; teamId: string | null; facilityId: string };
-type DragState = { kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date };
+type DragState = { target: 'draft' | 'session'; sessionId?: string; kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date };
 type ClubMembership = { role: 'club_admin' | 'department_lead'; department_id: string | null };
 type TeamMembership = { role: 'head_coach' | 'assistant_coach' | 'athlete'; department_id: string; team_id: string };
 
@@ -107,6 +107,8 @@ function sessionTone(session: Session, departmentId?: string, teamId?: string) {
 export function FacilityCalendar({ facilityId, from, departmentId, teamId }: FacilityCalendarProps) {
   const router = useRouter();
   const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const calendarScrollRef = useRef<HTMLDivElement | null>(null);
+  const didDragRef = useRef(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [facility, setFacility] = useState<Facility | null>(null);
   const [facilities, setFacilities] = useState<Facility[]>([]);
@@ -230,9 +232,25 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
   }
 
   useEffect(() => {
-    if (!drag || !draft) return;
+    if (state !== 'ready' || sessions.length === 0) return;
+    const sessionsByDay = days.map((day) => sessions.filter((session) => sameDay(new Date(session.starts_at), day)));
+    const bestDayIndex = sessionsByDay.reduce((bestIndex, daySessions, index) => (daySessions.length > sessionsByDay[bestIndex].length ? index : bestIndex), 0);
+    if (sessionsByDay[bestDayIndex].length > 0) setActiveDayIndex(bestDayIndex);
+    const focusSessions = sessionsByDay[bestDayIndex].length > 0 ? sessionsByDay[bestDayIndex] : sessions;
+    const averageStartMinutes = focusSessions.reduce((sum, session) => sum + minutesFromDayStart(session.starts_at), 0) / focusSessions.length;
+    const targetScrollTop = Math.max(0, (averageStartMinutes - 120) * minutesPerPixel);
+    window.setTimeout(() => {
+      if (calendarScrollRef.current) calendarScrollRef.current.scrollTop = targetScrollTop;
+    }, 0);
+  }, [sessions, state]);
+
+  useEffect(() => {
+    if (!drag) return;
+    if (drag.target === 'draft' && !draft) return;
     const activeDrag = drag;
     const activeDraft = draft;
+    let latestStart = activeDrag.originalStart;
+    let latestEnd = activeDrag.originalEnd;
 
     function dayIndexFromPointer(clientX: number) {
       const hitIndex = dayRefs.current.findIndex((element) => {
@@ -241,8 +259,24 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
         return clientX >= rect.left && clientX <= rect.right;
       });
       if (hitIndex >= 0) return hitIndex;
-      const currentIndex = days.findIndex((day) => sameDay(new Date(activeDraft.startsAt), day));
+      const currentIndex = days.findIndex((day) => sameDay(latestStart, day));
       return currentIndex >= 0 ? currentIndex : 0;
+    }
+
+    function applyTimes(start: Date, end: Date) {
+      latestStart = start;
+      latestEnd = end;
+      if (activeDrag.target === 'draft' && activeDraft) {
+        setDraft({ ...activeDraft, startsAt: start.toISOString(), endsAt: end.toISOString() });
+        return;
+      }
+      if (activeDrag.target === 'session' && activeDrag.sessionId) {
+        setSessions((current) =>
+          current.map((session) =>
+            session.id === activeDrag.sessionId ? { ...session, starts_at: start.toISOString(), ends_at: end.toISOString() } : session,
+          ),
+        );
+      }
     }
 
     function handlePointerMove(event: globalThis.PointerEvent) {
@@ -250,21 +284,41 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
       const currentStartMinutes = minutesFromDayStart(activeDrag.originalStart);
       const deltaMinutes = roundToSlot((event.clientY - activeDrag.startY) * minutesPerPixel);
       const maxMinutes = (lastHour - firstHour) * 60;
+      if (Math.abs(event.clientY - activeDrag.startY) > 3 || Math.abs(event.clientX - activeDrag.startX) > 3) didDragRef.current = true;
 
       if (activeDrag.kind === 'resize') {
         const nextDuration = clamp(originalDuration + deltaMinutes, 30, maxMinutes - currentStartMinutes);
-        setDraft({ ...activeDraft, endsAt: addMinutes(new Date(activeDraft.startsAt), nextDuration).toISOString() });
+        applyTimes(activeDrag.originalStart, addMinutes(activeDrag.originalStart, nextDuration));
         return;
       }
 
       const targetDay = days[dayIndexFromPointer(event.clientX)];
       const nextStartMinutes = clamp(currentStartMinutes + deltaMinutes, 0, maxMinutes - originalDuration);
       const nextStart = createDateForCalendarMinute(targetDay, nextStartMinutes);
-      setDraft({ ...activeDraft, startsAt: nextStart.toISOString(), endsAt: addMinutes(nextStart, originalDuration).toISOString() });
+      applyTimes(nextStart, addMinutes(nextStart, originalDuration));
     }
 
     function handlePointerUp() {
       setDrag(null);
+      if (activeDrag.target !== 'session' || !activeDrag.sessionId) return;
+      const startsAt = latestStart.toISOString();
+      const endsAt = latestEnd.toISOString();
+      const supabase = createBrowserSupabaseClient();
+      void supabase
+        .from('sessions')
+        .update({ starts_at: startsAt, ends_at: endsAt })
+        .eq('id', activeDrag.sessionId)
+        .then(({ error: updateError }) => {
+          if (!updateError) return;
+          setError(updateError.message);
+          setSessions((current) =>
+            current.map((session) =>
+              session.id === activeDrag.sessionId
+                ? { ...session, starts_at: activeDrag.originalStart.toISOString(), ends_at: activeDrag.originalEnd.toISOString() }
+                : session,
+            ),
+          );
+        });
     }
 
     window.addEventListener('pointermove', handlePointerMove);
@@ -298,7 +352,25 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
     if (!draft) return;
     event.preventDefault();
     event.stopPropagation();
-    setDrag({ kind, startX: event.clientX, startY: event.clientY, originalStart: new Date(draft.startsAt), originalEnd: new Date(draft.endsAt) });
+    didDragRef.current = false;
+    setDrag({ target: 'draft', kind, startX: event.clientX, startY: event.clientY, originalStart: new Date(draft.startsAt), originalEnd: new Date(draft.endsAt) });
+  }
+
+  function startSessionDrag(session: Session, kind: DragState['kind'], event: PointerEvent<HTMLElement>) {
+    event.stopPropagation();
+    if (mode !== 'edit' || !canManageSession(session)) return;
+    event.preventDefault();
+    didDragRef.current = false;
+    setSelectedSession(null);
+    setDrag({
+      target: 'session',
+      sessionId: session.id,
+      kind,
+      startX: event.clientX,
+      startY: event.clientY,
+      originalStart: new Date(session.starts_at),
+      originalEnd: session.ends_at ? new Date(session.ends_at) : addMinutes(new Date(session.starts_at), 60),
+    });
   }
 
   async function handleCreateSession(payload: SessionComposerPayload) {
@@ -321,7 +393,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
         facility_id: payload.facilityId,
         status: 'scheduled',
       })
-      .select('id, title, starts_at, ends_at, session_type, department_id, owner_team_id')
+      .select('id, title, starts_at, ends_at, session_type, department_id, owner_team_id, created_by')
       .single();
 
     if (insertError) throw insertError;
@@ -424,7 +496,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
 
 
         <section className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80">
-          <div className="overflow-x-auto touch-pan-x">
+          <div ref={calendarScrollRef} className="max-h-[68vh] overflow-auto overscroll-contain touch-pan-x md:max-h-none md:overflow-x-auto md:overflow-y-visible">
             <div className="min-w-0 md:min-w-[1122px]">
               <div className="grid grid-cols-[72px_minmax(170px,1fr)] border-b border-slate-800 text-xs font-black uppercase tracking-[0.16em] text-slate-500 md:grid-cols-[72px_repeat(7,minmax(150px,1fr))]">
                 <div className="sticky left-0 z-20 bg-slate-950/95 p-3">Time</div>
@@ -467,10 +539,10 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
                             type="button"
                             key={session.id}
                             data-calendar-session="true"
-                            onPointerDown={(event) => event.stopPropagation()}
-                            onClick={() => setSelectedSession(session)}
+                            onPointerDown={(event) => startSessionDrag(session, 'move', event)}
+                            onClick={(event) => { if (didDragRef.current) { event.preventDefault(); didDragRef.current = false; return; } setSelectedSession(session); }}
                             style={{ top, height }}
-                            className={`absolute left-2 right-2 overflow-hidden rounded-2xl border p-3 text-left ${toneClass}`}
+                            className={`absolute left-2 right-2 overflow-hidden rounded-2xl border p-3 text-left ${toneClass} ${mode === 'edit' && canManageSession(session) ? 'cursor-grab active:cursor-grabbing' : ''}`}
                           >
                             <p className="text-xs font-black uppercase tracking-[0.12em]">{team?.name ?? 'Team'}</p>
                             <p className="mt-1 text-sm font-black">{session.title}</p>
@@ -551,7 +623,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
                 {canManageSession(selectedSession) ? (
                   <>
                     <button type="button" onClick={() => setEditingSession(selectedSession)} className="rounded-xl border border-sky-500/70 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Edit</button>
-                    {mode === 'edit' ? <button type="button" onClick={() => handleDeleteSession(selectedSession)} className="rounded-xl border border-red-500/60 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-950/30">Delete</button> : null}
+                    <button type="button" onClick={() => handleDeleteSession(selectedSession)} className="rounded-xl border border-red-500/60 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-950/30">Delete</button>
                   </>
                 ) : null}
               </div>

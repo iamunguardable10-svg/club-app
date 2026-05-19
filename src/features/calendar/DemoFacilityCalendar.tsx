@@ -13,7 +13,7 @@ type DemoFacilityCalendarProps = {
   teamName?: string;
 };
 type DraftSession = { startsAt: string; endsAt: string; teamId: string | null; facilityName: string };
-type DragState = { kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date };
+type DragState = { target: 'draft' | 'session'; sessionId?: string; kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date };
 
 const hours = Array.from({ length: 17 }, (_, index) => index + 7);
 const firstHour = hours[0] ?? 7;
@@ -78,6 +78,8 @@ function formatTimeRange(startsAt: string, endsAt: string | null) {
 
 export function DemoFacilityCalendar({ facilityName, from, departmentName, teamName }: DemoFacilityCalendarProps) {
   const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const calendarScrollRef = useRef<HTMLDivElement | null>(null);
+  const didDragRef = useRef(false);
   const [sessions, setSessions] = useState<DemoSession[]>([]);
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, days.findIndex((day) => sameDay(day, new Date()))));
@@ -98,9 +100,25 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
   const fallbackTeamId = contextTeamId;
 
   useEffect(() => {
-    if (!drag || !draft) return;
+    if (sessions.length === 0) return;
+    const sessionsByDay = days.map((day) => sessions.filter((session) => sameDay(new Date(session.startsAt), day)));
+    const bestDayIndex = sessionsByDay.reduce((bestIndex, daySessions, index) => (daySessions.length > sessionsByDay[bestIndex].length ? index : bestIndex), 0);
+    if (sessionsByDay[bestDayIndex].length > 0) setActiveDayIndex(bestDayIndex);
+    const focusSessions = sessionsByDay[bestDayIndex].length > 0 ? sessionsByDay[bestDayIndex] : sessions;
+    const averageStartMinutes = focusSessions.reduce((sum, session) => sum + minutesFromDayStart(session.startsAt), 0) / focusSessions.length;
+    const targetScrollTop = Math.max(0, (averageStartMinutes - 120) * minutesPerPixel);
+    window.setTimeout(() => {
+      if (calendarScrollRef.current) calendarScrollRef.current.scrollTop = targetScrollTop;
+    }, 0);
+  }, [sessions]);
+
+  useEffect(() => {
+    if (!drag) return;
+    if (drag.target === 'draft' && !draft) return;
     const activeDrag = drag;
     const activeDraft = draft;
+    let latestStart = activeDrag.originalStart;
+    let latestEnd = activeDrag.originalEnd;
 
     function dayIndexFromPointer(clientX: number) {
       const hitIndex = dayRefs.current.findIndex((element) => {
@@ -109,8 +127,24 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
         return clientX >= rect.left && clientX <= rect.right;
       });
       if (hitIndex >= 0) return hitIndex;
-      const currentIndex = days.findIndex((day) => sameDay(new Date(activeDraft.startsAt), day));
+      const currentIndex = days.findIndex((day) => sameDay(latestStart, day));
       return currentIndex >= 0 ? currentIndex : 0;
+    }
+
+    function applyTimes(start: Date, end: Date) {
+      latestStart = start;
+      latestEnd = end;
+      if (activeDrag.target === 'draft' && activeDraft) {
+        setDraft({ ...activeDraft, startsAt: start.toISOString(), endsAt: end.toISOString() });
+        return;
+      }
+      if (activeDrag.target === 'session' && activeDrag.sessionId) {
+        setSessions((current) =>
+          current.map((session) =>
+            session.id === activeDrag.sessionId ? { ...session, startsAt: start.toISOString(), endsAt: end.toISOString() } : session,
+          ),
+        );
+      }
     }
 
     function handlePointerMove(event: globalThis.PointerEvent) {
@@ -118,21 +152,30 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
       const currentStartMinutes = minutesFromDayStart(activeDrag.originalStart);
       const deltaMinutes = roundToSlot((event.clientY - activeDrag.startY) * minutesPerPixel);
       const maxMinutes = (lastHour - firstHour) * 60;
+      if (Math.abs(event.clientY - activeDrag.startY) > 3 || Math.abs(event.clientX - activeDrag.startX) > 3) didDragRef.current = true;
 
       if (activeDrag.kind === 'resize') {
         const nextDuration = clamp(originalDuration + deltaMinutes, 30, maxMinutes - currentStartMinutes);
-        setDraft({ ...activeDraft, endsAt: addMinutes(new Date(activeDraft.startsAt), nextDuration).toISOString() });
+        applyTimes(activeDrag.originalStart, addMinutes(activeDrag.originalStart, nextDuration));
         return;
       }
 
       const targetDay = days[dayIndexFromPointer(event.clientX)];
       const nextStartMinutes = clamp(currentStartMinutes + deltaMinutes, 0, maxMinutes - originalDuration);
       const nextStart = createDateForCalendarMinute(targetDay, nextStartMinutes);
-      setDraft({ ...activeDraft, startsAt: nextStart.toISOString(), endsAt: addMinutes(nextStart, originalDuration).toISOString() });
+      applyTimes(nextStart, addMinutes(nextStart, originalDuration));
     }
 
     function handlePointerUp() {
       setDrag(null);
+      if (activeDrag.target !== 'session' || !activeDrag.sessionId) return;
+      const startsAt = latestStart.toISOString();
+      const endsAt = latestEnd.toISOString();
+      const allSessions = getDemoSessions().map((session) =>
+        session.id === activeDrag.sessionId ? { ...session, startsAt, endsAt } : session,
+      );
+      saveDemoSessions(allSessions);
+      setSessions(allSessions.filter((session) => session.facility === facilityName));
     }
 
     window.addEventListener('pointermove', handlePointerMove);
@@ -141,7 +184,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
     };
-  }, [draft, drag]);
+  }, [draft, drag, facilityName]);
 
   const backTarget =
     from === 'departments'
@@ -165,7 +208,17 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     if (!draft) return;
     event.preventDefault();
     event.stopPropagation();
-    setDrag({ kind, startX: event.clientX, startY: event.clientY, originalStart: new Date(draft.startsAt), originalEnd: new Date(draft.endsAt) });
+    didDragRef.current = false;
+    setDrag({ target: 'draft', kind, startX: event.clientX, startY: event.clientY, originalStart: new Date(draft.startsAt), originalEnd: new Date(draft.endsAt) });
+  }
+
+  function startSessionDrag(session: DemoSession, kind: DragState['kind'], event: PointerEvent<HTMLElement>) {
+    event.stopPropagation();
+    if (mode !== 'edit') return;
+    event.preventDefault();
+    didDragRef.current = false;
+    setSelectedSession(null);
+    setDrag({ target: 'session', sessionId: session.id, kind, startX: event.clientX, startY: event.clientY, originalStart: new Date(session.startsAt), originalEnd: new Date(session.endsAt) });
   }
 
   async function handleCreateSession(payload: SessionComposerPayload) {
@@ -245,7 +298,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
         </div>
 
         <section className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80">
-          <div className="overflow-x-auto touch-pan-x">
+          <div ref={calendarScrollRef} className="max-h-[68vh] overflow-auto overscroll-contain touch-pan-x md:max-h-none md:overflow-x-auto md:overflow-y-visible">
             <div className="min-w-0 md:min-w-[1122px]">
               <div className="grid grid-cols-[72px_minmax(170px,1fr)] border-b border-slate-800 text-xs font-black uppercase tracking-[0.16em] text-slate-500 md:grid-cols-[72px_repeat(7,minmax(150px,1fr))]">
                 <div className="sticky left-0 z-20 bg-slate-950/95 p-3">Time</div>
@@ -282,10 +335,10 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
                             type="button"
                             key={session.id}
                             data-calendar-session="true"
-                            onPointerDown={(event) => event.stopPropagation()}
-                            onClick={() => setSelectedSession(session)}
+                            onPointerDown={(event) => startSessionDrag(session, 'move', event)}
+                            onClick={(event) => { if (didDragRef.current) { event.preventDefault(); didDragRef.current = false; return; } setSelectedSession(session); }}
                             style={{ top, height }}
-                            className={`absolute left-2 right-2 overflow-hidden rounded-2xl border p-3 text-left ${toneClass}`}
+                            className={`absolute left-2 right-2 overflow-hidden rounded-2xl border p-3 text-left ${toneClass} ${mode === 'edit' ? 'cursor-grab active:cursor-grabbing' : ''}`}
                           >
                             <p className="text-xs font-black uppercase tracking-[0.12em]">{session.team}</p>
                             <p className="mt-1 text-sm font-black">{session.title}</p>
@@ -340,7 +393,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
             <div className="mt-5 flex justify-end gap-2">
               <button type="button" onClick={() => setSelectedSession(null)} className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Close</button>
               <button type="button" onClick={() => setEditingSession(selectedSession)} className="rounded-xl border border-sky-500/70 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Edit</button>
-              {mode === 'edit' ? <button type="button" onClick={() => handleDeleteSession(selectedSession)} className="rounded-xl border border-red-500/60 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-950/30">Delete</button> : null}
+              <button type="button" onClick={() => handleDeleteSession(selectedSession)} className="rounded-xl border border-red-500/60 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-950/30">Delete</button>
             </div>
           </section>
         </div>
