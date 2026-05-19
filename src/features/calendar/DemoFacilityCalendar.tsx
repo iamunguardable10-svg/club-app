@@ -92,8 +92,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
   }, [facilityName]);
 
   const contextTeamId = teamName ? (teams.find((team) => team.name === teamName)?.id ?? null) : null;
-  const firstDepartmentTeamId = departmentName ? (teams.find((team) => team.department === departmentName)?.id ?? null) : null;
-  const fallbackTeamId = contextTeamId ?? firstDepartmentTeamId ?? teams[0]?.id ?? null;
+  const fallbackTeamId = contextTeamId;
 
   useEffect(() => {
     if (!drag || !draft) return;
@@ -201,21 +200,6 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
           </div>
         </section>
 
-        {draft ? (
-          <section className="sticky top-3 z-30 rounded-2xl border border-sky-400/40 bg-slate-950/95 p-4 shadow-2xl backdrop-blur">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Session draft</p>
-                <p className="mt-1 text-sm font-bold text-slate-200">{formatTimeRange(draft.startsAt, draft.endsAt)} | {teams.find((team) => team.id === draft.teamId)?.name ?? 'Team not set'} | {facilityName}</p>
-                <p className="mt-1 text-xs text-slate-500">Drag the draft to move it. Pull the bottom edge to resize duration.</p>
-              </div>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setDraft(null)} className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Cancel</button>
-                <button type="button" onClick={() => setComposerOpen(true)} disabled={!draft.teamId} className="rounded-xl bg-sky-400 px-4 py-2 text-sm font-black text-slate-950 hover:bg-sky-300 disabled:opacity-50">Create session</button>
-              </div>
-            </div>
-          </section>
-        ) : null}
 
         <section className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80">
           <div className="overflow-x-auto touch-pan-x">
@@ -274,12 +258,18 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
                           <article
                             data-calendar-session="true"
                             onPointerDown={(event) => startDraftDrag('move', event)}
+                            onClick={() => setComposerOpen(true)}
                             style={{ top, height }}
-                            className="absolute left-2 right-2 z-20 cursor-grab overflow-hidden rounded-2xl border border-sky-300 bg-sky-500/20 p-3 text-left text-sky-50 shadow-[0_0_0_1px_rgba(125,211,252,0.4)] active:cursor-grabbing"
+                            className="absolute left-2 right-2 z-20 cursor-grab overflow-hidden rounded-2xl border border-sky-300 bg-sky-500/20 p-3 pr-16 text-left text-sky-50 shadow-[0_0_0_1px_rgba(125,211,252,0.4)] active:cursor-grabbing"
                           >
+                            <div className="absolute right-2 top-2 flex gap-1">
+                              <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setDraft(null); }} className="grid h-7 w-7 place-items-center rounded-full border border-slate-600 bg-slate-950/85 text-xs font-black text-slate-200 hover:border-red-300 hover:text-red-200" aria-label="Cancel session draft">{'x'}</button>
+                              <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setComposerOpen(true); }} className="grid h-7 w-7 place-items-center rounded-full bg-sky-300 text-xs font-black text-slate-950 hover:bg-sky-200" aria-label="Confirm session draft">{'\u2713'}</button>
+                            </div>
                             <p className="text-xs font-black uppercase tracking-[0.12em]">New session</p>
                             <p className="mt-1 text-sm font-black">Training</p>
                             <p className="mt-1 text-xs">{formatTimeRange(activeDraftRender.startsAt, activeDraftRender.endsAt)}</p>
+                            <p className="mt-1 text-xs text-sky-100/80">{teams.find((team) => team.id === activeDraftRender.teamId)?.name ?? 'Tap to choose team'}</p>
                             <button type="button" onPointerDown={(event) => startDraftDrag('resize', event)} className="absolute bottom-1 left-1/2 h-3 w-12 -translate-x-1/2 rounded-full bg-sky-200/80" aria-label="Resize session draft" />
                           </article>
                         );
@@ -315,8 +305,10 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
 
       <DemoSessionComposer
         open={composerOpen && Boolean(draft)}
+        departments={(setup?.departments ?? []).map((department) => ({ id: department, name: department }))}
         teams={teams.map((team) => ({ id: team.id, name: team.name, departmentId: team.department, defaultFacilityId: team.defaultFacility }))}
         facilities={facilities}
+        initialDepartmentId={departmentName ?? null}
         initialTeamId={draft?.teamId ?? fallbackTeamId}
         initialFacilityId={facilityName}
         initialStartsAt={draft?.startsAt ?? null}

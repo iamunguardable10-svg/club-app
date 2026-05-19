@@ -1,11 +1,13 @@
 'use client';
 
-import { SessionComposer, type SessionComposerPayload, type SessionComposerTeam } from './SessionComposer';
+import { SessionComposer, type SessionComposerDepartment, type SessionComposerPayload, type SessionComposerTeam } from './SessionComposer';
 
 type DemoSessionComposerProps = {
   open: boolean;
+  departments?: SessionComposerDepartment[];
   teams: SessionComposerTeam[];
   facilities: { id: string; name: string }[];
+  initialDepartmentId?: string | null;
   initialTeamId?: string | null;
   initialFacilityId?: string | null;
   initialStartsAt?: string | null;

@@ -9,6 +9,11 @@ export type SessionComposerTeam = {
   defaultFacilityId: string | null;
 };
 
+export type SessionComposerDepartment = {
+  id: string;
+  name: string;
+};
+
 export type SessionComposerFacility = {
   id: string;
   name: string;
@@ -27,8 +32,10 @@ export type SessionComposerPayload = {
 type SessionComposerProps = {
   open: boolean;
   title?: string;
+  departments?: SessionComposerDepartment[];
   teams: SessionComposerTeam[];
   facilities: SessionComposerFacility[];
+  initialDepartmentId?: string | null;
   initialTeamId?: string | null;
   initialFacilityId?: string | null;
   initialStartsAt?: string | null;
@@ -38,6 +45,16 @@ type SessionComposerProps = {
   onClose: () => void;
   onSubmit: (payload: SessionComposerPayload) => Promise<void>;
 };
+
+const sessionTypes = [
+  { value: 'training', label: 'Training' },
+  { value: 'game', label: 'Game' },
+  { value: 's_and_c', label: 'S&C' },
+  { value: 'recovery', label: 'Recovery' },
+  { value: 'video', label: 'Video' },
+  { value: 'meeting', label: 'Meeting' },
+  { value: 'other', label: 'Other' },
+] as const;
 
 function toLocalInputValue(date: Date) {
   const offset = date.getTimezoneOffset() * 60_000;
@@ -57,11 +74,25 @@ function defaultEnd(startValue: string) {
   return toLocalInputValue(start);
 }
 
+function formatDateTimeRange(startValue: string, endValue: string) {
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+  const date = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: '2-digit', month: '2-digit' }).format(start);
+  const time = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
+  return `${date} | ${time.format(start)} - ${time.format(end)}`;
+}
+
+function labelForSessionType(value: string) {
+  return sessionTypes.find((type) => type.value === value)?.label ?? 'Session';
+}
+
 export function SessionComposer({
   open,
-  title = 'Create session',
+  title = 'Session details',
+  departments = [],
   teams,
   facilities,
+  initialDepartmentId = null,
   initialTeamId = null,
   initialFacilityId = null,
   initialStartsAt = null,
@@ -71,30 +102,45 @@ export function SessionComposer({
   onClose,
   onSubmit,
 }: SessionComposerProps) {
-  const [sessionTitle, setSessionTitle] = useState('Training');
+  const inferredDepartments = useMemo(() => {
+    if (departments.length > 0) return departments;
+    const ids = Array.from(new Set(teams.map((team) => team.departmentId)));
+    return ids.map((id) => ({ id, name: id }));
+  }, [departments, teams]);
+
+  const initialTeam = useMemo(() => teams.find((team) => team.id === (lockedTeamId ?? initialTeamId)) ?? null, [initialTeamId, lockedTeamId, teams]);
   const [sessionType, setSessionType] = useState('training');
-  const [ownerTeamId, setOwnerTeamId] = useState(initialTeamId ?? teams[0]?.id ?? '');
+  const [customTitle, setCustomTitle] = useState('');
+  const [departmentId, setDepartmentId] = useState(initialTeam?.departmentId ?? initialDepartmentId ?? '');
+  const [ownerTeamId, setOwnerTeamId] = useState(lockedTeamId ?? initialTeamId ?? '');
   const [facilityId, setFacilityId] = useState<string | null>(null);
   const [startsAt, setStartsAt] = useState(defaultStart);
   const [endsAt, setEndsAt] = useState(() => defaultEnd(defaultStart()));
   const [participantScope, setParticipantScope] = useState<SessionComposerPayload['participantScope']>('whole_team');
+  const [timeOpen, setTimeOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const selectedDepartment = useMemo(() => inferredDepartments.find((department) => department.id === departmentId) ?? null, [departmentId, inferredDepartments]);
+  const teamsForDepartment = useMemo(() => teams.filter((team) => team.departmentId === departmentId), [departmentId, teams]);
   const selectedTeam = useMemo(() => teams.find((team) => team.id === ownerTeamId) ?? null, [ownerTeamId, teams]);
+  const effectiveTitle = sessionType === 'other' && customTitle.trim() ? customTitle.trim() : labelForSessionType(sessionType);
 
   useEffect(() => {
     if (!open) return;
-    const nextTeamId = lockedTeamId ?? initialTeamId ?? teams[0]?.id ?? '';
+    const nextTeam = teams.find((team) => team.id === (lockedTeamId ?? initialTeamId)) ?? null;
+    const nextDepartmentId = nextTeam?.departmentId ?? initialDepartmentId ?? '';
     const start = initialStartsAt ? toLocalInputValue(new Date(initialStartsAt)) : defaultStart();
-    setSessionTitle('Training');
     setSessionType('training');
-    setOwnerTeamId(nextTeamId);
+    setCustomTitle('');
+    setDepartmentId(nextDepartmentId);
+    setOwnerTeamId(lockedTeamId ?? initialTeamId ?? '');
     setStartsAt(start);
     setEndsAt(initialEndsAt ? toLocalInputValue(new Date(initialEndsAt)) : defaultEnd(start));
     setParticipantScope('whole_team');
+    setTimeOpen(false);
     setError(null);
-  }, [initialEndsAt, initialStartsAt, initialTeamId, lockedTeamId, open, teams]);
+  }, [initialDepartmentId, initialEndsAt, initialStartsAt, initialTeamId, lockedTeamId, open, teams]);
 
   useEffect(() => {
     if (!open) return;
@@ -102,17 +148,27 @@ export function SessionComposer({
     setFacilityId(lockedFacilityId ?? initialFacilityId ?? team?.defaultFacilityId ?? null);
   }, [initialFacilityId, lockedFacilityId, open, ownerTeamId, teams]);
 
+  useEffect(() => {
+    if (!open || lockedTeamId) return;
+    if (!departmentId) {
+      setOwnerTeamId('');
+      return;
+    }
+    if (ownerTeamId && teamsForDepartment.some((team) => team.id === ownerTeamId)) return;
+    setOwnerTeamId(teamsForDepartment[0]?.id ?? '');
+  }, [departmentId, lockedTeamId, open, ownerTeamId, teamsForDepartment]);
+
   if (!open) return null;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!ownerTeamId) {
-      setError('Choose a team first.');
+    if (!departmentId) {
+      setError('Choose a department first.');
       return;
     }
 
-    if (!sessionTitle.trim()) {
-      setError('Session title is required.');
+    if (!ownerTeamId) {
+      setError('Choose a team first.');
       return;
     }
 
@@ -125,7 +181,7 @@ export function SessionComposer({
     setError(null);
     try {
       await onSubmit({
-        title: sessionTitle.trim(),
+        title: effectiveTitle,
         sessionType,
         startsAt: new Date(startsAt).toISOString(),
         endsAt: new Date(endsAt).toISOString(),
@@ -143,14 +199,12 @@ export function SessionComposer({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/75 p-3 py-4 backdrop-blur-sm sm:items-center sm:p-4">
-      <div className="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-3xl border border-slate-800 bg-slate-950 p-4 shadow-2xl sm:p-5">
+      <div className="max-h-[calc(100vh-2rem)] w-full max-w-xl overflow-y-auto rounded-3xl border border-slate-800 bg-slate-950 p-4 shadow-2xl sm:p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Session composer</p>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Session details</p>
             <h2 className="mt-2 text-2xl font-black text-white">{title}</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-400">
-              Known context is already filled in. Only change what this session actually needs.
-            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-400">Time and facility are already taken from the calendar. Set only the sport context.</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-300 hover:bg-slate-800">
             Close
@@ -158,53 +212,57 @@ export function SessionComposer({
         </div>
 
         <form onSubmit={handleSubmit} className="mt-5 grid gap-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <details open={timeOpen} onToggle={(event) => setTimeOpen(event.currentTarget.open)} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
+            <summary className="cursor-pointer text-sm font-black text-slate-200">
+              {formatDateTimeRange(startsAt, endsAt)} | {facilities.find((facility) => facility.id === facilityId)?.name ?? 'No facility'}
+            </summary>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Starts</span>
+                <input type="datetime-local" value={startsAt} onChange={(event) => { setStartsAt(event.target.value); setEndsAt(defaultEnd(event.target.value)); }} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-sky-400" />
+              </label>
+              <label className="block">
+                <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Ends</span>
+                <input type="datetime-local" value={endsAt} onChange={(event) => setEndsAt(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-sky-400" />
+              </label>
+              <label className="block md:col-span-2">
+                <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Facility</span>
+                <select value={facilityId ?? ''} onChange={(event) => setFacilityId(event.target.value || null)} disabled={Boolean(lockedFacilityId)} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-sky-400 disabled:opacity-60">
+                  <option value="">No facility</option>
+                  {facilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
+                </select>
+              </label>
+            </div>
+          </details>
+
+          <label className="block">
+            <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Session type</span>
+            <select value={sessionType} onChange={(event) => setSessionType(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-sky-400">
+              {sessionTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+            </select>
+          </label>
+
+          {sessionType === 'other' ? (
             <label className="block">
-              <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Title</span>
-              <input value={sessionTitle} onChange={(event) => setSessionTitle(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-sky-400" />
+              <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Short title</span>
+              <input value={customTitle} onChange={(event) => setCustomTitle(event.target.value)} placeholder="Session title" className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-sky-400" />
             </label>
-            <label className="block">
-              <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Type</span>
-              <select value={sessionType} onChange={(event) => setSessionType(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-sky-400">
-                <option value="training">Training</option>
-                <option value="game">Game</option>
-                <option value="s_and_c">S&amp;C</option>
-                <option value="recovery">Recovery</option>
-                <option value="video">Video</option>
-                <option value="meeting">Meeting</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-          </div>
+          ) : null}
 
           <div className="grid gap-4 md:grid-cols-2">
+            <label className="block">
+              <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Department</span>
+              <select value={departmentId} onChange={(event) => setDepartmentId(event.target.value)} disabled={Boolean(lockedTeamId)} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-sky-400 disabled:opacity-60">
+                <option value="">Choose department</option>
+                {inferredDepartments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}
+              </select>
+            </label>
             <label className="block">
               <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Team</span>
-              <select value={ownerTeamId} onChange={(event) => setOwnerTeamId(event.target.value)} disabled={Boolean(lockedTeamId)} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-sky-400 disabled:opacity-60">
-                {teams.map((team) => (
-                  <option key={team.id} value={team.id}>{team.name}</option>
-                ))}
+              <select value={ownerTeamId} onChange={(event) => setOwnerTeamId(event.target.value)} disabled={Boolean(lockedTeamId) || !departmentId} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-sky-400 disabled:opacity-60">
+                <option value="">Choose team</option>
+                {teamsForDepartment.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
               </select>
-            </label>
-            <label className="block">
-              <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Facility</span>
-              <select value={facilityId ?? ''} onChange={(event) => setFacilityId(event.target.value || null)} disabled={Boolean(lockedFacilityId)} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-sky-400 disabled:opacity-60">
-                <option value="">No facility</option>
-                {facilities.map((facility) => (
-                  <option key={facility.id} value={facility.id}>{facility.name}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="block">
-              <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Starts</span>
-              <input type="datetime-local" value={startsAt} onChange={(event) => { setStartsAt(event.target.value); setEndsAt(defaultEnd(event.target.value)); }} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-sky-400" />
-            </label>
-            <label className="block">
-              <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Ends</span>
-              <input type="datetime-local" value={endsAt} onChange={(event) => setEndsAt(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-sky-400" />
             </label>
           </div>
 
@@ -213,8 +271,8 @@ export function SessionComposer({
             <div className="mt-2 grid gap-2 sm:grid-cols-3">
               {[
                 ['whole_team', 'Whole team'],
-                ['groups', 'Groups later'],
-                ['players', 'Players later'],
+                ['groups', 'Groups'],
+                ['players', 'Players'],
               ].map(([value, label]) => (
                 <label key={value} className={`rounded-xl border px-3 py-3 text-sm font-bold ${participantScope === value ? 'border-sky-500 bg-sky-950/40 text-sky-100' : 'border-slate-700 text-slate-300'}`}>
                   <input type="radio" name="participant-scope" value={value} checked={participantScope === value} onChange={() => setParticipantScope(value as SessionComposerPayload['participantScope'])} className="sr-only" />
@@ -222,13 +280,11 @@ export function SessionComposer({
                 </label>
               ))}
             </div>
-            <p className="mt-3 text-xs leading-5 text-slate-500">
-              V1 starts with whole-team sessions. Group and player targeting are already modeled in the database and will be wired into the composer next.
-            </p>
+            <p className="mt-3 text-xs leading-5 text-slate-500">Groups and players are prepared in the data model. This screen keeps the selection shape ready while V1 creates the session for the team.</p>
           </fieldset>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-300">
-            <p><span className="font-black text-slate-100">Context:</span> {selectedTeam?.name ?? 'No team selected'}{selectedTeam?.defaultFacilityId ? ' · default facility prefilled' : ''}</p>
+            <p><span className="font-black text-slate-100">Context:</span> {selectedDepartment?.name ?? 'No department'} | {selectedTeam?.name ?? 'No team'} | {effectiveTitle}</p>
           </div>
 
           {error ? <p className="rounded-2xl border border-red-900/70 bg-red-950/30 p-3 text-sm font-bold text-red-100">{error}</p> : null}
