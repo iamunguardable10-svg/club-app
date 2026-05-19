@@ -82,10 +82,13 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
   const calendarScrollRef = useRef<HTMLDivElement | null>(null);
   const didDragRef = useRef(false);
   const didInitialAutoScrollRef = useRef(false);
+  const dayTransitionTimeoutRef = useRef<number | null>(null);
+  const mobileDaySwipeRef = useRef<{ startX: number; startY: number } | null>(null);
   const [sessions, setSessions] = useState<DemoSession[]>([]);
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, days.findIndex((day) => sameDay(day, new Date()))));
   const [mobileCalendarView, setMobileCalendarView] = useState<'week' | 'day'>('week');
+  const [dayTransitionDirection, setDayTransitionDirection] = useState<'next' | 'previous' | null>(null);
   const [draft, setDraft] = useState<DraftSession | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -109,6 +112,46 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
   const mobileVisibleHours = useMemo(() => hours.filter((hour) => hour >= 8 && hour <= 23), []);
   const mobileFirstHour = mobileVisibleHours[0] ?? firstHour;
   const mobileGridHeight = mobileVisibleHours.length * mobileHourHeight;
+
+  useEffect(() => {
+    return () => {
+      if (dayTransitionTimeoutRef.current) window.clearTimeout(dayTransitionTimeoutRef.current);
+    };
+  }, []);
+
+  function switchMobileDay(nextIndex: number) {
+    const boundedIndex = clamp(nextIndex, 0, days.length - 1);
+    setActiveDayIndex((currentIndex) => {
+      if (boundedIndex === currentIndex) return currentIndex;
+      setDayTransitionDirection(boundedIndex > currentIndex ? 'next' : 'previous');
+      if (dayTransitionTimeoutRef.current) window.clearTimeout(dayTransitionTimeoutRef.current);
+      dayTransitionTimeoutRef.current = window.setTimeout(() => setDayTransitionDirection(null), 220);
+      return boundedIndex;
+    });
+  }
+
+  function handleMobileDaySwipeStart(event: PointerEvent<HTMLDivElement>) {
+    if (mode !== 'view' || mobileCalendarView !== 'day' || event.pointerType === 'mouse') {
+      mobileDaySwipeRef.current = null;
+      return;
+    }
+    if ((event.target as HTMLElement).closest('[data-calendar-session]')) {
+      mobileDaySwipeRef.current = null;
+      return;
+    }
+    mobileDaySwipeRef.current = { startX: event.clientX, startY: event.clientY };
+  }
+
+  function handleMobileDaySwipeEnd(event: PointerEvent<HTMLDivElement>) {
+    const swipe = mobileDaySwipeRef.current;
+    mobileDaySwipeRef.current = null;
+    if (!swipe) return;
+    const deltaX = event.clientX - swipe.startX;
+    const deltaY = event.clientY - swipe.startY;
+    const threshold = Math.max(120, window.innerWidth * 0.34);
+    if (Math.abs(deltaX) < threshold || Math.abs(deltaX) < Math.abs(deltaY) * 1.4) return;
+    switchMobileDay(activeDayIndex + (deltaX < 0 ? 1 : -1));
+  }
 
   useEffect(() => {
     if (didInitialAutoScrollRef.current || sessions.length === 0) return;
@@ -138,10 +181,18 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
         const rect = element.getBoundingClientRect();
         return clientX >= rect.left && clientX <= rect.right;
       });
-      if (hitIndex >= 0) return hitIndex;
       if (window.innerWidth < 768) {
+        const originalIndex = days.findIndex((day) => sameDay(activeDrag.originalStart, day));
+        const baseIndex = originalIndex >= 0 ? originalIndex : activeDayIndex;
+        if (mobileCalendarView === 'day') {
+          const deltaX = clientX - activeDrag.startX;
+          const threshold = Math.max(120, window.innerWidth * 0.34);
+          if (Math.abs(deltaX) < threshold) return baseIndex;
+          return clamp(baseIndex + (deltaX > 0 ? 1 : -1), 0, days.length - 1);
+        }
         return clamp(Math.floor((clientX / Math.max(window.innerWidth, 1)) * days.length), 0, days.length - 1);
       }
+      if (hitIndex >= 0) return hitIndex;
       const currentIndex = days.findIndex((day) => sameDay(latestStart, day));
       return currentIndex >= 0 ? currentIndex : 0;
     }
@@ -181,7 +232,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
       }
 
       const targetDayIndex = dayIndexFromPointer(event.clientX);
-      if (window.innerWidth < 768) setActiveDayIndex(targetDayIndex);
+      if (window.innerWidth < 768) switchMobileDay(targetDayIndex);
       const targetDay = days[targetDayIndex];
       const nextStartMinutes = clamp(currentStartMinutes + deltaMinutes, 0, maxMinutes - originalDuration);
       const nextStart = createDateForCalendarMinute(targetDay, nextStartMinutes);
@@ -333,7 +384,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
           <div className="grid grid-cols-[34px_repeat(7,minmax(0,1fr))] border-b border-slate-800 text-[9px] font-black uppercase tracking-[0.08em] text-slate-500">
             <div className="bg-slate-950/95 p-1.5">Time</div>
             {days.map((day, index) => (
-              <button key={day.toISOString()} type="button" onClick={() => { setActiveDayIndex(index); setMobileCalendarView('day'); }} className={`border-l border-slate-800 p-1.5 ${activeDayIndex === index ? 'bg-sky-300 text-slate-950' : ''}`}>
+              <button key={day.toISOString()} type="button" onClick={() => { switchMobileDay(index); setMobileCalendarView('day'); }} className={`border-l border-slate-800 p-1.5 ${activeDayIndex === index ? 'bg-sky-300 text-slate-950' : ''}`}>
                 <span className="block">{day.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2)}</span>
                 <span className="block">{day.toLocaleDateString(undefined, { day: '2-digit' })}</span>
                 {sessionsByDayCount[index] > 0 ? <span className="mx-auto mt-0.5 block w-fit rounded-full bg-white/15 px-1">{sessionsByDayCount[index]}</span> : null}
@@ -383,12 +434,20 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
           <div className="flex items-center justify-between border-b border-slate-800 p-2">
             <button type="button" onClick={() => setMobileCalendarView('week')} className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200">Week view</button>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setActiveDayIndex((current) => Math.max(0, current - 1))} className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-black text-slate-200">‹</button>
+              <button type="button" onClick={() => switchMobileDay(activeDayIndex - 1)} className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-black text-slate-200">‹</button>
               <span className="text-xs font-black text-slate-200">{days[activeDayIndex].toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</span>
-              <button type="button" onClick={() => setActiveDayIndex((current) => Math.min(days.length - 1, current + 1))} className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-black text-slate-200">›</button>
+              <button type="button" onClick={() => switchMobileDay(activeDayIndex + 1)} className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-black text-slate-200">›</button>
             </div>
           </div>
-          <div ref={calendarScrollRef} className="max-h-[64vh] overflow-y-auto overscroll-contain touch-pan-y">
+          <div
+            ref={calendarScrollRef}
+            onPointerDown={handleMobileDaySwipeStart}
+            onPointerUp={handleMobileDaySwipeEnd}
+            onPointerCancel={() => {
+              mobileDaySwipeRef.current = null;
+            }}
+            className={`max-h-[64vh] overflow-y-auto overscroll-contain rounded-b-3xl touch-pan-y transition-all duration-200 ${dayTransitionDirection === 'next' ? 'translate-x-1 scale-[0.99] ring-2 ring-sky-300/40' : dayTransitionDirection === 'previous' ? '-translate-x-1 scale-[0.99] ring-2 ring-sky-300/40' : ''}`}
+          >
             <div className="grid grid-cols-[52px_minmax(0,1fr)]">
               <div className="bg-slate-950/95">
                 {mobileVisibleHours.map((hour) => <div key={hour} className="border-b border-slate-900 px-2 py-1 text-[10px] font-bold text-slate-500" style={{ height: mobileHourHeight }}>{String(hour).padStart(2, '0')}:00</div>)}
