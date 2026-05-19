@@ -13,12 +13,13 @@ type DemoFacilityCalendarProps = {
   teamName?: string;
 };
 type DraftSession = { startsAt: string; endsAt: string; teamId: string | null; facilityName: string };
-type DragState = { target: 'draft' | 'session'; sessionId?: string; kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date };
+type DragState = { target: 'draft' | 'session'; sessionId?: string; kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date; minutesPerPixel: number };
 
 const hours = Array.from({ length: 17 }, (_, index) => index + 7);
 const firstHour = hours[0] ?? 7;
 const lastHour = (hours.at(-1) ?? 23) + 1;
 const hourHeight = 80;
+const mobileHourHeight = 32;
 const minutesPerPixel = 60 / hourHeight;
 const slotMinutes = 15;
 const defaultDurationMinutes = 90;
@@ -104,6 +105,16 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     () => days.map((day) => sessions.filter((session) => sameDay(new Date(session.startsAt), day)).length),
     [sessions],
   );
+  const mobileVisibleHours = useMemo(() => {
+    if (sessions.length === 0) return hours;
+    const starts = sessions.map((session) => new Date(session.startsAt));
+    const ends = sessions.map((session) => new Date(session.endsAt));
+    const minHour = clamp(Math.min(...starts.map((date) => date.getHours())) - 1, firstHour, lastHour - 1);
+    const maxHour = clamp(Math.max(...ends.map((date) => date.getHours() + (date.getMinutes() > 0 ? 1 : 0))) + 1, minHour + 3, lastHour);
+    return hours.filter((hour) => hour >= minHour && hour < maxHour);
+  }, [sessions]);
+  const mobileFirstHour = mobileVisibleHours[0] ?? firstHour;
+  const mobileGridHeight = mobileVisibleHours.length * mobileHourHeight;
 
   useEffect(() => {
     if (didInitialAutoScrollRef.current || sessions.length === 0) return;
@@ -160,9 +171,14 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     function handlePointerMove(event: globalThis.PointerEvent) {
       const originalDuration = durationMinutes(activeDrag.originalStart, activeDrag.originalEnd);
       const currentStartMinutes = minutesFromDayStart(activeDrag.originalStart);
-      const deltaMinutes = roundToSlot((event.clientY - activeDrag.startY) * minutesPerPixel);
+      const deltaMinutes = roundToSlot((event.clientY - activeDrag.startY) * activeDrag.minutesPerPixel);
       const maxMinutes = (lastHour - firstHour) * 60;
       if (Math.abs(event.clientY - activeDrag.startY) > 3 || Math.abs(event.clientX - activeDrag.startX) > 3) didDragRef.current = true;
+      if (window.innerWidth < 768 && calendarScrollRef.current) {
+        const rect = calendarScrollRef.current.getBoundingClientRect();
+        if (event.clientY < rect.top + 44) calendarScrollRef.current.scrollTop -= 16;
+        if (event.clientY > rect.bottom - 44) calendarScrollRef.current.scrollTop += 16;
+      }
 
       if (activeDrag.kind === 'resize') {
         const nextDuration = clamp(originalDuration + deltaMinutes, 30, maxMinutes - currentStartMinutes);
@@ -209,11 +225,24 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     if (mode !== 'edit') return;
     if ((event.target as HTMLElement).closest('[data-calendar-session]')) return;
     const rect = event.currentTarget.getBoundingClientRect();
-    const clickedMinutes = clamp(roundToSlot((event.clientY - rect.top) * minutesPerPixel), 0, (lastHour - firstHour) * 60 - 30);
-    const start = createDateForCalendarMinute(day, clickedMinutes);
-    const end = addMinutes(start, defaultDurationMinutes);
-    setSelectedSession(null);
-    setDraft({ startsAt: start.toISOString(), endsAt: end.toISOString(), teamId: fallbackTeamId, facilityName });
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const pointerId = event.pointerId;
+    const baseHour = window.innerWidth < 768 ? mobileFirstHour : firstHour;
+    const visibleMinutes = window.innerWidth < 768 ? mobileVisibleHours.length * 60 : (lastHour - firstHour) * 60;
+
+    function createDraftFromTap(upEvent: globalThis.PointerEvent) {
+      if (upEvent.pointerId !== pointerId) return;
+      window.removeEventListener('pointerup', createDraftFromTap);
+      if (Math.abs(upEvent.clientY - startY) > 8 || Math.abs(upEvent.clientX - startX) > 8) return;
+      const clickedMinutes = clamp(roundToSlot(((startY - rect.top) / Math.max(rect.height, 1)) * visibleMinutes), 0, visibleMinutes - 30);
+      const start = createDateForCalendarMinute(day, (baseHour - firstHour) * 60 + clickedMinutes);
+      const end = addMinutes(start, defaultDurationMinutes);
+      setSelectedSession(null);
+      setDraft({ startsAt: start.toISOString(), endsAt: end.toISOString(), teamId: fallbackTeamId, facilityName });
+    }
+
+    window.addEventListener('pointerup', createDraftFromTap, { once: true });
   }
 
   function startDraftDrag(kind: DragState['kind'], event: PointerEvent<HTMLElement>) {
@@ -221,7 +250,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     event.preventDefault();
     event.stopPropagation();
     didDragRef.current = false;
-    setDrag({ target: 'draft', kind, startX: event.clientX, startY: event.clientY, originalStart: new Date(draft.startsAt), originalEnd: new Date(draft.endsAt) });
+    setDrag({ target: 'draft', kind, startX: event.clientX, startY: event.clientY, originalStart: new Date(draft.startsAt), originalEnd: new Date(draft.endsAt), minutesPerPixel: window.innerWidth < 768 ? 60 / mobileHourHeight : minutesPerPixel });
   }
 
   function startSessionDrag(session: DemoSession, kind: DragState['kind'], event: PointerEvent<HTMLElement>) {
@@ -230,7 +259,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     event.preventDefault();
     didDragRef.current = false;
     setSelectedSession(null);
-    setDrag({ target: 'session', sessionId: session.id, kind, startX: event.clientX, startY: event.clientY, originalStart: new Date(session.startsAt), originalEnd: new Date(session.endsAt) });
+    setDrag({ target: 'session', sessionId: session.id, kind, startX: event.clientX, startY: event.clientY, originalStart: new Date(session.startsAt), originalEnd: new Date(session.endsAt), minutesPerPixel: window.innerWidth < 768 ? 60 / mobileHourHeight : minutesPerPixel });
   }
 
   async function handleCreateSession(payload: SessionComposerPayload) {
@@ -301,18 +330,58 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
           </div>
         </section>
 
-        <div className="grid grid-cols-7 gap-1 md:hidden">
-          {days.map((day, index) => (
-            <button key={day.toISOString()} type="button" onClick={() => setActiveDayIndex(index)} className={`rounded-2xl border px-1.5 py-2 text-center text-[10px] font-black ${activeDayIndex === index ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-300'}`}>
-              <span className="block uppercase">{day.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2)}</span>
-              <span className="mt-1 block text-xs">{day.toLocaleDateString(undefined, { day: '2-digit' })}</span>
-              {sessionsByDayCount[index] > 0 ? <span className="mt-1 block rounded-full bg-white/15 px-1 text-[9px]">{sessionsByDayCount[index]}</span> : null}
-            </button>
-          ))}
-        </div>
+        <section className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden">
+          <div className="grid grid-cols-[34px_repeat(7,minmax(0,1fr))] border-b border-slate-800 text-[9px] font-black uppercase tracking-[0.08em] text-slate-500">
+            <div className="bg-slate-950/95 p-1.5">Time</div>
+            {days.map((day, index) => (
+              <button key={day.toISOString()} type="button" onClick={() => setActiveDayIndex(index)} className={`border-l border-slate-800 p-1.5 ${activeDayIndex === index ? 'bg-sky-300 text-slate-950' : ''}`}>
+                <span className="block">{day.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2)}</span>
+                <span className="block">{day.toLocaleDateString(undefined, { day: '2-digit' })}</span>
+                {sessionsByDayCount[index] > 0 ? <span className="mx-auto mt-0.5 block w-fit rounded-full bg-white/15 px-1">{sessionsByDayCount[index]}</span> : null}
+              </button>
+            ))}
+          </div>
+          <div ref={calendarScrollRef} className="max-h-[62vh] overflow-y-auto overscroll-contain touch-pan-y">
+            <div className="grid grid-cols-[34px_repeat(7,minmax(0,1fr))]">
+              <div className="bg-slate-950/95">
+                {mobileVisibleHours.map((hour) => <div key={hour} className="border-b border-slate-900 px-1 py-1 text-[9px] font-bold text-slate-500" style={{ height: mobileHourHeight }}>{String(hour).padStart(2, '0')}</div>)}
+              </div>
+              {days.map((day, dayIndex) => {
+                const daySessions = sessions.filter((session) => sameDay(new Date(session.startsAt), day));
+                const draftIsOnDay = draft ? sameDay(new Date(draft.startsAt), day) : false;
+                return (
+                  <div key={day.toISOString()} ref={(element) => { dayRefs.current[dayIndex] = element; }} onPointerDown={(event) => handleSlotPointerDown(day, event)} className="relative border-l border-slate-900" style={{ height: mobileGridHeight, touchAction: 'pan-y' }}>
+                    {mobileVisibleHours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: mobileHourHeight }} />)}
+                    {daySessions.map((session) => {
+                      const tone = teamName && session.team === teamName ? 'primary' : departmentName && session.department === departmentName ? 'secondary' : 'muted';
+                      const start = new Date(session.startsAt);
+                      const top = Math.max(0, ((start.getHours() - mobileFirstHour) * 60 + start.getMinutes()) * (mobileHourHeight / 60));
+                      const height = Math.min(Math.max(20, sessionDurationMinutes(session) * (mobileHourHeight / 60)), mobileGridHeight - top);
+                      const toneClass = tone === 'primary' ? 'border-sky-400 bg-sky-950/80 text-white' : tone === 'secondary' ? 'border-emerald-500/60 bg-emerald-950/60 text-slate-100' : 'border-slate-700 bg-slate-900/80 text-slate-300';
+                      return (
+                        <div key={session.id} role="button" tabIndex={0} data-calendar-session="true" onPointerDown={(event) => startSessionDrag(session, 'move', event)} onClick={(event) => { if (didDragRef.current) { event.preventDefault(); didDragRef.current = false; return; } setSelectedSession(session); }} style={{ top, height, touchAction: mode === 'edit' ? 'none' : 'pan-y' }} className={`absolute left-0.5 right-0.5 overflow-hidden rounded-md border px-1 py-0.5 text-left ${toneClass} ${drag?.target === 'session' && drag.sessionId === session.id ? 'ring-1 ring-sky-200 brightness-125' : ''}`}>
+                          <p className="truncate text-[9px] font-black leading-tight">{session.team}</p>
+                          {height > 30 ? <p className="truncate text-[8px] leading-tight opacity-80">{session.department}</p> : null}
+                          {mode === 'edit' ? <span aria-hidden="true" onPointerDown={(event) => startSessionDrag(session, 'resize', event)} className="absolute inset-x-1 bottom-0 h-2 cursor-ns-resize rounded-t bg-white/40" /> : null}
+                        </div>
+                      );
+                    })}
+                    {draftIsOnDay ? (() => {
+                      const activeDraftRender = draft!;
+                      const start = new Date(activeDraftRender.startsAt);
+                      const top = Math.max(0, ((start.getHours() - mobileFirstHour) * 60 + start.getMinutes()) * (mobileHourHeight / 60));
+                      const height = Math.min(Math.max(20, durationMinutes(new Date(activeDraftRender.startsAt), new Date(activeDraftRender.endsAt)) * (mobileHourHeight / 60)), mobileGridHeight - top);
+                      return <article data-calendar-session="true" onPointerDown={(event) => startDraftDrag('move', event)} onClick={() => setComposerOpen(true)} style={{ top, height, touchAction: 'none' }} className="absolute left-0.5 right-0.5 z-20 cursor-grab overflow-hidden rounded-md border border-sky-300 bg-sky-500/40 px-1 py-0.5 text-[9px] font-black text-sky-50"><span>Training</span><button type="button" onPointerDown={(event) => startDraftDrag('resize', event)} className="absolute inset-x-1 bottom-0 h-2 rounded-t bg-sky-100/90" aria-label="Resize session draft" /></article>;
+                    })() : null}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
 
-        <section className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80">
-          <div ref={calendarScrollRef} className="max-h-[70vh] overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y md:max-h-none md:overflow-x-auto md:overflow-y-visible">
+        <section className="hidden overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:block">
+          <div className="overflow-x-auto">
             <div className="min-w-0 md:min-w-[1122px]">
               <div className="grid grid-cols-[72px_minmax(170px,1fr)] border-b border-slate-800 text-xs font-black uppercase tracking-[0.16em] text-slate-500 md:grid-cols-[72px_repeat(7,minmax(150px,1fr))]">
                 <div className="sticky left-0 z-20 bg-slate-950/95 p-3">Time</div>
