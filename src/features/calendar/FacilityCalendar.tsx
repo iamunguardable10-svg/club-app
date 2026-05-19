@@ -561,7 +561,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
             {!highlightedTeam && !highlightedDepartment ? <span className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">Full facility view</span> : null}
             <span className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">{mode === 'edit' ? 'Tap a free slot to draft a session' : 'View mode: tap sessions for details'}</span>
           </div>
-          <div className="mt-5 flex flex-wrap gap-2">
+          <div className="mt-5 hidden flex-wrap gap-2 md:flex">
             <button
               type="button"
               onClick={() => { setMode('view'); setDraft(null); }}
@@ -581,9 +581,9 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
           </div>
         </section>
 
-        <div className="flex gap-2 md:hidden">
-          <button type="button" onClick={() => setMobileCalendarView('week')} className={`rounded-xl border px-3 py-2 text-xs font-black ${mobileCalendarView === 'week' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>Week</button>
-          <button type="button" onClick={() => setMobileCalendarView('day')} className={`rounded-xl border px-3 py-2 text-xs font-black ${mobileCalendarView === 'day' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>Day</button>
+        <div className="grid grid-cols-2 gap-2 md:hidden">
+          <button type="button" onClick={() => { setMode('view'); setDraft(null); }} className={`rounded-xl border px-3 py-2 text-xs font-black ${mode === 'view' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>View</button>
+          <button type="button" onClick={() => setMode('edit')} disabled={!canCreateSessions} className={`rounded-xl border px-3 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-300'} disabled:cursor-not-allowed disabled:opacity-50`}>Edit</button>
         </div>
 
         <section className={`${mobileCalendarView === 'week' ? 'block' : 'hidden'} overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden`}>
