@@ -40,6 +40,8 @@ type SessionComposerProps = {
   initialFacilityId?: string | null;
   initialStartsAt?: string | null;
   initialEndsAt?: string | null;
+  initialSessionType?: string | null;
+  initialTitle?: string | null;
   lockedTeamId?: string | null;
   lockedFacilityId?: string | null;
   onClose: () => void;
@@ -97,6 +99,8 @@ export function SessionComposer({
   initialFacilityId = null,
   initialStartsAt = null,
   initialEndsAt = null,
+  initialSessionType = null,
+  initialTitle = null,
   lockedTeamId = null,
   lockedFacilityId = null,
   onClose,
@@ -131,8 +135,9 @@ export function SessionComposer({
     const nextTeam = teams.find((team) => team.id === (lockedTeamId ?? initialTeamId)) ?? null;
     const nextDepartmentId = nextTeam?.departmentId ?? initialDepartmentId ?? '';
     const start = initialStartsAt ? toLocalInputValue(new Date(initialStartsAt)) : defaultStart();
-    setSessionType('training');
-    setCustomTitle('');
+    const nextSessionType = initialSessionType ?? 'training';
+    setSessionType(nextSessionType);
+    setCustomTitle(nextSessionType === 'other' ? initialTitle ?? '' : '');
     setDepartmentId(nextDepartmentId);
     setOwnerTeamId(lockedTeamId ?? initialTeamId ?? '');
     setStartsAt(start);
@@ -140,7 +145,7 @@ export function SessionComposer({
     setParticipantScope('whole_team');
     setTimeOpen(false);
     setError(null);
-  }, [initialDepartmentId, initialEndsAt, initialStartsAt, initialTeamId, lockedTeamId, open, teams]);
+  }, [initialDepartmentId, initialEndsAt, initialSessionType, initialStartsAt, initialTeamId, initialTitle, lockedTeamId, open, teams]);
 
   useEffect(() => {
     if (!open) return;

@@ -17,9 +17,12 @@ type Session = {
   session_type: string;
   department_id: string;
   owner_team_id: string;
+  created_by: string | null;
 };
 type DraftSession = { startsAt: string; endsAt: string; teamId: string | null; facilityId: string };
 type DragState = { kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date };
+type ClubMembership = { role: 'club_admin' | 'department_lead'; department_id: string | null };
+type TeamMembership = { role: 'head_coach' | 'assistant_coach' | 'athlete'; department_id: string; team_id: string };
 
 type FacilityCalendarProps = {
   facilityId: string;
@@ -110,9 +113,14 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
   const [departments, setDepartments] = useState<Department[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [clubMemberships, setClubMemberships] = useState<ClubMembership[]>([]);
+  const [teamMemberships, setTeamMemberships] = useState<TeamMembership[]>([]);
+  const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, days.findIndex((day) => sameDay(day, new Date()))));
   const [draft, setDraft] = useState<DraftSession | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -149,10 +157,10 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
       const loadedFacility = facilityResult.data as Facility;
       const rangeStart = days[0].toISOString();
       const rangeEnd = new Date(days[6].getTime() + 24 * 60 * 60 * 1000).toISOString();
-      const [sessionsResult, departmentsResult, teamsResult, facilitiesResult] = await Promise.all([
+      const [sessionsResult, departmentsResult, teamsResult, facilitiesResult, clubMembershipsResult, teamMembershipsResult] = await Promise.all([
         supabase
           .from('sessions')
-          .select('id, title, starts_at, ends_at, session_type, department_id, owner_team_id')
+          .select('id, title, starts_at, ends_at, session_type, department_id, owner_team_id, created_by')
           .eq('facility_id', facilityId)
           .gte('starts_at', rangeStart)
           .lt('starts_at', rangeEnd)
@@ -160,12 +168,14 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
         supabase.from('departments').select('id, name').eq('club_id', loadedFacility.club_id).order('name'),
         supabase.from('teams').select('id, name, department_id, default_facility_id').eq('club_id', loadedFacility.club_id).order('name'),
         supabase.from('facilities').select('id, club_id, name, address').eq('club_id', loadedFacility.club_id).order('name'),
+        supabase.from('club_memberships').select('role, department_id').eq('club_id', loadedFacility.club_id).eq('user_id', user.id).eq('status', 'active'),
+        supabase.from('team_memberships').select('role, department_id, team_id').eq('club_id', loadedFacility.club_id).eq('user_id', user.id).eq('status', 'active'),
       ]);
 
       if (!isMounted) return;
-      if (sessionsResult.error ?? departmentsResult.error ?? teamsResult.error ?? facilitiesResult.error) {
+      if (sessionsResult.error ?? departmentsResult.error ?? teamsResult.error ?? facilitiesResult.error ?? clubMembershipsResult.error ?? teamMembershipsResult.error) {
         setState('error');
-        setError((sessionsResult.error ?? departmentsResult.error ?? teamsResult.error ?? facilitiesResult.error)?.message ?? 'Could not load calendar context.');
+        setError((sessionsResult.error ?? departmentsResult.error ?? teamsResult.error ?? facilitiesResult.error ?? clubMembershipsResult.error ?? teamMembershipsResult.error)?.message ?? 'Could not load calendar context.');
         return;
       }
 
@@ -174,6 +184,8 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
       setDepartments((departmentsResult.data ?? []) as Department[]);
       setTeams((teamsResult.data ?? []) as Team[]);
       setFacilities((facilitiesResult.data ?? [loadedFacility]) as Facility[]);
+      setClubMemberships((clubMembershipsResult.data ?? []) as ClubMembership[]);
+      setTeamMemberships((teamMembershipsResult.data ?? []) as TeamMembership[]);
       setState('ready');
     }
 
@@ -189,6 +201,33 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
   const highlightedDepartment = departmentId ? departmentById.get(departmentId) : null;
   const contextTeamId = teamId && teamById.has(teamId) ? teamId : null;
   const fallbackTeamId = contextTeamId;
+  const isClubAdmin = clubMemberships.some((membership) => membership.role === 'club_admin');
+  const managedDepartmentIds = useMemo(
+    () => new Set(clubMemberships.filter((membership) => membership.role === 'department_lead' && membership.department_id).map((membership) => membership.department_id as string)),
+    [clubMemberships],
+  );
+  const managedTeamIds = useMemo(
+    () => new Set(teamMemberships.filter((membership) => membership.role === 'head_coach' || membership.role === 'assistant_coach').map((membership) => membership.team_id)),
+    [teamMemberships],
+  );
+  const canCreateSessions = isClubAdmin || managedDepartmentIds.size > 0 || managedTeamIds.size > 0;
+  const manageableTeams = useMemo(
+    () =>
+      teams.filter((team) => {
+        if (isClubAdmin) return true;
+        if (managedDepartmentIds.has(team.department_id)) return true;
+        return managedTeamIds.has(team.id);
+      }),
+    [isClubAdmin, managedDepartmentIds, managedTeamIds, teams],
+  );
+  const manageableDepartments = useMemo(() => {
+    const departmentIds = new Set(manageableTeams.map((team) => team.department_id));
+    return departments.filter((department) => departmentIds.has(department.id));
+  }, [departments, manageableTeams]);
+
+  function canManageSession(session: Session) {
+    return isClubAdmin || managedDepartmentIds.has(session.department_id) || managedTeamIds.has(session.owner_team_id);
+  }
 
   useEffect(() => {
     if (!drag || !draft) return;
@@ -244,13 +283,15 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
         : { href: '/admin/facilities', label: 'Back to facilities' };
 
   function handleSlotPointerDown(day: Date, event: PointerEvent<HTMLDivElement>) {
+    if (mode !== 'edit' || !canCreateSessions) return;
     if ((event.target as HTMLElement).closest('[data-calendar-session]')) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const clickedMinutes = clamp(roundToSlot((event.clientY - rect.top) * minutesPerPixel), 0, (lastHour - firstHour) * 60 - 30);
     const start = createDateForCalendarMinute(day, clickedMinutes);
     const end = addMinutes(start, defaultDurationMinutes);
     setSelectedSession(null);
-    setDraft({ startsAt: start.toISOString(), endsAt: end.toISOString(), teamId: fallbackTeamId, facilityId });
+    const nextTeamId = fallbackTeamId && manageableTeams.some((team) => team.id === fallbackTeamId) ? fallbackTeamId : null;
+    setDraft({ startsAt: start.toISOString(), endsAt: end.toISOString(), teamId: nextTeamId, facilityId });
   }
 
   function startDraftDrag(kind: DragState['kind'], event: PointerEvent<HTMLElement>) {
@@ -289,6 +330,48 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
     setComposerOpen(false);
   }
 
+  async function handleUpdateSession(payload: SessionComposerPayload) {
+    if (!editingSession) return;
+    if (!canManageSession(editingSession)) throw new Error('You do not have permission to edit this session.');
+    const team = teams.find((item) => item.id === payload.ownerTeamId);
+    if (!team) throw new Error('Choose a team first.');
+    const supabase = createBrowserSupabaseClient();
+    const { data, error: updateError } = await supabase
+      .from('sessions')
+      .update({
+        department_id: team.department_id,
+        team_id: payload.ownerTeamId,
+        owner_team_id: payload.ownerTeamId,
+        title: payload.title,
+        session_type: payload.sessionType,
+        starts_at: payload.startsAt,
+        ends_at: payload.endsAt,
+        facility_id: payload.facilityId,
+      })
+      .eq('id', editingSession.id)
+      .select('id, title, starts_at, ends_at, session_type, department_id, owner_team_id, created_by')
+      .single();
+
+    if (updateError) throw updateError;
+    setSessions((current) =>
+      current.map((session) => (session.id === editingSession.id ? (data as Session) : session)).sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()),
+    );
+    setEditingSession(null);
+    setSelectedSession(null);
+  }
+
+  async function handleDeleteSession(session: Session) {
+    if (!canManageSession(session)) return;
+    const supabase = createBrowserSupabaseClient();
+    const { error: deleteError } = await supabase.from('sessions').delete().eq('id', session.id);
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+    setSessions((current) => current.filter((item) => item.id !== session.id));
+    setSelectedSession(null);
+  }
+
   if (state === 'loading') return <main className="min-h-screen bg-slate-950 p-8 text-white">Loading calendar...</main>;
   if (state === 'error') return <main className="min-h-screen bg-slate-950 p-8 text-white">{error}</main>;
 
@@ -304,19 +387,50 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
             {highlightedTeam ? <span className="rounded-full border border-sky-400/70 bg-sky-950/50 px-3 py-1 text-sky-100">Focus team: {highlightedTeam.name}</span> : null}
             {highlightedDepartment ? <span className="rounded-full border border-emerald-400/50 bg-emerald-950/30 px-3 py-1 text-emerald-100">Department: {highlightedDepartment.name}</span> : null}
             {!highlightedTeam && !highlightedDepartment ? <span className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">Full facility view</span> : null}
-            <span className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">Tap a free slot to draft a session</span>
+            <span className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">{mode === 'edit' ? 'Tap a free slot to draft a session' : 'View mode: tap sessions for details'}</span>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => { setMode('view'); setDraft(null); }}
+              className={`rounded-xl border px-4 py-2 text-sm font-black ${mode === 'view' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-200 hover:bg-slate-900'}`}
+            >
+              View
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('edit')}
+              disabled={!canCreateSessions}
+              className={`rounded-xl border px-4 py-2 text-sm font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-200 hover:bg-slate-900'} disabled:cursor-not-allowed disabled:opacity-50`}
+            >
+              Edit / create
+            </button>
+            {!canCreateSessions ? <p className="self-center text-xs font-bold text-slate-500">Your role can view this calendar, but cannot create sessions here.</p> : null}
           </div>
         </section>
+
+        <div className="flex gap-2 overflow-x-auto md:hidden">
+          {days.map((day, index) => (
+            <button
+              key={day.toISOString()}
+              type="button"
+              onClick={() => setActiveDayIndex(index)}
+              className={`shrink-0 rounded-full border px-3 py-2 text-xs font-black ${activeDayIndex === index ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-300'}`}
+            >
+              {day.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}
+            </button>
+          ))}
+        </div>
 
 
         <section className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80">
           <div className="overflow-x-auto touch-pan-x">
-            <div style={{ minWidth: `${72 + days.length * dayColumnMinWidth}px` }}>
-              <div className="grid grid-cols-[72px_repeat(7,minmax(150px,1fr))] border-b border-slate-800 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+            <div className="min-w-0 md:min-w-[1122px]">
+              <div className="grid grid-cols-[72px_minmax(170px,1fr)] border-b border-slate-800 text-xs font-black uppercase tracking-[0.16em] text-slate-500 md:grid-cols-[72px_repeat(7,minmax(150px,1fr))]">
                 <div className="sticky left-0 z-20 bg-slate-950/95 p-3">Time</div>
-                {days.map((day) => <div key={day.toISOString()} className="border-l border-slate-800 p-3">{day.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</div>)}
+                {days.map((day, index) => <div key={day.toISOString()} className={`border-l border-slate-800 p-3 ${index === activeDayIndex ? 'block' : 'hidden'} md:block`}>{day.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</div>)}
               </div>
-              <div className="grid grid-cols-[72px_repeat(7,minmax(150px,1fr))]">
+              <div className="grid grid-cols-[72px_minmax(170px,1fr)] md:grid-cols-[72px_repeat(7,minmax(150px,1fr))]">
                 <div className="sticky left-0 z-10 bg-slate-950/95">
                   {hours.map((hour) => (
                     <div key={hour} className="h-20 border-b border-slate-900 p-3 text-xs font-bold text-slate-500">{String(hour).padStart(2, '0')}:00</div>
@@ -330,7 +444,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
                       key={day.toISOString()}
                       ref={(element) => { dayRefs.current[dayIndex] = element; }}
                       onPointerDown={(event) => handleSlotPointerDown(day, event)}
-                      className="relative cursor-crosshair border-l border-slate-900"
+                      className={`relative border-l border-slate-900 ${mode === 'edit' ? 'cursor-crosshair' : 'cursor-default'} ${dayIndex === activeDayIndex ? 'block' : 'hidden'} md:block`}
                       style={{ height: `${hours.length * hourHeight}px`, touchAction: 'pan-x pan-y' }}
                     >
                       {hours.map((hour) => (
@@ -374,7 +488,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
                             onPointerDown={(event) => startDraftDrag('move', event)}
                             onClick={() => setComposerOpen(true)}
                             style={{ top, height }}
-                            className="absolute left-2 right-2 z-20 cursor-grab overflow-hidden rounded-2xl border border-sky-300 bg-sky-500/20 p-3 pr-16 text-left text-sky-50 shadow-[0_0_0_1px_rgba(125,211,252,0.4)] active:cursor-grabbing"
+                            className="absolute left-2 right-2 z-20 cursor-grab overflow-hidden rounded-2xl border border-sky-300 bg-sky-500/20 p-2.5 pr-16 text-left text-sky-50 shadow-[0_0_0_1px_rgba(125,211,252,0.4)] active:cursor-grabbing"
                           >
                             <div className="absolute right-2 top-2 flex gap-1">
                               <button
@@ -396,10 +510,9 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
                                 {'\u2713'}
                               </button>
                             </div>
-                            <p className="text-xs font-black uppercase tracking-[0.12em]">New session</p>
-                            <p className="mt-1 text-sm font-black">Training</p>
+                            <p className="text-sm font-black">Training</p>
                             <p className="mt-1 text-xs">{formatTimeRange(activeDraftRender.startsAt, activeDraftRender.endsAt)}</p>
-                            <p className="mt-1 text-xs text-sky-100/80">{teamById.get(activeDraftRender.teamId ?? '')?.name ?? 'Tap to choose team'}</p>
+                            <p className="mt-1 truncate text-xs text-sky-100/80">{teamById.get(activeDraftRender.teamId ?? '')?.name ?? 'Tap to choose team'}</p>
                             <button
                               type="button"
                               onPointerDown={(event) => startDraftDrag('resize', event)}
@@ -435,7 +548,12 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
               </div>
               <div className="mt-5 flex justify-end gap-2">
                 <button type="button" onClick={() => setSelectedSession(null)} className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Close</button>
-                <button type="button" className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-500" disabled>Edit soon</button>
+                {canManageSession(selectedSession) ? (
+                  <>
+                    <button type="button" onClick={() => setEditingSession(selectedSession)} className="rounded-xl border border-sky-500/70 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Edit</button>
+                    {mode === 'edit' ? <button type="button" onClick={() => handleDeleteSession(selectedSession)} className="rounded-xl border border-red-500/60 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-950/30">Delete</button> : null}
+                  </>
+                ) : null}
               </div>
             </section>
           </div>
@@ -445,8 +563,8 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
       <SessionComposer
         open={composerOpen && Boolean(draft)}
         title="Create session"
-        departments={departments.map((department) => ({ id: department.id, name: department.name }))}
-        teams={teams.map((team) => ({ id: team.id, name: team.name, departmentId: team.department_id, defaultFacilityId: team.default_facility_id }))}
+        departments={manageableDepartments.map((department) => ({ id: department.id, name: department.name }))}
+        teams={manageableTeams.map((team) => ({ id: team.id, name: team.name, departmentId: team.department_id, defaultFacilityId: team.default_facility_id }))}
         facilities={facilities.map((item) => ({ id: item.id, name: item.name }))}
         initialDepartmentId={departmentId ?? null}
         initialTeamId={draft?.teamId ?? fallbackTeamId}
@@ -456,6 +574,23 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
         lockedFacilityId={facilityId}
         onClose={() => setComposerOpen(false)}
         onSubmit={handleCreateSession}
+      />
+      <SessionComposer
+        open={Boolean(editingSession)}
+        title="Edit session"
+        departments={manageableDepartments.map((department) => ({ id: department.id, name: department.name }))}
+        teams={manageableTeams.map((team) => ({ id: team.id, name: team.name, departmentId: team.department_id, defaultFacilityId: team.default_facility_id }))}
+        facilities={facilities.map((item) => ({ id: item.id, name: item.name }))}
+        initialDepartmentId={editingSession?.department_id ?? null}
+        initialTeamId={editingSession?.owner_team_id ?? null}
+        initialFacilityId={facilityId}
+        initialStartsAt={editingSession?.starts_at ?? null}
+        initialEndsAt={editingSession?.ends_at ?? null}
+        initialSessionType={editingSession?.session_type ?? null}
+        initialTitle={editingSession?.title ?? null}
+        lockedFacilityId={facilityId}
+        onClose={() => setEditingSession(null)}
+        onSubmit={handleUpdateSession}
       />
     </main>
   );
