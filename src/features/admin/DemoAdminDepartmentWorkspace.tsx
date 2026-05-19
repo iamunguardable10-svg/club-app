@@ -130,7 +130,10 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
   const facilityDetails = useMemo(() => setup?.facilityDetails ?? [], [setup]);
   const facilityByName = useMemo(() => new Map(facilityDetails.map((facility) => [facility.name, facility])), [facilityDetails]);
   const departmentTeams = useMemo(() => teams.filter((team) => team.department === departmentName), [departmentName, teams]);
-  const departmentFacilities = useMemo(() => assignments.filter((assignment) => assignment.department === departmentName).map((assignment) => assignment.facility), [assignments, departmentName]);
+  const departmentFacilities = useMemo(
+    () => assignments.filter((assignment) => assignment.department === departmentName).map((assignment) => assignment.facility).sort((a, b) => a.localeCompare(b)),
+    [assignments, departmentName],
+  );
   const availableSharedFacilities = useMemo(
     () => facilityDetails.filter((facility) => facility.scope !== 'department_only' && !departmentFacilities.includes(facility.name)),
     [departmentFacilities, facilityDetails],
@@ -491,13 +494,15 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                           </button>
                         )}
                         <span className="hidden md:inline text-slate-600">·</span>
-                        {defaultFacility ? (
-                          <Link href={`/demo/admin/facilities/${encodeFacilityName(defaultFacility.name)}/calendar?from=team&departmentName=${encodeURIComponent(departmentName)}&teamName=${encodeURIComponent(team.name)}`} className="hidden md:inline hover:text-emerald-200">
-                            {defaultFacility.name}
-                          </Link>
-                        ) : (
-                          <span className="hidden md:inline">No default facility</span>
-                        )}
+                        <span className="hidden md:inline">
+                          {defaultFacility ? (
+                            <Link href={`/demo/admin/facilities/${encodeFacilityName(defaultFacility.name)}/calendar?from=team&departmentName=${encodeURIComponent(departmentName)}&teamName=${encodeURIComponent(team.name)}`} className="hover:text-emerald-200">
+                              {defaultFacility.name}
+                            </Link>
+                          ) : (
+                            'No default facility'
+                          )}
+                        </span>
                         <span className="hidden sm:inline text-slate-600">·</span>
                         <span className="hidden sm:inline">0 players</span>
                         <span className="hidden lg:inline text-slate-600">·</span>

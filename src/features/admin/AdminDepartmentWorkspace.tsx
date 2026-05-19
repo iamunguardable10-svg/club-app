@@ -146,7 +146,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
   const currentDepartmentId = department?.id ?? '';
 
   const departmentFacilities = useMemo(
-    () => facilities.filter((facility) => assignedFacilityIds.has(facility.id)),
+    () => facilities.filter((facility) => assignedFacilityIds.has(facility.id)).sort((a, b) => a.name.localeCompare(b.name)),
     [assignedFacilityIds, facilities],
   );
 
@@ -1073,13 +1073,15 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                           </button>
                         )}
                         <span className="hidden sm:inline text-slate-600">·</span>
-                        {defaultFacility ? (
-                          <Link href={`/admin/facilities/${defaultFacility.id}/calendar?from=team&departmentId=${currentDepartmentId}&teamId=${team.id}`} className="hidden md:inline hover:text-emerald-200">
-                            {defaultFacility.name}
-                          </Link>
-                        ) : (
-                          <span className="hidden md:inline">No default facility</span>
-                        )}
+                        <span className="hidden md:inline">
+                          {defaultFacility ? (
+                            <Link href={`/admin/facilities/${defaultFacility.id}/calendar?from=team&departmentId=${currentDepartmentId}&teamId=${team.id}`} className="hover:text-emerald-200">
+                              {defaultFacility.name}
+                            </Link>
+                          ) : (
+                            'No default facility'
+                          )}
+                        </span>
                         <span className="hidden sm:inline text-slate-600">·</span>
                         <span className="hidden sm:inline">{athleteCount} players</span>
                         <span className="hidden lg:inline text-slate-600">·</span>

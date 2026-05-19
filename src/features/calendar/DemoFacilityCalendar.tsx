@@ -11,7 +11,7 @@ type DemoFacilityCalendarProps = {
   teamName?: string;
 };
 
-const hours = Array.from({ length: 15 }, (_, index) => index + 7);
+const hours = Array.from({ length: 17 }, (_, index) => index + 7);
 const days = Array.from({ length: 7 }, (_, index) => {
   const date = new Date();
   const day = date.getDay();

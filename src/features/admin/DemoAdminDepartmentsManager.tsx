@@ -106,8 +106,9 @@ function FacilityPreview({ department, items }: { department: string; items: str
     );
   }
 
-  const visible = items.slice(0, 3);
-  const hidden = items.length - visible.length;
+  const sortedItems = [...items].sort((a, b) => a.localeCompare(b));
+  const visible = sortedItems.slice(0, 3);
+  const hidden = sortedItems.length - visible.length;
   return (
     <div className="mt-2 flex flex-wrap gap-2">
       {visible.map((item) => (
