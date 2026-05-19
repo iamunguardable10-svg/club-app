@@ -12,6 +12,9 @@ type DemoFacilityCalendarProps = {
 };
 
 const hours = Array.from({ length: 17 }, (_, index) => index + 7);
+const firstHour = hours[0] ?? 7;
+const lastHour = (hours.at(-1) ?? 23) + 1;
+const hourHeight = 80;
 const days = Array.from({ length: 7 }, (_, index) => {
   const date = new Date();
   const day = date.getDay();
@@ -24,6 +27,17 @@ const days = Array.from({ length: 7 }, (_, index) => {
 
 function sameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function minutesFromDayStart(value: string) {
+  const date = new Date(value);
+  return (date.getHours() - firstHour) * 60 + date.getMinutes();
+}
+
+function sessionDurationMinutes(session: { startsAt: string; endsAt: string }) {
+  const start = new Date(session.startsAt);
+  const end = new Date(session.endsAt);
+  return Math.max(30, Math.round((end.getTime() - start.getTime()) / 60_000));
 }
 
 export function DemoFacilityCalendar({ facilityName, from, departmentName, teamName }: DemoFacilityCalendarProps) {
@@ -50,29 +64,37 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
         </section>
 
         <section className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80">
-          <div className="grid grid-cols-[72px_repeat(7,minmax(140px,1fr))] border-b border-slate-800 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-            <div className="p-3">Time</div>
-            {days.map((day) => <div key={day.toISOString()} className="border-l border-slate-800 p-3">{day.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</div>)}
-          </div>
-          <div className="grid grid-cols-[72px_repeat(7,minmax(140px,1fr))]">
-            {hours.map((hour) => (
-              <div key={hour} className="contents">
-                <div className="border-b border-slate-900 p-3 text-xs font-bold text-slate-500">{String(hour).padStart(2, '0')}:00</div>
+          <div className="overflow-x-auto">
+            <div className="min-w-[1080px]">
+              <div className="grid grid-cols-[72px_repeat(7,minmax(140px,1fr))] border-b border-slate-800 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                <div className="sticky left-0 z-20 bg-slate-950/95 p-3">Time</div>
+                {days.map((day) => <div key={day.toISOString()} className="border-l border-slate-800 p-3">{day.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</div>)}
+              </div>
+              <div className="grid grid-cols-[72px_repeat(7,minmax(140px,1fr))]">
+                <div className="sticky left-0 z-10 bg-slate-950/95">
+                  {hours.map((hour) => (
+                    <div key={hour} className="h-20 border-b border-slate-900 p-3 text-xs font-bold text-slate-500">{String(hour).padStart(2, '0')}:00</div>
+                  ))}
+                </div>
                 {days.map((day) => {
-                  const cellSessions = sessions.filter((session) => {
-                    const start = new Date(session.startsAt);
-                    return sameDay(start, day) && start.getHours() === hour;
-                  });
+                  const daySessions = sessions.filter((session) => sameDay(new Date(session.startsAt), day));
                   return (
-                    <div key={`${day.toISOString()}-${hour}`} className="min-h-20 border-b border-l border-slate-900 p-2">
-                      <div className="grid gap-2">
-                        {cellSessions.map((session) => {
+                    <div key={day.toISOString()} className="relative border-l border-slate-900" style={{ height: `${hours.length * hourHeight}px` }}>
+                      {hours.map((hour) => (
+                        <div key={hour} className="h-20 border-b border-slate-900" />
+                      ))}
+                      {daySessions.map((session) => {
                           const tone =
                             teamName && session.team === teamName
                               ? 'primary'
                               : departmentName && session.department === departmentName
                                 ? 'secondary'
                                 : 'muted';
+                          const top = Math.max(0, minutesFromDayStart(session.startsAt) * (hourHeight / 60));
+                          const height = Math.min(
+                            Math.max(44, sessionDurationMinutes(session) * (hourHeight / 60)),
+                            (lastHour - firstHour) * hourHeight - top,
+                          );
                           const toneClass =
                             tone === 'primary'
                               ? 'border-sky-400 bg-sky-950/70 text-white shadow-[0_0_0_1px_rgba(56,189,248,0.35)]'
@@ -80,19 +102,18 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
                                 ? 'border-emerald-500/60 bg-emerald-950/35 text-slate-100'
                                 : 'border-slate-800 bg-slate-900/50 text-slate-400';
                           return (
-                            <article key={session.id} className={`rounded-2xl border p-3 ${toneClass}`}>
+                            <article key={session.id} style={{ top, height }} className={`absolute left-2 right-2 overflow-hidden rounded-2xl border p-3 ${toneClass}`}>
                               <p className="text-xs font-black uppercase tracking-[0.12em]">{session.team}</p>
                               <p className="mt-1 text-sm font-black">{session.title}</p>
                               <p className="mt-1 text-xs">{session.department}</p>
                             </article>
                           );
                         })}
-                      </div>
                     </div>
                   );
                 })}
               </div>
-            ))}
+            </div>
           </div>
         </section>
       </div>
