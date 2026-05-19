@@ -30,7 +30,11 @@ type SessionComposerProps = {
   teams: SessionComposerTeam[];
   facilities: SessionComposerFacility[];
   initialTeamId?: string | null;
+  initialFacilityId?: string | null;
+  initialStartsAt?: string | null;
+  initialEndsAt?: string | null;
   lockedTeamId?: string | null;
+  lockedFacilityId?: string | null;
   onClose: () => void;
   onSubmit: (payload: SessionComposerPayload) => Promise<void>;
 };
@@ -59,7 +63,11 @@ export function SessionComposer({
   teams,
   facilities,
   initialTeamId = null,
+  initialFacilityId = null,
+  initialStartsAt = null,
+  initialEndsAt = null,
   lockedTeamId = null,
+  lockedFacilityId = null,
   onClose,
   onSubmit,
 }: SessionComposerProps) {
@@ -78,21 +86,21 @@ export function SessionComposer({
   useEffect(() => {
     if (!open) return;
     const nextTeamId = lockedTeamId ?? initialTeamId ?? teams[0]?.id ?? '';
-    const start = defaultStart();
+    const start = initialStartsAt ? toLocalInputValue(new Date(initialStartsAt)) : defaultStart();
     setSessionTitle('Training');
     setSessionType('training');
     setOwnerTeamId(nextTeamId);
     setStartsAt(start);
-    setEndsAt(defaultEnd(start));
+    setEndsAt(initialEndsAt ? toLocalInputValue(new Date(initialEndsAt)) : defaultEnd(start));
     setParticipantScope('whole_team');
     setError(null);
-  }, [initialTeamId, lockedTeamId, open, teams]);
+  }, [initialEndsAt, initialStartsAt, initialTeamId, lockedTeamId, open, teams]);
 
   useEffect(() => {
     if (!open) return;
     const team = teams.find((item) => item.id === ownerTeamId);
-    setFacilityId(team?.defaultFacilityId ?? null);
-  }, [open, ownerTeamId, teams]);
+    setFacilityId(lockedFacilityId ?? initialFacilityId ?? team?.defaultFacilityId ?? null);
+  }, [initialFacilityId, lockedFacilityId, open, ownerTeamId, teams]);
 
   if (!open) return null;
 
@@ -180,7 +188,7 @@ export function SessionComposer({
             </label>
             <label className="block">
               <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Facility</span>
-              <select value={facilityId ?? ''} onChange={(event) => setFacilityId(event.target.value || null)} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-sky-400">
+              <select value={facilityId ?? ''} onChange={(event) => setFacilityId(event.target.value || null)} disabled={Boolean(lockedFacilityId)} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm outline-none focus:border-sky-400 disabled:opacity-60">
                 <option value="">No facility</option>
                 {facilities.map((facility) => (
                   <option key={facility.id} value={facility.id}>{facility.name}</option>

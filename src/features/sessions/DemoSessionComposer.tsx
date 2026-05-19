@@ -7,7 +7,11 @@ type DemoSessionComposerProps = {
   teams: SessionComposerTeam[];
   facilities: { id: string; name: string }[];
   initialTeamId?: string | null;
+  initialFacilityId?: string | null;
+  initialStartsAt?: string | null;
+  initialEndsAt?: string | null;
   lockedTeamId?: string | null;
+  lockedFacilityId?: string | null;
   onClose: () => void;
   onSubmit: (payload: SessionComposerPayload) => Promise<void>;
 };
