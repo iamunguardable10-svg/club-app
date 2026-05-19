@@ -121,6 +121,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
   const [teamMemberships, setTeamMemberships] = useState<TeamMembership[]>([]);
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, days.findIndex((day) => sameDay(day, new Date()))));
+  const [mobileCalendarView, setMobileCalendarView] = useState<'week' | 'day'>('week');
   const [draft, setDraft] = useState<DraftSession | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -233,14 +234,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
     () => days.map((day) => sessions.filter((session) => sameDay(new Date(session.starts_at), day)).length),
     [sessions],
   );
-  const mobileVisibleHours = useMemo(() => {
-    if (sessions.length === 0) return hours;
-    const starts = sessions.map((session) => new Date(session.starts_at));
-    const ends = sessions.map((session) => (session.ends_at ? new Date(session.ends_at) : addMinutes(new Date(session.starts_at), 60)));
-    const minHour = clamp(Math.min(...starts.map((date) => date.getHours())) - 1, firstHour, lastHour - 1);
-    const maxHour = clamp(Math.max(...ends.map((date) => date.getHours() + (date.getMinutes() > 0 ? 1 : 0))) + 1, minHour + 3, lastHour);
-    return hours.filter((hour) => hour >= minHour && hour < maxHour);
-  }, [sessions]);
+  const mobileVisibleHours = useMemo(() => hours.filter((hour) => hour >= 8 && hour <= 23), []);
   const mobileFirstHour = mobileVisibleHours[0] ?? firstHour;
   const mobileGridHeight = mobileVisibleHours.length * mobileHourHeight;
 
@@ -523,11 +517,16 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden">
+        <div className="flex gap-2 md:hidden">
+          <button type="button" onClick={() => setMobileCalendarView('week')} className={`rounded-xl border px-3 py-2 text-xs font-black ${mobileCalendarView === 'week' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>Week</button>
+          <button type="button" onClick={() => setMobileCalendarView('day')} className={`rounded-xl border px-3 py-2 text-xs font-black ${mobileCalendarView === 'day' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>Day</button>
+        </div>
+
+        <section className={`${mobileCalendarView === 'week' ? 'block' : 'hidden'} overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden`}>
           <div className="grid grid-cols-[34px_repeat(7,minmax(0,1fr))] border-b border-slate-800 text-[9px] font-black uppercase tracking-[0.08em] text-slate-500">
             <div className="bg-slate-950/95 p-1.5">Time</div>
             {days.map((day, index) => (
-              <button key={day.toISOString()} type="button" onClick={() => setActiveDayIndex(index)} className={`border-l border-slate-800 p-1.5 ${activeDayIndex === index ? 'bg-sky-300 text-slate-950' : ''}`}>
+              <button key={day.toISOString()} type="button" onClick={() => { setActiveDayIndex(index); setMobileCalendarView('day'); }} className={`border-l border-slate-800 p-1.5 ${activeDayIndex === index ? 'bg-sky-300 text-slate-950' : ''}`}>
                 <span className="block">{day.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2)}</span>
                 <span className="block">{day.toLocaleDateString(undefined, { day: '2-digit' })}</span>
                 {sessionsByDayCount[index] > 0 ? <span className="mx-auto mt-0.5 block w-fit rounded-full bg-white/15 px-1">{sessionsByDayCount[index]}</span> : null}
@@ -570,6 +569,57 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </section>
+
+        <section className={`${mobileCalendarView === 'day' ? 'block' : 'hidden'} overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden`}>
+          <div className="flex items-center justify-between border-b border-slate-800 p-2">
+            <button type="button" onClick={() => setMobileCalendarView('week')} className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200">Week view</button>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setActiveDayIndex((current) => Math.max(0, current - 1))} className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-black text-slate-200">‹</button>
+              <span className="text-xs font-black text-slate-200">{days[activeDayIndex].toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</span>
+              <button type="button" onClick={() => setActiveDayIndex((current) => Math.min(days.length - 1, current + 1))} className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-black text-slate-200">›</button>
+            </div>
+          </div>
+          <div ref={calendarScrollRef} className="max-h-[64vh] overflow-y-auto overscroll-contain touch-pan-y">
+            <div className="grid grid-cols-[52px_minmax(0,1fr)]">
+              <div className="bg-slate-950/95">
+                {mobileVisibleHours.map((hour) => <div key={hour} className="border-b border-slate-900 px-2 py-1 text-[10px] font-bold text-slate-500" style={{ height: mobileHourHeight }}>{String(hour).padStart(2, '0')}:00</div>)}
+              </div>
+              {(() => {
+                const day = days[activeDayIndex];
+                const daySessions = sessions.filter((session) => sameDay(new Date(session.starts_at), day));
+                const draftIsOnDay = draft ? sameDay(new Date(draft.startsAt), day) : false;
+                return (
+                  <div ref={(element) => { dayRefs.current[activeDayIndex] = element; }} onPointerDown={(event) => handleSlotPointerDown(day, event)} className="relative border-l border-slate-900" style={{ height: mobileGridHeight, touchAction: 'pan-y' }}>
+                    {mobileVisibleHours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: mobileHourHeight }} />)}
+                    {daySessions.map((session) => {
+                      const tone = sessionTone(session, departmentId, teamId);
+                      const team = teamById.get(session.owner_team_id);
+                      const department = departmentById.get(session.department_id);
+                      const start = new Date(session.starts_at);
+                      const top = Math.max(0, ((start.getHours() - mobileFirstHour) * 60 + start.getMinutes()) * (mobileHourHeight / 60));
+                      const height = Math.min(Math.max(24, sessionDurationMinutes(session) * (mobileHourHeight / 60)), mobileGridHeight - top);
+                      const toneClass = tone === 'primary' ? 'border-sky-400 bg-sky-950/80 text-white' : tone === 'secondary' ? 'border-emerald-500/60 bg-emerald-950/60 text-slate-100' : 'border-slate-700 bg-slate-900/80 text-slate-300';
+                      return (
+                        <div key={session.id} role="button" tabIndex={0} data-calendar-session="true" onPointerDown={(event) => startSessionDrag(session, 'move', event)} onClick={(event) => { if (didDragRef.current) { event.preventDefault(); didDragRef.current = false; return; } setSelectedSession(session); }} style={{ top, height, touchAction: mode === 'edit' && canManageSession(session) ? 'none' : 'pan-y' }} className={`absolute left-2 right-2 overflow-hidden rounded-xl border px-2 py-1 text-left ${toneClass} ${drag?.target === 'session' && drag.sessionId === session.id ? 'ring-2 ring-sky-200 brightness-125' : ''}`}>
+                          <p className="truncate text-xs font-black">{team?.name ?? 'Team'}</p>
+                          <p className="truncate text-[10px] opacity-80">{department?.name ?? 'Department'} · {formatTimeRange(session.starts_at, session.ends_at)}</p>
+                          {mode === 'edit' && canManageSession(session) ? <span aria-hidden="true" onPointerDown={(event) => startSessionDrag(session, 'resize', event)} className="absolute inset-x-4 bottom-0 h-3 cursor-ns-resize rounded-t bg-white/40" /> : null}
+                        </div>
+                      );
+                    })}
+                    {draftIsOnDay ? (() => {
+                      const activeDraftRender = draft!;
+                      const start = new Date(activeDraftRender.startsAt);
+                      const top = Math.max(0, ((start.getHours() - mobileFirstHour) * 60 + start.getMinutes()) * (mobileHourHeight / 60));
+                      const height = Math.min(Math.max(24, durationMinutes(new Date(activeDraftRender.startsAt), new Date(activeDraftRender.endsAt)) * (mobileHourHeight / 60)), mobileGridHeight - top);
+                      return <article data-calendar-session="true" onPointerDown={(event) => startDraftDrag('move', event)} onClick={() => setComposerOpen(true)} style={{ top, height, touchAction: 'none' }} className="absolute left-2 right-2 z-20 cursor-grab overflow-hidden rounded-xl border border-sky-300 bg-sky-500/40 px-2 py-1 text-xs font-black text-sky-50"><span>Training</span><button type="button" onPointerDown={(event) => startDraftDrag('resize', event)} className="absolute inset-x-4 bottom-0 h-3 rounded-t bg-sky-100/90" aria-label="Resize session draft" /></article>;
+                    })() : null}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </section>
