@@ -18,7 +18,7 @@ type DragState = { target: 'draft' | 'session'; sessionId?: string; kind: 'move'
 const hours = Array.from({ length: 17 }, (_, index) => index + 7);
 const firstHour = hours[0] ?? 7;
 const lastHour = (hours.at(-1) ?? 23) + 1;
-const hourHeight = 80;
+const hourHeight = 72;
 const mobileHourHeight = 32;
 const minutesPerPixel = 60 / hourHeight;
 const slotMinutes = 15;
@@ -89,6 +89,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
   const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, days.findIndex((day) => sameDay(day, new Date()))));
   const [mobileCalendarView, setMobileCalendarView] = useState<'week' | 'day'>('week');
   const [dayTransitionDirection, setDayTransitionDirection] = useState<'next' | 'previous' | null>(null);
+  const [desktopHourHeight, setDesktopHourHeight] = useState(hourHeight);
   const [draft, setDraft] = useState<DraftSession | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -112,6 +113,18 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
   const mobileVisibleHours = useMemo(() => hours.filter((hour) => hour >= 8 && hour <= 23), []);
   const mobileFirstHour = mobileVisibleHours[0] ?? firstHour;
   const mobileGridHeight = mobileVisibleHours.length * mobileHourHeight;
+
+  useEffect(() => {
+    function updateDesktopScale() {
+      if (window.innerWidth < 768) return;
+      const availableCalendarHeight = Math.max(0, window.innerHeight - 300);
+      setDesktopHourHeight(Math.round(clamp(availableCalendarHeight / hours.length, 56, 72)));
+    }
+
+    updateDesktopScale();
+    window.addEventListener('resize', updateDesktopScale);
+    return () => window.removeEventListener('resize', updateDesktopScale);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -295,7 +308,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     event.preventDefault();
     event.stopPropagation();
     didDragRef.current = false;
-    setDrag({ target: 'draft', kind, startX: event.clientX, startY: event.clientY, originalStart: new Date(draft.startsAt), originalEnd: new Date(draft.endsAt), minutesPerPixel: window.innerWidth < 768 ? 60 / mobileHourHeight : minutesPerPixel });
+    setDrag({ target: 'draft', kind, startX: event.clientX, startY: event.clientY, originalStart: new Date(draft.startsAt), originalEnd: new Date(draft.endsAt), minutesPerPixel: window.innerWidth < 768 ? 60 / mobileHourHeight : 60 / desktopHourHeight });
   }
 
   function startSessionDrag(session: DemoSession, kind: DragState['kind'], event: PointerEvent<HTMLElement>) {
@@ -304,7 +317,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     event.preventDefault();
     didDragRef.current = false;
     setSelectedSession(null);
-    setDrag({ target: 'session', sessionId: session.id, kind, startX: event.clientX, startY: event.clientY, originalStart: new Date(session.startsAt), originalEnd: new Date(session.endsAt), minutesPerPixel: window.innerWidth < 768 ? 60 / mobileHourHeight : minutesPerPixel });
+    setDrag({ target: 'session', sessionId: session.id, kind, startX: event.clientX, startY: event.clientY, originalStart: new Date(session.startsAt), originalEnd: new Date(session.endsAt), minutesPerPixel: window.innerWidth < 768 ? 60 / mobileHourHeight : 60 / desktopHourHeight });
   }
 
   async function handleCreateSession(payload: SessionComposerPayload) {
@@ -496,7 +509,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
               </div>
               <div className="grid grid-cols-[72px_minmax(170px,1fr)] md:grid-cols-[72px_repeat(7,minmax(150px,1fr))]">
                 <div className="sticky left-0 z-10 bg-slate-950/95">
-                  {hours.map((hour) => <div key={hour} className="h-20 border-b border-slate-900 p-3 text-xs font-bold text-slate-500">{String(hour).padStart(2, '0')}:00</div>)}
+                  {hours.map((hour) => <div key={hour} className="border-b border-slate-900 p-3 text-xs font-bold text-slate-500" style={{ height: desktopHourHeight }}>{String(hour).padStart(2, '0')}:00</div>)}
                 </div>
                 {days.map((day, dayIndex) => {
                   const daySessions = sessions.filter((session) => sameDay(new Date(session.startsAt), day));
@@ -507,13 +520,13 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
                       ref={(element) => { dayRefs.current[dayIndex] = element; }}
                       onPointerDown={(event) => handleSlotPointerDown(day, event)}
                       className={`relative border-l border-slate-900 ${mode === 'edit' ? 'cursor-crosshair' : 'cursor-default'} ${dayIndex === activeDayIndex ? 'block' : 'hidden'} md:block`}
-                      style={{ height: `${hours.length * hourHeight}px`, touchAction: 'pan-y' }}
+                      style={{ height: `${hours.length * desktopHourHeight}px`, touchAction: 'pan-y' }}
                     >
-                      {hours.map((hour) => <div key={hour} className="h-20 border-b border-slate-900" />)}
+                      {hours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: desktopHourHeight }} />)}
                       {daySessions.map((session) => {
                         const tone = teamName && session.team === teamName ? 'primary' : departmentName && session.department === departmentName ? 'secondary' : 'muted';
-                        const top = Math.max(0, minutesFromDayStart(session.startsAt) * (hourHeight / 60));
-                        const height = Math.min(Math.max(44, sessionDurationMinutes(session) * (hourHeight / 60)), (lastHour - firstHour) * hourHeight - top);
+                        const top = Math.max(0, minutesFromDayStart(session.startsAt) * (desktopHourHeight / 60));
+                        const height = Math.min(Math.max(44, sessionDurationMinutes(session) * (desktopHourHeight / 60)), (lastHour - firstHour) * desktopHourHeight - top);
                         const toneClass =
                           tone === 'primary'
                             ? 'border-sky-400 bg-sky-950/70 text-white shadow-[0_0_0_1px_rgba(56,189,248,0.35)]'
@@ -547,8 +560,8 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
                       })}
                       {draftIsOnDay ? (() => {
                         const activeDraftRender = draft!;
-                        const top = Math.max(0, minutesFromDayStart(activeDraftRender.startsAt) * (hourHeight / 60));
-                        const height = Math.min(Math.max(44, durationMinutes(new Date(activeDraftRender.startsAt), new Date(activeDraftRender.endsAt)) * (hourHeight / 60)), (lastHour - firstHour) * hourHeight - top);
+                        const top = Math.max(0, minutesFromDayStart(activeDraftRender.startsAt) * (desktopHourHeight / 60));
+                        const height = Math.min(Math.max(44, durationMinutes(new Date(activeDraftRender.startsAt), new Date(activeDraftRender.endsAt)) * (desktopHourHeight / 60)), (lastHour - firstHour) * desktopHourHeight - top);
                         return (
                           <article
                             data-calendar-session="true"
