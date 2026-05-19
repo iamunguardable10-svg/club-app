@@ -12,6 +12,8 @@ type DemoSessionComposerProps = {
   initialFacilityId?: string | null;
   initialStartsAt?: string | null;
   initialEndsAt?: string | null;
+  initialSessionType?: string | null;
+  initialTitle?: string | null;
   lockedTeamId?: string | null;
   lockedFacilityId?: string | null;
   onClose: () => void;
