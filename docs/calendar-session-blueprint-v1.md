@@ -162,6 +162,42 @@ Likely later interactions:
 - recurring sessions
 - batch edits for future repeats
 
+### Facility calendar View/Edit mode
+
+Facility calendars use an explicit mode split:
+
+```txt
+View mode
+-> inspect sessions
+-> scroll safely on mobile
+-> no accidental draft creation
+
+Edit/create mode
+-> create sessions by tapping a free slot
+-> confirm or cancel the draft directly inside the draft card
+-> edit existing sessions through the session info sheet
+-> delete sessions only when the user's role can manage them
+```
+
+Mobile behavior:
+
+```txt
+desktop -> week grid
+mobile  -> one weekday at a time
+```
+
+This prevents the hall calendar from feeling like an accidental editing surface on phones.
+
+Existing sessions are not yet drag/resize-editable by default. That should be added only with an explicit safety step for mobile, for example:
+
+```txt
+tap session -> info sheet -> Edit
+or
+enter edit mode -> activate session editing -> move/resize
+```
+
+The warning may later support "do not show again for this edit session".
+
 ---
 
 ## Session ownership model
@@ -395,6 +431,28 @@ This preserves correctness if team membership or group membership changes later.
 - department lead: own department
 - coach: sessions owned by assigned teams
 
+Current facility-calendar UI permission model:
+
+```txt
+club admin
+-> can create and edit sessions for all teams
+
+department lead
+-> can create and edit sessions for teams in own department
+
+head coach / assistant coach
+-> can create and edit sessions for own teams
+```
+
+Supabase enforcement:
+
+```txt
+insert/update -> sessions policies using can_manage_session / role context
+delete        -> sessions_delete_allowed policy using can_manage_session(id)
+```
+
+The client filters available departments and teams for usability, but the database remains the hard permission boundary.
+
 ### Invite handling
 
 - coach can invite teams
@@ -444,9 +502,36 @@ participants   whole chosen team by default
 
 ```txt
 facility       preset + locked
-team           choose
-department     derived from chosen team
+department     choose unless current URL/filter narrows it
+team           choose after department, not from the whole club list
 participants   whole chosen team by default
+```
+
+Facility calendar filtering should follow this order:
+
+```txt
+department
+-> team inside department
+-> group/player scope later
+```
+
+Default highlighting should come from context first:
+
+```txt
+URL has team
+-> team primary, department secondary
+
+URL has department
+-> department primary
+
+no URL context, user is department lead
+-> own department primary
+
+no URL context, user is coach
+-> own teams primary, own department secondary
+
+admin with no filter
+-> full facility view
 ```
 
 ### From Admin Calendar

@@ -181,6 +181,13 @@ The internal hall name remains a separate club-specific label.
 
 Facility links should carry context so the future calendar can highlight relevant entries.
 
+Implemented rule:
+
+```txt
+If a facility is opened from inside a department-specific card or section,
+the link must include that department context even when the facility itself is global/shared.
+```
+
 Current intended real route shape:
 
 ```txt
@@ -201,6 +208,16 @@ The current enhancer can append best-effort department context to facility calen
 
 Long-term, explicit React links are preferred over DOM inference.
 
+Current explicit React link coverage:
+
+- Departments overview facility chips pass `departmentId`.
+- Department workspace hall cards pass `departmentId`.
+- Facility Manager department shared-access rows pass `departmentId`.
+- Facility Manager department-only rows pass `departmentId`.
+- Demo equivalents pass `departmentName`.
+
+Top-level global facility cards intentionally open the full facility view without department context.
+
 ## Planned calendar highlighting behavior
 
 When facility calendars are built properly, they should read URL context and highlight accordingly.
@@ -219,6 +236,29 @@ Calendar behavior:
 - sessions for the selected department are highlighted
 - sessions from other departments are visible but visually quieter
 - if the facility is department-only, only the owner department's events are relevant
+
+### Role-aware default highlighting in facility calendars
+
+The facility calendar should become smarter even without explicit URL context:
+
+- club admin: starts with a full facility view and can filter by department first, then by team inside that department
+- department lead: automatically highlights own department sessions and can further narrow to teams in that department
+- coach: automatically highlights own department and own team sessions
+
+This applies only to facility calendars. Team, coach and athlete calendars will be separate contextual views over the same sessions.
+
+Filter behavior:
+
+```txt
+department filter selected
+-> matching department sessions become primary
+-> other departments remain visible but quieter
+
+team filter selected within that department
+-> selected team sessions become primary
+-> other teams in same department become secondary
+-> other departments stay dimmed
+```
 
 ### From Department page
 
