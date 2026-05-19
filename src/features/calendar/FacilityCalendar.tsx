@@ -109,6 +109,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
   const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
   const calendarScrollRef = useRef<HTMLDivElement | null>(null);
   const didDragRef = useRef(false);
+  const didInitialAutoScrollRef = useRef(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [facility, setFacility] = useState<Facility | null>(null);
   const [facilities, setFacilities] = useState<Facility[]>([]);
@@ -227,12 +228,18 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
     return departments.filter((department) => departmentIds.has(department.id));
   }, [departments, manageableTeams]);
 
+  const sessionsByDayCount = useMemo(
+    () => days.map((day) => sessions.filter((session) => sameDay(new Date(session.starts_at), day)).length),
+    [sessions],
+  );
+
   function canManageSession(session: Session) {
     return isClubAdmin || managedDepartmentIds.has(session.department_id) || managedTeamIds.has(session.owner_team_id);
   }
 
   useEffect(() => {
-    if (state !== 'ready' || sessions.length === 0) return;
+    if (didInitialAutoScrollRef.current || state !== 'ready' || sessions.length === 0) return;
+    didInitialAutoScrollRef.current = true;
     const sessionsByDay = days.map((day) => sessions.filter((session) => sameDay(new Date(session.starts_at), day)));
     const bestDayIndex = sessionsByDay.reduce((bestIndex, daySessions, index) => (daySessions.length > sessionsByDay[bestIndex].length ? index : bestIndex), 0);
     if (sessionsByDay[bestDayIndex].length > 0) setActiveDayIndex(bestDayIndex);
@@ -259,6 +266,9 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
         return clientX >= rect.left && clientX <= rect.right;
       });
       if (hitIndex >= 0) return hitIndex;
+      if (window.innerWidth < 768) {
+        return clamp(Math.floor((clientX / Math.max(window.innerWidth, 1)) * days.length), 0, days.length - 1);
+      }
       const currentIndex = days.findIndex((day) => sameDay(latestStart, day));
       return currentIndex >= 0 ? currentIndex : 0;
     }
@@ -292,7 +302,9 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
         return;
       }
 
-      const targetDay = days[dayIndexFromPointer(event.clientX)];
+      const targetDayIndex = dayIndexFromPointer(event.clientX);
+      if (window.innerWidth < 768) setActiveDayIndex(targetDayIndex);
+      const targetDay = days[targetDayIndex];
       const nextStartMinutes = clamp(currentStartMinutes + deltaMinutes, 0, maxMinutes - originalDuration);
       const nextStart = createDateForCalendarMinute(targetDay, nextStartMinutes);
       applyTimes(nextStart, addMinutes(nextStart, originalDuration));
@@ -481,22 +493,24 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
           </div>
         </section>
 
-        <div className="flex gap-2 overflow-x-auto md:hidden">
+        <div className="grid grid-cols-7 gap-1 md:hidden">
           {days.map((day, index) => (
             <button
               key={day.toISOString()}
               type="button"
               onClick={() => setActiveDayIndex(index)}
-              className={`shrink-0 rounded-full border px-3 py-2 text-xs font-black ${activeDayIndex === index ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-300'}`}
+              className={`rounded-2xl border px-1.5 py-2 text-center text-[10px] font-black ${activeDayIndex === index ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-300'}`}
             >
-              {day.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}
+              <span className="block uppercase">{day.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2)}</span>
+              <span className="mt-1 block text-xs">{day.toLocaleDateString(undefined, { day: '2-digit' })}</span>
+              {sessionsByDayCount[index] > 0 ? <span className="mt-1 block rounded-full bg-white/15 px-1 text-[9px]">{sessionsByDayCount[index]}</span> : null}
             </button>
           ))}
         </div>
 
 
         <section className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80">
-          <div ref={calendarScrollRef} className="max-h-[68vh] overflow-auto overscroll-contain touch-pan-x md:max-h-none md:overflow-x-auto md:overflow-y-visible">
+          <div ref={calendarScrollRef} className="max-h-[70vh] overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y md:max-h-none md:overflow-x-auto md:overflow-y-visible">
             <div className="min-w-0 md:min-w-[1122px]">
               <div className="grid grid-cols-[72px_minmax(170px,1fr)] border-b border-slate-800 text-xs font-black uppercase tracking-[0.16em] text-slate-500 md:grid-cols-[72px_repeat(7,minmax(150px,1fr))]">
                 <div className="sticky left-0 z-20 bg-slate-950/95 p-3">Time</div>
@@ -517,7 +531,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
                       ref={(element) => { dayRefs.current[dayIndex] = element; }}
                       onPointerDown={(event) => handleSlotPointerDown(day, event)}
                       className={`relative border-l border-slate-900 ${mode === 'edit' ? 'cursor-crosshair' : 'cursor-default'} ${dayIndex === activeDayIndex ? 'block' : 'hidden'} md:block`}
-                      style={{ height: `${hours.length * hourHeight}px`, touchAction: 'pan-x pan-y' }}
+                      style={{ height: `${hours.length * hourHeight}px`, touchAction: 'pan-y' }}
                     >
                       {hours.map((hour) => (
                         <div key={hour} className="h-20 border-b border-slate-900" />
@@ -535,19 +549,28 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
                               ? 'border-emerald-500/60 bg-emerald-950/35 text-slate-100'
                               : 'border-slate-800 bg-slate-900/50 text-slate-400';
                         return (
-                          <button
-                            type="button"
+                          <div
                             key={session.id}
+                            role="button"
+                            tabIndex={0}
                             data-calendar-session="true"
                             onPointerDown={(event) => startSessionDrag(session, 'move', event)}
                             onClick={(event) => { if (didDragRef.current) { event.preventDefault(); didDragRef.current = false; return; } setSelectedSession(session); }}
-                            style={{ top, height }}
-                            className={`absolute left-2 right-2 overflow-hidden rounded-2xl border p-3 text-left ${toneClass} ${mode === 'edit' && canManageSession(session) ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                            onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedSession(session); }}
+                            style={{ top, height, touchAction: mode === 'edit' && canManageSession(session) ? 'none' : 'pan-y' }}
+                            className={`absolute left-2 right-2 overflow-hidden rounded-2xl border p-3 text-left ${toneClass} ${drag?.target === 'session' && drag.sessionId === session.id ? 'ring-2 ring-sky-200 brightness-125 shadow-[0_0_26px_rgba(56,189,248,0.45)]' : ''} ${mode === 'edit' && canManageSession(session) ? 'cursor-grab active:cursor-grabbing' : ''}`}
                           >
                             <p className="text-xs font-black uppercase tracking-[0.12em]">{team?.name ?? 'Team'}</p>
                             <p className="mt-1 text-sm font-black">{session.title}</p>
                             <p className="mt-1 text-xs">{department?.name ?? 'Department'} | {formatTimeRange(session.starts_at, session.ends_at)}</p>
-                          </button>
+                            {mode === 'edit' && canManageSession(session) ? (
+                              <span
+                                aria-hidden="true"
+                                onPointerDown={(event) => startSessionDrag(session, 'resize', event)}
+                                className="absolute inset-x-5 bottom-0 h-5 cursor-ns-resize rounded-t-full bg-white/40"
+                              />
+                            ) : null}
+                          </div>
                         );
                       })}
                       {draftIsOnDay ? (() => {
@@ -559,7 +582,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
                             data-calendar-session="true"
                             onPointerDown={(event) => startDraftDrag('move', event)}
                             onClick={() => setComposerOpen(true)}
-                            style={{ top, height }}
+                            style={{ top, height, touchAction: 'none' }}
                             className="absolute left-2 right-2 z-20 cursor-grab overflow-hidden rounded-2xl border border-sky-300 bg-sky-500/20 p-2.5 pr-16 text-left text-sky-50 shadow-[0_0_0_1px_rgba(125,211,252,0.4)] active:cursor-grabbing"
                           >
                             <div className="absolute right-2 top-2 flex gap-1">
@@ -588,7 +611,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
                             <button
                               type="button"
                               onPointerDown={(event) => startDraftDrag('resize', event)}
-                              className="absolute bottom-1 left-1/2 h-3 w-12 -translate-x-1/2 rounded-full bg-sky-200/80"
+                              className="absolute bottom-0 left-1/2 h-5 w-20 -translate-x-1/2 rounded-t-full bg-sky-200/90"
                               aria-label="Resize session draft"
                             />
                           </article>

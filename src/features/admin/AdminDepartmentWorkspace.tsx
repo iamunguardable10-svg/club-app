@@ -628,6 +628,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
       return;
     }
 
+    setTeams((current) => current.map((team) => (team.id === teamId ? { ...team, default_facility_id: facilityId || null } : team)));
     setIsSaving(false);
     await loadDepartmentData();
   }
@@ -1074,7 +1075,19 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                         )}
                         <span className="hidden sm:inline text-slate-600">·</span>
                         <span className="hidden md:inline">
-                          {defaultFacility ? (
+                          {isEditMode && departmentFacilities.length > 0 ? (
+                            <select
+                              value={team.default_facility_id ?? ''}
+                              onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)}
+                              disabled={isSaving}
+                              className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs font-black text-slate-200 outline-none focus:border-emerald-400 disabled:opacity-60"
+                            >
+                              <option value="">No default facility</option>
+                              {departmentFacilities.map((facility) => (
+                                <option key={facility.id} value={facility.id}>{facility.name}</option>
+                              ))}
+                            </select>
+                          ) : defaultFacility ? (
                             <Link href={`/admin/facilities/${defaultFacility.id}/calendar?from=team&departmentId=${currentDepartmentId}&teamId=${team.id}`} className="hover:text-emerald-200">
                               {defaultFacility.name}
                             </Link>

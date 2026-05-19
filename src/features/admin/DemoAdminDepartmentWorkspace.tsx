@@ -495,7 +495,12 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                         )}
                         <span className="hidden md:inline text-slate-600">·</span>
                         <span className="hidden md:inline">
-                          {defaultFacility ? (
+                          {isEditMode && departmentFacilities.length > 0 ? (
+                            <select value={team.defaultFacility ?? ''} onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)} className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs font-black text-slate-200 outline-none focus:border-emerald-400">
+                              <option value="">No default facility</option>
+                              {departmentFacilities.map((facility) => <option key={facility} value={facility}>{facility}</option>)}
+                            </select>
+                          ) : defaultFacility ? (
                             <Link href={`/demo/admin/facilities/${encodeFacilityName(defaultFacility.name)}/calendar?from=team&departmentName=${encodeURIComponent(departmentName)}&teamName=${encodeURIComponent(team.name)}`} className="hover:text-emerald-200">
                               {defaultFacility.name}
                             </Link>
