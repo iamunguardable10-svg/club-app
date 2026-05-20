@@ -12,6 +12,7 @@ type AdminShellProps = {
 const realLinks = [
   { href: '/admin/overview', label: 'Overview' },
   { href: '/admin/departments', label: 'Departments' },
+  { href: '/admin/teams', label: 'Teams' },
   { href: '/admin/facilities', label: 'Facilities' },
   { href: '/admin/people', label: 'Staff' },
   { href: '/admin/settings', label: 'Settings' },
@@ -20,6 +21,7 @@ const realLinks = [
 const demoLinks = [
   { href: '/demo/admin/overview', label: 'Overview' },
   { href: '/demo/admin/departments', label: 'Departments' },
+  { href: '/demo/admin/teams', label: 'Teams' },
   { href: '/demo/admin/facilities', label: 'Facilities' },
   { href: '/demo/admin/people', label: 'Staff' },
   { href: '/demo/admin/settings', label: 'Settings' },
