@@ -1045,13 +1045,17 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                   ? headCoaches.map((membership) => personLabel(profileById.get(membership.user_id), 'Head coach')).join(', ')
                   : null;
               const nextSession = nextSessionByTeam.get(team.id);
-              const needsFacilityAction = !defaultFacility;
+              const needsFacilityAction = !team.default_facility_id;
 
               return (
                 <article key={team.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-slate-700">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-xl font-black text-white">{team.name}</h3>
+                      <h3 className="text-xl font-black text-white">
+                        <Link href={`/admin/teams/${team.id}`} className="transition hover:text-sky-200">
+                          {team.name}
+                        </Link>
+                      </h3>
                       <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold text-slate-300">
                         {headCoachLabel ? (
                           <span>{headCoachLabel}</span>
@@ -1074,8 +1078,9 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                           </button>
                         )}
                         <span className="hidden sm:inline text-slate-600">·</span>
-                        <span className="hidden md:inline">
-                          {isEditMode && departmentFacilities.length > 0 ? (
+                        <span>
+                          {isEditMode ? (
+                            departmentFacilities.length > 0 ? (
                             <select
                               value={team.default_facility_id ?? ''}
                               onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)}
@@ -1087,10 +1092,27 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                                 <option key={facility.id} value={facility.id}>{facility.name}</option>
                               ))}
                             </select>
+                            ) : (
+                              'No department halls yet'
+                            )
                           ) : defaultFacility ? (
                             <Link href={`/admin/facilities/${defaultFacility.id}/calendar?from=team&departmentId=${currentDepartmentId}&teamId=${team.id}`} className="hover:text-emerald-200">
                               {defaultFacility.name}
                             </Link>
+                          ) : needsFacilityAction && departmentFacilities.length > 0 ? (
+                            <select
+                              value=""
+                              onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)}
+                              disabled={isSaving}
+                              className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs font-black text-slate-200 outline-none transition focus:border-slate-400 disabled:opacity-60"
+                            >
+                              <option value="">Set default facility</option>
+                              {departmentFacilities.map((facility) => (
+                                <option key={facility.id} value={facility.id}>
+                                  {facility.name}
+                                </option>
+                              ))}
+                            </select>
                           ) : (
                             'No default facility'
                           )}
@@ -1100,26 +1122,6 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                         <span className="hidden lg:inline text-slate-600">·</span>
                         <span className="hidden lg:inline">{formatNextSession(nextSession)}</span>
                       </p>
-
-                      {!isEditMode && needsFacilityAction ? (
-                        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                          {needsFacilityAction && departmentFacilities.length > 0 ? (
-                            <select
-                              value=""
-                              onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)}
-                              disabled={isSaving}
-                              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs font-black text-slate-200 outline-none transition focus:border-slate-400 disabled:opacity-60 sm:w-fit"
-                            >
-                              <option value="">Set default facility</option>
-                              {departmentFacilities.map((facility) => (
-                                <option key={facility.id} value={facility.id}>
-                                  {facility.name}
-                                </option>
-                              ))}
-                            </select>
-                          ) : null}
-                        </div>
-                      ) : null}
 
                       {!isEditMode ? (
                         <button
@@ -1133,7 +1135,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                     </div>
 
                     {isEditMode ? (
-                      <div className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 lg:w-[360px]">
+                      <div className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 lg:w-[300px]">
                         <div>
                           <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Head coach</p>
                           {pendingHeadInvite ? (
@@ -1155,27 +1157,6 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                                 ? 'invite pending'
                                 : 'manage in Staff'}
                           </p>
-                        </div>
-
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Default facility</p>
-                          {departmentFacilities.length > 0 ? (
-                            <select
-                              value={team.default_facility_id ?? ''}
-                              onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)}
-                              disabled={isSaving}
-                              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold outline-none focus:border-emerald-400 disabled:opacity-60"
-                            >
-                              <option value="">No default facility</option>
-                              {departmentFacilities.map((facility) => (
-                                <option key={facility.id} value={facility.id}>
-                                  {facility.name}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <p className="mt-2 text-xs leading-5 text-slate-500">Add a hall above before setting a default facility.</p>
-                          )}
                         </div>
                       </div>
                     ) : null}

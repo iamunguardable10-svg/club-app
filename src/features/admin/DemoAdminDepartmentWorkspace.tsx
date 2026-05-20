@@ -467,14 +467,18 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
           {departmentTeams.length > 0 ? (
             departmentTeams.map((team) => {
               const defaultFacility = team.defaultFacility ? facilityByName.get(team.defaultFacility) : null;
-              const needsDefaultFacility = !defaultFacility;
+              const needsDefaultFacility = !team.defaultFacility;
               const pendingHeadCoachInvite = invites.find((invite) => invite.status === 'pending' && invite.role === 'head_coach' && invite.team === team.name);
               const nextSession = nextSessionByTeam.get(team.id);
               return (
                 <article key={team.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-slate-700">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-xl font-black text-white">{team.name}</h3>
+                      <h3 className="text-xl font-black text-white">
+                        <Link href={`/demo/admin/teams/${encodeURIComponent(team.id)}`} className="transition hover:text-sky-200">
+                          {team.name}
+                        </Link>
+                      </h3>
                       <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold text-slate-300">
                         {pendingHeadCoachInvite ? (
                           <button
@@ -494,16 +498,23 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                           </button>
                         )}
                         <span className="hidden md:inline text-slate-600">·</span>
-                        <span className="hidden md:inline">
+                        <span>
                           {isEditMode && departmentFacilities.length > 0 ? (
                             <select value={team.defaultFacility ?? ''} onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)} className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs font-black text-slate-200 outline-none focus:border-emerald-400">
                               <option value="">No default facility</option>
                               {departmentFacilities.map((facility) => <option key={facility} value={facility}>{facility}</option>)}
                             </select>
+                          ) : isEditMode ? (
+                            'No department halls yet'
                           ) : defaultFacility ? (
                             <Link href={`/demo/admin/facilities/${encodeFacilityName(defaultFacility.name)}/calendar?from=team&departmentName=${encodeURIComponent(departmentName)}&teamName=${encodeURIComponent(team.name)}`} className="hover:text-emerald-200">
                               {defaultFacility.name}
                             </Link>
+                          ) : needsDefaultFacility && departmentFacilities.length > 0 ? (
+                            <select value="" onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)} className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs font-black text-slate-200 outline-none transition focus:border-slate-400">
+                              <option value="">Set default facility</option>
+                              {departmentFacilities.map((facility) => <option key={facility} value={facility}>{facility}</option>)}
+                            </select>
                           ) : (
                             'No default facility'
                           )}
@@ -515,35 +526,12 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                           {nextSession ? `Next ${new Date(nextSession.startsAt).toLocaleDateString(undefined, { weekday: 'short' })} ${new Date(nextSession.startsAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}` : 'No session yet'}
                         </span>
                       </p>
-                      {!isEditMode && needsDefaultFacility ? (
-                        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                          {needsDefaultFacility && departmentFacilities.length > 0 ? (
-                          <select value="" onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs font-black text-slate-200 outline-none transition focus:border-slate-400 sm:w-fit">
-                            <option value="">Set default facility</option>
-                            {departmentFacilities.map((facility) => <option key={facility} value={facility}>{facility}</option>)}
-                          </select>
-                          ) : null}
-                        </div>
-                      ) : null}
                       {!isEditMode ? (
                         <button type="button" onClick={() => setComposerTeamId(team.id)} className="mt-3 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200 transition hover:bg-slate-800">
                           Create session
                         </button>
                       ) : null}
                     </div>
-                    {isEditMode ? (
-                      <div className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 lg:w-[360px]">
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Default facility</p>
-                          {departmentFacilities.length > 0 ? (
-                            <select value={team.defaultFacility ?? ''} onChange={(event) => handleSetDefaultFacility(team.id, event.target.value)} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold outline-none focus:border-emerald-400">
-                              <option value="">No default facility</option>
-                              {departmentFacilities.map((facility) => <option key={facility} value={facility}>{facility}</option>)}
-                            </select>
-                          ) : <p className="mt-2 text-xs leading-5 text-slate-500">Add a hall above first.</p>}
-                        </div>
-                      </div>
-                    ) : null}
                   </div>
                 </article>
               );

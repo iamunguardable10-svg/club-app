@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { AdminShell } from '@/shared/admin/AdminShell';
-import { getDemoClubSetup, getDemoSessions, getDemoTeams, type DemoClubSetup, type DemoSession, type DemoTeam } from '@/shared/dev/demoStorage';
+import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoTeams, type DemoClubSetup, type DemoSession, type DemoTeam } from '@/shared/dev/demoStorage';
 import { TeamWorkspaceView, type TeamWorkspaceData } from './TeamWorkspaceView';
 
 type DemoInvite = {
@@ -40,6 +40,12 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
     setInvites(getDemoInvites());
   }, []);
 
+  function handleDefaultFacilityChange(facility: string) {
+    const nextTeams = teams.map((team) => team.id === teamId ? { ...team, defaultFacility: facility || null } : team);
+    saveDemoTeams(nextTeams);
+    setTeams(nextTeams);
+  }
+
   const data = useMemo<TeamWorkspaceData | null>(() => {
     const team = teams.find((item) => item.id === teamId);
     if (!team) return null;
@@ -52,7 +58,9 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
       id: team.id,
       name: team.name,
       departmentName: team.department,
+      defaultFacilityId: team.defaultFacility,
       defaultFacilityName: team.defaultFacility,
+      availableFacilities: (setup?.facilities ?? []).map((facility) => ({ id: facility, name: facility })),
       playerCount: 0,
       role: 'admin',
       staff: {
@@ -73,8 +81,9 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
       ],
       backHref: '/demo/admin/teams',
       calendarHref: team.defaultFacility ? `/demo/admin/facilities/${encodeURIComponent(team.defaultFacility)}/calendar?from=team&teamName=${encodeURIComponent(team.name)}&departmentName=${encodeURIComponent(team.department)}` : null,
+      staffHref: `/demo/admin/people?departmentName=${encodeURIComponent(team.department)}&teamName=${encodeURIComponent(team.name)}`,
     };
-  }, [invites, sessions, teamId, teams]);
+  }, [invites, sessions, setup?.facilities, teamId, teams]);
 
   if (!setup) {
     return (
@@ -97,7 +106,7 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
 
   return (
     <AdminShell mode="demo">
-      <TeamWorkspaceView data={data} />
+      <TeamWorkspaceView data={data} onDefaultFacilityChange={handleDefaultFacilityChange} />
     </AdminShell>
   );
 }

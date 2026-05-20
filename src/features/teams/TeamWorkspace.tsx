@@ -32,6 +32,7 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [departmentFacilityIds, setDepartmentFacilityIds] = useState<string[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
 
@@ -65,16 +66,17 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
       }
 
       const loadedTeam = teamResult.data as Team;
-      const [departmentResult, facilityResult, membershipsResult, clubMembershipsResult, sessionsResult, facilitiesResult] = await Promise.all([
+      const [departmentResult, facilityResult, membershipsResult, clubMembershipsResult, sessionsResult, facilitiesResult, departmentFacilitiesResult] = await Promise.all([
         supabase.from('departments').select('id, club_id, name').eq('id', loadedTeam.department_id).single(),
         loadedTeam.default_facility_id ? supabase.from('facilities').select('id, name').eq('id', loadedTeam.default_facility_id).single() : Promise.resolve({ data: null, error: null }),
         supabase.from('team_memberships').select('user_id, role, status').eq('team_id', loadedTeam.id),
         supabase.from('club_memberships').select('role, department_id').eq('club_id', loadedTeam.club_id).eq('user_id', user.id).eq('status', 'active'),
         supabase.from('sessions').select('id, title, starts_at, ends_at, facility_id').eq('owner_team_id', loadedTeam.id).order('starts_at'),
         supabase.from('facilities').select('id, name').eq('club_id', loadedTeam.club_id).order('name'),
+        supabase.from('department_facilities').select('facility_id').eq('department_id', loadedTeam.department_id),
       ]);
 
-      const firstError = departmentResult.error ?? facilityResult.error ?? membershipsResult.error ?? clubMembershipsResult.error ?? sessionsResult.error ?? facilitiesResult.error;
+      const firstError = departmentResult.error ?? facilityResult.error ?? membershipsResult.error ?? clubMembershipsResult.error ?? sessionsResult.error ?? facilitiesResult.error ?? departmentFacilitiesResult.error;
       if (firstError) {
         setError(firstError.message);
         setState('error');
@@ -102,6 +104,7 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
       setClubMemberships((clubMembershipsResult.data ?? []) as ClubMembership[]);
       setSessions((sessionsResult.data ?? []) as Session[]);
       setFacilities((facilitiesResult.data ?? []) as Facility[]);
+      setDepartmentFacilityIds(((departmentFacilitiesResult.data ?? []) as { facility_id: string }[]).map((item) => item.facility_id));
       setProfiles(loadedProfiles);
       setState('ready');
     }
@@ -115,6 +118,19 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
   const profileById = useMemo(() => new Map(profiles.map((profile) => [profile.id, profile])), [profiles]);
   const facilityById = useMemo(() => new Map(facilities.map((item) => [item.id, item])), [facilities]);
 
+  async function handleDefaultFacilityChange(facilityId: string) {
+    if (!team) return;
+    const supabase = createBrowserSupabaseClient();
+    const { error: updateError } = await supabase.from('teams').update({ default_facility_id: facilityId || null }).eq('id', team.id);
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+
+    setTeam((current) => current ? { ...current, default_facility_id: facilityId || null } : current);
+    setFacility(facilityId ? facilityById.get(facilityId) ?? null : null);
+  }
+
   const data = useMemo<TeamWorkspaceData | null>(() => {
     if (!team || !department) return null;
     const activeMemberships = memberships.filter((membership) => membership.status === 'active');
@@ -127,7 +143,9 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
       id: team.id,
       name: team.name,
       departmentName: department.name,
+      defaultFacilityId: team.default_facility_id,
       defaultFacilityName: facility?.name ?? null,
+      availableFacilities: facilities.filter((item) => departmentFacilityIds.includes(item.id)).map((item) => ({ id: item.id, name: item.name })),
       playerCount: activeMemberships.filter((membership) => membership.role === 'athlete').length,
       role,
       staff: {
@@ -148,8 +166,9 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
       ],
       backHref: '/admin/teams',
       calendarHref: team.default_facility_id ? `/admin/facilities/${team.default_facility_id}/calendar?from=team&teamId=${team.id}&departmentId=${team.department_id}` : null,
+      staffHref: `/admin/people?departmentId=${team.department_id}&teamId=${team.id}`,
     };
-  }, [clubMemberships, department, facilities, facility, facilityById, memberships, profileById, sessions, team]);
+  }, [clubMemberships, department, departmentFacilityIds, facilities, facility, facilityById, memberships, profileById, sessions, team]);
 
   if (state === 'loading') return <AdminShell><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">Loading team...</section></AdminShell>;
   if (state === 'error') return <AdminShell><section className="rounded-3xl border border-red-500/40 bg-red-950/20 p-6 text-red-100">{error}</section></AdminShell>;
@@ -157,7 +176,7 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
 
   return (
     <AdminShell>
-      <TeamWorkspaceView data={data} />
+      <TeamWorkspaceView data={data} onDefaultFacilityChange={handleDefaultFacilityChange} />
     </AdminShell>
   );
 }
