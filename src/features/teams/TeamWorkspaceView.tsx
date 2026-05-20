@@ -34,11 +34,14 @@ export type TeamWorkspaceData = {
   role: TeamWorkspaceRole;
   staff: TeamWorkspaceStaff;
   sessions: TeamWorkspaceSession[];
+  contextSessions?: TeamWorkspaceSession[];
   groups: { id: string; name: string; description: string; playerCount: number }[];
   backHref: string;
   calendarHref?: string | null;
   staffHref?: string | null;
 };
+
+type TeamCalendarDrag = { sessionId: string; kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date; minutesPerPixel: number };
 
 const calendarHours = Array.from({ length: 17 }, (_, index) => index + 7);
 const firstHour = calendarHours[0] ?? 7;
@@ -66,6 +69,30 @@ function buildWeekDays() {
 
 function sameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function addMinutes(date: Date, minutes: number) {
+  return new Date(date.getTime() + minutes * 60_000);
+}
+
+function roundToSlot(minutes: number) {
+  return Math.round(minutes / 15) * 15;
+}
+
+function minutesFromDayStart(value: string | Date) {
+  const date = typeof value === 'string' ? new Date(value) : value;
+  return (date.getHours() - firstHour) * 60 + date.getMinutes();
+}
+
+function createDateForCalendarMinute(day: Date, minutes: number) {
+  const next = new Date(day);
+  next.setHours(firstHour, 0, 0, 0);
+  next.setMinutes(minutes);
+  return next;
+}
+
+function durationMinutes(start: Date, end: Date) {
+  return Math.max(30, Math.round((end.getTime() - start.getTime()) / 60_000));
 }
 
 function formatTimeRange(startsAt: string, endsAt: string | null) {
@@ -100,7 +127,7 @@ function EmptyCard({ title, description }: { title: string; description: string 
   );
 }
 
-function TeamSmartCalendar({ data }: { data: TeamWorkspaceData }) {
+function TeamSmartCalendar({ data, onSessionTimeChange }: { data: TeamWorkspaceData; onSessionTimeChange?: (sessionId: string, startsAt: string, endsAt: string) => void | Promise<void> }) {
   const days = useMemo(() => buildWeekDays(), []);
   const todayIndex = useMemo(() => Math.max(0, days.findIndex((day) => sameDay(day, new Date()))), [days]);
   const [activeDayIndex, setActiveDayIndex] = useState(todayIndex);
@@ -108,23 +135,45 @@ function TeamSmartCalendar({ data }: { data: TeamWorkspaceData }) {
   const [dayTransitionDirection, setDayTransitionDirection] = useState<'next' | 'previous' | null>(null);
   const [desktopHourHeight, setDesktopHourHeight] = useState(baseDesktopHourHeight);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const [drag, setDrag] = useState<TeamCalendarDrag | null>(null);
+  const [localSessions, setLocalSessions] = useState<TeamWorkspaceSession[]>(data.sessions);
+  const didDragRef = useRef(false);
   const calendarScrollRef = useRef<HTMLDivElement | null>(null);
   const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
   const dayTransitionTimeoutRef = useRef<number | null>(null);
   const mobileDaySwipeRef = useRef<{ startX: number; startY: number } | null>(null);
 
-  const smartSessions = useMemo<SmartCalendarSession[]>(() => data.sessions.map((session) => ({
-    id: session.id,
-    title: session.title,
-    startsAt: session.startsAt,
-    endsAt: session.endsAt,
-    teamName: data.name,
-    departmentName: data.departmentName,
-    tone: 'primary',
-    canManage: false,
-  })), [data.departmentName, data.name, data.sessions]);
+  const canManageCalendar = data.role !== 'viewer' && Boolean(onSessionTimeChange);
+  useEffect(() => {
+    if (!drag) setLocalSessions(data.sessions);
+  }, [data.sessions, drag]);
 
-  const selectedSession = data.sessions.find((session) => session.id === selectedSessionId) ?? null;
+  const smartSessions = useMemo<SmartCalendarSession[]>(() => {
+    const primary = localSessions.map((session) => ({
+      id: session.id,
+      title: session.title,
+      startsAt: session.startsAt,
+      endsAt: session.endsAt,
+      teamName: data.name,
+      departmentName: data.departmentName,
+      tone: 'primary' as const,
+      canManage: canManageCalendar,
+    }));
+    const context = drag ? (data.contextSessions ?? []).map((session) => ({
+      id: `context-${session.id}`,
+      title: session.title,
+      startsAt: session.startsAt,
+      endsAt: session.endsAt,
+      teamName: session.facilityName ?? 'Other booking',
+      departmentName: 'Same hall',
+      tone: 'muted' as const,
+      canManage: false,
+    })) : [];
+    return [...primary, ...context];
+  }, [canManageCalendar, data.contextSessions, data.departmentName, data.name, drag, localSessions]);
+
+  const selectedSession = localSessions.find((session) => session.id === selectedSessionId) ?? null;
 
   useEffect(() => {
     function updateDesktopScale() {
@@ -159,6 +208,10 @@ function TeamSmartCalendar({ data }: { data: TeamWorkspaceData }) {
   }
 
   function handleMobileDaySwipeStart(event: PointerEvent<HTMLDivElement>) {
+    if (mode !== 'view' || (event.target as HTMLElement).closest('[data-calendar-session]')) {
+      mobileDaySwipeRef.current = null;
+      return;
+    }
     mobileDaySwipeRef.current = { startX: event.clientX, startY: event.clientY };
   }
 
@@ -175,6 +228,11 @@ function TeamSmartCalendar({ data }: { data: TeamWorkspaceData }) {
 
   function handleSessionClick(session: SmartCalendarSession, event: MouseEvent<HTMLElement>) {
     event.stopPropagation();
+    if (didDragRef.current) {
+      didDragRef.current = false;
+      return;
+    }
+    if (session.id.startsWith('context-')) return;
     setSelectedSessionId(session.id);
   }
 
@@ -184,11 +242,103 @@ function TeamSmartCalendar({ data }: { data: TeamWorkspaceData }) {
     setSelectedSessionId(session.id);
   }
 
+  function startSessionDrag(session: SmartCalendarSession, kind: 'move' | 'resize', event: PointerEvent<HTMLElement>) {
+    event.stopPropagation();
+    if (mode !== 'edit' || !canManageCalendar || !session.canManage) return;
+    event.preventDefault();
+    didDragRef.current = false;
+    setSelectedSessionId(null);
+    const start = new Date(session.startsAt);
+    setDrag({
+      sessionId: session.id,
+      kind,
+      startX: event.clientX,
+      startY: event.clientY,
+      originalStart: start,
+      originalEnd: session.endsAt ? new Date(session.endsAt) : addMinutes(start, 60),
+      minutesPerPixel: window.innerWidth < 768 ? 60 / mobileHourHeight : 60 / desktopHourHeight,
+    });
+  }
+
+  useEffect(() => {
+    if (!drag) return;
+    const activeDrag = drag;
+    let latestStart = activeDrag.originalStart;
+    let latestEnd = activeDrag.originalEnd;
+
+    function dayIndexFromPointer(clientX: number) {
+      const hitIndex = dayRefs.current.findIndex((element) => {
+        if (!element) return false;
+        const rect = element.getBoundingClientRect();
+        return clientX >= rect.left && clientX <= rect.right;
+      });
+      if (window.innerWidth < 768) {
+        const originalIndex = days.findIndex((day) => sameDay(activeDrag.originalStart, day));
+        const baseIndex = originalIndex >= 0 ? originalIndex : activeDayIndex;
+        if (mobileCalendarView === 'day') {
+          const deltaX = clientX - activeDrag.startX;
+          const threshold = Math.max(120, window.innerWidth * 0.34);
+          if (Math.abs(deltaX) < threshold) return baseIndex;
+          return clamp(baseIndex + (deltaX > 0 ? 1 : -1), 0, days.length - 1);
+        }
+        return clamp(Math.floor((clientX / Math.max(window.innerWidth, 1)) * days.length), 0, days.length - 1);
+      }
+      if (hitIndex >= 0) return hitIndex;
+      const currentIndex = days.findIndex((day) => sameDay(latestStart, day));
+      return currentIndex >= 0 ? currentIndex : 0;
+    }
+
+    function applyTimes(start: Date, end: Date) {
+      latestStart = start;
+      latestEnd = end;
+      setSelectedSessionId(null);
+      setLocalSessions((current) =>
+        current.map((session) =>
+          session.id === activeDrag.sessionId ? { ...session, startsAt: start.toISOString(), endsAt: end.toISOString() } : session,
+        ),
+      );
+    }
+
+    function handlePointerMove(event: globalThis.PointerEvent) {
+      const originalDuration = durationMinutes(activeDrag.originalStart, activeDrag.originalEnd);
+      const currentStartMinutes = minutesFromDayStart(activeDrag.originalStart);
+      const deltaMinutes = roundToSlot((event.clientY - activeDrag.startY) * activeDrag.minutesPerPixel);
+      const maxMinutes = (lastHour - firstHour) * 60;
+      if (Math.abs(event.clientY - activeDrag.startY) > 3 || Math.abs(event.clientX - activeDrag.startX) > 3) didDragRef.current = true;
+      if (window.innerWidth < 768 && calendarScrollRef.current) {
+        const rect = calendarScrollRef.current.getBoundingClientRect();
+        if (event.clientY < rect.top + 44) calendarScrollRef.current.scrollTop -= 16;
+        if (event.clientY > rect.bottom - 44) calendarScrollRef.current.scrollTop += 16;
+      }
+      if (activeDrag.kind === 'resize') {
+        const nextDuration = clamp(originalDuration + deltaMinutes, 30, maxMinutes - currentStartMinutes);
+        applyTimes(activeDrag.originalStart, addMinutes(activeDrag.originalStart, nextDuration));
+        return;
+      }
+      const targetDay = days[dayIndexFromPointer(event.clientX)];
+      const nextStartMinutes = clamp(currentStartMinutes + deltaMinutes, 0, maxMinutes - originalDuration);
+      const nextStart = createDateForCalendarMinute(targetDay, nextStartMinutes);
+      applyTimes(nextStart, addMinutes(nextStart, originalDuration));
+    }
+
+    function handlePointerUp() {
+      setDrag(null);
+      void onSessionTimeChange?.(activeDrag.sessionId, latestStart.toISOString(), latestEnd.toISOString());
+    }
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp, { once: true });
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [activeDayIndex, days, desktopHourHeight, drag, mobileCalendarView, onSessionTimeChange]);
+
   return (
     <div className="mt-5 space-y-4">
       <SmartSessionCalendar
-        mode="view"
-        canCreateSessions={false}
+        mode={mode}
+        canCreateSessions={canManageCalendar}
         days={days}
         hours={calendarHours}
         firstHour={firstHour}
@@ -203,10 +353,10 @@ function TeamSmartCalendar({ data }: { data: TeamWorkspaceData }) {
         dayTransitionDirection={dayTransitionDirection}
         sessions={smartSessions}
         draft={null}
-        dragSessionId={null}
+        dragSessionId={drag?.sessionId ?? null}
         calendarScrollRef={calendarScrollRef}
         setDayRef={(index, element) => { dayRefs.current[index] = element; }}
-        onSetMode={() => undefined}
+        onSetMode={setMode}
         onClearDraft={() => undefined}
         onMobileDaySelect={switchMobileDay}
         onMobileCalendarViewChange={setMobileCalendarView}
@@ -214,7 +364,7 @@ function TeamSmartCalendar({ data }: { data: TeamWorkspaceData }) {
         onMobileDaySwipeEnd={handleMobileDaySwipeEnd}
         onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }}
         onSlotPointerDown={() => undefined}
-        onSessionPointerDown={() => undefined}
+        onSessionPointerDown={startSessionDrag}
         onSessionClick={handleSessionClick}
         onSessionKeyDown={handleSessionKeyDown}
         onDraftPointerDown={() => undefined}
@@ -234,7 +384,19 @@ function TeamSmartCalendar({ data }: { data: TeamWorkspaceData }) {
   );
 }
 
-export function TeamWorkspaceView({ data, onDefaultFacilityChange }: { data: TeamWorkspaceData; onDefaultFacilityChange?: (facilityId: string) => void | Promise<void> }) {
+export function TeamWorkspaceView({
+  data,
+  onDefaultFacilityChange,
+  onSessionTimeChange,
+  onAddDemoPlayers,
+  onInviteStaff,
+}: {
+  data: TeamWorkspaceData;
+  onDefaultFacilityChange?: (facilityId: string) => void | Promise<void>;
+  onSessionTimeChange?: (sessionId: string, startsAt: string, endsAt: string) => void | Promise<void>;
+  onAddDemoPlayers?: () => void | Promise<void>;
+  onInviteStaff?: (role: 'head_coach' | 'assistant_coach') => void | Promise<void>;
+}) {
   const [activeSection, setActiveSection] = useState<TeamWorkspaceSection>('dashboard');
   const [isSavingDefault, setIsSavingDefault] = useState(false);
   const nextSession = useMemo(() => {
@@ -244,18 +406,18 @@ export function TeamWorkspaceView({ data, onDefaultFacilityChange }: { data: Tea
 
   const setupActions = [
     data.staff.headCoaches.length === 0
-      ? { id: 'head-coach', label: 'Invite head coach', description: 'This team has no head coach assigned yet.', action: data.staffHref ? 'staff' as const : 'none' as const }
+      ? { id: 'head-coach', label: 'Invite head coach', description: 'This team has no head coach assigned yet.', action: onInviteStaff ? 'headStaff' as const : data.staffHref ? 'staff' as const : 'none' as const }
       : null,
     !data.defaultFacilityName
       ? { id: 'default-facility', label: 'Set default facility', description: 'Sessions need a sensible default hall.', action: 'settings' as const }
       : null,
     data.playerCount === 0
-      ? { id: 'players', label: 'Add players', description: 'Roster is still empty.', action: 'players' as const }
+      ? { id: 'players', label: onAddDemoPlayers ? 'Add demo players' : 'Add players', description: 'Roster is still empty.', action: onAddDemoPlayers ? 'demoPlayers' as const : 'players' as const }
       : null,
-  ].filter(Boolean) as { id: string; label: string; description: string; action: 'staff' | 'settings' | 'players' | 'none' }[];
+  ].filter(Boolean) as { id: string; label: string; description: string; action: 'staff' | 'headStaff' | 'settings' | 'players' | 'demoPlayers' | 'none' }[];
 
-  const primarySections: TeamWorkspaceSection[] = ['dashboard', 'calendar', 'players', 'groups'];
-  const desktopSections: TeamWorkspaceSection[] = [...primarySections, 'settings'];
+  const primarySections: TeamWorkspaceSection[] = ['dashboard', 'calendar', 'players', 'groups', 'settings'];
+  const desktopSections: TeamWorkspaceSection[] = primarySections;
 
   async function handleDefaultFacilityChange(facilityId: string) {
     if (!onDefaultFacilityChange) return;
@@ -265,6 +427,12 @@ export function TeamWorkspaceView({ data, onDefaultFacilityChange }: { data: Tea
     } finally {
       setIsSavingDefault(false);
     }
+  }
+
+  async function handleAddDemoPlayers() {
+    if (!onAddDemoPlayers) return;
+    await onAddDemoPlayers();
+    setActiveSection('players');
   }
 
   return (
@@ -323,8 +491,10 @@ export function TeamWorkspaceView({ data, onDefaultFacilityChange }: { data: Tea
               <div className="mt-4 grid gap-2">
                 {setupActions.map((item) => {
                   const className = 'rounded-xl border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-left text-sm font-bold text-amber-100 transition hover:border-amber-300/60';
+                  if (item.action === 'headStaff') return <button key={item.id} type="button" onClick={() => onInviteStaff?.('head_coach')} className={className}><span className="block">{item.label}</span><span className="mt-1 block text-xs font-medium text-amber-100/70">{item.description}</span></button>;
                   if (item.action === 'staff' && data.staffHref) return <Link key={item.id} href={data.staffHref} className={className}><span className="block">{item.label}</span><span className="mt-1 block text-xs font-medium text-amber-100/70">{item.description}</span></Link>;
                   if (item.action === 'settings') return <button key={item.id} type="button" onClick={() => setActiveSection('settings')} className={className}><span className="block">{item.label}</span><span className="mt-1 block text-xs font-medium text-amber-100/70">{item.description}</span></button>;
+                  if (item.action === 'demoPlayers') return <button key={item.id} type="button" onClick={handleAddDemoPlayers} className={className}><span className="block">{item.label}</span><span className="mt-1 block text-xs font-medium text-amber-100/70">{item.description}</span></button>;
                   if (item.action === 'players') return <button key={item.id} type="button" onClick={() => setActiveSection('players')} className={className}><span className="block">{item.label}</span><span className="mt-1 block text-xs font-medium text-amber-100/70">{item.description}</span></button>;
                   return <div key={item.id} className={className}>{item.label}</div>;
                 })}
@@ -351,7 +521,7 @@ export function TeamWorkspaceView({ data, onDefaultFacilityChange }: { data: Tea
             </div>
             {data.calendarHref ? <Link href={data.calendarHref} className="rounded-xl border border-sky-500/60 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Open facility calendar</Link> : null}
           </div>
-          <TeamSmartCalendar data={data} />
+          <TeamSmartCalendar data={data} onSessionTimeChange={onSessionTimeChange} />
           {data.sessions.length === 0 ? <div className="mt-5"><EmptyCard title="No team sessions yet" description="This is already the filtered Untis-style team calendar; new team sessions will appear here." /></div> : null}
         </section>
       ) : null}
@@ -362,7 +532,14 @@ export function TeamWorkspaceView({ data, onDefaultFacilityChange }: { data: Tea
           <h2 className="mt-2 text-2xl font-black">Players</h2>
           <div className="mt-5 grid gap-3 md:grid-cols-2">
             <EmptyCard title={`${data.playerCount} players`} description="Player profiles, availability and attendance history will live here." />
-            <EmptyCard title="Invite players" description="Prepared for the player invite link / team code flow." />
+            {onAddDemoPlayers ? (
+              <button type="button" onClick={handleAddDemoPlayers} className="rounded-2xl border border-emerald-500/40 bg-emerald-950/20 p-4 text-left transition hover:border-emerald-300/70">
+                <p className="text-sm font-black text-emerald-100">Add demo players</p>
+                <p className="mt-1 text-sm text-emerald-100/70">Adds a realistic demo roster without sending real invites.</p>
+              </button>
+            ) : (
+              <EmptyCard title="Invite players" description="Prepared for the player invite link / team code flow." />
+            )}
           </div>
         </section>
       ) : null}
@@ -395,7 +572,7 @@ export function TeamWorkspaceView({ data, onDefaultFacilityChange }: { data: Tea
                   value={data.defaultFacilityId ?? ''}
                   onChange={(event) => handleDefaultFacilityChange(event.target.value)}
                   disabled={!onDefaultFacilityChange || isSavingDefault}
-                  className="mt-3 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold text-slate-100 outline-none focus:border-emerald-400 disabled:opacity-60"
+                  className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs font-black text-slate-200 outline-none focus:border-emerald-400 disabled:opacity-60"
                 >
                   <option value="">No default facility</option>
                   {data.availableFacilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
@@ -407,6 +584,14 @@ export function TeamWorkspaceView({ data, onDefaultFacilityChange }: { data: Tea
             <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
               <p className="text-sm font-black text-slate-100">Staff roles</p>
               <p className="mt-1 text-sm text-slate-400">Invite head, assistant or custom coaches through Staff so invite state stays centralized.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {onInviteStaff ? (
+                  <>
+                    <button type="button" onClick={() => onInviteStaff('head_coach')} className="rounded-xl border border-sky-500/60 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Invite head coach</button>
+                    <button type="button" onClick={() => onInviteStaff('assistant_coach')} className="rounded-xl border border-sky-500/60 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Invite assistant</button>
+                  </>
+                ) : null}
+              </div>
               {data.staffHref ? <Link href={data.staffHref} className="mt-3 inline-flex rounded-xl border border-sky-500/60 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Open Staff</Link> : null}
             </div>
           </div>
@@ -414,7 +599,7 @@ export function TeamWorkspaceView({ data, onDefaultFacilityChange }: { data: Tea
       ) : null}
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950/95 p-2 backdrop-blur md:hidden" aria-label="Team mobile navigation">
-        <div className="mx-auto grid max-w-lg grid-cols-4 gap-1">
+        <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
           {primarySections.map((section) => (
             <button key={section} type="button" onClick={() => setActiveSection(section)} className={`rounded-xl px-2 py-2 text-[11px] font-black ${activeSection === section ? 'bg-sky-300 text-slate-950' : 'text-slate-300'}`}>
               {sectionLabel(section)}

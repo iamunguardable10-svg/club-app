@@ -15,6 +15,7 @@ type DemoInvite = {
   role: DemoInviteRole;
   department: string;
   team: string | null;
+  coachRoleSlotId?: string | null;
   status: 'pending' | 'accepted' | 'revoked' | 'expired';
   createdAt: string;
   expiresAt: string | null;
@@ -124,7 +125,7 @@ export function DemoAdminPeopleManager() {
   const latestInviteByScope = useMemo(() => {
     const map = new Map<string, DemoInvite>();
     for (const invite of invites) {
-      const key = `${invite.role}:${invite.department}:${invite.team ?? ''}`;
+      const key = `${invite.role}:${invite.department}:${invite.team ?? ''}:${invite.coachRoleSlotId ?? ''}`;
       if (!map.has(key)) map.set(key, invite);
     }
     return map;
@@ -180,8 +181,8 @@ export function DemoAdminPeopleManager() {
     persistInvites([invite, ...invites]);
   }
 
-  async function handleQuickInvite(role: DemoInviteRole, department: string, team?: string | null) {
-    const existing = invites.find((invite) => invite.status === 'pending' && invite.role === role && invite.department === department && (invite.team ?? null) === (team ?? null));
+  async function handleQuickInvite(role: DemoInviteRole, department: string, team?: string | null, coachRoleSlotId?: string | null) {
+    const existing = invites.find((invite) => invite.status === 'pending' && invite.role === role && invite.department === department && (invite.team ?? null) === (team ?? null) && (invite.coachRoleSlotId ?? null) === (coachRoleSlotId ?? null));
     if (existing) {
       await handleCopy(existing.token);
       return;
@@ -193,6 +194,7 @@ export function DemoAdminPeopleManager() {
       role,
       department,
       team: team ?? null,
+      coachRoleSlotId: coachRoleSlotId ?? null,
       status: 'pending',
       createdAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
@@ -262,7 +264,7 @@ export function DemoAdminPeopleManager() {
         <h2 className="mt-2 text-xl font-black">Departments and teams</h2>
         <div className="mt-4 grid gap-3">
           {setup.departments.map((department) => {
-            const leadInvite = latestInviteByScope.get(`department_lead:${department}:`);
+            const leadInvite = latestInviteByScope.get(`department_lead:${department}::`);
             const leadStatus = leadInvite?.status === 'accepted' ? 'accepted' : leadInvite?.status === 'pending' ? 'pending' : 'missing';
             const departmentTeams = teams.filter((team) => team.department === department);
             const isExpanded = expandedDepartments[department] ?? true;
@@ -292,8 +294,8 @@ export function DemoAdminPeopleManager() {
 
                 {isExpanded ? <div className="mt-4 grid gap-3">
                   {departmentTeams.length > 0 ? departmentTeams.map((team) => {
-                    const headInvite = latestInviteByScope.get(`head_coach:${department}:${team.name}`);
-                    const assistantInvite = latestInviteByScope.get(`assistant_coach:${department}:${team.name}`);
+                    const headInvite = latestInviteByScope.get(`head_coach:${department}:${team.name}:`);
+                    const assistantInvite = latestInviteByScope.get(`assistant_coach:${department}:${team.name}:`);
                     const headStatus = headInvite?.status === 'accepted' ? 'accepted' : headInvite?.status === 'pending' ? 'pending' : 'missing';
                     const assistantStatus = assistantInvite?.status === 'accepted' ? 'accepted' : assistantInvite?.status === 'pending' ? 'pending' : 'missing';
 
@@ -322,15 +324,23 @@ export function DemoAdminPeopleManager() {
                             ) : <button type="button" onClick={() => handleQuickInvite('assistant_coach', department, team.name)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:bg-slate-800">Invite</button>}
                           </div>
                         </div>
-                        {extraCoachRoles.filter((role) => role.department === department && role.team === team.name).map((role) => (
-                          <div key={role.id}>
-                            <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{role.label}</p>
-                            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
-                              <button type="button" onClick={() => handleQuickInvite('assistant_coach', department, team.name)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:bg-slate-800">Invite</button>
-                              {isEditMode ? <button type="button" onClick={() => handleRemoveExtraRole(role.id)} className="rounded-lg border border-red-500/60 px-2.5 py-1 text-xs font-black text-red-200 hover:bg-red-950/40">Remove</button> : null}
+                        {extraCoachRoles.filter((role) => role.department === department && role.team === team.name).map((role) => {
+                          const roleInvite = latestInviteByScope.get(`assistant_coach:${department}:${team.name}:${role.id}`);
+                          return (
+                            <div key={role.id}>
+                              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{role.label}</p>
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
+                                {roleInvite?.status === 'pending' ? (
+                                  <>
+                                    <span>Invite pending</span>
+                                    <button type="button" onClick={() => handleQuickInvite('assistant_coach', department, team.name, role.id)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:bg-slate-800">{copiedToken === roleInvite.token ? 'Copied' : 'Copy'}</button>
+                                  </>
+                                ) : <button type="button" onClick={() => handleQuickInvite('assistant_coach', department, team.name, role.id)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:bg-slate-800">Invite</button>}
+                                {isEditMode ? <button type="button" onClick={() => handleRemoveExtraRole(role.id)} className="rounded-lg border border-red-500/60 px-2.5 py-1 text-xs font-black text-red-200 hover:bg-red-950/40">Remove</button> : null}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                         {isEditMode ? (
                           <div className="md:col-span-3 rounded-xl border border-dashed border-slate-700 p-3">
                             <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Add coach role</p>

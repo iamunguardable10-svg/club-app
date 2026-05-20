@@ -14,6 +14,12 @@ type ClubMembership = { role: 'club_admin' | 'department_lead'; department_id: s
 type Profile = { id: string; full_name: string; email: string | null };
 type Session = { id: string; title: string; starts_at: string; ends_at: string | null; facility_id: string | null };
 
+function createInviteToken() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 function isMissingAuthSessionError(message?: string) {
   return message?.toLowerCase().includes('auth session missing') ?? false;
 }
@@ -31,6 +37,7 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
   const [clubMemberships, setClubMemberships] = useState<ClubMembership[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [contextSessions, setContextSessions] = useState<Session[]>([]);
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [departmentFacilityIds, setDepartmentFacilityIds] = useState<string[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -66,7 +73,7 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
       }
 
       const loadedTeam = teamResult.data as Team;
-      const [departmentResult, facilityResult, membershipsResult, clubMembershipsResult, sessionsResult, facilitiesResult, departmentFacilitiesResult] = await Promise.all([
+      const [departmentResult, facilityResult, membershipsResult, clubMembershipsResult, sessionsResult, facilitiesResult, departmentFacilitiesResult, contextSessionsResult] = await Promise.all([
         supabase.from('departments').select('id, club_id, name').eq('id', loadedTeam.department_id).single(),
         loadedTeam.default_facility_id ? supabase.from('facilities').select('id, name').eq('id', loadedTeam.default_facility_id).single() : Promise.resolve({ data: null, error: null }),
         supabase.from('team_memberships').select('user_id, role, status').eq('team_id', loadedTeam.id),
@@ -74,9 +81,12 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
         supabase.from('sessions').select('id, title, starts_at, ends_at, facility_id').eq('owner_team_id', loadedTeam.id).order('starts_at'),
         supabase.from('facilities').select('id, name').eq('club_id', loadedTeam.club_id).order('name'),
         supabase.from('department_facilities').select('facility_id').eq('department_id', loadedTeam.department_id),
+        loadedTeam.default_facility_id
+          ? supabase.from('sessions').select('id, title, starts_at, ends_at, facility_id').eq('facility_id', loadedTeam.default_facility_id).neq('owner_team_id', loadedTeam.id).order('starts_at')
+          : Promise.resolve({ data: [], error: null }),
       ]);
 
-      const firstError = departmentResult.error ?? facilityResult.error ?? membershipsResult.error ?? clubMembershipsResult.error ?? sessionsResult.error ?? facilitiesResult.error ?? departmentFacilitiesResult.error;
+      const firstError = departmentResult.error ?? facilityResult.error ?? membershipsResult.error ?? clubMembershipsResult.error ?? sessionsResult.error ?? facilitiesResult.error ?? departmentFacilitiesResult.error ?? contextSessionsResult.error;
       if (firstError) {
         setError(firstError.message);
         setState('error');
@@ -103,6 +113,7 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
       setMemberships(loadedMemberships);
       setClubMemberships((clubMembershipsResult.data ?? []) as ClubMembership[]);
       setSessions((sessionsResult.data ?? []) as Session[]);
+      setContextSessions((contextSessionsResult.data ?? []) as Session[]);
       setFacilities((facilitiesResult.data ?? []) as Facility[]);
       setDepartmentFacilityIds(((departmentFacilitiesResult.data ?? []) as { facility_id: string }[]).map((item) => item.facility_id));
       setProfiles(loadedProfiles);
@@ -129,6 +140,45 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
 
     setTeam((current) => current ? { ...current, default_facility_id: facilityId || null } : current);
     setFacility(facilityId ? facilityById.get(facilityId) ?? null : null);
+  }
+
+  async function handleSessionTimeChange(sessionId: string, startsAt: string, endsAt: string) {
+    const supabase = createBrowserSupabaseClient();
+    const { error: updateError } = await supabase.from('sessions').update({ starts_at: startsAt, ends_at: endsAt }).eq('id', sessionId);
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+    setSessions((current) => current.map((session) => (session.id === sessionId ? { ...session, starts_at: startsAt, ends_at: endsAt } : session)));
+  }
+
+  function getInviteUrl(token: string) {
+    if (typeof window === 'undefined') return `/invite/${token}`;
+    return `${window.location.origin}/invite/${token}`;
+  }
+
+  async function handleInviteStaff(role: 'head_coach' | 'assistant_coach') {
+    if (!team) return;
+    const supabase = createBrowserSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const token = createInviteToken();
+    const { error: insertError } = await supabase.from('invites').insert({
+      token,
+      club_id: team.club_id,
+      department_id: team.department_id,
+      team_id: team.id,
+      role,
+      invite_type: 'coach_invite',
+      created_by: user?.id ?? null,
+      expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+    if (insertError) {
+      setError(insertError.message);
+      return;
+    }
+    await navigator.clipboard.writeText(getInviteUrl(token));
   }
 
   const data = useMemo<TeamWorkspaceData | null>(() => {
@@ -159,6 +209,13 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
         endsAt: session.ends_at,
         facilityName: session.facility_id ? facilityById.get(session.facility_id)?.name ?? null : null,
       })),
+      contextSessions: contextSessions.map((session) => ({
+        id: session.id,
+        title: session.title,
+        startsAt: session.starts_at,
+        endsAt: session.ends_at,
+        facilityName: session.facility_id ? facilityById.get(session.facility_id)?.name ?? null : null,
+      })),
       groups: [
         { id: 'starting-lineup', name: 'Starting group', description: 'Prepared for coach-defined core groups.', playerCount: 0 },
         { id: 'rehab', name: 'Rehab / modified load', description: 'Players with individual planning constraints.', playerCount: 0 },
@@ -166,9 +223,9 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
       ],
       backHref: '/admin/teams',
       calendarHref: team.default_facility_id ? `/admin/facilities/${team.default_facility_id}/calendar?from=team&teamId=${team.id}&departmentId=${team.department_id}` : null,
-      staffHref: `/admin/people?departmentId=${team.department_id}&teamId=${team.id}`,
+      staffHref: `/admin/people?department=${team.department_id}&team=${team.id}`,
     };
-  }, [clubMemberships, department, departmentFacilityIds, facilities, facility, facilityById, memberships, profileById, sessions, team]);
+  }, [clubMemberships, contextSessions, department, departmentFacilityIds, facilities, facility, facilityById, memberships, profileById, sessions, team]);
 
   if (state === 'loading') return <AdminShell><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">Loading team...</section></AdminShell>;
   if (state === 'error') return <AdminShell><section className="rounded-3xl border border-red-500/40 bg-red-950/20 p-6 text-red-100">{error}</section></AdminShell>;
@@ -176,7 +233,7 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
 
   return (
     <AdminShell>
-      <TeamWorkspaceView data={data} onDefaultFacilityChange={handleDefaultFacilityChange} />
+      <TeamWorkspaceView data={data} onDefaultFacilityChange={handleDefaultFacilityChange} onSessionTimeChange={handleSessionTimeChange} onInviteStaff={handleInviteStaff} />
     </AdminShell>
   );
 }

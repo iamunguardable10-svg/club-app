@@ -479,7 +479,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                           {team.name}
                         </Link>
                       </h3>
-                      <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold text-slate-300">
+                      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold text-slate-300">
                         {pendingHeadCoachInvite ? (
                           <button
                             type="button"
@@ -525,7 +525,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                         <span className="hidden lg:inline">
                           {nextSession ? `Next ${new Date(nextSession.startsAt).toLocaleDateString(undefined, { weekday: 'short' })} ${new Date(nextSession.startsAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}` : 'No session yet'}
                         </span>
-                      </p>
+                      </div>
                       {!isEditMode ? (
                         <button type="button" onClick={() => setComposerTeamId(team.id)} className="mt-3 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200 transition hover:bg-slate-800">
                           Create session

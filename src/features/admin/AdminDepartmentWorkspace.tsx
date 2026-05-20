@@ -630,7 +630,6 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
 
     setTeams((current) => current.map((team) => (team.id === teamId ? { ...team, default_facility_id: facilityId || null } : team)));
     setIsSaving(false);
-    await loadDepartmentData();
   }
 
   async function handleInviteHeadCoach(teamId: string) {
@@ -1056,7 +1055,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                           {team.name}
                         </Link>
                       </h3>
-                      <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold text-slate-300">
+                      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold text-slate-300">
                         {headCoachLabel ? (
                           <span>{headCoachLabel}</span>
                         ) : pendingHeadInvite ? (
@@ -1121,7 +1120,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                         <span className="hidden sm:inline">{athleteCount} players</span>
                         <span className="hidden lg:inline text-slate-600">·</span>
                         <span className="hidden lg:inline">{formatNextSession(nextSession)}</span>
-                      </p>
+                      </div>
 
                       {!isEditMode ? (
                         <button
