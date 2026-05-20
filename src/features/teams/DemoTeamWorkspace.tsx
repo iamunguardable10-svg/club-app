@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminShell } from '@/shared/admin/AdminShell';
 import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoSessions, saveDemoTeams, type DemoClubSetup, type DemoSession, type DemoTeam } from '@/shared/dev/demoStorage';
-import { TeamWorkspaceView, type TeamWorkspaceData, type TeamWorkspacePlayer } from './TeamWorkspaceView';
+import { TeamWorkspaceView, type TeamWorkspaceData, type TeamWorkspacePlayer, type TeamWorkspaceStaffRole } from './TeamWorkspaceView';
 
 type DemoInvite = {
   id: string;
@@ -11,13 +11,16 @@ type DemoInvite = {
   role: 'department_lead' | 'head_coach' | 'assistant_coach';
   department: string;
   team?: string | null;
+  coachRoleSlotId?: string | null;
   status: 'pending' | 'accepted' | 'revoked' | 'expired';
   createdAt?: string;
   expiresAt?: string | null;
 };
+type DemoExtraCoachRole = { id: string; department: string; team: string; label: string };
 
 const DEMO_INVITES_KEY = 'club-app.demo.invites';
 const DEMO_PLAYERS_KEY = 'club-app.demo.players';
+const DEMO_EXTRA_COACH_ROLES_KEY = 'club-app.demo.extra-coach-roles';
 
 function getDemoInvites(): DemoInvite[] {
   if (typeof window === 'undefined') return [];
@@ -61,7 +64,7 @@ const demoPlayerSeed = [
 function buildDemoPlayers(teamId: string): DemoPlayer[] {
   return demoPlayerSeed.map((name, index) => {
     const groups = index < 5 ? ['starting-five'] : index < 10 ? ['bench-unit'] : ['rehab'];
-    return { id: `${teamId}-demo-player-${index + 1}`, teamId, name, number: index + 4, groups };
+    return { id: `${teamId}-demo-player-${index + 1}`, teamId, name, groups };
   });
 }
 
@@ -81,12 +84,29 @@ function saveDemoPlayers(players: DemoPlayer[]) {
   window.localStorage.setItem(DEMO_PLAYERS_KEY, JSON.stringify(players));
 }
 
+function getDemoExtraCoachRoles(): DemoExtraCoachRole[] {
+  if (typeof window === 'undefined') return [];
+  const raw = window.localStorage.getItem(DEMO_EXTRA_COACH_ROLES_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as DemoExtraCoachRole[];
+  } catch {
+    return [];
+  }
+}
+
+function saveDemoExtraCoachRoles(roles: DemoExtraCoachRole[]) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(DEMO_EXTRA_COACH_ROLES_KEY, JSON.stringify(roles));
+}
+
 export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [teams, setTeams] = useState<DemoTeam[]>([]);
   const [sessions, setSessions] = useState<DemoSession[]>([]);
   const [invites, setInvites] = useState<DemoInvite[]>([]);
   const [players, setPlayers] = useState<DemoPlayer[]>([]);
+  const [extraCoachRoles, setExtraCoachRoles] = useState<DemoExtraCoachRole[]>([]);
 
   useEffect(() => {
     const currentSetup = getDemoClubSetup();
@@ -95,6 +115,7 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
     setSessions(getDemoSessions());
     setInvites(getDemoInvites());
     setPlayers(getDemoPlayers());
+    setExtraCoachRoles(getDemoExtraCoachRoles());
   }, []);
 
   function handleDefaultFacilityChange(facility: string) {
@@ -109,6 +130,25 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
     setSessions(nextSessions);
   }
 
+  function handleSessionCreate(startsAt: string, endsAt: string) {
+    const team = teams.find((item) => item.id === teamId);
+    if (!team || !team.defaultFacility) return;
+    const nextSession: DemoSession = {
+      id: crypto.randomUUID(),
+      department: team.department,
+      team: team.name,
+      title: 'Training',
+      sessionType: 'training',
+      startsAt,
+      endsAt,
+      facility: team.defaultFacility,
+      createdAt: new Date().toISOString(),
+    };
+    const allSessions = [...getDemoSessions(), nextSession].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+    saveDemoSessions(allSessions);
+    setSessions(allSessions);
+  }
+
   function handleAddDemoPlayers() {
     const existing = players.filter((player) => player.teamId !== teamId);
     const nextPlayers = [...existing, ...buildDemoPlayers(teamId)];
@@ -116,19 +156,46 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
     setPlayers(nextPlayers);
   }
 
-  async function handleInviteStaff(role: 'head_coach' | 'assistant_coach') {
+  async function handleInviteStaff(role: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) {
     const team = teams.find((item) => item.id === teamId);
     if (!team) return;
-    const existing = invites.find((invite) => invite.status === 'pending' && invite.role === role && invite.department === team.department && invite.team === team.name);
+    const existing = invites.find((invite) => invite.status === 'pending' && invite.role === role && invite.department === team.department && invite.team === team.name && (invite.coachRoleSlotId ?? null) === (coachRoleSlotId ?? null));
     if (existing) {
       await navigator.clipboard.writeText(`${window.location.origin}/invite/${existing.token ?? existing.id}`);
       return;
     }
-    const invite: DemoInvite = { id: crypto.randomUUID(), token: createToken(), role, department: team.department, team: team.name, status: 'pending', createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() };
+    const invite: DemoInvite = { id: crypto.randomUUID(), token: createToken(), role, department: team.department, team: team.name, coachRoleSlotId: coachRoleSlotId ?? null, status: 'pending', createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() };
     const nextInvites = [invite, ...invites];
     saveDemoInvites(nextInvites);
     setInvites(nextInvites);
     await navigator.clipboard.writeText(`${window.location.origin}/invite/${invite.token}`);
+  }
+
+  async function handleCopyStaffInvite(token: string) {
+    await navigator.clipboard.writeText(`${window.location.origin}/invite/${token}`);
+  }
+
+  function handleRevokeStaffInvite(inviteId: string) {
+    const nextInvites = invites.map((invite) => invite.id === inviteId ? { ...invite, status: 'revoked' as const } : invite);
+    saveDemoInvites(nextInvites);
+    setInvites(nextInvites);
+  }
+
+  function handleAddCoachRole(label: string) {
+    const team = teams.find((item) => item.id === teamId);
+    if (!team) return;
+    const nextRoles = [...extraCoachRoles, { id: crypto.randomUUID(), department: team.department, team: team.name, label }];
+    saveDemoExtraCoachRoles(nextRoles);
+    setExtraCoachRoles(nextRoles);
+  }
+
+  function handleRemoveCoachRole(roleId: string) {
+    const nextRoles = extraCoachRoles.filter((role) => role.id !== roleId);
+    const nextInvites = invites.filter((invite) => invite.coachRoleSlotId !== roleId);
+    saveDemoExtraCoachRoles(nextRoles);
+    saveDemoInvites(nextInvites);
+    setExtraCoachRoles(nextRoles);
+    setInvites(nextInvites);
   }
 
   const data = useMemo<TeamWorkspaceData | null>(() => {
@@ -138,8 +205,28 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
     const teamSessions = sessions.filter((session) => session.department === team.department && session.team === team.name);
     const contextSessions = sessions.filter((session) => session.facility === team.defaultFacility && !(session.department === team.department && session.team === team.name));
     const teamPlayers = players.filter((player) => player.teamId === team.id);
-    const hasHeadInvite = invites.some((invite) => invite.status === 'pending' && invite.role === 'head_coach' && invite.department === team.department && invite.team === team.name);
-    const hasAssistantInvite = invites.some((invite) => invite.status === 'pending' && invite.role === 'assistant_coach' && invite.department === team.department && invite.team === team.name);
+    const pendingInviteFor = (role: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) => invites.find((invite) => invite.status === 'pending' && invite.role === role && invite.department === team.department && invite.team === team.name && (invite.coachRoleSlotId ?? null) === (coachRoleSlotId ?? null));
+    const headInvite = pendingInviteFor('head_coach', null);
+    const assistantInvite = pendingInviteFor('assistant_coach', null);
+    const teamExtraRoles = extraCoachRoles.filter((role) => role.department === team.department && role.team === team.name);
+    const makeStaffRole = (id: string, label: string, role: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null, removable = false): TeamWorkspaceStaffRole => {
+      const invite = pendingInviteFor(role, coachRoleSlotId);
+      return {
+        id,
+        label,
+        role,
+        coachRoleSlotId: coachRoleSlotId ?? null,
+        status: invite ? 'pending' : 'missing',
+        inviteToken: invite?.token ?? invite?.id ?? null,
+        inviteId: invite?.id ?? null,
+        removable,
+      };
+    };
+    const staffRoles = [
+      makeStaffRole('head-coach', 'Head Coach', 'head_coach', null),
+      makeStaffRole('assistant-coach', 'Assistant Coach', 'assistant_coach', null),
+      ...teamExtraRoles.map((role) => makeStaffRole(role.id, role.label, 'assistant_coach', role.id, true)),
+    ];
     const countGroup = (groupId: string) => teamPlayers.filter((player) => player.groups?.includes(groupId)).length;
 
     return {
@@ -153,9 +240,10 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
       players: teamPlayers,
       role: 'admin',
       staff: {
-        headCoaches: hasHeadInvite ? ['Invite pending'] : [],
-        assistantCoaches: hasAssistantInvite ? ['Invite pending'] : [],
+        headCoaches: headInvite ? ['Invite pending'] : [],
+        assistantCoaches: assistantInvite ? ['Invite pending'] : [],
       },
+      staffRoles,
       sessions: teamSessions.map((session) => ({
         id: session.id,
         title: session.title,
@@ -179,7 +267,7 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
       calendarHref: team.defaultFacility ? `/demo/admin/facilities/${encodeURIComponent(team.defaultFacility)}/calendar?from=team&teamName=${encodeURIComponent(team.name)}&departmentName=${encodeURIComponent(team.department)}` : null,
       staffHref: `/demo/admin/people?departmentName=${encodeURIComponent(team.department)}&teamName=${encodeURIComponent(team.name)}`,
     };
-  }, [invites, players, sessions, setup?.facilities, teamId, teams]);
+  }, [extraCoachRoles, invites, players, sessions, setup?.facilities, teamId, teams]);
 
   if (!setup) {
     return (
@@ -202,7 +290,18 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
 
   return (
     <AdminShell mode="demo">
-      <TeamWorkspaceView data={data} onDefaultFacilityChange={handleDefaultFacilityChange} onSessionTimeChange={handleSessionTimeChange} onAddDemoPlayers={handleAddDemoPlayers} onInviteStaff={handleInviteStaff} />
+      <TeamWorkspaceView
+        data={data}
+        onDefaultFacilityChange={handleDefaultFacilityChange}
+        onSessionTimeChange={handleSessionTimeChange}
+        onSessionCreate={handleSessionCreate}
+        onAddDemoPlayers={handleAddDemoPlayers}
+        onInviteStaff={handleInviteStaff}
+        onCopyStaffInvite={handleCopyStaffInvite}
+        onRevokeStaffInvite={handleRevokeStaffInvite}
+        onAddCoachRole={handleAddCoachRole}
+        onRemoveCoachRole={handleRemoveCoachRole}
+      />
     </AdminShell>
   );
 }

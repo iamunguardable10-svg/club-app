@@ -4,15 +4,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminShell } from '@/shared/admin/AdminShell';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
-import { TeamWorkspaceView, type TeamWorkspaceData, type TeamWorkspaceRole } from './TeamWorkspaceView';
+import { TeamWorkspaceView, type TeamWorkspaceData, type TeamWorkspaceRole, type TeamWorkspaceStaffRole } from './TeamWorkspaceView';
 
 type Team = { id: string; club_id: string; department_id: string; name: string; default_facility_id: string | null };
 type Department = { id: string; club_id: string; name: string };
 type Facility = { id: string; name: string };
-type Membership = { user_id: string; role: 'head_coach' | 'assistant_coach' | 'athlete'; status: 'active' | 'inactive' | 'invited' };
+type Membership = { user_id: string; role: 'head_coach' | 'assistant_coach' | 'athlete'; status: 'active' | 'inactive' | 'invited'; coach_role_slot_id: string | null };
 type ClubMembership = { role: 'club_admin' | 'department_lead'; department_id: string | null };
 type Profile = { id: string; full_name: string; email: string | null };
 type Session = { id: string; title: string; starts_at: string; ends_at: string | null; facility_id: string | null };
+type Invite = { id: string; token: string; role: 'head_coach' | 'assistant_coach'; status: 'pending' | 'accepted' | 'revoked' | 'expired'; coach_role_slot_id: string | null };
+type CoachRoleSlot = { id: string; label: string };
 
 function createInviteToken() {
   const bytes = new Uint8Array(16);
@@ -38,6 +40,8 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [contextSessions, setContextSessions] = useState<Session[]>([]);
+  const [invites, setInvites] = useState<Invite[]>([]);
+  const [coachRoleSlots, setCoachRoleSlots] = useState<CoachRoleSlot[]>([]);
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [departmentFacilityIds, setDepartmentFacilityIds] = useState<string[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -73,10 +77,10 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
       }
 
       const loadedTeam = teamResult.data as Team;
-      const [departmentResult, facilityResult, membershipsResult, clubMembershipsResult, sessionsResult, facilitiesResult, departmentFacilitiesResult, contextSessionsResult] = await Promise.all([
+      const [departmentResult, facilityResult, membershipsResult, clubMembershipsResult, sessionsResult, facilitiesResult, departmentFacilitiesResult, contextSessionsResult, invitesResult, coachRoleSlotsResult] = await Promise.all([
         supabase.from('departments').select('id, club_id, name').eq('id', loadedTeam.department_id).single(),
         loadedTeam.default_facility_id ? supabase.from('facilities').select('id, name').eq('id', loadedTeam.default_facility_id).single() : Promise.resolve({ data: null, error: null }),
-        supabase.from('team_memberships').select('user_id, role, status').eq('team_id', loadedTeam.id),
+        supabase.from('team_memberships').select('user_id, role, status, coach_role_slot_id').eq('team_id', loadedTeam.id),
         supabase.from('club_memberships').select('role, department_id').eq('club_id', loadedTeam.club_id).eq('user_id', user.id).eq('status', 'active'),
         supabase.from('sessions').select('id, title, starts_at, ends_at, facility_id').eq('owner_team_id', loadedTeam.id).order('starts_at'),
         supabase.from('facilities').select('id, name').eq('club_id', loadedTeam.club_id).order('name'),
@@ -84,9 +88,11 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
         loadedTeam.default_facility_id
           ? supabase.from('sessions').select('id, title, starts_at, ends_at, facility_id').eq('facility_id', loadedTeam.default_facility_id).neq('owner_team_id', loadedTeam.id).order('starts_at')
           : Promise.resolve({ data: [], error: null }),
+        supabase.from('invites').select('id, token, role, status, coach_role_slot_id').eq('team_id', loadedTeam.id).in('role', ['head_coach', 'assistant_coach']).eq('status', 'pending').order('created_at', { ascending: false }),
+        supabase.from('team_coach_role_slots').select('id, label').eq('team_id', loadedTeam.id).order('label'),
       ]);
 
-      const firstError = departmentResult.error ?? facilityResult.error ?? membershipsResult.error ?? clubMembershipsResult.error ?? sessionsResult.error ?? facilitiesResult.error ?? departmentFacilitiesResult.error ?? contextSessionsResult.error;
+      const firstError = departmentResult.error ?? facilityResult.error ?? membershipsResult.error ?? clubMembershipsResult.error ?? sessionsResult.error ?? facilitiesResult.error ?? departmentFacilitiesResult.error ?? contextSessionsResult.error ?? invitesResult.error ?? coachRoleSlotsResult.error;
       if (firstError) {
         setError(firstError.message);
         setState('error');
@@ -114,6 +120,8 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
       setClubMemberships((clubMembershipsResult.data ?? []) as ClubMembership[]);
       setSessions((sessionsResult.data ?? []) as Session[]);
       setContextSessions((contextSessionsResult.data ?? []) as Session[]);
+      setInvites((invitesResult.data ?? []) as Invite[]);
+      setCoachRoleSlots((coachRoleSlotsResult.data ?? []) as CoachRoleSlot[]);
       setFacilities((facilitiesResult.data ?? []) as Facility[]);
       setDepartmentFacilityIds(((departmentFacilitiesResult.data ?? []) as { facility_id: string }[]).map((item) => item.facility_id));
       setProfiles(loadedProfiles);
@@ -152,33 +160,117 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
     setSessions((current) => current.map((session) => (session.id === sessionId ? { ...session, starts_at: startsAt, ends_at: endsAt } : session)));
   }
 
+  async function handleSessionCreate(startsAt: string, endsAt: string) {
+    if (!team || !team.default_facility_id) {
+      setError('Set a default facility before creating team sessions.');
+      return;
+    }
+    const supabase = createBrowserSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const { data: insertedSession, error: insertError } = await supabase
+      .from('sessions')
+      .insert({
+        club_id: team.club_id,
+        department_id: team.department_id,
+        team_id: team.id,
+        owner_team_id: team.id,
+        created_by: user?.id ?? null,
+        title: 'Training',
+        session_type: 'training',
+        starts_at: startsAt,
+        ends_at: endsAt,
+        facility_id: team.default_facility_id,
+        status: 'scheduled',
+      })
+      .select('id, title, starts_at, ends_at, facility_id')
+      .single();
+    if (insertError) {
+      setError(insertError.message);
+      return;
+    }
+    setSessions((current) => [...current, insertedSession as Session].sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()));
+  }
+
   function getInviteUrl(token: string) {
     if (typeof window === 'undefined') return `/invite/${token}`;
     return `${window.location.origin}/invite/${token}`;
   }
 
-  async function handleInviteStaff(role: 'head_coach' | 'assistant_coach') {
+  async function handleInviteStaff(role: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) {
     if (!team) return;
+    const existing = invites.find((invite) => invite.status === 'pending' && invite.role === role && (invite.coach_role_slot_id ?? null) === (coachRoleSlotId ?? null));
+    if (existing) {
+      await navigator.clipboard.writeText(getInviteUrl(existing.token));
+      return;
+    }
     const supabase = createBrowserSupabaseClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
     const token = createInviteToken();
-    const { error: insertError } = await supabase.from('invites').insert({
-      token,
-      club_id: team.club_id,
-      department_id: team.department_id,
-      team_id: team.id,
-      role,
-      invite_type: 'coach_invite',
-      created_by: user?.id ?? null,
-      expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-    });
+    const { data: insertedInvite, error: insertError } = await supabase
+      .from('invites')
+      .insert({
+        token,
+        club_id: team.club_id,
+        department_id: team.department_id,
+        team_id: team.id,
+        role,
+        invite_type: 'coach_invite',
+        coach_role_slot_id: coachRoleSlotId ?? null,
+        created_by: user?.id ?? null,
+        expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      })
+      .select('id, token, role, status, coach_role_slot_id')
+      .single();
     if (insertError) {
       setError(insertError.message);
       return;
     }
+    setInvites((current) => [insertedInvite as Invite, ...current]);
     await navigator.clipboard.writeText(getInviteUrl(token));
+  }
+
+  async function handleCopyStaffInvite(token: string) {
+    await navigator.clipboard.writeText(getInviteUrl(token));
+  }
+
+  async function handleRevokeStaffInvite(inviteId: string) {
+    const supabase = createBrowserSupabaseClient();
+    const { error: updateError } = await supabase.from('invites').update({ status: 'revoked' }).eq('id', inviteId);
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+    setInvites((current) => current.filter((invite) => invite.id !== inviteId));
+  }
+
+  async function handleAddCoachRole(label: string) {
+    if (!team) return;
+    const supabase = createBrowserSupabaseClient();
+    const { data: insertedSlot, error: insertError } = await supabase
+      .from('team_coach_role_slots')
+      .insert({ club_id: team.club_id, department_id: team.department_id, team_id: team.id, label })
+      .select('id, label')
+      .single();
+    if (insertError) {
+      setError(insertError.message);
+      return;
+    }
+    setCoachRoleSlots((current) => [...current, insertedSlot as CoachRoleSlot].sort((a, b) => a.label.localeCompare(b.label)));
+  }
+
+  async function handleRemoveCoachRole(coachRoleSlotId: string) {
+    const supabase = createBrowserSupabaseClient();
+    const { error: deleteError } = await supabase.from('team_coach_role_slots').delete().eq('id', coachRoleSlotId);
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+    setCoachRoleSlots((current) => current.filter((slot) => slot.id !== coachRoleSlotId));
+    setInvites((current) => current.filter((invite) => invite.coach_role_slot_id !== coachRoleSlotId));
   }
 
   const data = useMemo<TeamWorkspaceData | null>(() => {
@@ -188,6 +280,30 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
     const isLead = clubMemberships.some((membership) => membership.role === 'department_lead' && membership.department_id === team.department_id);
     const isCoach = activeMemberships.some((membership) => membership.role === 'head_coach' || membership.role === 'assistant_coach');
     const role: TeamWorkspaceRole = isAdmin ? 'admin' : isLead ? 'department_lead' : isCoach ? 'coach' : 'viewer';
+    const pendingInviteFor = (staffRole: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) =>
+      invites.find((invite) => invite.status === 'pending' && invite.role === staffRole && (invite.coach_role_slot_id ?? null) === (coachRoleSlotId ?? null));
+    const membershipFor = (staffRole: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) =>
+      activeMemberships.find((membership) => membership.role === staffRole && (membership.coach_role_slot_id ?? null) === (coachRoleSlotId ?? null));
+    const makeStaffRole = (id: string, label: string, staffRole: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null, removable = false): TeamWorkspaceStaffRole => {
+      const membership = membershipFor(staffRole, coachRoleSlotId);
+      const invite = pendingInviteFor(staffRole, coachRoleSlotId);
+      return {
+        id,
+        label,
+        role: staffRole,
+        coachRoleSlotId: coachRoleSlotId ?? null,
+        status: membership ? 'accepted' : invite ? 'pending' : 'missing',
+        value: membership ? profileLabel(profileById.get(membership.user_id), 'Assigned staff member') : null,
+        inviteToken: invite?.token ?? null,
+        inviteId: invite?.id ?? null,
+        removable,
+      };
+    };
+    const staffRoles = [
+      makeStaffRole('head-coach', 'Head Coach', 'head_coach', null),
+      makeStaffRole('assistant-coach', 'Assistant Coach', 'assistant_coach', null),
+      ...coachRoleSlots.map((slot) => makeStaffRole(slot.id, slot.label, 'assistant_coach', slot.id, true)),
+    ];
 
     return {
       id: team.id,
@@ -199,9 +315,10 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
       playerCount: activeMemberships.filter((membership) => membership.role === 'athlete').length,
       role,
       staff: {
-        headCoaches: activeMemberships.filter((membership) => membership.role === 'head_coach').map((membership) => profileLabel(profileById.get(membership.user_id), 'Assigned head coach')),
-        assistantCoaches: activeMemberships.filter((membership) => membership.role === 'assistant_coach').map((membership) => profileLabel(profileById.get(membership.user_id), 'Assigned assistant coach')),
+        headCoaches: activeMemberships.filter((membership) => membership.role === 'head_coach' && !membership.coach_role_slot_id).map((membership) => profileLabel(profileById.get(membership.user_id), 'Assigned head coach')),
+        assistantCoaches: activeMemberships.filter((membership) => membership.role === 'assistant_coach' && !membership.coach_role_slot_id).map((membership) => profileLabel(profileById.get(membership.user_id), 'Assigned assistant coach')),
       },
+      staffRoles,
       sessions: sessions.map((session) => ({
         id: session.id,
         title: session.title,
@@ -225,7 +342,7 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
       calendarHref: team.default_facility_id ? `/admin/facilities/${team.default_facility_id}/calendar?from=team&teamId=${team.id}&departmentId=${team.department_id}` : null,
       staffHref: `/admin/people?department=${team.department_id}&team=${team.id}`,
     };
-  }, [clubMemberships, contextSessions, department, departmentFacilityIds, facilities, facility, facilityById, memberships, profileById, sessions, team]);
+  }, [clubMemberships, coachRoleSlots, contextSessions, department, departmentFacilityIds, facilities, facility, facilityById, invites, memberships, profileById, sessions, team]);
 
   if (state === 'loading') return <AdminShell><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">Loading team...</section></AdminShell>;
   if (state === 'error') return <AdminShell><section className="rounded-3xl border border-red-500/40 bg-red-950/20 p-6 text-red-100">{error}</section></AdminShell>;
@@ -233,7 +350,17 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
 
   return (
     <AdminShell>
-      <TeamWorkspaceView data={data} onDefaultFacilityChange={handleDefaultFacilityChange} onSessionTimeChange={handleSessionTimeChange} onInviteStaff={handleInviteStaff} />
+      <TeamWorkspaceView
+        data={data}
+        onDefaultFacilityChange={handleDefaultFacilityChange}
+        onSessionTimeChange={handleSessionTimeChange}
+        onSessionCreate={handleSessionCreate}
+        onInviteStaff={handleInviteStaff}
+        onCopyStaffInvite={handleCopyStaffInvite}
+        onRevokeStaffInvite={handleRevokeStaffInvite}
+        onAddCoachRole={handleAddCoachRole}
+        onRemoveCoachRole={handleRemoveCoachRole}
+      />
     </AdminShell>
   );
 }

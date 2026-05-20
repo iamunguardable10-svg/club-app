@@ -97,7 +97,7 @@ function FacilityPreview({ department, items }: { department: string; items: str
   if (items.length === 0) {
     return (
       <Link
-        href={`/demo/admin/departments/${encodeDepartment(department)}?mode=edit&focus=facilities`}
+        href={`/demo/admin/departments/${encodeDepartment(department)}`}
         onClick={(event) => event.stopPropagation()}
         className="mt-2 inline-flex rounded-lg border border-sky-500/60 px-2.5 py-1.5 text-xs font-black text-sky-200 transition hover:bg-sky-950/40"
       >

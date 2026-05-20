@@ -493,7 +493,7 @@ export function AdminPeopleManager() {
                     return (
                       <div key={team.id} className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
                         <p className="font-black text-slate-100">{team.name}</p>
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                         <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3">
                           <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Head Coach</p>
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
@@ -538,7 +538,7 @@ export function AdminPeopleManager() {
                         {isEditMode ? (
                           <div className="mt-3 rounded-xl border border-dashed border-slate-700 p-3">
                             <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Add coach role</p>
-                            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                            <div className="mt-2 flex max-w-2xl flex-col gap-2 sm:flex-row">
                               <input value={newRoleLabelByTeam[team.id] ?? ''} onChange={(event) => setNewRoleLabelByTeam((current) => ({ ...current, [team.id]: event.target.value }))} placeholder="e.g. Strength Coach" className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-400" />
                               <button type="button" onClick={() => handleAddCoachRole(team)} className="rounded-lg border border-sky-500/60 px-3 py-2 text-xs font-black text-sky-200 hover:bg-sky-950/40">Add role</button>
                             </div>

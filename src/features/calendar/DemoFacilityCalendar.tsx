@@ -419,8 +419,20 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
             <span className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">{mode === 'edit' ? 'Tap a free slot to draft a session' : 'View mode: tap sessions for details'}</span>
           </div>
           <div className="mt-5 hidden flex-wrap gap-2 md:flex">
-            <button type="button" onClick={() => { setMode('view'); setDraft(null); }} className={`rounded-xl border px-4 py-2 text-sm font-black ${mode === 'view' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-200 hover:bg-slate-900'}`}>View</button>
-            <button type="button" onClick={() => setMode('edit')} className={`rounded-xl border px-4 py-2 text-sm font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-200 hover:bg-slate-900'}`}>Edit / create</button>
+            <button
+              type="button"
+              onClick={() => {
+                if (mode === 'edit') {
+                  setMode('view');
+                  setDraft(null);
+                  return;
+                }
+                setMode('edit');
+              }}
+              className={`rounded-xl border px-4 py-2 text-sm font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'}`}
+            >
+              {mode === 'edit' ? 'Done editing' : 'Edit calendar'}
+            </button>
           </div>
         </section>
 

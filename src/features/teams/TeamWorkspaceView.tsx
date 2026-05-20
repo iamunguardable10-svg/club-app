@@ -22,7 +22,18 @@ export type TeamWorkspaceStaff = {
 };
 
 export type TeamWorkspaceFacilityOption = { id: string; name: string };
-export type TeamWorkspacePlayer = { id: string; name: string; number?: number | null; groups?: string[] };
+export type TeamWorkspacePlayer = { id: string; name: string; groups?: string[] };
+export type TeamWorkspaceStaffRole = {
+  id: string;
+  label: string;
+  role: 'head_coach' | 'assistant_coach';
+  coachRoleSlotId?: string | null;
+  status: 'missing' | 'pending' | 'accepted';
+  value?: string | null;
+  inviteToken?: string | null;
+  inviteId?: string | null;
+  removable?: boolean;
+};
 
 export type TeamWorkspaceData = {
   id: string;
@@ -35,6 +46,7 @@ export type TeamWorkspaceData = {
   players?: TeamWorkspacePlayer[];
   role: TeamWorkspaceRole;
   staff: TeamWorkspaceStaff;
+  staffRoles?: TeamWorkspaceStaffRole[];
   sessions: TeamWorkspaceSession[];
   contextSessions?: TeamWorkspaceSession[];
   groups: { id: string; name: string; description: string; playerCount: number }[];
@@ -43,7 +55,8 @@ export type TeamWorkspaceData = {
   staffHref?: string | null;
 };
 
-type TeamCalendarDrag = { sessionId: string; kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date; minutesPerPixel: number };
+type TeamCalendarDrag = { target: 'session' | 'draft'; sessionId?: string; kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date; minutesPerPixel: number };
+type TeamCalendarDraft = { startsAt: string; endsAt: string };
 
 const calendarHours = Array.from({ length: 17 }, (_, index) => index + 7);
 const firstHour = calendarHours[0] ?? 7;
@@ -129,6 +142,42 @@ function EmptyCard({ title, description }: { title: string; description: string 
   );
 }
 
+function StaffRoleGrid({
+  roles,
+  onInvite,
+  onCopy,
+  onRevoke,
+  onRemoveRole,
+}: {
+  roles: TeamWorkspaceStaffRole[];
+  onInvite?: (role: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) => void | Promise<void>;
+  onCopy?: (token: string) => void | Promise<void>;
+  onRevoke?: (inviteId: string) => void | Promise<void>;
+  onRemoveRole?: (coachRoleSlotId: string) => void | Promise<void>;
+}) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+      {roles.map((role) => (
+        <div key={role.id} className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{role.label}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-200">
+            {role.status === 'accepted' ? <span>{role.value ?? 'Assigned'}</span> : null}
+            {role.status === 'pending' ? (
+              <>
+                <span>Invite pending</span>
+                {role.inviteToken ? <button type="button" onClick={() => onCopy?.(role.inviteToken!)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 hover:bg-slate-800">Copy</button> : null}
+                {role.inviteId ? <button type="button" onClick={() => onRevoke?.(role.inviteId!)} className="rounded-lg border border-red-500/60 px-2.5 py-1 text-xs font-black text-red-200 hover:bg-red-950/40">Revoke</button> : null}
+              </>
+            ) : null}
+            {role.status === 'missing' ? <button type="button" onClick={() => onInvite?.(role.role, role.coachRoleSlotId ?? null)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 hover:bg-slate-800">Invite</button> : null}
+            {role.removable && role.coachRoleSlotId ? <button type="button" onClick={() => onRemoveRole?.(role.coachRoleSlotId!)} className="rounded-lg border border-red-500/60 px-2.5 py-1 text-xs font-black text-red-200 hover:bg-red-950/40">Remove</button> : null}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const facilityToneClasses = [
   { border: 'border-emerald-400/70', bg: 'bg-emerald-950/20', text: 'text-emerald-100', focus: 'focus:border-emerald-300' },
   { border: 'border-sky-400/70', bg: 'bg-sky-950/20', text: 'text-sky-100', focus: 'focus:border-sky-300' },
@@ -143,7 +192,15 @@ function facilityTone(name?: string | null) {
   return facilityToneClasses[hash % facilityToneClasses.length] ?? facilityToneClasses[0];
 }
 
-function TeamSmartCalendar({ data, onSessionTimeChange }: { data: TeamWorkspaceData; onSessionTimeChange?: (sessionId: string, startsAt: string, endsAt: string) => void | Promise<void> }) {
+function TeamSmartCalendar({
+  data,
+  onSessionTimeChange,
+  onSessionCreate,
+}: {
+  data: TeamWorkspaceData;
+  onSessionTimeChange?: (sessionId: string, startsAt: string, endsAt: string) => void | Promise<void>;
+  onSessionCreate?: (startsAt: string, endsAt: string) => void | Promise<void>;
+}) {
   const days = useMemo(() => buildWeekDays(), []);
   const todayIndex = useMemo(() => Math.max(0, days.findIndex((day) => sameDay(day, new Date()))), [days]);
   const [activeDayIndex, setActiveDayIndex] = useState(todayIndex);
@@ -153,6 +210,7 @@ function TeamSmartCalendar({ data, onSessionTimeChange }: { data: TeamWorkspaceD
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [drag, setDrag] = useState<TeamCalendarDrag | null>(null);
+  const [draft, setDraft] = useState<TeamCalendarDraft | null>(null);
   const [localSessions, setLocalSessions] = useState<TeamWorkspaceSession[]>(data.sessions);
   const didDragRef = useRef(false);
   const calendarScrollRef = useRef<HTMLDivElement | null>(null);
@@ -160,7 +218,9 @@ function TeamSmartCalendar({ data, onSessionTimeChange }: { data: TeamWorkspaceD
   const dayTransitionTimeoutRef = useRef<number | null>(null);
   const mobileDaySwipeRef = useRef<{ startX: number; startY: number } | null>(null);
 
-  const canManageCalendar = data.role !== 'viewer' && Boolean(onSessionTimeChange);
+  const canManageExistingSessions = data.role !== 'viewer' && Boolean(onSessionTimeChange);
+  const canCreateSessions = data.role !== 'viewer' && Boolean(onSessionCreate && data.defaultFacilityId);
+  const canManageCalendar = canManageExistingSessions || canCreateSessions;
   useEffect(() => {
     if (!drag) setLocalSessions(data.sessions);
   }, [data.sessions, drag]);
@@ -174,7 +234,7 @@ function TeamSmartCalendar({ data, onSessionTimeChange }: { data: TeamWorkspaceD
       teamName: data.name,
       departmentName: data.departmentName,
       tone: 'primary' as const,
-      canManage: canManageCalendar,
+      canManage: canManageExistingSessions,
     }));
     const context = drag ? (data.contextSessions ?? []).map((session) => ({
       id: `context-${session.id}`,
@@ -187,7 +247,7 @@ function TeamSmartCalendar({ data, onSessionTimeChange }: { data: TeamWorkspaceD
       canManage: false,
     })) : [];
     return [...primary, ...context];
-  }, [canManageCalendar, data.contextSessions, data.departmentName, data.name, drag, localSessions]);
+  }, [canManageExistingSessions, data.contextSessions, data.departmentName, data.name, drag, localSessions]);
 
   const selectedSession = localSessions.find((session) => session.id === selectedSessionId) ?? null;
 
@@ -242,6 +302,30 @@ function TeamSmartCalendar({ data, onSessionTimeChange }: { data: TeamWorkspaceD
     switchMobileDay(activeDayIndex + (deltaX < 0 ? 1 : -1));
   }
 
+  function handleSlotPointerDown(day: Date, event: PointerEvent<HTMLDivElement>) {
+    if (mode !== 'edit' || !canCreateSessions) return;
+    if ((event.target as HTMLElement).closest('[data-calendar-session]')) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const pointerId = event.pointerId;
+    const baseHour = window.innerWidth < 768 ? mobileFirstHour : firstHour;
+    const visibleMinutes = window.innerWidth < 768 ? mobileVisibleHours.length * 60 : (lastHour - firstHour) * 60;
+
+    function createDraftFromTap(upEvent: globalThis.PointerEvent) {
+      if (upEvent.pointerId !== pointerId) return;
+      window.removeEventListener('pointerup', createDraftFromTap);
+      if (Math.abs(upEvent.clientY - startY) > 8 || Math.abs(upEvent.clientX - startX) > 8) return;
+      const clickedMinutes = clamp(roundToSlot(((startY - rect.top) / Math.max(rect.height, 1)) * visibleMinutes), 0, visibleMinutes - 30);
+      const start = createDateForCalendarMinute(day, (baseHour - firstHour) * 60 + clickedMinutes);
+      const end = addMinutes(start, 90);
+      setSelectedSessionId(null);
+      setDraft({ startsAt: start.toISOString(), endsAt: end.toISOString() });
+    }
+
+    window.addEventListener('pointerup', createDraftFromTap, { once: true });
+  }
+
   function handleSessionClick(session: SmartCalendarSession, event: MouseEvent<HTMLElement>) {
     event.stopPropagation();
     if (didDragRef.current) {
@@ -266,6 +350,7 @@ function TeamSmartCalendar({ data, onSessionTimeChange }: { data: TeamWorkspaceD
     setSelectedSessionId(null);
     const start = new Date(session.startsAt);
     setDrag({
+      target: 'session',
       sessionId: session.id,
       kind,
       startX: event.clientX,
@@ -274,6 +359,29 @@ function TeamSmartCalendar({ data, onSessionTimeChange }: { data: TeamWorkspaceD
       originalEnd: session.endsAt ? new Date(session.endsAt) : addMinutes(start, 60),
       minutesPerPixel: window.innerWidth < 768 ? 60 / mobileHourHeight : 60 / desktopHourHeight,
     });
+  }
+
+  function startDraftDrag(kind: 'move' | 'resize', event: PointerEvent<HTMLElement>) {
+    if (!draft) return;
+    event.stopPropagation();
+    event.preventDefault();
+    didDragRef.current = false;
+    setSelectedSessionId(null);
+    setDrag({
+      target: 'draft',
+      kind,
+      startX: event.clientX,
+      startY: event.clientY,
+      originalStart: new Date(draft.startsAt),
+      originalEnd: new Date(draft.endsAt),
+      minutesPerPixel: window.innerWidth < 768 ? 60 / mobileHourHeight : 60 / desktopHourHeight,
+    });
+  }
+
+  async function confirmDraft() {
+    if (!draft || !onSessionCreate) return;
+    await onSessionCreate(draft.startsAt, draft.endsAt);
+    setDraft(null);
   }
 
   useEffect(() => {
@@ -308,6 +416,10 @@ function TeamSmartCalendar({ data, onSessionTimeChange }: { data: TeamWorkspaceD
       latestStart = start;
       latestEnd = end;
       setSelectedSessionId(null);
+      if (activeDrag.target === 'draft') {
+        setDraft({ startsAt: start.toISOString(), endsAt: end.toISOString() });
+        return;
+      }
       setLocalSessions((current) =>
         current.map((session) =>
           session.id === activeDrag.sessionId ? { ...session, startsAt: start.toISOString(), endsAt: end.toISOString() } : session,
@@ -339,7 +451,9 @@ function TeamSmartCalendar({ data, onSessionTimeChange }: { data: TeamWorkspaceD
 
     function handlePointerUp() {
       setDrag(null);
-      void onSessionTimeChange?.(activeDrag.sessionId, latestStart.toISOString(), latestEnd.toISOString());
+      if (activeDrag.target === 'session' && activeDrag.sessionId) {
+        void onSessionTimeChange?.(activeDrag.sessionId, latestStart.toISOString(), latestEnd.toISOString());
+      }
     }
 
     window.addEventListener('pointermove', handlePointerMove);
@@ -353,11 +467,23 @@ function TeamSmartCalendar({ data, onSessionTimeChange }: { data: TeamWorkspaceD
   return (
     <div className="mt-5 space-y-4">
       <div className="hidden items-center justify-between gap-3 md:flex">
-        <div className="flex gap-2">
-          <button type="button" onClick={() => { setMode('view'); setDrag(null); }} className={`rounded-xl border px-4 py-2 text-sm font-black ${mode === 'view' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:bg-slate-900'}`}>View</button>
-          <button type="button" onClick={() => setMode('edit')} disabled={!canManageCalendar} className={`rounded-xl border px-4 py-2 text-sm font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:bg-slate-900'} disabled:cursor-not-allowed disabled:opacity-50`}>Edit</button>
-        </div>
-        {mode === 'edit' && canManageCalendar ? <p className="text-xs font-bold text-slate-500">Drag to move. Use the lower handle to resize.</p> : null}
+        <button
+          type="button"
+          onClick={() => {
+            if (mode === 'edit') {
+              setMode('view');
+              setDrag(null);
+              setDraft(null);
+              return;
+            }
+            setMode('edit');
+          }}
+          disabled={!canManageCalendar}
+          className={`rounded-xl border px-4 py-2 text-sm font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'} disabled:cursor-not-allowed disabled:opacity-50`}
+        >
+          {mode === 'edit' ? 'Done editing' : 'Edit calendar'}
+        </button>
+        {mode === 'edit' && canManageCalendar ? <p className="text-xs font-bold text-slate-500">Tap free slots to create. Drag sessions or drafts to move; use the lower handle to resize.</p> : null}
       </div>
       <SmartSessionCalendar
         mode={mode}
@@ -375,24 +501,24 @@ function TeamSmartCalendar({ data, onSessionTimeChange }: { data: TeamWorkspaceD
         mobileCalendarView={mobileCalendarView}
         dayTransitionDirection={dayTransitionDirection}
         sessions={smartSessions}
-        draft={null}
-        dragSessionId={drag?.sessionId ?? null}
+        draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, teamLabel: data.name } : null}
+        dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null}
         calendarScrollRef={calendarScrollRef}
         setDayRef={(index, element) => { dayRefs.current[index] = element; }}
         onSetMode={setMode}
-        onClearDraft={() => undefined}
+        onClearDraft={() => setDraft(null)}
         onMobileDaySelect={switchMobileDay}
         onMobileCalendarViewChange={setMobileCalendarView}
         onMobileDaySwipeStart={handleMobileDaySwipeStart}
         onMobileDaySwipeEnd={handleMobileDaySwipeEnd}
         onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }}
-        onSlotPointerDown={() => undefined}
+        onSlotPointerDown={handleSlotPointerDown}
         onSessionPointerDown={startSessionDrag}
         onSessionClick={handleSessionClick}
         onSessionKeyDown={handleSessionKeyDown}
-        onDraftPointerDown={() => undefined}
-        onDraftClick={() => undefined}
-        onDraftCancel={() => undefined}
+        onDraftPointerDown={startDraftDrag}
+        onDraftClick={() => { void confirmDraft(); }}
+        onDraftCancel={() => setDraft(null)}
       />
 
       {selectedSession ? (
@@ -423,19 +549,34 @@ export function TeamWorkspaceView({
   data,
   onDefaultFacilityChange,
   onSessionTimeChange,
+  onSessionCreate,
   onAddDemoPlayers,
   onInviteStaff,
+  onCopyStaffInvite,
+  onRevokeStaffInvite,
+  onAddCoachRole,
+  onRemoveCoachRole,
 }: {
   data: TeamWorkspaceData;
   onDefaultFacilityChange?: (facilityId: string) => void | Promise<void>;
   onSessionTimeChange?: (sessionId: string, startsAt: string, endsAt: string) => void | Promise<void>;
+  onSessionCreate?: (startsAt: string, endsAt: string) => void | Promise<void>;
   onAddDemoPlayers?: () => void | Promise<void>;
-  onInviteStaff?: (role: 'head_coach' | 'assistant_coach') => void | Promise<void>;
+  onInviteStaff?: (role: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) => void | Promise<void>;
+  onCopyStaffInvite?: (token: string) => void | Promise<void>;
+  onRevokeStaffInvite?: (inviteId: string) => void | Promise<void>;
+  onAddCoachRole?: (label: string) => void | Promise<void>;
+  onRemoveCoachRole?: (coachRoleSlotId: string) => void | Promise<void>;
 }) {
   const [activeSection, setActiveSection] = useState<TeamWorkspaceSection>('dashboard');
   const [isSavingDefault, setIsSavingDefault] = useState(false);
   const selectedFacilityTone = facilityTone(data.defaultFacilityName);
   const players = data.players ?? [];
+  const staffRoles = data.staffRoles ?? [
+    { id: 'head-coach', label: 'Head Coach', role: 'head_coach', status: data.staff.headCoaches.length > 0 ? 'accepted' : 'missing', value: data.staff.headCoaches.join(', ') || null },
+    { id: 'assistant-coach', label: 'Assistant Coach', role: 'assistant_coach', status: data.staff.assistantCoaches.length > 0 ? 'accepted' : 'missing', value: data.staff.assistantCoaches.join(', ') || null },
+  ] satisfies TeamWorkspaceStaffRole[];
+  const [newCoachRoleLabel, setNewCoachRoleLabel] = useState('');
   const nextSession = useMemo(() => {
     const now = Date.now();
     return [...data.sessions].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()).find((session) => new Date(session.startsAt).getTime() >= now) ?? data.sessions[0];
@@ -470,6 +611,13 @@ export function TeamWorkspaceView({
     if (!onAddDemoPlayers) return;
     await onAddDemoPlayers();
     setActiveSection('players');
+  }
+
+  async function handleAddCoachRole() {
+    const label = newCoachRoleLabel.trim();
+    if (!label || !onAddCoachRole) return;
+    await onAddCoachRole(label);
+    setNewCoachRoleLabel('');
   }
 
   return (
@@ -539,13 +687,6 @@ export function TeamWorkspaceView({
             </section>
           ) : null}
 
-          <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 lg:col-span-2">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Staff</p>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <EmptyCard title="Head coach" description={data.staff.headCoaches.join(', ') || 'Invite or assign a head coach.'} />
-              <EmptyCard title="Assistant coaches" description={data.staff.assistantCoaches.join(', ') || 'Assistant roles can be filled from Staff or Team Settings.'} />
-            </div>
-          </section>
         </div>
       ) : null}
 
@@ -558,7 +699,7 @@ export function TeamWorkspaceView({
             </div>
             {data.calendarHref ? <Link href={data.calendarHref} className="rounded-xl border border-sky-500/60 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Open facility calendar</Link> : null}
           </div>
-          <TeamSmartCalendar data={data} onSessionTimeChange={onSessionTimeChange} />
+          <TeamSmartCalendar data={data} onSessionTimeChange={onSessionTimeChange} onSessionCreate={onSessionCreate} />
           {data.sessions.length === 0 ? <div className="mt-5"><EmptyCard title="No team sessions yet" description="This is already the filtered Untis-style team calendar; new team sessions will appear here." /></div> : null}
         </section>
       ) : null}
@@ -584,7 +725,6 @@ export function TeamWorkspaceView({
                 <div key={player.id} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-black text-white">{player.name}</p>
-                    {player.number ? <span className="rounded-full border border-slate-700 px-2 py-1 text-xs font-black text-slate-300">#{player.number}</span> : null}
                   </div>
                   {player.groups && player.groups.length > 0 ? <p className="mt-2 text-xs font-bold text-slate-500">{player.groups.join(' · ')}</p> : null}
                 </div>
@@ -621,16 +761,15 @@ export function TeamWorkspaceView({
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Secondary</p>
           <h2 className="mt-2 text-2xl font-black">Staff / Settings</h2>
-          <div className="mt-5 grid gap-3 md:grid-cols-2">
-            <div className={`rounded-2xl border ${selectedFacilityTone.border} ${selectedFacilityTone.bg} p-4`}>
+          <div className="mt-5 grid gap-3">
+            <div className={`max-w-sm rounded-2xl border ${selectedFacilityTone.border} ${selectedFacilityTone.bg} p-3`}>
               <p className="text-sm font-black text-slate-100">Default facility</p>
-              {data.defaultFacilityName ? <span className={`mt-3 inline-flex rounded-lg border ${selectedFacilityTone.border} px-2.5 py-1 text-xs font-black ${selectedFacilityTone.text}`}>{data.defaultFacilityName}</span> : null}
               {data.availableFacilities && data.availableFacilities.length > 0 ? (
                 <select
                   value={data.defaultFacilityId ?? ''}
                   onChange={(event) => handleDefaultFacilityChange(event.target.value)}
                   disabled={!onDefaultFacilityChange || isSavingDefault}
-                  className={`mt-3 w-full rounded-lg border ${selectedFacilityTone.border} bg-slate-950/90 px-3 py-2 text-sm font-black text-slate-100 outline-none ${selectedFacilityTone.focus} disabled:opacity-60`}
+                  className={`mt-3 w-full rounded-lg border ${selectedFacilityTone.border} bg-slate-950/90 px-3 py-2 text-xs font-black ${selectedFacilityTone.text} outline-none ${selectedFacilityTone.focus} disabled:opacity-60`}
                 >
                   <option value="">No default facility</option>
                   {data.availableFacilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
@@ -641,19 +780,19 @@ export function TeamWorkspaceView({
             </div>
             <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
               <p className="text-sm font-black text-slate-100">Staff roles</p>
-              <p className="mt-1 text-sm text-slate-400">Team-local staff actions for coaches; admin and department leads can still use the central Staff page.</p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <EmptyCard title="Head coach" description={data.staff.headCoaches.join(', ') || 'No head coach assigned.'} />
-                <EmptyCard title="Assistant / custom staff" description={data.staff.assistantCoaches.join(', ') || 'No assistant assigned.'} />
+              <p className="mt-1 text-sm text-slate-400">Invite, copy pending links, revoke invites and add team-specific coach roles here.</p>
+              <div className="mt-4">
+                <StaffRoleGrid roles={staffRoles} onInvite={onInviteStaff} onCopy={onCopyStaffInvite} onRevoke={onRevokeStaffInvite} onRemoveRole={onRemoveCoachRole} />
               </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {onInviteStaff ? (
-                  <>
-                    <button type="button" onClick={() => onInviteStaff('head_coach')} className="rounded-xl border border-sky-500/60 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Invite head coach</button>
-                    <button type="button" onClick={() => onInviteStaff('assistant_coach')} className="rounded-xl border border-sky-500/60 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Invite assistant</button>
-                  </>
-                ) : null}
-              </div>
+              {onAddCoachRole ? (
+                <div className="mt-4 rounded-xl border border-dashed border-slate-700 p-3">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Add coach role</p>
+                  <div className="mt-2 flex max-w-2xl flex-col gap-2 sm:flex-row">
+                    <input value={newCoachRoleLabel} onChange={(event) => setNewCoachRoleLabel(event.target.value)} placeholder="e.g. Strength Coach" className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-400" />
+                    <button type="button" onClick={handleAddCoachRole} className="rounded-lg border border-sky-500/60 px-3 py-2 text-xs font-black text-sky-200 hover:bg-sky-950/40">Add role</button>
+                  </div>
+                </div>
+              ) : null}
               {data.staffHref && data.role !== 'coach' ? <Link href={data.staffHref} className="mt-3 inline-flex rounded-xl border border-sky-500/60 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Open central Staff</Link> : null}
             </div>
           </div>

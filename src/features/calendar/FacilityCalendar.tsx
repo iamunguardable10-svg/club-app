@@ -600,18 +600,18 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
           <div className="mt-5 hidden flex-wrap gap-2 md:flex">
             <button
               type="button"
-              onClick={() => { setMode('view'); setDraft(null); }}
-              className={`rounded-xl border px-4 py-2 text-sm font-black ${mode === 'view' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-200 hover:bg-slate-900'}`}
-            >
-              View
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('edit')}
+              onClick={() => {
+                if (mode === 'edit') {
+                  setMode('view');
+                  setDraft(null);
+                  return;
+                }
+                setMode('edit');
+              }}
               disabled={!canCreateSessions}
-              className={`rounded-xl border px-4 py-2 text-sm font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-200 hover:bg-slate-900'} disabled:cursor-not-allowed disabled:opacity-50`}
+              className={`rounded-xl border px-4 py-2 text-sm font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'} disabled:cursor-not-allowed disabled:opacity-50`}
             >
-              Edit / create
+              {mode === 'edit' ? 'Done editing' : 'Edit calendar'}
             </button>
             {!canCreateSessions ? <p className="self-center text-xs font-bold text-slate-500">Your role can view this calendar, but cannot create sessions here.</p> : null}
           </div>

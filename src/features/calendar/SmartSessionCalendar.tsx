@@ -135,9 +135,22 @@ export function SmartSessionCalendar({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-2 md:hidden">
-        <button type="button" onClick={() => { onSetMode('view'); onClearDraft(); }} className={`rounded-xl border px-3 py-2 text-xs font-black ${mode === 'view' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>View</button>
-        <button type="button" onClick={() => onSetMode('edit')} disabled={!canCreateSessions} className={`rounded-xl border px-3 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-300'} disabled:cursor-not-allowed disabled:opacity-50`}>Edit</button>
+      <div className="md:hidden">
+        <button
+          type="button"
+          onClick={() => {
+            if (mode === 'edit') {
+              onSetMode('view');
+              onClearDraft();
+              return;
+            }
+            onSetMode('edit');
+          }}
+          disabled={!canCreateSessions}
+          className={`w-full rounded-xl border px-3 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'} disabled:cursor-not-allowed disabled:opacity-50`}
+        >
+          {mode === 'edit' ? 'Done editing' : 'Edit calendar'}
+        </button>
       </div>
 
       <section className={`${mobileCalendarView === 'week' ? 'block' : 'hidden'} overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden`}>
