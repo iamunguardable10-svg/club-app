@@ -3,18 +3,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminShell } from '@/shared/admin/AdminShell';
 import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoSessions, saveDemoTeams, type DemoClubSetup, type DemoSession, type DemoTeam } from '@/shared/dev/demoStorage';
-import { TeamWorkspaceView, type TeamWorkspaceData } from './TeamWorkspaceView';
+import { TeamWorkspaceView, type TeamWorkspaceData, type TeamWorkspacePlayer } from './TeamWorkspaceView';
 
 type DemoInvite = {
   id: string;
+  token?: string;
   role: 'department_lead' | 'head_coach' | 'assistant_coach';
   department: string;
   team?: string | null;
   status: 'pending' | 'accepted' | 'revoked' | 'expired';
+  createdAt?: string;
+  expiresAt?: string | null;
 };
 
 const DEMO_INVITES_KEY = 'club-app.demo.invites';
-const DEMO_PLAYER_COUNTS_KEY = 'club-app.demo.player-counts';
+const DEMO_PLAYERS_KEY = 'club-app.demo.players';
 
 function getDemoInvites(): DemoInvite[] {
   if (typeof window === 'undefined') return [];
@@ -38,20 +41,44 @@ function createToken() {
   return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-function getDemoPlayerCounts(): Record<string, number> {
-  if (typeof window === 'undefined') return {};
-  const raw = window.localStorage.getItem(DEMO_PLAYER_COUNTS_KEY);
-  if (!raw) return {};
+type DemoPlayer = TeamWorkspacePlayer & { teamId: string };
+
+const demoPlayerSeed = [
+  'Noah Keller',
+  'Elias Wagner',
+  'Leon Fischer',
+  'Jonas Becker',
+  'Finn Schneider',
+  'Luca Hoffmann',
+  'Malik Johnson',
+  'Theo Klein',
+  'Samir Özdemir',
+  'Max Weber',
+  'Paul Schmidt',
+  'Ben Carter',
+];
+
+function buildDemoPlayers(teamId: string): DemoPlayer[] {
+  return demoPlayerSeed.map((name, index) => {
+    const groups = index < 5 ? ['starting-five'] : index < 10 ? ['bench-unit'] : ['rehab'];
+    return { id: `${teamId}-demo-player-${index + 1}`, teamId, name, number: index + 4, groups };
+  });
+}
+
+function getDemoPlayers(): DemoPlayer[] {
+  if (typeof window === 'undefined') return [];
+  const raw = window.localStorage.getItem(DEMO_PLAYERS_KEY);
+  if (!raw) return [];
   try {
-    return JSON.parse(raw) as Record<string, number>;
+    return JSON.parse(raw) as DemoPlayer[];
   } catch {
-    return {};
+    return [];
   }
 }
 
-function saveDemoPlayerCounts(counts: Record<string, number>) {
+function saveDemoPlayers(players: DemoPlayer[]) {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(DEMO_PLAYER_COUNTS_KEY, JSON.stringify(counts));
+  window.localStorage.setItem(DEMO_PLAYERS_KEY, JSON.stringify(players));
 }
 
 export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
@@ -59,7 +86,7 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
   const [teams, setTeams] = useState<DemoTeam[]>([]);
   const [sessions, setSessions] = useState<DemoSession[]>([]);
   const [invites, setInvites] = useState<DemoInvite[]>([]);
-  const [playerCounts, setPlayerCounts] = useState<Record<string, number>>({});
+  const [players, setPlayers] = useState<DemoPlayer[]>([]);
 
   useEffect(() => {
     const currentSetup = getDemoClubSetup();
@@ -67,7 +94,7 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
     setTeams(getDemoTeams(currentSetup));
     setSessions(getDemoSessions());
     setInvites(getDemoInvites());
-    setPlayerCounts(getDemoPlayerCounts());
+    setPlayers(getDemoPlayers());
   }, []);
 
   function handleDefaultFacilityChange(facility: string) {
@@ -83,9 +110,10 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
   }
 
   function handleAddDemoPlayers() {
-    const nextCounts = { ...playerCounts, [teamId]: Math.max(playerCounts[teamId] ?? 0, 12) };
-    saveDemoPlayerCounts(nextCounts);
-    setPlayerCounts(nextCounts);
+    const existing = players.filter((player) => player.teamId !== teamId);
+    const nextPlayers = [...existing, ...buildDemoPlayers(teamId)];
+    saveDemoPlayers(nextPlayers);
+    setPlayers(nextPlayers);
   }
 
   async function handleInviteStaff(role: 'head_coach' | 'assistant_coach') {
@@ -93,14 +121,14 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
     if (!team) return;
     const existing = invites.find((invite) => invite.status === 'pending' && invite.role === role && invite.department === team.department && invite.team === team.name);
     if (existing) {
-      await navigator.clipboard.writeText(`${window.location.origin}/invite/${existing.id}`);
+      await navigator.clipboard.writeText(`${window.location.origin}/invite/${existing.token ?? existing.id}`);
       return;
     }
-    const invite: DemoInvite = { id: createToken(), role, department: team.department, team: team.name, status: 'pending' };
+    const invite: DemoInvite = { id: crypto.randomUUID(), token: createToken(), role, department: team.department, team: team.name, status: 'pending', createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() };
     const nextInvites = [invite, ...invites];
     saveDemoInvites(nextInvites);
     setInvites(nextInvites);
-    await navigator.clipboard.writeText(`${window.location.origin}/invite/${invite.id}`);
+    await navigator.clipboard.writeText(`${window.location.origin}/invite/${invite.token}`);
   }
 
   const data = useMemo<TeamWorkspaceData | null>(() => {
@@ -109,8 +137,10 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
 
     const teamSessions = sessions.filter((session) => session.department === team.department && session.team === team.name);
     const contextSessions = sessions.filter((session) => session.facility === team.defaultFacility && !(session.department === team.department && session.team === team.name));
+    const teamPlayers = players.filter((player) => player.teamId === team.id);
     const hasHeadInvite = invites.some((invite) => invite.status === 'pending' && invite.role === 'head_coach' && invite.department === team.department && invite.team === team.name);
     const hasAssistantInvite = invites.some((invite) => invite.status === 'pending' && invite.role === 'assistant_coach' && invite.department === team.department && invite.team === team.name);
+    const countGroup = (groupId: string) => teamPlayers.filter((player) => player.groups?.includes(groupId)).length;
 
     return {
       id: team.id,
@@ -119,7 +149,8 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
       defaultFacilityId: team.defaultFacility,
       defaultFacilityName: team.defaultFacility,
       availableFacilities: (setup?.facilities ?? []).map((facility) => ({ id: facility, name: facility })),
-      playerCount: playerCounts[team.id] ?? 0,
+      playerCount: teamPlayers.length,
+      players: teamPlayers,
       role: 'admin',
       staff: {
         headCoaches: hasHeadInvite ? ['Invite pending'] : [],
@@ -140,15 +171,15 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
         facilityName: session.team,
       })),
       groups: [
-        { id: 'starting-five', name: 'Starting Five', description: 'Team-internal core group for session planning.', playerCount: 0 },
-        { id: 'bench-unit', name: 'Bench unit', description: 'Second unit / rotation group.', playerCount: 0 },
-        { id: 'rehab', name: 'Rehab', description: 'Players with modified load.', playerCount: 0 },
+        { id: 'starting-five', name: 'Starting Five', description: 'Team-internal core group for session planning.', playerCount: countGroup('starting-five') },
+        { id: 'bench-unit', name: 'Bench unit', description: 'Second unit / rotation group.', playerCount: countGroup('bench-unit') },
+        { id: 'rehab', name: 'Rehab', description: 'Players with modified load.', playerCount: countGroup('rehab') },
       ],
       backHref: '/demo/admin/teams',
       calendarHref: team.defaultFacility ? `/demo/admin/facilities/${encodeURIComponent(team.defaultFacility)}/calendar?from=team&teamName=${encodeURIComponent(team.name)}&departmentName=${encodeURIComponent(team.department)}` : null,
       staffHref: `/demo/admin/people?departmentName=${encodeURIComponent(team.department)}&teamName=${encodeURIComponent(team.name)}`,
     };
-  }, [invites, playerCounts, sessions, setup?.facilities, teamId, teams]);
+  }, [invites, players, sessions, setup?.facilities, teamId, teams]);
 
   if (!setup) {
     return (

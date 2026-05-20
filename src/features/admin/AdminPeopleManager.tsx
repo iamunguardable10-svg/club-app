@@ -491,9 +491,10 @@ export function AdminPeopleManager() {
                     const assistantStatus = assistantCoach ? 'accepted' : assistantInvite ? 'pending' : 'missing';
 
                     return (
-                      <div key={team.id} className="grid gap-2 rounded-xl border border-slate-800 bg-slate-950/50 p-3 md:grid-cols-[1fr_1fr_1fr]">
+                      <div key={team.id} className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
                         <p className="font-black text-slate-100">{team.name}</p>
-                        <div>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3">
                           <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Head Coach</p>
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
                             {headCoach ? <span>{profileLabel(profileById.get(headCoach.user_id))}</span> : headInvite ? (
@@ -504,11 +505,22 @@ export function AdminPeopleManager() {
                             ) : <button type="button" onClick={() => handleQuickInvite('head_coach', department.id, team.id)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:bg-slate-800">Invite</button>}
                           </div>
                         </div>
+                        <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3">
+                          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Assistant Coach</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
+                            {assistantCoach ? <span>{profileLabel(profileById.get(assistantCoach.user_id))}</span> : assistantInvite ? (
+                              <>
+                                <span>Invite pending</span>
+                                <button type="button" onClick={() => handleQuickInvite('assistant_coach', department.id, team.id)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:bg-slate-800">{copiedToken === assistantInvite.token ? 'Copied' : 'Copy'}</button>
+                              </>
+                            ) : <button type="button" onClick={() => handleQuickInvite('assistant_coach', department.id, team.id)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:bg-slate-800">Invite</button>}
+                          </div>
+                        </div>
                         {(coachRoleSlotsByTeam.get(team.id) ?? []).map((slot) => {
                           const membership = membershipBySlot.get(slot.id);
                           const invite = pendingInviteByScope.get(`assistant_coach:${department.id}:${team.id}:${slot.id}`);
                           return (
-                            <div key={slot.id}>
+                            <div key={slot.id} className="rounded-lg border border-slate-800 bg-slate-950/70 p-3">
                               <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{slot.label}</p>
                               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
                                 {membership ? <span>{profileLabel(profileById.get(membership.user_id))}</span> : invite ? (
@@ -522,8 +534,9 @@ export function AdminPeopleManager() {
                             </div>
                           );
                         })}
+                        </div>
                         {isEditMode ? (
-                          <div className="md:col-span-3 rounded-xl border border-dashed border-slate-700 p-3">
+                          <div className="mt-3 rounded-xl border border-dashed border-slate-700 p-3">
                             <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Add coach role</p>
                             <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                               <input value={newRoleLabelByTeam[team.id] ?? ''} onChange={(event) => setNewRoleLabelByTeam((current) => ({ ...current, [team.id]: event.target.value }))} placeholder="e.g. Strength Coach" className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-400" />
@@ -531,17 +544,6 @@ export function AdminPeopleManager() {
                             </div>
                           </div>
                         ) : null}
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Assistant Coach</p>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
-                            {assistantCoach ? <span>{profileLabel(profileById.get(assistantCoach.user_id))}</span> : assistantInvite ? (
-                              <>
-                                <span>Invite pending</span>
-                                <button type="button" onClick={() => handleQuickInvite('assistant_coach', department.id, team.id)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:bg-slate-800">{copiedToken === assistantInvite.token ? 'Copied' : 'Copy'}</button>
-                              </>
-                            ) : <button type="button" onClick={() => handleQuickInvite('assistant_coach', department.id, team.id)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:bg-slate-800">Invite</button>}
-                          </div>
-                        </div>
                       </div>
                     );
                   }) : <Link href={`/admin/departments/${department.id}?mode=edit&focus=teams`} className="rounded-xl border border-sky-500/40 bg-sky-950/20 p-3 text-sm font-bold text-sky-200 hover:bg-sky-950/35">No teams yet — create first team</Link>}

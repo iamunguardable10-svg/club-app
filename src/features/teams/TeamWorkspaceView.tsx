@@ -22,6 +22,7 @@ export type TeamWorkspaceStaff = {
 };
 
 export type TeamWorkspaceFacilityOption = { id: string; name: string };
+export type TeamWorkspacePlayer = { id: string; name: string; number?: number | null; groups?: string[] };
 
 export type TeamWorkspaceData = {
   id: string;
@@ -31,6 +32,7 @@ export type TeamWorkspaceData = {
   defaultFacilityName?: string | null;
   availableFacilities?: TeamWorkspaceFacilityOption[];
   playerCount: number;
+  players?: TeamWorkspacePlayer[];
   role: TeamWorkspaceRole;
   staff: TeamWorkspaceStaff;
   sessions: TeamWorkspaceSession[];
@@ -125,6 +127,20 @@ function EmptyCard({ title, description }: { title: string; description: string 
       <p className="mt-1 text-sm text-slate-400">{description}</p>
     </div>
   );
+}
+
+const facilityToneClasses = [
+  { border: 'border-emerald-400/70', bg: 'bg-emerald-950/20', text: 'text-emerald-100', focus: 'focus:border-emerald-300' },
+  { border: 'border-sky-400/70', bg: 'bg-sky-950/20', text: 'text-sky-100', focus: 'focus:border-sky-300' },
+  { border: 'border-fuchsia-400/70', bg: 'bg-fuchsia-950/20', text: 'text-fuchsia-100', focus: 'focus:border-fuchsia-300' },
+  { border: 'border-amber-400/70', bg: 'bg-amber-950/20', text: 'text-amber-100', focus: 'focus:border-amber-300' },
+  { border: 'border-rose-400/70', bg: 'bg-rose-950/20', text: 'text-rose-100', focus: 'focus:border-rose-300' },
+];
+
+function facilityTone(name?: string | null) {
+  if (!name) return { border: 'border-slate-800', bg: 'bg-slate-950/70', text: 'text-slate-100', focus: 'focus:border-sky-300' };
+  const hash = Array.from(name).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return facilityToneClasses[hash % facilityToneClasses.length] ?? facilityToneClasses[0];
 }
 
 function TeamSmartCalendar({ data, onSessionTimeChange }: { data: TeamWorkspaceData; onSessionTimeChange?: (sessionId: string, startsAt: string, endsAt: string) => void | Promise<void> }) {
@@ -336,6 +352,13 @@ function TeamSmartCalendar({ data, onSessionTimeChange }: { data: TeamWorkspaceD
 
   return (
     <div className="mt-5 space-y-4">
+      <div className="hidden items-center justify-between gap-3 md:flex">
+        <div className="flex gap-2">
+          <button type="button" onClick={() => { setMode('view'); setDrag(null); }} className={`rounded-xl border px-4 py-2 text-sm font-black ${mode === 'view' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:bg-slate-900'}`}>View</button>
+          <button type="button" onClick={() => setMode('edit')} disabled={!canManageCalendar} className={`rounded-xl border px-4 py-2 text-sm font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:bg-slate-900'} disabled:cursor-not-allowed disabled:opacity-50`}>Edit</button>
+        </div>
+        {mode === 'edit' && canManageCalendar ? <p className="text-xs font-bold text-slate-500">Drag to move. Use the lower handle to resize.</p> : null}
+      </div>
       <SmartSessionCalendar
         mode={mode}
         canCreateSessions={canManageCalendar}
@@ -373,11 +396,23 @@ function TeamSmartCalendar({ data, onSessionTimeChange }: { data: TeamWorkspaceD
       />
 
       {selectedSession ? (
-        <div className="rounded-2xl border border-sky-500/30 bg-sky-950/25 p-4">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-sky-200">Session details</p>
-          <p className="mt-2 text-lg font-black text-white">{selectedSession.title}</p>
-          <p className="mt-1 text-sm text-slate-300">{formatTimeRange(selectedSession.startsAt, selectedSession.endsAt)}</p>
-          <p className="mt-1 text-sm text-slate-400">{selectedSession.facilityName ?? data.defaultFacilityName ?? 'Facility not set'}</p>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/75 p-3 backdrop-blur-sm sm:items-center">
+          <section className="w-full max-w-lg rounded-3xl border border-slate-800 bg-slate-950 p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Session details</p>
+                <h3 className="mt-2 text-2xl font-black text-white">{selectedSession.title}</h3>
+              </div>
+              <button type="button" onClick={() => setSelectedSessionId(null)} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Close</button>
+            </div>
+            <div className="mt-4 grid gap-2 text-sm text-slate-300">
+              <p><span className="font-black text-slate-100">Time:</span> {formatTimeRange(selectedSession.startsAt, selectedSession.endsAt)}</p>
+              <p><span className="font-black text-slate-100">Facility:</span> {selectedSession.facilityName ?? data.defaultFacilityName ?? 'Facility not set'}</p>
+              <p><span className="font-black text-slate-100">Attendance:</span> Prepared for check-in.</p>
+              <p><span className="font-black text-slate-100">Load:</span> Not reported yet.</p>
+            </div>
+            {canManageCalendar ? <p className="mt-4 rounded-2xl border border-sky-500/25 bg-sky-950/20 p-3 text-xs font-bold text-sky-100/80">Editing stays in the calendar edit mode for now; attendance and load controls get their own detail screen next.</p> : null}
+          </section>
         </div>
       ) : null}
     </div>
@@ -399,6 +434,8 @@ export function TeamWorkspaceView({
 }) {
   const [activeSection, setActiveSection] = useState<TeamWorkspaceSection>('dashboard');
   const [isSavingDefault, setIsSavingDefault] = useState(false);
+  const selectedFacilityTone = facilityTone(data.defaultFacilityName);
+  const players = data.players ?? [];
   const nextSession = useMemo(() => {
     const now = Date.now();
     return [...data.sessions].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()).find((session) => new Date(session.startsAt).getTime() >= now) ?? data.sessions[0];
@@ -541,6 +578,19 @@ export function TeamWorkspaceView({
               <EmptyCard title="Invite players" description="Prepared for the player invite link / team code flow." />
             )}
           </div>
+          {players.length > 0 ? (
+            <div className="mt-5 grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+              {players.map((player) => (
+                <div key={player.id} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-black text-white">{player.name}</p>
+                    {player.number ? <span className="rounded-full border border-slate-700 px-2 py-1 text-xs font-black text-slate-300">#{player.number}</span> : null}
+                  </div>
+                  {player.groups && player.groups.length > 0 ? <p className="mt-2 text-xs font-bold text-slate-500">{player.groups.join(' · ')}</p> : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
         </section>
       ) : null}
 
@@ -554,6 +604,13 @@ export function TeamWorkspaceView({
                 <p className="font-black">{group.name}</p>
                 <p className="mt-1 text-sm text-slate-400">{group.description}</p>
                 <p className="mt-3 text-xs font-black text-slate-500">{group.playerCount} players</p>
+                {players.filter((player) => player.groups?.includes(group.id) || player.groups?.includes(group.name)).length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {players.filter((player) => player.groups?.includes(group.id) || player.groups?.includes(group.name)).slice(0, 6).map((player) => (
+                      <span key={player.id} className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-bold text-slate-300">{player.name}</span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
@@ -565,14 +622,15 @@ export function TeamWorkspaceView({
           <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Secondary</p>
           <h2 className="mt-2 text-2xl font-black">Staff / Settings</h2>
           <div className="mt-5 grid gap-3 md:grid-cols-2">
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+            <div className={`rounded-2xl border ${selectedFacilityTone.border} ${selectedFacilityTone.bg} p-4`}>
               <p className="text-sm font-black text-slate-100">Default facility</p>
+              {data.defaultFacilityName ? <span className={`mt-3 inline-flex rounded-lg border ${selectedFacilityTone.border} px-2.5 py-1 text-xs font-black ${selectedFacilityTone.text}`}>{data.defaultFacilityName}</span> : null}
               {data.availableFacilities && data.availableFacilities.length > 0 ? (
                 <select
                   value={data.defaultFacilityId ?? ''}
                   onChange={(event) => handleDefaultFacilityChange(event.target.value)}
                   disabled={!onDefaultFacilityChange || isSavingDefault}
-                  className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs font-black text-slate-200 outline-none focus:border-emerald-400 disabled:opacity-60"
+                  className={`mt-3 w-full rounded-lg border ${selectedFacilityTone.border} bg-slate-950/90 px-3 py-2 text-sm font-black text-slate-100 outline-none ${selectedFacilityTone.focus} disabled:opacity-60`}
                 >
                   <option value="">No default facility</option>
                   {data.availableFacilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
@@ -583,7 +641,11 @@ export function TeamWorkspaceView({
             </div>
             <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
               <p className="text-sm font-black text-slate-100">Staff roles</p>
-              <p className="mt-1 text-sm text-slate-400">Invite head, assistant or custom coaches through Staff so invite state stays centralized.</p>
+              <p className="mt-1 text-sm text-slate-400">Team-local staff actions for coaches; admin and department leads can still use the central Staff page.</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <EmptyCard title="Head coach" description={data.staff.headCoaches.join(', ') || 'No head coach assigned.'} />
+                <EmptyCard title="Assistant / custom staff" description={data.staff.assistantCoaches.join(', ') || 'No assistant assigned.'} />
+              </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {onInviteStaff ? (
                   <>
@@ -592,7 +654,7 @@ export function TeamWorkspaceView({
                   </>
                 ) : null}
               </div>
-              {data.staffHref ? <Link href={data.staffHref} className="mt-3 inline-flex rounded-xl border border-sky-500/60 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Open Staff</Link> : null}
+              {data.staffHref && data.role !== 'coach' ? <Link href={data.staffHref} className="mt-3 inline-flex rounded-xl border border-sky-500/60 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Open central Staff</Link> : null}
             </div>
           </div>
         </section>

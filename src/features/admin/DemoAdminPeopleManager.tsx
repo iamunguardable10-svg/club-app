@@ -300,9 +300,10 @@ export function DemoAdminPeopleManager() {
                     const assistantStatus = assistantInvite?.status === 'accepted' ? 'accepted' : assistantInvite?.status === 'pending' ? 'pending' : 'missing';
 
                     return (
-                      <div key={team.id} className="grid gap-2 rounded-xl border border-slate-800 bg-slate-950/50 p-3 md:grid-cols-[1fr_1fr_1fr]">
+                      <div key={team.id} className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
                         <p className="font-black text-slate-100">{team.name}</p>
-                        <div>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3">
                           <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Head Coach</p>
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
                             {headStatus === 'accepted' ? <span>Accepted</span> : headStatus === 'pending' ? (
@@ -313,7 +314,7 @@ export function DemoAdminPeopleManager() {
                             ) : <button type="button" onClick={() => handleQuickInvite('head_coach', department, team.name)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:bg-slate-800">Invite</button>}
                           </div>
                         </div>
-                        <div>
+                        <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3">
                           <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Assistant Coach</p>
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
                             {assistantStatus === 'accepted' ? <span>Accepted</span> : assistantStatus === 'pending' ? (
@@ -327,7 +328,7 @@ export function DemoAdminPeopleManager() {
                         {extraCoachRoles.filter((role) => role.department === department && role.team === team.name).map((role) => {
                           const roleInvite = latestInviteByScope.get(`assistant_coach:${department}:${team.name}:${role.id}`);
                           return (
-                            <div key={role.id}>
+                            <div key={role.id} className="rounded-lg border border-slate-800 bg-slate-950/70 p-3">
                               <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{role.label}</p>
                               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-200">
                                 {roleInvite?.status === 'pending' ? (
@@ -341,8 +342,9 @@ export function DemoAdminPeopleManager() {
                             </div>
                           );
                         })}
+                        </div>
                         {isEditMode ? (
-                          <div className="md:col-span-3 rounded-xl border border-dashed border-slate-700 p-3">
+                          <div className="mt-3 rounded-xl border border-dashed border-slate-700 p-3">
                             <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Add coach role</p>
                             <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                               <input value={newRoleLabelByTeam[`${department}:${team.name}`] ?? ''} onChange={(event) => setNewRoleLabelByTeam((current) => ({ ...current, [`${department}:${team.name}`]: event.target.value }))} placeholder="e.g. Strength Coach" className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-400" />
