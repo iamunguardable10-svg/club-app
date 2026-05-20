@@ -132,7 +132,8 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
 
   function handleSessionCreate(startsAt: string, endsAt: string) {
     const team = teams.find((item) => item.id === teamId);
-    if (!team || !team.defaultFacility) return;
+    const fallbackFacility = team?.defaultFacility ?? setup?.facilities[0] ?? null;
+    if (!team || !fallbackFacility) return;
     const nextSession: DemoSession = {
       id: crypto.randomUUID(),
       department: team.department,
@@ -141,7 +142,7 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
       sessionType: 'training',
       startsAt,
       endsAt,
-      facility: team.defaultFacility,
+      facility: fallbackFacility,
       createdAt: new Date().toISOString(),
     };
     const allSessions = [...getDemoSessions(), nextSession].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());

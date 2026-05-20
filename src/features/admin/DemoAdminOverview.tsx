@@ -183,9 +183,9 @@ function buildWarningAreas(setup: DemoClubSetup, teams: DemoTeam[], assignments:
           ? {
               key: 'overview:staff:missing-leads',
               title: `${pluralize(departmentsWithoutLead.length, 'department lead')} missing or not invited`,
-              description: 'Invite missing department leads from Departments now; Staff will become the central role and invite page next.',
-              href: '/demo/admin/departments',
-              actionLabel: 'Open departments',
+              description: 'Open Staff for the central role and invite view.',
+              href: '/demo/admin/people',
+              actionLabel: 'Open staff',
               tone: 'sky',
             }
           : null,

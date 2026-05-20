@@ -161,8 +161,10 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
   }
 
   async function handleSessionCreate(startsAt: string, endsAt: string) {
-    if (!team || !team.default_facility_id) {
-      setError('Set a default facility before creating team sessions.');
+    if (!team) return;
+    const facilityId = team.default_facility_id ?? departmentFacilityIds[0] ?? null;
+    if (!facilityId) {
+      setError('Assign a facility to this department before creating team sessions.');
       return;
     }
     const supabase = createBrowserSupabaseClient();
@@ -181,7 +183,7 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
         session_type: 'training',
         starts_at: startsAt,
         ends_at: endsAt,
-        facility_id: team.default_facility_id,
+        facility_id: facilityId,
         status: 'scheduled',
       })
       .select('id, title, starts_at, ends_at, facility_id')

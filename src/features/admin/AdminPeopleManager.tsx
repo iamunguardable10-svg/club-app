@@ -492,7 +492,7 @@ export function AdminPeopleManager() {
 
                     return (
                       <div key={team.id} className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
-                        <p className="font-black text-slate-100">{team.name}</p>
+                        <Link href={`/admin/teams/${team.id}`} className="w-fit font-black text-slate-100 transition hover:text-sky-200">{team.name}</Link>
                         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                         <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3">
                           <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Head Coach</p>

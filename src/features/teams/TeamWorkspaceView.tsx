@@ -219,7 +219,7 @@ function TeamSmartCalendar({
   const mobileDaySwipeRef = useRef<{ startX: number; startY: number } | null>(null);
 
   const canManageExistingSessions = data.role !== 'viewer' && Boolean(onSessionTimeChange);
-  const canCreateSessions = data.role !== 'viewer' && Boolean(onSessionCreate && data.defaultFacilityId);
+  const canCreateSessions = data.role !== 'viewer' && Boolean(onSessionCreate && (data.defaultFacilityId || (data.availableFacilities?.length ?? 0) > 0));
   const canManageCalendar = canManageExistingSessions || canCreateSessions;
   useEffect(() => {
     if (!drag) setLocalSessions(data.sessions);
@@ -312,15 +312,24 @@ function TeamSmartCalendar({
     const baseHour = window.innerWidth < 768 ? mobileFirstHour : firstHour;
     const visibleMinutes = window.innerWidth < 768 ? mobileVisibleHours.length * 60 : (lastHour - firstHour) * 60;
 
-    function createDraftFromTap(upEvent: globalThis.PointerEvent) {
-      if (upEvent.pointerId !== pointerId) return;
-      window.removeEventListener('pointerup', createDraftFromTap);
-      if (Math.abs(upEvent.clientY - startY) > 8 || Math.abs(upEvent.clientX - startX) > 8) return;
-      const clickedMinutes = clamp(roundToSlot(((startY - rect.top) / Math.max(rect.height, 1)) * visibleMinutes), 0, visibleMinutes - 30);
+    function createDraftAt(clientY: number) {
+      const clickedMinutes = clamp(roundToSlot(((clientY - rect.top) / Math.max(rect.height, 1)) * visibleMinutes), 0, visibleMinutes - 30);
       const start = createDateForCalendarMinute(day, (baseHour - firstHour) * 60 + clickedMinutes);
       const end = addMinutes(start, 90);
       setSelectedSessionId(null);
       setDraft({ startsAt: start.toISOString(), endsAt: end.toISOString() });
+    }
+
+    if (event.pointerType === 'mouse') {
+      createDraftAt(startY);
+      return;
+    }
+
+    function createDraftFromTap(upEvent: globalThis.PointerEvent) {
+      if (upEvent.pointerId !== pointerId) return;
+      window.removeEventListener('pointerup', createDraftFromTap);
+      if (Math.abs(upEvent.clientY - startY) > 8 || Math.abs(upEvent.clientX - startX) > 8) return;
+      createDraftAt(startY);
     }
 
     window.addEventListener('pointerup', createDraftFromTap, { once: true });
