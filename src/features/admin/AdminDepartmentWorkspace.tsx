@@ -1051,7 +1051,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
                       <h3 className="text-xl font-black text-white">
-                        <Link href={`/admin/teams/${team.id}`} className="transition hover:text-sky-200">
+                        <Link href={`/admin/teams/${team.id}?from=department&departmentId=${department?.id ?? ''}`} className="transition hover:text-sky-200">
                           {team.name}
                         </Link>
                       </h3>

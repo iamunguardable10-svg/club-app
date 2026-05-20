@@ -100,7 +100,7 @@ function saveDemoExtraCoachRoles(roles: DemoExtraCoachRole[]) {
   window.localStorage.setItem(DEMO_EXTRA_COACH_ROLES_KEY, JSON.stringify(roles));
 }
 
-export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
+export function DemoTeamWorkspace({ teamId, backHref = '/demo/admin/teams', backLabel = 'Back to teams' }: { teamId: string; backHref?: string; backLabel?: string }) {
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [teams, setTeams] = useState<DemoTeam[]>([]);
   const [sessions, setSessions] = useState<DemoSession[]>([]);
@@ -126,6 +126,12 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
 
   function handleSessionTimeChange(sessionId: string, startsAt: string, endsAt: string) {
     const nextSessions = sessions.map((session) => session.id === sessionId ? { ...session, startsAt, endsAt } : session);
+    saveDemoSessions(nextSessions);
+    setSessions(nextSessions);
+  }
+
+  function handleSessionFacilityChange(sessionId: string, facility: string) {
+    const nextSessions = sessions.map((session) => session.id === sessionId ? { ...session, facility } : session);
     saveDemoSessions(nextSessions);
     setSessions(nextSessions);
   }
@@ -250,6 +256,7 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
         title: session.title,
         startsAt: session.startsAt,
         endsAt: session.endsAt,
+        facilityId: session.facility,
         facilityName: session.facility,
       })),
       contextSessions: contextSessions.map((session) => ({
@@ -257,6 +264,7 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
         title: session.title,
         startsAt: session.startsAt,
         endsAt: session.endsAt,
+        facilityId: session.facility,
         facilityName: session.team,
       })),
       groups: [
@@ -264,11 +272,12 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
         { id: 'bench-unit', name: 'Bench unit', description: 'Second unit / rotation group.', playerCount: countGroup('bench-unit') },
         { id: 'rehab', name: 'Rehab', description: 'Players with modified load.', playerCount: countGroup('rehab') },
       ],
-      backHref: '/demo/admin/teams',
+      backHref,
+      backLabel,
       calendarHref: team.defaultFacility ? `/demo/admin/facilities/${encodeURIComponent(team.defaultFacility)}/calendar?from=team&teamName=${encodeURIComponent(team.name)}&departmentName=${encodeURIComponent(team.department)}` : null,
       staffHref: `/demo/admin/people?departmentName=${encodeURIComponent(team.department)}&teamName=${encodeURIComponent(team.name)}`,
     };
-  }, [extraCoachRoles, invites, players, sessions, setup?.facilities, teamId, teams]);
+  }, [backHref, backLabel, extraCoachRoles, invites, players, sessions, setup?.facilities, teamId, teams]);
 
   if (!setup) {
     return (
@@ -296,6 +305,7 @@ export function DemoTeamWorkspace({ teamId }: { teamId: string }) {
         onDefaultFacilityChange={handleDefaultFacilityChange}
         onSessionTimeChange={handleSessionTimeChange}
         onSessionCreate={handleSessionCreate}
+        onSessionFacilityChange={handleSessionFacilityChange}
         onAddDemoPlayers={handleAddDemoPlayers}
         onInviteStaff={handleInviteStaff}
         onCopyStaffInvite={handleCopyStaffInvite}

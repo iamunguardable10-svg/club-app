@@ -26,7 +26,7 @@ export function DemoTeamsManager() {
       <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
         <div className="grid gap-3">
           {setup && teams.length > 0 ? teams.map((team) => (
-            <Link key={team.id} href={`/demo/admin/teams/${encodeURIComponent(team.id)}`} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 transition hover:border-amber-300/60 hover:bg-slate-900">
+            <Link key={team.id} href={`/demo/admin/teams/${encodeURIComponent(team.id)}?from=teams`} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 transition hover:border-amber-300/60 hover:bg-slate-900">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-xl font-black">{team.name}</h2>

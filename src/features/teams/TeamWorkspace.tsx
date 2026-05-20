@@ -30,7 +30,7 @@ function profileLabel(profile: Profile | undefined, fallback: string) {
   return profile?.full_name || profile?.email || fallback;
 }
 
-export function TeamWorkspace({ teamId }: { teamId: string }) {
+export function TeamWorkspace({ teamId, backHref = '/admin/teams', backLabel = 'Back to teams' }: { teamId: string; backHref?: string; backLabel?: string }) {
   const router = useRouter();
   const [team, setTeam] = useState<Team | null>(null);
   const [department, setDepartment] = useState<Department | null>(null);
@@ -158,6 +158,16 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
       return;
     }
     setSessions((current) => current.map((session) => (session.id === sessionId ? { ...session, starts_at: startsAt, ends_at: endsAt } : session)));
+  }
+
+  async function handleSessionFacilityChange(sessionId: string, facilityId: string) {
+    const supabase = createBrowserSupabaseClient();
+    const { error: updateError } = await supabase.from('sessions').update({ facility_id: facilityId }).eq('id', sessionId);
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+    setSessions((current) => current.map((session) => (session.id === sessionId ? { ...session, facility_id: facilityId } : session)));
   }
 
   async function handleSessionCreate(startsAt: string, endsAt: string) {
@@ -326,6 +336,7 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
         title: session.title,
         startsAt: session.starts_at,
         endsAt: session.ends_at,
+        facilityId: session.facility_id,
         facilityName: session.facility_id ? facilityById.get(session.facility_id)?.name ?? null : null,
       })),
       contextSessions: contextSessions.map((session) => ({
@@ -333,6 +344,7 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
         title: session.title,
         startsAt: session.starts_at,
         endsAt: session.ends_at,
+        facilityId: session.facility_id,
         facilityName: session.facility_id ? facilityById.get(session.facility_id)?.name ?? null : null,
       })),
       groups: [
@@ -340,11 +352,12 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
         { id: 'rehab', name: 'Rehab / modified load', description: 'Players with individual planning constraints.', playerCount: 0 },
         { id: 'position-groups', name: 'Position groups', description: 'Team-internal training groups.', playerCount: 0 },
       ],
-      backHref: '/admin/teams',
+      backHref,
+      backLabel,
       calendarHref: team.default_facility_id ? `/admin/facilities/${team.default_facility_id}/calendar?from=team&teamId=${team.id}&departmentId=${team.department_id}` : null,
       staffHref: `/admin/people?department=${team.department_id}&team=${team.id}`,
     };
-  }, [clubMemberships, coachRoleSlots, contextSessions, department, departmentFacilityIds, facilities, facility, facilityById, invites, memberships, profileById, sessions, team]);
+  }, [backHref, backLabel, clubMemberships, coachRoleSlots, contextSessions, department, departmentFacilityIds, facilities, facility, facilityById, invites, memberships, profileById, sessions, team]);
 
   if (state === 'loading') return <AdminShell><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">Loading team...</section></AdminShell>;
   if (state === 'error') return <AdminShell><section className="rounded-3xl border border-red-500/40 bg-red-950/20 p-6 text-red-100">{error}</section></AdminShell>;
@@ -357,6 +370,7 @@ export function TeamWorkspace({ teamId }: { teamId: string }) {
         onDefaultFacilityChange={handleDefaultFacilityChange}
         onSessionTimeChange={handleSessionTimeChange}
         onSessionCreate={handleSessionCreate}
+        onSessionFacilityChange={handleSessionFacilityChange}
         onInviteStaff={handleInviteStaff}
         onCopyStaffInvite={handleCopyStaffInvite}
         onRevokeStaffInvite={handleRevokeStaffInvite}

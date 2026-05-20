@@ -12,6 +12,7 @@ export type TeamWorkspaceSession = {
   title: string;
   startsAt: string;
   endsAt: string | null;
+  facilityId?: string | null;
   facilityName?: string | null;
 };
 
@@ -51,6 +52,7 @@ export type TeamWorkspaceData = {
   contextSessions?: TeamWorkspaceSession[];
   groups: { id: string; name: string; description: string; playerCount: number }[];
   backHref: string;
+  backLabel?: string;
   calendarHref?: string | null;
   staffHref?: string | null;
 };
@@ -196,10 +198,12 @@ function TeamSmartCalendar({
   data,
   onSessionTimeChange,
   onSessionCreate,
+  onSessionFacilityChange,
 }: {
   data: TeamWorkspaceData;
   onSessionTimeChange?: (sessionId: string, startsAt: string, endsAt: string) => void | Promise<void>;
   onSessionCreate?: (startsAt: string, endsAt: string) => void | Promise<void>;
+  onSessionFacilityChange?: (sessionId: string, facilityId: string) => void | Promise<void>;
 }) {
   const days = useMemo(() => buildWeekDays(), []);
   const todayIndex = useMemo(() => Math.max(0, days.findIndex((day) => sameDay(day, new Date()))), [days]);
@@ -212,6 +216,7 @@ function TeamSmartCalendar({
   const [drag, setDrag] = useState<TeamCalendarDrag | null>(null);
   const [draft, setDraft] = useState<TeamCalendarDraft | null>(null);
   const [localSessions, setLocalSessions] = useState<TeamWorkspaceSession[]>(data.sessions);
+  const [isSavingSessionFacility, setIsSavingSessionFacility] = useState(false);
   const didDragRef = useRef(false);
   const calendarScrollRef = useRef<HTMLDivElement | null>(null);
   const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -250,6 +255,7 @@ function TeamSmartCalendar({
   }, [canManageExistingSessions, data.contextSessions, data.departmentName, data.name, drag, localSessions]);
 
   const selectedSession = localSessions.find((session) => session.id === selectedSessionId) ?? null;
+  const selectedSessionFacilityTone = facilityTone(selectedSession?.facilityName ?? data.defaultFacilityName);
 
   useEffect(() => {
     function updateDesktopScale() {
@@ -391,6 +397,22 @@ function TeamSmartCalendar({
     if (!draft || !onSessionCreate) return;
     await onSessionCreate(draft.startsAt, draft.endsAt);
     setDraft(null);
+  }
+
+  async function handleSelectedSessionFacilityChange(facilityId: string) {
+    if (!selectedSession || !onSessionFacilityChange) return;
+    const facility = data.availableFacilities?.find((item) => item.id === facilityId);
+    setIsSavingSessionFacility(true);
+    try {
+      await onSessionFacilityChange(selectedSession.id, facilityId);
+      setLocalSessions((current) =>
+        current.map((session) =>
+          session.id === selectedSession.id ? { ...session, facilityId, facilityName: facility?.name ?? session.facilityName ?? null } : session,
+        ),
+      );
+    } finally {
+      setIsSavingSessionFacility(false);
+    }
   }
 
   useEffect(() => {
@@ -542,7 +564,19 @@ function TeamSmartCalendar({
             </div>
             <div className="mt-4 grid gap-2 text-sm text-slate-300">
               <p><span className="font-black text-slate-100">Time:</span> {formatTimeRange(selectedSession.startsAt, selectedSession.endsAt)}</p>
-              <p><span className="font-black text-slate-100">Facility:</span> {selectedSession.facilityName ?? data.defaultFacilityName ?? 'Facility not set'}</p>
+              <div>
+                <p><span className="font-black text-slate-100">Facility:</span> {selectedSession.facilityName ?? data.defaultFacilityName ?? 'Facility not set'}</p>
+                {canManageCalendar && onSessionFacilityChange && data.availableFacilities && data.availableFacilities.length > 0 ? (
+                  <select
+                    value={selectedSession.facilityId ?? data.defaultFacilityId ?? ''}
+                    onChange={(event) => { void handleSelectedSessionFacilityChange(event.target.value); }}
+                    disabled={isSavingSessionFacility}
+                    className={`mt-2 w-full rounded-lg border ${selectedSessionFacilityTone.border} bg-slate-950/90 px-3 py-2 text-xs font-black ${selectedSessionFacilityTone.text} outline-none ${selectedSessionFacilityTone.focus} disabled:opacity-60`}
+                  >
+                    {data.availableFacilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
+                  </select>
+                ) : null}
+              </div>
               <p><span className="font-black text-slate-100">Attendance:</span> Prepared for check-in.</p>
               <p><span className="font-black text-slate-100">Load:</span> Not reported yet.</p>
             </div>
@@ -559,6 +593,7 @@ export function TeamWorkspaceView({
   onDefaultFacilityChange,
   onSessionTimeChange,
   onSessionCreate,
+  onSessionFacilityChange,
   onAddDemoPlayers,
   onInviteStaff,
   onCopyStaffInvite,
@@ -570,6 +605,7 @@ export function TeamWorkspaceView({
   onDefaultFacilityChange?: (facilityId: string) => void | Promise<void>;
   onSessionTimeChange?: (sessionId: string, startsAt: string, endsAt: string) => void | Promise<void>;
   onSessionCreate?: (startsAt: string, endsAt: string) => void | Promise<void>;
+  onSessionFacilityChange?: (sessionId: string, facilityId: string) => void | Promise<void>;
   onAddDemoPlayers?: () => void | Promise<void>;
   onInviteStaff?: (role: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) => void | Promise<void>;
   onCopyStaffInvite?: (token: string) => void | Promise<void>;
@@ -632,7 +668,7 @@ export function TeamWorkspaceView({
   return (
     <section className="space-y-5 pb-24 md:pb-0">
       <div className="rounded-3xl border border-slate-800 bg-slate-950/75 p-6">
-        <Link href={data.backHref} className="text-sm font-black text-sky-300 hover:text-sky-200">Back to teams</Link>
+        <Link href={data.backHref} className="text-sm font-black text-sky-300 hover:text-sky-200">{data.backLabel ?? 'Back to teams'}</Link>
         <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-300">Team workspace</p>
@@ -708,7 +744,7 @@ export function TeamWorkspaceView({
             </div>
             {data.calendarHref ? <Link href={data.calendarHref} className="rounded-xl border border-sky-500/60 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Open facility calendar</Link> : null}
           </div>
-          <TeamSmartCalendar data={data} onSessionTimeChange={onSessionTimeChange} onSessionCreate={onSessionCreate} />
+          <TeamSmartCalendar data={data} onSessionTimeChange={onSessionTimeChange} onSessionCreate={onSessionCreate} onSessionFacilityChange={onSessionFacilityChange} />
           {data.sessions.length === 0 ? <div className="mt-5"><EmptyCard title="No team sessions yet" description="This is already the filtered Untis-style team calendar; new team sessions will appear here." /></div> : null}
         </section>
       ) : null}

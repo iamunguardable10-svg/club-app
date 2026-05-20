@@ -475,7 +475,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
                       <h3 className="text-xl font-black text-white">
-                        <Link href={`/demo/admin/teams/${encodeURIComponent(team.id)}`} className="transition hover:text-sky-200">
+                        <Link href={`/demo/admin/teams/${encodeURIComponent(team.id)}?from=department&departmentName=${encodeURIComponent(departmentName)}`} className="transition hover:text-sky-200">
                           {team.name}
                         </Link>
                       </h3>

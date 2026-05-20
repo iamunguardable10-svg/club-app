@@ -112,7 +112,7 @@ export function AdminTeamsManager() {
             const assistantCount = active.filter((membership) => membership.role === 'assistant_coach').length;
             const playerCount = active.filter((membership) => membership.role === 'athlete').length;
             return (
-              <Link key={team.id} href={`/admin/teams/${team.id}`} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 transition hover:border-sky-400/60 hover:bg-slate-900">
+              <Link key={team.id} href={`/admin/teams/${team.id}?from=teams`} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 transition hover:border-sky-400/60 hover:bg-slate-900">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h2 className="text-xl font-black">{team.name}</h2>
