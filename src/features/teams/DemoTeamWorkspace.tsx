@@ -21,6 +21,9 @@ type DemoExtraCoachRole = { id: string; department: string; team: string; label:
 const DEMO_INVITES_KEY = 'club-app.demo.invites';
 const DEMO_PLAYERS_KEY = 'club-app.demo.players';
 const DEMO_EXTRA_COACH_ROLES_KEY = 'club-app.demo.extra-coach-roles';
+const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
+
+type DemoFacilityAssignment = { department: string; facility: string };
 
 function getDemoInvites(): DemoInvite[] {
   if (typeof window === 'undefined') return [];
@@ -36,6 +39,17 @@ function getDemoInvites(): DemoInvite[] {
 function saveDemoInvites(invites: DemoInvite[]) {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(DEMO_INVITES_KEY, JSON.stringify(invites));
+}
+
+function getDemoFacilityAssignments(): DemoFacilityAssignment[] {
+  if (typeof window === 'undefined') return [];
+  const raw = window.localStorage.getItem(DEMO_FACILITY_ASSIGNMENTS_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as DemoFacilityAssignment[];
+  } catch {
+    return [];
+  }
 }
 
 function createToken() {
@@ -107,6 +121,7 @@ export function DemoTeamWorkspace({ teamId, backHref = '/demo/admin/teams', back
   const [invites, setInvites] = useState<DemoInvite[]>([]);
   const [players, setPlayers] = useState<DemoPlayer[]>([]);
   const [extraCoachRoles, setExtraCoachRoles] = useState<DemoExtraCoachRole[]>([]);
+  const [facilityAssignments, setFacilityAssignments] = useState<DemoFacilityAssignment[]>([]);
 
   useEffect(() => {
     const currentSetup = getDemoClubSetup();
@@ -116,6 +131,7 @@ export function DemoTeamWorkspace({ teamId, backHref = '/demo/admin/teams', back
     setInvites(getDemoInvites());
     setPlayers(getDemoPlayers());
     setExtraCoachRoles(getDemoExtraCoachRoles());
+    setFacilityAssignments(getDemoFacilityAssignments());
   }, []);
 
   function handleDefaultFacilityChange(facility: string) {
@@ -138,7 +154,14 @@ export function DemoTeamWorkspace({ teamId, backHref = '/demo/admin/teams', back
 
   function handleSessionCreate(startsAt: string, endsAt: string) {
     const team = teams.find((item) => item.id === teamId);
-    const fallbackFacility = team?.defaultFacility ?? setup?.facilities[0] ?? null;
+    const assignedFacilityNames = new Set(facilityAssignments.filter((assignment) => assignment.department === team?.department).map((assignment) => assignment.facility));
+    const availableFacilities = (setup?.facilityDetails ?? [])
+      .filter((facility) => {
+        if (facility.scope === 'department_only') return facility.ownerDepartment === team?.department;
+        return assignedFacilityNames.has(facility.name);
+      })
+      .map((facility) => facility.name);
+    const fallbackFacility = team?.defaultFacility && availableFacilities.includes(team.defaultFacility) ? team.defaultFacility : availableFacilities[0] ?? null;
     if (!team || !fallbackFacility) return;
     const nextSession: DemoSession = {
       id: crypto.randomUUID(),
@@ -212,6 +235,14 @@ export function DemoTeamWorkspace({ teamId, backHref = '/demo/admin/teams', back
     const teamSessions = sessions.filter((session) => session.department === team.department && session.team === team.name);
     const contextSessions = sessions.filter((session) => session.facility === team.defaultFacility && !(session.department === team.department && session.team === team.name));
     const teamPlayers = players.filter((player) => player.teamId === team.id);
+    const assignedFacilityNames = new Set(facilityAssignments.filter((assignment) => assignment.department === team.department).map((assignment) => assignment.facility));
+    const departmentFacilityOptions = (setup?.facilityDetails ?? [])
+      .filter((facility) => {
+        if (facility.scope === 'department_only') return facility.ownerDepartment === team.department;
+        return assignedFacilityNames.has(facility.name);
+      })
+      .map((facility) => facility.name);
+    const availableFacilities = Array.from(new Set(departmentFacilityOptions.length > 0 ? departmentFacilityOptions : team.defaultFacility ? [team.defaultFacility] : []));
     const pendingInviteFor = (role: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) => invites.find((invite) => invite.status === 'pending' && invite.role === role && invite.department === team.department && invite.team === team.name && (invite.coachRoleSlotId ?? null) === (coachRoleSlotId ?? null));
     const headInvite = pendingInviteFor('head_coach', null);
     const assistantInvite = pendingInviteFor('assistant_coach', null);
@@ -242,7 +273,7 @@ export function DemoTeamWorkspace({ teamId, backHref = '/demo/admin/teams', back
       departmentName: team.department,
       defaultFacilityId: team.defaultFacility,
       defaultFacilityName: team.defaultFacility,
-      availableFacilities: (setup?.facilities ?? []).map((facility) => ({ id: facility, name: facility })),
+      availableFacilities: availableFacilities.map((facility) => ({ id: facility, name: facility })),
       playerCount: teamPlayers.length,
       players: teamPlayers,
       role: 'admin',
@@ -277,7 +308,7 @@ export function DemoTeamWorkspace({ teamId, backHref = '/demo/admin/teams', back
       calendarHref: team.defaultFacility ? `/demo/admin/facilities/${encodeURIComponent(team.defaultFacility)}/calendar?from=team&teamName=${encodeURIComponent(team.name)}&departmentName=${encodeURIComponent(team.department)}` : null,
       staffHref: `/demo/admin/people?departmentName=${encodeURIComponent(team.department)}&teamName=${encodeURIComponent(team.name)}`,
     };
-  }, [backHref, backLabel, extraCoachRoles, invites, players, sessions, setup?.facilities, teamId, teams]);
+  }, [backHref, backLabel, extraCoachRoles, facilityAssignments, invites, players, sessions, setup?.facilityDetails, teamId, teams]);
 
   if (!setup) {
     return (

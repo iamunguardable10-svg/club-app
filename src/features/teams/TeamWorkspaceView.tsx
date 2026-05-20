@@ -564,18 +564,21 @@ function TeamSmartCalendar({
             </div>
             <div className="mt-4 grid gap-2 text-sm text-slate-300">
               <p><span className="font-black text-slate-100">Time:</span> {formatTimeRange(selectedSession.startsAt, selectedSession.endsAt)}</p>
-              <div>
-                <p><span className="font-black text-slate-100">Facility:</span> {selectedSession.facilityName ?? data.defaultFacilityName ?? 'Facility not set'}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-black text-slate-100">Facility:</span>
                 {canManageCalendar && onSessionFacilityChange && data.availableFacilities && data.availableFacilities.length > 0 ? (
                   <select
                     value={selectedSession.facilityId ?? data.defaultFacilityId ?? ''}
                     onChange={(event) => { void handleSelectedSessionFacilityChange(event.target.value); }}
                     disabled={isSavingSessionFacility}
-                    className={`mt-2 w-full rounded-lg border ${selectedSessionFacilityTone.border} bg-slate-950/90 px-3 py-2 text-xs font-black ${selectedSessionFacilityTone.text} outline-none ${selectedSessionFacilityTone.focus} disabled:opacity-60`}
+                    className={`max-w-44 rounded-lg border ${selectedSessionFacilityTone.border} bg-slate-950/90 px-2.5 py-1.5 text-xs font-black ${selectedSessionFacilityTone.text} outline-none ${selectedSessionFacilityTone.focus} disabled:opacity-60`}
                   >
+                    <option value="">Select facility</option>
                     {data.availableFacilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
                   </select>
-                ) : null}
+                ) : (
+                  <span>{selectedSession.facilityName ?? data.defaultFacilityName ?? 'Facility not set'}</span>
+                )}
               </div>
               <p><span className="font-black text-slate-100">Attendance:</span> Prepared for check-in.</p>
               <p><span className="font-black text-slate-100">Load:</span> Not reported yet.</p>
