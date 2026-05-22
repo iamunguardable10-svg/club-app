@@ -355,7 +355,7 @@ export function AdminDepartmentsManager() {
   if (state === 'loading') {
     return (
       <AdminShell>
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 text-center"><p className="text-sm font-bold text-slate-300">Loading departments...</p></section>
+        <section className="os-section text-center"><p className="text-sm font-bold text-slate-300">Loading departments...</p></section>
       </AdminShell>
     );
   }
@@ -363,7 +363,7 @@ export function AdminDepartmentsManager() {
   if (state === 'no_admin_membership') {
     return (
       <AdminShell>
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6">
+        <section className="os-section">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Departments</p>
           <h1 className="mt-3 text-3xl font-black">No admin club found</h1>
           <p className="mt-3 text-sm leading-6 text-slate-400">Create a club first before managing departments.</p>
@@ -376,7 +376,7 @@ export function AdminDepartmentsManager() {
   if (state === 'error') {
     return (
       <AdminShell>
-        <section className="rounded-3xl border border-red-900/70 bg-red-950/30 p-6">
+        <section className="rounded-3xl border border-red-900/70 bg-red-950/30 p-6 shadow-[0_24px_90px_rgba(0,0,0,0.24)] ring-1 ring-white/[0.03]">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-red-300">Department error</p>
           <h1 className="mt-3 text-3xl font-black">Could not load departments</h1>
           <p className="mt-3 text-sm leading-6 text-red-100">{error}</p>
@@ -387,7 +387,7 @@ export function AdminDepartmentsManager() {
 
   return (
     <AdminShell>
-      <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 shadow-sm">
+      <section className="os-hero">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-violet-300">Admin departments</p>
@@ -403,18 +403,18 @@ export function AdminDepartmentsManager() {
       {error ? <section className="rounded-2xl border border-red-900/70 bg-red-950/30 px-4 py-3 text-sm text-red-100">{error}</section> : null}
 
       {isEditMode ? (
-        <form onSubmit={handleCreateDepartment} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+        <form onSubmit={handleCreateDepartment} className="os-section">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Create</p>
           <h2 className="mt-2 text-xl font-black">Add department</h2>
           <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
-            <input required value={newDepartmentName} onChange={(event) => setNewDepartmentName(event.target.value)} placeholder="Department name" className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400" />
-            <input value={newDepartmentSport} onChange={(event) => setNewDepartmentSport(event.target.value)} placeholder="Sport optional" className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400" />
+            <input required value={newDepartmentName} onChange={(event) => setNewDepartmentName(event.target.value)} placeholder="Department name" className="w-full rounded-xl border border-slate-700/90 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-sky-300 focus:ring-2 focus:ring-sky-400/10" />
+            <input value={newDepartmentSport} onChange={(event) => setNewDepartmentSport(event.target.value)} placeholder="Sport optional" className="w-full rounded-xl border border-slate-700/90 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-sky-300 focus:ring-2 focus:ring-sky-400/10" />
             <button type="submit" disabled={isSaving} className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60">Add department</button>
           </div>
         </form>
       ) : null}
 
-      <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+      <section className="os-section">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Departments</p>
         <div className="mt-4 grid gap-3">
           {departments.length > 0 ? departments.map((department) => {
@@ -428,43 +428,43 @@ export function AdminDepartmentsManager() {
             const defaultFacilityGapCount = departmentTeams.filter((team) => !team.default_facility_id).length;
 
             return (
-              <article key={department.id} role="link" tabIndex={0} onClick={() => router.push(`/admin/departments/${department.id}`)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') router.push(`/admin/departments/${department.id}`); }} className="cursor-pointer rounded-2xl border border-slate-800 bg-slate-900/60 p-5 transition hover:border-violet-400/70 hover:bg-slate-900">
+              <article key={department.id} role="link" tabIndex={0} onClick={() => router.push(`/admin/departments/${department.id}`)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') router.push(`/admin/departments/${department.id}`); }} className="cursor-pointer rounded-3xl border border-slate-800/90 bg-slate-950/45 p-5 ring-1 ring-white/[0.03] transition hover:-translate-y-0.5 hover:border-sky-400/45 hover:bg-slate-950/75">
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div>
                     <h2 className="text-xl font-black text-white">{department.name}</h2>
                     <p className="mt-1 text-xs text-slate-500">{department.sport || 'No sport label set'}</p>
                   </div>
-                  {isEditMode ? <button type="button" onClick={(event) => { event.stopPropagation(); setPendingDelete({ department }); }} className="w-fit rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-200 hover:bg-red-950/40">Delete</button> : null}
+                  {isEditMode ? <button type="button" onClick={(event) => { event.stopPropagation(); setPendingDelete({ department }); }} className="w-fit rounded-xl border border-red-500/45 bg-red-950/10 px-3 py-2 text-xs font-black text-red-200 transition hover:bg-red-950/30">Delete</button> : null}
                 </div>
 
                 <div className="mt-4 grid gap-2 lg:grid-cols-4">
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+                  <div className="os-metric px-3 py-2">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Teams</p>
                     {departmentTeams.length > 0 ? <p className="mt-1 text-sm font-black leading-6 text-slate-100">{previewText(teamNames)}</p> : <Link href={`/admin/departments/${department.id}?mode=edit&focus=teams`} onClick={(event) => event.stopPropagation()} className="mt-2 inline-flex rounded-lg border border-sky-500/60 px-2.5 py-1.5 text-xs font-black text-sky-200 hover:bg-sky-950/40">Create first team</Link>}
                   </div>
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+                  <div className="os-metric px-3 py-2">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Facilities</p>
                     <FacilityPreview departmentId={department.id} items={departmentFacilities} />
                   </div>
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+                  <div className="os-metric px-3 py-2">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Department Lead</p>
                     {acceptedLead ? <p className="mt-1 text-sm font-black text-slate-100">{profileLabel(acceptedLeadProfile)}</p> : pendingLeadInvite ? (
                       <div className="mt-1 flex flex-wrap items-center gap-2">
                         <span className="text-sm font-black text-slate-200">Invite pending</span>
-                        <button type="button" disabled={isSaving} onClick={(event) => { event.stopPropagation(); handleInviteLead(department.id); }} className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200 transition hover:bg-slate-800 disabled:opacity-50">
+                        <button type="button" disabled={isSaving} onClick={(event) => { event.stopPropagation(); handleInviteLead(department.id); }} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1.5 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900 disabled:opacity-50">
                           {copiedToken === pendingLeadInvite.token ? 'Copied' : 'Copy'}
                         </button>
                       </div>
-                    ) : <button type="button" disabled={isSaving} onClick={(event) => { event.stopPropagation(); handleInviteLead(department.id); }} className="mt-2 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200 transition hover:bg-slate-800 disabled:opacity-50">Invite</button>}
+                    ) : <button type="button" disabled={isSaving} onClick={(event) => { event.stopPropagation(); handleInviteLead(department.id); }} className="mt-2 rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1.5 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900 disabled:opacity-50">Invite</button>}
                   </div>
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+                  <div className="os-metric px-3 py-2">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Meldungen</p>
                     <p className="mt-1 text-sm font-black text-slate-100">{formatDepartmentMessages(departmentTeams.length, coachGapCount, defaultFacilityGapCount)}</p>
                   </div>
                 </div>
               </article>
             );
-          }) : <p className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">No departments yet.</p>}
+          }) : <p className="rounded-3xl border border-slate-800/90 bg-slate-950/45 p-4 ring-1 ring-white/[0.03] text-sm text-slate-400">No departments yet.</p>}
         </div>
       </section>
 

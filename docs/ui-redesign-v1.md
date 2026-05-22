@@ -132,3 +132,34 @@ Out of scope for this pass:
 - replacing calendar internals
 - building walkthrough animations
 
+## Second implementation pass
+
+Scope:
+
+- real admin overview
+- demo admin overview
+- real departments overview
+- demo departments overview
+- real staff page
+- demo staff page
+
+Changes:
+
+- moved these surfaces onto the shared `os-hero`, `os-section`, `os-panel-soft` and `os-metric` visual system
+- reduced heavy gradients and mixed card treatments
+- kept warning/quick-action logic unchanged
+- kept demo and Supabase-backed admin flows visually aligned
+- kept Staff card/grid structure instead of table-style layouts
+
+Out of scope for this pass:
+
+- changing invite permissions
+- changing staff data model
+- changing calendar behavior
+- changing team workspace internals
+
+## Redesign rule for future work
+
+Every admin surface should first ask whether an existing OS class or shared component can be reused.
+
+New one-off Tailwind structures are allowed only when the surface has a genuinely new interaction pattern. This keeps later Team, Coach and Athlete work recyclable instead of creating another visual branch.

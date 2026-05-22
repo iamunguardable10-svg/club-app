@@ -250,7 +250,7 @@ export function DemoAdminDepartmentsManager() {
   if (!setup) {
     return (
       <AdminShell mode="demo">
-        <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6 shadow-sm">
+        <section className="os-hero border-amber-500/25 bg-amber-950/10">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo departments</p>
           <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">No local demo club yet</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-100/80">Create a local demo club before managing departments.</p>
@@ -262,7 +262,7 @@ export function DemoAdminDepartmentsManager() {
 
   return (
     <AdminShell mode="demo">
-      <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6 shadow-sm">
+      <section className="os-hero border-amber-500/25 bg-amber-950/10">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo departments</p>
@@ -276,17 +276,17 @@ export function DemoAdminDepartmentsManager() {
       </section>
 
       {isEditMode ? (
-        <form onSubmit={handleCreateDepartment} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+        <form onSubmit={handleCreateDepartment} className="os-section">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Create</p>
           <h2 className="mt-2 text-xl font-black">Add demo department</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
-            <input required value={newDepartmentName} onChange={(event) => setNewDepartmentName(event.target.value)} placeholder="Basketball" className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400" />
+            <input required value={newDepartmentName} onChange={(event) => setNewDepartmentName(event.target.value)} placeholder="Basketball" className="w-full rounded-xl border border-slate-700/90 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-sky-300 focus:ring-2 focus:ring-sky-400/10" />
             <button type="submit" className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300">Add local department</button>
           </div>
         </form>
       ) : null}
 
-      <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+      <section className="os-section">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Departments</p>
         <div className="mt-4 grid gap-3">
           {setup.departments.map((department) => {
@@ -300,29 +300,29 @@ export function DemoAdminDepartmentsManager() {
             const defaultFacilityGapCount = departmentTeams.filter((team) => !team.defaultFacility).length;
 
             return (
-              <article key={department} role="link" tabIndex={0} onClick={() => router.push(`/demo/admin/departments/${encodedDepartment}`)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') router.push(`/demo/admin/departments/${encodedDepartment}`); }} className="cursor-pointer rounded-2xl border border-slate-800 bg-slate-900/60 p-5 transition hover:border-violet-400/70 hover:bg-slate-900">
+              <article key={department} role="link" tabIndex={0} onClick={() => router.push(`/demo/admin/departments/${encodedDepartment}`)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') router.push(`/demo/admin/departments/${encodedDepartment}`); }} className="cursor-pointer rounded-3xl border border-slate-800/90 bg-slate-950/45 p-5 ring-1 ring-white/[0.03] transition hover:-translate-y-0.5 hover:border-sky-400/45 hover:bg-slate-950/75">
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div>
                     <h2 className="text-xl font-black text-white">{department}</h2>
                     <p className="mt-1 text-xs text-slate-500">Local demo department</p>
                   </div>
                   {isEditMode ? (
-                    <button type="button" onClick={(event) => { event.stopPropagation(); setPendingDelete({ department }); }} className="w-fit rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-200 hover:bg-red-950/40">
+                    <button type="button" onClick={(event) => { event.stopPropagation(); setPendingDelete({ department }); }} className="w-fit rounded-xl border border-red-500/45 bg-red-950/10 px-3 py-2 text-xs font-black text-red-200 transition hover:bg-red-950/30">
                       Delete
                     </button>
                   ) : null}
                 </div>
 
                 <div className="mt-4 grid gap-2 lg:grid-cols-4">
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+                  <div className="os-metric px-3 py-2">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Teams</p>
                     {previewItems(teamNames, <Link href={`/demo/admin/departments/${encodedDepartment}?mode=edit&focus=teams`} onClick={(event) => event.stopPropagation()} className="mt-2 inline-flex rounded-lg border border-sky-500/60 px-2.5 py-1.5 text-xs font-black text-sky-200 hover:bg-sky-950/40">Create first team</Link>)}
                   </div>
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+                  <div className="os-metric px-3 py-2">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Facilities</p>
                     <FacilityPreview department={department} items={facilityNames} />
                   </div>
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+                  <div className="os-metric px-3 py-2">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Department Lead</p>
                     {leadInvite?.status === 'pending' ? (
                       <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -333,7 +333,7 @@ export function DemoAdminDepartmentsManager() {
                       </div>
                     ) : leadLabel ? <p className="mt-1 text-sm font-black text-slate-100">{leadLabel}</p> : <button type="button" onClick={(event) => { event.stopPropagation(); handleInviteLead(department); }} className="mt-2 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200 transition hover:bg-slate-800">Invite</button>}
                   </div>
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2">
+                  <div className="os-metric px-3 py-2">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Meldungen</p>
                     <p className="mt-1 text-sm font-black text-slate-100">{formatDepartmentMessages(departmentTeams.length, coachGapCount, defaultFacilityGapCount)}</p>
                   </div>

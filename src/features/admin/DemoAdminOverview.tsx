@@ -218,9 +218,9 @@ function OverviewAreaCard({ area, onDismiss }: { area: OverviewArea; onDismiss: 
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') openTarget();
       }}
-      className="relative cursor-pointer overflow-hidden rounded-3xl border border-slate-800 bg-[linear-gradient(135deg,rgba(15,23,42,0.96),rgba(2,6,23,0.78))] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.24)] ring-1 ring-white/5 transition duration-200 hover:-translate-y-0.5 hover:border-emerald-400/70 hover:bg-slate-900 hover:shadow-[0_24px_70px_rgba(16,185,129,0.12)] focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+      className="group relative cursor-pointer overflow-hidden rounded-3xl border border-slate-800/90 bg-slate-950/55 p-5 shadow-[0_18px_70px_rgba(0,0,0,0.20)] ring-1 ring-white/[0.03] transition duration-200 hover:-translate-y-0.5 hover:border-sky-400/45 hover:bg-slate-950/80 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
     >
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-60" />
+      <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-sky-200/25 to-transparent opacity-70" />
       <div>
         <h2 className="text-xl font-black text-white">{area.title}</h2>
         <p className="mt-2 text-sm leading-6 text-slate-400">{area.description}</p>
@@ -246,7 +246,7 @@ function OverviewAreaCard({ area, onDismiss }: { area: OverviewArea; onDismiss: 
           </div>
         </div>
       ) : (
-        <p className="mt-4 rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-xs font-bold leading-5 text-slate-500">{area.fallbackStatus}</p>
+        <p className="mt-4 rounded-xl border border-slate-800/80 bg-slate-950/35 px-3 py-2 text-xs font-bold leading-5 text-slate-500">{area.fallbackStatus}</p>
       )}
     </article>
   );
@@ -287,7 +287,7 @@ export function DemoAdminOverview() {
   if (!setup) {
     return (
       <AdminShell mode="demo">
-        <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6 shadow-sm">
+        <section className="os-hero border-amber-500/25 bg-amber-950/10">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo overview</p>
           <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">No local demo club yet</h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-100/80">Start with a browser-only club setup. Nothing will be saved to Supabase.</p>
@@ -301,7 +301,7 @@ export function DemoAdminOverview() {
 
   return (
     <AdminShell mode="demo">
-      <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6 shadow-sm">
+      <section className="os-hero border-amber-500/25 bg-amber-950/10">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo overview</p>
@@ -309,14 +309,14 @@ export function DemoAdminOverview() {
             <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-100/80">Club-level start page. It only shows high-level warnings; details stay inside Departments, Facilities and Staff.</p>
           </div>
           {dismissedWarnings.length > 0 ? (
-            <button type="button" onClick={resetDismissedWarnings} className="w-fit rounded-xl border border-amber-500/60 px-3 py-2 text-xs font-black text-amber-200 hover:bg-amber-950/40">
+            <button type="button" onClick={resetDismissedWarnings} className="os-secondary w-fit px-3 py-2 text-xs hover:border-amber-400/60">
               Reset ignored warnings
             </button>
           ) : null}
         </div>
       </section>
 
-      <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+      <section className="os-section">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Overview cards</p>
