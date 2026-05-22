@@ -746,9 +746,6 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-violet-300">Department workspace</p>
             <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">{department?.name}</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-              Teams stay readable in Normal Mode. Missing essentials can be fixed inline; Edit Mode is for broader management.
-            </p>
           </div>
           <button
             type="button"
@@ -773,7 +770,6 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
             {attentionItems.map((item) => (
               <div key={item.title} className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-4">
                 <p className="font-black text-amber-100">{item.title}</p>
-                <p className="mt-2 text-sm leading-6 text-slate-400">{item.description}</p>
               </div>
             ))}
           </div>
@@ -812,9 +808,6 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-sky-300">Add hall to department</p>
                 <h3 className="mt-2 text-lg font-black">Assign existing shared club facilities</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-400">
-                  First check whether the hall already exists. You can select multiple halls and assign them in one step.
-                </p>
               </div>
               <button
                 type="button"
@@ -964,9 +957,6 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">Check shared facility details</p>
                   <p className="mt-1 text-xl font-black text-white">{facilityDraftName.trim()}</p>
                   <p className="mt-1 text-sm font-bold text-amber-100">{facilityDraftAddress.trim()}</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-300">
-                    This hall may affect multiple departments. Verify the exact club-wide name and address before saving or reporting it.
-                  </p>
                   <button
                     type="button"
                     disabled={isSaving}
@@ -984,9 +974,6 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
               {facilityDraftStep === 'reported' ? (
                 <div className="rounded-2xl border border-sky-500/30 bg-sky-950/20 p-4">
                   <p className="font-black text-sky-100">Reported to admin</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-400">
-                    The admin can review the facility name and address and decide whether to create or assign it as a shared club facility.
-                  </p>
                   <button type="button" onClick={resetFacilityDraft} className="mt-3 text-xs font-black text-sky-200 hover:text-sky-100">
                     Close
                   </button>
@@ -1165,7 +1152,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
             })
           ) : (
             <p className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">
-              No teams in this department yet. Create the first team once the department structure is ready.
+              No teams yet.
             </p>
           )}
         </div>

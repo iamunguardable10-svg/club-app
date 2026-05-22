@@ -267,7 +267,6 @@ export function DemoAdminDepartmentsManager() {
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo departments</p>
             <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Departments for {setup.clubName}</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-100/80">Tap a department card to open its workspace. Use quick actions for lead invites and setup gaps.</p>
           </div>
           <button type="button" onClick={() => setIsEditMode((current) => !current)} className={isEditMode ? 'w-fit rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200' : 'w-fit rounded-xl border border-amber-500/70 px-4 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-950/40'}>
             {isEditMode ? 'Done editing' : 'Edit departments'}
@@ -304,7 +303,6 @@ export function DemoAdminDepartmentsManager() {
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div>
                     <h2 className="text-xl font-black text-white">{department}</h2>
-                    <p className="mt-1 text-xs text-slate-500">Local demo department</p>
                   </div>
                   {isEditMode ? (
                     <button type="button" onClick={(event) => { event.stopPropagation(); setPendingDelete({ department }); }} className="w-fit rounded-xl border border-red-500/45 bg-red-950/10 px-3 py-2 text-xs font-black text-red-200 transition hover:bg-red-950/30">
@@ -334,7 +332,7 @@ export function DemoAdminDepartmentsManager() {
                     ) : leadLabel ? <p className="mt-1 text-sm font-black text-slate-100">{leadLabel}</p> : <button type="button" onClick={(event) => { event.stopPropagation(); handleInviteLead(department); }} className="mt-2 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200 transition hover:bg-slate-800">Invite</button>}
                   </div>
                   <div className="os-metric px-3 py-2">
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Meldungen</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Status</p>
                     <p className="mt-1 text-sm font-black text-slate-100">{formatDepartmentMessages(departmentTeams.length, coachGapCount, defaultFacilityGapCount)}</p>
                   </div>
                 </div>

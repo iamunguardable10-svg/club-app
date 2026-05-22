@@ -345,7 +345,7 @@ export function DemoAdminFacilitiesManager() {
       <form onSubmit={handleAssign} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Assign</p>
         <h2 className="mt-2 text-xl font-black">Assign existing global facility</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-400">Select a global facility, then choose every department that may use it.</p>
+        
         <div className="mt-4 space-y-4">
           <select value={selectedFacility} onChange={(event) => setSelectedFacility(event.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-400">
             {globalFacilities.map((facility) => <option key={facility.name} value={facility.name}>{facility.name} — {facility.address}</option>)}
@@ -369,7 +369,7 @@ export function DemoAdminFacilitiesManager() {
         <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6 shadow-sm">
           <Link href={backTarget.href} className="inline-flex items-center text-sm font-black text-amber-200 hover:text-amber-100">{backTarget.label}</Link>
           <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div><p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo facilities</p><h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Facilities for {setup.clubName}</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-amber-100/80">Browser-only facility manager split into global club facilities and department-only facilities.</p></div>
+            <div><p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo facilities</p><h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Facilities for {setup.clubName}</h1></div>
             <button type="button" onClick={() => setIsEditMode((current) => !current)} className={isEditMode ? 'w-fit rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200' : 'w-fit rounded-xl border border-amber-500/70 px-4 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-950/40'}>{isEditMode ? 'Done editing' : 'Edit facilities'}</button>
           </div>
         </section>

@@ -231,9 +231,6 @@ export function DemoAdminPeopleManager() {
         <section className="os-hero border-amber-500/25 bg-amber-950/10">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo staff</p>
           <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">No local demo club yet</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-100/80">
-            Create a local demo club first before testing invite links.
-          </p>
           <Link href="/demo/create-club" className="mt-5 inline-block rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200">
             Create local demo setup
           </Link>
@@ -249,9 +246,6 @@ export function DemoAdminPeopleManager() {
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo staff</p>
             <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Staff</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-100/80">
-              Browser-only staff preview for department leads and coaches. Missing roles can be invited directly where they appear.
-            </p>
           </div>
           <button type="button" onClick={() => setIsEditMode((current) => !current)} className={isEditMode ? 'w-fit rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200' : 'w-fit rounded-xl border border-amber-500/70 px-4 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-950/40'}>
             {isEditMode ? 'Done editing' : 'Edit staff'}
@@ -261,7 +255,7 @@ export function DemoAdminPeopleManager() {
 
       <section className="os-section">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Role coverage</p>
-        <h2 className="mt-2 text-xl font-black">Departments and teams</h2>
+        <h2 className="mt-2 text-xl font-black">Departments</h2>
         <div className="mt-4 grid gap-3">
           {setup.departments.map((department) => {
             const leadInvite = latestInviteByScope.get(`department_lead:${department}::`);
@@ -346,7 +340,7 @@ export function DemoAdminPeopleManager() {
                         {isEditMode ? (
                           <div className="mt-3 rounded-xl border border-dashed border-slate-700 p-3">
                             <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Add coach role</p>
-                            <div className="mt-2 flex max-w-2xl flex-col gap-2 sm:flex-row">
+                            <div className="mt-2 flex max-w-md flex-col gap-2 sm:flex-row">
                               <input value={newRoleLabelByTeam[`${department}:${team.name}`] ?? ''} onChange={(event) => setNewRoleLabelByTeam((current) => ({ ...current, [`${department}:${team.name}`]: event.target.value }))} placeholder="e.g. Strength Coach" className="flex-1 rounded-lg border border-slate-700/90 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-sky-300 focus:ring-2 focus:ring-sky-400/10" />
                               <button type="button" onClick={() => handleAddExtraRole(department, team.name)} className="rounded-lg border border-sky-500/50 bg-sky-950/15 px-3 py-2 text-xs font-black text-sky-200 transition hover:bg-sky-950/35">Add role</button>
                             </div>

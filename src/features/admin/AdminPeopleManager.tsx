@@ -439,7 +439,6 @@ export function AdminPeopleManager() {
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-sky-300">Staff</p>
             <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Staff for {club?.name}</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">Central view for department leads, coaches and role coverage. Missing roles can be invited directly where they appear.</p>
           </div>
           <button type="button" onClick={() => setIsEditMode((current) => !current)} className={isEditMode ? 'w-fit rounded-xl bg-sky-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-sky-200' : 'w-fit rounded-xl border border-sky-500/70 px-4 py-3 text-sm font-black text-sky-200 transition hover:bg-sky-950/40'}>
             {isEditMode ? 'Done editing' : 'Edit staff'}
@@ -451,7 +450,7 @@ export function AdminPeopleManager() {
 
       <section className="os-section">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Role coverage</p>
-        <h2 className="mt-2 text-xl font-black">Departments and teams</h2>
+        <h2 className="mt-2 text-xl font-black">Departments</h2>
         <div className="mt-4 grid gap-3">
           {departments.map((department) => {
             const leadMembership = leadByDepartment.get(department.id);
@@ -538,7 +537,7 @@ export function AdminPeopleManager() {
                         {isEditMode ? (
                           <div className="mt-3 rounded-xl border border-dashed border-slate-700 p-3">
                             <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Add coach role</p>
-                            <div className="mt-2 flex max-w-2xl flex-col gap-2 sm:flex-row">
+                            <div className="mt-2 flex max-w-md flex-col gap-2 sm:flex-row">
                               <input value={newRoleLabelByTeam[team.id] ?? ''} onChange={(event) => setNewRoleLabelByTeam((current) => ({ ...current, [team.id]: event.target.value }))} placeholder="e.g. Strength Coach" className="flex-1 rounded-lg border border-slate-700/90 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-sky-300 focus:ring-2 focus:ring-sky-400/10" />
                               <button type="button" onClick={() => handleAddCoachRole(team)} className="rounded-lg border border-sky-500/50 bg-sky-950/15 px-3 py-2 text-xs font-black text-sky-200 transition hover:bg-sky-950/35">Add role</button>
                             </div>

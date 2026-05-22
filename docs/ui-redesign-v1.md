@@ -163,3 +163,40 @@ Out of scope for this pass:
 Every admin surface should first ask whether an existing OS class or shared component can be reused.
 
 New one-off Tailwind structures are allowed only when the surface has a genuinely new interaction pattern. This keeps later Team, Coach and Athlete work recyclable instead of creating another visual branch.
+
+## Third implementation pass
+
+Scope:
+
+- overview cards
+- departments overview
+- staff overview
+- department workspace copy density
+- facility manager header copy
+- admin calendar empty copy
+- demo setup copy density
+
+Decision:
+
+The interface should not explain itself when the layout already makes the action obvious.
+
+Removed or reduced:
+
+- generic hero descriptions
+- overview card explanations
+- warning helper paragraphs
+- repeated demo/browser-only disclaimers
+- instructional microcopy inside obvious action panels
+- placeholder subtitles like "No sport label set"
+
+Keep text only when it does one of these jobs:
+
+- names an object
+- shows status
+- explains a destructive or irreversible action
+- clarifies a permission or auth blocker
+- helps choose between similar actions
+
+Linear-inspired rule:
+
+Dense admin UI should be navigated through hierarchy, spacing, state, and compact controls. Explanatory prose is a fallback, not the default.

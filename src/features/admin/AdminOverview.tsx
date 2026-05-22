@@ -236,12 +236,11 @@ function OverviewAreaCard({ area, onDismiss }: { area: OverviewArea; onDismiss: 
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') openTarget();
       }}
-      className="group relative cursor-pointer overflow-hidden rounded-3xl border border-slate-800/90 bg-slate-950/55 p-5 shadow-[0_18px_70px_rgba(0,0,0,0.20)] ring-1 ring-white/[0.03] transition duration-200 hover:-translate-y-0.5 hover:border-sky-400/45 hover:bg-slate-950/80 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
+      className="group relative min-h-40 cursor-pointer overflow-hidden rounded-3xl border border-slate-800/90 bg-slate-950/55 p-5 shadow-[0_18px_70px_rgba(0,0,0,0.20)] ring-1 ring-white/[0.03] transition duration-200 hover:-translate-y-0.5 hover:border-sky-400/45 hover:bg-slate-950/80 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
     >
       <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-sky-200/25 to-transparent opacity-70" />
       <div>
         <h2 className="text-xl font-black text-white">{area.title}</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-400">{area.description}</p>
       </div>
 
       {area.warning ? (
@@ -249,7 +248,6 @@ function OverviewAreaCard({ area, onDismiss }: { area: OverviewArea; onDismiss: 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-sm font-black">{area.warning.title}</p>
-              <p className="mt-1 text-xs font-bold leading-5 opacity-80">{area.warning.description}</p>
             </div>
             <button
               type="button"
@@ -264,7 +262,7 @@ function OverviewAreaCard({ area, onDismiss }: { area: OverviewArea; onDismiss: 
           </div>
         </div>
       ) : (
-        <p className="mt-4 rounded-xl border border-slate-800/80 bg-slate-950/35 px-3 py-2 text-xs font-bold leading-5 text-slate-500">{area.fallbackStatus}</p>
+        <span className="mt-5 inline-flex rounded-full border border-emerald-500/25 bg-emerald-950/20 px-3 py-1 text-xs font-black text-emerald-200">Ready</span>
       )}
     </article>
   );
@@ -440,7 +438,6 @@ export function AdminOverview() {
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-sky-300">Admin overview</p>
             <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">{club?.name ?? 'Club overview'}</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">Club-level start page. It only shows high-level warnings; details stay inside Departments, Facilities and Staff.</p>
           </div>
           {dismissedWarnings.length > 0 ? (
             <button type="button" onClick={resetDismissedWarnings} className="os-secondary w-fit px-3 py-2 text-xs">
@@ -454,11 +451,11 @@ export function AdminOverview() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Overview cards</p>
-            <h2 className="mt-2 text-xl font-black">Club control center</h2>
+            <h2 className="mt-2 text-xl font-black">Control center</h2>
           </div>
-          <span className="text-sm font-bold text-slate-500">{activeWarningCount === 0 ? 'No active overview warnings' : `${activeWarningCount} active warning${activeWarningCount === 1 ? '' : 's'}`}</span>
+          <span className="text-sm font-bold text-slate-500">{activeWarningCount === 0 ? 'Ready' : `${activeWarningCount} warning${activeWarningCount === 1 ? '' : 's'}`}</span>
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {areas.map((area) => <OverviewAreaCard key={area.title} area={area} onDismiss={dismissWarning} />)}
         </div>
       </section>

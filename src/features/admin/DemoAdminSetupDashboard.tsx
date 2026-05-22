@@ -69,9 +69,6 @@ export function DemoAdminSetupDashboard() {
         <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo setup</p>
           <h1 className="mt-3 text-3xl font-black tracking-tight">No local demo setup found</h1>
-          <p className="mt-3 text-sm leading-6 text-amber-100/80">
-            Create a local demo club first. It will only be stored in your browser and not in Supabase.
-          </p>
           <Link
             href="/demo/create-club"
             className="mt-5 inline-block rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200"
@@ -90,9 +87,6 @@ export function DemoAdminSetupDashboard() {
         <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="text-3xl font-black tracking-tight sm:text-5xl">Set up {setup.clubName}</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-100/80">
-              This is the guided demo setup path. Detailed lists live in the management areas, not here.
-            </p>
           </div>
           <button
             type="button"
@@ -157,19 +151,15 @@ export function DemoAdminSetupDashboard() {
         <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           <Link href="/demo/admin/overview" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-sky-400">
             <p className="font-black">Overview</p>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Return to the local admin start page.</p>
           </Link>
           <Link href="/demo/admin/departments" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-violet-400">
             <p className="font-black">Departments</p>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Preview department management.</p>
           </Link>
           <Link href="/demo/admin/facilities" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-emerald-400">
             <p className="font-black">Facilities</p>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Create halls and assign access.</p>
           </Link>
           <Link href="/demo/admin/people" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-amber-400">
             <p className="font-black">People & Invites</p>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Preview lead and coach invites.</p>
           </Link>
         </div>
       </section>

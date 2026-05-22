@@ -255,9 +255,6 @@ export function AdminCalendarDashboard() {
           <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h1 className="text-3xl font-black tracking-tight sm:text-5xl">{club?.name ?? 'Club'} operations calendar</h1>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-                Operational calendar across facilities, departments and teams. This is for club-wide visibility, not attendance or coaching execution.
-              </p>
             </div>
             <Link href="/admin/setup" className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-bold text-slate-200 hover:border-sky-400">
               Back to operations
@@ -361,9 +358,7 @@ export function AdminCalendarDashboard() {
                   })}
                 </div>
               ) : (
-                <p className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-sm leading-6 text-slate-400">
-                  No sessions visible for this group in the current date range. Once coaches or department leads create sessions, this becomes the operational usage view.
-                </p>
+                <p className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-sm font-bold text-slate-400">No sessions yet.</p>
               )}
             </div>
           ))}

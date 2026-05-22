@@ -537,7 +537,7 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
               );
             })
           ) : (
-            <p className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">No teams in this department yet. Create the first team once the department structure is ready.</p>
+            <p className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">No teams yet.</p>
           )}
         </div>
       </section>
