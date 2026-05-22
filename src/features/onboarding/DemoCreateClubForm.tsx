@@ -86,8 +86,8 @@ export function DemoCreateClubForm() {
           <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
             <div>
               <p className="os-kicker text-amber-300">Local demo mode</p>
-              <h1 className="os-title">Build the club spine</h1>
-              <p className="mt-4 max-w-3xl text-sm leading-6 text-amber-100/80">Browser-only preview of the same setup flow: club, departments, facilities, then optionally the first teams.</p>
+              <h1 className="os-title">Build bottom-up</h1>
+              <p className="mt-4 max-w-3xl text-sm leading-6 text-amber-100/80">Athlete &rarr; Team &rarr; Department &rarr; Club</p>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="os-metric border-amber-500/20"><p className="text-xs uppercase tracking-[0.16em] text-amber-100/60">Departments</p><p className="mt-1 text-2xl font-black">{departmentList.length}</p></div>
@@ -100,7 +100,7 @@ export function DemoCreateClubForm() {
 
         <form onSubmit={handleSubmit} className="mt-6 grid gap-5">
           <section className="os-section">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-300">Step 1</p>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-300">Club</p>
             <h2 className="mt-2 text-xl font-black">Club basics</h2>
             <div className="mt-4 grid gap-4 md:grid-cols-3">
               <label className="block md:col-span-2">
@@ -132,9 +132,8 @@ export function DemoCreateClubForm() {
           </section>
 
           <section className="os-section">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-violet-300">Step 2</p>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-violet-300">Departments</p>
             <h2 className="mt-2 text-xl font-black">Departments</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Add one department per line.</p>
             <textarea
               required
               value={departments}
@@ -150,18 +149,16 @@ export function DemoCreateClubForm() {
           </section>
 
           <section className="os-section">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Step 3</p>
-            <h2 className="mt-2 text-xl font-black">Global facilities</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-400">Add halls, courts, rooms or locations. Addresses are optional during setup and can be completed later.</p>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">Facilities</p>
+            <h2 className="mt-2 text-xl font-black">Facilities</h2>
             <FacilityRowsEditor facilities={facilities} onChange={setFacilities} />
           </section>
 
           <section className="os-section">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">Optional step</p>
-                <h2 className="mt-2 text-xl font-black">Create first teams now</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Teams are optional here and can later live under department pages.</p>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">Teams</p>
+                <h2 className="mt-2 text-xl font-black">First teams</h2>
               </div>
               <label className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm font-bold text-slate-200">
                 <input

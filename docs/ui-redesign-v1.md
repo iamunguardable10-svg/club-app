@@ -232,3 +232,40 @@ Not applied literally:
 - single lavender-only accent, because Club OS needs semantic status, destructive states and facility color coding
 - marketing-page screenshot rhythm, because our current surfaces are product admin surfaces, not landing sections
 - proprietary Linear fonts; we stay on the current font stack for now
+
+## Bottom-up product rule
+
+The app is not only a club-admin setup tool.
+
+Design and copy should support this adoption ladder:
+
+```txt
+Athlete alone
+-> Coach and team
+-> Department
+-> Whole club
+```
+
+Implications:
+
+- onboarding may create club structure, but should not frame value as club-only
+- coach and athlete views must be viable standalone surfaces
+- admin views should aggregate operational data instead of becoming the place where training work happens
+- Teams, Facilities and Calendar UI must stay reusable across athlete, coach, department and admin contexts
+
+## Facilities redesign pass
+
+Scope:
+
+- real facility manager
+- demo facility manager
+- onboarding copy for bottom-up framing
+- create-club start gate
+
+Changes:
+
+- moved facility manager surfaces closer to OS surface classes
+- reduced green/violet-heavy visual treatment
+- shortened labels and empty states
+- kept all existing create, assign, promote, delete and department-only flows intact
+- kept demo and Supabase-backed versions aligned

@@ -309,7 +309,7 @@ export function DemoAdminFacilitiesManager() {
     return (
       <main className="min-h-screen bg-[radial-gradient(circle_at_top,#92400E_0,#070A12_45%)] px-4 py-10 text-white sm:px-8">
         <div className="mx-auto max-w-3xl rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6">
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo facilities</p>
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Demo facilities</p>
           <h1 className="mt-3 text-3xl font-black tracking-tight">No local demo setup found</h1>
           <p className="mt-3 text-sm leading-6 text-amber-100/80">Create a local demo club first. It will only be stored in your browser and not in Supabase.</p>
           <Link href="/demo/create-club" className="mt-5 inline-block rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200">Create local demo setup</Link>
@@ -320,9 +320,9 @@ export function DemoAdminFacilitiesManager() {
 
   const editTools = isEditMode ? (
     <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-      <form onSubmit={handleAddFacility} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+      <form onSubmit={handleAddFacility} className="os-section">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Create</p>
-        <h2 className="mt-2 text-xl font-black">Add global facility</h2>
+        <h2 className="mt-2 text-xl font-black">Add facility</h2>
         {createWarning ? (
           <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-950/20 p-3">
             <p className="text-sm font-bold leading-6 text-amber-100">{createWarning}</p>
@@ -330,64 +330,64 @@ export function DemoAdminFacilitiesManager() {
           </div>
         ) : null}
         <div className="mt-4 space-y-4">
-          <label className="block"><span className="text-sm font-bold text-slate-200">Name</span><input required value={newFacilityName} onChange={(event) => { setNewFacilityName(event.target.value); setError(null); }} placeholder="Main Hall" className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400" /></label>
-          <label className="block"><span className="text-sm font-bold text-slate-200">Address</span><input required value={newFacilityAddress} onChange={(event) => { setNewFacilityAddress(event.target.value); setError(null); }} placeholder="Street, city" className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-emerald-400" /></label>
+          <label className="block"><span className="text-sm font-bold text-slate-200">Name</span><input required value={newFacilityName} onChange={(event) => { setNewFacilityName(event.target.value); setError(null); }} placeholder="Main Hall" className="os-field" /></label>
+          <label className="block"><span className="text-sm font-bold text-slate-200">Address</span><input required value={newFacilityAddress} onChange={(event) => { setNewFacilityAddress(event.target.value); setError(null); }} placeholder="Street, city" className="os-field" /></label>
           <div>
-            <p className="text-sm font-bold text-slate-200">Assign to departments optional</p>
+            <p className="text-sm font-bold text-slate-200">Departments</p>
             <div className="mt-2 space-y-2">
-              {setup.departments.map((department) => <label key={department} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm"><span className="font-bold text-slate-100">{department}</span><input type="checkbox" checked={newFacilityDepartments.includes(department)} onChange={() => toggleNewFacilityDepartment(department)} className="h-4 w-4" /></label>)}
+              {setup.departments.map((department) => <label key={department} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800/90 bg-slate-950/50 px-4 py-3 text-sm ring-1 ring-white/[0.03]"><span className="font-bold text-slate-100">{department}</span><input type="checkbox" checked={newFacilityDepartments.includes(department)} onChange={() => toggleNewFacilityDepartment(department)} className="h-4 w-4" /></label>)}
             </div>
           </div>
-          <button type="submit" className="w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-300">Add separate global facility</button>
+          <button type="submit" className="os-success w-full justify-center">Add facility</button>
         </div>
       </form>
 
-      <form onSubmit={handleAssign} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+      <form onSubmit={handleAssign} className="os-section">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Assign</p>
-        <h2 className="mt-2 text-xl font-black">Assign existing global facility</h2>
+        <h2 className="mt-2 text-xl font-black">Assign shared facility</h2>
         
         <div className="mt-4 space-y-4">
-          <select value={selectedFacility} onChange={(event) => setSelectedFacility(event.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm outline-none focus:border-violet-400">
+          <select value={selectedFacility} onChange={(event) => setSelectedFacility(event.target.value)} className="os-field focus:border-sky-300 focus:ring-sky-400/10">
             {globalFacilities.map((facility) => <option key={facility.name} value={facility.name}>{facility.name} — {facility.address}</option>)}
           </select>
           <div className="space-y-2">
             {setup.departments.map((department) => {
               const alreadyAssigned = assignedDepartmentsForSelectedFacility.has(department);
               const checked = selectedDepartments.includes(department) || alreadyAssigned;
-              return <label key={department} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm"><span><span className="font-bold text-slate-100">{department}</span>{alreadyAssigned ? <span className="ml-2 text-xs font-bold text-emerald-300">already assigned</span> : null}</span><input type="checkbox" checked={checked} disabled={alreadyAssigned} onChange={() => toggleDepartment(department)} className="h-4 w-4" /></label>;
+              return <label key={department} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800/90 bg-slate-950/50 px-4 py-3 text-sm ring-1 ring-white/[0.03]"><span><span className="font-bold text-slate-100">{department}</span>{alreadyAssigned ? <span className="ml-2 text-xs font-bold text-emerald-300">already assigned</span> : null}</span><input type="checkbox" checked={checked} disabled={alreadyAssigned} onChange={() => toggleDepartment(department)} className="h-4 w-4" /></label>;
             })}
           </div>
-          <button type="submit" disabled={selectedDepartments.length === 0 || !selectedFacility} className="w-full rounded-xl bg-violet-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-violet-300 disabled:cursor-not-allowed disabled:opacity-60">Assign selected departments</button>
+          <button type="submit" disabled={selectedDepartments.length === 0 || !selectedFacility} className="os-primary w-full justify-center disabled:cursor-not-allowed disabled:opacity-60">Assign selected</button>
         </div>
       </form>
     </section>
   ) : null;
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#92400E_0,#070A12_45%)] px-4 py-8 text-white sm:px-8">
-      <div className="mx-auto max-w-6xl space-y-5">
-        <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6 shadow-sm">
+    <main className="os-page px-4 py-8 text-white sm:px-8">
+      <div className="os-container max-w-6xl space-y-5">
+        <section className="os-hero border-amber-500/25 bg-[linear-gradient(135deg,rgba(120,53,15,0.14),rgba(2,6,23,0.82))]">
           <Link href={backTarget.href} className="inline-flex items-center text-sm font-black text-amber-200 hover:text-amber-100">{backTarget.label}</Link>
           <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div><p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo facilities</p><h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Facilities for {setup.clubName}</h1></div>
-            <button type="button" onClick={() => setIsEditMode((current) => !current)} className={isEditMode ? 'w-fit rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200' : 'w-fit rounded-xl border border-amber-500/70 px-4 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-950/40'}>{isEditMode ? 'Done editing' : 'Edit facilities'}</button>
+            <div><p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Demo facilities</p><h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Facilities for {setup.clubName}</h1></div>
+            <button type="button" onClick={() => setIsEditMode((current) => !current)} className={isEditMode ? 'os-demo w-fit px-4 py-3' : 'os-secondary w-fit px-4 py-3 hover:border-amber-400/60'}>{isEditMode ? 'Done editing' : 'Edit facilities'}</button>
           </div>
         </section>
 
         {error ? <section className="rounded-2xl border border-red-900/70 bg-red-950/40 px-4 py-3 text-sm text-red-200">{error}</section> : null}
         {editTools}
 
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-          <div className="flex items-end justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Global facilities</p><h2 className="mt-2 text-xl font-black">Shared club facilities</h2></div><span className="text-sm font-bold text-slate-400">{globalFacilities.length} global</span></div>
+        <section className="os-section">
+          <div className="flex items-end justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Club facilities</p><h2 className="mt-2 text-xl font-black">Shared facilities</h2></div><span className="text-sm font-bold text-slate-400">{globalFacilities.length} global</span></div>
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {globalFacilities.map((facility) => <article key={facility.name} className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20"><Link href={`/demo/admin/facilities/${encodeFacilityName(facility.name)}/calendar?from=facilities`} className="block"><p className="font-black text-white">{facility.name}</p><p className="mt-1 text-xs text-slate-500">{facility.address}</p></Link>{isEditMode ? <button type="button" onClick={() => handleDeleteFacility(facility.name)} className="mt-3 rounded-lg border border-red-500/60 px-2.5 py-1.5 text-xs font-black text-red-200 hover:bg-red-950/40">Delete facility</button> : null}</article>)}
-            {globalFacilities.length === 0 ? <p className="text-sm text-slate-500">No global facilities yet.</p> : null}
+            {globalFacilities.map((facility) => <article key={facility.name} className="rounded-2xl border border-slate-800/90 bg-slate-950/45 px-4 py-3 ring-1 ring-white/[0.03] transition hover:-translate-y-0.5 hover:border-sky-400/45 hover:bg-slate-950/75"><Link href={`/demo/admin/facilities/${encodeFacilityName(facility.name)}/calendar?from=facilities`} className="block"><p className="font-black text-white">{facility.name}</p><p className="mt-1 text-xs text-slate-500">{facility.address}</p></Link>{isEditMode ? <button type="button" onClick={() => handleDeleteFacility(facility.name)} className="mt-3 rounded-lg border border-red-500/60 px-2.5 py-1.5 text-xs font-black text-red-200 hover:bg-red-950/40">Delete facility</button> : null}</article>)}
+            {globalFacilities.length === 0 ? <p className="text-sm text-slate-500">No shared facilities yet.</p> : null}
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+        <section className="os-section">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Department facilities</p>
-          <h2 className="mt-2 text-xl font-black">Department access and local locations</h2>
+          <h2 className="mt-2 text-xl font-black">Department access</h2>
           <div className="mt-5 space-y-3">
             {setup.departments.map((department) => {
               const isExpanded = expandedDepartments.includes(department);
@@ -398,18 +398,18 @@ export function DemoAdminFacilitiesManager() {
               const draft = departmentOnlyDrafts[department] ?? { name: '', address: '' };
 
               return (
-                <section key={department} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+                <section key={department} className="rounded-2xl border border-slate-800/90 bg-slate-950/45 p-4 ring-1 ring-white/[0.03]">
                   <button type="button" onClick={() => toggleExpandedDepartment(department)} className="flex w-full items-center justify-between gap-3 text-left"><span><span className="block font-black">{department}</span><span className="mt-1 block text-xs font-bold text-slate-500">{sharedAssignments.length} shared assigned · {departmentOnlyFacilities.length} department-only</span></span><span className="text-sm font-black text-sky-300">{isExpanded ? 'Hide' : 'Show'}</span></button>
 
                   {isExpanded ? (
                     <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                      <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
+                      <div className="rounded-2xl border border-slate-800/90 bg-slate-950/55 p-3 ring-1 ring-white/[0.03]">
                         <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">Shared access</p>
                         <div className="mt-3 space-y-2">
                           {sharedAssignments.length > 0 ? sharedAssignments.map((assignment) => {
                             const facility = facilityByName.get(assignment.facility);
-                            return <div key={`${assignment.department}-${assignment.facility}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2"><Link href={`/demo/admin/facilities/${encodeFacilityName(assignment.facility)}/calendar?from=facilities&departmentName=${encodeURIComponent(department)}`} className="text-sm font-bold text-slate-200 hover:text-emerald-300">{assignment.facility}{facility?.address ? <span className="block text-xs text-slate-500">{facility.address}</span> : null}</Link>{isEditMode ? <button type="button" onClick={() => handleRemoveAssignment(assignment.department, assignment.facility)} className="text-xs font-bold text-red-300 hover:text-red-200">Remove</button> : null}</div>;
-                          }) : <p className="text-sm text-slate-500">No shared facilities assigned.</p>}
+                            return <div key={`${assignment.department}-${assignment.facility}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800/90 bg-slate-950/50 px-3 py-2 ring-1 ring-white/[0.03]"><Link href={`/demo/admin/facilities/${encodeFacilityName(assignment.facility)}/calendar?from=facilities&departmentName=${encodeURIComponent(department)}`} className="text-sm font-bold text-slate-200 hover:text-emerald-300">{assignment.facility}{facility?.address ? <span className="block text-xs text-slate-500">{facility.address}</span> : null}</Link>{isEditMode ? <button type="button" onClick={() => handleRemoveAssignment(assignment.department, assignment.facility)} className="text-xs font-bold text-red-300 hover:text-red-200">Remove</button> : null}</div>;
+                          }) : <p className="text-sm text-slate-500">No shared access.</p>}
                         </div>
 
                         {isEditMode ? (
@@ -420,7 +420,7 @@ export function DemoAdminFacilitiesManager() {
                                 {availableShared.map((facility) => {
                                   const checked = selectedShared.includes(facility.name);
                                   return (
-                                    <label key={facility.name} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm transition hover:border-emerald-400">
+                                    <label key={facility.name} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-800/90 bg-slate-950/50 px-3 py-2 text-sm ring-1 ring-white/[0.03] transition hover:border-sky-400/45">
                                       <span className="min-w-0">
                                         <span className="block truncate font-black text-slate-100">{facility.name}</span>
                                         <span className="mt-0.5 block truncate text-xs font-bold text-slate-500">{facility.address}</span>
@@ -431,26 +431,26 @@ export function DemoAdminFacilitiesManager() {
                                 })}
                               </div>
                             ) : (
-                              <p className="mt-3 text-sm text-slate-500">No further shared halls available.</p>
+                              <p className="mt-3 text-sm text-slate-500">No further halls.</p>
                             )}
-                            <button type="button" onClick={() => assignDepartmentSharedSelections(department)} disabled={selectedShared.length === 0} className="mt-3 w-full rounded-xl bg-emerald-400 px-3 py-2 text-xs font-black text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50">Assign selected shared halls</button>
+                            <button type="button" onClick={() => assignDepartmentSharedSelections(department)} disabled={selectedShared.length === 0} className="mt-3 w-full rounded-lg bg-sky-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-sky-200 disabled:cursor-not-allowed disabled:opacity-50">Assign selected shared halls</button>
                           </div>
                         ) : null}
                       </div>
 
-                      <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
+                      <div className="rounded-2xl border border-slate-800/90 bg-slate-950/55 p-3 ring-1 ring-white/[0.03]">
                         <p className="text-xs font-black uppercase tracking-[0.16em] text-violet-300">Department-only</p>
                         <div className="mt-3 space-y-2">
-                          {departmentOnlyFacilities.length > 0 ? departmentOnlyFacilities.map((facility) => <div key={facility.name} className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2"><Link href={`/demo/admin/facilities/${encodeFacilityName(facility.name)}/calendar?from=facilities&departmentName=${encodeURIComponent(department)}`} className="block hover:text-violet-200"><p className="text-sm font-black text-slate-100">{facility.name}</p><p className="mt-1 text-xs text-slate-500">{facility.address}</p></Link>{isEditMode ? <div className="mt-2 flex flex-wrap gap-2"><button type="button" onClick={() => handleMakeFacilityGlobal(facility.name)} className="rounded-lg border border-violet-500/60 px-2.5 py-1.5 text-xs font-black text-violet-200 hover:bg-violet-950/40">Make global</button><button type="button" onClick={() => handleDeleteFacility(facility.name)} className="rounded-lg border border-red-500/60 px-2.5 py-1.5 text-xs font-black text-red-200 hover:bg-red-950/40">Delete</button></div> : null}</div>) : <p className="text-sm text-slate-500">No department-only facilities.</p>}
+                          {departmentOnlyFacilities.length > 0 ? departmentOnlyFacilities.map((facility) => <div key={facility.name} className="rounded-xl border border-slate-800/90 bg-slate-950/50 px-3 py-2 ring-1 ring-white/[0.03]"><Link href={`/demo/admin/facilities/${encodeFacilityName(facility.name)}/calendar?from=facilities&departmentName=${encodeURIComponent(department)}`} className="block hover:text-violet-200"><p className="text-sm font-black text-slate-100">{facility.name}</p><p className="mt-1 text-xs text-slate-500">{facility.address}</p></Link>{isEditMode ? <div className="mt-2 flex flex-wrap gap-2"><button type="button" onClick={() => handleMakeFacilityGlobal(facility.name)} className="rounded-lg border border-violet-500/60 px-2.5 py-1.5 text-xs font-black text-violet-200 hover:bg-violet-950/40">Make global</button><button type="button" onClick={() => handleDeleteFacility(facility.name)} className="rounded-lg border border-red-500/60 px-2.5 py-1.5 text-xs font-black text-red-200 hover:bg-red-950/40">Delete</button></div> : null}</div>) : <p className="text-sm text-slate-500">No local halls.</p>}
                         </div>
 
                         {isEditMode ? (
                           <div className="mt-4 rounded-xl border border-violet-500/20 bg-violet-950/10 p-3">
-                            <p className="text-xs font-black uppercase tracking-[0.14em] text-violet-300">Create department-only hall</p>
+                            <p className="text-xs font-black uppercase tracking-[0.14em] text-violet-300">Create local hall</p>
                             <div className="mt-3 grid gap-2">
-                              <input value={draft.name} onChange={(event) => updateDepartmentOnlyDraft(department, { name: event.target.value })} placeholder="Hall name" className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-violet-400" />
-                              <input value={draft.address} onChange={(event) => updateDepartmentOnlyDraft(department, { address: event.target.value })} placeholder="Address" className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-violet-400" />
-                              <button type="button" onClick={() => createDepartmentOnlyFacility(department)} disabled={!draft.name.trim() || !draft.address.trim()} className="rounded-xl bg-violet-400 px-3 py-2 text-xs font-black text-slate-950 hover:bg-violet-300 disabled:cursor-not-allowed disabled:opacity-50">Create department-only hall</button>
+                              <input value={draft.name} onChange={(event) => updateDepartmentOnlyDraft(department, { name: event.target.value })} placeholder="Hall name" className="rounded-xl border border-slate-700/90 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-sky-300 focus:ring-2 focus:ring-sky-400/10" />
+                              <input value={draft.address} onChange={(event) => updateDepartmentOnlyDraft(department, { address: event.target.value })} placeholder="Address" className="rounded-xl border border-slate-700/90 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-sky-300 focus:ring-2 focus:ring-sky-400/10" />
+                              <button type="button" onClick={() => createDepartmentOnlyFacility(department)} disabled={!draft.name.trim() || !draft.address.trim()} className="rounded-lg bg-sky-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-sky-200 disabled:cursor-not-allowed disabled:opacity-50">Create local hall</button>
                             </div>
                           </div>
                         ) : null}

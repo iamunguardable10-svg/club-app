@@ -41,6 +41,26 @@ It should not feel:
 - like a generic Tailwind dashboard
 - like a spreadsheet skin
 
+## Product build principle
+
+Club OS is bottom-up, not club-admin-first.
+
+The product must make sense at every layer:
+
+```txt
+Athlete alone
+-> Coach with one team
+-> Department with multiple teams/facilities
+-> Club with all departments
+```
+
+This affects UI decisions:
+
+- onboarding must not imply the whole club is required before value exists
+- team and athlete surfaces must be first-class, not admin leftovers
+- department pages should work even if only one department uses the app
+- club admin surfaces should aggregate, not duplicate operational work
+
 ## UI principles
 
 ### 1. One dominant action per surface
@@ -168,4 +188,3 @@ Then later pass:
 - Staff page
 - Team workspace
 - Facility manager
-

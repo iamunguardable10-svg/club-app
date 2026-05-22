@@ -55,11 +55,10 @@ export function CreateClubStartRouter() {
         <div className="grid gap-6 md:grid-cols-[1.1fr_0.9fr] md:items-center">
           <div>
             <p className="os-kicker text-emerald-300">Create Club Setup</p>
-            <h1 className="os-title">Start with the club spine.</h1>
-            <p className="mt-4 text-sm leading-6 text-slate-400">One clean structure first: club, departments, halls and teams. Everything else becomes easier after that.</p>
+            <h1 className="os-title">Build from the field up.</h1>
           </div>
           <div className="grid gap-2">
-            {['Club basics', 'Departments', 'Facilities', 'First teams'].map((item, index) => (
+            {['Athlete load', 'Team monitoring', 'Department ops', 'Club OS'].map((item, index) => (
               <div key={item} className="os-panel-soft flex items-center gap-3 px-3 py-2.5">
                 <span className="grid h-7 w-7 place-items-center rounded-xl bg-sky-300/10 text-xs font-black text-sky-200">{index + 1}</span>
                 <span className="text-sm font-black text-slate-200">{item}</span>
@@ -78,9 +77,6 @@ export function CreateClubStartRouter() {
 
         {status === 'needs_auth' ? (
           <div className="mt-6 space-y-4">
-            <p className="text-sm leading-6 text-slate-400">
-              To create a club, you need an account first. After login or signup, you will come back to the club setup automatically.
-            </p>
             <div className="grid gap-3 sm:grid-cols-2">
               <Link
                 href="/auth/signup?next=/onboarding/create-club"
