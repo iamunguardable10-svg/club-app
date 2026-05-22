@@ -485,9 +485,30 @@ Not exposed:
 ```txt
 team           preset + locked
 department     derived
-facility       defaulted from team, editable
+facility       defaulted from team, editable per session
 participants   whole team by default
 ```
+
+Current implemented V1 behavior:
+
+```txt
+team calendar
+-> View mode by default
+-> explicit Edit mode
+-> empty-slot tap creates draft session
+-> draft has inline confirm/cancel
+-> existing sessions can be moved/resized in Edit mode
+-> tapping a session opens a modal detail sheet
+-> session facility can be changed inside the detail sheet
+```
+
+Important selector rule:
+
+```txt
+Only facilities assigned to the team's department may be selected.
+```
+
+The session detail UI must not show the facility twice. The facility row should be directly editable through a compact selector when the user has edit rights.
 
 ### From Department View
 
@@ -585,6 +606,8 @@ participants   whole chosen team by default
 4. Default participant scope is the whole owner team.
 5. Other calendars are views over one shared session system, not separate products.
 6. Session creation should be context-aware and minimize repeated field selection.
+7. Team calendars are real calendars, not session lists.
+8. Team sessions may override the team's default facility, but only with a department-assigned facility.
 
 ---
 

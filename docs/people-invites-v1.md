@@ -154,6 +154,35 @@ custom visible label
 → permissions currently inherit assistant_coach behavior underneath
 ```
 
+## Staff page and team workspace split
+
+The central Staff page remains the admin and department-lead coverage surface.
+
+It shows role coverage by department and team, but team names should link directly to the team workspace:
+
+```txt
+/admin/teams/[teamId]?from=staff
+/demo/admin/teams/[teamId]?from=staff
+```
+
+Reason:
+
+```txt
+Staff page -> understand coverage
+Team page  -> operate inside one concrete team
+```
+
+Coaches should not need the central Staff page for their normal staff workflow. Inside the team workspace, the Staff / Settings section includes a mini staff area with:
+
+- invite
+- pending status
+- copy invite link
+- revoke invite
+- add custom coach role
+- remove custom coach role
+
+This keeps coach permissions simpler and avoids exposing the broader admin/department-lead staff surface.
+
 ## Next recommended steps
 
 1. Build `/admin/departments` so departments can be managed and opened as their own context.

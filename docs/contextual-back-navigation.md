@@ -1,6 +1,6 @@
 # Contextual Back Navigation
 
-This document records the contextual back navigation pattern for Admin facility calendars.
+This document records the contextual back navigation pattern for Admin facility calendars and team workspaces.
 
 ## Problem
 
@@ -61,7 +61,7 @@ Explicit context through `from` gives predictable navigation while still remaini
 
 ## Future extension
 
-The same pattern can be used later for:
+The same pattern can be used for:
 
 ```txt
 from=department-detail
@@ -77,3 +77,46 @@ returnTo=/admin/departments/<departmentId>
 ```
 
 For now, the simple `from` enum is enough.
+
+## Team workspace extension
+
+Team pages can be opened from multiple parents:
+
+```txt
+Teams page
+Department workspace
+Staff page
+```
+
+The team workspace should not rely on browser history. It uses explicit query context.
+
+Real route shapes:
+
+```txt
+/admin/teams/[teamId]?from=teams
+/admin/teams/[teamId]?from=department&departmentId=...
+/admin/teams/[teamId]?from=staff
+```
+
+Demo route shapes:
+
+```txt
+/demo/admin/teams/[teamId]?from=teams
+/demo/admin/teams/[teamId]?from=department&departmentName=...
+/demo/admin/teams/[teamId]?from=staff
+```
+
+Back-link behavior:
+
+```txt
+from=department -> Back to department
+from=staff      -> Back to staff
+from=teams      -> Back to teams
+missing/unknown -> Back to teams
+```
+
+Product rule:
+
+```txt
+Every team name/card should link to the team workspace and include the best available parent context.
+```
