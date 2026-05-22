@@ -50,34 +50,47 @@ export function CreateClubStartRouter() {
   }, [router]);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,#172554_0,#070A12_45%)] px-4 text-white">
-      <section className="w-full max-w-xl rounded-3xl border border-slate-800 bg-slate-950/80 p-6 shadow-sm">
-        <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Create Club Setup</p>
-        <h1 className="mt-3 text-3xl font-black tracking-tight">Start club setup</h1>
+    <main className="os-page flex min-h-screen items-center justify-center px-4 py-8 text-white">
+      <section className="os-hero w-full max-w-3xl">
+        <div className="grid gap-6 md:grid-cols-[1.1fr_0.9fr] md:items-center">
+          <div>
+            <p className="os-kicker text-emerald-300">Create Club Setup</p>
+            <h1 className="os-title">Start with the club spine.</h1>
+            <p className="mt-4 text-sm leading-6 text-slate-400">One clean structure first: club, departments, halls and teams. Everything else becomes easier after that.</p>
+          </div>
+          <div className="grid gap-2">
+            {['Club basics', 'Departments', 'Facilities', 'First teams'].map((item, index) => (
+              <div key={item} className="os-panel-soft flex items-center gap-3 px-3 py-2.5">
+                <span className="grid h-7 w-7 place-items-center rounded-xl bg-sky-300/10 text-xs font-black text-sky-200">{index + 1}</span>
+                <span className="text-sm font-black text-slate-200">{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {status === 'checking' ? (
-          <p className="mt-4 text-sm leading-6 text-slate-400">Checking whether you are already signed in...</p>
+          <p className="mt-6 text-sm leading-6 text-slate-400">Checking whether you are already signed in...</p>
         ) : null}
 
         {status === 'redirecting' ? (
-          <p className="mt-4 text-sm leading-6 text-slate-400">You are signed in. Redirecting to the club setup flow...</p>
+          <p className="mt-6 text-sm leading-6 text-slate-400">You are signed in. Redirecting to the club setup flow...</p>
         ) : null}
 
         {status === 'needs_auth' ? (
-          <div className="mt-5 space-y-4">
+          <div className="mt-6 space-y-4">
             <p className="text-sm leading-6 text-slate-400">
               To create a club, you need an account first. After login or signup, you will come back to the club setup automatically.
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               <Link
                 href="/auth/signup?next=/onboarding/create-club"
-                className="rounded-2xl bg-emerald-400 px-4 py-3 text-center text-sm font-black text-slate-950 transition hover:bg-emerald-300"
+                className="os-success text-center"
               >
                 Create account
               </Link>
               <Link
                 href="/auth/login?next=/onboarding/create-club"
-                className="rounded-2xl border border-slate-700 px-4 py-3 text-center text-sm font-black text-slate-200 transition hover:border-sky-400"
+                className="os-secondary text-center"
               >
                 Login
               </Link>

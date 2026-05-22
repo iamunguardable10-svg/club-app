@@ -6,6 +6,16 @@
   color-scheme: dark;
   --background: #070a12;
   --foreground: #f8fafc;
+  --club-bg: #050712;
+  --club-panel: rgba(15, 23, 42, 0.72);
+  --club-panel-strong: rgba(2, 6, 23, 0.88);
+  --club-border: rgba(51, 65, 85, 0.82);
+  --club-border-soft: rgba(148, 163, 184, 0.16);
+  --club-muted: #94a3b8;
+  --club-soft: #cbd5e1;
+  --club-sky: #7dd3fc;
+  --club-emerald: #34d399;
+  --club-amber: #fcd34d;
 }
 
 * {
@@ -21,12 +31,102 @@ body {
 }
 
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  text-rendering: geometricPrecision;
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+::selection {
+  background: rgba(125, 211, 252, 0.24);
+  color: #f8fafc;
+}
+
+@layer components {
+  .os-page {
+    @apply min-h-screen bg-[#050712] text-white;
+    background-image:
+      radial-gradient(circle at 18% -10%, rgba(56, 189, 248, 0.16), transparent 34rem),
+      radial-gradient(circle at 85% 8%, rgba(139, 92, 246, 0.1), transparent 30rem),
+      linear-gradient(rgba(148, 163, 184, 0.032) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.032) 1px, transparent 1px);
+    background-size: auto, auto, 72px 72px, 72px 72px;
+  }
+
+  .os-container {
+    @apply mx-auto w-full max-w-6xl px-4 py-6 sm:px-8;
+  }
+
+  .os-panel {
+    @apply rounded-3xl border border-slate-800/90 bg-slate-950/70 shadow-[0_24px_90px_rgba(0,0,0,0.24)] ring-1 ring-white/[0.03] backdrop-blur-xl;
+  }
+
+  .os-panel-soft {
+    @apply rounded-2xl border border-slate-800 bg-slate-950/45 ring-1 ring-white/[0.03];
+  }
+
+  .os-hero {
+    @apply relative overflow-hidden rounded-[2rem] border border-slate-800/90 bg-[linear-gradient(135deg,rgba(15,23,42,0.92),rgba(2,6,23,0.78))] p-6 shadow-[0_28px_120px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.04] backdrop-blur-xl;
+  }
+
+  .os-hero::before {
+    content: "";
+    @apply pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-sky-200/35 to-transparent;
+  }
+
+  .os-kicker {
+    @apply text-xs font-black uppercase tracking-[0.24em] text-sky-300;
+  }
+
+  .os-title {
+    @apply mt-3 text-3xl font-black tracking-tight text-white sm:text-5xl;
+  }
+
+  .os-copy {
+    @apply text-sm leading-6 text-slate-400;
+  }
+
+  .os-section {
+    @apply rounded-3xl border border-slate-800/90 bg-slate-950/70 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.24)] ring-1 ring-white/[0.03] backdrop-blur-xl;
+  }
+
+  .os-label {
+    @apply text-sm font-bold text-slate-200;
+  }
+
+  .os-field {
+    @apply mt-2 w-full rounded-xl border border-slate-700/90 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-sky-300 focus:ring-2 focus:ring-sky-400/10;
+  }
+
+  .os-textarea {
+    @apply mt-2 min-h-36 w-full resize-y rounded-xl border border-slate-700/90 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-sky-300 focus:ring-2 focus:ring-sky-400/10;
+  }
+
+  .os-primary {
+    @apply rounded-2xl bg-sky-300 px-5 py-3 text-sm font-black text-slate-950 shadow-[0_18px_60px_rgba(56,189,248,0.16)] transition hover:-translate-y-0.5 hover:bg-sky-200 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .os-success {
+    @apply rounded-2xl bg-emerald-300 px-5 py-3 text-sm font-black text-slate-950 shadow-[0_18px_60px_rgba(52,211,153,0.14)] transition hover:-translate-y-0.5 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .os-demo {
+    @apply rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950 shadow-[0_18px_60px_rgba(251,191,36,0.14)] transition hover:-translate-y-0.5 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .os-secondary {
+    @apply rounded-2xl border border-slate-700/90 bg-slate-950/45 px-5 py-3 text-sm font-black text-slate-200 transition hover:-translate-y-0.5 hover:border-sky-400/60 hover:bg-slate-900/80;
+  }
+
+  .os-metric {
+    @apply rounded-2xl border border-slate-800 bg-slate-950/55 p-3 ring-1 ring-white/[0.03];
+  }
 }
 
 @keyframes landing-float {
