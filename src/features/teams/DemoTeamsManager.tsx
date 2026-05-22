@@ -20,7 +20,6 @@ export function DemoTeamsManager() {
       <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6">
         <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">Demo teams</p>
         <h1 className="mt-3 text-3xl font-black sm:text-5xl">Team workspaces</h1>
-        <p className="mt-3 max-w-3xl text-sm text-amber-100/80">Browser-only preview of the team app structure.</p>
       </section>
 
       <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">

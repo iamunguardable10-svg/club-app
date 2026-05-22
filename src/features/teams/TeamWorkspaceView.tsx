@@ -135,11 +135,11 @@ function sectionLabel(section: TeamWorkspaceSection) {
   return 'Staff / Settings';
 }
 
-function EmptyCard({ title, description }: { title: string; description: string }) {
+function EmptyCard({ title, description }: { title: string; description?: string }) {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
       <p className="text-sm font-black text-slate-100">{title}</p>
-      <p className="mt-1 text-sm text-slate-400">{description}</p>
+      {description ? <p className="mt-1 text-sm text-slate-400">{description}</p> : null}
     </div>
   );
 }
@@ -583,7 +583,7 @@ function TeamSmartCalendar({
               <p><span className="font-black text-slate-100">Attendance:</span> Prepared for check-in.</p>
               <p><span className="font-black text-slate-100">Load:</span> Not reported yet.</p>
             </div>
-            {canManageCalendar ? <p className="mt-4 rounded-2xl border border-sky-500/25 bg-sky-950/20 p-3 text-xs font-bold text-sky-100/80">Editing stays in the calendar edit mode for now; attendance and load controls get their own detail screen next.</p> : null}
+
           </section>
         </div>
       ) : null}
@@ -632,15 +632,15 @@ export function TeamWorkspaceView({
 
   const setupActions = [
     data.staff.headCoaches.length === 0
-      ? { id: 'head-coach', label: 'Invite head coach', description: 'This team has no head coach assigned yet.', action: onInviteStaff ? 'headStaff' as const : data.staffHref ? 'staff' as const : 'none' as const }
+      ? { id: 'head-coach', label: 'Invite head coach', action: onInviteStaff ? 'headStaff' as const : data.staffHref ? 'staff' as const : 'none' as const }
       : null,
     !data.defaultFacilityName
-      ? { id: 'default-facility', label: 'Set default facility', description: 'Sessions need a sensible default hall.', action: 'settings' as const }
+      ? { id: 'default-facility', label: 'Set default facility', action: 'settings' as const }
       : null,
     data.playerCount === 0
-      ? { id: 'players', label: onAddDemoPlayers ? 'Add demo players' : 'Add players', description: 'Roster is still empty.', action: onAddDemoPlayers ? 'demoPlayers' as const : 'players' as const }
+      ? { id: 'players', label: onAddDemoPlayers ? 'Add demo players' : 'Add players', action: onAddDemoPlayers ? 'demoPlayers' as const : 'players' as const }
       : null,
-  ].filter(Boolean) as { id: string; label: string; description: string; action: 'staff' | 'headStaff' | 'settings' | 'players' | 'demoPlayers' | 'none' }[];
+  ].filter(Boolean) as { id: string; label: string; action: 'staff' | 'headStaff' | 'settings' | 'players' | 'demoPlayers' | 'none' }[];
 
   const primarySections: TeamWorkspaceSection[] = ['dashboard', 'calendar', 'players', 'groups', 'settings'];
   const desktopSections: TeamWorkspaceSection[] = primarySections;
@@ -675,7 +675,7 @@ export function TeamWorkspaceView({
         <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-300">Team workspace</p>
-            <h1 className="mt-3 text-3xl font-black sm:text-5xl">{data.name}</h1>
+            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">{data.name}</h1>
             <p className="mt-2 text-sm text-slate-400">{data.departmentName} · {data.defaultFacilityName ?? 'No default facility yet'}</p>
           </div>
           <div className="flex flex-wrap gap-2 text-xs font-black">
@@ -714,7 +714,7 @@ export function TeamWorkspaceView({
                 <p className="mt-1 text-sm text-slate-400">{nextSession.facilityName ?? data.defaultFacilityName ?? 'Facility not set'}</p>
               </button>
             ) : (
-              <EmptyCard title="No upcoming session" description="The team calendar will show the next planned session here." />
+              <EmptyCard title="No upcoming session" />
             )}
           </section>
 
@@ -724,11 +724,11 @@ export function TeamWorkspaceView({
               <div className="mt-4 grid gap-2">
                 {setupActions.map((item) => {
                   const className = 'rounded-xl border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-left text-sm font-bold text-amber-100 transition hover:border-amber-300/60';
-                  if (item.action === 'headStaff') return <button key={item.id} type="button" onClick={() => onInviteStaff?.('head_coach')} className={className}><span className="block">{item.label}</span><span className="mt-1 block text-xs font-medium text-amber-100/70">{item.description}</span></button>;
-                  if (item.action === 'staff' && data.staffHref) return <Link key={item.id} href={data.staffHref} className={className}><span className="block">{item.label}</span><span className="mt-1 block text-xs font-medium text-amber-100/70">{item.description}</span></Link>;
-                  if (item.action === 'settings') return <button key={item.id} type="button" onClick={() => setActiveSection('settings')} className={className}><span className="block">{item.label}</span><span className="mt-1 block text-xs font-medium text-amber-100/70">{item.description}</span></button>;
-                  if (item.action === 'demoPlayers') return <button key={item.id} type="button" onClick={handleAddDemoPlayers} className={className}><span className="block">{item.label}</span><span className="mt-1 block text-xs font-medium text-amber-100/70">{item.description}</span></button>;
-                  if (item.action === 'players') return <button key={item.id} type="button" onClick={() => setActiveSection('players')} className={className}><span className="block">{item.label}</span><span className="mt-1 block text-xs font-medium text-amber-100/70">{item.description}</span></button>;
+                  if (item.action === 'headStaff') return <button key={item.id} type="button" onClick={() => onInviteStaff?.('head_coach')} className={className}>{item.label}</button>;
+                  if (item.action === 'staff' && data.staffHref) return <Link key={item.id} href={data.staffHref} className={className}>{item.label}</Link>;
+                  if (item.action === 'settings') return <button key={item.id} type="button" onClick={() => setActiveSection('settings')} className={className}>{item.label}</button>;
+                  if (item.action === 'demoPlayers') return <button key={item.id} type="button" onClick={handleAddDemoPlayers} className={className}>{item.label}</button>;
+                  if (item.action === 'players') return <button key={item.id} type="button" onClick={() => setActiveSection('players')} className={className}>{item.label}</button>;
                   return <div key={item.id} className={className}>{item.label}</div>;
                 })}
               </div>
@@ -748,7 +748,7 @@ export function TeamWorkspaceView({
             {data.calendarHref ? <Link href={data.calendarHref} className="rounded-xl border border-sky-500/60 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Open facility calendar</Link> : null}
           </div>
           <TeamSmartCalendar data={data} onSessionTimeChange={onSessionTimeChange} onSessionCreate={onSessionCreate} onSessionFacilityChange={onSessionFacilityChange} />
-          {data.sessions.length === 0 ? <div className="mt-5"><EmptyCard title="No team sessions yet" description="This is already the filtered Untis-style team calendar; new team sessions will appear here." /></div> : null}
+          {data.sessions.length === 0 ? <div className="mt-5"><EmptyCard title="No team sessions yet" /></div> : null}
         </section>
       ) : null}
 
@@ -757,14 +757,13 @@ export function TeamWorkspaceView({
           <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Roster</p>
           <h2 className="mt-2 text-2xl font-black">Players</h2>
           <div className="mt-5 grid gap-3 md:grid-cols-2">
-            <EmptyCard title={`${data.playerCount} players`} description="Player profiles, availability and attendance history will live here." />
+            <EmptyCard title={`${data.playerCount} players`} />
             {onAddDemoPlayers ? (
               <button type="button" onClick={handleAddDemoPlayers} className="rounded-2xl border border-emerald-500/40 bg-emerald-950/20 p-4 text-left transition hover:border-emerald-300/70">
                 <p className="text-sm font-black text-emerald-100">Add demo players</p>
-                <p className="mt-1 text-sm text-emerald-100/70">Adds a realistic demo roster without sending real invites.</p>
               </button>
             ) : (
-              <EmptyCard title="Invite players" description="Prepared for the player invite link / team code flow." />
+              <EmptyCard title="Invite players" />
             )}
           </div>
           {players.length > 0 ? (
@@ -828,16 +827,15 @@ export function TeamWorkspaceView({
             </div>
             <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
               <p className="text-sm font-black text-slate-100">Staff roles</p>
-              <p className="mt-1 text-sm text-slate-400">Invite, copy pending links, revoke invites and add team-specific coach roles here.</p>
               <div className="mt-4">
                 <StaffRoleGrid roles={staffRoles} onInvite={onInviteStaff} onCopy={onCopyStaffInvite} onRevoke={onRevokeStaffInvite} onRemoveRole={onRemoveCoachRole} />
               </div>
               {onAddCoachRole ? (
                 <div className="mt-4 rounded-xl border border-dashed border-slate-700 p-3">
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Add coach role</p>
-                  <div className="mt-2 flex max-w-2xl flex-col gap-2 sm:flex-row">
-                    <input value={newCoachRoleLabel} onChange={(event) => setNewCoachRoleLabel(event.target.value)} placeholder="e.g. Strength Coach" className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-400" />
-                    <button type="button" onClick={handleAddCoachRole} className="rounded-lg border border-sky-500/60 px-3 py-2 text-xs font-black text-sky-200 hover:bg-sky-950/40">Add role</button>
+                  <div className="mt-2 flex max-w-md flex-col gap-2 sm:flex-row">
+                    <input value={newCoachRoleLabel} onChange={(event) => setNewCoachRoleLabel(event.target.value)} placeholder="e.g. Strength Coach" className="flex-1 rounded-lg border border-slate-700/90 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-sky-300 focus:ring-2 focus:ring-sky-400/10" />
+                    <button type="button" onClick={handleAddCoachRole} className="rounded-lg border border-sky-500/50 bg-sky-950/15 px-3 py-2 text-xs font-black text-sky-200 transition hover:bg-sky-950/35">Add role</button>
                   </div>
                 </div>
               ) : null}

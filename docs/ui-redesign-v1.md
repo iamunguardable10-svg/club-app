@@ -200,3 +200,35 @@ Keep text only when it does one of these jobs:
 Linear-inspired rule:
 
 Dense admin UI should be navigated through hierarchy, spacing, state, and compact controls. Explanatory prose is a fallback, not the default.
+
+## getdesign.md reference
+
+The Linear reference was downloaded locally with:
+
+```txt
+npx getdesign@latest add linear.app
+```
+
+It lives at:
+
+```txt
+linear.app/DESIGN.md
+```
+
+The root `DESIGN.md` stays Club OS-specific. The Linear file is used as an external reference, not copied over wholesale, because Club OS needs sport-operation semantics, facility accents, warnings and role states that Linear marketing design does not cover.
+
+Applied rules from the Linear reference:
+
+- near-black canvas as the anchor surface
+- restrained surface ladder instead of decorative gradients
+- hairline borders for hierarchy
+- compact buttons and inputs
+- scarce accent color usage
+- text reduction where layout/state already communicates the action
+- product UI should do the explanatory work
+
+Not applied literally:
+
+- single lavender-only accent, because Club OS needs semantic status, destructive states and facility color coding
+- marketing-page screenshot rhythm, because our current surfaces are product admin surfaces, not landing sections
+- proprietary Linear fonts; we stay on the current font stack for now

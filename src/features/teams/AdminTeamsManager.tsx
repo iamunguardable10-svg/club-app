@@ -100,7 +100,6 @@ export function AdminTeamsManager() {
       <section className="rounded-3xl border border-slate-800 bg-slate-950/75 p-6">
         <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-300">Teams</p>
         <h1 className="mt-3 text-3xl font-black sm:text-5xl">Team workspaces</h1>
-        <p className="mt-3 max-w-3xl text-sm text-slate-400">Each team gets its own operational surface: dashboard, calendar, players and groups.</p>
       </section>
 
       <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
@@ -126,7 +125,7 @@ export function AdminTeamsManager() {
                 </div>
               </Link>
             );
-          }) : <p className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 text-sm text-slate-400">No teams yet. Create teams from a Department View first.</p>}
+          }) : <p className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 text-sm text-slate-400">No teams yet.</p>}
         </div>
       </section>
     </AdminShell>
