@@ -88,14 +88,13 @@ It currently enhances facility calendar links and facility checkbox options by a
 - soft tinted background
 - left inset accent line
 
-For compact default-facility references inside team cards, the enhancer must only tint the facility chip itself.
-It must not tint the entire team card. Team cards carry team state; facility color is only supporting metadata there.
+For compact default-facility references inside team cards, the enhancer must not apply facility color at all.
+Team cards carry team state; facility color is too visually dominant in that context.
 
-Current opt-in attributes for chip-only accenting:
+Current opt-out attribute for neutral facility links:
 
 ```tsx
-data-facility-accent-target="self"
-data-facility-accent-mode="chip"
+data-facility-accent-mode="none"
 ```
 
 The enhancer is mounted in:

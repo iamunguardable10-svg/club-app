@@ -105,6 +105,8 @@ function enhanceFacilityAnchor(anchor: HTMLAnchorElement) {
   anchor.setAttribute(LINK_ENHANCED_ATTRIBUTE, 'true');
   appendContextToFacilityLink(anchor);
 
+  if (anchor.dataset.facilityAccentMode === 'none') return;
+
   const label = getReadableFacilityLabel(anchor, seed);
   const target = getAccentTarget(anchor);
   applyAccent(target, seed || label, label);
