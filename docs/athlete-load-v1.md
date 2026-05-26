@@ -58,5 +58,5 @@ RLS keeps athlete self-write behavior and allows relevant team staff/department 
 - No placeholder explanation panels.
 - Show metrics and action surfaces directly.
 - Mobile-first layout; the quick entry remains usable without horizontal navigation.
-- Graph is a custom SVG for now, not Recharts, to avoid dependency weight and keep full visual control.
-- Recharts remains a valid later option if we need richer tooltips, zoom, legends, or coach analytics.
+- Graph uses Recharts with a custom Club OS layer so athletes can hover/tap days, read ACWR, and inspect daily load details.
+- The chart should not use default Recharts styling; keep axes, tooltip, zones, and legends compact and athlete-readable.

@@ -2,6 +2,17 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import {
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Line,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 import {
   ACWR_ZONES,
@@ -255,29 +266,96 @@ function Metric({ label, value, tone = 'default' }: { label: string; value: stri
   );
 }
 
+type LoadChartRange = 7 | 28 | 60;
+
+type LoadChartDatum = {
+  date: string;
+  label: string;
+  totalLoad: number;
+  acuteLoad: number;
+  chronicLoad: number;
+  acwr: number | null;
+  entryCount: number;
+} & Partial<Record<LoadTrainingType, number>>;
+
+type LoadTooltipProps = {
+  active?: boolean;
+  payload?: ReadonlyArray<{ payload?: LoadChartDatum; dataKey?: string; value?: number | string | null; color?: string; name?: string }>;
+};
+
+function LoadTooltip({ active, payload }: LoadTooltipProps) {
+  if (!active || !payload?.length) return null;
+  const point = payload[0]?.payload;
+  if (!point) return null;
+  const segments = LOAD_TRAINING_TYPES.filter((type) => (point[type] ?? 0) > 0);
+
+  return (
+    <div className="min-w-56 rounded-2xl border border-slate-700 bg-slate-950/95 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.45)] ring-1 ring-white/[0.04] backdrop-blur-xl">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-black text-white">{formatLoadDate(point.date)}</p>
+          <p className="mt-1 text-[11px] font-bold text-slate-500">{point.entryCount} entries</p>
+        </div>
+        <div className="text-right">
+          <p className="text-lg font-black text-emerald-200">{point.totalLoad}</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">AU</p>
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-2">
+          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">ACWR</p>
+          <p className="mt-1 text-sm font-black text-white">{point.acwr ? point.acwr.toFixed(2) : '—'}</p>
+        </div>
+        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-2">
+          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">Acute</p>
+          <p className="mt-1 text-sm font-black text-white">{point.acuteLoad}</p>
+        </div>
+        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-2">
+          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">Chronic</p>
+          <p className="mt-1 text-sm font-black text-white">{point.chronicLoad}</p>
+        </div>
+      </div>
+      {segments.length > 0 ? (
+        <div className="mt-3 space-y-1.5">
+          {segments.map((type) => (
+            <div key={type} className="flex items-center justify-between gap-3 text-[11px] font-bold text-slate-300">
+              <span className="inline-flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: LOAD_TYPE_COLORS[type] }} />
+                {LOAD_TYPE_LABELS[type]}
+              </span>
+              <span>{point[type]} AU</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function LoadChart({ entries }: { entries: AthleteLoadEntry[] }) {
-  const daily = aggregateDailyLoads(entries).slice(-28);
-  const acwr = calculateACWR(entries).slice(-28);
-  const maxLoad = Math.max(600, ...daily.map((day) => day.totalLoad));
-  const width = 760;
-  const height = 260;
-  const pad = { left: 34, right: 22, top: 20, bottom: 34 };
-  const innerWidth = width - pad.left - pad.right;
-  const innerHeight = height - pad.top - pad.bottom;
-  const barGap = 5;
-  const barWidth = daily.length ? Math.max(6, innerWidth / daily.length - barGap) : 10;
+  const [range, setRange] = useState<LoadChartRange>(28);
+  const daily = aggregateDailyLoads(entries);
+  const acwr = calculateACWR(entries);
   const acwrByDate = new Map(acwr.map((point) => [point.date, point]));
-  const points = daily
-    .map((day, index) => {
-      const value = acwrByDate.get(day.date)?.acwr;
-      if (value === null || value === undefined) return null;
-      const x = pad.left + index * (innerWidth / Math.max(1, daily.length - 1));
-      const clamped = Math.min(1.8, Math.max(0.4, value));
-      const y = pad.top + innerHeight - ((clamped - 0.4) / 1.4) * innerHeight;
-      return `${x},${y}`;
-    })
-    .filter(Boolean)
-    .join(' ');
+  const entriesByDate = new Map<string, AthleteLoadEntry[]>();
+  for (const entry of entries) {
+    entriesByDate.set(entry.date, [...(entriesByDate.get(entry.date) ?? []), entry]);
+  }
+  const chartData: LoadChartDatum[] = daily.slice(-range).map((day) => {
+    const point = acwrByDate.get(day.date);
+    return {
+      date: day.date,
+      label: new Date(`${day.date}T00:00:00`).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' }),
+      totalLoad: day.totalLoad,
+      acuteLoad: point?.acuteLoad ?? 0,
+      chronicLoad: point?.chronicLoad ?? 0,
+      acwr: point?.acwr ?? null,
+      entryCount: entriesByDate.get(day.date)?.length ?? 0,
+      ...day.loads,
+    };
+  });
+
+  const maxLoad = Math.max(600, ...chartData.map((day) => day.totalLoad));
 
   if (entries.length === 0) {
     return (
@@ -289,48 +367,80 @@ function LoadChart({ entries }: { entries: AthleteLoadEntry[] }) {
 
   return (
     <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/55 p-3">
-      <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[680px]">
-          <defs>
-            <linearGradient id="loadGlow" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#7dd3fc" stopOpacity="0.92" />
-              <stop offset="100%" stopColor="#0ea5e9" stopOpacity="0.24" />
-            </linearGradient>
-            <linearGradient id="acwrLine" x1="0" x2="1" y1="0" y2="0">
-              <stop offset="0%" stopColor="#34d399" />
-              <stop offset="58%" stopColor="#7dd3fc" />
-              <stop offset="100%" stopColor="#fcd34d" />
-            </linearGradient>
-          </defs>
-          {[0, 0.25, 0.5, 0.75, 1].map((tick) => {
-            const y = pad.top + innerHeight * tick;
-            return <line key={tick} x1={pad.left} x2={width - pad.right} y1={y} y2={y} stroke="rgba(148,163,184,0.12)" />;
-          })}
-          {[ACWR_ZONES.low, ACWR_ZONES.high].map((threshold) => {
-            const y = pad.top + innerHeight - ((threshold - 0.4) / 1.4) * innerHeight;
-            return <line key={threshold} x1={pad.left} x2={width - pad.right} y1={y} y2={y} stroke={threshold === ACWR_ZONES.low ? '#38bdf8' : '#fb7185'} strokeDasharray="5 6" strokeOpacity="0.5" />;
-          })}
-          {daily.map((day, index) => {
-            let bottom = pad.top + innerHeight;
-            const x = pad.left + index * (innerWidth / Math.max(1, daily.length));
-            const segments = LOAD_TRAINING_TYPES.map((type) => {
-              const value = day.loads[type] ?? 0;
-              if (!value) return null;
-              const segmentHeight = Math.max(2, (value / maxLoad) * innerHeight);
-              bottom -= segmentHeight;
-              return <rect key={type} x={x} y={bottom} width={barWidth} height={segmentHeight} rx="5" fill={LOAD_TYPE_COLORS[type]} opacity="0.88" />;
-            });
-            return <g key={day.date}>{segments}</g>;
-          })}
-          {points ? <polyline points={points} fill="none" stroke="url(#acwrLine)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /> : null}
-          {daily.filter((_, index) => index % 5 === 0 || index === daily.length - 1).map((day, index, shown) => {
-            const realIndex = daily.findIndex((candidate) => candidate.date === day.date);
-            const x = pad.left + realIndex * (innerWidth / Math.max(1, daily.length));
-            return <text key={`${day.date}-${index}`} x={x} y={height - 10} fill="#64748b" fontSize="11" fontWeight="700">{new Date(`${day.date}T00:00:00`).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}</text>;
-          })}
-          <text x="6" y="24" fill="#94a3b8" fontSize="11" fontWeight="800">Load</text>
-          <text x={width - 70} y="24" fill="#94a3b8" fontSize="11" fontWeight="800">ACWR</text>
-        </svg>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+        <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1">
+          {([7, 28, 60] as const).map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setRange(item)}
+              className={`rounded-full px-3 py-1.5 text-xs font-black transition ${range === item ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}
+            >
+              {item}d
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
+          <span className="inline-flex items-center gap-1.5"><span className="h-px w-5 bg-sky-300" /> low 0.8</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-px w-5 bg-rose-300" /> high 1.3</span>
+        </div>
+      </div>
+      <div className="h-[330px] w-full sm:h-[360px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={chartData} margin={{ top: 14, right: 4, bottom: 4, left: -18 }} barCategoryGap={range === 7 ? '34%' : range === 28 ? '22%' : '12%'}>
+            <CartesianGrid stroke="rgba(148,163,184,0.10)" vertical={false} />
+            <XAxis
+              dataKey="label"
+              tick={{ fill: '#64748b', fontSize: 11, fontWeight: 800 }}
+              tickLine={false}
+              axisLine={false}
+              interval={range === 7 ? 0 : range === 28 ? 4 : 9}
+            />
+            <YAxis
+              yAxisId="load"
+              domain={[0, Math.ceil(maxLoad / 100) * 100]}
+              tick={{ fill: '#64748b', fontSize: 11, fontWeight: 800 }}
+              tickLine={false}
+              axisLine={false}
+              width={42}
+            />
+            <YAxis
+              yAxisId="acwr"
+              orientation="right"
+              domain={[0.4, 1.8]}
+              tick={{ fill: '#64748b', fontSize: 11, fontWeight: 800 }}
+              tickLine={false}
+              axisLine={false}
+              width={34}
+            />
+            <Tooltip cursor={{ fill: 'rgba(125,211,252,0.07)' }} content={(props) => <LoadTooltip {...(props as unknown as LoadTooltipProps)} />} />
+            <ReferenceLine yAxisId="acwr" y={ACWR_ZONES.low} stroke="#38bdf8" strokeDasharray="5 6" strokeOpacity={0.62} />
+            <ReferenceLine yAxisId="acwr" y={ACWR_ZONES.high} stroke="#fb7185" strokeDasharray="5 6" strokeOpacity={0.62} />
+            {LOAD_TRAINING_TYPES.map((type, index) => (
+              <Bar
+                key={type}
+                yAxisId="load"
+                dataKey={type}
+                stackId="load"
+                fill={LOAD_TYPE_COLORS[type]}
+                radius={index === LOAD_TRAINING_TYPES.length - 1 ? [8, 8, 2, 2] : [2, 2, 2, 2]}
+                isAnimationActive={false}
+                name={LOAD_TYPE_LABELS[type]}
+              />
+            ))}
+            <Line
+              yAxisId="acwr"
+              type="monotone"
+              dataKey="acwr"
+              stroke="#7dd3fc"
+              strokeWidth={3}
+              dot={{ r: range === 7 ? 4 : 2, fill: '#0f172a', stroke: '#7dd3fc', strokeWidth: 2 }}
+              activeDot={{ r: 6, fill: '#ecfeff', stroke: '#38bdf8', strokeWidth: 3 }}
+              connectNulls
+              name="ACWR"
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
       </div>
       <div className="mt-2 flex flex-wrap gap-2 px-1 pb-1">
         {LOAD_TRAINING_TYPES.slice(0, 5).map((type) => (
