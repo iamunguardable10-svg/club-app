@@ -77,6 +77,9 @@ export type ACWRDataPoint = {
   chronicLoad: number;
   acwr: number | null;
   chronicFull: boolean;
+  isProjected?: boolean;
+  forecastBasis?: string;
+  plannedLoads?: Partial<Record<LoadTrainingType, number>>;
 };
 
 export const ACWR_ZONES = {

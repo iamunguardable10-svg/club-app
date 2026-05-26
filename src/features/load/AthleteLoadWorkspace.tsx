@@ -19,12 +19,13 @@ import {
   LOAD_TRAINING_TYPES,
   LOAD_TYPE_COLORS,
   LOAD_TYPE_LABELS,
+  type ACWRDataPoint,
   type AthleteLoadEntry,
   type AthletePendingSession,
   type LoadTrainingType,
   sessionTypeToLoadType,
 } from './loadTypes';
-import { aggregateDailyLoads, calculateACWR, formatLoadDate, getLatestACWR, loadZone, sevenDayLoad, todayISO } from './loadCalculations';
+import { aggregateDailyLoads, calculateACWR, calculateEWMA, fillMissingDays, formatLoadDate, getLatestACWR, loadZone, projectFutureACWR, sevenDayLoad, todayISO } from './loadCalculations';
 
 type AthleteLoadWorkspaceProps = {
   initialView?: 'home' | 'load' | 'calendar';
@@ -267,16 +268,21 @@ function Metric({ label, value, tone = 'default' }: { label: string; value: stri
 }
 
 type LoadChartRange = 7 | 28 | 60;
+type LoadChartMethod = 'rolling' | 'ewma';
 
 type LoadChartDatum = {
   date: string;
   label: string;
   totalLoad: number;
+  forecastLoad: number;
   acuteLoad: number;
   chronicLoad: number;
   acwr: number | null;
+  projectedAcwr: number | null;
   entryCount: number;
-} & Partial<Record<LoadTrainingType, number>>;
+  isProjected: boolean;
+  forecastBasis?: string;
+} & Partial<Record<LoadTrainingType, number>> & Record<string, string | number | boolean | null | undefined>;
 
 type LoadTooltipProps = {
   active?: boolean;
@@ -288,23 +294,24 @@ function LoadTooltip({ active, payload }: LoadTooltipProps) {
   const point = payload[0]?.payload;
   if (!point) return null;
   const segments = LOAD_TRAINING_TYPES.filter((type) => (point[type] ?? 0) > 0);
+  const forecastSegments = LOAD_TRAINING_TYPES.filter((type) => (Number(point[`${type}_p`]) || 0) > 0);
 
   return (
     <div className="min-w-56 rounded-2xl border border-slate-700 bg-slate-950/95 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.45)] ring-1 ring-white/[0.04] backdrop-blur-xl">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-black text-white">{formatLoadDate(point.date)}</p>
-          <p className="mt-1 text-[11px] font-bold text-slate-500">{point.entryCount} entries</p>
+          <p className="mt-1 text-[11px] font-bold text-slate-500">{point.isProjected ? point.forecastBasis : `${point.entryCount} entries`}</p>
         </div>
         <div className="text-right">
-          <p className="text-lg font-black text-emerald-200">{point.totalLoad}</p>
+          <p className="text-lg font-black text-emerald-200">{point.isProjected ? point.forecastLoad : point.totalLoad}</p>
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">AU</p>
         </div>
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2">
         <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-2">
           <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">ACWR</p>
-          <p className="mt-1 text-sm font-black text-white">{point.acwr ? point.acwr.toFixed(2) : '—'}</p>
+          <p className="mt-1 text-sm font-black text-white">{(point.acwr ?? point.projectedAcwr) ? (point.acwr ?? point.projectedAcwr)?.toFixed(2) : '—'}</p>
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-2">
           <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">Acute</p>
@@ -328,34 +335,83 @@ function LoadTooltip({ active, payload }: LoadTooltipProps) {
           ))}
         </div>
       ) : null}
+      {forecastSegments.length > 0 ? (
+        <div className="mt-3 space-y-1.5 border-t border-slate-800 pt-3">
+          {forecastSegments.map((type) => (
+            <div key={`${type}_p`} className="flex items-center justify-between gap-3 text-[11px] font-bold text-slate-300">
+              <span className="inline-flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full opacity-60" style={{ backgroundColor: LOAD_TYPE_COLORS[type] }} />
+                {LOAD_TYPE_LABELS[type]} forecast
+              </span>
+              <span>{Number(point[`${type}_p`])} AU</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function LoadChart({ entries }: { entries: AthleteLoadEntry[] }) {
+function projectionSegments(point?: ACWRDataPoint) {
+  if (!point) return {};
+  const entries = LOAD_TRAINING_TYPES.map((type) => {
+    const planned = point.plannedLoads?.[type] ?? 0;
+    if (planned > 0) return [`${type}_p`, planned];
+    if (type === 'team_training' && point.totalLoad > 0) return [`${type}_p`, point.totalLoad];
+    return [`${type}_p`, 0];
+  });
+  return Object.fromEntries(entries);
+}
+
+function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; pendingSessions: AthletePendingSession[] }) {
   const [range, setRange] = useState<LoadChartRange>(28);
-  const daily = aggregateDailyLoads(entries);
-  const acwr = calculateACWR(entries);
+  const [method, setMethod] = useState<LoadChartMethod>('rolling');
+  const daily = fillMissingDays(aggregateDailyLoads(entries), Math.max(range, 84));
+  const acwr = method === 'ewma' ? calculateEWMA(entries) : calculateACWR(entries);
+  const projected = projectFutureACWR(entries, pendingSessions, 14);
   const acwrByDate = new Map(acwr.map((point) => [point.date, point]));
+  const projectedByDate = new Map(projected.map((point) => [point.date, point]));
   const entriesByDate = new Map<string, AthleteLoadEntry[]>();
   for (const entry of entries) {
     entriesByDate.set(entry.date, [...(entriesByDate.get(entry.date) ?? []), entry]);
   }
-  const chartData: LoadChartDatum[] = daily.slice(-range).map((day) => {
+  const historicalData: LoadChartDatum[] = daily.slice(-range).map((day) => {
     const point = acwrByDate.get(day.date);
+    const projection = projectedByDate.get(day.date);
     return {
       date: day.date,
       label: new Date(`${day.date}T00:00:00`).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' }),
       totalLoad: day.totalLoad,
+      forecastLoad: projection?.totalLoad ?? 0,
       acuteLoad: point?.acuteLoad ?? 0,
       chronicLoad: point?.chronicLoad ?? 0,
       acwr: point?.acwr ?? null,
+      projectedAcwr: projection?.acwr ?? null,
       entryCount: entriesByDate.get(day.date)?.length ?? 0,
+      isProjected: false,
+      forecastBasis: projection?.forecastBasis,
       ...day.loads,
+      ...projectionSegments(projection),
     };
   });
+  const lastHistoricalDate = daily[daily.length - 1]?.date ?? todayISO();
+  const projectedData: LoadChartDatum[] = projected.filter((point) => point.date > lastHistoricalDate).slice(0, range === 7 ? 7 : 14).map((point) => ({
+    date: point.date,
+    label: new Date(`${point.date}T00:00:00`).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' }),
+    totalLoad: 0,
+    forecastLoad: point.totalLoad,
+    acuteLoad: point.acuteLoad,
+    chronicLoad: point.chronicLoad,
+    acwr: null,
+    projectedAcwr: point.acwr,
+    entryCount: 0,
+    isProjected: true,
+    forecastBasis: point.forecastBasis,
+    ...projectionSegments(point),
+  })) as LoadChartDatum[];
+  const chartData = [...historicalData, ...projectedData];
 
-  const maxLoad = Math.max(600, ...chartData.map((day) => day.totalLoad));
+  const maxLoad = Math.max(600, ...chartData.map((day) => Math.max(day.totalLoad, day.forecastLoad)));
 
   if (entries.length === 0) {
     return (
@@ -368,17 +424,31 @@ function LoadChart({ entries }: { entries: AthleteLoadEntry[] }) {
   return (
     <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/55 p-3">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
-        <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1">
-          {([7, 28, 60] as const).map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => setRange(item)}
-              className={`rounded-full px-3 py-1.5 text-xs font-black transition ${range === item ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}
-            >
-              {item}d
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-2">
+          <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1">
+            {([7, 28, 60] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setRange(item)}
+                className={`rounded-full px-3 py-1.5 text-xs font-black transition ${range === item ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}
+              >
+                {item}d
+              </button>
+            ))}
+          </div>
+          <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1">
+            {(['rolling', 'ewma'] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setMethod(item)}
+                className={`rounded-full px-3 py-1.5 text-xs font-black uppercase transition ${method === item ? 'bg-sky-300 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
           <span className="inline-flex items-center gap-1.5"><span className="h-px w-5 bg-sky-300" /> low 0.8</span>
@@ -428,6 +498,21 @@ function LoadChart({ entries }: { entries: AthleteLoadEntry[] }) {
                 name={LOAD_TYPE_LABELS[type]}
               />
             ))}
+            {LOAD_TRAINING_TYPES.map((type) => (
+              <Bar
+                key={`${type}_p`}
+                yAxisId="load"
+                dataKey={`${type}_p`}
+                stackId="forecast"
+                fill={LOAD_TYPE_COLORS[type]}
+                fillOpacity={0.28}
+                stroke={LOAD_TYPE_COLORS[type]}
+                strokeOpacity={0.48}
+                radius={[8, 8, 2, 2]}
+                isAnimationActive={false}
+                name={`${LOAD_TYPE_LABELS[type]} forecast`}
+              />
+            ))}
             <Line
               yAxisId="acwr"
               type="monotone"
@@ -439,6 +524,18 @@ function LoadChart({ entries }: { entries: AthleteLoadEntry[] }) {
               connectNulls
               name="ACWR"
             />
+            <Line
+              yAxisId="acwr"
+              type="monotone"
+              dataKey="projectedAcwr"
+              stroke="#a78bfa"
+              strokeWidth={2}
+              strokeDasharray="5 5"
+              dot={{ r: 3, fill: '#0f172a', stroke: '#a78bfa', strokeWidth: 2 }}
+              activeDot={{ r: 5, fill: '#faf5ff', stroke: '#a78bfa', strokeWidth: 3 }}
+              connectNulls
+              name="Forecast ACWR"
+            />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -449,7 +546,7 @@ function LoadChart({ entries }: { entries: AthleteLoadEntry[] }) {
             {LOAD_TYPE_LABELS[type]}
           </span>
         ))}
-        <span className="ml-auto text-[11px] font-bold text-slate-500">Bars = load · Line = ACWR</span>
+        <span className="ml-auto text-[11px] font-bold text-slate-500">Solid = reported · faded = forecast</span>
       </div>
     </div>
   );
@@ -634,7 +731,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               </div>
               <span className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-black text-slate-300">{source === 'loading' ? 'Loading' : source === 'demo' ? 'Demo data' : 'Live data'}</span>
             </div>
-            <LoadChart entries={sortedEntries} />
+            <LoadChart entries={sortedEntries} pendingSessions={pendingSessions} />
           </div>
 
           <aside className="rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">

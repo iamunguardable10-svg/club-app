@@ -58,5 +58,6 @@ RLS keeps athlete self-write behavior and allows relevant team staff/department 
 - No placeholder explanation panels.
 - Show metrics and action surfaces directly.
 - Mobile-first layout; the quick entry remains usable without horizontal navigation.
-- Graph uses Recharts with a custom Club OS layer so athletes can hover/tap days, read ACWR, and inspect daily load details.
-- The chart should not use default Recharts styling; keep axes, tooltip, zones, and legends compact and athlete-readable.
+- Graph uses Recharts with a custom Club OS layer so athletes can hover/tap every calendar day, read ACWR, and inspect daily load details.
+- The chart should not use default Recharts styling; keep axes, tooltip, zones, and legends compact and athlete-readable. It renders rest days as zero-load bars, supports Rolling/EWMA method switching, and shows a 14-day forecast from planned sessions plus historical weekday patterns.
+

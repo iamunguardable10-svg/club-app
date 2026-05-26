@@ -1,4 +1,4 @@
-import type { ACWRDataPoint, AthleteLoadEntry, DayLoad } from './loadTypes';
+import type { ACWRDataPoint, AthleteLoadEntry, AthletePendingSession, DayLoad, LoadTrainingType } from './loadTypes';
 
 function localISO(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -53,6 +53,18 @@ function rollingAverage(loads: number[], index: number, window: number) {
   return slice.length ? slice.reduce((sum, value) => sum + value, 0) / slice.length : 0;
 }
 
+function median(values: number[]) {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function sessionDurationMinutes(session: AthletePendingSession) {
+  if (!session.endsAt) return 90;
+  return Math.max(30, Math.round((new Date(session.endsAt).getTime() - new Date(session.startsAt).getTime()) / 60_000));
+}
+
 export function calculateACWR(entries: AthleteLoadEntry[]): ACWRDataPoint[] {
   const days = fillMissingDays(aggregateDailyLoads(entries));
   const loads = days.map((day) => day.totalLoad);
@@ -71,6 +83,132 @@ export function calculateACWR(entries: AthleteLoadEntry[]): ACWRDataPoint[] {
       chronicFull: index >= 27,
     };
   });
+}
+
+export function calculateEWMA(entries: AthleteLoadEntry[]): ACWRDataPoint[] {
+  const days = fillMissingDays(aggregateDailyLoads(entries));
+  if (days.length === 0) return [];
+
+  const lambdaAcute = 2 / (7 + 1);
+  const lambdaChronic = 2 / (28 + 1);
+  let acute = days[0].totalLoad;
+  let chronic = days[0].totalLoad;
+
+  return days.map((day, index) => {
+    if (index > 0) {
+      acute = lambdaAcute * day.totalLoad + (1 - lambdaAcute) * acute;
+      chronic = lambdaChronic * day.totalLoad + (1 - lambdaChronic) * chronic;
+    }
+    const acwr = index >= 7 && acute > 0 && chronic > 0 ? acute / chronic : null;
+    return {
+      date: day.date,
+      totalLoad: day.totalLoad,
+      acuteLoad: Math.round(acute),
+      chronicLoad: Math.round(chronic),
+      acwr: acwr === null ? null : Math.round(acwr * 100) / 100,
+      chronicFull: index >= 27,
+    };
+  });
+}
+
+export function projectFutureACWR(entries: AthleteLoadEntry[], plannedSessions: AthletePendingSession[], daysAhead = 14): ACWRDataPoint[] {
+  const today = todayISO();
+  const historicalDays = fillMissingDays(aggregateDailyLoads(entries), 84);
+  if (historicalDays.length === 0) return [];
+
+  const end = addDays(new Date(`${today}T00:00:00`), daysAhead);
+  const endISO = localISO(end);
+  const plannedByDate = new Map<string, AthletePendingSession[]>();
+  for (const session of plannedSessions) {
+    if (session.date < today || session.date > endISO) continue;
+    plannedByDate.set(session.date, [...(plannedByDate.get(session.date) ?? []), session]);
+  }
+
+  const rpeByType = new Map<LoadTrainingType, number[]>();
+  const durationByType = new Map<LoadTrainingType, number[]>();
+  for (const entry of entries) {
+    rpeByType.set(entry.trainingType, [...(rpeByType.get(entry.trainingType) ?? []), entry.rpe]);
+    durationByType.set(entry.trainingType, [...(durationByType.get(entry.trainingType) ?? []), entry.durationMinutes]);
+  }
+
+  const recentHistory = historicalDays.slice(-84);
+  const loadsByWeekday: number[][] = [[], [], [], [], [], [], []];
+  for (const day of recentHistory) {
+    const weekday = new Date(`${day.date}T00:00:00`).getDay();
+    loadsByWeekday[weekday].push(day.totalLoad);
+  }
+
+  const extLoads = historicalDays.map((day) => day.totalLoad);
+  const recent7 = extLoads.slice(-7);
+  const recent7Mean = recent7.length ? recent7.reduce((sum, load) => sum + load, 0) / recent7.length : 0;
+  const activeDays = historicalDays.filter((day) => day.totalLoad > 0);
+  const meanActiveLoad = activeDays.length ? activeDays.reduce((sum, day) => sum + day.totalLoad, 0) / activeDays.length : 0;
+  const firstActive = activeDays[0]?.date ?? today;
+  const lastActive = activeDays[activeDays.length - 1]?.date ?? today;
+  const activeSpanDays = Math.max(1, (new Date(`${lastActive}T00:00:00`).getTime() - new Date(`${firstActive}T00:00:00`).getTime()) / 86_400_000 + 1);
+  const frequencyBasedDailyLoad = meanActiveLoad * (activeDays.length / activeSpanDays);
+  const projected: ACWRDataPoint[] = [];
+  const cursor = new Date(`${today}T00:00:00`);
+
+  while (localISO(cursor) <= endISO) {
+    const date = localISO(cursor);
+    const weekday = cursor.getDay();
+    const weekdayLoads = loadsByWeekday[weekday];
+    const planned = plannedByDate.get(date) ?? [];
+    const plannedLoads: Partial<Record<LoadTrainingType, number>> = {};
+    let predictedLoad = 0;
+    let forecastBasis = 'Rest pattern';
+
+    if (planned.length > 0) {
+      for (const session of planned) {
+        const rpe = median(rpeByType.get(session.trainingType) ?? []) || 6;
+        const duration = sessionDurationMinutes(session) || median(durationByType.get(session.trainingType) ?? []) || 90;
+        const load = Math.round(rpe * duration);
+        predictedLoad += load;
+        plannedLoads[session.trainingType] = (plannedLoads[session.trainingType] ?? 0) + load;
+      }
+      forecastBasis = 'Planned sessions';
+    } else {
+      const offDayFraction = weekdayLoads.length ? weekdayLoads.filter((load) => load === 0).length / weekdayLoads.length : 0;
+      if (offDayFraction >= 0.75) {
+        predictedLoad = 0;
+        forecastBasis = 'Rest pattern';
+      } else {
+        const weekdayMedian = median(weekdayLoads);
+        const recentSameWeekdayMedian = median(weekdayLoads.slice(-4));
+        const patternLoad = Math.round(0.5 * weekdayMedian + 0.3 * recentSameWeekdayMedian + 0.2 * recent7Mean);
+        predictedLoad = patternLoad > 0 ? patternLoad : Math.round(frequencyBasedDailyLoad * 0.6);
+        forecastBasis = patternLoad > 0 ? 'Weekday pattern' : predictedLoad > 0 ? 'Training frequency' : 'Rest pattern';
+      }
+    }
+
+    const historicalIndex = historicalDays.findIndex((day) => day.date === date);
+    if (historicalIndex >= 0) {
+      extLoads[historicalIndex] = Math.max(extLoads[historicalIndex], predictedLoad);
+    } else {
+      extLoads.push(predictedLoad);
+    }
+    const index = historicalIndex >= 0 ? historicalIndex : extLoads.length - 1;
+    const acute = rollingAverage(extLoads, index, 7);
+    const chronic = rollingAverage(extLoads, index, 28);
+    const acwr = index >= 7 && acute > 0 && chronic > 0 ? acute / chronic : null;
+
+    projected.push({
+      date,
+      totalLoad: predictedLoad,
+      acuteLoad: Math.round(acute),
+      chronicLoad: Math.round(chronic),
+      acwr: acwr === null ? null : Math.round(acwr * 100) / 100,
+      chronicFull: index >= 27,
+      isProjected: true,
+      forecastBasis,
+      plannedLoads,
+    });
+
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return projected;
 }
 
 export function getLatestACWR(entries: AthleteLoadEntry[]) {
