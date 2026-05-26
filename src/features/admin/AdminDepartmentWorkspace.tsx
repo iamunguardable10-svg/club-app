@@ -1082,7 +1082,12 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                               'No department halls yet'
                             )
                           ) : defaultFacility ? (
-                            <Link href={`/admin/facilities/${defaultFacility.id}/calendar?from=team&departmentId=${currentDepartmentId}&teamId=${team.id}`} className="hover:text-emerald-200">
+                            <Link
+                              href={`/admin/facilities/${defaultFacility.id}/calendar?from=team&departmentId=${currentDepartmentId}&teamId=${team.id}`}
+                              data-facility-accent-target="self"
+                              data-facility-accent-mode="chip"
+                              className="inline-flex max-w-full items-center rounded-lg border border-slate-700/80 bg-slate-950/55 px-2 py-0.5 text-xs font-black text-slate-200 transition hover:border-slate-500 hover:text-white"
+                            >
                               {defaultFacility.name}
                             </Link>
                           ) : needsFacilityAction && departmentFacilities.length > 0 ? (

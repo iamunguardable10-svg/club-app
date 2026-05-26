@@ -64,6 +64,8 @@ function appendContextToFacilityLink(anchor: HTMLAnchorElement) {
 }
 
 function getAccentTarget(anchor: HTMLAnchorElement): HTMLElement {
+  if (anchor.dataset.facilityAccentTarget === 'self') return anchor;
+
   const anchorClass = anchor.getAttribute('class') ?? '';
   const anchorIsCard = anchorClass.includes('rounded') && anchorClass.includes('border');
   if (anchorIsCard) return anchor;
@@ -76,8 +78,18 @@ function applyAccent(target: HTMLElement, seed: string, label: string) {
   if (target.getAttribute(ACCENT_ENHANCED_ATTRIBUTE) === 'true') return;
 
   const accent = getFacilityAccent(seed || label);
+  const isChip = target.dataset.facilityAccentMode === 'chip';
+
   target.setAttribute(ACCENT_ENHANCED_ATTRIBUTE, 'true');
   target.setAttribute('data-facility-accent', accent.name);
+
+  if (isChip) {
+    target.style.borderColor = `${accent.hex}44`;
+    target.style.background = `linear-gradient(90deg, ${accent.softHex}, rgba(15, 23, 42, 0.32))`;
+    target.style.boxShadow = `inset 2px 0 0 ${accent.hex}88`;
+    return;
+  }
+
   target.style.borderColor = `${accent.hex}66`;
   target.style.background = `linear-gradient(90deg, ${accent.softHex}, rgba(15, 23, 42, 0.58))`;
   target.style.boxShadow = `inset 3px 0 0 ${accent.hex}`;
