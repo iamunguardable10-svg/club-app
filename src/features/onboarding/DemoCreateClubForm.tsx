@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   createInitialFacilityDraftRows,
@@ -85,9 +86,11 @@ export function DemoCreateClubForm() {
         <div className="os-hero border-amber-500/25 bg-[linear-gradient(135deg,rgba(120,53,15,0.24),rgba(2,6,23,0.82))]">
           <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
             <div>
-              <p className="os-kicker text-amber-300">Local demo mode</p>
-              <h1 className="os-title">Build bottom-up</h1>
-              <p className="mt-4 max-w-3xl text-sm leading-6 text-amber-100/80">Athlete &rarr; Team &rarr; Department &rarr; Club</p>
+              <Link href="/demo" className="text-sm font-black text-amber-100/70 transition hover:text-amber-200">
+                ← Back to demo
+              </Link>
+              <p className="os-kicker mt-5 text-amber-300">Club Admin Demo</p>
+              <h1 className="os-title">Set up the operating layer.</h1>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="os-metric border-amber-500/20"><p className="text-xs uppercase tracking-[0.16em] text-amber-100/60">Departments</p><p className="mt-1 text-2xl font-black">{departmentList.length}</p></div>
@@ -98,7 +101,36 @@ export function DemoCreateClubForm() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-6 grid gap-5">
+        <section className="mt-5 grid gap-3 md:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => setCreateTeamsNow(false)}
+            className={`rounded-3xl border p-5 text-left transition ${
+              !createTeamsNow
+                ? 'border-sky-300/60 bg-sky-300/10 ring-1 ring-sky-300/20'
+                : 'border-slate-800/90 bg-slate-950/45 hover:border-sky-400/45'
+            }`}
+          >
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-300">Lean start</p>
+            <h2 className="mt-3 text-xl font-black">Departments first</h2>
+            <p className="mt-3 text-sm font-bold text-slate-500">Create the club shell; teams can be added inside departments later.</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setCreateTeamsNow(true)}
+            className={`rounded-3xl border p-5 text-left transition ${
+              createTeamsNow
+                ? 'border-emerald-300/60 bg-emerald-300/10 ring-1 ring-emerald-300/20'
+                : 'border-slate-800/90 bg-slate-950/45 hover:border-emerald-400/45'
+            }`}
+          >
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Team-ready</p>
+            <h2 className="mt-3 text-xl font-black">Create first teams</h2>
+            <p className="mt-3 text-sm font-bold text-slate-500">Best if one department already wants to start working immediately.</p>
+          </button>
+        </section>
+
+        <form onSubmit={handleSubmit} className="mt-5 grid gap-5">
           <section className="os-section">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-300">Club</p>
             <h2 className="mt-2 text-xl font-black">Club basics</h2>

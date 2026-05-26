@@ -253,6 +253,20 @@ Implications:
 - admin views should aggregate operational data instead of becoming the place where training work happens
 - Teams, Facilities and Calendar UI must stay reusable across athlete, coach, department and admin contexts
 
+## Onboarding redesign pass
+
+The visible onboarding entry is now bottom-up.
+
+Changed:
+
+- `/onboarding` no longer frames club creation as the only first step
+- `/demo` no longer redirects directly into club setup
+- real and demo onboarding both expose Athlete, Coach, Department and Club entry points
+- club setup now has an explicit Lean start vs Team-ready setup mode
+- team-code join is exposed as an athlete entry path
+
+Detailed notes: `docs/bottom-up-onboarding-v1.md`.
+
 ## Facilities redesign pass
 
 Scope:

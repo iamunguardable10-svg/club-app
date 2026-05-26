@@ -54,11 +54,14 @@ export function CreateClubStartRouter() {
       <section className="os-hero w-full max-w-3xl">
         <div className="grid gap-6 md:grid-cols-[1.1fr_0.9fr] md:items-center">
           <div>
-            <p className="os-kicker text-emerald-300">Create Club Setup</p>
-            <h1 className="os-title">Build from the field up.</h1>
+            <Link href="/onboarding" className="text-sm font-black text-slate-400 transition hover:text-sky-300">
+              ← Back to onboarding
+            </Link>
+            <p className="os-kicker mt-5 text-emerald-300">Club Admin</p>
+            <h1 className="os-title">Create the club workspace.</h1>
           </div>
           <div className="grid gap-2">
-            {['Athlete load', 'Team monitoring', 'Department ops', 'Club OS'].map((item, index) => (
+            {['Club basics', 'Departments', 'Facilities', 'First teams'].map((item, index) => (
               <div key={item} className="os-panel-soft flex items-center gap-3 px-3 py-2.5">
                 <span className="grid h-7 w-7 place-items-center rounded-xl bg-sky-300/10 text-xs font-black text-sky-200">{index + 1}</span>
                 <span className="text-sm font-black text-slate-200">{item}</span>
@@ -68,11 +71,11 @@ export function CreateClubStartRouter() {
         </div>
 
         {status === 'checking' ? (
-          <p className="mt-6 text-sm leading-6 text-slate-400">Checking whether you are already signed in...</p>
+          <p className="mt-6 text-sm leading-6 text-slate-400">Checking session...</p>
         ) : null}
 
         {status === 'redirecting' ? (
-          <p className="mt-6 text-sm leading-6 text-slate-400">You are signed in. Redirecting to the club setup flow...</p>
+          <p className="mt-6 text-sm leading-6 text-slate-400">Opening club setup...</p>
         ) : null}
 
         {status === 'needs_auth' ? (

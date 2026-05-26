@@ -208,7 +208,7 @@ export default function HomePage() {
           <a href="#story" className="transition hover:text-white">Workflow</a>
           <a href="#roles" className="transition hover:text-white">Roles</a>
           <Link href="/demo" className="transition hover:text-white">Demo</Link>
-          <Link href="/onboarding/create-club/start" className="transition hover:text-white">Setup</Link>
+          <Link href="/onboarding" className="transition hover:text-white">Setup</Link>
         </nav>
         <Link href="/demo" className="rounded-xl bg-amber-300 px-4 py-2.5 text-sm font-black text-slate-950 transition hover:-translate-y-0.5 hover:bg-amber-200">
           Open demo
@@ -243,8 +243,8 @@ export default function HomePage() {
               Open demo club
               <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
             </Link>
-            <Link href="/onboarding/create-club/start" className="inline-flex items-center justify-center rounded-2xl bg-emerald-400 px-7 py-4 text-sm font-black text-slate-950 shadow-[0_16px_60px_rgba(52,211,153,0.2)] transition hover:-translate-y-1 hover:bg-emerald-300">
-              Create club setup
+            <Link href="/onboarding" className="inline-flex items-center justify-center rounded-2xl bg-emerald-400 px-7 py-4 text-sm font-black text-slate-950 shadow-[0_16px_60px_rgba(52,211,153,0.2)] transition hover:-translate-y-1 hover:bg-emerald-300">
+              Choose setup path
             </Link>
             <Link href="/auth/login" className="inline-flex items-center justify-center rounded-2xl border border-slate-700 bg-slate-950/60 px-7 py-4 text-sm font-black text-slate-200 transition hover:-translate-y-1 hover:border-sky-400/60 hover:bg-slate-900">
               Login
@@ -359,8 +359,8 @@ export default function HomePage() {
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(251,191,36,0.26),transparent_30%),radial-gradient(circle_at_80%_50%,rgba(251,191,36,0.2),transparent_28%)]" />
           <div className="relative">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-200">Lowest friction path</p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Open the demo club first.</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-amber-100/80">Explore the product without signup. Then create a real club setup when the flow makes sense.</p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Choose the demo entry point.</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-amber-100/80">Explore athlete, coach, department or club workflows without changing real data.</p>
           </div>
           <Link href="/demo" className="relative mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-300 px-7 py-4 text-sm font-black text-slate-950 shadow-[0_16px_70px_rgba(252,211,77,0.25)] transition hover:-translate-y-1 hover:bg-amber-200 lg:mt-0">Open demo club <ArrowRight className="h-4 w-4" /></Link>
         </motion.div>
