@@ -1,5 +1,7 @@
 import type { ACWRDataPoint, AthleteLoadEntry, AthletePendingSession, DayLoad, LoadTrainingType } from './loadTypes';
 
+type ACWRMethod = 'rolling' | 'ewma';
+
 function localISO(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
@@ -51,6 +53,36 @@ function rollingAverage(loads: number[], index: number, window: number) {
   return slice.length ? slice.reduce((sum, value) => sum + value, 0) / slice.length : 0;
 }
 
+function ewmaAt(loads: number[], index: number) {
+  const lambdaAcute = 2 / (7 + 1);
+  const lambdaChronic = 2 / (28 + 1);
+  let acute = loads[0] ?? 0;
+  let chronic = loads[0] ?? 0;
+
+  for (let cursor = 1; cursor <= index; cursor += 1) {
+    acute = lambdaAcute * loads[cursor] + (1 - lambdaAcute) * acute;
+    chronic = lambdaChronic * loads[cursor] + (1 - lambdaChronic) * chronic;
+  }
+
+  return { acute, chronic };
+}
+
+function trendAt(loads: number[], index: number, method: ACWRMethod) {
+  if (method === 'ewma') return ewmaAt(loads, index);
+  return {
+    acute: rollingAverage(loads, index, 7),
+    chronic: rollingAverage(loads, index, 28),
+  };
+}
+
+function acwrRatio(index: number, acute: number, chronic: number) {
+  return index >= 7 && acute > 0 && chronic > 0 ? acute / chronic : null;
+}
+
+function roundNullableRatio(value: number | null) {
+  return value === null ? null : Math.round(value * 100) / 100;
+}
+
 export function baselineAgeDays(entries: AthleteLoadEntry[]) {
   const days = fillMissingDays(aggregateDailyLoads(entries));
   return days.length;
@@ -74,16 +106,15 @@ export function calculateACWR(entries: AthleteLoadEntry[]): ACWRDataPoint[] {
   const loads = days.map((day) => day.totalLoad);
 
   return days.map((day, index) => {
-    const acute = rollingAverage(loads, index, 7);
-    const chronic = rollingAverage(loads, index, 28);
-    const acwr = index >= 27 && acute > 0 && chronic > 0 ? acute / chronic : null;
+    const { acute, chronic } = trendAt(loads, index, 'rolling');
+    const acwr = acwrRatio(index, acute, chronic);
 
     return {
       date: day.date,
       totalLoad: day.totalLoad,
       acuteLoad: Math.round(acute),
       chronicLoad: Math.round(chronic),
-      acwr: acwr === null ? null : Math.round(acwr * 100) / 100,
+      acwr: roundNullableRatio(acwr),
       chronicFull: index >= 27,
     };
   });
@@ -93,29 +124,23 @@ export function calculateEWMA(entries: AthleteLoadEntry[]): ACWRDataPoint[] {
   const days = fillMissingDays(aggregateDailyLoads(entries));
   if (days.length === 0) return [];
 
-  const lambdaAcute = 2 / (7 + 1);
-  const lambdaChronic = 2 / (28 + 1);
-  let acute = days[0].totalLoad;
-  let chronic = days[0].totalLoad;
+  const loads = days.map((day) => day.totalLoad);
 
   return days.map((day, index) => {
-    if (index > 0) {
-      acute = lambdaAcute * day.totalLoad + (1 - lambdaAcute) * acute;
-      chronic = lambdaChronic * day.totalLoad + (1 - lambdaChronic) * chronic;
-    }
-    const acwr = index >= 27 && acute > 0 && chronic > 0 ? acute / chronic : null;
+    const { acute, chronic } = trendAt(loads, index, 'ewma');
+    const acwr = acwrRatio(index, acute, chronic);
     return {
       date: day.date,
       totalLoad: day.totalLoad,
       acuteLoad: Math.round(acute),
       chronicLoad: Math.round(chronic),
-      acwr: acwr === null ? null : Math.round(acwr * 100) / 100,
+      acwr: roundNullableRatio(acwr),
       chronicFull: index >= 27,
     };
   });
 }
 
-export function projectFutureACWR(entries: AthleteLoadEntry[], plannedSessions: AthletePendingSession[], daysAhead = 14): ACWRDataPoint[] {
+export function projectFutureACWR(entries: AthleteLoadEntry[], plannedSessions: AthletePendingSession[], daysAhead = 14, method: ACWRMethod = 'rolling'): ACWRDataPoint[] {
   const today = todayISO();
   const historicalDays = fillMissingDays(aggregateDailyLoads(entries), 84);
   if (historicalDays.length === 0) return [];
@@ -193,16 +218,15 @@ export function projectFutureACWR(entries: AthleteLoadEntry[], plannedSessions: 
       extLoads.push(predictedLoad);
     }
     const index = historicalIndex >= 0 ? historicalIndex : extLoads.length - 1;
-    const acute = rollingAverage(extLoads, index, 7);
-    const chronic = rollingAverage(extLoads, index, 28);
-    const acwr = index >= 27 && acute > 0 && chronic > 0 ? acute / chronic : null;
+    const { acute, chronic } = trendAt(extLoads, index, method);
+    const acwr = acwrRatio(index, acute, chronic);
 
     projected.push({
       date,
       totalLoad: predictedLoad,
       acuteLoad: Math.round(acute),
       chronicLoad: Math.round(chronic),
-      acwr: acwr === null ? null : Math.round(acwr * 100) / 100,
+      acwr: roundNullableRatio(acwr),
       chronicFull: index >= 27,
       isProjected: true,
       forecastBasis,
@@ -215,8 +239,9 @@ export function projectFutureACWR(entries: AthleteLoadEntry[], plannedSessions: 
   return projected;
 }
 
-export function getLatestACWR(entries: AthleteLoadEntry[]) {
-  const points = calculateACWR(entries).filter((point) => point.acwr !== null);
+export function getLatestACWR(entries: AthleteLoadEntry[], method: ACWRMethod = 'rolling') {
+  const series = method === 'ewma' ? calculateEWMA(entries) : calculateACWR(entries);
+  const points = series.filter((point) => point.acwr !== null);
   return points[points.length - 1] ?? null;
 }
 

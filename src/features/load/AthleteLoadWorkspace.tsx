@@ -506,10 +506,10 @@ function projectionSegments(point?: ACWRDataPoint) {
 
 function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; pendingSessions: AthletePendingSession[] }) {
   const [range, setRange] = useState<LoadChartRange>(28);
-  const [method, setMethod] = useState<LoadChartMethod>('rolling');
+  const [method, setMethod] = useState<LoadChartMethod>('ewma');
   const daily = fillMissingDays(aggregateDailyLoads(entries), Math.max(range, 84));
   const acwr = method === 'ewma' ? calculateEWMA(entries) : calculateACWR(entries);
-  const projected = projectFutureACWR(entries, pendingSessions, 14);
+  const projected = projectFutureACWR(entries, pendingSessions, 14, method);
   const acwrByDate = new Map(acwr.map((point) => [point.date, point]));
   const projectedByDate = new Map(projected.map((point) => [point.date, point]));
   const entriesByDate = new Map<string, AthleteLoadEntry[]>();
@@ -779,7 +779,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   }, []);
 
   const sortedEntries = useMemo(() => [...entries].sort((a, b) => a.date.localeCompare(b.date)), [entries]);
-  const latest = useMemo(() => getLatestACWR(sortedEntries), [sortedEntries]);
+  const latest = useMemo(() => getLatestACWR(sortedEntries, 'ewma'), [sortedEntries]);
   const baselineDays = useMemo(() => baselineAgeDays(sortedEntries), [sortedEntries]);
   const isBaselineReady = (latest?.chronicFull ?? false) && baselineDays >= 30;
   const zone = loadZone(latest?.acwr ?? null, isBaselineReady);
