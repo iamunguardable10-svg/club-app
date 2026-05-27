@@ -72,3 +72,8 @@ Athletes use one session form for both expected and completed load. Future dates
 - demo mode mirrors this with `localStorage`
 
 
+
+## Rolling and EWMA
+
+Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR state before a full chronic baseline is available. Rolling uses 7-day and 28-day calendar windows including rest days. EWMA uses lambda 2/(7+1) and 2/(28+1), also over the filled calendar-day series.
+

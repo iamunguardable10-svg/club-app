@@ -53,6 +53,11 @@ function rollingAverage(loads: number[], index: number, window: number) {
   return slice.length ? slice.reduce((sum, value) => sum + value, 0) / slice.length : 0;
 }
 
+export function baselineAgeDays(entries: AthleteLoadEntry[]) {
+  const days = fillMissingDays(aggregateDailyLoads(entries));
+  return days.length;
+}
+
 function median(values: number[]) {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
@@ -73,7 +78,7 @@ export function calculateACWR(entries: AthleteLoadEntry[]): ACWRDataPoint[] {
   return days.map((day, index) => {
     const acute = rollingAverage(loads, index, 7);
     const chronic = rollingAverage(loads, index, 28);
-    const acwr = index >= 7 && acute > 0 && chronic > 0 ? acute / chronic : null;
+    const acwr = index >= 27 && acute > 0 && chronic > 0 ? acute / chronic : null;
 
     return {
       date: day.date,
@@ -100,7 +105,7 @@ export function calculateEWMA(entries: AthleteLoadEntry[]): ACWRDataPoint[] {
       acute = lambdaAcute * day.totalLoad + (1 - lambdaAcute) * acute;
       chronic = lambdaChronic * day.totalLoad + (1 - lambdaChronic) * chronic;
     }
-    const acwr = index >= 7 && acute > 0 && chronic > 0 ? acute / chronic : null;
+    const acwr = index >= 27 && acute > 0 && chronic > 0 ? acute / chronic : null;
     return {
       date: day.date,
       totalLoad: day.totalLoad,
@@ -192,7 +197,7 @@ export function projectFutureACWR(entries: AthleteLoadEntry[], plannedSessions: 
     const index = historicalIndex >= 0 ? historicalIndex : extLoads.length - 1;
     const acute = rollingAverage(extLoads, index, 7);
     const chronic = rollingAverage(extLoads, index, 28);
-    const acwr = index >= 7 && acute > 0 && chronic > 0 ? acute / chronic : null;
+    const acwr = index >= 27 && acute > 0 && chronic > 0 ? acute / chronic : null;
 
     projected.push({
       date,
@@ -217,8 +222,8 @@ export function getLatestACWR(entries: AthleteLoadEntry[]) {
   return points[points.length - 1] ?? null;
 }
 
-export function loadZone(acwr: number | null) {
-  if (acwr === null) return { label: 'Learning', tone: 'neutral' as const };
+export function loadZone(acwr: number | null, chronicFull = false) {
+  if (acwr === null || !chronicFull) return { label: 'Baseline', tone: 'neutral' as const };
   if (acwr < 0.8) return { label: 'Low', tone: 'low' as const };
   if (acwr <= 1.3) return { label: 'Ready', tone: 'ready' as const };
   return { label: 'High', tone: 'high' as const };

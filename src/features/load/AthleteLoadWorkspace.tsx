@@ -26,7 +26,7 @@ import {
   type LoadTrainingType,
   sessionTypeToLoadType,
 } from './loadTypes';
-import { aggregateDailyLoads, calculateACWR, calculateEWMA, fillMissingDays, formatLoadDate, getLatestACWR, loadZone, projectFutureACWR, sevenDayLoad, todayISO } from './loadCalculations';
+import { aggregateDailyLoads, baselineAgeDays, calculateACWR, calculateEWMA, fillMissingDays, formatLoadDate, getLatestACWR, loadZone, projectFutureACWR, sevenDayLoad, todayISO } from './loadCalculations';
 
 type AthleteLoadWorkspaceProps = {
   initialView?: 'home' | 'load' | 'calendar';
@@ -395,7 +395,7 @@ function Metric({ label, value, tone = 'default' }: { label: string; value: stri
         ? 'border-sky-400/35 bg-sky-400/10 text-sky-100'
         : 'border-slate-800 bg-slate-950/55 text-white';
   return (
-    <div className={`rounded-2xl border p-4 ${toneClass}`}>
+    <div className={`flex h-full flex-col justify-between rounded-2xl border p-4 ${toneClass}`}>
       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{label}</p>
       <p className="mt-2 text-2xl font-black tracking-tight">{value}</p>
     </div>
@@ -417,6 +417,7 @@ type LoadChartDatum = {
   entryCount: number;
   isProjected: boolean;
   forecastBasis?: string;
+  chronicFull?: boolean;
 } & Partial<Record<LoadTrainingType, number>> & Record<string, string | number | boolean | null | undefined>;
 
 type LoadTooltipProps = {
@@ -457,6 +458,11 @@ function LoadTooltip({ active, payload }: LoadTooltipProps) {
           <p className="mt-1 text-sm font-black text-white">{point.chronicLoad}</p>
         </div>
       </div>
+      {!point.chronicFull ? (
+        <div className="mt-3 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-[11px] font-bold text-amber-100">
+          Baseline still building. ACWR becomes reliable after about 30 days.
+        </div>
+      ) : null}
       {segments.length > 0 ? (
         <div className="mt-3 space-y-1.5">
           {segments.map((type) => (
@@ -525,6 +531,7 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
       entryCount: entriesByDate.get(day.date)?.length ?? 0,
       isProjected: false,
       forecastBasis: projection?.forecastBasis,
+      chronicFull: point?.chronicFull ?? false,
       ...day.loads,
       ...projectionSegments(projection),
     };
@@ -542,6 +549,7 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
     entryCount: 0,
     isProjected: true,
     forecastBasis: point.forecastBasis,
+    chronicFull: point.chronicFull,
     ...projectionSegments(point),
   })) as LoadChartDatum[];
   const chartData = [...historicalData, ...projectedData];
@@ -593,7 +601,7 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
       <div className="w-full overflow-x-auto pb-1">
         <div className="h-[330px] sm:h-[360px]" style={{ minWidth: range === 7 ? 540 : range === 28 ? 920 : 1480 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData} margin={{ top: 14, right: 8, bottom: 4, left: 8 }} barCategoryGap={range === 7 ? '18%' : range === 28 ? '8%' : '3%'}>
+          <ComposedChart data={chartData} margin={{ top: 14, right: 12, bottom: 4, left: 22 }} barCategoryGap={range === 7 ? '18%' : range === 28 ? '8%' : '3%'}>
             <CartesianGrid stroke="rgba(148,163,184,0.10)" vertical={false} />
             <XAxis
               dataKey="label"
@@ -608,7 +616,7 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
               tick={{ fill: '#64748b', fontSize: 11, fontWeight: 800 }}
               tickLine={false}
               axisLine={false}
-              width={58}
+              width={72}
             />
             <YAxis
               yAxisId="acwr"
@@ -772,7 +780,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
   const sortedEntries = useMemo(() => [...entries].sort((a, b) => a.date.localeCompare(b.date)), [entries]);
   const latest = useMemo(() => getLatestACWR(sortedEntries), [sortedEntries]);
-  const zone = loadZone(latest?.acwr ?? null);
+  const baselineDays = useMemo(() => baselineAgeDays(sortedEntries), [sortedEntries]);
+  const isBaselineReady = (latest?.chronicFull ?? false) && baselineDays >= 30;
+  const zone = loadZone(latest?.acwr ?? null, isBaselineReady);
   const weeklyLoad = useMemo(() => sevenDayLoad(sortedEntries), [sortedEntries]);
   const todayPending = pendingSessions.filter((session) => session.date <= todayISO()).slice(0, 3);
   const nextSession = pendingSessions.find((session) => session.date >= todayISO()) ?? pendingSessions[0] ?? null;
@@ -991,9 +1001,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 <Link href="/athlete/calendar" className={`rounded-full border px-4 py-2 text-xs font-black ${initialView === 'calendar' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/60 text-slate-200'}`}>Calendar</Link>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2 sm:min-w-[440px]">
+            <div className="grid grid-cols-3 gap-2 sm:min-w-[440px] [&>*]:min-h-[92px]">
               <Metric label="7 days" value={`${weeklyLoad}`} />
-              <Metric label="ACWR" value={latest?.acwr ? latest.acwr.toFixed(2) : '—'} tone={zone.tone} />
+              <Metric label="ACWR" value={latest?.acwr && isBaselineReady ? latest.acwr.toFixed(2) : '—'} tone={zone.tone} />
               <Metric label="State" value={zone.label} tone={zone.tone} />
             </div>
           </div>
@@ -1001,8 +1011,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
         {error ? <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 px-4 py-3 text-sm font-bold text-rose-100">{error}</div> : null}
 
-        <section className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
-          <div className="rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
+        {!isBaselineReady ? (
+          <section className="rounded-[2rem] border border-amber-300/25 bg-amber-300/[0.08] p-4 text-sm font-bold text-amber-100">
+            Load baseline is still building. ACWR is calculated already, but it becomes meaningfully interpretable after about 30 days of calendar history.
+          </section>
+        ) : null}
+
+        <section className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+          <div className="h-full rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-300">Trend</p>
@@ -1013,7 +1029,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             <LoadChart entries={sortedEntries} pendingSessions={pendingSessions} />
           </div>
 
-          <aside className="rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
+          <aside className="h-full rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-amber-300">Session</p>
@@ -1082,8 +1098,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           </aside>
         </section>
 
-        <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 sm:p-5">
+        <section className="grid items-stretch gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="h-full rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-rose-300">Pending</p>
@@ -1112,7 +1128,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 sm:p-5">
+          <div className="h-full rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Calendar</p>
