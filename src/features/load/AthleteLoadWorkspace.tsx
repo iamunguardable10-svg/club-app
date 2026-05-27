@@ -402,7 +402,7 @@ function Metric({ label, value, tone = 'default' }: { label: string; value: stri
   );
 }
 
-type LoadChartRange = 7 | 28 | 60;
+type LoadChartRange = 7 | 14 | 28 | 60;
 type LoadChartMethod = 'rolling' | 'ewma';
 
 type LoadChartDatum = {
@@ -505,8 +505,31 @@ function projectionSegments(point?: ACWRDataPoint) {
 }
 
 function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; pendingSessions: AthletePendingSession[] }) {
-  const [range, setRange] = useState<LoadChartRange>(28);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [range, setRange] = useState<LoadChartRange>(14);
   const [method, setMethod] = useState<LoadChartMethod>('ewma');
+
+  useEffect(() => {
+    const syncViewport = () => {
+      const mobile = window.innerWidth < 640;
+      setIsMobile(mobile);
+      if (mobile) {
+        setRange((current) => (current === 28 || current === 60 ? 14 : current));
+      }
+    };
+    syncViewport();
+    window.addEventListener('resize', syncViewport);
+    return () => window.removeEventListener('resize', syncViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previous; };
+  }, [isFullscreen]);
+
   const daily = fillMissingDays(aggregateDailyLoads(entries), Math.max(range, 84));
   const acwr = method === 'ewma' ? calculateEWMA(entries) : calculateACWR(entries);
   const projected = projectFutureACWR(entries, pendingSessions, 14, method);
@@ -537,7 +560,8 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
     };
   });
   const lastHistoricalDate = daily[daily.length - 1]?.date ?? todayISO();
-  const projectedData: LoadChartDatum[] = projected.filter((point) => point.date > lastHistoricalDate).slice(0, range === 7 ? 7 : 14).map((point) => ({
+  const projectedLimit = isMobile ? (range === 7 ? 2 : 3) : range === 7 ? 7 : 14;
+  const projectedData: LoadChartDatum[] = projected.filter((point) => point.date > lastHistoricalDate).slice(0, projectedLimit).map((point) => ({
     date: point.date,
     label: new Date(`${point.date}T00:00:00`).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' }),
     totalLoad: 0,
@@ -555,6 +579,97 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
   const chartData = [...historicalData, ...projectedData];
 
   const maxLoad = Math.max(600, ...chartData.map((day) => Math.max(day.totalLoad, day.forecastLoad)));
+  const ranges = isMobile ? ([7, 14] as const) : ([7, 14, 28, 60] as const);
+  const chartMinWidth = isMobile ? '100%' : range === 7 ? 540 : range === 14 ? 680 : range === 28 ? 920 : 1480;
+  const chartHeight = isMobile ? (range === 7 ? 300 : 320) : 360;
+
+  const chart = (fullscreen = false) => (
+    <ResponsiveContainer width="100%" height="100%">
+      <ComposedChart data={chartData} margin={{ top: 14, right: fullscreen ? 22 : 8, bottom: 4, left: isMobile && !fullscreen ? 0 : 22 }} barCategoryGap={range === 7 ? '18%' : range === 14 ? '10%' : range === 28 ? '8%' : '3%'}>
+        <CartesianGrid stroke="rgba(148,163,184,0.10)" vertical={false} />
+        <XAxis
+          dataKey="label"
+          tick={{ fill: '#64748b', fontSize: fullscreen ? 11 : isMobile ? 9 : 11, fontWeight: 800 }}
+          tickLine={false}
+          axisLine={false}
+          interval={range === 7 ? 0 : isMobile ? 1 : range === 14 ? 1 : range === 28 ? 4 : 9}
+        />
+        <YAxis
+          yAxisId="load"
+          domain={[0, Math.ceil(maxLoad / 100) * 100]}
+          tick={{ fill: '#64748b', fontSize: fullscreen ? 11 : isMobile ? 9 : 11, fontWeight: 800 }}
+          tickLine={false}
+          axisLine={false}
+          width={fullscreen ? 58 : isMobile ? 38 : 72}
+        />
+        <YAxis
+          yAxisId="acwr"
+          orientation="right"
+          domain={[0, 2.5]}
+          ticks={[0.8, 1, 1.3, 2]}
+          tick={{ fill: '#64748b', fontSize: fullscreen ? 11 : isMobile ? 9 : 11, fontWeight: 800 }}
+          tickLine={false}
+          axisLine={false}
+          width={fullscreen ? 38 : isMobile ? 26 : 34}
+        />
+        <Tooltip cursor={{ fill: 'rgba(125,211,252,0.07)' }} content={(props) => <LoadTooltip {...(props as unknown as LoadTooltipProps)} />} />
+        <ReferenceLine yAxisId="acwr" y={ACWR_ZONES.low} stroke="#38bdf8" strokeDasharray="5 6" strokeOpacity={0.62} />
+        <ReferenceLine yAxisId="acwr" y={ACWR_ZONES.high} stroke="#fb7185" strokeDasharray="5 6" strokeOpacity={0.62} />
+        {LOAD_TRAINING_TYPES.map((type, index) => (
+          <Bar
+            key={type}
+            yAxisId="load"
+            dataKey={type}
+            stackId="load"
+            fill={LOAD_TYPE_COLORS[type]}
+            maxBarSize={range === 7 ? 44 : range === 14 ? 34 : range === 28 ? 30 : 22}
+            radius={index === LOAD_TRAINING_TYPES.length - 1 ? [8, 8, 2, 2] : [2, 2, 2, 2]}
+            isAnimationActive={false}
+            name={LOAD_TYPE_LABELS[type]}
+          />
+        ))}
+        {LOAD_TRAINING_TYPES.map((type) => (
+          <Bar
+            key={`${type}_p`}
+            yAxisId="load"
+            dataKey={`${type}_p`}
+            stackId="load"
+            fill={LOAD_TYPE_COLORS[type]}
+            fillOpacity={0.28}
+            stroke={LOAD_TYPE_COLORS[type]}
+            strokeOpacity={0.48}
+            maxBarSize={range === 7 ? 44 : range === 14 ? 34 : range === 28 ? 30 : 22}
+            radius={[8, 8, 2, 2]}
+            isAnimationActive={false}
+            name={`${LOAD_TYPE_LABELS[type]} forecast`}
+          />
+        ))}
+        <Line
+          yAxisId="acwr"
+          type="monotone"
+          dataKey="acwr"
+          stroke="#7dd3fc"
+          strokeWidth={3}
+          dot={{ r: range === 7 ? 4 : 2, fill: '#0f172a', stroke: '#7dd3fc', strokeWidth: 2 }}
+          activeDot={{ r: 6, fill: '#ecfeff', stroke: '#38bdf8', strokeWidth: 3 }}
+          connectNulls={false}
+          name="ACWR"
+        />
+        <Line
+          yAxisId="acwr"
+          type="monotone"
+          dataKey="projectedAcwr"
+          stroke="#a78bfa"
+          strokeWidth={2}
+          strokeDasharray="5 5"
+          dot={{ r: 3, fill: '#0f172a', stroke: '#a78bfa', strokeWidth: 2 }}
+          activeDot={{ r: 5, fill: '#faf5ff', stroke: '#a78bfa', strokeWidth: 3 }}
+          connectNulls={false}
+          name="Forecast ACWR"
+        />
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
 
   if (entries.length === 0) {
     return (
@@ -565,11 +680,11 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
   }
 
   return (
-    <div className="w-full min-w-0 overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/55 p-3">
+    <div className="w-full min-w-0 overflow-hidden rounded-[1.5rem] border border-slate-800/80 bg-slate-950/55 sm:rounded-3xl p-3">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
         <div className="flex flex-wrap gap-2">
           <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1">
-            {([7, 28, 60] as const).map((item) => (
+            {ranges.map((item) => (
               <button
                 key={item}
                 type="button"
@@ -594,96 +709,16 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
           </div>
         </div>
         <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
-          <span className="inline-flex items-center gap-1.5"><span className="h-px w-5 bg-sky-300" /> low 0.8</span>
-          <span className="inline-flex items-center gap-1.5"><span className="h-px w-5 bg-rose-300" /> high 1.3</span>
+          <span className="hidden items-center gap-1.5 sm:inline-flex"><span className="h-px w-5 bg-sky-300" /> low 0.8</span>
+          <span className="hidden items-center gap-1.5 sm:inline-flex"><span className="h-px w-5 bg-rose-300" /> high 1.3</span>
+          <button type="button" onClick={() => setIsFullscreen(true)} className="inline-flex rounded-full border border-slate-700 bg-slate-950/80 px-3 py-1.5 text-xs font-black text-slate-200 shadow-sm sm:hidden">
+            Fullscreen
+          </button>
         </div>
       </div>
-      <div className="w-full max-w-full overflow-x-auto pb-1">
-        <div className="h-[330px] sm:h-[360px]" style={{ minWidth: range === 7 ? 540 : range === 28 ? 920 : 1480 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData} margin={{ top: 14, right: 12, bottom: 4, left: 22 }} barCategoryGap={range === 7 ? '18%' : range === 28 ? '8%' : '3%'}>
-            <CartesianGrid stroke="rgba(148,163,184,0.10)" vertical={false} />
-            <XAxis
-              dataKey="label"
-              tick={{ fill: '#64748b', fontSize: 11, fontWeight: 800 }}
-              tickLine={false}
-              axisLine={false}
-              interval={range === 7 ? 0 : range === 28 ? 4 : 9}
-            />
-            <YAxis
-              yAxisId="load"
-              domain={[0, Math.ceil(maxLoad / 100) * 100]}
-              tick={{ fill: '#64748b', fontSize: 11, fontWeight: 800 }}
-              tickLine={false}
-              axisLine={false}
-              width={72}
-            />
-            <YAxis
-              yAxisId="acwr"
-              orientation="right"
-              domain={[0.4, 1.8]}
-              tick={{ fill: '#64748b', fontSize: 11, fontWeight: 800 }}
-              tickLine={false}
-              axisLine={false}
-              width={34}
-            />
-            <Tooltip cursor={{ fill: 'rgba(125,211,252,0.07)' }} content={(props) => <LoadTooltip {...(props as unknown as LoadTooltipProps)} />} />
-            <ReferenceLine yAxisId="acwr" y={ACWR_ZONES.low} stroke="#38bdf8" strokeDasharray="5 6" strokeOpacity={0.62} />
-            <ReferenceLine yAxisId="acwr" y={ACWR_ZONES.high} stroke="#fb7185" strokeDasharray="5 6" strokeOpacity={0.62} />
-            {LOAD_TRAINING_TYPES.map((type, index) => (
-              <Bar
-                key={type}
-                yAxisId="load"
-                dataKey={type}
-                stackId="load"
-                fill={LOAD_TYPE_COLORS[type]}
-                maxBarSize={range === 7 ? 44 : range === 28 ? 30 : 22}
-                radius={index === LOAD_TRAINING_TYPES.length - 1 ? [8, 8, 2, 2] : [2, 2, 2, 2]}
-                isAnimationActive={false}
-                name={LOAD_TYPE_LABELS[type]}
-              />
-            ))}
-            {LOAD_TRAINING_TYPES.map((type) => (
-              <Bar
-                key={`${type}_p`}
-                yAxisId="load"
-                dataKey={`${type}_p`}
-                stackId="load"
-                fill={LOAD_TYPE_COLORS[type]}
-                fillOpacity={0.28}
-                stroke={LOAD_TYPE_COLORS[type]}
-                strokeOpacity={0.48}
-                maxBarSize={range === 7 ? 44 : range === 28 ? 30 : 22}
-                radius={[8, 8, 2, 2]}
-                isAnimationActive={false}
-                name={`${LOAD_TYPE_LABELS[type]} forecast`}
-              />
-            ))}
-            <Line
-              yAxisId="acwr"
-              type="monotone"
-              dataKey="acwr"
-              stroke="#7dd3fc"
-              strokeWidth={3}
-              dot={{ r: range === 7 ? 4 : 2, fill: '#0f172a', stroke: '#7dd3fc', strokeWidth: 2 }}
-              activeDot={{ r: 6, fill: '#ecfeff', stroke: '#38bdf8', strokeWidth: 3 }}
-              connectNulls
-              name="ACWR"
-            />
-            <Line
-              yAxisId="acwr"
-              type="monotone"
-              dataKey="projectedAcwr"
-              stroke="#a78bfa"
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              dot={{ r: 3, fill: '#0f172a', stroke: '#a78bfa', strokeWidth: 2 }}
-              activeDot={{ r: 5, fill: '#faf5ff', stroke: '#a78bfa', strokeWidth: 3 }}
-              connectNulls
-              name="Forecast ACWR"
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
+      <div className={`${isMobile ? 'overflow-hidden' : 'overflow-x-auto'} w-full max-w-full pb-1`}>
+        <div style={{ minWidth: chartMinWidth, height: chartHeight }}>
+          {chart(false)}
         </div>
       </div>
       <div className="mt-2 flex flex-wrap gap-2 px-1 pb-1">
@@ -693,8 +728,29 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
             {LOAD_TYPE_LABELS[type]}
           </span>
         ))}
-        <span className="ml-auto text-[11px] font-bold text-slate-500">Solid = reported · faded = forecast</span>
+        <span className="ml-auto text-[11px] font-bold text-slate-500">Solid = reported ? faded = forecast</span>
       </div>
+      {isFullscreen ? (
+        <div className="fixed inset-0 z-50 bg-[#050712] sm:hidden" role="dialog" aria-modal="true">
+          <div
+            className="absolute left-1/2 top-1/2 flex flex-col gap-3 p-3"
+            style={{ width: '100vh', height: '100vw', transform: 'translate(-50%, -50%) rotate(90deg)' }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Load chart</p>
+                <p className="text-lg font-black text-white">{range} days - {method.toUpperCase()}</p>
+              </div>
+              <button type="button" onClick={() => setIsFullscreen(false)} className="rounded-full border border-slate-700 bg-slate-950 px-4 py-2 text-xs font-black text-slate-100">
+                Close
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 rounded-[1.5rem] border border-slate-800 bg-slate-950/70 p-2">
+              {chart(true)}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -990,7 +1046,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     <main className="min-h-screen overflow-x-hidden bg-[#050712] text-white">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(56,189,248,0.16),transparent_28rem),radial-gradient(circle_at_92%_8%,rgba(52,211,153,0.12),transparent_30rem)]" />
       <div className="relative mx-auto flex min-h-screen w-full min-w-0 max-w-6xl flex-col gap-5 px-4 py-4 sm:px-6 lg:py-7">
-        <header className="overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950/70 p-5 shadow-[0_26px_100px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.03] sm:p-7">
+        <header className="overflow-hidden rounded-[1.75rem] border border-slate-800/80 bg-slate-950/70 sm:rounded-[2rem] p-5 shadow-[0_26px_100px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.03] sm:p-7">
           <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300">Athlete OS</p>
@@ -1012,24 +1068,24 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         {error ? <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 px-4 py-3 text-sm font-bold text-rose-100">{error}</div> : null}
 
         {!isBaselineReady ? (
-          <section className="rounded-[2rem] border border-amber-300/25 bg-amber-300/[0.08] p-4 text-sm font-bold text-amber-100">
+          <section className="rounded-[1.75rem] border border-amber-300/25 sm:rounded-[2rem] bg-amber-300/[0.08] p-4 text-sm font-bold text-amber-100">
             Load baseline is still building. ACWR is calculated already, but it becomes meaningfully interpretable after about 30 days of calendar history.
           </section>
         ) : null}
 
         <section className="grid min-w-0 items-stretch gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
-          <div className="h-full min-w-0 overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
+          <div className="h-full min-w-0 overflow-hidden rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-300">Trend</p>
-                <h2 className="mt-1 text-2xl font-black tracking-tight">Last 28 days</h2>
+                <h2 className="mt-1 text-2xl font-black tracking-tight">Load trend</h2>
               </div>
               <span className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-black text-slate-300">{source === 'loading' ? 'Loading' : source === 'demo' ? 'Demo data' : 'Live data'}</span>
             </div>
             <LoadChart entries={sortedEntries} pendingSessions={pendingSessions} />
           </div>
 
-          <aside className="h-full min-w-0 rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
+          <aside className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-amber-300">Session</p>
@@ -1060,7 +1116,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             </div>
 
             {planForm.date === todayISO() ? (
-              <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-slate-800 bg-slate-950/70 p-1">
+              <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-slate-800/80 bg-slate-950/70 p-1">
                 <button type="button" onClick={() => setTodayAction('plan')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${todayAction === 'plan' ? 'bg-violet-300 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}>Plan later</button>
                 <button type="button" onClick={() => setTodayAction('report')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${todayAction === 'report' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}>Already done</button>
               </div>
@@ -1099,7 +1155,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         </section>
 
         <section className="grid min-w-0 items-stretch gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="h-full min-w-0 rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 sm:p-5">
+          <div className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-rose-300">Pending</p>
@@ -1108,12 +1164,12 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{todayPending.length}</span>
             </div>
             <div className="mt-4 space-y-3">
-              {todayPending.length === 0 ? <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">Clear</div> : null}
+              {todayPending.length === 0 ? <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">Clear</div> : null}
               {todayPending.map((session) => {
                 const active = activePendingId === session.id;
                 const defaultDuration = session.expectedDurationMinutes ?? (session.endsAt ? Math.max(30, Math.round((new Date(session.endsAt).getTime() - new Date(session.startsAt).getTime()) / 60000)) : 90);
                 return (
-                  <article key={session.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
+                  <article key={session.id} className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-3">
                     <button type="button" onClick={() => setActivePendingId(active ? null : session.id)} className="flex w-full items-center justify-between gap-3 text-left">
                       <div>
                         <p className="text-base font-black text-white">{session.title}</p>
@@ -1128,7 +1184,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             </div>
           </div>
 
-          <div className="h-full min-w-0 rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 sm:p-5">
+          <div className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Calendar</p>
@@ -1141,7 +1197,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 <p className="text-3xl font-black tracking-tight">{nextSession.title}</p>
                 <p className="mt-2 text-sm font-bold text-slate-300">{formatTime(nextSession.startsAt)}{nextSession.endsAt ? ` - ${formatTime(nextSession.endsAt)}` : ''} · {nextSession.teamName ?? 'Solo'}</p>
               </div>
-            ) : <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions planned</div>}
+            ) : <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions planned</div>}
             <div className="mt-4 grid grid-cols-7 gap-1.5">
               {Array.from({ length: 14 }).map((_, index) => {
                 const date = isoDate(addDays(new Date(`${todayISO()}T00:00:00`), index));
@@ -1181,7 +1237,7 @@ function PendingInlineForm({ defaultRpe, defaultDuration, onSubmit }: { defaultR
   const [rpe, setRpe] = useState(defaultRpe);
   const [duration, setDuration] = useState(defaultDuration);
   return (
-    <div className="mt-3 space-y-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+    <div className="mt-3 space-y-3 rounded-2xl border border-slate-800/80 bg-slate-950/70 p-3">
       <label className="block">
         <div className="flex items-center justify-between">
           <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">RPE</span>
