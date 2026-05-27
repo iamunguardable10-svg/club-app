@@ -395,9 +395,9 @@ function Metric({ label, value, tone = 'default' }: { label: string; value: stri
         ? 'border-sky-400/35 bg-sky-400/10 text-sky-100'
         : 'border-slate-800 bg-slate-950/55 text-white';
   return (
-    <div className={`flex h-full flex-col justify-between rounded-2xl border p-4 ${toneClass}`}>
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{label}</p>
-      <p className="mt-2 text-2xl font-black tracking-tight">{value}</p>
+    <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-3 sm:p-4 ${toneClass}`}>
+      <p className="truncate text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{label}</p>
+      <p className="mt-2 truncate text-xl font-black tracking-tight sm:text-2xl">{value}</p>
     </div>
   );
 }
@@ -565,7 +565,7 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
   }
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/55 p-3">
+    <div className="w-full min-w-0 overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/55 p-3">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
         <div className="flex flex-wrap gap-2">
           <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1">
@@ -598,7 +598,7 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
           <span className="inline-flex items-center gap-1.5"><span className="h-px w-5 bg-rose-300" /> high 1.3</span>
         </div>
       </div>
-      <div className="w-full overflow-x-auto pb-1">
+      <div className="w-full max-w-full overflow-x-auto pb-1">
         <div className="h-[330px] sm:h-[360px]" style={{ minWidth: range === 7 ? 540 : range === 28 ? 920 : 1480 }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 14, right: 12, bottom: 4, left: 22 }} barCategoryGap={range === 7 ? '18%' : range === 28 ? '8%' : '3%'}>
@@ -987,11 +987,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   }
 
   return (
-    <main className="min-h-screen bg-[#050712] text-white">
+    <main className="min-h-screen overflow-x-hidden bg-[#050712] text-white">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(56,189,248,0.16),transparent_28rem),radial-gradient(circle_at_92%_8%,rgba(52,211,153,0.12),transparent_30rem)]" />
-      <div className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-5 px-4 py-4 sm:px-6 lg:py-7">
+      <div className="relative mx-auto flex min-h-screen w-full min-w-0 max-w-6xl flex-col gap-5 px-4 py-4 sm:px-6 lg:py-7">
         <header className="overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950/70 p-5 shadow-[0_26px_100px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.03] sm:p-7">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300">Athlete OS</p>
               <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-6xl">Load cockpit</h1>
@@ -1001,7 +1001,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 <Link href="/athlete/calendar" className={`rounded-full border px-4 py-2 text-xs font-black ${initialView === 'calendar' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/60 text-slate-200'}`}>Calendar</Link>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2 sm:min-w-[440px] [&>*]:min-h-[92px]">
+            <div className="grid w-full min-w-0 grid-cols-3 gap-2 lg:w-auto lg:min-w-[440px] [&>*]:min-h-[92px]">
               <Metric label="7 days" value={`${weeklyLoad}`} />
               <Metric label="ACWR" value={latest?.acwr && isBaselineReady ? latest.acwr.toFixed(2) : '—'} tone={zone.tone} />
               <Metric label="State" value={zone.label} tone={zone.tone} />
@@ -1017,8 +1017,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           </section>
         ) : null}
 
-        <section className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
-          <div className="h-full rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
+        <section className="grid min-w-0 items-stretch gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+          <div className="h-full min-w-0 overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-300">Trend</p>
@@ -1029,7 +1029,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             <LoadChart entries={sortedEntries} pendingSessions={pendingSessions} />
           </div>
 
-          <aside className="h-full rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
+          <aside className="h-full min-w-0 rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-amber-300">Session</p>
@@ -1098,8 +1098,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           </aside>
         </section>
 
-        <section className="grid items-stretch gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="h-full rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 sm:p-5">
+        <section className="grid min-w-0 items-stretch gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="h-full min-w-0 rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-rose-300">Pending</p>
@@ -1128,7 +1128,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             </div>
           </div>
 
-          <div className="h-full rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 sm:p-5">
+          <div className="h-full min-w-0 rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Calendar</p>

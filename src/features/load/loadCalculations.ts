@@ -31,9 +31,7 @@ export function aggregateDailyLoads(entries: AthleteLoadEntry[]): DayLoad[] {
 
 export function fillMissingDays(days: DayLoad[], trailingDays = 42): DayLoad[] {
   const today = new Date(`${todayISO()}T00:00:00`);
-  const defaultStart = addDays(today, -trailingDays + 1);
-  const first = days[0]?.date ? new Date(`${days[0].date}T00:00:00`) : defaultStart;
-  const start = first < defaultStart ? first : defaultStart;
+  const start = days[0]?.date ? new Date(`${days[0].date}T00:00:00`) : addDays(today, -trailingDays + 1);
   const lastLoadDate = days[days.length - 1]?.date;
   const last = lastLoadDate && lastLoadDate > todayISO() ? new Date(`${lastLoadDate}T00:00:00`) : today;
   const byDate = new Map(days.map((day) => [day.date, day]));
