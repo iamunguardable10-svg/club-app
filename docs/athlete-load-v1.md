@@ -90,3 +90,10 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 - Mobile chart ranges are `7d`, `14d`, and `30d`; all must fit in portrait without horizontal scrolling.
 - Longer history remains a desktop/landscape concern.
 - Mobile fullscreen opens the chart in a rotated landscape overlay for detailed reading.
+
+## Athlete mobile interaction update
+
+- Mobile no longer shows the full add-load composer by default.
+- The compact calendar strip is actionable: tapping a day opens the mobile load composer for that date.
+- `/athlete/home`, `/athlete/load`, and `/athlete/calendar` now begin to diverge structurally: the desktop add-load composer is centered on the Load view, while Calendar uses the compact date surface as the entry point.
+- Trainer link state is persisted in browser storage so copied links are visibly marked active.

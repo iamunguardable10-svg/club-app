@@ -95,6 +95,7 @@ type RawLoadPlan = {
 const DEMO_LOAD_KEY = 'club-app.demo.athlete-load-entries';
 const DEMO_ACK_KEY = 'club-app.demo.athlete-pending-ack';
 const DEMO_PLANS_KEY = 'club-app.demo.athlete-load-plans';
+const LOAD_SHARE_ACTIVE_KEY = 'club-app.athlete-load.active-share-link';
 
 const emptyForm: LoadFormState = {
   trainingType: 'team_training',
@@ -768,6 +769,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [todayAction, setTodayAction] = useState<'plan' | 'report'>('plan');
   const [athleteName, setAthleteName] = useState('Athlete');
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [activeShareUrl, setActiveShareUrl] = useState<string | null>(null);
+  const [mobileComposerOpen, setMobileComposerOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -840,6 +843,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setActiveShareUrl(window.localStorage.getItem(LOAD_SHARE_ACTIVE_KEY));
+  }, []);
+
   const sortedEntries = useMemo(() => [...entries].sort((a, b) => a.date.localeCompare(b.date)), [entries]);
   const latest = useMemo(() => getLatestACWR(sortedEntries, 'ewma'), [sortedEntries]);
   const baselineDays = useMemo(() => baselineAgeDays(sortedEntries), [sortedEntries]);
@@ -881,6 +889,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       });
       const url = `${window.location.origin}/share/load?data=${token}`;
       await navigator.clipboard.writeText(url);
+      window.localStorage.setItem(LOAD_SHARE_ACTIVE_KEY, url);
+      setActiveShareUrl(url);
       setShareStatus('copied');
       window.setTimeout(() => setShareStatus('idle'), 2200);
     } catch {
@@ -1039,6 +1049,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   async function submitUnifiedSession() {
     if (sessionMode === 'plan') {
       await createPlan();
+      setMobileComposerOpen(false);
       return;
     }
 
@@ -1059,6 +1070,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       source: 'solo',
     };
     await persistEntry(entry);
+    setMobileComposerOpen(false);
     setPlanForm((current) => ({
       ...emptyPlanForm,
       trainingType: current.trainingType,
@@ -1066,6 +1078,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       date: todayISO(),
     }));
   }
+
+  function openMobileComposer(date: string) {
+    setPlanForm((current) => ({ ...current, date }));
+    setMobileComposerOpen(true);
+  }
+
+  const shareActive = Boolean(activeShareUrl);
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#050712] text-white">
@@ -1080,8 +1099,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 <Link href="/athlete/home" className={`rounded-full border px-4 py-2 text-xs font-black ${initialView === 'home' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/60 text-slate-200'}`}>Today</Link>
                 <Link href="/athlete/load" className={`rounded-full border px-4 py-2 text-xs font-black ${initialView === 'load' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/60 text-slate-200'}`}>Load</Link>
                 <Link href="/athlete/calendar" className={`rounded-full border px-4 py-2 text-xs font-black ${initialView === 'calendar' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/60 text-slate-200'}`}>Calendar</Link>
-                <button type="button" onClick={copyTrainerShareLink} className="rounded-full border border-sky-400/45 bg-sky-400/10 px-4 py-2 text-xs font-black text-sky-100">
-                  {shareStatus === 'copied' ? 'Copied' : shareStatus === 'error' ? 'Error' : 'Trainer link'}
+                <button type="button" onClick={copyTrainerShareLink} className={`rounded-full border px-4 py-2 text-xs font-black ${shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
+                  {shareStatus === 'copied' ? 'Link active' : shareStatus === 'error' ? 'Error' : shareActive ? 'Trainer link active' : 'Trainer link'}
                 </button>
               </div>
             </div>
@@ -1101,7 +1120,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           </section>
         ) : null}
 
-        <section className="grid min-w-0 items-stretch gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+        <section className={`grid min-w-0 items-stretch gap-5 ${initialView === 'load' ? 'lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]' : 'lg:grid-cols-1'}`}>
           <div className="h-full min-w-0 overflow-hidden rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
@@ -1113,7 +1132,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             <LoadChart entries={sortedEntries} pendingSessions={pendingSessions} />
           </div>
 
-          <aside className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
+          {initialView === 'load' ? (
+          <aside className="hidden h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:rounded-[2rem] sm:p-5 lg:block">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-amber-300">Session</p>
@@ -1132,14 +1152,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               ))}
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                 Date
-                <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300" />
+                <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value }))} className="mt-2 w-full min-w-0 rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300" />
               </label>
-              <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              <label className="min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                 Time
-                <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
+                <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 w-full min-w-0 rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
               </label>
             </div>
 
@@ -1180,6 +1200,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               {sessionMode === 'plan' ? `Plan ${sessionLoadPreview} AU` : `Save ${sessionLoadPreview} AU`}
             </button>
           </aside>
+          ) : null}
         </section>
 
         <section className="grid min-w-0 items-stretch gap-5 lg:grid-cols-[0.9fr_1.1fr]">
@@ -1216,7 +1237,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Calendar</p>
-                <h2 className="mt-1 text-2xl font-black tracking-tight">Next up</h2>
+                <h2 className="mt-1 text-2xl font-black tracking-tight">{initialView === 'calendar' ? 'Mini calendar' : 'Next up'}</h2>
               </div>
               {nextSession ? <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{formatLoadDate(nextSession.date)}</span> : null}
             </div>
@@ -1232,10 +1253,16 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 const dayLoad = aggregateDailyLoads(entries).find((day) => day.date === date)?.totalLoad ?? 0;
                 const hasSession = pendingSessions.some((session) => session.date === date);
                 return (
-                  <div key={date} className={`rounded-xl border px-1 py-2 text-center ${hasSession ? 'border-emerald-300/40 bg-emerald-300/10' : dayLoad > 0 ? 'border-sky-300/30 bg-sky-300/10' : 'border-slate-800 bg-slate-950/60'}`}>
+                  <button
+                    key={date}
+                    type="button"
+                    onClick={() => openMobileComposer(date)}
+                    className={`min-w-0 rounded-xl border px-1 py-2 text-center transition lg:cursor-default ${hasSession ? 'border-emerald-300/40 bg-emerald-300/10' : dayLoad > 0 ? 'border-sky-300/30 bg-sky-300/10' : 'border-slate-800/80 bg-slate-950/60 hover:border-slate-600'}`}
+                  >
                     <p className="text-[10px] font-black text-slate-500">{new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2)}</p>
                     <p className="mt-1 text-sm font-black text-white">{date.slice(-2)}</p>
-                  </div>
+                    <p className="mt-1 text-[10px] font-black text-slate-600 lg:hidden">+</p>
+                  </button>
                 );
               })}
             </div>
@@ -1257,6 +1284,73 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           </div>
         </section>
       </div>
+      {mobileComposerOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-xl lg:hidden" role="dialog" aria-modal="true">
+          <div className="max-h-[88vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)]">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-300">Session</p>
+                <h2 className="mt-1 text-2xl font-black tracking-tight">{sessionMode === 'plan' ? 'Plan load' : 'Add load'}</h2>
+                <p className="mt-1 text-sm font-bold text-slate-500">{formatLoadDate(planForm.date)}</p>
+              </div>
+              <button type="button" onClick={() => setMobileComposerOpen(false)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">Close</button>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {LOAD_TRAINING_TYPES.slice(0, 6).map((type) => (
+                <button key={type} type="button" onClick={() => setSessionTrainingType(type)} className={`rounded-2xl border px-3 py-2 text-left text-xs font-black transition ${planForm.trainingType === type ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-300'}`}>
+                  {LOAD_TYPE_LABELS[type]}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                Date
+                <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value }))} className="mt-2 w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300" />
+              </label>
+              <label className="min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                Time
+                <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
+              </label>
+            </div>
+
+            {planForm.date === todayISO() ? (
+              <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-1">
+                <button type="button" onClick={() => setTodayAction('plan')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${todayAction === 'plan' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>Plan later</button>
+                <button type="button" onClick={() => setTodayAction('report')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${todayAction === 'report' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Already done</button>
+              </div>
+            ) : null}
+
+            <div className="mt-5 space-y-5">
+              <label className="block">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">RPE</span>
+                  <span className="text-2xl font-black text-white">{planForm.expectedRpe}</span>
+                </div>
+                <input type="range" min="1" max="10" step="1" value={planForm.expectedRpe} onChange={(event) => setPlanForm((current) => ({ ...current, expectedRpe: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
+              </label>
+              <label className="block">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Duration</span>
+                  <span className="text-xl font-black text-white">{planForm.expectedDurationMinutes} min</span>
+                </div>
+                <input type="range" min="5" max="240" step="5" value={planForm.expectedDurationMinutes} onChange={(event) => setPlanForm((current) => ({ ...current, expectedDurationMinutes: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
+              </label>
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-slate-700 bg-slate-950/70 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-bold text-slate-400">{sessionMode === 'plan' ? 'Expected load' : 'Training load'}</span>
+                <span className="text-3xl font-black text-amber-200">{sessionLoadPreview} AU</span>
+              </div>
+            </div>
+            <button type="button" onClick={submitUnifiedSession} className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-black text-slate-950 transition ${sessionMode === 'plan' ? 'bg-violet-300' : 'bg-emerald-300'}`}>
+              {sessionMode === 'plan' ? `Plan ${sessionLoadPreview} AU` : `Save ${sessionLoadPreview} AU`}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
