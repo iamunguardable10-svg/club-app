@@ -62,12 +62,13 @@ RLS keeps athlete self-write behavior and allows relevant team staff/department 
 - The chart should not use default Recharts styling; keep axes, tooltip, zones, and legends compact and athlete-readable. It renders rest days as zero-load bars, supports Rolling/EWMA method switching, and shows a 14-day forecast from planned sessions plus historical weekday patterns.
 ## Expected load planning
 
-Athletes can create their own planned load without needing a coach/team session first.
+Athletes use one session form for both expected and completed load. Future dates create a plan; past dates create a completed load entry; today offers a Plan/Already done toggle.
 
 - expected load is stored separately in `athlete_load_plans`
-- expected load contains training type, date, optional time, expected RPE and expected duration
+- expected load contains training type, date, optional time, expected RPE and expected duration; RPE and duration are slider-based, and duration defaults to the athlete historical average for that training type
 - the graph renders expected load as faded forecast bars
 - expected load affects forecast ACWR immediately
 - when the planned session is due, the athlete confirms actual RPE/duration and it becomes a real `load_entries` row
 - demo mode mirrors this with `localStorage`
+
 

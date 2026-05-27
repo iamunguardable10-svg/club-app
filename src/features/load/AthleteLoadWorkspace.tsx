@@ -111,6 +111,16 @@ const emptyPlanForm: PlanFormState = {
   expectedDurationMinutes: 90,
 };
 
+const DEFAULT_DURATION_BY_TYPE: Record<LoadTrainingType, number> = {
+  team_training: 90,
+  strength: 60,
+  game: 90,
+  individual: 45,
+  recovery: 30,
+  school_sport: 60,
+  prehab: 30,
+};
+
 function addDays(date: Date, days: number) {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
@@ -580,9 +590,10 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
           <span className="inline-flex items-center gap-1.5"><span className="h-px w-5 bg-rose-300" /> high 1.3</span>
         </div>
       </div>
-      <div className="h-[330px] w-full sm:h-[360px]">
+      <div className="w-full overflow-x-auto pb-1">
+        <div className="h-[330px] sm:h-[360px]" style={{ minWidth: range === 7 ? 540 : range === 28 ? 920 : 1480 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData} margin={{ top: 14, right: 4, bottom: 4, left: -18 }} barCategoryGap={range === 7 ? '34%' : range === 28 ? '22%' : '12%'}>
+          <ComposedChart data={chartData} margin={{ top: 14, right: 8, bottom: 4, left: 8 }} barCategoryGap={range === 7 ? '18%' : range === 28 ? '8%' : '3%'}>
             <CartesianGrid stroke="rgba(148,163,184,0.10)" vertical={false} />
             <XAxis
               dataKey="label"
@@ -597,7 +608,7 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
               tick={{ fill: '#64748b', fontSize: 11, fontWeight: 800 }}
               tickLine={false}
               axisLine={false}
-              width={42}
+              width={58}
             />
             <YAxis
               yAxisId="acwr"
@@ -618,6 +629,7 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
                 dataKey={type}
                 stackId="load"
                 fill={LOAD_TYPE_COLORS[type]}
+                maxBarSize={range === 7 ? 44 : range === 28 ? 30 : 22}
                 radius={index === LOAD_TRAINING_TYPES.length - 1 ? [8, 8, 2, 2] : [2, 2, 2, 2]}
                 isAnimationActive={false}
                 name={LOAD_TYPE_LABELS[type]}
@@ -628,11 +640,12 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
                 key={`${type}_p`}
                 yAxisId="load"
                 dataKey={`${type}_p`}
-                stackId="forecast"
+                stackId="load"
                 fill={LOAD_TYPE_COLORS[type]}
                 fillOpacity={0.28}
                 stroke={LOAD_TYPE_COLORS[type]}
                 strokeOpacity={0.48}
+                maxBarSize={range === 7 ? 44 : range === 28 ? 30 : 22}
                 radius={[8, 8, 2, 2]}
                 isAnimationActive={false}
                 name={`${LOAD_TYPE_LABELS[type]} forecast`}
@@ -663,6 +676,7 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
             />
           </ComposedChart>
         </ResponsiveContainer>
+        </div>
       </div>
       <div className="mt-2 flex flex-wrap gap-2 px-1 pb-1">
         {LOAD_TRAINING_TYPES.slice(0, 5).map((type) => (
@@ -686,6 +700,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [source, setSource] = useState<'loading' | 'demo' | 'supabase'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [activePendingId, setActivePendingId] = useState<string | null>(null);
+  const [todayAction, setTodayAction] = useState<'plan' | 'report'>('plan');
 
   useEffect(() => {
     let mounted = true;
@@ -761,6 +776,27 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const weeklyLoad = useMemo(() => sevenDayLoad(sortedEntries), [sortedEntries]);
   const todayPending = pendingSessions.filter((session) => session.date <= todayISO()).slice(0, 3);
   const nextSession = pendingSessions.find((session) => session.date >= todayISO()) ?? pendingSessions[0] ?? null;
+  const averageDurationByType = useMemo(() => {
+    const map = new Map<LoadTrainingType, number>();
+    for (const type of LOAD_TRAINING_TYPES) {
+      const typeEntries = sortedEntries.filter((entry) => entry.trainingType === type && entry.durationMinutes > 0);
+      const average = typeEntries.length
+        ? Math.round(typeEntries.reduce((sum, entry) => sum + entry.durationMinutes, 0) / typeEntries.length / 5) * 5
+        : DEFAULT_DURATION_BY_TYPE[type];
+      map.set(type, average);
+    }
+    return map;
+  }, [sortedEntries]);
+  const sessionMode = planForm.date < todayISO() ? 'report' : planForm.date > todayISO() ? 'plan' : todayAction;
+  const sessionLoadPreview = planForm.expectedRpe * planForm.expectedDurationMinutes;
+
+  function setSessionTrainingType(type: LoadTrainingType) {
+    setPlanForm((current) => ({
+      ...current,
+      trainingType: type,
+      expectedDurationMinutes: averageDurationByType.get(type) ?? DEFAULT_DURATION_BY_TYPE[type],
+    }));
+  }
 
   async function persistEntry(entry: AthleteLoadEntry) {
     setEntries((current) => {
@@ -909,6 +945,37 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     }
   }
 
+  async function submitUnifiedSession() {
+    if (sessionMode === 'plan') {
+      await createPlan();
+      return;
+    }
+
+    const startsAt = planForm.time ? new Date(`${planForm.date}T${planForm.time}`).toISOString() : null;
+    const entry: AthleteLoadEntry = {
+      id: `manual-${Date.now()}`,
+      sessionId: null,
+      teamId: null,
+      teamName: null,
+      date: planForm.date,
+      startsAt,
+      title: LOAD_TYPE_LABELS[planForm.trainingType],
+      trainingType: planForm.trainingType,
+      rpe: planForm.expectedRpe,
+      durationMinutes: planForm.expectedDurationMinutes,
+      load: sessionLoadPreview,
+      note: null,
+      source: 'solo',
+    };
+    await persistEntry(entry);
+    setPlanForm((current) => ({
+      ...emptyPlanForm,
+      trainingType: current.trainingType,
+      expectedDurationMinutes: averageDurationByType.get(current.trainingType) ?? DEFAULT_DURATION_BY_TYPE[current.trainingType],
+      date: todayISO(),
+    }));
+  }
+
   return (
     <main className="min-h-screen bg-[#050712] text-white">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(56,189,248,0.16),transparent_28rem),radial-gradient(circle_at_92%_8%,rgba(52,211,153,0.12),transparent_30rem)]" />
@@ -947,67 +1014,71 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           </div>
 
           <aside className="rounded-[2rem] border border-slate-800 bg-slate-950/65 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
-            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-amber-300">Report</p>
-            <h2 className="mt-1 text-2xl font-black tracking-tight">Quick entry</h2>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-amber-300">Session</p>
+                <h2 className="mt-1 text-2xl font-black tracking-tight">Add load</h2>
+              </div>
+              <span className={`rounded-full border px-3 py-1.5 text-xs font-black ${sessionMode === 'plan' ? 'border-violet-300/40 bg-violet-300/10 text-violet-100' : 'border-emerald-300/40 bg-emerald-300/10 text-emerald-100'}`}>
+                {sessionMode === 'plan' ? 'Plan' : 'Report'}
+              </span>
+            </div>
+
             <div className="mt-4 grid grid-cols-2 gap-2">
               {LOAD_TRAINING_TYPES.slice(0, 6).map((type) => (
-                <button key={type} type="button" onClick={() => setForm((current) => ({ ...current, trainingType: type }))} className={`rounded-2xl border px-3 py-2 text-left text-xs font-black transition ${form.trainingType === type ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-800 bg-slate-950/70 text-slate-300 hover:border-slate-600'}`}>
+                <button key={type} type="button" onClick={() => setSessionTrainingType(type)} className={`rounded-2xl border px-3 py-2 text-left text-xs font-black transition ${planForm.trainingType === type ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-800 bg-slate-950/70 text-slate-300 hover:border-slate-600'}`}>
                   {LOAD_TYPE_LABELS[type]}
                 </button>
               ))}
             </div>
+
             <div className="mt-4 grid grid-cols-2 gap-3">
               <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                RPE
-                <input type="number" min="1" max="10" value={form.rpe} onChange={(event) => setForm((current) => ({ ...current, rpe: Number(event.target.value) }))} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300" />
+                Date
+                <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300" />
               </label>
               <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                Minutes
-                <input type="number" min="0" value={form.durationMinutes} onChange={(event) => setForm((current) => ({ ...current, durationMinutes: Number(event.target.value) }))} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300" />
+                Time
+                <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
               </label>
             </div>
-            <label className="mt-3 block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-              Date
-              <input type="date" value={form.date} onChange={(event) => setForm((current) => ({ ...current, date: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300" />
-            </label>
-            <button type="button" onClick={submitManual} className="mt-4 w-full rounded-2xl bg-emerald-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-200">
-              Save {form.rpe * form.durationMinutes} AU
-            </button>
 
-            <div className="mt-5 border-t border-slate-800 pt-5">
-              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-violet-300">Expected</p>
-              <h3 className="mt-1 text-xl font-black tracking-tight">Plan load</h3>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {LOAD_TRAINING_TYPES.slice(0, 6).map((type) => (
-                  <button key={type} type="button" onClick={() => setPlanForm((current) => ({ ...current, trainingType: type }))} className={`rounded-2xl border px-3 py-2 text-left text-xs font-black transition ${planForm.trainingType === type ? 'border-violet-300 bg-violet-300 text-slate-950' : 'border-slate-800 bg-slate-950/70 text-slate-300 hover:border-slate-600'}`}>
-                    {LOAD_TYPE_LABELS[type]}
-                  </button>
-                ))}
+            {planForm.date === todayISO() ? (
+              <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-slate-800 bg-slate-950/70 p-1">
+                <button type="button" onClick={() => setTodayAction('plan')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${todayAction === 'plan' ? 'bg-violet-300 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}>Plan later</button>
+                <button type="button" onClick={() => setTodayAction('report')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${todayAction === 'report' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}>Already done</button>
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                  Date
-                  <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-violet-300" />
-                </label>
-                <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                  Time
-                  <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-violet-300 [color-scheme:dark]" />
-                </label>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                  Expected RPE
-                  <input type="number" min="1" max="10" value={planForm.expectedRpe} onChange={(event) => setPlanForm((current) => ({ ...current, expectedRpe: Number(event.target.value) }))} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-violet-300" />
-                </label>
-                <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                  Minutes
-                  <input type="number" min="5" value={planForm.expectedDurationMinutes} onChange={(event) => setPlanForm((current) => ({ ...current, expectedDurationMinutes: Number(event.target.value) }))} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-violet-300" />
-                </label>
-              </div>
-              <button type="button" onClick={createPlan} className="mt-4 w-full rounded-2xl border border-violet-300/50 bg-violet-300/10 px-4 py-3 text-sm font-black text-violet-100 transition hover:bg-violet-300 hover:text-slate-950">
-                Plan {planForm.expectedRpe * planForm.expectedDurationMinutes} AU
-              </button>
+            ) : null}
+
+            <div className="mt-5 space-y-5">
+              <label className="block">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">RPE</span>
+                  <span className="text-2xl font-black text-white">{planForm.expectedRpe}</span>
+                </div>
+                <input type="range" min="1" max="10" step="1" value={planForm.expectedRpe} onChange={(event) => setPlanForm((current) => ({ ...current, expectedRpe: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
+              </label>
+
+              <label className="block">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Duration</span>
+                  <span className="text-xl font-black text-white">{planForm.expectedDurationMinutes} min</span>
+                </div>
+                <input type="range" min="5" max="240" step="5" value={planForm.expectedDurationMinutes} onChange={(event) => setPlanForm((current) => ({ ...current, expectedDurationMinutes: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
+                <p className="mt-1 text-[11px] font-bold text-slate-500">Default: {averageDurationByType.get(planForm.trainingType) ?? DEFAULT_DURATION_BY_TYPE[planForm.trainingType]} min from your history</p>
+              </label>
             </div>
+
+            <div className="mt-5 rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-bold text-slate-400">{sessionMode === 'plan' ? 'Expected load' : 'Training load'}</span>
+                <span className="text-3xl font-black text-amber-200">{sessionLoadPreview} AU</span>
+              </div>
+            </div>
+
+            <button type="button" onClick={submitUnifiedSession} className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-black text-slate-950 transition ${sessionMode === 'plan' ? 'bg-violet-300 hover:bg-violet-200' : 'bg-emerald-300 hover:bg-emerald-200'}`}>
+              {sessionMode === 'plan' ? `Plan ${sessionLoadPreview} AU` : `Save ${sessionLoadPreview} AU`}
+            </button>
           </aside>
         </section>
 
@@ -1024,7 +1095,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               {todayPending.length === 0 ? <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">Clear</div> : null}
               {todayPending.map((session) => {
                 const active = activePendingId === session.id;
-                const defaultDuration = session.endsAt ? Math.max(30, Math.round((new Date(session.endsAt).getTime() - new Date(session.startsAt).getTime()) / 60000)) : 90;
+                const defaultDuration = session.expectedDurationMinutes ?? (session.endsAt ? Math.max(30, Math.round((new Date(session.endsAt).getTime() - new Date(session.startsAt).getTime()) / 60000)) : 90);
                 return (
                   <article key={session.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
                     <button type="button" onClick={() => setActivePendingId(active ? null : session.id)} className="flex w-full items-center justify-between gap-3 text-left">
@@ -1034,7 +1105,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                       </div>
                       <span className="rounded-full border border-amber-300/40 bg-amber-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-amber-100">{statusForPending(session)}</span>
                     </button>
-                    {active ? <PendingInlineForm defaultDuration={defaultDuration} onSubmit={(rpe, duration) => submitPending(session, rpe, duration)} /> : null}
+                    {active ? <PendingInlineForm defaultRpe={session.expectedRpe ?? 6} defaultDuration={defaultDuration} onSubmit={(rpe, duration) => submitPending(session, rpe, duration)} /> : null}
                   </article>
                 );
               })}
@@ -1090,14 +1161,26 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   );
 }
 
-function PendingInlineForm({ defaultDuration, onSubmit }: { defaultDuration: number; onSubmit: (rpe: number, duration: number) => void }) {
-  const [rpe, setRpe] = useState(6);
+function PendingInlineForm({ defaultRpe, defaultDuration, onSubmit }: { defaultRpe: number; defaultDuration: number; onSubmit: (rpe: number, duration: number) => void }) {
+  const [rpe, setRpe] = useState(defaultRpe);
   const [duration, setDuration] = useState(defaultDuration);
   return (
-    <div className="mt-3 grid grid-cols-[1fr_1fr_auto] gap-2">
-      <input type="number" min="1" max="10" value={rpe} onChange={(event) => setRpe(Number(event.target.value))} className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300" aria-label="RPE" />
-      <input type="number" min="0" value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300" aria-label="Duration minutes" />
-      <button type="button" onClick={() => onSubmit(rpe, duration)} className="rounded-xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950">Save</button>
+    <div className="mt-3 space-y-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+      <label className="block">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">RPE</span>
+          <span className="text-xl font-black text-white">{rpe}</span>
+        </div>
+        <input type="range" min="1" max="10" step="1" value={rpe} onChange={(event) => setRpe(Number(event.target.value))} className="mt-1 w-full accent-emerald-300" aria-label="RPE" />
+      </label>
+      <label className="block">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Duration</span>
+          <span className="text-sm font-black text-white">{duration} min</span>
+        </div>
+        <input type="range" min="5" max="240" step="5" value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="mt-1 w-full accent-emerald-300" aria-label="Duration minutes" />
+      </label>
+      <button type="button" onClick={() => onSubmit(rpe, duration)} className="w-full rounded-xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950">Save {rpe * duration} AU</button>
     </div>
   );
 }
