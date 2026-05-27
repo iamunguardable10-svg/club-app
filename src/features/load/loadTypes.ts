@@ -62,6 +62,22 @@ export type AthletePendingSession = {
   startsAt: string;
   endsAt: string | null;
   trainingType: LoadTrainingType;
+  expectedRpe?: number | null;
+  expectedDurationMinutes?: number | null;
+  source?: 'team_session' | 'athlete_plan';
+};
+
+export type AthleteLoadPlan = {
+  id: string;
+  teamId: string | null;
+  teamName?: string | null;
+  title: string;
+  date: string;
+  startsAt: string | null;
+  trainingType: LoadTrainingType;
+  expectedRpe: number;
+  expectedDurationMinutes: number;
+  note?: string | null;
 };
 
 export type DayLoad = {

@@ -61,6 +61,7 @@ function median(values: number[]) {
 }
 
 function sessionDurationMinutes(session: AthletePendingSession) {
+  if (session.expectedDurationMinutes) return session.expectedDurationMinutes;
   if (!session.endsAt) return 90;
   return Math.max(30, Math.round((new Date(session.endsAt).getTime() - new Date(session.startsAt).getTime()) / 60_000));
 }
@@ -161,7 +162,7 @@ export function projectFutureACWR(entries: AthleteLoadEntry[], plannedSessions: 
 
     if (planned.length > 0) {
       for (const session of planned) {
-        const rpe = median(rpeByType.get(session.trainingType) ?? []) || 6;
+        const rpe = session.expectedRpe ?? (median(rpeByType.get(session.trainingType) ?? []) || 6);
         const duration = sessionDurationMinutes(session) || median(durationByType.get(session.trainingType) ?? []) || 90;
         const load = Math.round(rpe * duration);
         predictedLoad += load;

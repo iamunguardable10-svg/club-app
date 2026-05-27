@@ -21,6 +21,7 @@ import {
   LOAD_TYPE_LABELS,
   type ACWRDataPoint,
   type AthleteLoadEntry,
+  type AthleteLoadPlan,
   type AthletePendingSession,
   type LoadTrainingType,
   sessionTypeToLoadType,
@@ -37,6 +38,14 @@ type LoadFormState = {
   durationMinutes: number;
   date: string;
   note: string;
+};
+
+type PlanFormState = {
+  trainingType: LoadTrainingType;
+  date: string;
+  time: string;
+  expectedRpe: number;
+  expectedDurationMinutes: number;
 };
 
 type RawLoadEntry = {
@@ -69,8 +78,22 @@ type RawSession = {
   teams?: { name: string } | null;
 };
 
+type RawLoadPlan = {
+  id: string;
+  team_id: string | null;
+  plan_date: string;
+  planned_time: string | null;
+  training_type: string;
+  expected_rpe: number;
+  expected_duration_minutes: number;
+  title: string | null;
+  note: string | null;
+  teams?: { name: string } | null;
+};
+
 const DEMO_LOAD_KEY = 'club-app.demo.athlete-load-entries';
 const DEMO_ACK_KEY = 'club-app.demo.athlete-pending-ack';
+const DEMO_PLANS_KEY = 'club-app.demo.athlete-load-plans';
 
 const emptyForm: LoadFormState = {
   trainingType: 'team_training',
@@ -78,6 +101,14 @@ const emptyForm: LoadFormState = {
   durationMinutes: 90,
   date: todayISO(),
   note: '',
+};
+
+const emptyPlanForm: PlanFormState = {
+  trainingType: 'team_training',
+  date: todayISO(),
+  time: '18:00',
+  expectedRpe: 6,
+  expectedDurationMinutes: 90,
 };
 
 function addDays(date: Date, days: number) {
@@ -110,6 +141,7 @@ function demoPendingSessions(): AthletePendingSession[] {
       startsAt: atLocalDate(yesterday, 18, 0),
       endsAt: atLocalDate(yesterday, 19, 30),
       trainingType: 'team_training',
+      source: 'team_session',
     },
     {
       id: 'demo-session-today-strength',
@@ -120,6 +152,7 @@ function demoPendingSessions(): AthletePendingSession[] {
       startsAt: atLocalDate(today, 16, 30),
       endsAt: atLocalDate(today, 17, 30),
       trainingType: 'strength',
+      source: 'team_session',
     },
     {
       id: 'demo-session-tomorrow-team',
@@ -130,6 +163,37 @@ function demoPendingSessions(): AthletePendingSession[] {
       startsAt: atLocalDate(tomorrow, 18, 15),
       endsAt: atLocalDate(tomorrow, 20, 0),
       trainingType: 'team_training',
+      source: 'team_session',
+    },
+  ];
+}
+
+function demoSeedPlans(): AthleteLoadPlan[] {
+  const today = new Date(`${todayISO()}T00:00:00`);
+  return [
+    {
+      id: 'demo-plan-strength',
+      teamId: null,
+      teamName: null,
+      title: 'Strength',
+      date: isoDate(addDays(today, 2)),
+      startsAt: atLocalDate(addDays(today, 2), 17, 0),
+      trainingType: 'strength',
+      expectedRpe: 7,
+      expectedDurationMinutes: 60,
+      note: null,
+    },
+    {
+      id: 'demo-plan-recovery',
+      teamId: null,
+      teamName: null,
+      title: 'Recovery',
+      date: isoDate(addDays(today, 4)),
+      startsAt: atLocalDate(addDays(today, 4), 10, 0),
+      trainingType: 'recovery',
+      expectedRpe: 3,
+      expectedDurationMinutes: 35,
+      note: null,
     },
   ];
 }
@@ -205,10 +269,35 @@ function saveAcknowledgedDemoSessions(ids: string[]) {
   window.localStorage.setItem(DEMO_ACK_KEY, JSON.stringify(ids));
 }
 
+function readDemoPlans() {
+  if (typeof window === 'undefined') return demoSeedPlans();
+  const raw = window.localStorage.getItem(DEMO_PLANS_KEY);
+  if (!raw) {
+    const seed = demoSeedPlans();
+    window.localStorage.setItem(DEMO_PLANS_KEY, JSON.stringify(seed));
+    return seed;
+  }
+  try {
+    return JSON.parse(raw) as AthleteLoadPlan[];
+  } catch {
+    return demoSeedPlans();
+  }
+}
+
+function saveDemoPlans(plans: AthleteLoadPlan[]) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(DEMO_PLANS_KEY, JSON.stringify(plans));
+}
+
+function normalizeTrainingType(value?: string | null): LoadTrainingType {
+  if (value && LOAD_TRAINING_TYPES.includes(value as LoadTrainingType)) return value as LoadTrainingType;
+  return sessionTypeToLoadType(value);
+}
+
 function mapRawEntry(row: RawLoadEntry): AthleteLoadEntry {
   const session = row.sessions;
   const date = row.entry_date ?? (session?.starts_at ? session.starts_at.slice(0, 10) : row.submitted_at.slice(0, 10));
-  const trainingType = sessionTypeToLoadType(row.training_type ?? session?.session_type ?? null);
+  const trainingType = normalizeTrainingType(row.training_type ?? session?.session_type ?? null);
   return {
     id: row.id,
     sessionId: row.session_id,
@@ -227,7 +316,7 @@ function mapRawEntry(row: RawLoadEntry): AthleteLoadEntry {
 }
 
 function mapRawSession(row: RawSession): AthletePendingSession {
-  const trainingType = sessionTypeToLoadType(row.session_type);
+  const trainingType = normalizeTrainingType(row.session_type);
   return {
     id: row.id,
     title: row.title || LOAD_TYPE_LABELS[trainingType],
@@ -237,6 +326,42 @@ function mapRawSession(row: RawSession): AthletePendingSession {
     startsAt: row.starts_at,
     endsAt: row.ends_at,
     trainingType,
+    source: 'team_session',
+  };
+}
+
+function mapRawPlan(row: RawLoadPlan): AthleteLoadPlan {
+  const trainingType = normalizeTrainingType(row.training_type);
+  const startsAt = row.planned_time ? new Date(`${row.plan_date}T${row.planned_time}`).toISOString() : null;
+  return {
+    id: row.id,
+    teamId: row.team_id,
+    teamName: row.teams?.name ?? null,
+    title: row.title || LOAD_TYPE_LABELS[trainingType],
+    date: row.plan_date,
+    startsAt,
+    trainingType,
+    expectedRpe: row.expected_rpe,
+    expectedDurationMinutes: row.expected_duration_minutes,
+    note: row.note,
+  };
+}
+
+function planToPendingSession(plan: AthleteLoadPlan): AthletePendingSession {
+  const startsAt = plan.startsAt ?? new Date(`${plan.date}T12:00:00`).toISOString();
+  const endsAt = new Date(new Date(startsAt).getTime() + plan.expectedDurationMinutes * 60_000).toISOString();
+  return {
+    id: plan.id,
+    title: plan.title,
+    teamId: plan.teamId,
+    teamName: plan.teamName ?? null,
+    date: plan.date,
+    startsAt,
+    endsAt,
+    trainingType: plan.trainingType,
+    expectedRpe: plan.expectedRpe,
+    expectedDurationMinutes: plan.expectedDurationMinutes,
+    source: 'athlete_plan',
   };
 }
 
@@ -554,8 +679,10 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
 
 export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorkspaceProps) {
   const [entries, setEntries] = useState<AthleteLoadEntry[]>([]);
+  const [plans, setPlans] = useState<AthleteLoadPlan[]>([]);
   const [pendingSessions, setPendingSessions] = useState<AthletePendingSession[]>([]);
   const [form, setForm] = useState<LoadFormState>(emptyForm);
+  const [planForm, setPlanForm] = useState<PlanFormState>(emptyPlanForm);
   const [source, setSource] = useState<'loading' | 'demo' | 'supabase'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [activePendingId, setActivePendingId] = useState<string | null>(null);
@@ -572,7 +699,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         const now = new Date();
         const windowStart = addDays(now, -14).toISOString();
         const windowEnd = addDays(now, 14).toISOString();
-        const [loadResult, sessionResult] = await Promise.all([
+        const [loadResult, sessionResult, planResult] = await Promise.all([
           supabase
             .from('load_entries')
             .select('id, session_id, team_id, entry_date, training_type, rpe, duration_minutes, session_load, note, submitted_at, sessions(title, starts_at, session_type, team_id, teams(name))')
@@ -584,27 +711,40 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             .gte('starts_at', windowStart)
             .lte('starts_at', windowEnd)
             .order('starts_at', { ascending: true }),
+          supabase
+            .from('athlete_load_plans')
+            .select('id, team_id, plan_date, planned_time, training_type, expected_rpe, expected_duration_minutes, title, note, teams(name)')
+            .eq('user_id', authData.user.id)
+            .eq('status', 'planned')
+            .gte('plan_date', addDays(now, -14).toISOString().slice(0, 10))
+            .lte('plan_date', addDays(now, 21).toISOString().slice(0, 10))
+            .order('plan_date', { ascending: true }),
         ]);
 
         if (loadResult.error) throw loadResult.error;
         if (sessionResult.error) throw sessionResult.error;
+        if (planResult.error) throw planResult.error;
 
         const mappedEntries = ((loadResult.data ?? []) as unknown as RawLoadEntry[]).map(mapRawEntry);
         const reportedSessionIds = new Set(mappedEntries.map((entry) => entry.sessionId).filter(Boolean));
+        const mappedPlans = ((planResult.data ?? []) as unknown as RawLoadPlan[]).map(mapRawPlan);
         const mappedPending = ((sessionResult.data ?? []) as unknown as RawSession[])
           .map(mapRawSession)
           .filter((session) => !reportedSessionIds.has(session.id));
 
         if (!mounted) return;
         setEntries(mappedEntries);
-        setPendingSessions(mappedPending);
+        setPlans(mappedPlans);
+        setPendingSessions([...mappedPending, ...mappedPlans.map(planToPendingSession)]);
         setSource('supabase');
       } catch {
         if (!mounted) return;
         const demoEntries = readDemoEntries();
+        const demoPlans = readDemoPlans();
         const acknowledged = new Set(readAcknowledgedDemoSessions());
         setEntries(demoEntries);
-        setPendingSessions(demoPendingSessions().filter((session) => !acknowledged.has(session.id)));
+        setPlans(demoPlans);
+        setPendingSessions([...demoPendingSessions().filter((session) => !acknowledged.has(session.id)), ...demoPlans.map(planToPendingSession)]);
         setSource('demo');
       }
     }
@@ -674,9 +814,10 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   }
 
   async function submitPending(session: AthletePendingSession, rpe: number, durationMinutes: number) {
+    const isAthletePlan = session.source === 'athlete_plan';
     const entry: AthleteLoadEntry = {
       id: `pending-${session.id}-${Date.now()}`,
-      sessionId: session.id,
+      sessionId: isAthletePlan ? null : session.id,
       teamId: session.teamId,
       teamName: session.teamName,
       date: session.date,
@@ -687,14 +828,85 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       durationMinutes,
       load: rpe * durationMinutes,
       note: null,
-      source: 'planned_session',
+      source: isAthletePlan ? 'manual' : 'planned_session',
     };
     await persistEntry(entry);
+    if (isAthletePlan) {
+      await deletePlan(session.id);
+    }
     setPendingSessions((current) => current.filter((item) => item.id !== session.id));
     if (source === 'demo') {
       saveAcknowledgedDemoSessions([...new Set([...readAcknowledgedDemoSessions(), session.id])]);
     }
     setActivePendingId(null);
+  }
+
+  async function createPlan() {
+    const startsAt = planForm.time ? new Date(`${planForm.date}T${planForm.time}`).toISOString() : null;
+    let plan: AthleteLoadPlan = {
+      id: `plan-${Date.now()}`,
+      teamId: null,
+      teamName: null,
+      title: LOAD_TYPE_LABELS[planForm.trainingType],
+      date: planForm.date,
+      startsAt,
+      trainingType: planForm.trainingType,
+      expectedRpe: planForm.expectedRpe,
+      expectedDurationMinutes: planForm.expectedDurationMinutes,
+      note: null,
+    };
+
+    if (source === 'supabase') {
+      try {
+        const supabase = createBrowserSupabaseClient();
+        const { data: authData } = await supabase.auth.getUser();
+        const userId = authData.user?.id;
+        if (!userId) throw new Error('No athlete session');
+        const { data: insertedPlan, error: insertError } = await supabase
+          .from('athlete_load_plans')
+          .insert({
+            user_id: userId,
+            team_id: null,
+            plan_date: plan.date,
+            planned_time: planForm.time || null,
+            training_type: plan.trainingType,
+            expected_rpe: plan.expectedRpe,
+            expected_duration_minutes: plan.expectedDurationMinutes,
+            title: plan.title,
+            note: null,
+            status: 'planned',
+          })
+          .select('id, team_id, plan_date, planned_time, training_type, expected_rpe, expected_duration_minutes, title, note, teams(name)')
+          .single();
+        if (insertError) throw insertError;
+        plan = mapRawPlan(insertedPlan as unknown as RawLoadPlan);
+      } catch (insertError) {
+        setError(insertError instanceof Error ? insertError.message : 'Could not save expected load.');
+        return;
+      }
+    }
+
+    setPlans((current) => {
+      const next = [...current, plan].sort((a, b) => a.date.localeCompare(b.date));
+      if (source === 'demo') saveDemoPlans(next);
+      return next;
+    });
+    setPendingSessions((current) => [...current, planToPendingSession(plan)].sort((a, b) => a.date.localeCompare(b.date)));
+    setPlanForm((current) => ({ ...emptyPlanForm, trainingType: current.trainingType, date: current.date }));
+  }
+
+  async function deletePlan(planId: string) {
+    setPlans((current) => {
+      const next = current.filter((plan) => plan.id !== planId);
+      if (source === 'demo') saveDemoPlans(next);
+      return next;
+    });
+    setPendingSessions((current) => current.filter((session) => session.id !== planId));
+    if (source === 'supabase') {
+      const supabase = createBrowserSupabaseClient();
+      const { error: deleteError } = await supabase.from('athlete_load_plans').delete().eq('id', planId);
+      if (deleteError) setError(deleteError.message);
+    }
   }
 
   return (
@@ -761,6 +973,41 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             <button type="button" onClick={submitManual} className="mt-4 w-full rounded-2xl bg-emerald-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-200">
               Save {form.rpe * form.durationMinutes} AU
             </button>
+
+            <div className="mt-5 border-t border-slate-800 pt-5">
+              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-violet-300">Expected</p>
+              <h3 className="mt-1 text-xl font-black tracking-tight">Plan load</h3>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {LOAD_TRAINING_TYPES.slice(0, 6).map((type) => (
+                  <button key={type} type="button" onClick={() => setPlanForm((current) => ({ ...current, trainingType: type }))} className={`rounded-2xl border px-3 py-2 text-left text-xs font-black transition ${planForm.trainingType === type ? 'border-violet-300 bg-violet-300 text-slate-950' : 'border-slate-800 bg-slate-950/70 text-slate-300 hover:border-slate-600'}`}>
+                    {LOAD_TYPE_LABELS[type]}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  Date
+                  <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-violet-300" />
+                </label>
+                <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  Time
+                  <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-violet-300 [color-scheme:dark]" />
+                </label>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  Expected RPE
+                  <input type="number" min="1" max="10" value={planForm.expectedRpe} onChange={(event) => setPlanForm((current) => ({ ...current, expectedRpe: Number(event.target.value) }))} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-violet-300" />
+                </label>
+                <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  Minutes
+                  <input type="number" min="5" value={planForm.expectedDurationMinutes} onChange={(event) => setPlanForm((current) => ({ ...current, expectedDurationMinutes: Number(event.target.value) }))} className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-violet-300" />
+                </label>
+              </div>
+              <button type="button" onClick={createPlan} className="mt-4 w-full rounded-2xl border border-violet-300/50 bg-violet-300/10 px-4 py-3 text-sm font-black text-violet-100 transition hover:bg-violet-300 hover:text-slate-950">
+                Plan {planForm.expectedRpe * planForm.expectedDurationMinutes} AU
+              </button>
+            </div>
           </aside>
         </section>
 
@@ -821,6 +1068,21 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 );
               })}
             </div>
+            {plans.length > 0 ? (
+              <div className="mt-4 space-y-2">
+                {plans.slice(0, 4).map((plan) => (
+                  <div key={plan.id} className="flex items-center justify-between gap-3 rounded-2xl border border-violet-300/20 bg-violet-300/[0.06] px-3 py-2">
+                    <div>
+                      <p className="text-sm font-black text-white">{plan.title}</p>
+                      <p className="mt-0.5 text-xs font-bold text-slate-500">{formatLoadDate(plan.date)} · {plan.startsAt ? formatTime(plan.startsAt) : 'No time'} · {plan.expectedRpe * plan.expectedDurationMinutes} AU expected</p>
+                    </div>
+                    <button type="button" onClick={() => deletePlan(plan.id)} className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:border-rose-400 hover:text-rose-200">
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         </section>
       </div>
