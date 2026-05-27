@@ -27,6 +27,7 @@ import {
   sessionTypeToLoadType,
 } from './loadTypes';
 import { aggregateDailyLoads, baselineAgeDays, calculateACWR, calculateEWMA, fillMissingDays, formatLoadDate, getLatestACWR, loadZone, projectFutureACWR, sevenDayLoad, todayISO } from './loadCalculations';
+import { encodeAthleteLoadShare } from './athleteLoadShare';
 
 type AthleteLoadWorkspaceProps = {
   initialView?: 'home' | 'load' | 'calendar';
@@ -402,7 +403,7 @@ function Metric({ label, value, tone = 'default' }: { label: string; value: stri
   );
 }
 
-type LoadChartRange = 7 | 14 | 28 | 60;
+type LoadChartRange = 7 | 14 | 30 | 60;
 type LoadChartMethod = 'rolling' | 'ewma';
 
 type LoadChartDatum = {
@@ -504,7 +505,7 @@ function projectionSegments(point?: ACWRDataPoint) {
   return Object.fromEntries(entries);
 }
 
-function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; pendingSessions: AthletePendingSession[] }) {
+export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; pendingSessions: AthletePendingSession[] }) {
   const [isMobile, setIsMobile] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [range, setRange] = useState<LoadChartRange>(14);
@@ -515,7 +516,7 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
       const mobile = window.innerWidth < 640;
       setIsMobile(mobile);
       if (mobile) {
-        setRange((current) => (current === 28 || current === 60 ? 14 : current));
+        setRange((current) => (current === 60 ? 14 : current));
       }
     };
     syncViewport();
@@ -579,20 +580,20 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
   const chartData = [...historicalData, ...projectedData];
 
   const maxLoad = Math.max(600, ...chartData.map((day) => Math.max(day.totalLoad, day.forecastLoad)));
-  const ranges = isMobile ? ([7, 14] as const) : ([7, 14, 28, 60] as const);
-  const chartMinWidth = isMobile ? '100%' : range === 7 ? 540 : range === 14 ? 680 : range === 28 ? 920 : 1480;
+  const ranges = isMobile ? ([7, 14, 30] as const) : ([7, 14, 30, 60] as const);
+  const chartMinWidth = isMobile ? '100%' : range === 7 ? 540 : range === 14 ? 680 : range === 30 ? 920 : 1480;
   const chartHeight = isMobile ? (range === 7 ? 300 : 320) : 360;
 
   const chart = (fullscreen = false) => (
     <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={chartData} margin={{ top: 14, right: fullscreen ? 22 : 8, bottom: 4, left: isMobile && !fullscreen ? 0 : 22 }} barCategoryGap={range === 7 ? '18%' : range === 14 ? '10%' : range === 28 ? '8%' : '3%'}>
+      <ComposedChart data={chartData} margin={{ top: 14, right: fullscreen ? 22 : 8, bottom: 4, left: isMobile && !fullscreen ? 0 : 22 }} barCategoryGap={range === 7 ? '18%' : range === 14 ? '10%' : range === 30 ? '8%' : '3%'}>
         <CartesianGrid stroke="rgba(148,163,184,0.10)" vertical={false} />
         <XAxis
           dataKey="label"
           tick={{ fill: '#64748b', fontSize: fullscreen ? 11 : isMobile ? 9 : 11, fontWeight: 800 }}
           tickLine={false}
           axisLine={false}
-          interval={range === 7 ? 0 : isMobile ? 1 : range === 14 ? 1 : range === 28 ? 4 : 9}
+          interval={range === 7 ? 0 : isMobile ? 1 : range === 14 ? 1 : range === 30 ? 4 : 9}
         />
         <YAxis
           yAxisId="load"
@@ -622,7 +623,7 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
             dataKey={type}
             stackId="load"
             fill={LOAD_TYPE_COLORS[type]}
-            maxBarSize={range === 7 ? 44 : range === 14 ? 34 : range === 28 ? 30 : 22}
+            maxBarSize={range === 7 ? 44 : range === 14 ? 34 : range === 30 ? 30 : 22}
             radius={index === LOAD_TRAINING_TYPES.length - 1 ? [8, 8, 2, 2] : [2, 2, 2, 2]}
             isAnimationActive={false}
             name={LOAD_TYPE_LABELS[type]}
@@ -638,7 +639,7 @@ function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; 
             fillOpacity={0.28}
             stroke={LOAD_TYPE_COLORS[type]}
             strokeOpacity={0.48}
-            maxBarSize={range === 7 ? 44 : range === 14 ? 34 : range === 28 ? 30 : 22}
+            maxBarSize={range === 7 ? 44 : range === 14 ? 34 : range === 30 ? 30 : 22}
             radius={[8, 8, 2, 2]}
             isAnimationActive={false}
             name={`${LOAD_TYPE_LABELS[type]} forecast`}
@@ -765,6 +766,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [error, setError] = useState<string | null>(null);
   const [activePendingId, setActivePendingId] = useState<string | null>(null);
   const [todayAction, setTodayAction] = useState<'plan' | 'report'>('plan');
+  const [athleteName, setAthleteName] = useState('Athlete');
+  const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'error'>('idle');
 
   useEffect(() => {
     let mounted = true;
@@ -774,6 +777,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         const supabase = createBrowserSupabaseClient();
         const { data: authData, error: authError } = await supabase.auth.getUser();
         if (authError || !authData.user) throw authError ?? new Error('No athlete session');
+
+        setAthleteName(authData.user.user_metadata?.full_name || authData.user.email || 'Athlete');
 
         const now = new Date();
         const windowStart = addDays(now, -14).toISOString();
@@ -821,6 +826,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         const demoEntries = readDemoEntries();
         const demoPlans = readDemoPlans();
         const acknowledged = new Set(readAcknowledgedDemoSessions());
+        setAthleteName('Demo Athlete');
         setEntries(demoEntries);
         setPlans(demoPlans);
         setPendingSessions([...demoPendingSessions().filter((session) => !acknowledged.has(session.id)), ...demoPlans.map(planToPendingSession)]);
@@ -862,6 +868,25 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       trainingType: type,
       expectedDurationMinutes: averageDurationByType.get(type) ?? DEFAULT_DURATION_BY_TYPE[type],
     }));
+  }
+
+  async function copyTrainerShareLink() {
+    try {
+      const token = encodeAthleteLoadShare({
+        version: 1,
+        athleteName,
+        generatedAt: new Date().toISOString(),
+        entries: sortedEntries.slice(-90),
+        pendingSessions: pendingSessions.slice(0, 30),
+      });
+      const url = `${window.location.origin}/share/load?data=${token}`;
+      await navigator.clipboard.writeText(url);
+      setShareStatus('copied');
+      window.setTimeout(() => setShareStatus('idle'), 2200);
+    } catch {
+      setShareStatus('error');
+      window.setTimeout(() => setShareStatus('idle'), 2200);
+    }
   }
 
   async function persistEntry(entry: AthleteLoadEntry) {
@@ -1055,6 +1080,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 <Link href="/athlete/home" className={`rounded-full border px-4 py-2 text-xs font-black ${initialView === 'home' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/60 text-slate-200'}`}>Today</Link>
                 <Link href="/athlete/load" className={`rounded-full border px-4 py-2 text-xs font-black ${initialView === 'load' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/60 text-slate-200'}`}>Load</Link>
                 <Link href="/athlete/calendar" className={`rounded-full border px-4 py-2 text-xs font-black ${initialView === 'calendar' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/60 text-slate-200'}`}>Calendar</Link>
+                <button type="button" onClick={copyTrainerShareLink} className="rounded-full border border-sky-400/45 bg-sky-400/10 px-4 py-2 text-xs font-black text-sky-100">
+                  {shareStatus === 'copied' ? 'Copied' : shareStatus === 'error' ? 'Error' : 'Trainer link'}
+                </button>
               </div>
             </div>
             <div className="grid w-full min-w-0 grid-cols-3 gap-2 lg:w-auto lg:min-w-[440px] [&>*]:min-h-[92px]">

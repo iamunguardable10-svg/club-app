@@ -77,3 +77,16 @@ Athletes use one session form for both expected and completed load. Future dates
 
 Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR state before a full chronic baseline is available. Rolling uses 7-day and 28-day calendar windows including rest days. EWMA uses lambda 2/(7+1) and 2/(28+1), also over the filled calendar-day series.
 
+
+## Sharing and coach visibility
+
+- Authenticated coaches and department leads can read team-scoped athlete load through the existing `load_entries` / `athlete_load_plans` RLS context when `team_id` or session context connects the entry to their team or department.
+- Pure solo load without `team_id` remains athlete-private by default. Athletes can still share a read-only snapshot through the `Trainer link` action.
+- `Trainer link` creates a portable `/share/load?data=...` URL containing recent load entries and pending sessions, matching demo and standard behavior without requiring an external account.
+- Later player detail views should use the same live team-scoped load data so a coach can tap a player and see state, recent sessions, expected load and readiness immediately.
+
+## Mobile chart rules
+
+- Mobile chart ranges are `7d`, `14d`, and `30d`; all must fit in portrait without horizontal scrolling.
+- Longer history remains a desktop/landscape concern.
+- Mobile fullscreen opens the chart in a rotated landscape overlay for detailed reading.
