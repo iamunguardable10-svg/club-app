@@ -1,6 +1,6 @@
 'use client';
 
-import { type MouseEvent, useEffect, useMemo, useState } from 'react';
+import { type MouseEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   Bar,
@@ -529,6 +529,7 @@ function plannedProjectionLoad(point?: ACWRDataPoint) {
 export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; pendingSessions: AthletePendingSession[] }) {
   const [isMobile, setIsMobile] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(false);
   const [range, setRange] = useState<LoadChartRange>(14);
   const [method, setMethod] = useState<LoadChartMethod>('ewma');
 
@@ -536,6 +537,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
     const syncViewport = () => {
       const mobile = window.innerWidth < 640;
       setIsMobile(mobile);
+      setIsLandscape(window.innerWidth > window.innerHeight);
       if (mobile) {
         setRange((current) => (current === 60 ? 14 : current));
       }
@@ -754,23 +756,33 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
       </div>
       {isFullscreen ? (
         <div className="fixed inset-0 z-50 bg-[#050712] sm:hidden" role="dialog" aria-modal="true">
-          <div
-            className="absolute left-1/2 top-1/2 flex flex-col gap-3 p-3"
-            style={{ width: '100vh', height: '100vw', transform: 'translate(-50%, -50%) rotate(90deg)' }}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Load chart</p>
-                <p className="text-lg font-black text-white">{range} days - {method.toUpperCase()}</p>
+          {!isLandscape ? (
+            <div className="flex h-full flex-col items-center justify-center gap-5 p-6 text-center">
+              <div className="rounded-[2rem] border border-slate-800 bg-slate-950/80 p-6">
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Fullscreen</p>
+                <h3 className="mt-2 text-2xl font-black">Turn your phone sideways</h3>
+                <p className="mt-2 text-sm font-bold text-slate-400">The load graph opens once the screen is in landscape.</p>
               </div>
               <button type="button" onClick={() => setIsFullscreen(false)} className="rounded-full border border-slate-700 bg-slate-950 px-4 py-2 text-xs font-black text-slate-100">
                 Close
               </button>
             </div>
-            <div className="min-h-0 flex-1 rounded-[1.5rem] border border-slate-800 bg-slate-950/70 p-2">
-              {chart(true)}
+          ) : (
+            <div className="flex h-full flex-col gap-3 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Load chart</p>
+                  <p className="text-lg font-black text-white">{range} days - {method.toUpperCase()}</p>
+                </div>
+                <button type="button" onClick={() => setIsFullscreen(false)} className="rounded-full border border-slate-700 bg-slate-950 px-4 py-2 text-xs font-black text-slate-100">
+                  Close
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 rounded-[1.5rem] border border-slate-800 bg-slate-950/70 p-2">
+                {chart(true)}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       ) : null}
     </div>
@@ -781,10 +793,12 @@ function AthleteCalendar({
   items,
   onEmptySlot,
   onItemSelect,
+  onPlanTimeChange,
 }: {
   items: AthleteCalendarItem[];
   onEmptySlot: (date: string, time: string) => void;
   onItemSelect: (item: AthleteCalendarItem) => void;
+  onPlanTimeChange: (session: AthletePendingSession, startsAt: string, durationMinutes: number) => void;
 }) {
   const firstHour = 8;
   const lastHour = 23;
@@ -795,34 +809,108 @@ function AthleteCalendar({
   const gridMinutes = (lastHour - firstHour + 1) * 60;
   const gridHeightDesktop = hours.length * desktopHourHeight;
   const gridHeightMobile = hours.length * mobileHourHeight;
+  const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const [mobileView, setMobileView] = useState<'week' | 'day'>('week');
+  const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, days.findIndex((day) => isoDate(day) === todayISO())));
+  const [drag, setDrag] = useState<{
+    item: AthleteCalendarItem;
+    kind: 'move' | 'resize';
+    startedAt: string;
+    durationMinutes: number;
+  } | null>(null);
+
+  function clampDayIndex(index: number) {
+    return Math.max(0, Math.min(days.length - 1, index));
+  }
+
+  function minutesToTime(minutes: number) {
+    const hour = firstHour + Math.floor(minutes / 60);
+    const minute = minutes % 60;
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  }
+
+  function dateTimeISO(date: string, minutes: number) {
+    return new Date(`${date}T${minutesToTime(minutes)}`).toISOString();
+  }
+
+  function minutesFromPointer(element: HTMLElement, clientY: number, hourHeight: number) {
+    const rect = element.getBoundingClientRect();
+    const y = Math.max(0, Math.min(rect.height, clientY - rect.top));
+    const rawMinutes = Math.round((y / hourHeight) * 60);
+    return Math.max(0, Math.min(gridMinutes - 15, Math.round(rawMinutes / 15) * 15));
+  }
 
   function pickSlot(day: Date, event: MouseEvent<HTMLDivElement>, hourHeight: number) {
     if ((event.target as HTMLElement).closest('[data-athlete-calendar-item="true"]')) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const y = Math.max(0, Math.min(rect.height, event.clientY - rect.top));
-    const rawMinutes = Math.round((y / hourHeight) * 60);
-    const roundedMinutes = Math.max(0, Math.min(gridMinutes - 15, Math.round(rawMinutes / 15) * 15));
-    const hour = firstHour + Math.floor(roundedMinutes / 60);
-    const minute = roundedMinutes % 60;
-    onEmptySlot(isoDate(day), `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
+    const minutes = minutesFromPointer(event.currentTarget, event.clientY, hourHeight);
+    onEmptySlot(isoDate(day), minutesToTime(minutes));
+  }
+
+  function itemDuration(item: AthleteCalendarItem) {
+    const start = new Date(item.startsAt);
+    const end = item.endsAt ? new Date(item.endsAt) : new Date(start.getTime() + DEFAULT_DURATION_BY_TYPE[item.trainingType] * 60_000);
+    return Math.max(30, Math.round((end.getTime() - start.getTime()) / 60_000));
   }
 
   function itemStyle(item: AthleteCalendarItem, hourHeight: number, gridHeight: number) {
     const start = new Date(item.startsAt);
-    const end = item.endsAt ? new Date(item.endsAt) : new Date(start.getTime() + DEFAULT_DURATION_BY_TYPE[item.trainingType] * 60_000);
     const topMinutes = Math.max(0, (start.getHours() - firstHour) * 60 + start.getMinutes());
-    const duration = Math.max(30, Math.round((end.getTime() - start.getTime()) / 60_000));
+    const duration = itemDuration(item);
     const top = Math.min(Math.max(0, topMinutes * (hourHeight / 60)), gridHeight - 26);
     const height = Math.max(26, Math.min(duration * (hourHeight / 60), gridHeight - top));
     return { top, height };
   }
 
+  function canManage(item: AthleteCalendarItem) {
+    return item.source === 'athlete_plan' && item.session && item.status !== 'reported';
+  }
+
+  function startDrag(item: AthleteCalendarItem, kind: 'move' | 'resize', event: ReactPointerEvent<HTMLButtonElement | HTMLSpanElement>) {
+    if (mode !== 'edit' || !canManage(item)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setDrag({ item, kind, startedAt: item.startsAt, durationMinutes: itemDuration(item) });
+  }
+
+  useEffect(() => {
+    if (!drag) return;
+    const activeDrag = drag;
+
+    function finish(event: PointerEvent) {
+      const element = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+      const dayElement = element?.closest('[data-athlete-day]') as HTMLElement | null;
+      const date = dayElement?.dataset.athleteDay ?? activeDrag.item.date;
+      const hourHeight = dayElement?.dataset.density === 'desktop' ? desktopHourHeight : mobileHourHeight;
+      const minutes = dayElement ? minutesFromPointer(dayElement, event.clientY, hourHeight) : Math.max(0, (new Date(activeDrag.item.startsAt).getHours() - firstHour) * 60 + new Date(activeDrag.item.startsAt).getMinutes());
+      const duration = activeDrag.kind === 'move'
+        ? activeDrag.durationMinutes
+        : Math.max(15, Math.round((minutes - ((new Date(activeDrag.startedAt).getHours() - firstHour) * 60 + new Date(activeDrag.startedAt).getMinutes())) / 15) * 15);
+      const startMinutes = activeDrag.kind === 'move'
+        ? Math.min(minutes, gridMinutes - duration)
+        : Math.max(0, Math.min(gridMinutes - 15, (new Date(activeDrag.startedAt).getHours() - firstHour) * 60 + new Date(activeDrag.startedAt).getMinutes()));
+      if (activeDrag.item.session) onPlanTimeChange(activeDrag.item.session, dateTimeISO(date, startMinutes), duration);
+      setDrag(null);
+    }
+
+    function cancel() {
+      setDrag(null);
+    }
+
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', cancel);
+    return () => {
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', cancel);
+    };
+  }, [drag, gridMinutes, onPlanTimeChange]);
+
   function itemClass(item: AthleteCalendarItem) {
     const base = 'absolute left-1 right-1 overflow-hidden rounded-xl border px-2 py-1 text-left shadow-sm transition hover:brightness-110';
-    if (item.status === 'reported') return `${base} bg-slate-950/95 text-white`;
-    if (item.status === 'missing') return `${base} border-amber-300/70 bg-amber-300/12 text-amber-50`;
-    if (item.status === 'cancelled') return `${base} border-slate-700 bg-slate-950/35 text-slate-500 opacity-60`;
-    return `${base} border-dashed bg-slate-950/55 text-white`;
+    const dragClass = drag?.item.id === item.id ? ' ring-2 ring-sky-200 brightness-125' : '';
+    if (item.status === 'reported') return `${base} bg-slate-950/95 text-white${dragClass}`;
+    if (item.status === 'missing') return `${base} border-amber-300/70 bg-amber-300/12 text-amber-50${dragClass}`;
+    if (item.status === 'cancelled') return `${base} border-slate-700 bg-slate-950/35 text-slate-500 opacity-60${dragClass}`;
+    return `${base} border-dashed bg-slate-950/55 text-white${dragClass}`;
   }
 
   function itemBorderStyle(item: AthleteCalendarItem) {
@@ -830,8 +918,37 @@ function AthleteCalendar({
     return {
       borderColor: item.status === 'missing' ? 'rgba(252,211,77,0.75)' : color,
       boxShadow: item.status === 'reported' ? `inset 3px 0 0 ${color}` : undefined,
+      cursor: mode === 'edit' && canManage(item) ? 'grab' : 'pointer',
+      touchAction: mode === 'edit' && canManage(item) ? 'none' : 'auto',
     };
   }
+
+  function renderItem(item: AthleteCalendarItem, hourHeight: number, gridHeight: number, compact = false) {
+    const style = itemStyle(item, hourHeight, gridHeight);
+    const manageable = mode === 'edit' && canManage(item);
+    return (
+      <button
+        key={item.id}
+        type="button"
+        data-athlete-calendar-item="true"
+        onPointerDown={(event) => startDrag(item, 'move', event)}
+        onClick={(event) => { event.stopPropagation(); if (mode === 'edit' && canManage(item)) return; if (!drag) onItemSelect(item); }}
+        className={`${itemClass(item)} ${compact ? 'px-1 text-[9px] leading-tight' : ''}`}
+        style={{ ...style, ...itemBorderStyle(item) }}
+      >
+        <span className={`block truncate font-black ${compact ? '' : 'text-sm'}`}>{compact ? LOAD_TYPE_LABELS[item.trainingType] : item.title}</span>
+        {style.height > (compact ? 34 : 42) ? (
+          <span className={`mt-0.5 block truncate font-bold opacity-75 ${compact ? 'text-[8px]' : 'text-[11px]'}`}>
+            {compact ? item.teamName ?? item.status : `${formatTime(item.startsAt)}${item.endsAt ? ` - ${formatTime(item.endsAt)}` : ''} ? ${item.teamName ?? LOAD_TYPE_LABELS[item.trainingType]}`}
+          </span>
+        ) : null}
+        {manageable ? <span aria-hidden="true" onPointerDown={(event) => startDrag(item, 'resize', event)} className="absolute inset-x-3 bottom-0 h-3 cursor-ns-resize rounded-t bg-white/35" /> : null}
+      </button>
+    );
+  }
+
+  const activeDay = days[clampDayIndex(activeDayIndex)];
+  const activeDayItems = items.filter((item) => item.date === isoDate(activeDay));
 
   return (
     <section className="min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-3 sm:rounded-[2rem] sm:p-5">
@@ -840,84 +957,80 @@ function AthleteCalendar({
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Calendar</p>
           <h2 className="mt-1 text-2xl font-black tracking-tight">Training week</h2>
         </div>
-        <span className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-black text-slate-300">Tap to add</span>
+        <button type="button" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-200'}`}>
+          {mode === 'edit' ? 'Done' : 'Edit'}
+        </button>
       </div>
 
-      <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden">
-        <div className="grid grid-cols-[36px_repeat(7,minmax(0,1fr))] border-b border-slate-800 text-[9px] font-black uppercase tracking-[0.08em] text-slate-500">
-          <div className="bg-slate-950/95 p-1.5">Time</div>
-          {days.map((day) => (
-            <div key={day.toISOString()} className="border-l border-slate-800 p-1.5 text-center">
-              <span className="block">{day.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2)}</span>
-              <span className="block">{day.toLocaleDateString(undefined, { day: '2-digit' })}</span>
+      {mobileView === 'week' ? (
+        <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden">
+          <div className="grid grid-cols-[36px_repeat(7,minmax(0,1fr))] border-b border-slate-800 text-[9px] font-black uppercase tracking-[0.08em] text-slate-500">
+            <div className="bg-slate-950/95 p-1.5">Time</div>
+            {days.map((day, index) => (
+              <button key={day.toISOString()} type="button" onClick={() => { setActiveDayIndex(index); setMobileView('day'); }} className="border-l border-slate-800 p-1.5 text-center hover:bg-slate-900/80">
+                <span className="block">{day.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2)}</span>
+                <span className="block">{day.toLocaleDateString(undefined, { day: '2-digit' })}</span>
+              </button>
+            ))}
+          </div>
+          <div className="max-h-[68vh] overflow-y-auto overscroll-contain">
+            <div className="grid grid-cols-[36px_repeat(7,minmax(0,1fr))]">
+              <div className="bg-slate-950/95">
+                {hours.map((hour) => <div key={hour} className="border-b border-slate-900 px-1 py-1 text-[9px] font-bold text-slate-500" style={{ height: mobileHourHeight }}>{String(hour).padStart(2, '0')}</div>)}
+              </div>
+              {days.map((day) => {
+                const date = isoDate(day);
+                const dayItems = items.filter((item) => item.date === date);
+                return (
+                  <div key={day.toISOString()} data-athlete-day={date} data-density="mobile" onClick={(event) => pickSlot(day, event, mobileHourHeight)} className="relative border-l border-slate-900" style={{ height: gridHeightMobile }}>
+                    {hours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: mobileHourHeight }} />)}
+                    {dayItems.map((item) => renderItem(item, mobileHourHeight, gridHeightMobile, true))}
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
-        <div className="max-h-[68vh] overflow-y-auto overscroll-contain">
-          <div className="grid grid-cols-[36px_repeat(7,minmax(0,1fr))]">
-            <div className="bg-slate-950/95">
-              {hours.map((hour) => <div key={hour} className="border-b border-slate-900 px-1 py-1 text-[9px] font-bold text-slate-500" style={{ height: mobileHourHeight }}>{String(hour).padStart(2, '0')}</div>)}
-            </div>
-            {days.map((day) => {
-              const dayItems = items.filter((item) => item.date === isoDate(day));
-              return (
-                <div key={day.toISOString()} onClick={(event) => pickSlot(day, event, mobileHourHeight)} className="relative border-l border-slate-900" style={{ height: gridHeightMobile }}>
-                  {hours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: mobileHourHeight }} />)}
-                  {dayItems.map((item) => {
-                    const style = itemStyle(item, mobileHourHeight, gridHeightMobile);
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        data-athlete-calendar-item="true"
-                        onClick={(event) => { event.stopPropagation(); onItemSelect(item); }}
-                        className={`${itemClass(item)} px-1 text-[9px] leading-tight`}
-                        style={{ ...style, ...itemBorderStyle(item) }}
-                      >
-                        <span className="block truncate font-black">{LOAD_TYPE_LABELS[item.trainingType]}</span>
-                        {style.height > 34 ? <span className="block truncate opacity-75">{item.teamName ?? item.status}</span> : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })}
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden">
+          <div className="flex items-center justify-between border-b border-slate-800 p-2">
+            <button type="button" onClick={() => setMobileView('week')} className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200">Week</button>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setActiveDayIndex((index) => clampDayIndex(index - 1))} className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-black text-slate-200">?</button>
+              <span className="text-xs font-black text-slate-200">{activeDay.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</span>
+              <button type="button" onClick={() => setActiveDayIndex((index) => clampDayIndex(index + 1))} className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-black text-slate-200">?</button>
+            </div>
+          </div>
+          <div className="max-h-[68vh] overflow-y-auto overscroll-contain">
+            <div className="grid grid-cols-[52px_minmax(0,1fr)]">
+              <div className="bg-slate-950/95">
+                {hours.map((hour) => <div key={hour} className="border-b border-slate-900 px-2 py-1 text-[10px] font-bold text-slate-500" style={{ height: mobileHourHeight }}>{String(hour).padStart(2, '0')}:00</div>)}
+              </div>
+              <div data-athlete-day={isoDate(activeDay)} data-density="mobile" onClick={(event) => pickSlot(activeDay, event, mobileHourHeight)} className="relative border-l border-slate-900" style={{ height: gridHeightMobile }}>
+                {hours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: mobileHourHeight }} />)}
+                {activeDayItems.map((item) => renderItem(item, mobileHourHeight, gridHeightMobile))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="hidden overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:block">
         <div className="grid grid-cols-[72px_repeat(7,minmax(120px,1fr))] border-b border-slate-800 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
           <div className="bg-slate-950/95 p-3">Time</div>
-          {days.map((day) => <div key={day.toISOString()} className="border-l border-slate-800 p-3">{day.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</div>)}
+          {days.map((day, index) => <button type="button" key={day.toISOString()} onClick={() => setActiveDayIndex(index)} className="border-l border-slate-800 p-3 text-left hover:bg-slate-900/70">{day.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</button>)}
         </div>
         <div className="grid grid-cols-[72px_repeat(7,minmax(120px,1fr))]">
           <div className="bg-slate-950/95">
             {hours.map((hour) => <div key={hour} className="border-b border-slate-900 p-3 text-xs font-bold text-slate-500" style={{ height: desktopHourHeight }}>{String(hour).padStart(2, '0')}:00</div>)}
           </div>
           {days.map((day) => {
-            const dayItems = items.filter((item) => item.date === isoDate(day));
+            const date = isoDate(day);
+            const dayItems = items.filter((item) => item.date === date);
             return (
-              <div key={day.toISOString()} onClick={(event) => pickSlot(day, event, desktopHourHeight)} className="relative border-l border-slate-900" style={{ height: gridHeightDesktop }}>
+              <div key={day.toISOString()} data-athlete-day={date} data-density="desktop" onClick={(event) => pickSlot(day, event, desktopHourHeight)} className="relative border-l border-slate-900" style={{ height: gridHeightDesktop }}>
                 {hours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: desktopHourHeight }} />)}
-                {dayItems.map((item) => {
-                  const style = itemStyle(item, desktopHourHeight, gridHeightDesktop);
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      data-athlete-calendar-item="true"
-                      onClick={(event) => { event.stopPropagation(); onItemSelect(item); }}
-                      className={itemClass(item)}
-                      style={{ ...style, ...itemBorderStyle(item) }}
-                    >
-                      <span className="block truncate text-sm font-black">{item.title}</span>
-                      <span className="mt-0.5 block truncate text-[11px] font-bold opacity-75">
-                        {formatTime(item.startsAt)}{item.endsAt ? ` - ${formatTime(item.endsAt)}` : ''} · {item.teamName ?? LOAD_TYPE_LABELS[item.trainingType]}
-                      </span>
-                    </button>
-                  );
-                })}
+                {dayItems.map((item) => renderItem(item, desktopHourHeight, gridHeightDesktop))}
               </div>
             );
           })}
@@ -1074,6 +1187,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     }
     return map;
   }, [sortedEntries]);
+  function averageRpeFor(type: LoadTrainingType, date: string) {
+    const targetWeekday = new Date(`${date}T00:00:00`).getDay();
+    const sameWeekday = sortedEntries.filter((entry) => entry.trainingType === type && new Date(`${entry.date}T00:00:00`).getDay() === targetWeekday);
+    const sameType = sortedEntries.filter((entry) => entry.trainingType === type);
+    const sample = sameWeekday.length >= 2 ? sameWeekday : sameType;
+    if (sample.length === 0) return 6;
+    return Math.max(1, Math.min(10, Math.round(sample.reduce((sum, entry) => sum + entry.rpe, 0) / sample.length)));
+  }
   const sessionMode = planForm.date < todayISO() ? 'report' : planForm.date > todayISO() ? 'plan' : todayAction;
   const sessionLoadPreview = planForm.expectedRpe * planForm.expectedDurationMinutes;
 
@@ -1081,6 +1202,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     setPlanForm((current) => ({
       ...current,
       trainingType: type,
+      expectedRpe: averageRpeFor(type, current.date),
       expectedDurationMinutes: averageDurationByType.get(type) ?? DEFAULT_DURATION_BY_TYPE[type],
     }));
   }
@@ -1236,6 +1358,48 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     }
   }
 
+  async function updatePlanTimeFromCalendar(session: AthletePendingSession, startsAt: string, durationMinutes: number) {
+    if (session.source !== 'athlete_plan') return;
+    const nextDate = isoDate(new Date(startsAt));
+    const nextTime = timeInputFromISO(startsAt);
+    const applySessionUpdate = (current: AthletePendingSession[]) => current
+      .map((item) => item.id === session.id
+        ? {
+          ...item,
+          date: nextDate,
+          startsAt,
+          endsAt: new Date(new Date(startsAt).getTime() + durationMinutes * 60_000).toISOString(),
+          expectedDurationMinutes: durationMinutes,
+        }
+        : item)
+      .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+
+    setPlans((current) => {
+      const next = current
+        .map((plan) => plan.id === session.id
+          ? { ...plan, date: nextDate, startsAt, expectedDurationMinutes: durationMinutes }
+          : plan)
+        .sort((a, b) => a.date.localeCompare(b.date));
+      if (source === 'demo') saveDemoPlans(next);
+      return next;
+    });
+    setCalendarSessions(applySessionUpdate);
+    setPendingSessions(applySessionUpdate);
+
+    if (source === 'supabase') {
+      const supabase = createBrowserSupabaseClient();
+      const { error: updateError } = await supabase
+        .from('athlete_load_plans')
+        .update({
+          plan_date: nextDate,
+          planned_time: nextTime,
+          expected_duration_minutes: durationMinutes,
+        })
+        .eq('id', session.id);
+      if (updateError) setError(updateError.message);
+    }
+  }
+
   async function submitUnifiedSession() {
     if (activeComposerSession) {
       if (activeComposerSession.source === 'team_session' && activeComposerSession.date > todayISO()) return;
@@ -1287,7 +1451,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
   function openComposer(date: string, time = '18:00') {
     setActiveComposerSession(null);
-    setPlanForm((current) => ({ ...current, date, time }));
+    setPlanForm((current) => ({
+      ...current,
+      date,
+      time,
+      expectedRpe: averageRpeFor(current.trainingType, date),
+      expectedDurationMinutes: averageDurationByType.get(current.trainingType) ?? DEFAULT_DURATION_BY_TYPE[current.trainingType],
+    }));
     setTodayAction(date === todayISO() ? 'plan' : todayAction);
     setComposerOpen(true);
   }
@@ -1301,7 +1471,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         trainingType: item.trainingType,
         date: item.date,
         time: timeInputFromISO(item.startsAt),
-        expectedRpe: item.session.expectedRpe ?? 6,
+        expectedRpe: item.session.expectedRpe ?? averageRpeFor(item.trainingType, item.date),
         expectedDurationMinutes: duration,
       });
       setTodayAction('report');
@@ -1313,7 +1483,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       trainingType: item.trainingType,
       date: item.date,
       time: timeInputFromISO(item.startsAt),
-      expectedRpe: 6,
+      expectedRpe: averageRpeFor(item.trainingType, item.date),
       expectedDurationMinutes: item.endsAt ? Math.max(15, Math.round((new Date(item.endsAt).getTime() - new Date(item.startsAt).getTime()) / 60_000)) : DEFAULT_DURATION_BY_TYPE[item.trainingType],
     });
     setComposerOpen(true);
@@ -1363,21 +1533,23 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           </section>
         ) : null}
 
-        <section className="grid min-w-0 items-stretch gap-5">
-          <div className="h-full min-w-0 overflow-hidden rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-300">Trend</p>
-                <h2 className="mt-1 text-2xl font-black tracking-tight">Load trend</h2>
+        {initialView !== 'calendar' ? (
+          <section className="grid min-w-0 items-stretch gap-5">
+            <div className="h-full min-w-0 overflow-hidden rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-300">Trend</p>
+                  <h2 className="mt-1 text-2xl font-black tracking-tight">Load trend</h2>
+                </div>
+                <span className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-black text-slate-300">{source === 'loading' ? 'Loading' : source === 'demo' ? 'Demo data' : 'Live data'}</span>
               </div>
-              <span className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-black text-slate-300">{source === 'loading' ? 'Loading' : source === 'demo' ? 'Demo data' : 'Live data'}</span>
+              <LoadChart entries={sortedEntries} pendingSessions={pendingSessions} />
             </div>
-            <LoadChart entries={sortedEntries} pendingSessions={pendingSessions} />
-          </div>
-        </section>
+          </section>
+        ) : null}
 
         {initialView === 'calendar' ? (
-          <AthleteCalendar items={calendarItems} onEmptySlot={openComposer} onItemSelect={openCalendarItem} />
+          <AthleteCalendar items={calendarItems} onEmptySlot={openComposer} onItemSelect={openCalendarItem} onPlanTimeChange={updatePlanTimeFromCalendar} />
         ) : (
           <section className="grid min-w-0 items-stretch gap-5 lg:grid-cols-[0.9fr_1.1fr]">
             <div className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 sm:p-5">
@@ -1462,14 +1634,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               ))}
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="mt-4 grid grid-cols-2 gap-2">
               <label className="min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                 Date
-                <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value }))} className="mt-2 w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300" />
+                <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value, expectedRpe: averageRpeFor(current.trainingType, event.target.value) }))} className="mt-2 block w-full min-w-0 max-w-full rounded-xl border border-slate-700 bg-slate-950 px-2 py-2 text-xs font-bold text-white outline-none focus:border-emerald-300" />
               </label>
               <label className="min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                 Time
-                <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
+                <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 block w-full min-w-0 max-w-full rounded-xl border border-slate-700 bg-slate-950 px-2 py-2 text-xs font-bold text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
               </label>
             </div>
 

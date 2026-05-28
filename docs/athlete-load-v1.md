@@ -97,4 +97,9 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 - Add/report opens through an overlay from the header CTA, a pending session, or the athlete calendar.
 - Calendar uses a real Untis-style week grid from 08:00 to 23:00. Empty slots create a prefilled load plan/report; session cards use training-type color and status style.
 - Team-created sessions are read-only before they are due; after they are due, tapping the session opens the reporting overlay.
+- Calendar view does not show the load graph; it stays focused on planning/reporting.
+- Calendar has a view/edit split. Creating from empty slots works in view mode; moving/resizing own planned athlete sessions requires edit mode.
+- On mobile, tapping a weekday opens the day view; the week view remains available from the day header.
+- Planned load defaults RPE from the athlete's own history for that training type, preferring the same weekday when enough samples exist.
+- Mobile chart fullscreen first asks the athlete to rotate the phone; the graph renders only in landscape to avoid the previous rotated-overlay glitch.
 - Trainer link state is persisted in browser storage so copied links are visibly marked active.
