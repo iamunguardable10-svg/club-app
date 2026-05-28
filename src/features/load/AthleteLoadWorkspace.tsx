@@ -14,6 +14,7 @@ import {
   YAxis,
 } from 'recharts';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
+import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import {
   ACWR_ZONES,
   LOAD_TRAINING_TYPES,
@@ -427,6 +428,16 @@ function durationMinutesFromSession(session: AthletePendingSession) {
   return Math.max(15, Math.round((new Date(session.endsAt).getTime() - new Date(session.startsAt).getTime()) / 60_000));
 }
 
+function compactLoadLabel(type: LoadTrainingType) {
+  if (type === 'team_training') return 'Team';
+  if (type === 'strength') return 'Gym';
+  if (type === 'individual') return 'Solo';
+  if (type === 'school_sport') return 'School';
+  if (type === 'recovery') return 'Rec';
+  if (type === 'prehab') return 'Pre';
+  return 'Game';
+}
+
 function statusForPending(session: AthletePendingSession) {
   const today = todayISO();
   if (session.date < today) return 'Overdue';
@@ -832,7 +843,7 @@ function AthleteCalendar({
   const firstHour = 8;
   const lastHour = 23;
   const desktopHourHeight = 48;
-  const mobileHourHeight = 28;
+  const mobileHourHeight = 30;
   const hours = Array.from({ length: lastHour - firstHour + 1 }, (_, index) => firstHour + index);
   const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart(), index));
   const gridMinutes = (lastHour - firstHour + 1) * 60;
@@ -848,7 +859,7 @@ function AthleteCalendar({
     startedAt: string;
     durationMinutes: number;
   } | null>(null);
-  const [dragPreview, setDragPreview] = useState<{ id: string; startsAt: string; endsAt: string } | null>(null);
+  const [dragPreview, setDragPreview] = useState<{ id: string; startsAt: string; endsAt: string; duration: number } | null>(null);
 
   function clampDayIndex(index: number) {
     return Math.max(0, Math.min(days.length - 1, index));
@@ -899,19 +910,23 @@ function AthleteCalendar({
     return item.source === 'athlete_plan' && item.session && item.status !== 'reported';
   }
 
-  function dragProjection(activeDrag: { item: AthleteCalendarItem; kind: 'move' | 'resize'; startedAt: string; durationMinutes: number }, pointerEvent: PointerEvent) {
+  function dragProjection(activeDrag: { item: AthleteCalendarItem; kind: 'move' | 'resize'; startedAt: string; durationMinutes: number }, pointerEvent: PointerEvent, startClientX: number) {
     const element = document.elementFromPoint(pointerEvent.clientX, pointerEvent.clientY) as HTMLElement | null;
     const dayElement = element?.closest('[data-athlete-day]') as HTMLElement | null;
     const originalStart = new Date(activeDrag.startedAt);
     const originalStartMinutes = Math.max(0, (originalStart.getHours() - firstHour) * 60 + originalStart.getMinutes());
+    const isMobileTarget = dayElement?.dataset.density === 'mobile';
     const hourHeight = dayElement?.dataset.density === 'desktop' ? desktopHourHeight : mobileHourHeight;
     const pointerMinutes = dayElement ? minutesFromPointer(dayElement, pointerEvent.clientY, hourHeight) : originalStartMinutes;
     const duration = activeDrag.kind === 'move'
       ? activeDrag.durationMinutes
       : Math.max(15, Math.round((pointerMinutes - originalStartMinutes) / 15) * 15);
+    const horizontalIntent = Math.abs(pointerEvent.clientX - startClientX) >= 72;
     const date = activeDrag.kind === 'resize'
       ? activeDrag.item.date
-      : dayElement?.dataset.athleteDay ?? activeDrag.item.date;
+      : isMobileTarget && !horizontalIntent
+        ? activeDrag.item.date
+        : dayElement?.dataset.athleteDay ?? activeDrag.item.date;
     const startMinutes = activeDrag.kind === 'move'
       ? Math.max(0, Math.min(pointerMinutes, gridMinutes - duration))
       : Math.max(0, Math.min(gridMinutes - 15, originalStartMinutes));
@@ -932,7 +947,8 @@ function AthleteCalendar({
       event.preventDefault();
       setSuppressClick(true);
       setDrag(activeDrag);
-      setDragPreview({ id: item.id, startsAt: item.startsAt, endsAt: item.endsAt ?? new Date(new Date(item.startsAt).getTime() + itemDuration(item) * 60_000).toISOString() });
+      const duration = itemDuration(item);
+      setDragPreview({ id: item.id, startsAt: item.startsAt, endsAt: item.endsAt ?? new Date(new Date(item.startsAt).getTime() + duration * 60_000).toISOString(), duration });
     }
 
     function cleanup() {
@@ -950,14 +966,14 @@ function AthleteCalendar({
         setDrag(activeDrag);
       }
       pointerEvent.preventDefault();
-      const projection = dragProjection(activeDrag, pointerEvent);
-      setDragPreview({ id: activeDrag.item.id, startsAt: projection.startsAt, endsAt: projection.endsAt });
+      const projection = dragProjection(activeDrag, pointerEvent, startX);
+      setDragPreview({ id: activeDrag.item.id, startsAt: projection.startsAt, endsAt: projection.endsAt, duration: projection.duration });
     }
 
     function finish(pointerEvent: PointerEvent) {
       cleanup();
       if (!isDragging) return;
-      const projection = dragProjection(activeDrag, pointerEvent);
+      const projection = dragProjection(activeDrag, pointerEvent, startX);
       if (activeDrag.item.session) onPlanTimeChange(activeDrag.item.session, projection.startsAt, projection.duration);
       setDrag(null);
       setDragPreview(null);
@@ -977,8 +993,8 @@ function AthleteCalendar({
   }
 
   function itemClass(item: AthleteCalendarItem) {
-    const base = 'absolute left-1 right-1 overflow-hidden rounded-xl border px-2 py-1 text-left shadow-sm transition-[top,height,left,right,filter,box-shadow,transform] duration-150 hover:brightness-110';
-    const dragClass = drag?.item.id === item.id ? ' z-20 scale-[1.02] ring-2 ring-sky-200 brightness-125 shadow-[0_18px_50px_rgba(56,189,248,0.28)]' : '';
+    const base = 'absolute left-1 right-1 overflow-hidden rounded-xl border px-2 py-1 text-left shadow-sm transition-[top,height,left,right,filter,box-shadow,transform] duration-75 ease-out hover:brightness-110';
+    const dragClass = drag?.item.id === item.id ? ' z-20 scale-[1.035] ring-2 ring-sky-200 brightness-125 shadow-[0_22px_60px_rgba(56,189,248,0.34)] transition-none' : '';
     if (item.status === 'reported') return `${base} bg-slate-950/95 text-white${dragClass}`;
     if (item.status === 'missing') return `${base} border-amber-300/70 bg-amber-300/12 text-amber-50${dragClass}`;
     if (item.status === 'cancelled') return `${base} border-slate-700 bg-slate-950/35 text-slate-500 opacity-60${dragClass}`;
@@ -1008,13 +1024,18 @@ function AthleteCalendar({
         data-athlete-calendar-item="true"
         onPointerDown={(event) => startDrag(item, 'move', event)}
         onClick={(event) => { event.stopPropagation(); if (!suppressClick) onItemSelect(item, mode); }}
-        className={`${itemClass(item)} ${compact ? 'px-1 text-[9px] leading-tight' : ''}`}
+        className={`${itemClass(item)} ${compact ? 'left-0.5 right-0.5 px-0.5 text-[8px] leading-tight' : ''}`}
         style={{ ...style, ...itemBorderStyle(item) }}
       >
-        <span className={`block truncate font-black ${compact ? '' : 'text-sm'}`}>{compact ? LOAD_TYPE_LABELS[item.trainingType] : item.title}</span>
+        <span className={`block truncate font-black ${compact ? '' : 'text-sm'}`}>{compact ? compactLoadLabel(item.trainingType) : item.title}</span>
+        {preview ? (
+          <span className={`absolute right-1 top-1 rounded-md bg-slate-950/85 px-1 font-black text-sky-100 ring-1 ring-sky-200/40 ${compact ? 'text-[7px]' : 'text-[9px]'}`}>
+            {preview.duration}m
+          </span>
+        ) : null}
         {style.height > (compact ? 34 : 42) ? (
           <span className={`mt-0.5 block truncate font-bold opacity-75 ${compact ? 'text-[8px]' : 'text-[11px]'}`}>
-            {compact ? item.teamName ?? item.status : `${formatTime(displayStartsAt)}${displayEndsAt ? ` - ${formatTime(displayEndsAt)}` : ''} · ${item.teamName ?? LOAD_TYPE_LABELS[item.trainingType]}`}
+            {compact ? formatTime(displayStartsAt) : `${formatTime(displayStartsAt)}${displayEndsAt ? ` - ${formatTime(displayEndsAt)}` : ''} · ${item.teamName ?? LOAD_TYPE_LABELS[item.trainingType]}`}
           </span>
         ) : null}
         {manageable ? <span aria-hidden="true" onPointerDown={(event) => startDrag(item, 'resize', event)} className="absolute inset-x-3 bottom-0 h-3 cursor-ns-resize rounded-t bg-white/35" /> : null}
@@ -1036,6 +1057,13 @@ function AthleteCalendar({
           {mode === 'edit' ? 'Done' : 'Edit'}
         </button>
       </div>
+      {dragPreview ? (
+        <div className="mb-3 rounded-2xl border border-sky-300/40 bg-sky-300/10 px-3 py-2 text-xs font-black text-sky-100 shadow-[0_16px_50px_rgba(56,189,248,0.14)]">
+          {new Date(dragPreview.startsAt).toLocaleDateString(undefined, { weekday: 'short' })} · {formatTime(dragPreview.startsAt)}
+          {' → '}
+          {dragPreview.duration} min
+        </div>
+      ) : null}
 
       {mobileView === 'week' ? (
         <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden">
@@ -1132,6 +1160,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [activeComposerSession, setActiveComposerSession] = useState<AthletePendingSession | null>(null);
   const [activeEntry, setActiveEntry] = useState<AthleteLoadEntry | null>(null);
   const [activeDetailItem, setActiveDetailItem] = useState<AthleteCalendarItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ kind: 'entry' | 'plan'; id: string; title: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -1435,6 +1465,56 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       const supabase = createBrowserSupabaseClient();
       const { error: deleteError } = await supabase.from('athlete_load_plans').delete().eq('id', planId);
       if (deleteError) setError(deleteError.message);
+    }
+  }
+
+  async function deleteEntry(entryId: string) {
+    const deletedEntry = entries.find((entry) => entry.id === entryId) ?? null;
+    setEntries((current) => {
+      const next = current.filter((entry) => entry.id !== entryId);
+      if (source === 'demo') saveDemoEntries(next);
+      return next;
+    });
+
+    if (source === 'supabase') {
+      const supabase = createBrowserSupabaseClient();
+      const { error: deleteError } = await supabase.from('load_entries').delete().eq('id', entryId);
+      if (deleteError) setError(deleteError.message);
+    }
+
+    if (deletedEntry?.sessionId) {
+      const matchingSession = calendarSessions.find((session) => session.id === deletedEntry.sessionId);
+      if (matchingSession) {
+        setPendingSessions((current) => current.some((session) => session.id === matchingSession.id)
+          ? current
+          : [...current, matchingSession].sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
+      }
+      if (source === 'demo') {
+        saveAcknowledgedDemoSessions(readAcknowledgedDemoSessions().filter((id) => id !== deletedEntry.sessionId));
+      }
+    }
+
+    setActiveEntry(null);
+    setActiveDetailItem(null);
+    setComposerOpen(false);
+  }
+
+  async function confirmDeleteTarget() {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      if (deleteTarget.kind === 'entry') {
+        await deleteEntry(deleteTarget.id);
+      } else {
+        await deletePlan(deleteTarget.id);
+        if (activeComposerSession?.id === deleteTarget.id) {
+          setActiveComposerSession(null);
+          setComposerOpen(false);
+        }
+      }
+      setDeleteTarget(null);
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -1752,7 +1832,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                         <p className="text-sm font-black text-white">{plan.title}</p>
                         <p className="mt-0.5 text-xs font-bold text-slate-500">{formatLoadDate(plan.date)} · {plan.startsAt ? formatTime(plan.startsAt) : 'No time'} · {plan.expectedRpe * plan.expectedDurationMinutes} AU expected</p>
                       </div>
-                      <button type="button" onClick={() => deletePlan(plan.id)} className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:border-rose-400 hover:text-rose-200">
+                      <button type="button" onClick={() => setDeleteTarget({ kind: 'plan', id: plan.id, title: plan.title })} className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:border-rose-400 hover:text-rose-200">
                         Delete
                       </button>
                     </div>
@@ -1791,9 +1871,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               </div>
             </div>
             {activeDetailItem.entry ? (
-              <button type="button" onClick={() => { const item = activeDetailItem; setActiveDetailItem(null); openCalendarItem(item, 'edit'); }} className="mt-4 w-full rounded-2xl border border-sky-400/50 bg-sky-400/10 px-4 py-3 text-sm font-black text-sky-100">
-                Edit load
-              </button>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <button type="button" onClick={() => { const item = activeDetailItem; setActiveDetailItem(null); openCalendarItem(item, 'edit'); }} className="rounded-2xl border border-sky-400/50 bg-sky-400/10 px-4 py-3 text-sm font-black text-sky-100">
+                  Edit load
+                </button>
+                <button type="button" onClick={() => setDeleteTarget({ kind: 'entry', id: activeDetailItem.entry!.id, title: activeDetailItem.title })} className="rounded-2xl border border-rose-400/45 bg-rose-400/10 px-4 py-3 text-sm font-black text-rose-100">
+                  Delete load
+                </button>
+              </div>
             ) : null}
           </div>
         </div>
@@ -1822,11 +1907,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             <div className="mt-4 flex max-w-full flex-wrap gap-2">
               <label className="w-[9.4rem] max-w-[calc(100vw-2rem)] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                 Date
-                <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value, expectedRpe: averageRpeFor(current.trainingType, event.target.value) }))} className="mt-2 block h-9 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-1 text-center text-[12px] font-black tracking-[0.08em] text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
+                <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value, expectedRpe: averageRpeFor(current.trainingType, event.target.value) }))} className="mt-2 block h-9 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-1.5 py-1 text-[11px] font-bold text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
               </label>
               <label className="w-[6.2rem] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                 Time
-                <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 block h-9 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-1 text-center text-[12px] font-black tracking-[0.08em] text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
+                <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 block h-9 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-1.5 py-1 text-[11px] font-bold text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
               </label>
             </div>
 
@@ -1870,11 +1955,32 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 <button type="button" onClick={submitUnifiedSession} className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-black text-slate-950 transition ${sessionMode === 'plan' && !activeComposerSession && !activeEntry ? 'bg-violet-300' : 'bg-emerald-300'}`}>
                   {sessionMode === 'plan' && !activeComposerSession && !activeEntry ? `Plan ${sessionLoadPreview} AU` : `Save ${sessionLoadPreview} AU`}
                 </button>
+                {activeEntry ? (
+                  <button type="button" onClick={() => setDeleteTarget({ kind: 'entry', id: activeEntry.id, title: activeEntry.title })} className="mt-2 w-full rounded-2xl border border-rose-400/45 bg-rose-400/10 px-4 py-3 text-sm font-black text-rose-100">
+                    Delete load
+                  </button>
+                ) : activeComposerSession?.source === 'athlete_plan' ? (
+                  <button type="button" onClick={() => setDeleteTarget({ kind: 'plan', id: activeComposerSession.id, title: activeComposerSession.title })} className="mt-2 w-full rounded-2xl border border-rose-400/45 bg-rose-400/10 px-4 py-3 text-sm font-black text-rose-100">
+                    Delete plan
+                  </button>
+                ) : null}
               </>
             )}
           </div>
         </div>
       ) : null}
+
+      <AppConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        title={deleteTarget?.kind === 'entry' ? 'Delete load entry?' : 'Delete planned load?'}
+        description={deleteTarget ? `${deleteTarget.title} will be removed from your calendar and load history.` : undefined}
+        confirmLabel={deleteTarget?.kind === 'entry' ? 'Delete load' : 'Delete plan'}
+        cancelLabel="Cancel"
+        tone="danger"
+        isConfirming={isDeleting}
+        onConfirm={confirmDeleteTarget}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </main>
   );
 }

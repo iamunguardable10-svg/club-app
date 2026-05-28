@@ -113,3 +113,11 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 - The global `Add load` header action is removed; load entry stays contextual through calendar slots, pending sessions, and session detail flows.
 - Demo athlete data is seeded with a longer history so Rolling/EWMA graphs and mobile ranges have realistic density.
 - Date/time inputs in the session overlay are compact controls and must stay inside the card on narrow iPhone screens.
+
+## Athlete calendar edit polish — 2026-05-28 follow-up
+
+- Mobile week density is slightly larger again so 08:00-23:00 remains readable while staying one page-level calendar, not an inner scroll surface.
+- Dragging/resizing now shows a persistent preview badge with weekday, start time, and duration; resize also shows duration on the moving card.
+- Mobile drag keeps the original day unless the athlete makes a deliberate horizontal move, reducing accidental day changes while the thumb moves out of the way.
+- Reported load entries can be deleted through the app confirmation dialog; demo uses localStorage and standard uses Supabase `load_entries` delete under existing RLS.
+- Date/time overlay controls keep compact boxes but return to the calmer old text styling.
