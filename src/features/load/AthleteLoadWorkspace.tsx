@@ -574,6 +574,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
   const [isLandscape, setIsLandscape] = useState(false);
   const [range, setRange] = useState<LoadChartRange>(14);
   const [method, setMethod] = useState<LoadChartMethod>('ewma');
+  const [showLoadLines, setShowLoadLines] = useState(true);
 
   useEffect(() => {
     const syncViewport = () => {
@@ -727,6 +728,30 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
             name={`${LOAD_TYPE_LABELS[type]} forecast`}
           />
         ))}
+        {showLoadLines ? (
+          <>
+            <Line
+              yAxisId="load"
+              type="monotone"
+              dataKey="acuteLoad"
+              stroke="#facc15"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4, fill: '#fef3c7', stroke: '#facc15', strokeWidth: 2 }}
+              name="Acute load"
+            />
+            <Line
+              yAxisId="load"
+              type="monotone"
+              dataKey="chronicLoad"
+              stroke="#34d399"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4, fill: '#d1fae5', stroke: '#34d399', strokeWidth: 2 }}
+              name="Chronic load"
+            />
+          </>
+        ) : null}
         <Line
           yAxisId="acwr"
           type="monotone"
@@ -790,6 +815,13 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
               </button>
             ))}
           </div>
+          <button
+            type="button"
+            onClick={() => setShowLoadLines((current) => !current)}
+            className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${showLoadLines ? 'border-amber-300 bg-amber-300 text-slate-950' : 'border-slate-800 bg-slate-950/80 text-slate-400 hover:text-slate-100'}`}
+          >
+            Acute / chronic
+          </button>
         </div>
         <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
           <span className="hidden items-center gap-1.5 sm:inline-flex"><span className="h-px w-5 bg-sky-300" /> low 0.8</span>
@@ -851,6 +883,13 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
                       </button>
                     ))}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowLoadLines((current) => !current)}
+                    className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${showLoadLines ? 'border-amber-300 bg-amber-300 text-slate-950' : 'border-slate-700 bg-slate-950 text-slate-300'}`}
+                  >
+                    A/C
+                  </button>
                   <button
                     type="button"
                     onClick={closeFullscreen}
@@ -1330,6 +1369,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
   const sortedEntries = useMemo(() => [...entries].sort((a, b) => a.date.localeCompare(b.date)), [entries]);
   const latest = useMemo(() => getLatestACWR(sortedEntries, 'ewma'), [sortedEntries]);
+  const latestRolling = useMemo(() => getLatestACWR(sortedEntries, 'rolling'), [sortedEntries]);
   const baselineDays = useMemo(() => baselineAgeDays(sortedEntries), [sortedEntries]);
   const isBaselineReady = (latest?.chronicFull ?? false) && baselineDays >= 30;
   const zone = loadZone(latest?.acwr ?? null, isBaselineReady);
@@ -1865,6 +1905,16 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           </section>
         ) : null}
 
+        {activeView === 'load' ? (
+          <LoadDetailsPanel
+            entries={sortedEntries}
+            pendingSessions={pendingSessions}
+            latestEwma={latest}
+            latestRolling={latestRolling}
+            baselineDays={baselineDays}
+          />
+        ) : null}
+
         {activeView === 'calendar' ? (
           <AthleteCalendar items={calendarItems} onEmptySlot={openComposer} onItemSelect={openCalendarItem} onPlanTimeChange={updatePlanTimeFromCalendar} />
         ) : (
@@ -2121,6 +2171,107 @@ function AthleteQuickNav({ activeView }: { activeView: AthleteView }) {
         ))}
       </nav>
     </>
+  );
+}
+
+function LoadDetailsPanel({
+  entries,
+  pendingSessions,
+  latestEwma,
+  latestRolling,
+  baselineDays,
+}: {
+  entries: AthleteLoadEntry[];
+  pendingSessions: AthletePendingSession[];
+  latestEwma: ReturnType<typeof getLatestACWR>;
+  latestRolling: ReturnType<typeof getLatestACWR>;
+  baselineDays: number;
+}) {
+  const today = todayISO();
+  const last14Start = new Date(`${today}T00:00:00`);
+  last14Start.setDate(last14Start.getDate() - 13);
+  const last14ISO = `${last14Start.getFullYear()}-${String(last14Start.getMonth() + 1).padStart(2, '0')}-${String(last14Start.getDate()).padStart(2, '0')}`;
+  const last14Entries = entries.filter((entry) => entry.date >= last14ISO);
+  const last14Load = last14Entries.reduce((sum, entry) => sum + entry.load, 0);
+  const plannedNext = pendingSessions.filter((session) => session.date >= today).length;
+  const missingInput = pendingSessions.filter((session) => session.date < today).length;
+  const trainingMix = LOAD_TRAINING_TYPES
+    .map((type) => ({ type, label: LOAD_TYPE_LABELS[type], load: last14Entries.filter((entry) => entry.trainingType === type).reduce((sum, entry) => sum + entry.load, 0) }))
+    .filter((item) => item.load > 0)
+    .sort((a, b) => b.load - a.load);
+
+  const cards = [
+    { label: 'Acute load', value: latestEwma?.acuteLoad ? `${latestEwma.acuteLoad} AU` : '—', tone: 'text-amber-100' },
+    { label: 'Chronic load', value: latestEwma?.chronicLoad ? `${latestEwma.chronicLoad} AU` : '—', tone: 'text-emerald-100' },
+    { label: 'EWMA ACWR', value: latestEwma?.acwr ? latestEwma.acwr.toFixed(2) : '—', tone: 'text-sky-100' },
+    { label: 'Rolling ACWR', value: latestRolling?.acwr ? latestRolling.acwr.toFixed(2) : '—', tone: 'text-violet-100' },
+  ];
+
+  return (
+    <section className="grid gap-5 xl:grid-cols-[1fr_0.8fr]">
+      <div className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-amber-300">Load details</p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight">Acute, chronic and trend context</h2>
+          </div>
+          <span className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs font-black text-slate-300">{baselineDays} baseline days</span>
+        </div>
+        <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {cards.map((card) => (
+            <div key={card.label} className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{card.label}</p>
+              <p className={`mt-3 text-2xl font-black ${card.tone}`}>{card.value}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Last 14 days</p>
+            <p className="mt-3 text-2xl font-black text-white">{last14Load} AU</p>
+          </div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Planned</p>
+            <p className="mt-3 text-2xl font-black text-white">{plannedNext}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Needs input</p>
+            <p className="mt-3 text-2xl font-black text-white">{missingInput}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">
+        <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-300">Insights</p>
+        <h2 className="mt-1 text-2xl font-black tracking-tight">What matters next</h2>
+        <div className="mt-5 space-y-3">
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
+            <p className="text-sm font-black text-white">Training mix</p>
+            {trainingMix.length > 0 ? (
+              <div className="mt-3 space-y-2">
+                {trainingMix.slice(0, 4).map((item) => (
+                  <div key={item.type}>
+                    <div className="flex justify-between text-xs font-black text-slate-300">
+                      <span>{item.label}</span>
+                      <span>{item.load} AU</span>
+                    </div>
+                    <div className="mt-1 h-2 rounded-full bg-slate-900">
+                      <div className="h-2 rounded-full" style={{ width: `${Math.max(6, Math.round((item.load / Math.max(last14Load, 1)) * 100))}%`, backgroundColor: LOAD_TYPE_COLORS[item.type] }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="mt-2 text-sm font-bold text-slate-500">No recent load yet.</p>}
+          </div>
+          <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/45 p-4 text-sm font-bold text-slate-400">
+            Attendance insight placeholder: once attendance records are connected, this will show attendance rate, missed sessions and repeated absence patterns.
+          </div>
+          <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/45 p-4 text-sm font-bold text-slate-400">
+            Readiness placeholder: availability, soreness, sleep or wellness check-ins can attach here without changing the load graph.
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

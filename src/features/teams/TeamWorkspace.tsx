@@ -30,7 +30,17 @@ function profileLabel(profile: Profile | undefined, fallback: string) {
   return profile?.full_name || profile?.email || fallback;
 }
 
-export function TeamWorkspace({ teamId, backHref = '/admin/teams', backLabel = 'Back to teams' }: { teamId: string; backHref?: string; backLabel?: string }) {
+export function TeamWorkspace({
+  teamId,
+  backHref = '/admin/teams',
+  backLabel = 'Back to teams',
+  initialSection = 'dashboard',
+}: {
+  teamId: string;
+  backHref?: string;
+  backLabel?: string;
+  initialSection?: Parameters<typeof TeamWorkspaceView>[0]['initialSection'];
+}) {
   const router = useRouter();
   const [team, setTeam] = useState<Team | null>(null);
   const [department, setDepartment] = useState<Department | null>(null);
@@ -367,6 +377,7 @@ export function TeamWorkspace({ teamId, backHref = '/admin/teams', backLabel = '
     <AdminShell>
       <TeamWorkspaceView
         data={data}
+        initialSection={initialSection}
         onDefaultFacilityChange={handleDefaultFacilityChange}
         onSessionTimeChange={handleSessionTimeChange}
         onSessionCreate={handleSessionCreate}

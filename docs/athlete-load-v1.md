@@ -162,3 +162,10 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 - Athlete Today, Calendar, and Load are always reachable through a pinned navigation surface.
 - Mobile uses a bottom tab bar with safe-area spacing; desktop uses a compact sticky top switcher below the athlete header.
 - Trainer link remains a separate action, not a primary tab.
+
+## Athlete load details
+
+- Load graph can overlay acute and chronic load lines on top of daily load bars.
+- The Load tab now includes detail cards for acute load, chronic load, EWMA ACWR, Rolling ACWR, recent load, planned sessions and missing input.
+- Training mix is shown from the last 14 days.
+- Attendance and readiness are present as explicit placeholders until those data models are connected.

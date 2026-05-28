@@ -114,7 +114,17 @@ function saveDemoExtraCoachRoles(roles: DemoExtraCoachRole[]) {
   window.localStorage.setItem(DEMO_EXTRA_COACH_ROLES_KEY, JSON.stringify(roles));
 }
 
-export function DemoTeamWorkspace({ teamId, backHref = '/demo/admin/teams', backLabel = 'Back to teams' }: { teamId: string; backHref?: string; backLabel?: string }) {
+export function DemoTeamWorkspace({
+  teamId,
+  backHref = '/demo/admin/teams',
+  backLabel = 'Back to teams',
+  initialSection = 'dashboard',
+}: {
+  teamId: string;
+  backHref?: string;
+  backLabel?: string;
+  initialSection?: Parameters<typeof TeamWorkspaceView>[0]['initialSection'];
+}) {
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [teams, setTeams] = useState<DemoTeam[]>([]);
   const [sessions, setSessions] = useState<DemoSession[]>([]);
@@ -333,6 +343,7 @@ export function DemoTeamWorkspace({ teamId, backHref = '/demo/admin/teams', back
     <AdminShell mode="demo">
       <TeamWorkspaceView
         data={data}
+        initialSection={initialSection}
         onDefaultFacilityChange={handleDefaultFacilityChange}
         onSessionTimeChange={handleSessionTimeChange}
         onSessionCreate={handleSessionCreate}

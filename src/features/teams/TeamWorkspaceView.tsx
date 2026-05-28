@@ -593,6 +593,7 @@ function TeamSmartCalendar({
 
 export function TeamWorkspaceView({
   data,
+  initialSection = 'dashboard',
   onDefaultFacilityChange,
   onSessionTimeChange,
   onSessionCreate,
@@ -605,6 +606,7 @@ export function TeamWorkspaceView({
   onRemoveCoachRole,
 }: {
   data: TeamWorkspaceData;
+  initialSection?: TeamWorkspaceSection;
   onDefaultFacilityChange?: (facilityId: string) => void | Promise<void>;
   onSessionTimeChange?: (sessionId: string, startsAt: string, endsAt: string) => void | Promise<void>;
   onSessionCreate?: (startsAt: string, endsAt: string) => void | Promise<void>;
@@ -616,7 +618,7 @@ export function TeamWorkspaceView({
   onAddCoachRole?: (label: string) => void | Promise<void>;
   onRemoveCoachRole?: (coachRoleSlotId: string) => void | Promise<void>;
 }) {
-  const [activeSection, setActiveSection] = useState<TeamWorkspaceSection>('dashboard');
+  const [activeSection, setActiveSection] = useState<TeamWorkspaceSection>(initialSection);
   const [isSavingDefault, setIsSavingDefault] = useState(false);
   const selectedFacilityTone = facilityTone(data.defaultFacilityName);
   const players = data.players ?? [];
@@ -644,6 +646,10 @@ export function TeamWorkspaceView({
 
   const primarySections: TeamWorkspaceSection[] = ['dashboard', 'calendar', 'players', 'groups', 'settings'];
   const desktopSections: TeamWorkspaceSection[] = primarySections;
+
+  useEffect(() => {
+    setActiveSection(initialSection);
+  }, [initialSection]);
 
   async function handleDefaultFacilityChange(facilityId: string) {
     if (!onDefaultFacilityChange) return;
