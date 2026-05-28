@@ -30,8 +30,10 @@ import {
 import { aggregateDailyLoads, baselineAgeDays, calculateACWR, calculateEWMA, fillMissingDays, formatLoadDate, getLatestACWR, loadZone, projectFutureACWR, sevenDayLoad, todayISO } from './loadCalculations';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
 
+type AthleteView = 'home' | 'load' | 'calendar';
+
 type AthleteLoadWorkspaceProps = {
-  initialView?: 'home' | 'load' | 'calendar';
+  initialView?: AthleteView;
 };
 
 type PlanFormState = {
@@ -1814,19 +1816,18 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     : sessionMode === 'plan'
       ? 'Plan load'
       : 'Add load';
+  const activeView = initialView ?? 'home';
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#050712] text-white">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(56,189,248,0.16),transparent_28rem),radial-gradient(circle_at_92%_8%,rgba(52,211,153,0.12),transparent_30rem)]" />
-      <div className="relative mx-auto flex min-h-screen w-full min-w-0 max-w-6xl flex-col gap-5 px-4 py-4 sm:px-6 lg:py-7">
+      <div className="relative mx-auto flex min-h-screen w-full min-w-0 max-w-6xl flex-col gap-5 px-4 pb-28 pt-4 sm:px-6 sm:py-5 lg:py-7">
         <header className="overflow-hidden rounded-[1.75rem] border border-slate-800/80 bg-slate-950/70 sm:rounded-[2rem] p-5 shadow-[0_26px_100px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.03] sm:p-7">
           <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300">Athlete OS</p>
               <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-6xl">Load cockpit</h1>
               <div className="mt-5 flex flex-wrap gap-2">
-                <Link href="/athlete/home" className={`rounded-full border px-4 py-2 text-xs font-black ${initialView === 'home' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/60 text-slate-200'}`}>Today</Link>
-                <Link href="/athlete/calendar" className={`rounded-full border px-4 py-2 text-xs font-black ${initialView === 'calendar' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/60 text-slate-200'}`}>Calendar</Link>
                 <button type="button" onClick={copyTrainerShareLink} className={`rounded-full border px-4 py-2 text-xs font-black ${shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
                   {shareStatus === 'copied' ? 'Link active' : shareStatus === 'error' ? 'Error' : shareActive ? 'Trainer link active' : 'Trainer link'}
                 </button>
@@ -1839,16 +1840,17 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             </div>
           </div>
         </header>
+        <AthleteQuickNav activeView={activeView} />
 
         {error ? <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 px-4 py-3 text-sm font-bold text-rose-100">{error}</div> : null}
 
-        {initialView !== 'calendar' && !isBaselineReady ? (
+        {activeView !== 'calendar' && !isBaselineReady ? (
           <section className="rounded-[1.75rem] border border-amber-300/25 sm:rounded-[2rem] bg-amber-300/[0.08] p-4 text-sm font-bold text-amber-100">
             Load baseline is still building. ACWR is calculated already, but it becomes meaningfully interpretable after about 30 days of calendar history.
           </section>
         ) : null}
 
-        {initialView !== 'calendar' ? (
+        {activeView !== 'calendar' ? (
           <section className="grid min-w-0 items-stretch gap-5">
             <div className="h-full min-w-0 overflow-hidden rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
@@ -1863,7 +1865,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           </section>
         ) : null}
 
-        {initialView === 'calendar' ? (
+        {activeView === 'calendar' ? (
           <AthleteCalendar items={calendarItems} onEmptySlot={openComposer} onItemSelect={openCalendarItem} onPlanTimeChange={updatePlanTimeFromCalendar} />
         ) : (
           <section className="grid min-w-0 items-stretch gap-5 lg:grid-cols-[0.9fr_1.1fr]">
@@ -2078,6 +2080,47 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         onCancel={() => setDeleteTarget(null)}
       />
     </main>
+  );
+}
+
+const athleteNavItems: Array<{ view: AthleteView; label: string; href: string; icon: string }> = [
+  { view: 'home', label: 'Today', href: '/athlete/home', icon: '●' },
+  { view: 'calendar', label: 'Calendar', href: '/athlete/calendar', icon: '▦' },
+  { view: 'load', label: 'Load', href: '/athlete/load', icon: '⌁' },
+];
+
+function AthleteQuickNav({ activeView }: { activeView: AthleteView }) {
+  const linkClass = (isActive: boolean, compact = false) =>
+    `inline-flex items-center justify-center gap-2 rounded-full border font-black transition ${
+      compact ? 'min-w-0 flex-1 px-2.5 py-2 text-[11px]' : 'px-4 py-2 text-xs'
+    } ${
+      isActive
+        ? 'border-emerald-300 bg-emerald-300 text-slate-950 shadow-[0_10px_35px_rgba(110,231,183,0.18)]'
+        : 'border-slate-700 bg-slate-950/70 text-slate-200 hover:border-slate-500 hover:text-white'
+    }`;
+
+  return (
+    <>
+      <nav className="sticky top-3 z-30 hidden w-fit max-w-full self-center rounded-full border border-slate-800/90 bg-slate-950/85 p-1.5 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur sm:flex">
+        {athleteNavItems.map((item) => (
+          <Link key={item.view} href={item.href} className={linkClass(activeView === item.view)}>
+            <span aria-hidden="true">{item.icon}</span>
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+      <nav
+        className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-3 gap-1 rounded-full border border-slate-800/90 bg-slate-950/90 p-1.5 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur sm:hidden"
+        style={{ paddingBottom: 'calc(0.375rem + env(safe-area-inset-bottom))' }}
+      >
+        {athleteNavItems.map((item) => (
+          <Link key={item.view} href={item.href} className={linkClass(activeView === item.view, true)}>
+            <span className="text-xs" aria-hidden="true">{item.icon}</span>
+            <span className="truncate">{item.label}</span>
+          </Link>
+        ))}
+      </nav>
+    </>
   );
 }
 

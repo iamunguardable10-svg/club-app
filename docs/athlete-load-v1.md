@@ -156,3 +156,9 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 - Fullscreen landscape now scales into the available viewport instead of requiring inner scrolling.
 - Fullscreen range controls expose `14d`, `30d`, and `60d`; `7d` remains useful in the normal compact mobile graph, but fullscreen is for reading trends.
 - Leaving fullscreen on mobile resets a `60d` fullscreen selection back to `30d` so the normal portrait graph stays readable without horizontal scrolling.
+
+## Athlete quick navigation
+
+- Athlete Today, Calendar, and Load are always reachable through a pinned navigation surface.
+- Mobile uses a bottom tab bar with safe-area spacing; desktop uses a compact sticky top switcher below the athlete header.
+- Trainer link remains a separate action, not a primary tab.
