@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { type MouseEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   Bar,
@@ -33,20 +33,25 @@ type AthleteLoadWorkspaceProps = {
   initialView?: 'home' | 'load' | 'calendar';
 };
 
-type LoadFormState = {
-  trainingType: LoadTrainingType;
-  rpe: number;
-  durationMinutes: number;
-  date: string;
-  note: string;
-};
-
 type PlanFormState = {
   trainingType: LoadTrainingType;
   date: string;
   time: string;
   expectedRpe: number;
   expectedDurationMinutes: number;
+};
+
+type AthleteCalendarItem = {
+  id: string;
+  title: string;
+  date: string;
+  startsAt: string;
+  endsAt: string | null;
+  trainingType: LoadTrainingType;
+  teamName: string | null;
+  status: 'planned' | 'reported' | 'missing' | 'cancelled';
+  source: 'team_session' | 'athlete_plan' | 'load_entry';
+  session?: AthletePendingSession;
 };
 
 type RawLoadEntry = {
@@ -96,14 +101,6 @@ const DEMO_LOAD_KEY = 'club-app.demo.athlete-load-entries';
 const DEMO_ACK_KEY = 'club-app.demo.athlete-pending-ack';
 const DEMO_PLANS_KEY = 'club-app.demo.athlete-load-plans';
 const LOAD_SHARE_ACTIVE_KEY = 'club-app.athlete-load.active-share-link';
-
-const emptyForm: LoadFormState = {
-  trainingType: 'team_training',
-  rpe: 6,
-  durationMinutes: 90,
-  date: todayISO(),
-  note: '',
-};
 
 const emptyPlanForm: PlanFormState = {
   trainingType: 'team_training',
@@ -381,6 +378,26 @@ function formatTime(value: string) {
   return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 }
 
+function timeInputFromISO(value: string) {
+  const date = new Date(value);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function weekStart(date = new Date()) {
+  const start = new Date(date);
+  const day = start.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  start.setDate(start.getDate() + diff);
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
+function durationMinutesFromSession(session: AthletePendingSession) {
+  if (session.expectedDurationMinutes) return session.expectedDurationMinutes;
+  if (!session.endsAt) return DEFAULT_DURATION_BY_TYPE[session.trainingType] ?? 90;
+  return Math.max(15, Math.round((new Date(session.endsAt).getTime() - new Date(session.startsAt).getTime()) / 60_000));
+}
+
 function statusForPending(session: AthletePendingSession) {
   const today = todayISO();
   if (session.date < today) return 'Overdue';
@@ -499,11 +516,14 @@ function projectionSegments(point?: ACWRDataPoint) {
   if (!point) return {};
   const entries = LOAD_TRAINING_TYPES.map((type) => {
     const planned = point.plannedLoads?.[type] ?? 0;
-    if (planned > 0) return [`${type}_p`, planned];
-    if (type === 'team_training' && point.totalLoad > 0) return [`${type}_p`, point.totalLoad];
-    return [`${type}_p`, 0];
+    return [`${type}_p`, planned > 0 ? planned : 0];
   });
   return Object.fromEntries(entries);
+}
+
+function plannedProjectionLoad(point?: ACWRDataPoint) {
+  if (!point?.plannedLoads) return 0;
+  return LOAD_TRAINING_TYPES.reduce((sum, type) => sum + (point.plannedLoads?.[type] ?? 0), 0);
 }
 
 export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; pendingSessions: AthletePendingSession[] }) {
@@ -548,7 +568,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
       date: day.date,
       label: new Date(`${day.date}T00:00:00`).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' }),
       totalLoad: day.totalLoad,
-      forecastLoad: projection?.totalLoad ?? 0,
+      forecastLoad: plannedProjectionLoad(projection),
       acuteLoad: point?.acuteLoad ?? 0,
       chronicLoad: point?.chronicLoad ?? 0,
       acwr: point?.acwr ?? null,
@@ -567,7 +587,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
     date: point.date,
     label: new Date(`${point.date}T00:00:00`).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' }),
     totalLoad: 0,
-    forecastLoad: point.totalLoad,
+    forecastLoad: plannedProjectionLoad(point),
     acuteLoad: point.acuteLoad,
     chronicLoad: point.chronicLoad,
     acwr: null,
@@ -757,11 +777,161 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
   );
 }
 
+function AthleteCalendar({
+  items,
+  onEmptySlot,
+  onItemSelect,
+}: {
+  items: AthleteCalendarItem[];
+  onEmptySlot: (date: string, time: string) => void;
+  onItemSelect: (item: AthleteCalendarItem) => void;
+}) {
+  const firstHour = 8;
+  const lastHour = 23;
+  const desktopHourHeight = 48;
+  const mobileHourHeight = 36;
+  const hours = Array.from({ length: lastHour - firstHour + 1 }, (_, index) => firstHour + index);
+  const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart(), index));
+  const gridMinutes = (lastHour - firstHour + 1) * 60;
+  const gridHeightDesktop = hours.length * desktopHourHeight;
+  const gridHeightMobile = hours.length * mobileHourHeight;
+
+  function pickSlot(day: Date, event: MouseEvent<HTMLDivElement>, hourHeight: number) {
+    if ((event.target as HTMLElement).closest('[data-athlete-calendar-item="true"]')) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const y = Math.max(0, Math.min(rect.height, event.clientY - rect.top));
+    const rawMinutes = Math.round((y / hourHeight) * 60);
+    const roundedMinutes = Math.max(0, Math.min(gridMinutes - 15, Math.round(rawMinutes / 15) * 15));
+    const hour = firstHour + Math.floor(roundedMinutes / 60);
+    const minute = roundedMinutes % 60;
+    onEmptySlot(isoDate(day), `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
+  }
+
+  function itemStyle(item: AthleteCalendarItem, hourHeight: number, gridHeight: number) {
+    const start = new Date(item.startsAt);
+    const end = item.endsAt ? new Date(item.endsAt) : new Date(start.getTime() + DEFAULT_DURATION_BY_TYPE[item.trainingType] * 60_000);
+    const topMinutes = Math.max(0, (start.getHours() - firstHour) * 60 + start.getMinutes());
+    const duration = Math.max(30, Math.round((end.getTime() - start.getTime()) / 60_000));
+    const top = Math.min(Math.max(0, topMinutes * (hourHeight / 60)), gridHeight - 26);
+    const height = Math.max(26, Math.min(duration * (hourHeight / 60), gridHeight - top));
+    return { top, height };
+  }
+
+  function itemClass(item: AthleteCalendarItem) {
+    const base = 'absolute left-1 right-1 overflow-hidden rounded-xl border px-2 py-1 text-left shadow-sm transition hover:brightness-110';
+    if (item.status === 'reported') return `${base} bg-slate-950/95 text-white`;
+    if (item.status === 'missing') return `${base} border-amber-300/70 bg-amber-300/12 text-amber-50`;
+    if (item.status === 'cancelled') return `${base} border-slate-700 bg-slate-950/35 text-slate-500 opacity-60`;
+    return `${base} border-dashed bg-slate-950/55 text-white`;
+  }
+
+  function itemBorderStyle(item: AthleteCalendarItem) {
+    const color = LOAD_TYPE_COLORS[item.trainingType];
+    return {
+      borderColor: item.status === 'missing' ? 'rgba(252,211,77,0.75)' : color,
+      boxShadow: item.status === 'reported' ? `inset 3px 0 0 ${color}` : undefined,
+    };
+  }
+
+  return (
+    <section className="min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-3 sm:rounded-[2rem] sm:p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Calendar</p>
+          <h2 className="mt-1 text-2xl font-black tracking-tight">Training week</h2>
+        </div>
+        <span className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-black text-slate-300">Tap to add</span>
+      </div>
+
+      <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden">
+        <div className="grid grid-cols-[36px_repeat(7,minmax(0,1fr))] border-b border-slate-800 text-[9px] font-black uppercase tracking-[0.08em] text-slate-500">
+          <div className="bg-slate-950/95 p-1.5">Time</div>
+          {days.map((day) => (
+            <div key={day.toISOString()} className="border-l border-slate-800 p-1.5 text-center">
+              <span className="block">{day.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2)}</span>
+              <span className="block">{day.toLocaleDateString(undefined, { day: '2-digit' })}</span>
+            </div>
+          ))}
+        </div>
+        <div className="max-h-[68vh] overflow-y-auto overscroll-contain">
+          <div className="grid grid-cols-[36px_repeat(7,minmax(0,1fr))]">
+            <div className="bg-slate-950/95">
+              {hours.map((hour) => <div key={hour} className="border-b border-slate-900 px-1 py-1 text-[9px] font-bold text-slate-500" style={{ height: mobileHourHeight }}>{String(hour).padStart(2, '0')}</div>)}
+            </div>
+            {days.map((day) => {
+              const dayItems = items.filter((item) => item.date === isoDate(day));
+              return (
+                <div key={day.toISOString()} onClick={(event) => pickSlot(day, event, mobileHourHeight)} className="relative border-l border-slate-900" style={{ height: gridHeightMobile }}>
+                  {hours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: mobileHourHeight }} />)}
+                  {dayItems.map((item) => {
+                    const style = itemStyle(item, mobileHourHeight, gridHeightMobile);
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        data-athlete-calendar-item="true"
+                        onClick={(event) => { event.stopPropagation(); onItemSelect(item); }}
+                        className={`${itemClass(item)} px-1 text-[9px] leading-tight`}
+                        style={{ ...style, ...itemBorderStyle(item) }}
+                      >
+                        <span className="block truncate font-black">{LOAD_TYPE_LABELS[item.trainingType]}</span>
+                        {style.height > 34 ? <span className="block truncate opacity-75">{item.teamName ?? item.status}</span> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="hidden overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:block">
+        <div className="grid grid-cols-[72px_repeat(7,minmax(120px,1fr))] border-b border-slate-800 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+          <div className="bg-slate-950/95 p-3">Time</div>
+          {days.map((day) => <div key={day.toISOString()} className="border-l border-slate-800 p-3">{day.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</div>)}
+        </div>
+        <div className="grid grid-cols-[72px_repeat(7,minmax(120px,1fr))]">
+          <div className="bg-slate-950/95">
+            {hours.map((hour) => <div key={hour} className="border-b border-slate-900 p-3 text-xs font-bold text-slate-500" style={{ height: desktopHourHeight }}>{String(hour).padStart(2, '0')}:00</div>)}
+          </div>
+          {days.map((day) => {
+            const dayItems = items.filter((item) => item.date === isoDate(day));
+            return (
+              <div key={day.toISOString()} onClick={(event) => pickSlot(day, event, desktopHourHeight)} className="relative border-l border-slate-900" style={{ height: gridHeightDesktop }}>
+                {hours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: desktopHourHeight }} />)}
+                {dayItems.map((item) => {
+                  const style = itemStyle(item, desktopHourHeight, gridHeightDesktop);
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      data-athlete-calendar-item="true"
+                      onClick={(event) => { event.stopPropagation(); onItemSelect(item); }}
+                      className={itemClass(item)}
+                      style={{ ...style, ...itemBorderStyle(item) }}
+                    >
+                      <span className="block truncate text-sm font-black">{item.title}</span>
+                      <span className="mt-0.5 block truncate text-[11px] font-bold opacity-75">
+                        {formatTime(item.startsAt)}{item.endsAt ? ` - ${formatTime(item.endsAt)}` : ''} · {item.teamName ?? LOAD_TYPE_LABELS[item.trainingType]}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorkspaceProps) {
   const [entries, setEntries] = useState<AthleteLoadEntry[]>([]);
   const [plans, setPlans] = useState<AthleteLoadPlan[]>([]);
   const [pendingSessions, setPendingSessions] = useState<AthletePendingSession[]>([]);
-  const [form, setForm] = useState<LoadFormState>(emptyForm);
+  const [calendarSessions, setCalendarSessions] = useState<AthletePendingSession[]>([]);
   const [planForm, setPlanForm] = useState<PlanFormState>(emptyPlanForm);
   const [source, setSource] = useState<'loading' | 'demo' | 'supabase'>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -770,7 +940,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [athleteName, setAthleteName] = useState('Athlete');
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const [activeShareUrl, setActiveShareUrl] = useState<string | null>(null);
-  const [mobileComposerOpen, setMobileComposerOpen] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [activeComposerSession, setActiveComposerSession] = useState<AthletePendingSession | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -815,13 +986,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         const mappedEntries = ((loadResult.data ?? []) as unknown as RawLoadEntry[]).map(mapRawEntry);
         const reportedSessionIds = new Set(mappedEntries.map((entry) => entry.sessionId).filter(Boolean));
         const mappedPlans = ((planResult.data ?? []) as unknown as RawLoadPlan[]).map(mapRawPlan);
-        const mappedPending = ((sessionResult.data ?? []) as unknown as RawSession[])
-          .map(mapRawSession)
-          .filter((session) => !reportedSessionIds.has(session.id));
+        const mappedSessions = ((sessionResult.data ?? []) as unknown as RawSession[]).map(mapRawSession);
+        const mappedPending = mappedSessions.filter((session) => !reportedSessionIds.has(session.id));
 
         if (!mounted) return;
         setEntries(mappedEntries);
         setPlans(mappedPlans);
+        setCalendarSessions([...mappedSessions, ...mappedPlans.map(planToPendingSession)]);
         setPendingSessions([...mappedPending, ...mappedPlans.map(planToPendingSession)]);
         setSource('supabase');
       } catch {
@@ -832,6 +1003,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         setAthleteName('Demo Athlete');
         setEntries(demoEntries);
         setPlans(demoPlans);
+        setCalendarSessions([...demoPendingSessions(), ...demoPlans.map(planToPendingSession)]);
         setPendingSessions([...demoPendingSessions().filter((session) => !acknowledged.has(session.id)), ...demoPlans.map(planToPendingSession)]);
         setSource('demo');
       }
@@ -856,6 +1028,41 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const weeklyLoad = useMemo(() => sevenDayLoad(sortedEntries), [sortedEntries]);
   const todayPending = pendingSessions.filter((session) => session.date <= todayISO()).slice(0, 3);
   const nextSession = pendingSessions.find((session) => session.date >= todayISO()) ?? pendingSessions[0] ?? null;
+  const calendarItems = useMemo(() => {
+    const reportedSessionIds = new Set(sortedEntries.map((entry) => entry.sessionId).filter(Boolean));
+    const sessionIds = new Set(calendarSessions.map((session) => session.id));
+    const now = Date.now();
+    const fromSessions: AthleteCalendarItem[] = calendarSessions.map((session) => {
+      const end = session.endsAt ? new Date(session.endsAt).getTime() : new Date(session.startsAt).getTime() + durationMinutesFromSession(session) * 60_000;
+      const reported = reportedSessionIds.has(session.id);
+      return {
+        id: `${session.source ?? 'team_session'}-${session.id}`,
+        title: session.title,
+        date: session.date,
+        startsAt: session.startsAt,
+        endsAt: session.endsAt,
+        trainingType: session.trainingType,
+        teamName: session.teamName,
+        status: reported ? 'reported' : end < now ? 'missing' : 'planned',
+        source: session.source ?? 'team_session',
+        session,
+      };
+    });
+    const fromEntries: AthleteCalendarItem[] = sortedEntries
+      .filter((entry) => entry.startsAt && (!entry.sessionId || !sessionIds.has(entry.sessionId)))
+      .map((entry) => ({
+        id: `entry-${entry.id}`,
+        title: entry.title,
+        date: entry.date,
+        startsAt: entry.startsAt!,
+        endsAt: new Date(new Date(entry.startsAt!).getTime() + entry.durationMinutes * 60_000).toISOString(),
+        trainingType: entry.trainingType,
+        teamName: entry.teamName ?? null,
+        status: 'reported',
+        source: 'load_entry',
+      }));
+    return [...fromSessions, ...fromEntries].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  }, [calendarSessions, sortedEntries]);
   const averageDurationByType = useMemo(() => {
     const map = new Map<LoadTrainingType, number>();
     for (const type of LOAD_TRAINING_TYPES) {
@@ -930,26 +1137,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     }
   }
 
-  async function submitManual() {
-    const entry: AthleteLoadEntry = {
-      id: `manual-${Date.now()}`,
-      sessionId: null,
-      teamId: null,
-      teamName: null,
-      date: form.date,
-      startsAt: null,
-      title: LOAD_TYPE_LABELS[form.trainingType],
-      trainingType: form.trainingType,
-      rpe: form.rpe,
-      durationMinutes: form.durationMinutes,
-      load: form.rpe * form.durationMinutes,
-      note: form.note.trim() || null,
-      source: 'solo',
-    };
-    await persistEntry(entry);
-    setForm((current) => ({ ...emptyForm, trainingType: current.trainingType, date: todayISO() }));
-  }
-
   async function submitPending(session: AthletePendingSession, rpe: number, durationMinutes: number) {
     const isAthletePlan = session.source === 'athlete_plan';
     const entry: AthleteLoadEntry = {
@@ -970,6 +1157,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     await persistEntry(entry);
     if (isAthletePlan) {
       await deletePlan(session.id);
+      setCalendarSessions((current) => current.filter((item) => item.id !== session.id));
     }
     setPendingSessions((current) => current.filter((item) => item.id !== session.id));
     if (source === 'demo') {
@@ -1028,6 +1216,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       if (source === 'demo') saveDemoPlans(next);
       return next;
     });
+    setCalendarSessions((current) => [...current, planToPendingSession(plan)].sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
     setPendingSessions((current) => [...current, planToPendingSession(plan)].sort((a, b) => a.date.localeCompare(b.date)));
     setPlanForm((current) => ({ ...emptyPlanForm, trainingType: current.trainingType, date: current.date }));
   }
@@ -1038,6 +1227,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       if (source === 'demo') saveDemoPlans(next);
       return next;
     });
+    setCalendarSessions((current) => current.filter((session) => session.id !== planId));
     setPendingSessions((current) => current.filter((session) => session.id !== planId));
     if (source === 'supabase') {
       const supabase = createBrowserSupabaseClient();
@@ -1047,9 +1237,25 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   }
 
   async function submitUnifiedSession() {
+    if (activeComposerSession) {
+      if (activeComposerSession.source === 'team_session' && activeComposerSession.date > todayISO()) return;
+      if (activeComposerSession.source === 'athlete_plan' && sessionMode === 'plan') {
+        const editingPlanId = activeComposerSession.id;
+        setActiveComposerSession(null);
+        await deletePlan(editingPlanId);
+        await createPlan();
+        setComposerOpen(false);
+        return;
+      }
+      await submitPending(activeComposerSession, planForm.expectedRpe, planForm.expectedDurationMinutes);
+      setActiveComposerSession(null);
+      setComposerOpen(false);
+      return;
+    }
+
     if (sessionMode === 'plan') {
       await createPlan();
-      setMobileComposerOpen(false);
+      setComposerOpen(false);
       return;
     }
 
@@ -1070,7 +1276,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       source: 'solo',
     };
     await persistEntry(entry);
-    setMobileComposerOpen(false);
+    setComposerOpen(false);
     setPlanForm((current) => ({
       ...emptyPlanForm,
       trainingType: current.trainingType,
@@ -1079,12 +1285,49 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     }));
   }
 
-  function openMobileComposer(date: string) {
-    setPlanForm((current) => ({ ...current, date }));
-    setMobileComposerOpen(true);
+  function openComposer(date: string, time = '18:00') {
+    setActiveComposerSession(null);
+    setPlanForm((current) => ({ ...current, date, time }));
+    setTodayAction(date === todayISO() ? 'plan' : todayAction);
+    setComposerOpen(true);
+  }
+
+  function openCalendarItem(item: AthleteCalendarItem) {
+    if (item.status === 'reported') return;
+    if (item.session) {
+      const duration = durationMinutesFromSession(item.session);
+      setActiveComposerSession(item.session);
+      setPlanForm({
+        trainingType: item.trainingType,
+        date: item.date,
+        time: timeInputFromISO(item.startsAt),
+        expectedRpe: item.session.expectedRpe ?? 6,
+        expectedDurationMinutes: duration,
+      });
+      setTodayAction('report');
+      setComposerOpen(true);
+      return;
+    }
+    setActiveComposerSession(null);
+    setPlanForm({
+      trainingType: item.trainingType,
+      date: item.date,
+      time: timeInputFromISO(item.startsAt),
+      expectedRpe: 6,
+      expectedDurationMinutes: item.endsAt ? Math.max(15, Math.round((new Date(item.endsAt).getTime() - new Date(item.startsAt).getTime()) / 60_000)) : DEFAULT_DURATION_BY_TYPE[item.trainingType],
+    });
+    setComposerOpen(true);
   }
 
   const shareActive = Boolean(activeShareUrl);
+  const activeTeamSessionIsFuture = Boolean(activeComposerSession?.source === 'team_session' && activeComposerSession.date > todayISO());
+  const composerTitle = activeComposerSession?.source === 'team_session'
+    ? activeTeamSessionIsFuture
+      ? 'Session details'
+      : 'Report session'
+    : sessionMode === 'plan'
+      ? 'Plan load'
+      : 'Add load';
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#050712] text-white">
@@ -1097,8 +1340,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-6xl">Load cockpit</h1>
               <div className="mt-5 flex flex-wrap gap-2">
                 <Link href="/athlete/home" className={`rounded-full border px-4 py-2 text-xs font-black ${initialView === 'home' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/60 text-slate-200'}`}>Today</Link>
-                <Link href="/athlete/load" className={`rounded-full border px-4 py-2 text-xs font-black ${initialView === 'load' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/60 text-slate-200'}`}>Load</Link>
                 <Link href="/athlete/calendar" className={`rounded-full border px-4 py-2 text-xs font-black ${initialView === 'calendar' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/60 text-slate-200'}`}>Calendar</Link>
+                <button type="button" onClick={() => openComposer(todayISO())} className="rounded-full border border-violet-300/45 bg-violet-300/10 px-4 py-2 text-xs font-black text-violet-100">Add load</button>
                 <button type="button" onClick={copyTrainerShareLink} className={`rounded-full border px-4 py-2 text-xs font-black ${shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
                   {shareStatus === 'copied' ? 'Link active' : shareStatus === 'error' ? 'Error' : shareActive ? 'Trainer link active' : 'Trainer link'}
                 </button>
@@ -1120,7 +1363,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           </section>
         ) : null}
 
-        <section className={`grid min-w-0 items-stretch gap-5 ${initialView === 'load' ? 'lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]' : 'lg:grid-cols-1'}`}>
+        <section className="grid min-w-0 items-stretch gap-5">
           <div className="h-full min-w-0 overflow-hidden rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
@@ -1131,169 +1374,84 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             </div>
             <LoadChart entries={sortedEntries} pendingSessions={pendingSessions} />
           </div>
+        </section>
 
-          {initialView === 'load' ? (
-          <aside className="hidden h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:rounded-[2rem] sm:p-5 lg:block">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-amber-300">Session</p>
-                <h2 className="mt-1 text-2xl font-black tracking-tight">Add load</h2>
-              </div>
-              <span className={`rounded-full border px-3 py-1.5 text-xs font-black ${sessionMode === 'plan' ? 'border-violet-300/40 bg-violet-300/10 text-violet-100' : 'border-emerald-300/40 bg-emerald-300/10 text-emerald-100'}`}>
-                {sessionMode === 'plan' ? 'Plan' : 'Report'}
-              </span>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              {LOAD_TRAINING_TYPES.slice(0, 6).map((type) => (
-                <button key={type} type="button" onClick={() => setSessionTrainingType(type)} className={`rounded-2xl border px-3 py-2 text-left text-xs font-black transition ${planForm.trainingType === type ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-800 bg-slate-950/70 text-slate-300 hover:border-slate-600'}`}>
-                  {LOAD_TYPE_LABELS[type]}
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                Date
-                <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value }))} className="mt-2 w-full min-w-0 rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300" />
-              </label>
-              <label className="min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                Time
-                <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 w-full min-w-0 rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
-              </label>
-            </div>
-
-            {planForm.date === todayISO() ? (
-              <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-slate-800/80 bg-slate-950/70 p-1">
-                <button type="button" onClick={() => setTodayAction('plan')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${todayAction === 'plan' ? 'bg-violet-300 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}>Plan later</button>
-                <button type="button" onClick={() => setTodayAction('report')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${todayAction === 'report' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}>Already done</button>
-              </div>
-            ) : null}
-
-            <div className="mt-5 space-y-5">
-              <label className="block">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">RPE</span>
-                  <span className="text-2xl font-black text-white">{planForm.expectedRpe}</span>
-                </div>
-                <input type="range" min="1" max="10" step="1" value={planForm.expectedRpe} onChange={(event) => setPlanForm((current) => ({ ...current, expectedRpe: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
-              </label>
-
-              <label className="block">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Duration</span>
-                  <span className="text-xl font-black text-white">{planForm.expectedDurationMinutes} min</span>
-                </div>
-                <input type="range" min="5" max="240" step="5" value={planForm.expectedDurationMinutes} onChange={(event) => setPlanForm((current) => ({ ...current, expectedDurationMinutes: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
-                <p className="mt-1 text-[11px] font-bold text-slate-500">Default: {averageDurationByType.get(planForm.trainingType) ?? DEFAULT_DURATION_BY_TYPE[planForm.trainingType]} min from your history</p>
-              </label>
-            </div>
-
-            <div className="mt-5 rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
+        {initialView === 'calendar' ? (
+          <AthleteCalendar items={calendarItems} onEmptySlot={openComposer} onItemSelect={openCalendarItem} />
+        ) : (
+          <section className="grid min-w-0 items-stretch gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-sm font-bold text-slate-400">{sessionMode === 'plan' ? 'Expected load' : 'Training load'}</span>
-                <span className="text-3xl font-black text-amber-200">{sessionLoadPreview} AU</span>
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-rose-300">Pending</p>
+                  <h2 className="mt-1 text-2xl font-black tracking-tight">Needs input</h2>
+                </div>
+                <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{todayPending.length}</span>
+              </div>
+              <div className="mt-4 space-y-3">
+                {todayPending.length === 0 ? <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">Clear</div> : null}
+                {todayPending.map((session) => {
+                  const active = activePendingId === session.id;
+                  const defaultDuration = session.expectedDurationMinutes ?? (session.endsAt ? Math.max(30, Math.round((new Date(session.endsAt).getTime() - new Date(session.startsAt).getTime()) / 60000)) : 90);
+                  return (
+                    <article key={session.id} className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-3">
+                      <button type="button" onClick={() => setActivePendingId(active ? null : session.id)} className="flex w-full items-center justify-between gap-3 text-left">
+                        <div>
+                          <p className="text-base font-black text-white">{session.title}</p>
+                          <p className="mt-1 text-xs font-bold text-slate-500">{formatLoadDate(session.date)} · {formatTime(session.startsAt)} · {session.teamName ?? 'Solo'}</p>
+                        </div>
+                        <span className="rounded-full border border-amber-300/40 bg-amber-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-amber-100">{statusForPending(session)}</span>
+                      </button>
+                      {active ? <PendingInlineForm defaultRpe={session.expectedRpe ?? 6} defaultDuration={defaultDuration} onSubmit={(rpe, duration) => submitPending(session, rpe, duration)} /> : null}
+                    </article>
+                  );
+                })}
               </div>
             </div>
 
-            <button type="button" onClick={submitUnifiedSession} className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-black text-slate-950 transition ${sessionMode === 'plan' ? 'bg-violet-300 hover:bg-violet-200' : 'bg-emerald-300 hover:bg-emerald-200'}`}>
-              {sessionMode === 'plan' ? `Plan ${sessionLoadPreview} AU` : `Save ${sessionLoadPreview} AU`}
-            </button>
-          </aside>
-          ) : null}
-        </section>
-
-        <section className="grid min-w-0 items-stretch gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 sm:p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-rose-300">Pending</p>
-                <h2 className="mt-1 text-2xl font-black tracking-tight">Needs input</h2>
+            <div className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 sm:p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Calendar</p>
+                  <h2 className="mt-1 text-2xl font-black tracking-tight">Next up</h2>
+                </div>
+                <Link href="/athlete/calendar" className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:border-emerald-300 hover:text-emerald-100">Open</Link>
               </div>
-              <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{todayPending.length}</span>
-            </div>
-            <div className="mt-4 space-y-3">
-              {todayPending.length === 0 ? <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">Clear</div> : null}
-              {todayPending.map((session) => {
-                const active = activePendingId === session.id;
-                const defaultDuration = session.expectedDurationMinutes ?? (session.endsAt ? Math.max(30, Math.round((new Date(session.endsAt).getTime() - new Date(session.startsAt).getTime()) / 60000)) : 90);
-                return (
-                  <article key={session.id} className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-3">
-                    <button type="button" onClick={() => setActivePendingId(active ? null : session.id)} className="flex w-full items-center justify-between gap-3 text-left">
+              {nextSession ? (
+                <button type="button" onClick={() => openCalendarItem({ id: nextSession.id, title: nextSession.title, date: nextSession.date, startsAt: nextSession.startsAt, endsAt: nextSession.endsAt, trainingType: nextSession.trainingType, teamName: nextSession.teamName, status: nextSession.date < todayISO() ? 'missing' : 'planned', source: nextSession.source ?? 'team_session', session: nextSession })} className="mt-4 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.06] p-5 text-left transition hover:border-emerald-300/55">
+                  <p className="text-3xl font-black tracking-tight">{nextSession.title}</p>
+                  <p className="mt-2 text-sm font-bold text-slate-300">{formatTime(nextSession.startsAt)}{nextSession.endsAt ? ` - ${formatTime(nextSession.endsAt)}` : ''} · {nextSession.teamName ?? 'Solo'}</p>
+                </button>
+              ) : <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions planned</div>}
+              {plans.length > 0 ? (
+                <div className="mt-4 space-y-2">
+                  {plans.slice(0, 4).map((plan) => (
+                    <div key={plan.id} className="flex items-center justify-between gap-3 rounded-2xl border border-violet-300/20 bg-violet-300/[0.06] px-3 py-2">
                       <div>
-                        <p className="text-base font-black text-white">{session.title}</p>
-                        <p className="mt-1 text-xs font-bold text-slate-500">{formatLoadDate(session.date)} · {formatTime(session.startsAt)} · {session.teamName ?? 'Solo'}</p>
+                        <p className="text-sm font-black text-white">{plan.title}</p>
+                        <p className="mt-0.5 text-xs font-bold text-slate-500">{formatLoadDate(plan.date)} · {plan.startsAt ? formatTime(plan.startsAt) : 'No time'} · {plan.expectedRpe * plan.expectedDurationMinutes} AU expected</p>
                       </div>
-                      <span className="rounded-full border border-amber-300/40 bg-amber-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-amber-100">{statusForPending(session)}</span>
-                    </button>
-                    {active ? <PendingInlineForm defaultRpe={session.expectedRpe ?? 6} defaultDuration={defaultDuration} onSubmit={(rpe, duration) => submitPending(session, rpe, duration)} /> : null}
-                  </article>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 sm:p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Calendar</p>
-                <h2 className="mt-1 text-2xl font-black tracking-tight">{initialView === 'calendar' ? 'Mini calendar' : 'Next up'}</h2>
-              </div>
-              {nextSession ? <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{formatLoadDate(nextSession.date)}</span> : null}
-            </div>
-            {nextSession ? (
-              <div className="mt-4 rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.06] p-5">
-                <p className="text-3xl font-black tracking-tight">{nextSession.title}</p>
-                <p className="mt-2 text-sm font-bold text-slate-300">{formatTime(nextSession.startsAt)}{nextSession.endsAt ? ` - ${formatTime(nextSession.endsAt)}` : ''} · {nextSession.teamName ?? 'Solo'}</p>
-              </div>
-            ) : <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions planned</div>}
-            <div className="mt-4 grid grid-cols-7 gap-1.5">
-              {Array.from({ length: 14 }).map((_, index) => {
-                const date = isoDate(addDays(new Date(`${todayISO()}T00:00:00`), index));
-                const dayLoad = aggregateDailyLoads(entries).find((day) => day.date === date)?.totalLoad ?? 0;
-                const hasSession = pendingSessions.some((session) => session.date === date);
-                return (
-                  <button
-                    key={date}
-                    type="button"
-                    onClick={() => openMobileComposer(date)}
-                    className={`min-w-0 rounded-xl border px-1 py-2 text-center transition lg:cursor-default ${hasSession ? 'border-emerald-300/40 bg-emerald-300/10' : dayLoad > 0 ? 'border-sky-300/30 bg-sky-300/10' : 'border-slate-800/80 bg-slate-950/60 hover:border-slate-600'}`}
-                  >
-                    <p className="text-[10px] font-black text-slate-500">{new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2)}</p>
-                    <p className="mt-1 text-sm font-black text-white">{date.slice(-2)}</p>
-                    <p className="mt-1 text-[10px] font-black text-slate-600 lg:hidden">+</p>
-                  </button>
-                );
-              })}
-            </div>
-            {plans.length > 0 ? (
-              <div className="mt-4 space-y-2">
-                {plans.slice(0, 4).map((plan) => (
-                  <div key={plan.id} className="flex items-center justify-between gap-3 rounded-2xl border border-violet-300/20 bg-violet-300/[0.06] px-3 py-2">
-                    <div>
-                      <p className="text-sm font-black text-white">{plan.title}</p>
-                      <p className="mt-0.5 text-xs font-bold text-slate-500">{formatLoadDate(plan.date)} · {plan.startsAt ? formatTime(plan.startsAt) : 'No time'} · {plan.expectedRpe * plan.expectedDurationMinutes} AU expected</p>
+                      <button type="button" onClick={() => deletePlan(plan.id)} className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:border-rose-400 hover:text-rose-200">
+                        Delete
+                      </button>
                     </div>
-                    <button type="button" onClick={() => deletePlan(plan.id)} className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:border-rose-400 hover:text-rose-200">
-                      Delete
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        </section>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </section>
+        )}
       </div>
-      {mobileComposerOpen ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-xl lg:hidden" role="dialog" aria-modal="true">
-          <div className="max-h-[88vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)]">
+      {composerOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
+          <div className="max-h-[88vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-xl">
             <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-300">Session</p>
-                <h2 className="mt-1 text-2xl font-black tracking-tight">{sessionMode === 'plan' ? 'Plan load' : 'Add load'}</h2>
+                <h2 className="mt-1 text-2xl font-black tracking-tight">{composerTitle}</h2>
                 <p className="mt-1 text-sm font-bold text-slate-500">{formatLoadDate(planForm.date)}</p>
               </div>
-              <button type="button" onClick={() => setMobileComposerOpen(false)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">Close</button>
+              <button type="button" onClick={() => { setComposerOpen(false); setActiveComposerSession(null); }} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">Close</button>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-2">
@@ -1315,39 +1473,48 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               </label>
             </div>
 
-            {planForm.date === todayISO() ? (
+            {!activeComposerSession && planForm.date === todayISO() ? (
               <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-1">
                 <button type="button" onClick={() => setTodayAction('plan')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${todayAction === 'plan' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>Plan later</button>
                 <button type="button" onClick={() => setTodayAction('report')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${todayAction === 'report' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Already done</button>
               </div>
             ) : null}
 
-            <div className="mt-5 space-y-5">
-              <label className="block">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">RPE</span>
-                  <span className="text-2xl font-black text-white">{planForm.expectedRpe}</span>
-                </div>
-                <input type="range" min="1" max="10" step="1" value={planForm.expectedRpe} onChange={(event) => setPlanForm((current) => ({ ...current, expectedRpe: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
-              </label>
-              <label className="block">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Duration</span>
-                  <span className="text-xl font-black text-white">{planForm.expectedDurationMinutes} min</span>
-                </div>
-                <input type="range" min="5" max="240" step="5" value={planForm.expectedDurationMinutes} onChange={(event) => setPlanForm((current) => ({ ...current, expectedDurationMinutes: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
-              </label>
-            </div>
-
-            <div className="mt-5 rounded-2xl border border-slate-700 bg-slate-950/70 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm font-bold text-slate-400">{sessionMode === 'plan' ? 'Expected load' : 'Training load'}</span>
-                <span className="text-3xl font-black text-amber-200">{sessionLoadPreview} AU</span>
+            {activeTeamSessionIsFuture ? (
+              <div className="mt-5 rounded-2xl border border-slate-700 bg-slate-950/70 p-4 text-sm font-bold text-slate-300">
+                This team session is scheduled. Load input opens after it is due.
               </div>
-            </div>
-            <button type="button" onClick={submitUnifiedSession} className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-black text-slate-950 transition ${sessionMode === 'plan' ? 'bg-violet-300' : 'bg-emerald-300'}`}>
-              {sessionMode === 'plan' ? `Plan ${sessionLoadPreview} AU` : `Save ${sessionLoadPreview} AU`}
-            </button>
+            ) : (
+              <>
+                <div className="mt-5 space-y-5">
+                  <label className="block">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">RPE</span>
+                      <span className="text-2xl font-black text-white">{planForm.expectedRpe}</span>
+                    </div>
+                    <input type="range" min="1" max="10" step="1" value={planForm.expectedRpe} onChange={(event) => setPlanForm((current) => ({ ...current, expectedRpe: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
+                  </label>
+                  <label className="block">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Duration</span>
+                      <span className="text-xl font-black text-white">{planForm.expectedDurationMinutes} min</span>
+                    </div>
+                    <input type="range" min="5" max="240" step="5" value={planForm.expectedDurationMinutes} onChange={(event) => setPlanForm((current) => ({ ...current, expectedDurationMinutes: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
+                  </label>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-slate-700 bg-slate-950/70 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-bold text-slate-400">{sessionMode === 'plan' ? 'Expected load' : 'Training load'}</span>
+                    <span className="text-3xl font-black text-amber-200">{sessionLoadPreview} AU</span>
+                  </div>
+                </div>
+
+                <button type="button" onClick={submitUnifiedSession} className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-black text-slate-950 transition ${sessionMode === 'plan' && !activeComposerSession ? 'bg-violet-300' : 'bg-emerald-300'}`}>
+                  {sessionMode === 'plan' && !activeComposerSession ? `Plan ${sessionLoadPreview} AU` : `Save ${sessionLoadPreview} AU`}
+                </button>
+              </>
+            )}
           </div>
         </div>
       ) : null}

@@ -10,7 +10,7 @@ Routes:
 - `/athlete/load`
 - `/athlete/calendar`
 
-All three currently use the same Athlete Load Workspace with different active navigation state. This keeps the first athlete surface coherent while the final athlete tab structure is still being shaped.
+Today and Calendar now diverge structurally. Today is the cockpit; Calendar is the interactive planning/reporting surface. `/athlete/load` remains available as a compatibility route, but V1 no longer treats it as a third primary tab.
 
 ## Product model
 
@@ -57,17 +57,17 @@ RLS keeps athlete self-write behavior and allows relevant team staff/department 
 
 - No placeholder explanation panels.
 - Show metrics and action surfaces directly.
-- Mobile-first layout; the quick entry remains usable without horizontal navigation.
+- Mobile-first layout; quick entry opens as an overlay instead of a permanent form card.
 - Graph uses Recharts with a custom Club OS layer so athletes can hover/tap every calendar day, read ACWR, and inspect daily load details.
-- The chart should not use default Recharts styling; keep axes, tooltip, zones, and legends compact and athlete-readable. It renders rest days as zero-load bars, supports Rolling/EWMA method switching, and shows a 14-day forecast from planned sessions plus historical weekday patterns.
+- The chart should not use default Recharts styling; keep axes, tooltip, zones, and legends compact and athlete-readable. It renders rest days as zero-load bars, supports Rolling/EWMA method switching, and shows a 14-day forecast line from the athlete's history. Forecast bars are rendered only for explicit planned sessions, never for synthetic pattern estimates.
 ## Expected load planning
 
 Athletes use one session form for both expected and completed load. Future dates create a plan; past dates create a completed load entry; today offers a Plan/Already done toggle.
 
 - expected load is stored separately in `athlete_load_plans`
 - expected load contains training type, date, optional time, expected RPE and expected duration; RPE and duration are slider-based, and duration defaults to the athlete historical average for that training type
-- the graph renders expected load as faded forecast bars
-- expected load affects forecast ACWR immediately
+- the graph renders explicit expected load as faded forecast bars
+- expected load affects forecast ACWR immediately; historical pattern forecasting affects the forecast line only
 - when the planned session is due, the athlete confirms actual RPE/duration and it becomes a real `load_entries` row
 - demo mode mirrors this with `localStorage`
 
@@ -93,7 +93,8 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 
 ## Athlete mobile interaction update
 
-- Mobile no longer shows the full add-load composer by default.
-- The compact calendar strip is actionable: tapping a day opens the mobile load composer for that date.
-- `/athlete/home`, `/athlete/load`, and `/athlete/calendar` now begin to diverge structurally: the desktop add-load composer is centered on the Load view, while Calendar uses the compact date surface as the entry point.
+- Mobile and desktop no longer show the full add-load composer by default.
+- Add/report opens through an overlay from the header CTA, a pending session, or the athlete calendar.
+- Calendar uses a real Untis-style week grid from 08:00 to 23:00. Empty slots create a prefilled load plan/report; session cards use training-type color and status style.
+- Team-created sessions are read-only before they are due; after they are due, tapping the session opens the reporting overlay.
 - Trainer link state is persisted in browser storage so copied links are visibly marked active.
