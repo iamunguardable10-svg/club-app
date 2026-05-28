@@ -121,3 +121,11 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 - Mobile drag keeps the original day unless the athlete makes a deliberate horizontal move, reducing accidental day changes while the thumb moves out of the way.
 - Reported load entries can be deleted through the app confirmation dialog; demo uses localStorage and standard uses Supabase `load_entries` delete under existing RLS.
 - Date/time overlay controls keep compact boxes but return to the calmer old text styling.
+
+## Athlete calendar mobile drag follow-up
+
+- Mobile compact cards clip overflowing text instead of showing ellipses; team training uses the short label `Team` and shows time when the card height allows it.
+- Today sessions keep their training-type color until the day has passed; missing/amber is only for older unreported sessions.
+- Horizontal mobile drag now uses the original day column and drag distance to calculate day changes, so Saturday-to-Sunday moves work even with little right-side space.
+- Drag target day columns are highlighted while moving, and the floating preview shows target weekday/start time/duration.
+- Date and time controls keep compact field sizing but use larger text for readability.

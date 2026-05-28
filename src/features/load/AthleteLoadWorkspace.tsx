@@ -859,7 +859,7 @@ function AthleteCalendar({
     startedAt: string;
     durationMinutes: number;
   } | null>(null);
-  const [dragPreview, setDragPreview] = useState<{ id: string; startsAt: string; endsAt: string; duration: number } | null>(null);
+  const [dragPreview, setDragPreview] = useState<{ id: string; date: string; startsAt: string; endsAt: string; duration: number } | null>(null);
 
   function clampDayIndex(index: number) {
     return Math.max(0, Math.min(days.length - 1, index));
@@ -921,18 +921,32 @@ function AthleteCalendar({
     const duration = activeDrag.kind === 'move'
       ? activeDrag.durationMinutes
       : Math.max(15, Math.round((pointerMinutes - originalStartMinutes) / 15) * 15);
-    const horizontalIntent = Math.abs(pointerEvent.clientX - startClientX) >= 72;
+    const mobileDayElements = Array.from(document.querySelectorAll<HTMLElement>('[data-athlete-day][data-density="mobile"]'));
+    const originalMobileDay = mobileDayElements.find((node) => node.dataset.athleteDay === activeDrag.item.date) ?? null;
+    const horizontalDelta = pointerEvent.clientX - startClientX;
+    const mobileWeekDrag = Boolean(isMobileTarget && originalMobileDay && mobileDayElements.length >= 7);
+    const mobileColumnWidth = originalMobileDay?.getBoundingClientRect().width ?? 56;
+    const mobileHorizontalThreshold = Math.min(34, mobileColumnWidth * 0.62);
+    const horizontalStep = mobileWeekDrag && Math.abs(horizontalDelta) >= mobileHorizontalThreshold
+      ? horizontalDelta > 0
+        ? Math.max(1, Math.round(horizontalDelta / mobileColumnWidth))
+        : Math.min(-1, Math.round(horizontalDelta / mobileColumnWidth))
+      : 0;
+    const originalDayIndex = days.findIndex((day) => isoDate(day) === activeDrag.item.date);
+    const projectedMobileDate = horizontalStep !== 0 && originalDayIndex >= 0
+      ? isoDate(days[clampDayIndex(originalDayIndex + horizontalStep)])
+      : activeDrag.item.date;
     const date = activeDrag.kind === 'resize'
       ? activeDrag.item.date
-      : isMobileTarget && !horizontalIntent
-        ? activeDrag.item.date
+      : mobileWeekDrag
+        ? projectedMobileDate
         : dayElement?.dataset.athleteDay ?? activeDrag.item.date;
     const startMinutes = activeDrag.kind === 'move'
       ? Math.max(0, Math.min(pointerMinutes, gridMinutes - duration))
       : Math.max(0, Math.min(gridMinutes - 15, originalStartMinutes));
     const startsAt = dateTimeISO(date, startMinutes);
     const endsAt = new Date(new Date(startsAt).getTime() + duration * 60_000).toISOString();
-    return { startsAt, endsAt, duration };
+    return { date, startsAt, endsAt, duration };
   }
 
   function startDrag(item: AthleteCalendarItem, kind: 'move' | 'resize', event: ReactPointerEvent<HTMLButtonElement | HTMLSpanElement>) {
@@ -948,7 +962,7 @@ function AthleteCalendar({
       setSuppressClick(true);
       setDrag(activeDrag);
       const duration = itemDuration(item);
-      setDragPreview({ id: item.id, startsAt: item.startsAt, endsAt: item.endsAt ?? new Date(new Date(item.startsAt).getTime() + duration * 60_000).toISOString(), duration });
+      setDragPreview({ id: item.id, date: item.date, startsAt: item.startsAt, endsAt: item.endsAt ?? new Date(new Date(item.startsAt).getTime() + duration * 60_000).toISOString(), duration });
     }
 
     function cleanup() {
@@ -967,7 +981,7 @@ function AthleteCalendar({
       }
       pointerEvent.preventDefault();
       const projection = dragProjection(activeDrag, pointerEvent, startX);
-      setDragPreview({ id: activeDrag.item.id, startsAt: projection.startsAt, endsAt: projection.endsAt, duration: projection.duration });
+      setDragPreview({ id: activeDrag.item.id, date: projection.date, startsAt: projection.startsAt, endsAt: projection.endsAt, duration: projection.duration });
     }
 
     function finish(pointerEvent: PointerEvent) {
@@ -993,8 +1007,8 @@ function AthleteCalendar({
   }
 
   function itemClass(item: AthleteCalendarItem) {
-    const base = 'absolute left-1 right-1 overflow-hidden rounded-xl border px-2 py-1 text-left shadow-sm transition-[top,height,left,right,filter,box-shadow,transform] duration-75 ease-out hover:brightness-110';
-    const dragClass = drag?.item.id === item.id ? ' z-20 scale-[1.035] ring-2 ring-sky-200 brightness-125 shadow-[0_22px_60px_rgba(56,189,248,0.34)] transition-none' : '';
+    const base = 'absolute left-1 right-1 overflow-hidden rounded-xl border px-2 py-1 text-left shadow-sm transition-[top,height,left,right,filter,box-shadow,transform] duration-100 ease-out hover:brightness-110';
+    const dragClass = drag?.item.id === item.id ? ' z-20 scale-[1.035] ring-2 ring-sky-200 brightness-125 shadow-[0_22px_60px_rgba(56,189,248,0.34)]' : '';
     if (item.status === 'reported') return `${base} bg-slate-950/95 text-white${dragClass}`;
     if (item.status === 'missing') return `${base} border-amber-300/70 bg-amber-300/12 text-amber-50${dragClass}`;
     if (item.status === 'cancelled') return `${base} border-slate-700 bg-slate-950/35 text-slate-500 opacity-60${dragClass}`;
@@ -1027,14 +1041,14 @@ function AthleteCalendar({
         className={`${itemClass(item)} ${compact ? 'left-0.5 right-0.5 px-0.5 text-[8px] leading-tight' : ''}`}
         style={{ ...style, ...itemBorderStyle(item) }}
       >
-        <span className={`block truncate font-black ${compact ? '' : 'text-sm'}`}>{compact ? compactLoadLabel(item.trainingType) : item.title}</span>
+        <span className={`block font-black ${compact ? 'overflow-hidden whitespace-nowrap' : 'truncate text-sm'}`}>{compact ? compactLoadLabel(item.trainingType) : item.title}</span>
         {preview ? (
           <span className={`absolute right-1 top-1 rounded-md bg-slate-950/85 px-1 font-black text-sky-100 ring-1 ring-sky-200/40 ${compact ? 'text-[7px]' : 'text-[9px]'}`}>
             {preview.duration}m
           </span>
         ) : null}
-        {style.height > (compact ? 34 : 42) ? (
-          <span className={`mt-0.5 block truncate font-bold opacity-75 ${compact ? 'text-[8px]' : 'text-[11px]'}`}>
+        {style.height > (compact ? 28 : 42) ? (
+          <span className={`mt-0.5 block overflow-hidden whitespace-nowrap font-bold opacity-75 ${compact ? 'text-[8px]' : 'truncate text-[11px]'}`}>
             {compact ? formatTime(displayStartsAt) : `${formatTime(displayStartsAt)}${displayEndsAt ? ` - ${formatTime(displayEndsAt)}` : ''} · ${item.teamName ?? LOAD_TYPE_LABELS[item.trainingType]}`}
           </span>
         ) : null}
@@ -1059,7 +1073,7 @@ function AthleteCalendar({
       </div>
       {dragPreview ? (
         <div className="mb-3 rounded-2xl border border-sky-300/40 bg-sky-300/10 px-3 py-2 text-xs font-black text-sky-100 shadow-[0_16px_50px_rgba(56,189,248,0.14)]">
-          {new Date(dragPreview.startsAt).toLocaleDateString(undefined, { weekday: 'short' })} · {formatTime(dragPreview.startsAt)}
+          {new Date(`${dragPreview.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' })} · {formatTime(dragPreview.startsAt)}
           {' → '}
           {dragPreview.duration} min
         </div>
@@ -1085,7 +1099,7 @@ function AthleteCalendar({
                 const date = isoDate(day);
                 const dayItems = items.filter((item) => item.date === date);
                 return (
-                  <div key={day.toISOString()} data-athlete-day={date} data-density="mobile" onClick={(event) => pickSlot(day, event, mobileHourHeight)} className="relative border-l border-slate-900" style={{ height: gridHeightMobile }}>
+                  <div key={day.toISOString()} data-athlete-day={date} data-density="mobile" onClick={(event) => pickSlot(day, event, mobileHourHeight)} className={`relative border-l border-slate-900 transition-colors ${dragPreview?.date === date ? 'bg-sky-300/[0.07] ring-1 ring-inset ring-sky-300/35' : ''}`} style={{ height: gridHeightMobile }}>
                     {hours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: mobileHourHeight }} />)}
                     {dayItems.map((item) => renderItem(item, mobileHourHeight, gridHeightMobile, true))}
                   </div>
@@ -1109,7 +1123,7 @@ function AthleteCalendar({
               <div className="bg-slate-950/95">
                 {hours.map((hour) => <div key={hour} className="border-b border-slate-900 px-2 py-1 text-[10px] font-bold text-slate-500" style={{ height: mobileHourHeight }}>{String(hour).padStart(2, '0')}:00</div>)}
               </div>
-              <div data-athlete-day={isoDate(activeDay)} data-density="mobile" onClick={(event) => pickSlot(activeDay, event, mobileHourHeight)} className="relative border-l border-slate-900" style={{ height: gridHeightMobile }}>
+              <div data-athlete-day={isoDate(activeDay)} data-density="mobile" onClick={(event) => pickSlot(activeDay, event, mobileHourHeight)} className={`relative border-l border-slate-900 transition-colors ${dragPreview?.date === isoDate(activeDay) ? 'bg-sky-300/[0.07] ring-1 ring-inset ring-sky-300/35' : ''}`} style={{ height: gridHeightMobile }}>
                 {hours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: mobileHourHeight }} />)}
                 {activeDayItems.map((item) => renderItem(item, mobileHourHeight, gridHeightMobile))}
               </div>
@@ -1131,7 +1145,7 @@ function AthleteCalendar({
             const date = isoDate(day);
             const dayItems = items.filter((item) => item.date === date);
             return (
-              <div key={day.toISOString()} data-athlete-day={date} data-density="desktop" onClick={(event) => pickSlot(day, event, desktopHourHeight)} className="relative border-l border-slate-900" style={{ height: gridHeightDesktop }}>
+              <div key={day.toISOString()} data-athlete-day={date} data-density="desktop" onClick={(event) => pickSlot(day, event, desktopHourHeight)} className={`relative border-l border-slate-900 transition-colors ${dragPreview?.date === date ? 'bg-sky-300/[0.05] ring-1 ring-inset ring-sky-300/30' : ''}`} style={{ height: gridHeightDesktop }}>
                 {hours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: desktopHourHeight }} />)}
                 {dayItems.map((item) => renderItem(item, desktopHourHeight, gridHeightDesktop))}
               </div>
@@ -1252,9 +1266,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     const reportedSessionIds = new Set(sortedEntries.map((entry) => entry.sessionId).filter(Boolean));
     const entryBySessionId = new Map(sortedEntries.filter((entry) => entry.sessionId).map((entry) => [entry.sessionId!, entry]));
     const sessionIds = new Set(calendarSessions.map((session) => session.id));
-    const now = Date.now();
     const fromSessions: AthleteCalendarItem[] = calendarSessions.map((session) => {
-      const end = session.endsAt ? new Date(session.endsAt).getTime() : new Date(session.startsAt).getTime() + durationMinutesFromSession(session) * 60_000;
       const reported = reportedSessionIds.has(session.id);
       return {
         id: `${session.source ?? 'team_session'}-${session.id}`,
@@ -1264,7 +1276,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         endsAt: session.endsAt,
         trainingType: session.trainingType,
         teamName: session.teamName,
-        status: reported ? 'reported' : end < now ? 'missing' : 'planned',
+        status: reported ? 'reported' : session.date < todayISO() ? 'missing' : 'planned',
         source: session.source ?? 'team_session',
         session,
         entry: entryBySessionId.get(session.id),
@@ -1907,11 +1919,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             <div className="mt-4 flex max-w-full flex-wrap gap-2">
               <label className="w-[9.4rem] max-w-[calc(100vw-2rem)] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                 Date
-                <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value, expectedRpe: averageRpeFor(current.trainingType, event.target.value) }))} className="mt-2 block h-9 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-1.5 py-1 text-[11px] font-bold text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
+                <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value, expectedRpe: averageRpeFor(current.trainingType, event.target.value) }))} className="mt-2 block h-9 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-1.5 py-1 text-[13px] font-black text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
               </label>
               <label className="w-[6.2rem] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                 Time
-                <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 block h-9 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-1.5 py-1 text-[11px] font-bold text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
+                <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 block h-9 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-1.5 py-1 text-[13px] font-black text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
               </label>
             </div>
 
