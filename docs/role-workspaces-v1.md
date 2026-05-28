@@ -54,3 +54,10 @@ Player cards inside Team Workspace should open a Player Load Detail surface:
 - attendance rate
 - recent sessions
 - placeholder wellness/readiness until those tables exist
+
+## Player Load Detail implementation
+
+- Team Workspace player cards open a focused Player Load overlay.
+- Demo players receive generated load history so coaches can test the graph and insight layout immediately.
+- Live players use Supabase `load_entries` where readable through RLS; missing attendance/readiness remain explicit placeholders.
+- The overlay shows 7-day load, EWMA ACWR, state, attendance placeholder, load graph, missing input and training mix.

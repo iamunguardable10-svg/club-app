@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminShell } from '@/shared/admin/AdminShell';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
+import { sessionTypeToLoadType, type AthleteLoadEntry, type LoadTrainingType } from '@/features/load/loadTypes';
 import { TeamWorkspaceView, type TeamWorkspaceData, type TeamWorkspaceRole, type TeamWorkspaceStaffRole } from './TeamWorkspaceView';
 
 type Team = { id: string; club_id: string; department_id: string; name: string; default_facility_id: string | null };
@@ -15,6 +16,21 @@ type Profile = { id: string; full_name: string; email: string | null };
 type Session = { id: string; title: string; starts_at: string; ends_at: string | null; facility_id: string | null };
 type Invite = { id: string; token: string; role: 'head_coach' | 'assistant_coach'; status: 'pending' | 'accepted' | 'revoked' | 'expired'; coach_role_slot_id: string | null };
 type CoachRoleSlot = { id: string; label: string };
+type LoadEntryRow = {
+  id: string;
+  session_id: string | null;
+  user_id: string;
+  team_id: string | null;
+  entry_date: string | null;
+  training_type: LoadTrainingType | null;
+  rpe: number;
+  duration_minutes: number;
+  session_load: number | null;
+  note: string | null;
+  submitted_at: string;
+  sessions?: { title?: string | null; starts_at?: string | null; session_type?: string | null; teams?: { name?: string | null } | null } | null;
+};
+type PlayerLoadEntry = AthleteLoadEntry & { userId: string };
 
 function createInviteToken() {
   const bytes = new Uint8Array(16);
@@ -54,6 +70,7 @@ export function TeamWorkspace({
   const [coachRoleSlots, setCoachRoleSlots] = useState<CoachRoleSlot[]>([]);
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [departmentFacilityIds, setDepartmentFacilityIds] = useState<string[]>([]);
+  const [loadEntries, setLoadEntries] = useState<PlayerLoadEntry[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
 
@@ -112,6 +129,7 @@ export function TeamWorkspace({
       const loadedMemberships = (membershipsResult.data ?? []) as Membership[];
       const profileIds = Array.from(new Set(loadedMemberships.filter((membership) => membership.user_id).map((membership) => membership.user_id)));
       let loadedProfiles: Profile[] = [];
+      let loadedLoadEntries: PlayerLoadEntry[] = [];
       if (profileIds.length > 0) {
         const { data: profileRows, error: profileError } = await supabase.from('profiles').select('id, full_name, email').in('id', profileIds);
         if (profileError) {
@@ -120,6 +138,39 @@ export function TeamWorkspace({
           return;
         }
         loadedProfiles = (profileRows ?? []) as Profile[];
+
+        const athleteIds = loadedMemberships.filter((membership) => membership.role === 'athlete' && membership.status === 'active').map((membership) => membership.user_id);
+        if (athleteIds.length > 0) {
+          const { data: loadRows, error: loadError } = await supabase
+            .from('load_entries')
+            .select('id, session_id, user_id, team_id, entry_date, training_type, rpe, duration_minutes, session_load, note, submitted_at, sessions(title, starts_at, session_type, teams(name))')
+            .in('user_id', athleteIds)
+            .order('submitted_at', { ascending: true });
+          if (loadError) {
+            setError(loadError.message);
+            setState('error');
+            return;
+          }
+          loadedLoadEntries = ((loadRows ?? []) as unknown as LoadEntryRow[]).map((row) => {
+            const trainingType = row.training_type ?? sessionTypeToLoadType(row.sessions?.session_type);
+            return {
+              id: row.id,
+              sessionId: row.session_id,
+              teamId: row.team_id,
+              teamName: row.sessions?.teams?.name ?? null,
+              date: row.entry_date ?? row.sessions?.starts_at?.slice(0, 10) ?? row.submitted_at.slice(0, 10),
+              startsAt: row.sessions?.starts_at ?? row.submitted_at,
+              title: row.sessions?.title ?? 'Training',
+              trainingType,
+              rpe: row.rpe,
+              durationMinutes: row.duration_minutes,
+              load: row.session_load ?? row.rpe * row.duration_minutes,
+              note: row.note,
+              source: row.session_id ? 'planned_session' : 'manual',
+              userId: row.user_id,
+            };
+          });
+        }
       }
 
       if (!isMounted) return;
@@ -135,6 +186,7 @@ export function TeamWorkspace({
       setFacilities((facilitiesResult.data ?? []) as Facility[]);
       setDepartmentFacilityIds(((departmentFacilitiesResult.data ?? []) as { facility_id: string }[]).map((item) => item.facility_id));
       setProfiles(loadedProfiles);
+      setLoadEntries(loadedLoadEntries);
       setState('ready');
     }
 
@@ -326,6 +378,20 @@ export function TeamWorkspace({
       makeStaffRole('assistant-coach', 'Assistant Coach', 'assistant_coach', null),
       ...coachRoleSlots.map((slot) => makeStaffRole(slot.id, slot.label, 'assistant_coach', slot.id, true)),
     ];
+    const loadEntriesByUserId = new Map<string, AthleteLoadEntry[]>();
+    for (const entry of loadEntries) {
+      if (entry.teamId && entry.teamId !== team.id) continue;
+      const { userId: _userId, ...cleanEntry } = entry;
+      loadEntriesByUserId.set(entry.userId, [...(loadEntriesByUserId.get(entry.userId) ?? []), cleanEntry]);
+    }
+    const athleteMemberships = activeMemberships.filter((membership) => membership.role === 'athlete');
+    const players = athleteMemberships.map((membership) => ({
+      id: membership.user_id,
+      name: profileLabel(profileById.get(membership.user_id), 'Player'),
+      loadEntries: loadEntriesByUserId.get(membership.user_id) ?? [],
+      attendanceRate: null,
+      missedSessions: null,
+    }));
 
     return {
       id: team.id,
@@ -334,7 +400,8 @@ export function TeamWorkspace({
       defaultFacilityId: team.default_facility_id,
       defaultFacilityName: facility?.name ?? null,
       availableFacilities: facilities.filter((item) => departmentFacilityIds.includes(item.id)).map((item) => ({ id: item.id, name: item.name })),
-      playerCount: activeMemberships.filter((membership) => membership.role === 'athlete').length,
+      playerCount: athleteMemberships.length,
+      players,
       role,
       staff: {
         headCoaches: activeMemberships.filter((membership) => membership.role === 'head_coach' && !membership.coach_role_slot_id).map((membership) => profileLabel(profileById.get(membership.user_id), 'Assigned head coach')),
@@ -367,7 +434,7 @@ export function TeamWorkspace({
       calendarHref: team.default_facility_id ? `/admin/facilities/${team.default_facility_id}/calendar?from=team&teamId=${team.id}&departmentId=${team.department_id}` : null,
       staffHref: `/admin/people?department=${team.department_id}&team=${team.id}`,
     };
-  }, [backHref, backLabel, clubMemberships, coachRoleSlots, contextSessions, department, departmentFacilityIds, facilities, facility, facilityById, invites, memberships, profileById, sessions, team]);
+  }, [backHref, backLabel, clubMemberships, coachRoleSlots, contextSessions, department, departmentFacilityIds, facilities, facility, facilityById, invites, loadEntries, memberships, profileById, sessions, team]);
 
   if (state === 'loading') return <AdminShell><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">Loading team...</section></AdminShell>;
   if (state === 'error') return <AdminShell><section className="rounded-3xl border border-red-500/40 bg-red-950/20 p-6 text-red-100">{error}</section></AdminShell>;

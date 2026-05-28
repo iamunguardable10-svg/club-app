@@ -3,6 +3,9 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
+import { LoadChart } from '@/features/load/AthleteLoadWorkspace';
+import { getLatestACWR, loadZone, sevenDayLoad } from '@/features/load/loadCalculations';
+import { LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/features/load/loadTypes';
 
 export type TeamWorkspaceRole = 'admin' | 'department_lead' | 'coach' | 'viewer';
 export type TeamWorkspaceSection = 'dashboard' | 'calendar' | 'players' | 'groups' | 'settings';
@@ -23,7 +26,7 @@ export type TeamWorkspaceStaff = {
 };
 
 export type TeamWorkspaceFacilityOption = { id: string; name: string };
-export type TeamWorkspacePlayer = { id: string; name: string; groups?: string[] };
+export type TeamWorkspacePlayer = { id: string; name: string; groups?: string[]; loadEntries?: AthleteLoadEntry[]; attendanceRate?: number | null; missedSessions?: number | null };
 export type TeamWorkspaceStaffRole = {
   id: string;
   label: string;
@@ -140,6 +143,85 @@ function EmptyCard({ title, description }: { title: string; description?: string
     <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
       <p className="text-sm font-black text-slate-100">{title}</p>
       {description ? <p className="mt-1 text-sm text-slate-400">{description}</p> : null}
+    </div>
+  );
+}
+
+function PlayerLoadDetail({
+  player,
+  teamName,
+  onClose,
+}: {
+  player: TeamWorkspacePlayer;
+  teamName: string;
+  onClose: () => void;
+}) {
+  const entries = player.loadEntries ?? [];
+  const latest = getLatestACWR(entries, 'ewma');
+  const zone = loadZone(latest?.acwr ?? null, latest?.chronicFull ?? false);
+  const weeklyLoad = sevenDayLoad(entries);
+  const missingInput = Math.max(0, (player.missedSessions ?? 0) + (entries.length > 0 ? 0 : 2));
+  const mix = Object.entries(entries.reduce<Record<string, number>>((acc, entry) => {
+    acc[entry.trainingType] = (acc[entry.trainingType] ?? 0) + entry.load;
+    return acc;
+  }, {})).sort((a, b) => b[1] - a[1]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-slate-950/80 px-3 pb-3 pt-8 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
+      <div className="max-h-[92vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-5xl sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 pb-4">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">Player load</p>
+            <h2 className="mt-1 text-3xl font-black tracking-tight text-white">{player.name}</h2>
+            <p className="mt-1 text-sm font-bold text-slate-400">{teamName}</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">Close</button>
+        </div>
+
+        <div className="mt-4 grid gap-2 sm:grid-cols-4">
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">7 days</p>
+            <p className="mt-2 text-xl font-black text-white">{weeklyLoad} AU</p>
+          </div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">ACWR</p>
+            <p className="mt-2 text-xl font-black text-white">{latest?.acwr ? latest.acwr.toFixed(2) : '—'}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">State</p>
+            <p className="mt-2 text-xl font-black text-white">{zone.label}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Attendance</p>
+            <p className="mt-2 text-xl font-black text-white">{player.attendanceRate ? `${player.attendanceRate}%` : 'Soon'}</p>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/55 p-3">
+          {entries.length > 0 ? <LoadChart entries={entries} pendingSessions={[]} /> : (
+            <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/50 p-6 text-sm font-bold text-slate-400">
+              Load graph appears once this player has reported load entries. Demo players include generated entries; live players use Supabase load entries.
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-3">
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+            <p className="text-sm font-black text-white">Attendance insight</p>
+            <p className="mt-2 text-sm font-bold text-slate-400">{player.attendanceRate ? `${player.attendanceRate}% recent attendance.` : 'Placeholder until attendance records are connected.'}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+            <p className="text-sm font-black text-white">Missing input</p>
+            <p className="mt-2 text-sm font-bold text-slate-400">{missingInput > 0 ? `${missingInput} sessions need feedback.` : 'No missing load feedback.'}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+            <p className="text-sm font-black text-white">Training mix</p>
+            <p className="mt-2 text-sm font-bold text-slate-400">
+              {mix.length > 0 ? mix.slice(0, 3).map(([type, load]) => `${LOAD_TYPE_LABELS[type as keyof typeof LOAD_TYPE_LABELS]} ${load} AU`).join(' · ') : 'No mix yet.'}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -620,6 +702,7 @@ export function TeamWorkspaceView({
 }) {
   const [activeSection, setActiveSection] = useState<TeamWorkspaceSection>(initialSection);
   const [isSavingDefault, setIsSavingDefault] = useState(false);
+  const [activePlayer, setActivePlayer] = useState<TeamWorkspacePlayer | null>(null);
   const selectedFacilityTone = facilityTone(data.defaultFacilityName);
   const players = data.players ?? [];
   const staffRoles = data.staffRoles ?? [
@@ -775,12 +858,14 @@ export function TeamWorkspaceView({
           {players.length > 0 ? (
             <div className="mt-5 grid gap-2 md:grid-cols-2 lg:grid-cols-3">
               {players.map((player) => (
-                <div key={player.id} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+                <button key={player.id} type="button" onClick={() => setActivePlayer(player)} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 text-left transition hover:border-emerald-300/55 hover:bg-slate-900">
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-black text-white">{player.name}</p>
+                    <span className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-black text-slate-300">Load</span>
                   </div>
                   {player.groups && player.groups.length > 0 ? <p className="mt-2 text-xs font-bold text-slate-500">{player.groups.join(' · ')}</p> : null}
-                </div>
+                  <p className="mt-3 text-xs font-bold text-slate-400">{player.loadEntries?.length ? `${sevenDayLoad(player.loadEntries)} AU last 7d` : 'Open player detail'}</p>
+                </button>
               ))}
             </div>
           ) : null}
@@ -860,6 +945,7 @@ export function TeamWorkspaceView({
           ))}
         </div>
       </nav>
+      {activePlayer ? <PlayerLoadDetail player={activePlayer} teamName={data.name} onClose={() => setActivePlayer(null)} /> : null}
     </section>
   );
 }

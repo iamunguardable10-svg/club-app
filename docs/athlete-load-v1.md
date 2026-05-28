@@ -169,3 +169,10 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 - The Load tab now includes detail cards for acute load, chronic load, EWMA ACWR, Rolling ACWR, recent load, planned sessions and missing input.
 - Training mix is shown from the last 14 days.
 - Attendance and readiness are present as explicit placeholders until those data models are connected.
+
+## Athlete session cancellation
+
+- Athlete calendar supports cancelling coach-planned team sessions before load input is due.
+- Cancelled team sessions remain visible in the calendar and render red so the athlete still sees the original plan.
+- Demo cancellation state is stored in localStorage; live cancellation writes an `availability` row with status `cancelled`.
+- A cancelled session can be marked available again from the same session detail overlay.

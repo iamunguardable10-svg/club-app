@@ -104,6 +104,7 @@ type RawLoadPlan = {
 const DEMO_LOAD_KEY = 'club-app.demo.athlete-load-entries';
 const DEMO_ACK_KEY = 'club-app.demo.athlete-pending-ack';
 const DEMO_PLANS_KEY = 'club-app.demo.athlete-load-plans';
+const DEMO_CANCELLED_SESSIONS_KEY = 'club-app.demo.athlete-cancelled-sessions';
 const LOAD_SHARE_ACTIVE_KEY = 'club-app.athlete-load.active-share-link';
 
 const emptyPlanForm: PlanFormState = {
@@ -328,6 +329,22 @@ function readDemoPlans() {
 function saveDemoPlans(plans: AthleteLoadPlan[]) {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(DEMO_PLANS_KEY, JSON.stringify(plans));
+}
+
+function readCancelledDemoSessions() {
+  if (typeof window === 'undefined') return [];
+  const raw = window.localStorage.getItem(DEMO_CANCELLED_SESSIONS_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as string[];
+  } catch {
+    return [];
+  }
+}
+
+function saveCancelledDemoSessions(ids: string[]) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(DEMO_CANCELLED_SESSIONS_KEY, JSON.stringify(Array.from(new Set(ids))));
 }
 
 function normalizeTrainingType(value?: string | null): LoadTrainingType {
@@ -1095,14 +1112,14 @@ function AthleteCalendar({
     const dragClass = drag?.item.id === item.id ? ' z-20 scale-[1.035] ring-2 ring-sky-200 brightness-125 shadow-[0_22px_60px_rgba(56,189,248,0.34)]' : '';
     if (item.status === 'reported') return `${base} bg-slate-950/95 text-white${dragClass}`;
     if (item.status === 'missing') return `${base} border-amber-300/70 bg-amber-300/12 text-amber-50${dragClass}`;
-    if (item.status === 'cancelled') return `${base} border-slate-700 bg-slate-950/35 text-slate-500 opacity-60${dragClass}`;
+    if (item.status === 'cancelled') return `${base} border-rose-400/80 bg-rose-500/15 text-rose-100 opacity-90${dragClass}`;
     return `${base} border-dashed bg-slate-950/55 text-white${dragClass}`;
   }
 
   function itemBorderStyle(item: AthleteCalendarItem) {
     const color = LOAD_TYPE_COLORS[item.trainingType];
     return {
-      borderColor: item.status === 'missing' ? 'rgba(252,211,77,0.75)' : color,
+      borderColor: item.status === 'cancelled' ? 'rgba(251,113,133,0.82)' : item.status === 'missing' ? 'rgba(252,211,77,0.75)' : color,
       boxShadow: item.status === 'reported' ? `inset 3px 0 0 ${color}` : undefined,
       cursor: mode === 'edit' && canManage(item) ? 'grab' : 'pointer',
       touchAction: mode === 'edit' && canManage(item) ? 'none' : 'auto',
@@ -1154,7 +1171,9 @@ function AthleteCalendar({
         ) : null}
         {style.height > (compact ? 28 : 42) ? (
           <span className={`mt-0.5 block overflow-hidden whitespace-nowrap font-bold opacity-75 ${detailClass} ${compact ? '' : 'truncate'}`}>
-            {compact ? formatTime(displayStartsAt) : `${formatTime(displayStartsAt)}${displayEndsAt ? ` - ${formatTime(displayEndsAt)}` : ''} · ${item.teamName ?? LOAD_TYPE_LABELS[item.trainingType]}`}
+            {item.status === 'cancelled'
+              ? `Cancelled · ${formatTime(displayStartsAt)}`
+              : compact ? formatTime(displayStartsAt) : `${formatTime(displayStartsAt)}${displayEndsAt ? ` - ${formatTime(displayEndsAt)}` : ''} · ${item.teamName ?? LOAD_TYPE_LABELS[item.trainingType]}`}
           </span>
         ) : null}
         {manageable ? <span aria-hidden="true" onPointerDown={(event) => startDrag(item, 'resize', event)} className={resizeClass} /> : null}
@@ -1289,6 +1308,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [activeDetailItem, setActiveDetailItem] = useState<AthleteCalendarItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'entry' | 'plan'; id: string; title: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [cancelledSessionIds, setCancelledSessionIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let mounted = true;
@@ -1334,6 +1354,18 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         const reportedSessionIds = new Set(mappedEntries.map((entry) => entry.sessionId).filter(Boolean));
         const mappedPlans = ((planResult.data ?? []) as unknown as RawLoadPlan[]).map(mapRawPlan);
         const mappedSessions = ((sessionResult.data ?? []) as unknown as RawSession[]).map(mapRawSession);
+        const sessionIds = mappedSessions.map((session) => session.id);
+        let cancelledIds = new Set<string>();
+        if (sessionIds.length > 0) {
+          const { data: availabilityRows, error: availabilityError } = await supabase
+            .from('availability')
+            .select('session_id, status')
+            .eq('user_id', authData.user.id)
+            .in('session_id', sessionIds)
+            .eq('status', 'cancelled');
+          if (availabilityError) throw availabilityError;
+          cancelledIds = new Set(((availabilityRows ?? []) as { session_id: string }[]).map((row) => row.session_id));
+        }
         const mappedPending = mappedSessions.filter((session) => !reportedSessionIds.has(session.id));
 
         if (!mounted) return;
@@ -1341,17 +1373,20 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         setPlans(mappedPlans);
         setCalendarSessions([...mappedSessions, ...mappedPlans.map(planToPendingSession)]);
         setPendingSessions([...mappedPending, ...mappedPlans.map(planToPendingSession)]);
+        setCancelledSessionIds(cancelledIds);
         setSource('supabase');
       } catch {
         if (!mounted) return;
         const demoEntries = readDemoEntries();
         const demoPlans = readDemoPlans();
         const acknowledged = new Set(readAcknowledgedDemoSessions());
+        const cancelledIds = new Set(readCancelledDemoSessions());
         setAthleteName('Demo Athlete');
         setEntries(demoEntries);
         setPlans(demoPlans);
         setCalendarSessions([...demoPendingSessions(), ...demoPlans.map(planToPendingSession)]);
         setPendingSessions([...demoPendingSessions().filter((session) => !acknowledged.has(session.id)), ...demoPlans.map(planToPendingSession)]);
+        setCancelledSessionIds(cancelledIds);
         setSource('demo');
       }
     }
@@ -1374,8 +1409,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const isBaselineReady = (latest?.chronicFull ?? false) && baselineDays >= 30;
   const zone = loadZone(latest?.acwr ?? null, isBaselineReady);
   const weeklyLoad = useMemo(() => sevenDayLoad(sortedEntries), [sortedEntries]);
-  const todayPending = pendingSessions.filter((session) => session.date <= todayISO()).slice(0, 3);
-  const nextSession = pendingSessions.find((session) => session.date >= todayISO()) ?? pendingSessions[0] ?? null;
+  const activePendingSessions = pendingSessions.filter((session) => !cancelledSessionIds.has(session.id));
+  const todayPending = activePendingSessions.filter((session) => session.date <= todayISO()).slice(0, 3);
+  const nextSession = activePendingSessions.find((session) => session.date >= todayISO()) ?? activePendingSessions[0] ?? null;
   const calendarItems = useMemo(() => {
     const reportedSessionIds = new Set(sortedEntries.map((entry) => entry.sessionId).filter(Boolean));
     const entryBySessionId = new Map(sortedEntries.filter((entry) => entry.sessionId).map((entry) => [entry.sessionId!, entry]));
@@ -1390,7 +1426,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         endsAt: session.endsAt,
         trainingType: session.trainingType,
         teamName: session.teamName,
-        status: reported ? 'reported' : session.date < todayISO() ? 'missing' : 'planned',
+        status: cancelledSessionIds.has(session.id) ? 'cancelled' : reported ? 'reported' : session.date < todayISO() ? 'missing' : 'planned',
         source: session.source ?? 'team_session',
         session,
         entry: entryBySessionId.get(session.id),
@@ -1411,7 +1447,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         entry,
       }));
     return [...fromSessions, ...fromEntries].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  }, [calendarSessions, sortedEntries]);
+  }, [calendarSessions, cancelledSessionIds, sortedEntries]);
   const averageDurationByType = useMemo(() => {
     const map = new Map<LoadTrainingType, number>();
     for (const type of LOAD_TRAINING_TYPES) {
@@ -1725,6 +1761,50 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
     setActiveEntry(null);
     setComposerOpen(false);
+  }
+
+  async function setTeamSessionCancelled(session: AthletePendingSession, cancelled: boolean) {
+    if (session.source !== 'team_session') return;
+    setCancelledSessionIds((current) => {
+      const next = new Set(current);
+      if (cancelled) next.add(session.id);
+      else next.delete(session.id);
+      if (source === 'demo') saveCancelledDemoSessions(Array.from(next));
+      return next;
+    });
+
+    if (source === 'supabase') {
+      const supabase = createBrowserSupabaseClient();
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData.user?.id;
+      if (!userId) return;
+
+      if (cancelled) {
+        const { data: existingRows, error: selectError } = await supabase
+          .from('availability')
+          .select('id')
+          .eq('session_id', session.id)
+          .eq('user_id', userId)
+          .limit(1);
+        if (selectError) {
+          setError(selectError.message);
+          return;
+        }
+        const existingId = ((existingRows ?? []) as { id: string }[])[0]?.id;
+        const result = existingId
+          ? await supabase.from('availability').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', existingId)
+          : await supabase.from('availability').insert({ session_id: session.id, user_id: userId, status: 'cancelled' });
+        if (result.error) setError(result.error.message);
+      } else {
+        const { error: updateError } = await supabase
+          .from('availability')
+          .update({ status: 'expected', updated_at: new Date().toISOString() })
+          .eq('session_id', session.id)
+          .eq('user_id', userId)
+          .eq('status', 'cancelled');
+        if (updateError) setError(updateError.message);
+      }
+    }
   }
 
   async function submitUnifiedSession() {
@@ -2062,7 +2142,16 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
             {activeTeamSessionIsFuture ? (
               <div className="mt-5 rounded-2xl border border-slate-700 bg-slate-950/70 p-4 text-sm font-bold text-slate-300">
-                This team session is scheduled. Load input opens after it is due.
+                <p>{activeComposerSession && cancelledSessionIds.has(activeComposerSession.id) ? 'You cancelled this session. It stays visible in red in your calendar.' : 'This team session is scheduled. Load input opens after it is due.'}</p>
+                {activeComposerSession ? (
+                  <button
+                    type="button"
+                    onClick={() => setTeamSessionCancelled(activeComposerSession, !cancelledSessionIds.has(activeComposerSession.id))}
+                    className={`mt-4 w-full rounded-2xl border px-4 py-3 text-sm font-black ${cancelledSessionIds.has(activeComposerSession.id) ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-100' : 'border-rose-400/50 bg-rose-400/10 text-rose-100'}`}
+                  >
+                    {cancelledSessionIds.has(activeComposerSession.id) ? 'Mark as available again' : 'Cancel session'}
+                  </button>
+                ) : null}
               </div>
             ) : (
               <>

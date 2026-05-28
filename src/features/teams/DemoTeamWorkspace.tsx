@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AdminShell } from '@/shared/admin/AdminShell';
 import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoSessions, saveDemoTeams, type DemoClubSetup, type DemoSession, type DemoTeam } from '@/shared/dev/demoStorage';
+import type { AthleteLoadEntry, LoadTrainingType } from '@/features/load/loadTypes';
 import { TeamWorkspaceView, type TeamWorkspaceData, type TeamWorkspacePlayer, type TeamWorkspaceStaffRole } from './TeamWorkspaceView';
 
 type DemoInvite = {
@@ -79,6 +80,50 @@ function buildDemoPlayers(teamId: string): DemoPlayer[] {
   return demoPlayerSeed.map((name, index) => {
     const groups = index < 5 ? ['starting-five'] : index < 10 ? ['bench-unit'] : ['rehab'];
     return { id: `${teamId}-demo-player-${index + 1}`, teamId, name, groups };
+  });
+}
+
+function isoOffset(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  date.setHours(18, 0, 0, 0);
+  return date;
+}
+
+function buildDemoPlayerLoads(player: DemoPlayer, teamName: string): AthleteLoadEntry[] {
+  const pattern: Array<[number, LoadTrainingType, number, number]> = [
+    [-26, 'team_training', 5, 90],
+    [-23, 'strength', 6, 60],
+    [-21, 'game', 10, 44],
+    [-18, 'team_training', 6, 90],
+    [-15, 'individual', 5, 45],
+    [-12, 'team_training', 7, 95],
+    [-9, 'strength', 6, 55],
+    [-7, 'game', 10, 38],
+    [-5, 'recovery', 3, 35],
+    [-3, 'team_training', 6, 90],
+    [-1, 'team_training', 7, 80],
+  ];
+  const modifier = player.id.charCodeAt(player.id.length - 1) % 3;
+  return pattern.map(([offset, trainingType, rpe, duration], index) => {
+    const startsAt = isoOffset(offset);
+    const adjustedDuration = Math.max(20, duration + modifier * 5 - (index % 2) * 5);
+    const effectiveRpe = trainingType === 'game' ? 10 : Math.max(1, Math.min(10, rpe + modifier - 1));
+    return {
+      id: `${player.id}-load-${index}`,
+      sessionId: null,
+      teamId: player.teamId,
+      teamName,
+      date: startsAt.toISOString().slice(0, 10),
+      startsAt: startsAt.toISOString(),
+      title: trainingType === 'game' ? 'Game' : trainingType === 'strength' ? 'Strength' : 'Training',
+      trainingType,
+      rpe: effectiveRpe,
+      durationMinutes: adjustedDuration,
+      load: effectiveRpe * adjustedDuration,
+      note: null,
+      source: 'manual',
+    };
   });
 }
 
@@ -245,6 +290,12 @@ export function DemoTeamWorkspace({
     const teamSessions = sessions.filter((session) => session.department === team.department && session.team === team.name);
     const contextSessions = sessions.filter((session) => session.facility === team.defaultFacility && !(session.department === team.department && session.team === team.name));
     const teamPlayers = players.filter((player) => player.teamId === team.id);
+    const enrichedPlayers = teamPlayers.map((player, index) => ({
+      ...player,
+      loadEntries: buildDemoPlayerLoads(player, team.name),
+      attendanceRate: 82 + (index % 4) * 3,
+      missedSessions: index % 5 === 0 ? 2 : index % 3 === 0 ? 1 : 0,
+    }));
     const assignedFacilityNames = new Set(facilityAssignments.filter((assignment) => assignment.department === team.department).map((assignment) => assignment.facility));
     const departmentFacilityOptions = (setup?.facilityDetails ?? [])
       .filter((facility) => {
@@ -285,7 +336,7 @@ export function DemoTeamWorkspace({
       defaultFacilityName: team.defaultFacility,
       availableFacilities: availableFacilities.map((facility) => ({ id: facility, name: facility })),
       playerCount: teamPlayers.length,
-      players: teamPlayers,
+      players: enrichedPlayers,
       role: 'admin',
       staff: {
         headCoaches: headInvite ? ['Invite pending'] : [],
