@@ -105,3 +105,11 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 - Planned load defaults RPE from the athlete's own history for that training type, preferring the same weekday when enough samples exist.
 - Mobile chart fullscreen first asks the athlete to rotate the phone; the graph renders only in landscape to avoid the previous rotated-overlay glitch.
 - Trainer link state is persisted in browser storage so copied links are visibly marked active.
+
+## Athlete calendar polish — 2026-05-28
+
+- The athlete calendar keeps the 08:00-23:00 week grid, but mobile uses a taller compact density so sessions remain readable without creating an inner scroll container.
+- Drag and resize in edit mode now render a live preview of the moved session position/duration before commit, so athletes can see the target slot while editing.
+- The global `Add load` header action is removed; load entry stays contextual through calendar slots, pending sessions, and session detail flows.
+- Demo athlete data is seeded with a longer history so Rolling/EWMA graphs and mobile ranges have realistic density.
+- Date/time inputs in the session overlay are compact controls and must stay inside the card on narrow iPhone screens.
