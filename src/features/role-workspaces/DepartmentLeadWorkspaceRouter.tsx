@@ -27,6 +27,11 @@ export function DepartmentLeadWorkspaceRouter({ mode }: { mode: DepartmentMode }
     let mounted = true;
 
     async function loadDepartments() {
+      if (mode === 'overview') {
+        router.replace('/department/teams');
+        return;
+      }
+
       const supabase = createBrowserSupabaseClient();
       const { data: userResult, error: userError } = await supabase.auth.getUser();
       if (!mounted) return;
@@ -40,7 +45,7 @@ export function DepartmentLeadWorkspaceRouter({ mode }: { mode: DepartmentMode }
         .select('club_id, department_id, role')
         .eq('user_id', userResult.user.id)
         .eq('status', 'active')
-        .in('role', ['department_lead', 'club_admin']);
+        .eq('role', 'department_lead');
 
       if (!mounted) return;
       if (membershipError) {
@@ -50,13 +55,10 @@ export function DepartmentLeadWorkspaceRouter({ mode }: { mode: DepartmentMode }
       }
 
       const rows = (memberships ?? []) as { club_id: string; department_id: string | null; role: string }[];
-      const adminClubIds = rows.filter((row) => row.role === 'club_admin').map((row) => row.club_id);
       const leadDepartmentIds = rows.filter((row) => row.role === 'department_lead' && row.department_id).map((row) => row.department_id!) ?? [];
 
       let query = supabase.from('departments').select('id, name, club_id').order('name');
-      if (adminClubIds.length > 0) {
-        query = query.in('club_id', adminClubIds);
-      } else if (leadDepartmentIds.length > 0) {
+      if (leadDepartmentIds.length > 0) {
         query = query.in('id', leadDepartmentIds);
       } else {
         setDepartments([]);
@@ -105,7 +107,7 @@ export function DepartmentLeadWorkspaceRouter({ mode }: { mode: DepartmentMode }
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Department OS</p>
           <h1 className="mt-3 text-4xl font-black tracking-tight">{titleForMode(mode)}</h1>
           <nav className="mt-5 flex flex-wrap gap-2">
-            {(['overview', 'teams', 'schedule', 'coaches', 'facilities'] as DepartmentMode[]).map((item) => (
+            {(['teams', 'schedule', 'coaches', 'facilities'] as DepartmentMode[]).map((item) => (
               <Link key={item} href={`/department/${item}`} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === item ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950 text-slate-200'}`}>
                 {titleForMode(item)}
               </Link>

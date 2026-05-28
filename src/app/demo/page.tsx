@@ -12,7 +12,7 @@ const demoPaths = [
   {
     label: 'Coach',
     title: 'Coach preview',
-    href: '/coach/today',
+    href: '/demo/coach/today',
     accent: 'text-sky-300',
     icon: Zap,
   },
@@ -25,8 +25,8 @@ const demoPaths = [
   },
   {
     label: 'Club',
-    title: 'Club setup demo',
-    href: '/demo/create-club',
+    title: 'Club preview',
+    href: '/demo/admin/overview',
     accent: 'text-amber-300',
     icon: Building2,
   },

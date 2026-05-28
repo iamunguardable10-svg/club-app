@@ -166,8 +166,9 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 ## Athlete load details
 
 - Load graph can overlay acute and chronic load lines on top of daily load bars.
-- The Load tab now includes detail cards for acute load, chronic load, EWMA ACWR, Rolling ACWR, recent load, planned sessions and missing input.
-- Training mix is shown from the last 14 days.
+- Acute and chronic load lines are rendered as dashed supporting lines; the athlete-facing cards do not lead with raw acute/chronic numbers.
+- The Load tab leads with useful action context: estimated AU room before overload, low-load gap if the athlete is under the target range, current EWMA zone and a simple next-move hint.
+- Training mix is shown as percentage distribution from the last 28 days so athletes and coaches can see which session types dominate the load.
 - Attendance and readiness are present as explicit placeholders until those data models are connected.
 
 ## Athlete session cancellation
@@ -176,3 +177,10 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 - Cancelled team sessions remain visible in the calendar and render red so the athlete still sees the original plan.
 - Demo cancellation state is stored in localStorage; live cancellation writes an `availability` row with status `cancelled`.
 - A cancelled session can be marked available again from the same session detail overlay.
+
+## Warmup automation
+
+- `warmup` is a first-class load training type with its own graph color and training-mix bucket.
+- Every planned `game` session creates a derived warmup session 75 minutes before game start.
+- The derived warmup follows the game if the game plan is moved or resized, and is removed when the game plan is deleted.
+- Warmups are generated in demo and standard athlete calendar data so the behavior stays aligned.

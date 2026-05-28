@@ -40,6 +40,14 @@ Current V1 behavior:
 - If one department is available, the existing Department Workspace opens directly.
 - If multiple departments are available, a department selector is shown.
 
+Decision update:
+
+- Department leads should not land in the club Admin Overview or the all-departments governance page.
+- Their shell is scoped to exactly their department context: Teams, Facilities, Staff and Settings.
+- Desktop can use a compact top/sub navigation; mobile should use a role-aware bottom switcher.
+- Team Workspace keeps its own bottom navigation inside a selected team, so department navigation must not duplicate team-level tabs.
+- Coach routes stay even narrower: own team(s), own team calendar, players/load, team staff/settings and relevant facility calendars.
+
 ## Permission rule
 
 These pages are routing and scoping surfaces. Real write permissions still live in Supabase RLS and in the target Team/Department workspaces.

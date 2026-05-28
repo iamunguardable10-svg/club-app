@@ -48,6 +48,7 @@ type LegacyDemoFacilityMeta = {
 const DEMO_CLUB_SETUP_KEY = 'club-app.demo.club-setup';
 const DEMO_TEAMS_KEY = 'club-app.demo.teams';
 const DEMO_SESSIONS_KEY = 'club-app.demo.sessions';
+const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
 const LEGACY_DEMO_FACILITY_META_KEY = 'club-app.demo.facility-meta';
 
 const DEFAULT_DEMO_FACILITY_ADDRESSES: Record<string, string> = {
@@ -80,6 +81,38 @@ function getLegacyFacilityDetails() {
   } catch {
     return [] as DemoFacilityDetails[];
   }
+}
+
+function defaultDemoClubSetup(): DemoClubSetup {
+  return {
+    clubName: 'Demo Club',
+    city: 'Munich',
+    country: 'Germany',
+    departments: ['Basketball', 'Football', 'Fencing'],
+    facilities: ['Main Hall', 'Court 1', 'Court 2', 'Weight Room'],
+    facilityDetails: [
+      { name: 'Main Hall', address: 'Sportstraße 1, Munich', scope: 'club_shared', ownerDepartment: null },
+      { name: 'Court 1', address: 'Sportstraße 1, Munich', scope: 'club_shared', ownerDepartment: null },
+      { name: 'Court 2', address: 'Sportstraße 1, Munich', scope: 'club_shared', ownerDepartment: null },
+      { name: 'Weight Room', address: 'Sportstraße 1, Munich', scope: 'club_shared', ownerDepartment: null },
+    ],
+    createTeamsNow: true,
+    selectedTeamDepartment: 'Basketball',
+    teams: ['U14 Boys', 'U16 Boys', 'U18 Boys', 'First Team'],
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function seedDefaultFacilityAssignments() {
+  if (typeof window === 'undefined' || window.localStorage.getItem(DEMO_FACILITY_ASSIGNMENTS_KEY)) return;
+  window.localStorage.setItem(DEMO_FACILITY_ASSIGNMENTS_KEY, JSON.stringify([
+    { department: 'Basketball', facility: 'Main Hall' },
+    { department: 'Basketball', facility: 'Court 1' },
+    { department: 'Basketball', facility: 'Weight Room' },
+    { department: 'Football', facility: 'Main Hall' },
+    { department: 'Football', facility: 'Court 2' },
+    { department: 'Fencing', facility: 'Court 1' },
+  ]));
 }
 
 export function normalizeDemoClubSetup(data: DemoClubSetup): DemoClubSetup {
@@ -117,14 +150,23 @@ export function getDemoClubSetup(): DemoClubSetup | null {
 
   const raw = window.localStorage.getItem(DEMO_CLUB_SETUP_KEY);
 
-  if (!raw) return null;
+  if (!raw) {
+    const setup = normalizeDemoClubSetup(defaultDemoClubSetup());
+    window.localStorage.setItem(DEMO_CLUB_SETUP_KEY, JSON.stringify(setup));
+    seedDefaultFacilityAssignments();
+    return setup;
+  }
 
   try {
     const setup = normalizeDemoClubSetup(JSON.parse(raw) as DemoClubSetup);
     window.localStorage.setItem(DEMO_CLUB_SETUP_KEY, JSON.stringify(setup));
+    seedDefaultFacilityAssignments();
     return setup;
   } catch {
-    return null;
+    const setup = normalizeDemoClubSetup(defaultDemoClubSetup());
+    window.localStorage.setItem(DEMO_CLUB_SETUP_KEY, JSON.stringify(setup));
+    seedDefaultFacilityAssignments();
+    return setup;
   }
 }
 
@@ -133,6 +175,7 @@ export function clearDemoClubSetup() {
   window.localStorage.removeItem(DEMO_CLUB_SETUP_KEY);
   window.localStorage.removeItem(DEMO_TEAMS_KEY);
   window.localStorage.removeItem(DEMO_SESSIONS_KEY);
+  window.localStorage.removeItem(DEMO_FACILITY_ASSIGNMENTS_KEY);
   window.localStorage.removeItem(LEGACY_DEMO_FACILITY_META_KEY);
 }
 
@@ -155,6 +198,17 @@ export function getDemoSessions(): DemoSession[] {
 function createInitialDemoTeams(setup: DemoClubSetup): DemoTeam[] {
   if (!setup.createTeamsNow || !setup.selectedTeamDepartment) return [];
 
+  if (setup.clubName === 'Demo Club') {
+    return [
+      { id: 'basketball-u14-boys', department: 'Basketball', name: 'U14 Boys', defaultFacility: 'Main Hall', createdAt: setup.createdAt },
+      { id: 'basketball-u16-boys', department: 'Basketball', name: 'U16 Boys', defaultFacility: 'Main Hall', createdAt: setup.createdAt },
+      { id: 'basketball-u18-boys', department: 'Basketball', name: 'U18 Boys', defaultFacility: 'Court 1', createdAt: setup.createdAt },
+      { id: 'basketball-first-team', department: 'Basketball', name: 'First Team', defaultFacility: 'Main Hall', createdAt: setup.createdAt },
+      { id: 'football-first-team', department: 'Football', name: 'First Team', defaultFacility: 'Main Hall', createdAt: setup.createdAt },
+      { id: 'fencing-first-team', department: 'Fencing', name: 'First Team', defaultFacility: 'Court 1', createdAt: setup.createdAt },
+    ];
+  }
+
   return setup.teams.map((teamName) => ({
     id: `${setup.selectedTeamDepartment}-${teamName}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
     department: setup.selectedTeamDepartment,
@@ -176,7 +230,15 @@ export function getDemoTeams(setup?: DemoClubSetup | null): DemoTeam[] {
 
   if (raw) {
     try {
-      return JSON.parse(raw) as DemoTeam[];
+      const parsed = JSON.parse(raw) as DemoTeam[];
+      if (setup?.clubName === 'Demo Club') {
+        const defaults = createInitialDemoTeams(setup);
+        const existingIds = new Set(parsed.map((team) => team.id));
+        const merged = [...parsed, ...defaults.filter((team) => !existingIds.has(team.id))];
+        saveDemoTeams(merged);
+        return merged;
+      }
+      return parsed;
     } catch {
       return [];
     }

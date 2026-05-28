@@ -119,6 +119,7 @@ const DEFAULT_DURATION_BY_TYPE: Record<LoadTrainingType, number> = {
   team_training: 90,
   strength: 60,
   game: 90,
+  warmup: 20,
   individual: 45,
   recovery: 30,
   school_sport: 60,
@@ -421,6 +422,36 @@ function planToPendingSession(plan: AthleteLoadPlan): AthletePendingSession {
     expectedDurationMinutes: plan.expectedDurationMinutes,
     source: 'athlete_plan',
   };
+}
+
+function warmupForSession(session: AthletePendingSession): AthletePendingSession | null {
+  if (session.trainingType !== 'game') return null;
+  const gameStart = new Date(session.startsAt);
+  const startsAt = new Date(gameStart.getTime() - 75 * 60_000);
+  return {
+    id: `${session.id}-warmup`,
+    title: 'Warmup',
+    teamId: session.teamId,
+    teamName: session.teamName,
+    date: startsAt.toISOString().slice(0, 10),
+    startsAt: startsAt.toISOString(),
+    endsAt: gameStart.toISOString(),
+    trainingType: 'warmup',
+    expectedRpe: 3,
+    expectedDurationMinutes: 20,
+    source: session.source,
+  };
+}
+
+function withAutoWarmups(sessions: AthletePendingSession[]) {
+  const result: AthletePendingSession[] = [];
+  const existingIds = new Set(sessions.map((session) => session.id));
+  for (const session of sessions) {
+    const warmup = warmupForSession(session);
+    if (warmup && !existingIds.has(warmup.id)) result.push(warmup);
+    result.push(session);
+  }
+  return result.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
 
 function formatTime(value: string) {
@@ -752,6 +783,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
               type="monotone"
               dataKey="acuteLoad"
               stroke="#facc15"
+              strokeDasharray="6 5"
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4, fill: '#fef3c7', stroke: '#facc15', strokeWidth: 2 }}
@@ -762,6 +794,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
               type="monotone"
               dataKey="chronicLoad"
               stroke="#34d399"
+              strokeDasharray="6 5"
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4, fill: '#d1fae5', stroke: '#34d399', strokeWidth: 2 }}
@@ -1008,6 +1041,7 @@ function AthleteCalendar({
   }
 
   function canManage(item: AthleteCalendarItem) {
+    if (item.session?.trainingType === 'warmup' || item.id.endsWith('-warmup')) return false;
     return item.source === 'athlete_plan' && item.session && item.status !== 'reported';
   }
 
@@ -1371,8 +1405,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         if (!mounted) return;
         setEntries(mappedEntries);
         setPlans(mappedPlans);
-        setCalendarSessions([...mappedSessions, ...mappedPlans.map(planToPendingSession)]);
-        setPendingSessions([...mappedPending, ...mappedPlans.map(planToPendingSession)]);
+        setCalendarSessions(withAutoWarmups([...mappedSessions, ...mappedPlans.map(planToPendingSession)]));
+        setPendingSessions(withAutoWarmups([...mappedPending, ...mappedPlans.map(planToPendingSession)]));
         setCancelledSessionIds(cancelledIds);
         setSource('supabase');
       } catch {
@@ -1384,8 +1418,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         setAthleteName('Demo Athlete');
         setEntries(demoEntries);
         setPlans(demoPlans);
-        setCalendarSessions([...demoPendingSessions(), ...demoPlans.map(planToPendingSession)]);
-        setPendingSessions([...demoPendingSessions().filter((session) => !acknowledged.has(session.id)), ...demoPlans.map(planToPendingSession)]);
+        setCalendarSessions(withAutoWarmups([...demoPendingSessions(), ...demoPlans.map(planToPendingSession)]));
+        setPendingSessions(withAutoWarmups([...demoPendingSessions().filter((session) => !acknowledged.has(session.id)), ...demoPlans.map(planToPendingSession)]));
         setCancelledSessionIds(cancelledIds);
         setSource('demo');
       }
@@ -1409,7 +1443,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const isBaselineReady = (latest?.chronicFull ?? false) && baselineDays >= 30;
   const zone = loadZone(latest?.acwr ?? null, isBaselineReady);
   const weeklyLoad = useMemo(() => sevenDayLoad(sortedEntries), [sortedEntries]);
-  const activePendingSessions = pendingSessions.filter((session) => !cancelledSessionIds.has(session.id));
+  function isSessionCancelled(sessionId: string) {
+    if (cancelledSessionIds.has(sessionId)) return true;
+    return sessionId.endsWith('-warmup') && cancelledSessionIds.has(sessionId.replace(/-warmup$/, ''));
+  }
+  const activePendingSessions = pendingSessions.filter((session) => !isSessionCancelled(session.id));
   const todayPending = activePendingSessions.filter((session) => session.date <= todayISO()).slice(0, 3);
   const nextSession = activePendingSessions.find((session) => session.date >= todayISO()) ?? activePendingSessions[0] ?? null;
   const calendarItems = useMemo(() => {
@@ -1426,7 +1464,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         endsAt: session.endsAt,
         trainingType: session.trainingType,
         teamName: session.teamName,
-        status: cancelledSessionIds.has(session.id) ? 'cancelled' : reported ? 'reported' : session.date < todayISO() ? 'missing' : 'planned',
+        status: isSessionCancelled(session.id) ? 'cancelled' : reported ? 'reported' : session.date < todayISO() ? 'missing' : 'planned',
         source: session.source ?? 'team_session',
         session,
         entry: entryBySessionId.get(session.id),
@@ -1612,19 +1650,20 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       if (source === 'demo') saveDemoPlans(next);
       return next;
     });
-    setCalendarSessions((current) => [...current, planToPendingSession(plan)].sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
-    setPendingSessions((current) => [...current, planToPendingSession(plan)].sort((a, b) => a.date.localeCompare(b.date)));
+    setCalendarSessions((current) => withAutoWarmups([...current, planToPendingSession(plan)]));
+    setPendingSessions((current) => withAutoWarmups([...current, planToPendingSession(plan)]));
     setPlanForm((current) => ({ ...emptyPlanForm, trainingType: current.trainingType, date: current.date }));
   }
 
   async function deletePlan(planId: string) {
+    const warmupId = `${planId}-warmup`;
     setPlans((current) => {
       const next = current.filter((plan) => plan.id !== planId);
       if (source === 'demo') saveDemoPlans(next);
       return next;
     });
-    setCalendarSessions((current) => current.filter((session) => session.id !== planId));
-    setPendingSessions((current) => current.filter((session) => session.id !== planId));
+    setCalendarSessions((current) => current.filter((session) => session.id !== planId && session.id !== warmupId));
+    setPendingSessions((current) => current.filter((session) => session.id !== planId && session.id !== warmupId));
     if (source === 'supabase') {
       const supabase = createBrowserSupabaseClient();
       const { error: deleteError } = await supabase.from('athlete_load_plans').delete().eq('id', planId);
@@ -1686,7 +1725,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     if (session.source !== 'athlete_plan') return;
     const nextDate = isoDate(new Date(startsAt));
     const nextTime = timeInputFromISO(startsAt);
-    const applySessionUpdate = (current: AthletePendingSession[]) => current
+    const warmupId = `${session.id}-warmup`;
+    const applySessionUpdate = (current: AthletePendingSession[]) => withAutoWarmups(current
+      .filter((item) => item.id !== warmupId)
       .map((item) => item.id === session.id
         ? {
           ...item,
@@ -1696,7 +1737,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           expectedDurationMinutes: durationMinutes,
         }
         : item)
-      .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+      .sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
 
     setPlans((current) => {
       const next = current
@@ -1988,7 +2029,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         {activeView === 'load' ? (
           <LoadDetailsPanel
             entries={sortedEntries}
-            pendingSessions={pendingSessions}
             latestEwma={latest}
             latestRolling={latestRolling}
             baselineDays={baselineDays}
@@ -2142,14 +2182,20 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
             {activeTeamSessionIsFuture ? (
               <div className="mt-5 rounded-2xl border border-slate-700 bg-slate-950/70 p-4 text-sm font-bold text-slate-300">
-                <p>{activeComposerSession && cancelledSessionIds.has(activeComposerSession.id) ? 'You cancelled this session. It stays visible in red in your calendar.' : 'This team session is scheduled. Load input opens after it is due.'}</p>
-                {activeComposerSession ? (
+                <p>
+                  {activeComposerSession?.trainingType === 'warmup'
+                    ? 'Warmup is attached to the game. Cancel or restore the game to change it.'
+                    : activeComposerSession && isSessionCancelled(activeComposerSession.id)
+                      ? 'You cancelled this session. It stays visible in red in your calendar.'
+                      : 'This team session is scheduled. Load input opens after it is due.'}
+                </p>
+                {activeComposerSession && activeComposerSession.trainingType !== 'warmup' ? (
                   <button
                     type="button"
-                    onClick={() => setTeamSessionCancelled(activeComposerSession, !cancelledSessionIds.has(activeComposerSession.id))}
-                    className={`mt-4 w-full rounded-2xl border px-4 py-3 text-sm font-black ${cancelledSessionIds.has(activeComposerSession.id) ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-100' : 'border-rose-400/50 bg-rose-400/10 text-rose-100'}`}
+                    onClick={() => setTeamSessionCancelled(activeComposerSession, !isSessionCancelled(activeComposerSession.id))}
+                    className={`mt-4 w-full rounded-2xl border px-4 py-3 text-sm font-black ${isSessionCancelled(activeComposerSession.id) ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-100' : 'border-rose-400/50 bg-rose-400/10 text-rose-100'}`}
                   >
-                    {cancelledSessionIds.has(activeComposerSession.id) ? 'Mark as available again' : 'Cancel session'}
+                    {isSessionCancelled(activeComposerSession.id) ? 'Mark as available again' : 'Cancel session'}
                   </button>
                 ) : null}
               </div>
@@ -2263,37 +2309,87 @@ function AthleteQuickNav({ activeView }: { activeView: AthleteView }) {
   );
 }
 
+function ewmaLoadForTargetRatio(acuteLoad: number, chronicLoad: number, targetRatio: number) {
+  const acuteLambda = 2 / (7 + 1);
+  const chronicLambda = 2 / (28 + 1);
+  const denominator = acuteLambda - targetRatio * chronicLambda;
+  if (denominator <= 0 || chronicLoad <= 0) return null;
+  return Math.max(0, Math.round((targetRatio * (1 - chronicLambda) * chronicLoad - (1 - acuteLambda) * acuteLoad) / denominator));
+}
+
+function sessionEstimateLabel(au: number, averageSessionLoad: number) {
+  if (au <= 0) return '0 sessions';
+  const sessions = au / Math.max(averageSessionLoad, 1);
+  if (sessions < 0.75) return '< 1 session';
+  return `about ${sessions.toFixed(1)} sessions`;
+}
+
 function LoadDetailsPanel({
   entries,
-  pendingSessions,
   latestEwma,
   latestRolling,
   baselineDays,
 }: {
   entries: AthleteLoadEntry[];
-  pendingSessions: AthletePendingSession[];
   latestEwma: ReturnType<typeof getLatestACWR>;
   latestRolling: ReturnType<typeof getLatestACWR>;
   baselineDays: number;
 }) {
   const today = todayISO();
-  const last14Start = new Date(`${today}T00:00:00`);
-  last14Start.setDate(last14Start.getDate() - 13);
-  const last14ISO = `${last14Start.getFullYear()}-${String(last14Start.getMonth() + 1).padStart(2, '0')}-${String(last14Start.getDate()).padStart(2, '0')}`;
-  const last14Entries = entries.filter((entry) => entry.date >= last14ISO);
-  const last14Load = last14Entries.reduce((sum, entry) => sum + entry.load, 0);
-  const plannedNext = pendingSessions.filter((session) => session.date >= today).length;
-  const missingInput = pendingSessions.filter((session) => session.date < today).length;
+  const last28Start = new Date(`${today}T00:00:00`);
+  last28Start.setDate(last28Start.getDate() - 27);
+  const last28ISO = `${last28Start.getFullYear()}-${String(last28Start.getMonth() + 1).padStart(2, '0')}-${String(last28Start.getDate()).padStart(2, '0')}`;
+  const recentEntries = entries.filter((entry) => entry.date >= last28ISO);
+  const recentLoad = recentEntries.reduce((sum, entry) => sum + entry.load, 0);
+  const activeRecentEntries = recentEntries.filter((entry) => entry.load > 0);
+  const averageSessionLoad = activeRecentEntries.length
+    ? Math.round(activeRecentEntries.reduce((sum, entry) => sum + entry.load, 0) / activeRecentEntries.length)
+    : 500;
+  const zone = loadZone(latestEwma?.acwr ?? null, latestEwma?.chronicFull ?? false);
+  const overloadLimit = latestEwma ? ewmaLoadForTargetRatio(latestEwma.acuteLoad, latestEwma.chronicLoad, ACWR_ZONES.high) : null;
+  const lowFloor = latestEwma ? ewmaLoadForTargetRatio(latestEwma.acuteLoad, latestEwma.chronicLoad, ACWR_ZONES.low) : null;
+  const currentAcwr = latestEwma?.acwr ?? null;
+  const headroomAu = overloadLimit === null ? null : Math.max(0, overloadLimit);
+  const lowGapAu = lowFloor === null || currentAcwr === null || currentAcwr >= ACWR_ZONES.low ? 0 : Math.max(0, lowFloor);
+  const bestMove = zone.tone === 'high'
+    ? 'Keep today light or recover.'
+    : zone.tone === 'low'
+      ? 'Add controlled team or strength load.'
+      : 'Normal training room available.';
   const trainingMix = LOAD_TRAINING_TYPES
-    .map((type) => ({ type, label: LOAD_TYPE_LABELS[type], load: last14Entries.filter((entry) => entry.trainingType === type).reduce((sum, entry) => sum + entry.load, 0) }))
+    .map((type) => ({
+      type,
+      label: LOAD_TYPE_LABELS[type],
+      load: recentEntries.filter((entry) => entry.trainingType === type).reduce((sum, entry) => sum + entry.load, 0),
+    }))
     .filter((item) => item.load > 0)
     .sort((a, b) => b.load - a.load);
 
   const cards = [
-    { label: 'Acute load', value: latestEwma?.acuteLoad ? `${latestEwma.acuteLoad} AU` : '—', tone: 'text-amber-100' },
-    { label: 'Chronic load', value: latestEwma?.chronicLoad ? `${latestEwma.chronicLoad} AU` : '—', tone: 'text-emerald-100' },
-    { label: 'EWMA ACWR', value: latestEwma?.acwr ? latestEwma.acwr.toFixed(2) : '—', tone: 'text-sky-100' },
-    { label: 'Rolling ACWR', value: latestRolling?.acwr ? latestRolling.acwr.toFixed(2) : '—', tone: 'text-violet-100' },
+    {
+      label: 'Room before overload',
+      value: headroomAu === null ? 'n/a' : `${headroomAu} AU`,
+      detail: headroomAu === null ? 'Needs baseline' : sessionEstimateLabel(headroomAu, averageSessionLoad),
+      tone: headroomAu !== null && headroomAu < averageSessionLoad * 0.5 ? 'text-rose-100' : 'text-emerald-100',
+    },
+    {
+      label: 'Low-load gap',
+      value: lowGapAu > 0 ? `${lowGapAu} AU` : 'Covered',
+      detail: lowGapAu > 0 ? sessionEstimateLabel(lowGapAu, averageSessionLoad) : 'No underload correction needed',
+      tone: lowGapAu > 0 ? 'text-sky-100' : 'text-slate-100',
+    },
+    {
+      label: 'Current zone',
+      value: zone.label,
+      detail: currentAcwr ? `EWMA ${currentAcwr.toFixed(2)} / rolling ${latestRolling?.acwr?.toFixed(2) ?? 'n/a'}` : 'Baseline building',
+      tone: zone.tone === 'high' ? 'text-rose-100' : zone.tone === 'low' ? 'text-sky-100' : 'text-white',
+    },
+    {
+      label: 'Best next move',
+      value: bestMove,
+      detail: `${baselineDays} baseline days`,
+      tone: 'text-amber-100',
+    },
   ];
 
   return (
@@ -2302,58 +2398,57 @@ function LoadDetailsPanel({
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.24em] text-amber-300">Load details</p>
-            <h2 className="mt-1 text-2xl font-black tracking-tight">Acute, chronic and trend context</h2>
+            <h2 className="mt-1 text-2xl font-black tracking-tight">Training room and risk</h2>
           </div>
-          <span className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs font-black text-slate-300">{baselineDays} baseline days</span>
+          <span className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs font-black text-slate-300">EWMA default</span>
         </div>
         <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {cards.map((card) => (
             <div key={card.label} className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{card.label}</p>
-              <p className={`mt-3 text-2xl font-black ${card.tone}`}>{card.value}</p>
+              <p className={`mt-3 min-h-14 text-2xl font-black leading-tight ${card.tone}`}>{card.value}</p>
+              <p className="mt-2 text-xs font-bold text-slate-500">{card.detail}</p>
             </div>
           ))}
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Last 14 days</p>
-            <p className="mt-3 text-2xl font-black text-white">{last14Load} AU</p>
-          </div>
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Planned</p>
-            <p className="mt-3 text-2xl font-black text-white">{plannedNext}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Needs input</p>
-            <p className="mt-3 text-2xl font-black text-white">{missingInput}</p>
-          </div>
+        <div className="mt-5 rounded-2xl border border-dashed border-slate-700 bg-slate-950/45 p-4 text-sm font-bold text-slate-400">
+          {baselineDays < 30
+            ? 'Baseline warning: load guidance becomes much more reliable after 30 recorded days.'
+            : 'Guidance uses EWMA load. Acute and chronic values remain in the graph/tooltip, not as primary athlete cards.'}
         </div>
       </div>
 
       <div className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">
         <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-300">Insights</p>
-        <h2 className="mt-1 text-2xl font-black tracking-tight">What matters next</h2>
+        <h2 className="mt-1 text-2xl font-black tracking-tight">Training mix</h2>
         <div className="mt-5 space-y-3">
           <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
-            <p className="text-sm font-black text-white">Training mix</p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-black text-white">Last 28 days</p>
+              <span className="text-xs font-black text-slate-500">{recentLoad} AU</span>
+            </div>
             {trainingMix.length > 0 ? (
-              <div className="mt-3 space-y-2">
-                {trainingMix.slice(0, 4).map((item) => (
-                  <div key={item.type}>
-                    <div className="flex justify-between text-xs font-black text-slate-300">
-                      <span>{item.label}</span>
-                      <span>{item.load} AU</span>
+              <div className="mt-3 space-y-3">
+                {trainingMix.slice(0, 6).map((item) => {
+                  const percent = Math.round((item.load / Math.max(recentLoad, 1)) * 100);
+                  return (
+                    <div key={item.type}>
+                      <div className="flex justify-between text-xs font-black text-slate-300">
+                        <span>{item.label}</span>
+                        <span>{percent}%</span>
+                      </div>
+                      <div className="mt-1 h-2 rounded-full bg-slate-900">
+                        <div className="h-2 rounded-full" style={{ width: `${Math.max(6, percent)}%`, backgroundColor: LOAD_TYPE_COLORS[item.type] }} />
+                      </div>
+                      <p className="mt-1 text-[10px] font-bold text-slate-600">{item.load} AU</p>
                     </div>
-                    <div className="mt-1 h-2 rounded-full bg-slate-900">
-                      <div className="h-2 rounded-full" style={{ width: `${Math.max(6, Math.round((item.load / Math.max(last14Load, 1)) * 100))}%`, backgroundColor: LOAD_TYPE_COLORS[item.type] }} />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : <p className="mt-2 text-sm font-bold text-slate-500">No recent load yet.</p>}
           </div>
           <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/45 p-4 text-sm font-bold text-slate-400">
-            Attendance insight placeholder: once attendance records are connected, this will show attendance rate, missed sessions and repeated absence patterns.
+            Attendance insight placeholder: coach view will show attendance rate, missed sessions and repeated absence patterns below load.
           </div>
           <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/45 p-4 text-sm font-bold text-slate-400">
             Readiness placeholder: availability, soreness, sleep or wellness check-ins can attach here without changing the load graph.

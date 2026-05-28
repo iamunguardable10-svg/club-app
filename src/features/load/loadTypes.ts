@@ -2,6 +2,7 @@ export type LoadTrainingType =
   | 'team_training'
   | 'strength'
   | 'game'
+  | 'warmup'
   | 'individual'
   | 'recovery'
   | 'school_sport'
@@ -11,6 +12,7 @@ export const LOAD_TRAINING_TYPES: LoadTrainingType[] = [
   'team_training',
   'strength',
   'game',
+  'warmup',
   'individual',
   'recovery',
   'school_sport',
@@ -21,6 +23,7 @@ export const LOAD_TYPE_LABELS: Record<LoadTrainingType, string> = {
   team_training: 'Team',
   strength: 'Strength',
   game: 'Game',
+  warmup: 'Warmup',
   individual: 'Individual',
   recovery: 'Recovery',
   school_sport: 'School',
@@ -31,6 +34,7 @@ export const LOAD_TYPE_COLORS: Record<LoadTrainingType, string> = {
   team_training: '#38bdf8',
   strength: '#f59e0b',
   game: '#a78bfa',
+  warmup: '#fb923c',
   individual: '#22d3ee',
   recovery: '#34d399',
   school_sport: '#84cc16',
