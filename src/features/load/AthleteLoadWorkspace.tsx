@@ -52,6 +52,7 @@ type AthleteCalendarItem = {
   status: 'planned' | 'reported' | 'missing' | 'cancelled';
   source: 'team_session' | 'athlete_plan' | 'load_entry';
   session?: AthletePendingSession;
+  entry?: AthleteLoadEntry;
 };
 
 type RawLoadEntry = {
@@ -752,7 +753,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
             {LOAD_TYPE_LABELS[type]}
           </span>
         ))}
-        <span className="ml-auto text-[11px] font-bold text-slate-500">Solid = reported ? faded = forecast</span>
+        <span className="ml-auto text-[11px] font-bold text-slate-500">Solid = reported · faded = forecast</span>
       </div>
       {isFullscreen ? (
         <div className="fixed inset-0 z-50 bg-[#050712] sm:hidden" role="dialog" aria-modal="true">
@@ -797,13 +798,13 @@ function AthleteCalendar({
 }: {
   items: AthleteCalendarItem[];
   onEmptySlot: (date: string, time: string) => void;
-  onItemSelect: (item: AthleteCalendarItem) => void;
+  onItemSelect: (item: AthleteCalendarItem, intent: 'view' | 'edit') => void;
   onPlanTimeChange: (session: AthletePendingSession, startsAt: string, durationMinutes: number) => void;
 }) {
   const firstHour = 8;
   const lastHour = 23;
   const desktopHourHeight = 48;
-  const mobileHourHeight = 36;
+  const mobileHourHeight = 20;
   const hours = Array.from({ length: lastHour - firstHour + 1 }, (_, index) => firstHour + index);
   const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart(), index));
   const gridMinutes = (lastHour - firstHour + 1) * 60;
@@ -812,6 +813,7 @@ function AthleteCalendar({
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [mobileView, setMobileView] = useState<'week' | 'day'>('week');
   const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, days.findIndex((day) => isoDate(day) === todayISO())));
+  const [suppressClick, setSuppressClick] = useState(false);
   const [drag, setDrag] = useState<{
     item: AthleteCalendarItem;
     kind: 'move' | 'resize';
@@ -867,21 +869,41 @@ function AthleteCalendar({
 
   function startDrag(item: AthleteCalendarItem, kind: 'move' | 'resize', event: ReactPointerEvent<HTMLButtonElement | HTMLSpanElement>) {
     if (mode !== 'edit' || !canManage(item)) return;
-    event.preventDefault();
     event.stopPropagation();
-    setDrag({ item, kind, startedAt: item.startsAt, durationMinutes: itemDuration(item) });
-  }
+    const activeDrag = { item, kind, startedAt: item.startsAt, durationMinutes: itemDuration(item) };
+    const startX = event.clientX;
+    const startY = event.clientY;
+    let isDragging = kind === 'resize';
 
-  useEffect(() => {
-    if (!drag) return;
-    const activeDrag = drag;
+    if (kind === 'resize') {
+      event.preventDefault();
+      setSuppressClick(true);
+      setDrag(activeDrag);
+    }
 
-    function finish(event: PointerEvent) {
-      const element = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+    function cleanup() {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', cancel);
+    }
+
+    function move(pointerEvent: PointerEvent) {
+      if (isDragging) return;
+      const delta = Math.abs(pointerEvent.clientX - startX) + Math.abs(pointerEvent.clientY - startY);
+      if (delta < 7) return;
+      isDragging = true;
+      setSuppressClick(true);
+      setDrag(activeDrag);
+    }
+
+    function finish(pointerEvent: PointerEvent) {
+      cleanup();
+      if (!isDragging) return;
+      const element = document.elementFromPoint(pointerEvent.clientX, pointerEvent.clientY) as HTMLElement | null;
       const dayElement = element?.closest('[data-athlete-day]') as HTMLElement | null;
       const date = dayElement?.dataset.athleteDay ?? activeDrag.item.date;
       const hourHeight = dayElement?.dataset.density === 'desktop' ? desktopHourHeight : mobileHourHeight;
-      const minutes = dayElement ? minutesFromPointer(dayElement, event.clientY, hourHeight) : Math.max(0, (new Date(activeDrag.item.startsAt).getHours() - firstHour) * 60 + new Date(activeDrag.item.startsAt).getMinutes());
+      const minutes = dayElement ? minutesFromPointer(dayElement, pointerEvent.clientY, hourHeight) : Math.max(0, (new Date(activeDrag.item.startsAt).getHours() - firstHour) * 60 + new Date(activeDrag.item.startsAt).getMinutes());
       const duration = activeDrag.kind === 'move'
         ? activeDrag.durationMinutes
         : Math.max(15, Math.round((minutes - ((new Date(activeDrag.startedAt).getHours() - firstHour) * 60 + new Date(activeDrag.startedAt).getMinutes())) / 15) * 15);
@@ -890,19 +912,19 @@ function AthleteCalendar({
         : Math.max(0, Math.min(gridMinutes - 15, (new Date(activeDrag.startedAt).getHours() - firstHour) * 60 + new Date(activeDrag.startedAt).getMinutes()));
       if (activeDrag.item.session) onPlanTimeChange(activeDrag.item.session, dateTimeISO(date, startMinutes), duration);
       setDrag(null);
+      window.setTimeout(() => setSuppressClick(false), 0);
     }
 
     function cancel() {
+      cleanup();
       setDrag(null);
+      window.setTimeout(() => setSuppressClick(false), 0);
     }
 
+    window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', finish);
     window.addEventListener('pointercancel', cancel);
-    return () => {
-      window.removeEventListener('pointerup', finish);
-      window.removeEventListener('pointercancel', cancel);
-    };
-  }, [drag, gridMinutes, onPlanTimeChange]);
+  }
 
   function itemClass(item: AthleteCalendarItem) {
     const base = 'absolute left-1 right-1 overflow-hidden rounded-xl border px-2 py-1 text-left shadow-sm transition hover:brightness-110';
@@ -932,14 +954,14 @@ function AthleteCalendar({
         type="button"
         data-athlete-calendar-item="true"
         onPointerDown={(event) => startDrag(item, 'move', event)}
-        onClick={(event) => { event.stopPropagation(); if (mode === 'edit' && canManage(item)) return; if (!drag) onItemSelect(item); }}
+        onClick={(event) => { event.stopPropagation(); if (!suppressClick) onItemSelect(item, mode); }}
         className={`${itemClass(item)} ${compact ? 'px-1 text-[9px] leading-tight' : ''}`}
         style={{ ...style, ...itemBorderStyle(item) }}
       >
         <span className={`block truncate font-black ${compact ? '' : 'text-sm'}`}>{compact ? LOAD_TYPE_LABELS[item.trainingType] : item.title}</span>
         {style.height > (compact ? 34 : 42) ? (
           <span className={`mt-0.5 block truncate font-bold opacity-75 ${compact ? 'text-[8px]' : 'text-[11px]'}`}>
-            {compact ? item.teamName ?? item.status : `${formatTime(item.startsAt)}${item.endsAt ? ` - ${formatTime(item.endsAt)}` : ''} ? ${item.teamName ?? LOAD_TYPE_LABELS[item.trainingType]}`}
+            {compact ? item.teamName ?? item.status : `${formatTime(item.startsAt)}${item.endsAt ? ` - ${formatTime(item.endsAt)}` : ''} · ${item.teamName ?? LOAD_TYPE_LABELS[item.trainingType]}`}
           </span>
         ) : null}
         {manageable ? <span aria-hidden="true" onPointerDown={(event) => startDrag(item, 'resize', event)} className="absolute inset-x-3 bottom-0 h-3 cursor-ns-resize rounded-t bg-white/35" /> : null}
@@ -973,7 +995,7 @@ function AthleteCalendar({
               </button>
             ))}
           </div>
-          <div className="max-h-[68vh] overflow-y-auto overscroll-contain">
+          <div className="overflow-hidden">
             <div className="grid grid-cols-[36px_repeat(7,minmax(0,1fr))]">
               <div className="bg-slate-950/95">
                 {hours.map((hour) => <div key={hour} className="border-b border-slate-900 px-1 py-1 text-[9px] font-bold text-slate-500" style={{ height: mobileHourHeight }}>{String(hour).padStart(2, '0')}</div>)}
@@ -996,12 +1018,12 @@ function AthleteCalendar({
           <div className="flex items-center justify-between border-b border-slate-800 p-2">
             <button type="button" onClick={() => setMobileView('week')} className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200">Week</button>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setActiveDayIndex((index) => clampDayIndex(index - 1))} className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-black text-slate-200">?</button>
+              <button type="button" onClick={() => setActiveDayIndex((index) => clampDayIndex(index - 1))} className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-black text-slate-200">‹</button>
               <span className="text-xs font-black text-slate-200">{activeDay.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</span>
-              <button type="button" onClick={() => setActiveDayIndex((index) => clampDayIndex(index + 1))} className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-black text-slate-200">?</button>
+              <button type="button" onClick={() => setActiveDayIndex((index) => clampDayIndex(index + 1))} className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-black text-slate-200">›</button>
             </div>
           </div>
-          <div className="max-h-[68vh] overflow-y-auto overscroll-contain">
+          <div className="overflow-hidden">
             <div className="grid grid-cols-[52px_minmax(0,1fr)]">
               <div className="bg-slate-950/95">
                 {hours.map((hour) => <div key={hour} className="border-b border-slate-900 px-2 py-1 text-[10px] font-bold text-slate-500" style={{ height: mobileHourHeight }}>{String(hour).padStart(2, '0')}:00</div>)}
@@ -1055,6 +1077,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [activeShareUrl, setActiveShareUrl] = useState<string | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [activeComposerSession, setActiveComposerSession] = useState<AthletePendingSession | null>(null);
+  const [activeEntry, setActiveEntry] = useState<AthleteLoadEntry | null>(null);
+  const [activeDetailItem, setActiveDetailItem] = useState<AthleteCalendarItem | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -1143,6 +1167,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const nextSession = pendingSessions.find((session) => session.date >= todayISO()) ?? pendingSessions[0] ?? null;
   const calendarItems = useMemo(() => {
     const reportedSessionIds = new Set(sortedEntries.map((entry) => entry.sessionId).filter(Boolean));
+    const entryBySessionId = new Map(sortedEntries.filter((entry) => entry.sessionId).map((entry) => [entry.sessionId!, entry]));
     const sessionIds = new Set(calendarSessions.map((session) => session.id));
     const now = Date.now();
     const fromSessions: AthleteCalendarItem[] = calendarSessions.map((session) => {
@@ -1159,6 +1184,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         status: reported ? 'reported' : end < now ? 'missing' : 'planned',
         source: session.source ?? 'team_session',
         session,
+        entry: entryBySessionId.get(session.id),
       };
     });
     const fromEntries: AthleteCalendarItem[] = sortedEntries
@@ -1173,6 +1199,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         teamName: entry.teamName ?? null,
         status: 'reported',
         source: 'load_entry',
+        entry,
       }));
     return [...fromSessions, ...fromEntries].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   }, [calendarSessions, sortedEntries]);
@@ -1400,7 +1427,51 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     }
   }
 
+  async function updateExistingEntry() {
+    if (!activeEntry) return;
+    const startsAt = planForm.time ? new Date(`${planForm.date}T${planForm.time}`).toISOString() : activeEntry.startsAt ?? null;
+    const updated: AthleteLoadEntry = {
+      ...activeEntry,
+      date: planForm.date,
+      startsAt,
+      title: LOAD_TYPE_LABELS[planForm.trainingType],
+      trainingType: planForm.trainingType,
+      rpe: planForm.expectedRpe,
+      durationMinutes: planForm.expectedDurationMinutes,
+      load: planForm.expectedRpe * planForm.expectedDurationMinutes,
+    };
+
+    setEntries((current) => {
+      const next = current.map((entry) => entry.id === activeEntry.id ? updated : entry).sort((a, b) => a.date.localeCompare(b.date));
+      if (source === 'demo') saveDemoEntries(next);
+      return next;
+    });
+
+    if (source === 'supabase') {
+      const supabase = createBrowserSupabaseClient();
+      const { error: updateError } = await supabase
+        .from('load_entries')
+        .update({
+          entry_date: updated.date,
+          training_type: updated.trainingType,
+          rpe: updated.rpe,
+          duration_minutes: updated.durationMinutes,
+          note: updated.note || null,
+        })
+        .eq('id', updated.id);
+      if (updateError) setError(updateError.message);
+    }
+
+    setActiveEntry(null);
+    setComposerOpen(false);
+  }
+
   async function submitUnifiedSession() {
+    if (activeEntry) {
+      await updateExistingEntry();
+      return;
+    }
+
     if (activeComposerSession) {
       if (activeComposerSession.source === 'team_session' && activeComposerSession.date > todayISO()) return;
       if (activeComposerSession.source === 'athlete_plan' && sessionMode === 'plan') {
@@ -1451,6 +1522,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
   function openComposer(date: string, time = '18:00') {
     setActiveComposerSession(null);
+    setActiveEntry(null);
+    setActiveDetailItem(null);
     setPlanForm((current) => ({
       ...current,
       date,
@@ -1462,10 +1535,30 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     setComposerOpen(true);
   }
 
-  function openCalendarItem(item: AthleteCalendarItem) {
-    if (item.status === 'reported') return;
+  function openCalendarItem(item: AthleteCalendarItem, intent: 'view' | 'edit' = 'view') {
+    if (intent === 'view' && item.status === 'reported') {
+      setActiveDetailItem(item);
+      return;
+    }
+    if (intent === 'edit' && item.entry) {
+      setActiveDetailItem(null);
+      setActiveComposerSession(null);
+      setActiveEntry(item.entry);
+      setPlanForm({
+        trainingType: item.entry.trainingType,
+        date: item.entry.date,
+        time: item.entry.startsAt ? timeInputFromISO(item.entry.startsAt) : timeInputFromISO(item.startsAt),
+        expectedRpe: item.entry.rpe,
+        expectedDurationMinutes: item.entry.durationMinutes,
+      });
+      setTodayAction('report');
+      setComposerOpen(true);
+      return;
+    }
     if (item.session) {
       const duration = durationMinutesFromSession(item.session);
+      setActiveDetailItem(null);
+      setActiveEntry(null);
       setActiveComposerSession(item.session);
       setPlanForm({
         trainingType: item.trainingType,
@@ -1479,6 +1572,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       return;
     }
     setActiveComposerSession(null);
+    setActiveEntry(null);
+    setActiveDetailItem(null);
     setPlanForm({
       trainingType: item.trainingType,
       date: item.date,
@@ -1491,7 +1586,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
   const shareActive = Boolean(activeShareUrl);
   const activeTeamSessionIsFuture = Boolean(activeComposerSession?.source === 'team_session' && activeComposerSession.date > todayISO());
-  const composerTitle = activeComposerSession?.source === 'team_session'
+  const composerTitle = activeEntry
+    ? 'Edit load'
+    : activeComposerSession?.source === 'team_session'
     ? activeTeamSessionIsFuture
       ? 'Session details'
       : 'Report session'
@@ -1527,7 +1624,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
         {error ? <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 px-4 py-3 text-sm font-bold text-rose-100">{error}</div> : null}
 
-        {!isBaselineReady ? (
+        {initialView !== 'calendar' && !isBaselineReady ? (
           <section className="rounded-[1.75rem] border border-amber-300/25 sm:rounded-[2rem] bg-amber-300/[0.08] p-4 text-sm font-bold text-amber-100">
             Load baseline is still building. ACWR is calculated already, but it becomes meaningfully interpretable after about 30 days of calendar history.
           </section>
@@ -1614,6 +1711,42 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           </section>
         )}
       </div>
+      {activeDetailItem ? (
+        <div className="fixed inset-0 z-50 flex items-end bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
+          <div className="w-full rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-md">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">Session details</p>
+                <h2 className="mt-1 text-2xl font-black tracking-tight">{activeDetailItem.title}</h2>
+                <p className="mt-1 text-sm font-bold text-slate-500">
+                  {formatLoadDate(activeDetailItem.date)} · {formatTime(activeDetailItem.startsAt)}{activeDetailItem.endsAt ? ` - ${formatTime(activeDetailItem.endsAt)}` : ''}
+                </p>
+              </div>
+              <button type="button" onClick={() => setActiveDetailItem(null)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">Close</button>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Load</p>
+                <p className="mt-2 text-xl font-black text-amber-200">{activeDetailItem.entry?.load ?? '—'}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 opacity-75">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">RPE</p>
+                <p className="mt-2 text-xl font-black text-white">{activeDetailItem.entry?.rpe ?? '—'}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 opacity-75">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Duration</p>
+                <p className="mt-2 text-xl font-black text-white">{activeDetailItem.entry?.durationMinutes ?? '—'}</p>
+              </div>
+            </div>
+            {activeDetailItem.entry ? (
+              <button type="button" onClick={() => { const item = activeDetailItem; setActiveDetailItem(null); openCalendarItem(item, 'edit'); }} className="mt-4 w-full rounded-2xl border border-sky-400/50 bg-sky-400/10 px-4 py-3 text-sm font-black text-sky-100">
+                Edit load
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       {composerOpen ? (
         <div className="fixed inset-0 z-50 flex items-end bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
           <div className="max-h-[88vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-xl">
@@ -1623,7 +1756,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 <h2 className="mt-1 text-2xl font-black tracking-tight">{composerTitle}</h2>
                 <p className="mt-1 text-sm font-bold text-slate-500">{formatLoadDate(planForm.date)}</p>
               </div>
-              <button type="button" onClick={() => { setComposerOpen(false); setActiveComposerSession(null); }} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">Close</button>
+              <button type="button" onClick={() => { setComposerOpen(false); setActiveComposerSession(null); setActiveEntry(null); }} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">Close</button>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-2">
@@ -1634,14 +1767,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               ))}
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="mt-4 grid max-w-[15rem] grid-cols-[minmax(0,8.75rem)_minmax(0,5.25rem)] gap-2">
               <label className="min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                 Date
-                <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value, expectedRpe: averageRpeFor(current.trainingType, event.target.value) }))} className="mt-2 block w-full min-w-0 max-w-full rounded-xl border border-slate-700 bg-slate-950 px-2 py-2 text-xs font-bold text-white outline-none focus:border-emerald-300" />
+                <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value, expectedRpe: averageRpeFor(current.trainingType, event.target.value) }))} className="mt-2 block h-9 w-full min-w-0 max-w-full rounded-xl border border-slate-700 bg-slate-950 px-1.5 py-1 text-[11px] font-bold text-white outline-none focus:border-emerald-300" />
               </label>
               <label className="min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                 Time
-                <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 block w-full min-w-0 max-w-full rounded-xl border border-slate-700 bg-slate-950 px-2 py-2 text-xs font-bold text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
+                <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 block h-9 w-full min-w-0 max-w-full rounded-xl border border-slate-700 bg-slate-950 px-1.5 py-1 text-[11px] font-bold text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
               </label>
             </div>
 
@@ -1682,8 +1815,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   </div>
                 </div>
 
-                <button type="button" onClick={submitUnifiedSession} className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-black text-slate-950 transition ${sessionMode === 'plan' && !activeComposerSession ? 'bg-violet-300' : 'bg-emerald-300'}`}>
-                  {sessionMode === 'plan' && !activeComposerSession ? `Plan ${sessionLoadPreview} AU` : `Save ${sessionLoadPreview} AU`}
+                <button type="button" onClick={submitUnifiedSession} className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-black text-slate-950 transition ${sessionMode === 'plan' && !activeComposerSession && !activeEntry ? 'bg-violet-300' : 'bg-emerald-300'}`}>
+                  {sessionMode === 'plan' && !activeComposerSession && !activeEntry ? `Plan ${sessionLoadPreview} AU` : `Save ${sessionLoadPreview} AU`}
                 </button>
               </>
             )}

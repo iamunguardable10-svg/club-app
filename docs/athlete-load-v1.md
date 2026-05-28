@@ -100,6 +100,8 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 - Calendar view does not show the load graph; it stays focused on planning/reporting.
 - Calendar has a view/edit split. Creating from empty slots works in view mode; moving/resizing own planned athlete sessions requires edit mode.
 - On mobile, tapping a weekday opens the day view; the week view remains available from the day header.
+- The mobile athlete calendar renders 08:00-23:00 without an inner calendar scroll; the page can scroll, but the calendar itself should stay fully visible.
+- In view mode, tapping a reported session opens read-only load details. In edit mode, reported athlete load entries can be edited for RPE/duration, while only owned planned athlete sessions can be moved/resized.
 - Planned load defaults RPE from the athlete's own history for that training type, preferring the same weekday when enough samples exist.
 - Mobile chart fullscreen first asks the athlete to rotate the phone; the graph renders only in landscape to avoid the previous rotated-overlay glitch.
 - Trainer link state is persisted in browser storage so copied links are visibly marked active.
