@@ -137,3 +137,10 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 - Date/time fields use centered, larger text and tighter field widths to fit the actual value.
 - Game load uses fixed RPE 10; athletes only adjust playing minutes with 1-minute granularity. This applies to the main composer and pending inline reporting.
 - Resize handles stay wider in compact week cards and narrower in day/desktop cards.
+
+## Athlete calendar mobile correction pass
+
+- Compact week resize handle is back to the older smaller footprint; day/desktop handle remains narrow.
+- Week reset is visible on mobile and labelled `↺ Week` instead of `Today`.
+- Mobile session-card typography uses safer line-height and smaller compact detail text so labels and times are not vertically clipped.
+- Mobile iOS date/time fields keep larger text, center the native value vertically, and desktop gets wider date/time boxes again.

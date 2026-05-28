@@ -1036,10 +1036,10 @@ function AthleteCalendar({
     const displayEndsAt = preview?.endsAt ?? item.endsAt;
     const titleClass = compact
       ? style.height < 32
-        ? 'text-[7px] leading-none'
+        ? 'text-[7px] leading-[1.15]'
         : style.height < 44
-          ? 'text-[8px] leading-none'
-          : 'text-[9px] leading-tight'
+          ? 'text-[7.5px] leading-[1.15]'
+          : 'text-[8px] leading-[1.18]'
       : style.height < 36
         ? 'text-[11px] leading-tight'
         : style.height < 48
@@ -1047,13 +1047,13 @@ function AthleteCalendar({
           : 'text-sm leading-tight';
     const detailClass = compact
       ? style.height < 42
-        ? 'text-[7px] leading-none'
-        : 'text-[8px] leading-none'
+        ? 'text-[6.5px] leading-[1.15]'
+        : 'text-[7px] leading-[1.18]'
       : style.height < 48
         ? 'text-[10px] leading-none'
         : 'text-[11px] leading-tight';
     const resizeClass = compact
-      ? 'absolute inset-x-1 bottom-0 h-3.5 cursor-ns-resize rounded-t bg-white/40'
+      ? 'absolute inset-x-3 bottom-0 h-3 cursor-ns-resize rounded-t bg-white/35'
       : 'absolute inset-x-6 bottom-0 h-2.5 cursor-ns-resize rounded-t bg-white/35';
     return (
       <button
@@ -1097,7 +1097,7 @@ function AthleteCalendar({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {weekOffset !== 0 ? <button type="button" onClick={() => setWeekOffset(0)} className="hidden rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300 sm:block">Today</button> : null}
+          {weekOffset !== 0 ? <button type="button" onClick={() => setWeekOffset(0)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">↺ Week</button> : null}
           <button type="button" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-200'}`}>
             {mode === 'edit' ? 'Done' : 'Edit'}
           </button>
@@ -1951,13 +1951,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             </div>
 
             <div className="mt-4 flex max-w-full flex-wrap gap-2">
-              <label className="w-[9rem] max-w-[calc(100vw-2rem)] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              <label className="w-[9rem] max-w-[calc(100vw-2rem)] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500 sm:w-[10rem]">
                 Date
-                <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value, expectedRpe: current.trainingType === 'game' ? 10 : averageRpeFor(current.trainingType, event.target.value) }))} className="mt-2 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-1 text-center text-[14px] font-black leading-10 text-white outline-none focus:border-emerald-300 [color-scheme:dark] [&::-webkit-date-and-time-value]:text-center" />
+                <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value, expectedRpe: current.trainingType === 'game' ? 10 : averageRpeFor(current.trainingType, event.target.value) }))} className="mt-2 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-0 text-center text-[14px] font-black leading-normal text-white outline-none focus:border-emerald-300 sm:text-[15px] [color-scheme:dark] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:min-h-[2.25rem] [&::-webkit-date-and-time-value]:text-center [&::-webkit-date-and-time-value]:leading-[2.25rem]" />
               </label>
-              <label className="w-[5.6rem] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              <label className="w-[5.9rem] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500 sm:w-[7rem]">
                 Time
-                <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-1 text-center text-[14px] font-black leading-10 text-white outline-none focus:border-emerald-300 [color-scheme:dark] [&::-webkit-date-and-time-value]:text-center" />
+                <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-0 text-center text-[14px] font-black leading-normal text-white outline-none focus:border-emerald-300 sm:text-[15px] [color-scheme:dark] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:min-h-[2.25rem] [&::-webkit-date-and-time-value]:text-center [&::-webkit-date-and-time-value]:leading-[2.25rem]" />
               </label>
             </div>
 
