@@ -646,10 +646,16 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
   const ranges = isMobile ? ([7, 14, 30] as const) : ([7, 14, 30, 60] as const);
   const chartMinWidth = isMobile ? '100%' : range === 7 ? 540 : range === 14 ? 680 : range === 30 ? 920 : 1480;
   const chartHeight = isMobile ? (range === 7 ? 300 : 320) : 360;
+  const chartMargin = (fullscreen = false) => ({
+    top: fullscreen ? 22 : 14,
+    right: fullscreen ? 24 : 8,
+    bottom: fullscreen ? 10 : 4,
+    left: isMobile && !fullscreen ? 0 : 22,
+  });
 
   const chart = (fullscreen = false) => (
     <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={chartData} margin={{ top: 14, right: fullscreen ? 22 : 8, bottom: 4, left: isMobile && !fullscreen ? 0 : 22 }} barCategoryGap={range === 7 ? '18%' : range === 14 ? '10%' : range === 30 ? '8%' : '3%'}>
+      <ComposedChart data={chartData} margin={chartMargin(fullscreen)} barCategoryGap={range === 7 ? '18%' : range === 14 ? '10%' : range === 30 ? '8%' : '3%'}>
         <CartesianGrid stroke="rgba(148,163,184,0.10)" vertical={false} />
         <XAxis
           dataKey="label"
@@ -795,9 +801,14 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
         <span className="ml-auto text-[11px] font-bold text-slate-500">Solid = reported · faded = forecast</span>
       </div>
       {isFullscreen ? (
-        <div className="fixed inset-0 z-50 bg-[#050712] sm:hidden" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 z-50 min-h-dvh overflow-y-auto overscroll-contain bg-[#050712]"
+          role="dialog"
+          aria-modal="true"
+          style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
           {!isLandscape ? (
-            <div className="flex h-full flex-col items-center justify-center gap-5 p-6 text-center">
+            <div className="flex min-h-dvh flex-col items-center justify-center gap-5 p-6 text-center">
               <div className="rounded-[2rem] border border-slate-800 bg-slate-950/80 p-6">
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Fullscreen</p>
                 <h3 className="mt-2 text-2xl font-black">Turn your phone sideways</h3>
@@ -808,8 +819,8 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
               </button>
             </div>
           ) : (
-            <div className="flex h-full flex-col gap-3 p-3">
-              <div className="flex items-center justify-between gap-3">
+            <div className="flex min-h-dvh flex-col gap-2 p-2">
+              <div className="flex shrink-0 items-center justify-between gap-3 px-1">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Load chart</p>
                   <p className="text-lg font-black text-white">{range} days - {method.toUpperCase()}</p>
@@ -818,7 +829,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
                   Close
                 </button>
               </div>
-              <div className="min-h-0 flex-1 rounded-[1.5rem] border border-slate-800 bg-slate-950/70 p-2">
+              <div className="h-[calc(100dvh-4.75rem)] min-h-[20rem] shrink-0 rounded-[1.5rem] border border-slate-800 bg-slate-950/70 p-2">
                 {chart(true)}
               </div>
             </div>

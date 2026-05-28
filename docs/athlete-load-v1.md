@@ -144,3 +144,9 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 - Week reset is visible on mobile and labelled `↺ Week` instead of `Today`.
 - Mobile session-card typography uses safer line-height and smaller compact detail text so labels and times are not vertically clipped.
 - Mobile iOS date/time fields keep larger text, center the native value vertically, and desktop gets wider date/time boxes again.
+
+## Athlete fullscreen chart fix
+
+- Mobile fullscreen chart no longer hides at the `sm` breakpoint after rotation; the overlay stays active in landscape.
+- Landscape fullscreen uses a dynamic-viewport chart area plus overlay scrolling, so short iPhone landscape screens can still reach the top and bottom of the graph.
+- Fullscreen chart margins are slightly larger to prevent the graph from clipping at the top edge.
