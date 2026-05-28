@@ -845,7 +845,10 @@ function AthleteCalendar({
   const desktopHourHeight = 48;
   const mobileHourHeight = 30;
   const hours = Array.from({ length: lastHour - firstHour + 1 }, (_, index) => firstHour + index);
-  const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart(), index));
+  const [weekOffset, setWeekOffset] = useState(0);
+  const weekStartDate = addDays(weekStart(), weekOffset * 7);
+  const days = Array.from({ length: 7 }, (_, index) => addDays(weekStartDate, index));
+  const weekLabel = `${days[0].toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })} - ${days[6].toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}`;
   const gridMinutes = (lastHour - firstHour + 1) * 60;
   const gridHeightDesktop = hours.length * desktopHourHeight;
   const gridHeightMobile = hours.length * mobileHourHeight;
@@ -1031,6 +1034,27 @@ function AthleteCalendar({
     const preview = dragPreview?.id === item.id ? dragPreview : null;
     const displayStartsAt = preview?.startsAt ?? item.startsAt;
     const displayEndsAt = preview?.endsAt ?? item.endsAt;
+    const titleClass = compact
+      ? style.height < 32
+        ? 'text-[7px] leading-none'
+        : style.height < 44
+          ? 'text-[8px] leading-none'
+          : 'text-[9px] leading-tight'
+      : style.height < 36
+        ? 'text-[11px] leading-tight'
+        : style.height < 48
+          ? 'text-xs leading-tight'
+          : 'text-sm leading-tight';
+    const detailClass = compact
+      ? style.height < 42
+        ? 'text-[7px] leading-none'
+        : 'text-[8px] leading-none'
+      : style.height < 48
+        ? 'text-[10px] leading-none'
+        : 'text-[11px] leading-tight';
+    const resizeClass = compact
+      ? 'absolute inset-x-1 bottom-0 h-3.5 cursor-ns-resize rounded-t bg-white/40'
+      : 'absolute inset-x-6 bottom-0 h-2.5 cursor-ns-resize rounded-t bg-white/35';
     return (
       <button
         key={item.id}
@@ -1041,18 +1065,18 @@ function AthleteCalendar({
         className={`${itemClass(item)} ${compact ? 'left-0.5 right-0.5 px-0.5 text-[8px] leading-tight' : ''}`}
         style={{ ...style, ...itemBorderStyle(item) }}
       >
-        <span className={`block font-black ${compact ? 'overflow-hidden whitespace-nowrap' : 'truncate text-sm'}`}>{compact ? compactLoadLabel(item.trainingType) : item.title}</span>
+        <span className={`block font-black ${titleClass} ${compact ? 'overflow-hidden whitespace-nowrap' : 'truncate'}`}>{compact ? compactLoadLabel(item.trainingType) : item.title}</span>
         {preview ? (
           <span className={`absolute right-1 top-1 rounded-md bg-slate-950/85 px-1 font-black text-sky-100 ring-1 ring-sky-200/40 ${compact ? 'text-[7px]' : 'text-[9px]'}`}>
             {preview.duration}m
           </span>
         ) : null}
         {style.height > (compact ? 28 : 42) ? (
-          <span className={`mt-0.5 block overflow-hidden whitespace-nowrap font-bold opacity-75 ${compact ? 'text-[8px]' : 'truncate text-[11px]'}`}>
+          <span className={`mt-0.5 block overflow-hidden whitespace-nowrap font-bold opacity-75 ${detailClass} ${compact ? '' : 'truncate'}`}>
             {compact ? formatTime(displayStartsAt) : `${formatTime(displayStartsAt)}${displayEndsAt ? ` - ${formatTime(displayEndsAt)}` : ''} · ${item.teamName ?? LOAD_TYPE_LABELS[item.trainingType]}`}
           </span>
         ) : null}
-        {manageable ? <span aria-hidden="true" onPointerDown={(event) => startDrag(item, 'resize', event)} className="absolute inset-x-3 bottom-0 h-3 cursor-ns-resize rounded-t bg-white/35" /> : null}
+        {manageable ? <span aria-hidden="true" onPointerDown={(event) => startDrag(item, 'resize', event)} className={resizeClass} /> : null}
       </button>
     );
   }
@@ -1066,10 +1090,18 @@ function AthleteCalendar({
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Calendar</p>
           <h2 className="mt-1 text-2xl font-black tracking-tight">Training week</h2>
+          <div className="mt-2 flex items-center gap-2 text-xs font-black text-slate-400">
+            <button type="button" onClick={() => setWeekOffset((value) => value - 1)} className="rounded-full border border-slate-700 px-2 py-1 text-slate-200">‹</button>
+            <span>{weekLabel}</span>
+            <button type="button" onClick={() => setWeekOffset((value) => value + 1)} className="rounded-full border border-slate-700 px-2 py-1 text-slate-200">›</button>
+          </div>
         </div>
-        <button type="button" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-200'}`}>
-          {mode === 'edit' ? 'Done' : 'Edit'}
-        </button>
+        <div className="flex items-center gap-2">
+          {weekOffset !== 0 ? <button type="button" onClick={() => setWeekOffset(0)} className="hidden rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300 sm:block">Today</button> : null}
+          <button type="button" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-200'}`}>
+            {mode === 'edit' ? 'Done' : 'Edit'}
+          </button>
+        </div>
       </div>
       {dragPreview ? (
         <div className="mb-3 rounded-2xl border border-sky-300/40 bg-sky-300/10 px-3 py-2 text-xs font-black text-sky-100 shadow-[0_16px_50px_rgba(56,189,248,0.14)]">
@@ -1310,6 +1342,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     return map;
   }, [sortedEntries]);
   function averageRpeFor(type: LoadTrainingType, date: string) {
+    if (type === 'game') return 10;
     const targetWeekday = new Date(`${date}T00:00:00`).getDay();
     const sameWeekday = sortedEntries.filter((entry) => entry.trainingType === type && new Date(`${entry.date}T00:00:00`).getDay() === targetWeekday);
     const sameType = sortedEntries.filter((entry) => entry.trainingType === type);
@@ -1318,13 +1351,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     return Math.max(1, Math.min(10, Math.round(sample.reduce((sum, entry) => sum + entry.rpe, 0) / sample.length)));
   }
   const sessionMode = planForm.date < todayISO() ? 'report' : planForm.date > todayISO() ? 'plan' : todayAction;
-  const sessionLoadPreview = planForm.expectedRpe * planForm.expectedDurationMinutes;
+  const effectiveRpe = planForm.trainingType === 'game' ? 10 : planForm.expectedRpe;
+  const sessionLoadPreview = effectiveRpe * planForm.expectedDurationMinutes;
 
   function setSessionTrainingType(type: LoadTrainingType) {
     setPlanForm((current) => ({
       ...current,
       trainingType: type,
-      expectedRpe: averageRpeFor(type, current.date),
+      expectedRpe: type === 'game' ? 10 : averageRpeFor(type, current.date),
       expectedDurationMinutes: averageDurationByType.get(type) ?? DEFAULT_DURATION_BY_TYPE[type],
     }));
   }
@@ -1420,7 +1454,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       date: planForm.date,
       startsAt,
       trainingType: planForm.trainingType,
-      expectedRpe: planForm.expectedRpe,
+      expectedRpe: effectiveRpe,
       expectedDurationMinutes: planForm.expectedDurationMinutes,
       note: null,
     };
@@ -1581,9 +1615,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       startsAt,
       title: LOAD_TYPE_LABELS[planForm.trainingType],
       trainingType: planForm.trainingType,
-      rpe: planForm.expectedRpe,
+      rpe: effectiveRpe,
       durationMinutes: planForm.expectedDurationMinutes,
-      load: planForm.expectedRpe * planForm.expectedDurationMinutes,
+      load: effectiveRpe * planForm.expectedDurationMinutes,
     };
 
     setEntries((current) => {
@@ -1627,7 +1661,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         setComposerOpen(false);
         return;
       }
-      await submitPending(activeComposerSession, planForm.expectedRpe, planForm.expectedDurationMinutes);
+      await submitPending(activeComposerSession, effectiveRpe, planForm.expectedDurationMinutes);
       setActiveComposerSession(null);
       setComposerOpen(false);
       return;
@@ -1649,7 +1683,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       startsAt,
       title: LOAD_TYPE_LABELS[planForm.trainingType],
       trainingType: planForm.trainingType,
-      rpe: planForm.expectedRpe,
+      rpe: effectiveRpe,
       durationMinutes: planForm.expectedDurationMinutes,
       load: sessionLoadPreview,
       note: null,
@@ -1693,7 +1727,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         trainingType: item.entry.trainingType,
         date: item.entry.date,
         time: item.entry.startsAt ? timeInputFromISO(item.entry.startsAt) : timeInputFromISO(item.startsAt),
-        expectedRpe: item.entry.rpe,
+        expectedRpe: item.entry.trainingType === 'game' ? 10 : item.entry.rpe,
         expectedDurationMinutes: item.entry.durationMinutes,
       });
       setTodayAction('report');
@@ -1709,7 +1743,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         trainingType: item.trainingType,
         date: item.date,
         time: timeInputFromISO(item.startsAt),
-        expectedRpe: item.session.expectedRpe ?? averageRpeFor(item.trainingType, item.date),
+        expectedRpe: item.trainingType === 'game' ? 10 : item.session.expectedRpe ?? averageRpeFor(item.trainingType, item.date),
         expectedDurationMinutes: duration,
       });
       setTodayAction('report');
@@ -1723,7 +1757,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       trainingType: item.trainingType,
       date: item.date,
       time: timeInputFromISO(item.startsAt),
-      expectedRpe: averageRpeFor(item.trainingType, item.date),
+      expectedRpe: item.trainingType === 'game' ? 10 : averageRpeFor(item.trainingType, item.date),
       expectedDurationMinutes: item.endsAt ? Math.max(15, Math.round((new Date(item.endsAt).getTime() - new Date(item.startsAt).getTime()) / 60_000)) : DEFAULT_DURATION_BY_TYPE[item.trainingType],
     });
     setComposerOpen(true);
@@ -1815,7 +1849,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                         </div>
                         <span className="rounded-full border border-amber-300/40 bg-amber-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-amber-100">{statusForPending(session)}</span>
                       </button>
-                      {active ? <PendingInlineForm defaultRpe={session.expectedRpe ?? 6} defaultDuration={defaultDuration} onSubmit={(rpe, duration) => submitPending(session, rpe, duration)} /> : null}
+                      {active ? <PendingInlineForm trainingType={session.trainingType} defaultRpe={session.trainingType === 'game' ? 10 : session.expectedRpe ?? 6} defaultDuration={defaultDuration} onSubmit={(rpe, duration) => submitPending(session, session.trainingType === 'game' ? 10 : rpe, duration)} /> : null}
                     </article>
                   );
                 })}
@@ -1917,13 +1951,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             </div>
 
             <div className="mt-4 flex max-w-full flex-wrap gap-2">
-              <label className="w-[9.4rem] max-w-[calc(100vw-2rem)] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              <label className="w-[9rem] max-w-[calc(100vw-2rem)] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                 Date
-                <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value, expectedRpe: averageRpeFor(current.trainingType, event.target.value) }))} className="mt-2 block h-9 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-1.5 py-1 text-[13px] font-black text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
+                <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value, expectedRpe: current.trainingType === 'game' ? 10 : averageRpeFor(current.trainingType, event.target.value) }))} className="mt-2 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-1 text-center text-[14px] font-black leading-10 text-white outline-none focus:border-emerald-300 [color-scheme:dark] [&::-webkit-date-and-time-value]:text-center" />
               </label>
-              <label className="w-[6.2rem] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+              <label className="w-[5.6rem] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                 Time
-                <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 block h-9 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-1.5 py-1 text-[13px] font-black text-white outline-none focus:border-emerald-300 [color-scheme:dark]" />
+                <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-1 text-center text-[14px] font-black leading-10 text-white outline-none focus:border-emerald-300 [color-scheme:dark] [&::-webkit-date-and-time-value]:text-center" />
               </label>
             </div>
 
@@ -1941,19 +1975,29 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             ) : (
               <>
                 <div className="mt-5 space-y-5">
-                  <label className="block">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">RPE</span>
-                      <span className="text-2xl font-black text-white">{planForm.expectedRpe}</span>
+                  {planForm.trainingType === 'game' ? (
+                    <div className="rounded-2xl border border-violet-300/25 bg-violet-300/[0.08] p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">RPE</span>
+                        <span className="text-2xl font-black text-white">10</span>
+                      </div>
+                      <p className="mt-1 text-xs font-bold text-slate-400">Game load uses RPE 10. Enter playing minutes below.</p>
                     </div>
-                    <input type="range" min="1" max="10" step="1" value={planForm.expectedRpe} onChange={(event) => setPlanForm((current) => ({ ...current, expectedRpe: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
-                  </label>
+                  ) : (
+                    <label className="block">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">RPE</span>
+                        <span className="text-2xl font-black text-white">{planForm.expectedRpe}</span>
+                      </div>
+                      <input type="range" min="1" max="10" step="1" value={planForm.expectedRpe} onChange={(event) => setPlanForm((current) => ({ ...current, expectedRpe: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
+                    </label>
+                  )}
                   <label className="block">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Duration</span>
+                      <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{planForm.trainingType === 'game' ? 'Playing minutes' : 'Duration'}</span>
                       <span className="text-xl font-black text-white">{planForm.expectedDurationMinutes} min</span>
                     </div>
-                    <input type="range" min="5" max="240" step="5" value={planForm.expectedDurationMinutes} onChange={(event) => setPlanForm((current) => ({ ...current, expectedDurationMinutes: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
+                    <input type="range" min={planForm.trainingType === 'game' ? '0' : '5'} max={planForm.trainingType === 'game' ? '120' : '240'} step={planForm.trainingType === 'game' ? '1' : '5'} value={planForm.expectedDurationMinutes} onChange={(event) => setPlanForm((current) => ({ ...current, expectedDurationMinutes: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
                   </label>
                 </div>
 
@@ -1997,26 +2041,37 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   );
 }
 
-function PendingInlineForm({ defaultRpe, defaultDuration, onSubmit }: { defaultRpe: number; defaultDuration: number; onSubmit: (rpe: number, duration: number) => void }) {
-  const [rpe, setRpe] = useState(defaultRpe);
+function PendingInlineForm({ trainingType, defaultRpe, defaultDuration, onSubmit }: { trainingType: LoadTrainingType; defaultRpe: number; defaultDuration: number; onSubmit: (rpe: number, duration: number) => void }) {
+  const fixedGameRpe = trainingType === 'game';
+  const [rpe, setRpe] = useState(fixedGameRpe ? 10 : defaultRpe);
   const [duration, setDuration] = useState(defaultDuration);
+  const effectiveInlineRpe = fixedGameRpe ? 10 : rpe;
   return (
     <div className="mt-3 space-y-3 rounded-2xl border border-slate-800/80 bg-slate-950/70 p-3">
-      <label className="block">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">RPE</span>
-          <span className="text-xl font-black text-white">{rpe}</span>
+      {fixedGameRpe ? (
+        <div className="rounded-xl border border-violet-300/25 bg-violet-300/[0.08] p-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">RPE</span>
+            <span className="text-xl font-black text-white">10</span>
+          </div>
         </div>
-        <input type="range" min="1" max="10" step="1" value={rpe} onChange={(event) => setRpe(Number(event.target.value))} className="mt-1 w-full accent-emerald-300" aria-label="RPE" />
-      </label>
+      ) : (
+        <label className="block">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">RPE</span>
+            <span className="text-xl font-black text-white">{rpe}</span>
+          </div>
+          <input type="range" min="1" max="10" step="1" value={rpe} onChange={(event) => setRpe(Number(event.target.value))} className="mt-1 w-full accent-emerald-300" aria-label="RPE" />
+        </label>
+      )}
       <label className="block">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Duration</span>
+          <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{fixedGameRpe ? 'Playing minutes' : 'Duration'}</span>
           <span className="text-sm font-black text-white">{duration} min</span>
         </div>
-        <input type="range" min="5" max="240" step="5" value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="mt-1 w-full accent-emerald-300" aria-label="Duration minutes" />
+        <input type="range" min={fixedGameRpe ? '0' : '5'} max={fixedGameRpe ? '120' : '240'} step={fixedGameRpe ? '1' : '5'} value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="mt-1 w-full accent-emerald-300" aria-label="Duration minutes" />
       </label>
-      <button type="button" onClick={() => onSubmit(rpe, duration)} className="w-full rounded-xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950">Save {rpe * duration} AU</button>
+      <button type="button" onClick={() => onSubmit(effectiveInlineRpe, duration)} className="w-full rounded-xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950">Save {effectiveInlineRpe * duration} AU</button>
     </div>
   );
 }

@@ -129,3 +129,11 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 - Horizontal mobile drag now uses the original day column and drag distance to calculate day changes, so Saturday-to-Sunday moves work even with little right-side space.
 - Drag target day columns are highlighted while moving, and the floating preview shows target weekday/start time/duration.
 - Date and time controls keep compact field sizing but use larger text for readability.
+
+## Athlete calendar / game load follow-up
+
+- Athlete calendar supports week navigation with previous/next week controls and a current-week reset.
+- Session cards adapt font size by card height so labels stay inside the card instead of spilling over the edge.
+- Date/time fields use centered, larger text and tighter field widths to fit the actual value.
+- Game load uses fixed RPE 10; athletes only adjust playing minutes with 1-minute granularity. This applies to the main composer and pending inline reporting.
+- Resize handles stay wider in compact week cards and narrower in day/desktop cards.
