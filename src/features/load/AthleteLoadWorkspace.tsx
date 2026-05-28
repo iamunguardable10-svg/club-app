@@ -578,14 +578,14 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
       const mobile = window.innerWidth < 640;
       setIsMobile(mobile);
       setIsLandscape(window.innerWidth > window.innerHeight);
-      if (mobile) {
-        setRange((current) => (current === 60 ? 14 : current));
+      if (mobile && !isFullscreen) {
+        setRange((current) => (current === 60 ? 30 : current));
       }
     };
     syncViewport();
     window.addEventListener('resize', syncViewport);
     return () => window.removeEventListener('resize', syncViewport);
-  }, []);
+  }, [isFullscreen]);
 
   useEffect(() => {
     if (!isFullscreen) return;
@@ -644,14 +644,25 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
 
   const maxLoad = Math.max(600, ...chartData.map((day) => Math.max(day.totalLoad, day.forecastLoad)));
   const ranges = isMobile ? ([7, 14, 30] as const) : ([7, 14, 30, 60] as const);
+  const fullscreenRanges = [14, 30, 60] as const;
   const chartMinWidth = isMobile ? '100%' : range === 7 ? 540 : range === 14 ? 680 : range === 30 ? 920 : 1480;
   const chartHeight = isMobile ? (range === 7 ? 300 : 320) : 360;
   const chartMargin = (fullscreen = false) => ({
-    top: fullscreen ? 22 : 14,
-    right: fullscreen ? 24 : 8,
-    bottom: fullscreen ? 10 : 4,
-    left: isMobile && !fullscreen ? 0 : 22,
+    top: fullscreen ? 16 : 14,
+    right: fullscreen ? 18 : 8,
+    bottom: fullscreen ? 4 : 4,
+    left: fullscreen ? 14 : isMobile ? 0 : 22,
   });
+  const openFullscreen = () => {
+    setRange((current) => (current === 7 ? 14 : current));
+    setIsFullscreen(true);
+  };
+  const closeFullscreen = () => {
+    setIsFullscreen(false);
+    if (isMobile) {
+      setRange((current) => (current === 60 ? 30 : current));
+    }
+  };
 
   const chart = (fullscreen = false) => (
     <ResponsiveContainer width="100%" height="100%">
@@ -781,7 +792,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
         <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
           <span className="hidden items-center gap-1.5 sm:inline-flex"><span className="h-px w-5 bg-sky-300" /> low 0.8</span>
           <span className="hidden items-center gap-1.5 sm:inline-flex"><span className="h-px w-5 bg-rose-300" /> high 1.3</span>
-          <button type="button" onClick={() => setIsFullscreen(true)} className="inline-flex rounded-full border border-slate-700 bg-slate-950/80 px-3 py-1.5 text-xs font-black text-slate-200 shadow-sm sm:hidden">
+          <button type="button" onClick={openFullscreen} className="inline-flex rounded-full border border-slate-700 bg-slate-950/80 px-3 py-1.5 text-xs font-black text-slate-200 shadow-sm sm:hidden">
             Fullscreen
           </button>
         </div>
@@ -802,7 +813,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
       </div>
       {isFullscreen ? (
         <div
-          className="fixed inset-0 z-50 min-h-dvh overflow-y-auto overscroll-contain bg-[#050712]"
+          className="fixed inset-0 z-50 h-dvh overflow-hidden bg-[#050712]"
           role="dialog"
           aria-modal="true"
           style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
@@ -814,22 +825,40 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
                 <h3 className="mt-2 text-2xl font-black">Turn your phone sideways</h3>
                 <p className="mt-2 text-sm font-bold text-slate-400">The load graph opens once the screen is in landscape.</p>
               </div>
-              <button type="button" onClick={() => setIsFullscreen(false)} className="rounded-full border border-slate-700 bg-slate-950 px-4 py-2 text-xs font-black text-slate-100">
+              <button type="button" onClick={closeFullscreen} className="rounded-full border border-slate-700 bg-slate-950 px-4 py-2 text-xs font-black text-slate-100">
                 Close
               </button>
             </div>
           ) : (
-            <div className="flex min-h-dvh flex-col gap-2 p-2">
-              <div className="flex shrink-0 items-center justify-between gap-3 px-1">
-                <div>
+            <div className="flex h-full min-h-0 flex-col gap-1.5 p-2">
+              <div className="flex shrink-0 items-center justify-between gap-2 px-1">
+                <div className="min-w-0">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Load chart</p>
-                  <p className="text-lg font-black text-white">{range} days - {method.toUpperCase()}</p>
+                  <p className="truncate text-sm font-black text-white">{range} days · {method.toUpperCase()}</p>
                 </div>
-                <button type="button" onClick={() => setIsFullscreen(false)} className="rounded-full border border-slate-700 bg-slate-950 px-4 py-2 text-xs font-black text-slate-100">
-                  Close
-                </button>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-0.5">
+                    {fullscreenRanges.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => setRange(item)}
+                        className={`rounded-full px-2.5 py-1 text-[10px] font-black transition ${range === item ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}
+                      >
+                        {item}d
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeFullscreen}
+                    className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1.5 text-[10px] font-black text-slate-100"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
-              <div className="h-[calc(100dvh-4.75rem)] min-h-[20rem] shrink-0 rounded-[1.5rem] border border-slate-800 bg-slate-950/70 p-2">
+              <div className="min-h-0 flex-1 rounded-[1.25rem] border border-slate-800 bg-slate-950/70 p-1.5">
                 {chart(true)}
               </div>
             </div>

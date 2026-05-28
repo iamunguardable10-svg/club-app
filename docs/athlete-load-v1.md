@@ -150,3 +150,9 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 - Mobile fullscreen chart no longer hides at the `sm` breakpoint after rotation; the overlay stays active in landscape.
 - Landscape fullscreen uses a dynamic-viewport chart area plus overlay scrolling, so short iPhone landscape screens can still reach the top and bottom of the graph.
 - Fullscreen chart margins are slightly larger to prevent the graph from clipping at the top edge.
+
+## Athlete fullscreen chart range update
+
+- Fullscreen landscape now scales into the available viewport instead of requiring inner scrolling.
+- Fullscreen range controls expose `14d`, `30d`, and `60d`; `7d` remains useful in the normal compact mobile graph, but fullscreen is for reading trends.
+- Leaving fullscreen on mobile resets a `60d` fullscreen selection back to `30d` so the normal portrait graph stays readable without horizontal scrolling.
