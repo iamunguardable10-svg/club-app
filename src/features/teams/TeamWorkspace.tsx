@@ -16,6 +16,14 @@ type Profile = { id: string; full_name: string; email: string | null };
 type Session = { id: string; title: string; starts_at: string; ends_at: string | null; facility_id: string | null };
 type Invite = { id: string; token: string; role: 'head_coach' | 'assistant_coach'; status: 'pending' | 'accepted' | 'revoked' | 'expired'; coach_role_slot_id: string | null };
 type CoachRoleSlot = { id: string; label: string };
+type AvailabilityRow = {
+  session_id: string;
+  user_id: string;
+  status: 'late' | 'out';
+  reason: string | null;
+  late_minutes: number | null;
+  sessions?: { title?: string | null; starts_at?: string | null } | null;
+};
 type LoadEntryRow = {
   id: string;
   session_id: string | null;
@@ -71,6 +79,7 @@ export function TeamWorkspace({
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [departmentFacilityIds, setDepartmentFacilityIds] = useState<string[]>([]);
   const [loadEntries, setLoadEntries] = useState<PlayerLoadEntry[]>([]);
+  const [availabilityRows, setAvailabilityRows] = useState<AvailabilityRow[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
 
@@ -130,6 +139,7 @@ export function TeamWorkspace({
       const profileIds = Array.from(new Set(loadedMemberships.filter((membership) => membership.user_id).map((membership) => membership.user_id)));
       let loadedProfiles: Profile[] = [];
       let loadedLoadEntries: PlayerLoadEntry[] = [];
+      let loadedAvailabilityRows: AvailabilityRow[] = [];
       if (profileIds.length > 0) {
         const { data: profileRows, error: profileError } = await supabase.from('profiles').select('id, full_name, email').in('id', profileIds);
         if (profileError) {
@@ -170,6 +180,21 @@ export function TeamWorkspace({
               userId: row.user_id,
             };
           });
+          const teamSessionIds = ((sessionsResult.data ?? []) as Session[]).map((session) => session.id);
+          if (teamSessionIds.length > 0) {
+            const { data: availabilityData, error: availabilityError } = await supabase
+              .from('availability')
+              .select('session_id, user_id, status, reason, late_minutes, sessions(title, starts_at)')
+              .in('user_id', athleteIds)
+              .in('session_id', teamSessionIds)
+              .in('status', ['late', 'out']);
+            if (availabilityError) {
+              setError(availabilityError.message);
+              setState('error');
+              return;
+            }
+            loadedAvailabilityRows = (availabilityData ?? []) as unknown as AvailabilityRow[];
+          }
         }
       }
 
@@ -187,6 +212,7 @@ export function TeamWorkspace({
       setDepartmentFacilityIds(((departmentFacilitiesResult.data ?? []) as { facility_id: string }[]).map((item) => item.facility_id));
       setProfiles(loadedProfiles);
       setLoadEntries(loadedLoadEntries);
+      setAvailabilityRows(loadedAvailabilityRows);
       setState('ready');
     }
 
@@ -385,12 +411,24 @@ export function TeamWorkspace({
       loadEntriesByUserId.set(entry.userId, [...(loadEntriesByUserId.get(entry.userId) ?? []), cleanEntry]);
     }
     const athleteMemberships = activeMemberships.filter((membership) => membership.role === 'athlete');
+    const availabilityByUserId = new Map<string, AvailabilityRow[]>();
+    for (const row of availabilityRows) {
+      availabilityByUserId.set(row.user_id, [...(availabilityByUserId.get(row.user_id) ?? []), row]);
+    }
     const players = athleteMemberships.map((membership) => ({
       id: membership.user_id,
       name: profileLabel(profileById.get(membership.user_id), 'Player'),
       loadEntries: loadEntriesByUserId.get(membership.user_id) ?? [],
       attendanceRate: null,
-      missedSessions: null,
+      missedSessions: availabilityByUserId.get(membership.user_id)?.filter((row) => row.status === 'out').length ?? null,
+      attendanceEvents: (availabilityByUserId.get(membership.user_id) ?? []).map((row) => ({
+        sessionId: row.session_id,
+        title: row.sessions?.title ?? 'Session',
+        startsAt: row.sessions?.starts_at ?? new Date().toISOString(),
+        status: row.status,
+        reason: row.reason,
+        lateMinutes: row.late_minutes,
+      })),
     }));
 
     return {
@@ -434,7 +472,7 @@ export function TeamWorkspace({
       calendarHref: team.default_facility_id ? `/admin/facilities/${team.default_facility_id}/calendar?from=team&teamId=${team.id}&departmentId=${team.department_id}` : null,
       staffHref: `/admin/people?department=${team.department_id}&team=${team.id}`,
     };
-  }, [backHref, backLabel, clubMemberships, coachRoleSlots, contextSessions, department, departmentFacilityIds, facilities, facility, facilityById, invites, loadEntries, memberships, profileById, sessions, team]);
+  }, [availabilityRows, backHref, backLabel, clubMemberships, coachRoleSlots, contextSessions, department, departmentFacilityIds, facilities, facility, facilityById, invites, loadEntries, memberships, profileById, sessions, team]);
 
   if (state === 'loading') return <AdminShell><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">Loading team...</section></AdminShell>;
   if (state === 'error') return <AdminShell><section className="rounded-3xl border border-red-500/40 bg-red-950/20 p-6 text-red-100">{error}</section></AdminShell>;

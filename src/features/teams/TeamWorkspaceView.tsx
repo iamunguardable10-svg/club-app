@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEve
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { LoadChart } from '@/features/load/AthleteLoadWorkspace';
 import { getLatestACWR, loadZone, sevenDayLoad } from '@/features/load/loadCalculations';
-import { LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/features/load/loadTypes';
+import { LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/features/load/loadTypes';
 
 export type TeamWorkspaceRole = 'admin' | 'department_lead' | 'coach' | 'viewer';
 export type TeamWorkspaceSection = 'dashboard' | 'calendar' | 'players' | 'groups' | 'settings';
@@ -26,7 +26,22 @@ export type TeamWorkspaceStaff = {
 };
 
 export type TeamWorkspaceFacilityOption = { id: string; name: string };
-export type TeamWorkspacePlayer = { id: string; name: string; groups?: string[]; loadEntries?: AthleteLoadEntry[]; attendanceRate?: number | null; missedSessions?: number | null };
+export type TeamWorkspacePlayer = {
+  id: string;
+  name: string;
+  groups?: string[];
+  loadEntries?: AthleteLoadEntry[];
+  attendanceRate?: number | null;
+  missedSessions?: number | null;
+  attendanceEvents?: {
+    sessionId: string;
+    title: string;
+    startsAt: string;
+    status: 'out' | 'late';
+    reason?: string | null;
+    lateMinutes?: number | null;
+  }[];
+};
 export type TeamWorkspaceStaffRole = {
   id: string;
   label: string;
@@ -147,6 +162,22 @@ function EmptyCard({ title, description }: { title: string; description?: string
   );
 }
 
+function playerLoadSummary(player: TeamWorkspacePlayer) {
+  const entries = player.loadEntries ?? [];
+  const latest = getLatestACWR(entries, 'ewma');
+  const zone = loadZone(latest?.acwr ?? null, latest?.chronicFull ?? false);
+  const acwr = latest?.acwr ?? null;
+  const riskRank = zone.tone === 'high' ? 0 : zone.tone === 'low' ? 1 : zone.tone === 'ready' ? 2 : 3;
+  return { entries, latest, zone, acwr, riskRank };
+}
+
+function acwrToneClass(tone: ReturnType<typeof loadZone>['tone']) {
+  if (tone === 'high') return 'border-rose-400/45 bg-rose-400/10 text-rose-100';
+  if (tone === 'low') return 'border-sky-400/45 bg-sky-400/10 text-sky-100';
+  if (tone === 'ready') return 'border-emerald-400/45 bg-emerald-400/10 text-emerald-100';
+  return 'border-slate-700 bg-slate-950/55 text-slate-300';
+}
+
 function PlayerLoadDetail({
   player,
   teamName,
@@ -156,19 +187,25 @@ function PlayerLoadDetail({
   teamName: string;
   onClose: () => void;
 }) {
-  const entries = player.loadEntries ?? [];
-  const latest = getLatestACWR(entries, 'ewma');
-  const zone = loadZone(latest?.acwr ?? null, latest?.chronicFull ?? false);
-  const weeklyLoad = sevenDayLoad(entries);
-  const missingInput = Math.max(0, (player.missedSessions ?? 0) + (entries.length > 0 ? 0 : 2));
-  const mix = Object.entries(entries.reduce<Record<string, number>>((acc, entry) => {
+  const [attendanceRange, setAttendanceRange] = useState(30);
+  const { entries, zone, acwr } = playerLoadSummary(player);
+  const attendanceEvents = player.attendanceEvents ?? [];
+  const since = new Date();
+  since.setDate(since.getDate() - attendanceRange);
+  const filteredAttendance = attendanceEvents
+    .filter((event) => new Date(event.startsAt) >= since)
+    .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
+  const recentEntries = entries.filter((entry) => new Date(`${entry.date}T00:00:00`) >= since);
+  const mixTotal = recentEntries.reduce((sum, entry) => sum + entry.load, 0);
+  const mix = Object.entries(recentEntries.reduce<Record<string, number>>((acc, entry) => {
     acc[entry.trainingType] = (acc[entry.trainingType] ?? 0) + entry.load;
     return acc;
   }, {})).sort((a, b) => b[1] - a[1]);
+  const attendanceLabel = player.attendanceRate ? `${player.attendanceRate}%` : filteredAttendance.length === 0 ? 'Clean' : `${filteredAttendance.length} flags`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-slate-950/80 px-3 pb-3 pt-8 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
-      <div className="max-h-[92vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-5xl sm:p-5">
+      <div className="max-h-[92vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-5xl sm:rounded-[2rem] sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 pb-4">
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">Player load</p>
@@ -178,47 +215,98 @@ function PlayerLoadDetail({
           <button type="button" onClick={onClose} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">Close</button>
         </div>
 
-        <div className="mt-4 grid gap-2 sm:grid-cols-4">
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">7 days</p>
-            <p className="mt-2 text-xl font-black text-white">{weeklyLoad} AU</p>
-          </div>
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">ACWR</p>
-            <p className="mt-2 text-xl font-black text-white">{latest?.acwr ? latest.acwr.toFixed(2) : '—'}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">State</p>
-            <p className="mt-2 text-xl font-black text-white">{zone.label}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Attendance</p>
-            <p className="mt-2 text-xl font-black text-white">{player.attendanceRate ? `${player.attendanceRate}%` : 'Soon'}</p>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/55 p-3">
-          {entries.length > 0 ? <LoadChart entries={entries} pendingSessions={[]} /> : (
-            <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/50 p-6 text-sm font-bold text-slate-400">
-              Load graph appears once this player has reported load entries. Demo players include generated entries; live players use Supabase load entries.
+        <div className="mt-4 grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+          <div className="space-y-4">
+            <div className={`rounded-3xl border p-4 ${acwrToneClass(zone.tone)}`}>
+              <div className="flex items-center gap-4">
+                <div className="grid h-20 w-20 shrink-0 place-items-center rounded-3xl border border-current/25 bg-slate-950/40">
+                  <div className="text-center">
+                    <p className="text-2xl font-black leading-none">{acwr ? acwr.toFixed(2) : '?'}</p>
+                    <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] opacity-70">ACWR</p>
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xl font-black text-white">{zone.label}</p>
+                  <p className="mt-1 text-sm font-bold text-slate-300">
+                    {zone.tone === 'high' ? 'High load: reduce intensity or monitor recovery.' : zone.tone === 'low' ? 'Low load: controlled exposure may be useful.' : zone.tone === 'ready' ? 'Balanced range for normal training.' : 'Baseline still building.'}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-950/70">
+                <div className="h-full rounded-full bg-[linear-gradient(90deg,#38bdf8_0%,#38bdf8_38%,#34d399_42%,#34d399_64%,#fb7185_70%,#fb7185_100%)]" />
+              </div>
+              <div className="relative mt-1 h-5 text-[10px] font-black text-slate-400">
+                <span className="absolute left-[40%] -translate-x-1/2">0.8</span>
+                <span className="absolute left-[65%] -translate-x-1/2">1.3</span>
+                {acwr ? <span className="absolute top-0 h-4 w-4 -translate-x-1/2 rounded-full border-2 border-slate-950 bg-white shadow" style={{ left: `${Math.min(100, Math.max(0, (acwr / 2) * 100))}%` }} /> : null}
+              </div>
             </div>
-          )}
-        </div>
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-3">
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-            <p className="text-sm font-black text-white">Attendance insight</p>
-            <p className="mt-2 text-sm font-bold text-slate-400">{player.attendanceRate ? `${player.attendanceRate}% recent attendance.` : 'Placeholder until attendance records are connected.'}</p>
+            <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-white">Attendance</p>
+                  <p className="mt-1 text-xs font-bold text-slate-500">Default range: one month</p>
+                </div>
+                <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-black text-slate-300">{attendanceLabel}</span>
+              </div>
+              <div className="mt-3 flex gap-2">
+                {[30, 60, 90].map((days) => (
+                  <button key={days} type="button" onClick={() => setAttendanceRange(days)} className={`rounded-full border px-3 py-1.5 text-xs font-black ${attendanceRange === days ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>
+                    {days}d
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 space-y-2">
+                {filteredAttendance.length === 0 ? <p className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm font-bold text-slate-500">No late/out sessions in this range.</p> : null}
+                {filteredAttendance.slice(0, 5).map((event) => (
+                  <div key={`${event.sessionId}-${event.status}`} className={`rounded-2xl border p-3 ${event.status === 'out' ? 'border-rose-400/35 bg-rose-400/10' : 'border-sky-400/35 bg-sky-400/10'}`}>
+                    <p className="text-sm font-black text-white">{event.title}</p>
+                    <p className="mt-1 text-xs font-bold text-slate-400">{new Date(event.startsAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })} ? {event.status === 'out' ? 'Out' : `Late${event.lateMinutes ? ` ${event.lateMinutes}m` : ''}`}</p>
+                    {event.reason ? <p className="mt-2 text-xs font-bold text-slate-300">{event.reason}</p> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-            <p className="text-sm font-black text-white">Missing input</p>
-            <p className="mt-2 text-sm font-bold text-slate-400">{missingInput > 0 ? `${missingInput} sessions need feedback.` : 'No missing load feedback.'}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-            <p className="text-sm font-black text-white">Training mix</p>
-            <p className="mt-2 text-sm font-bold text-slate-400">
-              {mix.length > 0 ? mix.slice(0, 3).map(([type, load]) => `${LOAD_TYPE_LABELS[type as keyof typeof LOAD_TYPE_LABELS]} ${load} AU`).join(' · ') : 'No mix yet.'}
-            </p>
+
+          <div className="min-w-0 space-y-4">
+            <div className="rounded-3xl border border-slate-800 bg-slate-950/55 p-3">
+              {entries.length > 0 ? <LoadChart entries={entries} pendingSessions={[]} /> : (
+                <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/50 p-6 text-sm font-bold text-slate-400">
+                  Load graph appears once this player has reported load entries.
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-white">Training mix</p>
+                  <p className="mt-1 text-xs font-bold text-slate-500">By load share in selected range.</p>
+                </div>
+                <span className="text-xs font-black text-slate-500">{mixTotal} AU</span>
+              </div>
+              <div className="mt-4 space-y-3">
+                {mix.length === 0 ? <p className="text-sm font-bold text-slate-500">No load in this range.</p> : null}
+                {mix.slice(0, 6).map(([type, load]) => {
+                  const percent = Math.round((load / Math.max(mixTotal, 1)) * 100);
+                  const label = LOAD_TYPE_LABELS[type as keyof typeof LOAD_TYPE_LABELS] ?? type;
+                  const color = LOAD_TYPE_COLORS[type as keyof typeof LOAD_TYPE_COLORS] ?? '#94a3b8';
+                  return (
+                    <div key={type}>
+                      <div className="flex justify-between text-xs font-black text-slate-300">
+                        <span>{label}</span>
+                        <span>{percent}%</span>
+                      </div>
+                      <div className="mt-1 h-2.5 rounded-full bg-slate-900">
+                        <div className="h-2.5 rounded-full" style={{ width: `${Math.max(5, percent)}%`, backgroundColor: color }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -703,8 +791,16 @@ export function TeamWorkspaceView({
   const [activeSection, setActiveSection] = useState<TeamWorkspaceSection>(initialSection);
   const [isSavingDefault, setIsSavingDefault] = useState(false);
   const [activePlayer, setActivePlayer] = useState<TeamWorkspacePlayer | null>(null);
+  const [playerSort, setPlayerSort] = useState<'risk' | 'az'>('risk');
   const selectedFacilityTone = facilityTone(data.defaultFacilityName);
   const players = data.players ?? [];
+  const sortedPlayers = useMemo(() => [...players].sort((a, b) => {
+    if (playerSort === 'az') return a.name.localeCompare(b.name);
+    const aSummary = playerLoadSummary(a);
+    const bSummary = playerLoadSummary(b);
+    if (aSummary.riskRank !== bSummary.riskRank) return aSummary.riskRank - bSummary.riskRank;
+    return (bSummary.acwr ?? 0) - (aSummary.acwr ?? 0);
+  }), [playerSort, players]);
   const staffRoles = data.staffRoles ?? [
     { id: 'head-coach', label: 'Head Coach', role: 'head_coach', status: data.staff.headCoaches.length > 0 ? 'accepted' : 'missing', value: data.staff.headCoaches.join(', ') || null },
     { id: 'assistant-coach', label: 'Assistant Coach', role: 'assistant_coach', status: data.staff.assistantCoaches.length > 0 ? 'accepted' : 'missing', value: data.staff.assistantCoaches.join(', ') || null },
@@ -733,6 +829,15 @@ export function TeamWorkspaceView({
   useEffect(() => {
     setActiveSection(initialSection);
   }, [initialSection]);
+
+  useEffect(() => {
+    if (!activePlayer || typeof document === 'undefined') return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [activePlayer]);
 
   async function handleDefaultFacilityChange(facilityId: string) {
     if (!onDefaultFacilityChange) return;
@@ -843,8 +948,16 @@ export function TeamWorkspaceView({
 
       {activeSection === 'players' ? (
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Roster</p>
-          <h2 className="mt-2 text-2xl font-black">Players</h2>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Roster</p>
+              <h2 className="mt-2 text-2xl font-black">Players</h2>
+            </div>
+            <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1">
+              <button type="button" onClick={() => setPlayerSort('risk')} className={`rounded-full px-3 py-1.5 text-xs font-black ${playerSort === 'risk' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Risk first</button>
+              <button type="button" onClick={() => setPlayerSort('az')} className={`rounded-full px-3 py-1.5 text-xs font-black ${playerSort === 'az' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>A-Z</button>
+            </div>
+          </div>
           <div className="mt-5 grid gap-3 md:grid-cols-2">
             <EmptyCard title={`${data.playerCount} players`} />
             {onAddDemoPlayers ? (
@@ -857,16 +970,23 @@ export function TeamWorkspaceView({
           </div>
           {players.length > 0 ? (
             <div className="mt-5 grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-              {players.map((player) => (
-                <button key={player.id} type="button" onClick={() => setActivePlayer(player)} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 text-left transition hover:border-emerald-300/55 hover:bg-slate-900">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-black text-white">{player.name}</p>
-                    <span className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-black text-slate-300">Load</span>
-                  </div>
-                  {player.groups && player.groups.length > 0 ? <p className="mt-2 text-xs font-bold text-slate-500">{player.groups.join(' · ')}</p> : null}
-                  <p className="mt-3 text-xs font-bold text-slate-400">{player.loadEntries?.length ? `${sevenDayLoad(player.loadEntries)} AU last 7d` : 'Open player detail'}</p>
-                </button>
-              ))}
+              {sortedPlayers.map((player) => {
+                const summary = playerLoadSummary(player);
+                const attendanceFlags = player.attendanceEvents?.filter((event) => event.status === 'out' || event.status === 'late').length ?? 0;
+                return (
+                  <button key={player.id} type="button" onClick={() => setActivePlayer(player)} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 text-left transition hover:border-emerald-300/55 hover:bg-slate-900">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-black text-white">{player.name}</p>
+                      <span className={`rounded-full border px-2 py-1 text-[10px] font-black ${acwrToneClass(summary.zone.tone)}`}>{summary.acwr ? summary.acwr.toFixed(2) : '?'} ACWR</span>
+                    </div>
+                    {player.groups && player.groups.length > 0 ? <p className="mt-2 text-xs font-bold text-slate-500">{player.groups.join(' ? ')}</p> : null}
+                    <div className="mt-3 flex items-center justify-between gap-2 text-xs font-bold text-slate-400">
+                      <span>{summary.zone.label}</span>
+                      <span>{attendanceFlags > 0 ? `${attendanceFlags} attendance flags` : 'No attendance flags'}</span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           ) : null}
         </section>

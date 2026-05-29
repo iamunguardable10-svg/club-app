@@ -52,10 +52,16 @@ type AthleteCalendarItem = {
   endsAt: string | null;
   trainingType: LoadTrainingType;
   teamName: string | null;
-  status: 'planned' | 'reported' | 'missing' | 'cancelled';
+  status: 'planned' | 'reported' | 'missing' | 'cancelled' | 'late';
   source: 'team_session' | 'athlete_plan' | 'load_entry';
   session?: AthletePendingSession;
   entry?: AthleteLoadEntry;
+};
+
+type AthleteAvailabilityMark = {
+  status: 'expected' | 'late' | 'out';
+  reason: string | null;
+  lateMinutes: number | null;
 };
 
 type RawLoadEntry = {
@@ -105,6 +111,7 @@ const DEMO_LOAD_KEY = 'club-app.demo.athlete-load-entries';
 const DEMO_ACK_KEY = 'club-app.demo.athlete-pending-ack';
 const DEMO_PLANS_KEY = 'club-app.demo.athlete-load-plans';
 const DEMO_CANCELLED_SESSIONS_KEY = 'club-app.demo.athlete-cancelled-sessions';
+const DEMO_AVAILABILITY_KEY = 'club-app.demo.athlete-availability';
 const LOAD_SHARE_ACTIVE_KEY = 'club-app.athlete-load.active-share-link';
 
 const emptyPlanForm: PlanFormState = {
@@ -348,6 +355,32 @@ function saveCancelledDemoSessions(ids: string[]) {
   window.localStorage.setItem(DEMO_CANCELLED_SESSIONS_KEY, JSON.stringify(Array.from(new Set(ids))));
 }
 
+function readDemoAvailability() {
+  if (typeof window === 'undefined') return new Map<string, AthleteAvailabilityMark>();
+  const map = new Map<string, AthleteAvailabilityMark>();
+  try {
+    const raw = window.localStorage.getItem(DEMO_AVAILABILITY_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Record<string, AthleteAvailabilityMark>;
+      Object.entries(parsed).forEach(([sessionId, mark]) => {
+        if (mark.status === 'late' || mark.status === 'out') map.set(sessionId, mark);
+      });
+    }
+  } catch {
+    // ignore broken demo data
+  }
+  for (const sessionId of readCancelledDemoSessions()) {
+    if (!map.has(sessionId)) map.set(sessionId, { status: 'out', reason: 'Cancelled in demo', lateMinutes: null });
+  }
+  return map;
+}
+
+function saveDemoAvailability(map: Map<string, AthleteAvailabilityMark>) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(DEMO_AVAILABILITY_KEY, JSON.stringify(Object.fromEntries(map.entries())));
+  saveCancelledDemoSessions(Array.from(map.entries()).filter(([, mark]) => mark.status === 'out').map(([sessionId]) => sessionId));
+}
+
 function normalizeTrainingType(value?: string | null): LoadTrainingType {
   if (value && LOAD_TRAINING_TYPES.includes(value as LoadTrainingType)) return value as LoadTrainingType;
   return sessionTypeToLoadType(value);
@@ -519,8 +552,8 @@ type LoadChartDatum = {
   label: string;
   totalLoad: number;
   forecastLoad: number;
-  acuteLoad: number;
-  chronicLoad: number;
+  acuteLoad: number | null;
+  chronicLoad: number | null;
   acwr: number | null;
   projectedAcwr: number | null;
   entryCount: number;
@@ -681,8 +714,8 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
     label: new Date(`${point.date}T00:00:00`).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' }),
     totalLoad: 0,
     forecastLoad: plannedProjectionLoad(point),
-    acuteLoad: point.acuteLoad,
-    chronicLoad: point.chronicLoad,
+    acuteLoad: null,
+    chronicLoad: null,
     acwr: null,
     projectedAcwr: point.acwr,
     entryCount: 0,
@@ -1147,13 +1180,14 @@ function AthleteCalendar({
     if (item.status === 'reported') return `${base} bg-slate-950/95 text-white${dragClass}`;
     if (item.status === 'missing') return `${base} border-amber-300/70 bg-amber-300/12 text-amber-50${dragClass}`;
     if (item.status === 'cancelled') return `${base} border-rose-400/80 bg-rose-500/15 text-rose-100 opacity-90${dragClass}`;
+    if (item.status === 'late') return `${base} border-sky-300/80 bg-sky-400/15 text-sky-100${dragClass}`;
     return `${base} border-dashed bg-slate-950/55 text-white${dragClass}`;
   }
 
   function itemBorderStyle(item: AthleteCalendarItem) {
     const color = LOAD_TYPE_COLORS[item.trainingType];
     return {
-      borderColor: item.status === 'cancelled' ? 'rgba(251,113,133,0.82)' : item.status === 'missing' ? 'rgba(252,211,77,0.75)' : color,
+      borderColor: item.status === 'cancelled' ? 'rgba(251,113,133,0.82)' : item.status === 'late' ? 'rgba(125,211,252,0.82)' : item.status === 'missing' ? 'rgba(252,211,77,0.75)' : color,
       boxShadow: item.status === 'reported' ? `inset 3px 0 0 ${color}` : undefined,
       cursor: mode === 'edit' && canManage(item) ? 'grab' : 'pointer',
       touchAction: mode === 'edit' && canManage(item) ? 'none' : 'auto',
@@ -1206,7 +1240,9 @@ function AthleteCalendar({
         {style.height > (compact ? 28 : 42) ? (
           <span className={`mt-0.5 block overflow-hidden whitespace-nowrap font-bold opacity-75 ${detailClass} ${compact ? '' : 'truncate'}`}>
             {item.status === 'cancelled'
-              ? `Cancelled · ${formatTime(displayStartsAt)}`
+              ? `Out · ${formatTime(displayStartsAt)}`
+              : item.status === 'late'
+                ? `Late · ${formatTime(displayStartsAt)}`
               : compact ? formatTime(displayStartsAt) : `${formatTime(displayStartsAt)}${displayEndsAt ? ` - ${formatTime(displayEndsAt)}` : ''} · ${item.teamName ?? LOAD_TYPE_LABELS[item.trainingType]}`}
           </span>
         ) : null}
@@ -1343,6 +1379,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'entry' | 'plan'; id: string; title: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [cancelledSessionIds, setCancelledSessionIds] = useState<Set<string>>(new Set());
+  const [availabilityBySessionId, setAvailabilityBySessionId] = useState<Map<string, AthleteAvailabilityMark>>(new Map());
+  const [availabilityReason, setAvailabilityReason] = useState('');
+  const [lateMinutes, setLateMinutes] = useState(10);
 
   useEffect(() => {
     let mounted = true;
@@ -1390,15 +1429,20 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         const mappedSessions = ((sessionResult.data ?? []) as unknown as RawSession[]).map(mapRawSession);
         const sessionIds = mappedSessions.map((session) => session.id);
         let cancelledIds = new Set<string>();
+        let availabilityMarks = new Map<string, AthleteAvailabilityMark>();
         if (sessionIds.length > 0) {
           const { data: availabilityRows, error: availabilityError } = await supabase
             .from('availability')
-            .select('session_id, status')
+            .select('session_id, status, reason, late_minutes')
             .eq('user_id', authData.user.id)
             .in('session_id', sessionIds)
-            .eq('status', 'cancelled');
+            .in('status', ['late', 'out']);
           if (availabilityError) throw availabilityError;
-          cancelledIds = new Set(((availabilityRows ?? []) as { session_id: string }[]).map((row) => row.session_id));
+          availabilityMarks = new Map(((availabilityRows ?? []) as { session_id: string; status: 'late' | 'out'; reason: string | null; late_minutes: number | null }[]).map((row) => [
+            row.session_id,
+            { status: row.status, reason: row.reason, lateMinutes: row.late_minutes },
+          ]));
+          cancelledIds = new Set(Array.from(availabilityMarks.entries()).filter(([, mark]) => mark.status === 'out').map(([sessionId]) => sessionId));
         }
         const mappedPending = mappedSessions.filter((session) => !reportedSessionIds.has(session.id));
 
@@ -1408,19 +1452,22 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         setCalendarSessions(withAutoWarmups([...mappedSessions, ...mappedPlans.map(planToPendingSession)]));
         setPendingSessions(withAutoWarmups([...mappedPending, ...mappedPlans.map(planToPendingSession)]));
         setCancelledSessionIds(cancelledIds);
+        setAvailabilityBySessionId(availabilityMarks);
         setSource('supabase');
       } catch {
         if (!mounted) return;
         const demoEntries = readDemoEntries();
         const demoPlans = readDemoPlans();
         const acknowledged = new Set(readAcknowledgedDemoSessions());
-        const cancelledIds = new Set(readCancelledDemoSessions());
+        const demoAvailability = readDemoAvailability();
+        const cancelledIds = new Set(Array.from(demoAvailability.entries()).filter(([, mark]) => mark.status === 'out').map(([sessionId]) => sessionId));
         setAthleteName('Demo Athlete');
         setEntries(demoEntries);
         setPlans(demoPlans);
         setCalendarSessions(withAutoWarmups([...demoPendingSessions(), ...demoPlans.map(planToPendingSession)]));
         setPendingSessions(withAutoWarmups([...demoPendingSessions().filter((session) => !acknowledged.has(session.id)), ...demoPlans.map(planToPendingSession)]));
         setCancelledSessionIds(cancelledIds);
+        setAvailabilityBySessionId(demoAvailability);
         setSource('demo');
       }
     }
@@ -1447,6 +1494,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     if (cancelledSessionIds.has(sessionId)) return true;
     return sessionId.endsWith('-warmup') && cancelledSessionIds.has(sessionId.replace(/-warmup$/, ''));
   }
+  function availabilityForSession(sessionId: string) {
+    return availabilityBySessionId.get(sessionId) ?? (sessionId.endsWith('-warmup') ? availabilityBySessionId.get(sessionId.replace(/-warmup$/, '')) : undefined);
+  }
   const activePendingSessions = pendingSessions.filter((session) => !isSessionCancelled(session.id));
   const todayPending = activePendingSessions.filter((session) => session.date <= todayISO()).slice(0, 3);
   const nextSession = activePendingSessions.find((session) => session.date >= todayISO()) ?? activePendingSessions[0] ?? null;
@@ -1464,7 +1514,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         endsAt: session.endsAt,
         trainingType: session.trainingType,
         teamName: session.teamName,
-        status: isSessionCancelled(session.id) ? 'cancelled' : reported ? 'reported' : session.date < todayISO() ? 'missing' : 'planned',
+        status: isSessionCancelled(session.id) ? 'cancelled' : availabilityForSession(session.id)?.status === 'late' ? 'late' : reported ? 'reported' : session.date < todayISO() ? 'missing' : 'planned',
         source: session.source ?? 'team_session',
         session,
         entry: entryBySessionId.get(session.id),
@@ -1804,13 +1854,25 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     setComposerOpen(false);
   }
 
-  async function setTeamSessionCancelled(session: AthletePendingSession, cancelled: boolean) {
+  async function setTeamSessionAvailability(session: AthletePendingSession, status: 'expected' | 'late' | 'out', reason = '', minutes: number | null = null) {
     if (session.source !== 'team_session') return;
+    const trimmedReason = reason.trim();
+    if ((status === 'late' || status === 'out') && !trimmedReason) {
+      setError('Please add a short reason so your coach has context.');
+      return;
+    }
+
+    setAvailabilityBySessionId((current) => {
+      const next = new Map(current);
+      if (status === 'expected') next.delete(session.id);
+      else next.set(session.id, { status, reason: trimmedReason, lateMinutes: status === 'late' ? minutes : null });
+      if (source === 'demo') saveDemoAvailability(next);
+      return next;
+    });
     setCancelledSessionIds((current) => {
       const next = new Set(current);
-      if (cancelled) next.add(session.id);
+      if (status === 'out') next.add(session.id);
       else next.delete(session.id);
-      if (source === 'demo') saveCancelledDemoSessions(Array.from(next));
       return next;
     });
 
@@ -1820,31 +1882,17 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       const userId = authData.user?.id;
       if (!userId) return;
 
-      if (cancelled) {
-        const { data: existingRows, error: selectError } = await supabase
-          .from('availability')
-          .select('id')
-          .eq('session_id', session.id)
-          .eq('user_id', userId)
-          .limit(1);
-        if (selectError) {
-          setError(selectError.message);
-          return;
-        }
-        const existingId = ((existingRows ?? []) as { id: string }[])[0]?.id;
-        const result = existingId
-          ? await supabase.from('availability').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', existingId)
-          : await supabase.from('availability').insert({ session_id: session.id, user_id: userId, status: 'cancelled' });
-        if (result.error) setError(result.error.message);
-      } else {
-        const { error: updateError } = await supabase
-          .from('availability')
-          .update({ status: 'expected', updated_at: new Date().toISOString() })
-          .eq('session_id', session.id)
-          .eq('user_id', userId)
-          .eq('status', 'cancelled');
-        if (updateError) setError(updateError.message);
-      }
+      const { error: upsertError } = await supabase
+        .from('availability')
+        .upsert({
+          session_id: session.id,
+          user_id: userId,
+          status,
+          reason: status === 'expected' ? null : trimmedReason,
+          late_minutes: status === 'late' ? minutes : null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'session_id,user_id' });
+      if (upsertError) setError(upsertError.message);
     }
   }
 
@@ -1942,6 +1990,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       setActiveDetailItem(null);
       setActiveEntry(null);
       setActiveComposerSession(item.session);
+      const availability = availabilityForSession(item.session.id);
+      setAvailabilityReason(availability?.reason ?? '');
+      setLateMinutes(availability?.lateMinutes ?? 10);
       setPlanForm({
         trainingType: item.trainingType,
         date: item.date,
@@ -1967,7 +2018,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   }
 
   const shareActive = Boolean(activeShareUrl);
-  const activeTeamSessionIsFuture = Boolean(activeComposerSession?.source === 'team_session' && activeComposerSession.date > todayISO());
+  const activeTeamSessionIsFuture = Boolean(activeComposerSession?.source === 'team_session' && new Date(activeComposerSession.startsAt).getTime() > Date.now());
   const composerTitle = activeEntry
     ? 'Edit load'
     : activeComposerSession?.source === 'team_session'
@@ -2038,7 +2089,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         {activeView === 'calendar' ? (
           <AthleteCalendar items={calendarItems} onEmptySlot={openComposer} onItemSelect={openCalendarItem} onPlanTimeChange={updatePlanTimeFromCalendar} />
         ) : (
-          <section className="grid min-w-0 items-stretch gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+          <section className={`grid min-w-0 items-stretch gap-5 ${activeView === 'home' ? 'lg:grid-cols-[0.9fr_1.1fr]' : ''}`}>
             <div className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -2068,7 +2119,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               </div>
             </div>
 
-            <div className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 sm:p-5">
+            {activeView === 'home' ? <div className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Calendar</p>
@@ -2097,7 +2148,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   ))}
                 </div>
               ) : null}
-            </div>
+            </div> : null}
           </section>
         )}
       </div>
@@ -2181,23 +2232,42 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             ) : null}
 
             {activeTeamSessionIsFuture ? (
-              <div className="mt-5 rounded-2xl border border-slate-700 bg-slate-950/70 p-4 text-sm font-bold text-slate-300">
-                <p>
-                  {activeComposerSession?.trainingType === 'warmup'
-                    ? 'Warmup is attached to the game. Cancel or restore the game to change it.'
-                    : activeComposerSession && isSessionCancelled(activeComposerSession.id)
-                      ? 'You cancelled this session. It stays visible in red in your calendar.'
-                      : 'This team session is scheduled. Load input opens after it is due.'}
-                </p>
-                {activeComposerSession && activeComposerSession.trainingType !== 'warmup' ? (
-                  <button
-                    type="button"
-                    onClick={() => setTeamSessionCancelled(activeComposerSession, !isSessionCancelled(activeComposerSession.id))}
-                    className={`mt-4 w-full rounded-2xl border px-4 py-3 text-sm font-black ${isSessionCancelled(activeComposerSession.id) ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-100' : 'border-rose-400/50 bg-rose-400/10 text-rose-100'}`}
-                  >
-                    {isSessionCancelled(activeComposerSession.id) ? 'Mark as available again' : 'Cancel session'}
-                  </button>
-                ) : null}
+              <div className="mt-5 space-y-3 rounded-2xl border border-slate-700 bg-slate-950/70 p-4 text-sm font-bold text-slate-300">
+                {(() => {
+                  const mark = activeComposerSession ? availabilityForSession(activeComposerSession.id) : undefined;
+                  const isWarmup = activeComposerSession?.trainingType === 'warmup';
+                  return (
+                    <>
+                      <p>
+                        {isWarmup
+                          ? 'Warmup is attached to the game. Change availability on the game session.'
+                          : mark?.status === 'out'
+                            ? 'Marked out. Your coach can see the reason.'
+                            : mark?.status === 'late'
+                              ? `Marked late${mark.lateMinutes ? ` by ${mark.lateMinutes} min` : ''}.`
+                              : 'This team session is scheduled. Load input opens after it is due.'}
+                      </p>
+                      {activeComposerSession && !isWarmup ? (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-3 gap-2">
+                            <button type="button" onClick={() => setTeamSessionAvailability(activeComposerSession, 'expected')} className={`rounded-xl border px-3 py-2 text-xs font-black ${!mark ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>Available</button>
+                            <button type="button" onClick={() => setTeamSessionAvailability(activeComposerSession, 'late', availabilityReason, lateMinutes)} className={`rounded-xl border px-3 py-2 text-xs font-black ${mark?.status === 'late' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>Late</button>
+                            <button type="button" onClick={() => setTeamSessionAvailability(activeComposerSession, 'out', availabilityReason, null)} className={`rounded-xl border px-3 py-2 text-xs font-black ${mark?.status === 'out' ? 'border-rose-300 bg-rose-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>Out</button>
+                          </div>
+                          <label className="block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                            Reason
+                            <textarea value={availabilityReason} onChange={(event) => setAvailabilityReason(event.target.value)} placeholder="e.g. school, injury, traffic" className="mt-2 min-h-20 w-full resize-y rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold normal-case tracking-normal text-white outline-none placeholder:text-slate-600 focus:border-emerald-300" />
+                          </label>
+                          <label className="block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                            Late minutes
+                            <input type="range" min="5" max="60" step="5" value={lateMinutes} onChange={(event) => setLateMinutes(Number(event.target.value))} className="mt-2 w-full accent-sky-300" />
+                            <span className="mt-1 block text-sm font-black normal-case tracking-normal text-white">{lateMinutes} min</span>
+                          </label>
+                        </div>
+                      ) : null}
+                    </>
+                  );
+                })()}
               </div>
             ) : (
               <>

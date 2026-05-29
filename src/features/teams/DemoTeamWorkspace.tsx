@@ -295,6 +295,28 @@ export function DemoTeamWorkspace({
       loadEntries: buildDemoPlayerLoads(player, team.name),
       attendanceRate: 82 + (index % 4) * 3,
       missedSessions: index % 5 === 0 ? 2 : index % 3 === 0 ? 1 : 0,
+      attendanceEvents: index % 3 === 0
+        ? [
+          {
+            sessionId: `${player.id}-att-out`,
+            title: 'Team Training',
+            startsAt: isoOffset(-8).toISOString(),
+            status: 'out' as const,
+            reason: 'School commitment',
+            lateMinutes: null,
+          },
+          {
+            sessionId: `${player.id}-att-late`,
+            title: 'Strength',
+            startsAt: isoOffset(-2).toISOString(),
+            status: 'late' as const,
+            reason: 'Traffic',
+            lateMinutes: 15,
+          },
+        ]
+        : index % 4 === 0
+          ? [{ sessionId: `${player.id}-att-late`, title: 'Team Training', startsAt: isoOffset(-5).toISOString(), status: 'late' as const, reason: 'School ran late', lateMinutes: 10 }]
+          : [],
     }));
     const assignedFacilityNames = new Set(facilityAssignments.filter((assignment) => assignment.department === team.department).map((assignment) => assignment.facility));
     const departmentFacilityOptions = (setup?.facilityDetails ?? [])

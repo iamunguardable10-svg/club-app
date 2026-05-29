@@ -66,3 +66,11 @@ Likely next tables or columns:
 - Keep player detail in team context with explicit back navigation.
 - On mobile, open player detail as a focused full-screen surface from the Players tab.
 - Warnings appear only when there is a real blocker or risk: missing load input, high spike, repeated absence, or no baseline yet.
+
+## Player load detail refinement
+
+- Player cards in Team Workspace show ACWR and are sorted by load risk by default, with an A-Z fallback.
+- The player detail overlay no longer leads with empty metric cards. It opens with an ACWR gauge, graph, attendance flags, and training-mix distribution.
+- Opening a player detail locks background page scroll to prevent accidental calendar/player inputs behind the overlay.
+- Coach attendance insight starts with a 30-day range and can switch to 60 or 90 days. It lists `late` and `out` session records with reason and late minutes where available.
+- Demo player data now includes representative late/out attendance events so the coach surface can be reviewed without setup.

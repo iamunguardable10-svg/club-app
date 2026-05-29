@@ -184,3 +184,11 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 - Every planned `game` session creates a derived warmup session 75 minutes before game start.
 - The derived warmup follows the game if the game plan is moved or resized, and is removed when the game plan is deleted.
 - Warmups are generated in demo and standard athlete calendar data so the behavior stays aligned.
+
+## Availability status update
+
+- Athletes can mark future team sessions as `late` or `out` directly from the session detail overlay.
+- `late` and `out` require a short reason; `late` also stores expected delay minutes.
+- Live mode writes to the existing `availability` table using statuses `expected`, `late`, and `out`; demo mode mirrors the same behavior in localStorage.
+- Cancelled/out sessions render red in the athlete calendar. Late sessions render blue so they are visible without implying absence.
+- Warmup sessions inherit game availability context and are not edited independently.
