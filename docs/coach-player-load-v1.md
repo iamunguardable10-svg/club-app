@@ -69,8 +69,9 @@ Likely next tables or columns:
 
 ## Player load detail refinement
 
-- Player cards in Team Workspace show ACWR and are sorted by load risk by default, with an A-Z fallback.
-- The player detail overlay no longer leads with empty metric cards. It opens with an ACWR gauge, graph, attendance flags, and training-mix distribution.
+- Player cards in Team Workspace show the EWMA ACWR value and are sorted by load risk by default, with an A-Z fallback. Color coding uses blue for low load, green for the optimal 0.8-1.3 lane, and red for high load.
+- The player detail overlay no longer leads with empty metric cards. It opens with an ACWR gauge, estimated room before overload/underload, graph, attendance flags, and training-mix distribution.
+- The ACWR gauge marker must sit above the gradient lane, not below it, so the current value is visually unambiguous.
 - Opening a player detail locks background page scroll to prevent accidental calendar/player inputs behind the overlay.
 - Coach attendance insight starts with a 30-day range and can switch to 60 or 90 days. It lists `late` and `out` session records with reason and late minutes where available.
 - Demo player data now includes representative late/out attendance events so the coach surface can be reviewed without setup.

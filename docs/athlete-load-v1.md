@@ -59,7 +59,7 @@ RLS keeps athlete self-write behavior and allows relevant team staff/department 
 - Show metrics and action surfaces directly.
 - Mobile-first layout; quick entry opens as an overlay instead of a permanent form card.
 - Graph uses Recharts with a custom Club OS layer so athletes can hover/tap every calendar day, read ACWR, and inspect daily load details.
-- The chart should not use default Recharts styling; keep axes, tooltip, zones, and legends compact and athlete-readable. It renders rest days as zero-load bars, supports Rolling/EWMA method switching, and shows a 14-day forecast line from the athlete's history. Forecast bars are rendered only for explicit planned sessions, never for synthetic pattern estimates.
+- The chart should not use default Recharts styling; keep axes, tooltip, zones, and legends compact and athlete-readable. It renders rest days as zero-load bars, uses EWMA as the default ACWR method, and shows a 14-day forecast line from the athlete's history. Forecast bars are rendered only for explicit planned sessions, never for synthetic pattern estimates.
 ## Expected load planning
 
 Athletes use one session form for both expected and completed load. Future dates create a plan; past dates create a completed load entry; today offers a Plan/Already done toggle.
@@ -73,9 +73,9 @@ Athletes use one session form for both expected and completed load. Future dates
 
 
 
-## Rolling and EWMA
+## ACWR method
 
-Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR state before a full chronic baseline is available. Rolling uses 7-day and 28-day calendar windows including rest days. EWMA uses lambda 2/(7+1) and 2/(28+1), also over the filled calendar-day series.
+V1 uses EWMA as the default ACWR method for athlete and coach-facing surfaces. EWMA uses lambda 2/(7+1) and 2/(28+1) over the filled calendar-day series. Rolling ACWR can remain available internally for later settings, but the active UI no longer exposes a method toggle.
 
 
 ## Sharing and coach visibility
@@ -167,6 +167,7 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 
 - Load graph can overlay acute and chronic load lines on top of daily load bars.
 - Acute and chronic load lines are rendered as dashed supporting lines; the athlete-facing cards do not lead with raw acute/chronic numbers.
+- The top Load cockpit replaces raw `7 days AU` with estimated AU room before overload or low-load gap. Today and Load both expose the ACWR gradient lane so the athlete can see whether the current EWMA value is low, optimal, or high.
 - The Load tab leads with useful action context: estimated AU room before overload, low-load gap if the athlete is under the target range, current EWMA zone and a simple next-move hint.
 - Training mix is shown as percentage distribution from the last 28 days so athletes and coaches can see which session types dominate the load.
 - Attendance and readiness are present as explicit placeholders until those data models are connected.
@@ -188,6 +189,8 @@ Both Rolling ACWR and EWMA use the same baseline rule: no interpretive ACWR stat
 ## Availability status update
 
 - Athletes can mark future team sessions as `late` or `out` directly from the session detail overlay.
+- Availability starts as a compact three-choice state. Reason appears only after choosing `late` or `out`; expected delay minutes appears only after choosing `late`.
+- Planned team sessions keep their team-defined session type locked in the athlete overlay. The athlete can report availability before the session is due, and can report load only after the session is due.
 - `late` and `out` require a short reason; `late` also stores expected delay minutes.
 - Live mode writes to the existing `availability` table using statuses `expected`, `late`, and `out`; demo mode mirrors the same behavior in localStorage.
 - Cancelled/out sessions render red in the athlete calendar. Late sessions render blue so they are visible without implying absence.

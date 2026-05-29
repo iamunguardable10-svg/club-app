@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { LoadChart } from '@/features/load/AthleteLoadWorkspace';
-import { getLatestACWR, loadZone, sevenDayLoad } from '@/features/load/loadCalculations';
-import { LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/features/load/loadTypes';
+import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
+import { ACWR_ZONES, LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/features/load/loadTypes';
 
 export type TeamWorkspaceRole = 'admin' | 'department_lead' | 'coach' | 'viewer';
 export type TeamWorkspaceSection = 'dashboard' | 'calendar' | 'players' | 'groups' | 'settings';
@@ -178,6 +178,71 @@ function acwrToneClass(tone: ReturnType<typeof loadZone>['tone']) {
   return 'border-slate-700 bg-slate-950/55 text-slate-300';
 }
 
+function acwrDisplayLabel(summary: ReturnType<typeof playerLoadSummary>) {
+  if (summary.acwr === null) return 'No ACWR yet';
+  return summary.zone.tone === 'neutral' ? 'Building trend' : summary.zone.label;
+}
+
+function ewmaLoadForTargetRatio(acuteLoad: number, chronicLoad: number, targetRatio: number) {
+  const acuteLambda = 2 / (7 + 1);
+  const chronicLambda = 2 / (28 + 1);
+  const denominator = acuteLambda - targetRatio * chronicLambda;
+  if (denominator <= 0 || chronicLoad <= 0) return null;
+  return Math.max(0, Math.round((targetRatio * (1 - chronicLambda) * chronicLoad - (1 - acuteLambda) * acuteLoad) / denominator));
+}
+
+function averageRecentLoad(entries: AthleteLoadEntry[]) {
+  const active = entries.slice(-28).filter((entry) => entry.load > 0);
+  if (active.length === 0) return 500;
+  return Math.max(1, Math.round(active.reduce((sum, entry) => sum + entry.load, 0) / active.length));
+}
+
+function PlayerLoadRoom({ summary }: { summary: ReturnType<typeof playerLoadSummary> }) {
+  const latest = summary.latest;
+  const averageLoad = averageRecentLoad(summary.entries);
+  const overloadLimit = latest ? ewmaLoadForTargetRatio(latest.acuteLoad, latest.chronicLoad, ACWR_ZONES.high) : null;
+  const lowFloor = latest ? ewmaLoadForTargetRatio(latest.acuteLoad, latest.chronicLoad, ACWR_ZONES.low) : null;
+  const lowGap = lowFloor === null || summary.acwr === null || summary.acwr >= ACWR_ZONES.low ? 0 : Math.max(0, lowFloor);
+  const headroom = overloadLimit === null ? null : Math.max(0, overloadLimit);
+  const label = lowGap > 0 ? 'Underload gap' : 'Overload room';
+  const value = lowGap > 0 ? lowGap : headroom;
+  const percent = value === null ? 0 : Math.min(100, Math.max(8, (value / Math.max(averageLoad * 2, 1)) * 100));
+  const color = lowGap > 0 ? 'bg-sky-300' : value !== null && value < averageLoad * 0.5 ? 'bg-rose-300' : 'bg-emerald-300';
+
+  return (
+    <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/55 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{label}</p>
+        <span className="text-sm font-black text-white">{value === null ? '—' : `${value} AU`}</span>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-900">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${percent}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function TeamAcwrGauge({ acwr }: { acwr: number | null }) {
+  const marker = acwr === null ? null : Math.min(100, Math.max(0, (acwr / 2) * 100));
+  return (
+    <div className="mt-4">
+      <div className="relative h-6">
+        <div className="absolute inset-x-0 top-2 h-2 rounded-full bg-[linear-gradient(90deg,#38bdf8_0%,#38bdf8_39%,#34d399_42%,#34d399_65%,#fb7185_70%,#fb7185_100%)]" />
+        {marker !== null ? (
+          <span
+            className="absolute top-0 z-10 h-6 w-6 -translate-x-1/2 rounded-full border-[3px] border-slate-950 bg-white shadow-[0_0_0_2px_rgba(255,255,255,0.18),0_10px_24px_rgba(0,0,0,0.45)]"
+            style={{ left: `${marker}%` }}
+          />
+        ) : null}
+      </div>
+      <div className="relative h-4 text-[10px] font-black text-slate-400">
+        <span className="absolute left-[40%] -translate-x-1/2">0.8</span>
+        <span className="absolute left-[65%] -translate-x-1/2">1.3</span>
+      </div>
+    </div>
+  );
+}
+
 function PlayerLoadDetail({
   player,
   teamName,
@@ -188,7 +253,8 @@ function PlayerLoadDetail({
   onClose: () => void;
 }) {
   const [attendanceRange, setAttendanceRange] = useState(30);
-  const { entries, zone, acwr } = playerLoadSummary(player);
+  const summary = playerLoadSummary(player);
+  const { entries, zone, acwr } = summary;
   const attendanceEvents = player.attendanceEvents ?? [];
   const since = new Date();
   since.setDate(since.getDate() - attendanceRange);
@@ -221,25 +287,19 @@ function PlayerLoadDetail({
               <div className="flex items-center gap-4">
                 <div className="grid h-20 w-20 shrink-0 place-items-center rounded-3xl border border-current/25 bg-slate-950/40">
                   <div className="text-center">
-                    <p className="text-2xl font-black leading-none">{acwr ? acwr.toFixed(2) : '?'}</p>
+                    <p className="text-2xl font-black leading-none">{acwr !== null ? acwr.toFixed(2) : '?'}</p>
                     <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] opacity-70">ACWR</p>
                   </div>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xl font-black text-white">{zone.label}</p>
+                  <p className="text-xl font-black text-white">{acwrDisplayLabel(summary)}</p>
                   <p className="mt-1 text-sm font-bold text-slate-300">
                     {zone.tone === 'high' ? 'High load: reduce intensity or monitor recovery.' : zone.tone === 'low' ? 'Low load: controlled exposure may be useful.' : zone.tone === 'ready' ? 'Balanced range for normal training.' : 'Baseline still building.'}
                   </p>
                 </div>
               </div>
-              <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-950/70">
-                <div className="h-full rounded-full bg-[linear-gradient(90deg,#38bdf8_0%,#38bdf8_38%,#34d399_42%,#34d399_64%,#fb7185_70%,#fb7185_100%)]" />
-              </div>
-              <div className="relative mt-1 h-5 text-[10px] font-black text-slate-400">
-                <span className="absolute left-[40%] -translate-x-1/2">0.8</span>
-                <span className="absolute left-[65%] -translate-x-1/2">1.3</span>
-                {acwr ? <span className="absolute top-0 h-4 w-4 -translate-x-1/2 rounded-full border-2 border-slate-950 bg-white shadow" style={{ left: `${Math.min(100, Math.max(0, (acwr / 2) * 100))}%` }} /> : null}
-              </div>
+              <TeamAcwrGauge acwr={acwr} />
+              <PlayerLoadRoom summary={summary} />
             </div>
 
             <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
@@ -977,11 +1037,11 @@ export function TeamWorkspaceView({
                   <button key={player.id} type="button" onClick={() => setActivePlayer(player)} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 text-left transition hover:border-emerald-300/55 hover:bg-slate-900">
                     <div className="flex items-center justify-between gap-3">
                       <p className="font-black text-white">{player.name}</p>
-                      <span className={`rounded-full border px-2 py-1 text-[10px] font-black ${acwrToneClass(summary.zone.tone)}`}>{summary.acwr ? summary.acwr.toFixed(2) : '?'} ACWR</span>
+                      <span className={`rounded-full border px-2 py-1 text-[10px] font-black ${acwrToneClass(summary.zone.tone)}`}>{summary.acwr !== null ? summary.acwr.toFixed(2) : '?'} ACWR</span>
                     </div>
                     {player.groups && player.groups.length > 0 ? <p className="mt-2 text-xs font-bold text-slate-500">{player.groups.join(' ? ')}</p> : null}
                     <div className="mt-3 flex items-center justify-between gap-2 text-xs font-bold text-slate-400">
-                      <span>{summary.zone.label}</span>
+                      <span>{acwrDisplayLabel(summary)}</span>
                       <span>{attendanceFlags > 0 ? `${attendanceFlags} attendance flags` : 'No attendance flags'}</span>
                     </div>
                   </button>

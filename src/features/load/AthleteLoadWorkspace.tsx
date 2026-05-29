@@ -27,7 +27,7 @@ import {
   type LoadTrainingType,
   sessionTypeToLoadType,
 } from './loadTypes';
-import { aggregateDailyLoads, baselineAgeDays, calculateACWR, calculateEWMA, fillMissingDays, formatLoadDate, getLatestACWR, loadZone, projectFutureACWR, sevenDayLoad, todayISO } from './loadCalculations';
+import { aggregateDailyLoads, baselineAgeDays, calculateEWMA, fillMissingDays, formatLoadDate, getLatestACWR, loadZone, projectFutureACWR, todayISO } from './loadCalculations';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
 
 type AthleteView = 'home' | 'load' | 'calendar';
@@ -63,6 +63,8 @@ type AthleteAvailabilityMark = {
   reason: string | null;
   lateMinutes: number | null;
 };
+
+type AvailabilityDraft = 'expected' | 'late' | 'out';
 
 type RawLoadEntry = {
   id: string;
@@ -544,8 +546,115 @@ function Metric({ label, value, tone = 'default' }: { label: string; value: stri
   );
 }
 
+function averageRecentSessionLoad(entries: AthleteLoadEntry[]) {
+  const active = entries.slice(-28).filter((entry) => entry.load > 0);
+  if (active.length === 0) return 500;
+  return Math.max(1, Math.round(active.reduce((sum, entry) => sum + entry.load, 0) / active.length));
+}
+
+function buildLoadRoomSummary(latest: ReturnType<typeof getLatestACWR>, entries: AthleteLoadEntry[], baselineReady: boolean) {
+  const averageSessionLoad = averageRecentSessionLoad(entries);
+  if (!latest || !baselineReady) {
+    return {
+      label: 'Room',
+      value: '—',
+      detail: 'Baseline building',
+      tone: 'neutral' as const,
+      fillPercent: 0,
+      mode: 'neutral' as const,
+    };
+  }
+
+  const currentAcwr = latest.acwr ?? null;
+  const overloadLimit = ewmaLoadForTargetRatio(latest.acuteLoad, latest.chronicLoad, ACWR_ZONES.high);
+  const lowFloor = ewmaLoadForTargetRatio(latest.acuteLoad, latest.chronicLoad, ACWR_ZONES.low);
+  const lowGapAu = lowFloor === null || currentAcwr === null || currentAcwr >= ACWR_ZONES.low ? 0 : Math.max(0, lowFloor);
+  const headroomAu = overloadLimit === null ? null : Math.max(0, overloadLimit);
+
+  if (lowGapAu > 0) {
+    return {
+      label: 'Underload gap',
+      value: `${lowGapAu} AU`,
+      detail: sessionEstimateLabel(lowGapAu, averageSessionLoad),
+      tone: 'low' as const,
+      fillPercent: Math.min(100, Math.max(8, (lowGapAu / Math.max(averageSessionLoad * 2, 1)) * 100)),
+      mode: 'low' as const,
+    };
+  }
+
+  if (headroomAu === null) {
+    return {
+      label: 'Room',
+      value: '—',
+      detail: 'Needs baseline',
+      tone: 'neutral' as const,
+      fillPercent: 0,
+      mode: 'neutral' as const,
+    };
+  }
+
+  return {
+    label: 'Overload room',
+    value: `${headroomAu} AU`,
+    detail: sessionEstimateLabel(headroomAu, averageSessionLoad),
+    tone: headroomAu < averageSessionLoad * 0.5 ? 'high' as const : 'ready' as const,
+    fillPercent: Math.min(100, Math.max(6, (headroomAu / Math.max(averageSessionLoad * 2, 1)) * 100)),
+    mode: headroomAu < averageSessionLoad * 0.5 ? 'high' as const : 'ready' as const,
+  };
+}
+
+function LoadRoomMetric({ latest, entries, baselineReady }: { latest: ReturnType<typeof getLatestACWR>; entries: AthleteLoadEntry[]; baselineReady: boolean }) {
+  const room = buildLoadRoomSummary(latest, entries, baselineReady);
+  const toneClass = room.tone === 'ready'
+    ? 'border-emerald-400/35 bg-emerald-400/10 text-emerald-100'
+    : room.tone === 'high'
+      ? 'border-rose-400/35 bg-rose-400/10 text-rose-100'
+      : room.tone === 'low'
+        ? 'border-sky-400/35 bg-sky-400/10 text-sky-100'
+        : 'border-slate-800 bg-slate-950/55 text-white';
+  const fillClass = room.mode === 'low'
+    ? 'bg-sky-300'
+    : room.mode === 'high'
+      ? 'bg-rose-300'
+      : room.mode === 'ready'
+        ? 'bg-emerald-300'
+        : 'bg-slate-700';
+  return (
+    <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-3 sm:p-4 ${toneClass}`}>
+      <p className="truncate text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{room.label}</p>
+      <p className="mt-2 truncate text-xl font-black tracking-tight sm:text-2xl">{room.value}</p>
+      <div className="mt-3">
+        <div className="h-2 overflow-hidden rounded-full bg-slate-950/70">
+          <div className={`h-full rounded-full ${fillClass}`} style={{ width: `${room.fillPercent}%` }} />
+        </div>
+        <p className="mt-1 truncate text-[10px] font-bold text-slate-400">{room.detail}</p>
+      </div>
+    </div>
+  );
+}
+
+function AcwrGradientGauge({ acwr }: { acwr: number | null }) {
+  const marker = acwr === null ? null : Math.min(100, Math.max(0, (acwr / 2) * 100));
+  return (
+    <div className="mt-4">
+      <div className="relative h-6">
+        <div className="absolute inset-x-0 top-2 h-2 rounded-full bg-[linear-gradient(90deg,#38bdf8_0%,#38bdf8_39%,#34d399_42%,#34d399_65%,#fb7185_70%,#fb7185_100%)]" />
+        {marker !== null ? (
+          <span
+            className="absolute top-0 z-10 h-6 w-6 -translate-x-1/2 rounded-full border-[3px] border-slate-950 bg-white shadow-[0_0_0_2px_rgba(255,255,255,0.18),0_10px_24px_rgba(0,0,0,0.45)]"
+            style={{ left: `${marker}%` }}
+          />
+        ) : null}
+      </div>
+      <div className="relative h-4 text-[10px] font-black text-slate-400">
+        <span className="absolute left-[40%] -translate-x-1/2">0.8</span>
+        <span className="absolute left-[65%] -translate-x-1/2">1.3</span>
+      </div>
+    </div>
+  );
+}
+
 type LoadChartRange = 7 | 14 | 30 | 60;
-type LoadChartMethod = 'rolling' | 'ewma';
 
 type LoadChartDatum = {
   date: string;
@@ -654,7 +763,6 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
   const [range, setRange] = useState<LoadChartRange>(14);
-  const [method, setMethod] = useState<LoadChartMethod>('ewma');
   const [showLoadLines, setShowLoadLines] = useState(true);
 
   useEffect(() => {
@@ -679,8 +787,8 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
   }, [isFullscreen]);
 
   const daily = fillMissingDays(aggregateDailyLoads(entries), Math.max(range, 84));
-  const acwr = method === 'ewma' ? calculateEWMA(entries) : calculateACWR(entries);
-  const projected = projectFutureACWR(entries, pendingSessions, 14, method);
+  const acwr = calculateEWMA(entries);
+  const projected = projectFutureACWR(entries, pendingSessions, 14, 'ewma');
   const acwrByDate = new Map(acwr.map((point) => [point.date, point]));
   const projectedByDate = new Map(projected.map((point) => [point.date, point]));
   const entriesByDate = new Map<string, AthleteLoadEntry[]>();
@@ -886,18 +994,6 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
               </button>
             ))}
           </div>
-          <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1">
-            {(['rolling', 'ewma'] as const).map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setMethod(item)}
-                className={`rounded-full px-3 py-1.5 text-xs font-black uppercase transition ${method === item ? 'bg-sky-300 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
           <button
             type="button"
             onClick={() => setShowLoadLines((current) => !current)}
@@ -951,7 +1047,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
               <div className="flex shrink-0 items-center justify-between gap-2 px-1">
                 <div className="min-w-0">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Load chart</p>
-                  <p className="truncate text-sm font-black text-white">{range} days · {method.toUpperCase()}</p>
+                  <p className="truncate text-sm font-black text-white">{range} days · EWMA</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                   <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-0.5">
@@ -1380,6 +1476,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [isDeleting, setIsDeleting] = useState(false);
   const [cancelledSessionIds, setCancelledSessionIds] = useState<Set<string>>(new Set());
   const [availabilityBySessionId, setAvailabilityBySessionId] = useState<Map<string, AthleteAvailabilityMark>>(new Map());
+  const [availabilityDraft, setAvailabilityDraft] = useState<AvailabilityDraft>('expected');
   const [availabilityReason, setAvailabilityReason] = useState('');
   const [lateMinutes, setLateMinutes] = useState(10);
 
@@ -1485,11 +1582,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
   const sortedEntries = useMemo(() => [...entries].sort((a, b) => a.date.localeCompare(b.date)), [entries]);
   const latest = useMemo(() => getLatestACWR(sortedEntries, 'ewma'), [sortedEntries]);
-  const latestRolling = useMemo(() => getLatestACWR(sortedEntries, 'rolling'), [sortedEntries]);
   const baselineDays = useMemo(() => baselineAgeDays(sortedEntries), [sortedEntries]);
   const isBaselineReady = (latest?.chronicFull ?? false) && baselineDays >= 30;
   const zone = loadZone(latest?.acwr ?? null, isBaselineReady);
-  const weeklyLoad = useMemo(() => sevenDayLoad(sortedEntries), [sortedEntries]);
   function isSessionCancelled(sessionId: string) {
     if (cancelledSessionIds.has(sessionId)) return true;
     return sessionId.endsWith('-warmup') && cancelledSessionIds.has(sessionId.replace(/-warmup$/, ''));
@@ -1535,7 +1630,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         entry,
       }));
     return [...fromSessions, ...fromEntries].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  }, [calendarSessions, cancelledSessionIds, sortedEntries]);
+  }, [availabilityBySessionId, calendarSessions, cancelledSessionIds, sortedEntries]);
   const averageDurationByType = useMemo(() => {
     const map = new Map<LoadTrainingType, number>();
     for (const type of LOAD_TRAINING_TYPES) {
@@ -1861,6 +1956,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       setError('Please add a short reason so your coach has context.');
       return;
     }
+    setError(null);
 
     setAvailabilityBySessionId((current) => {
       const next = new Map(current);
@@ -1954,6 +2050,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     setActiveComposerSession(null);
     setActiveEntry(null);
     setActiveDetailItem(null);
+    setAvailabilityDraft('expected');
+    setAvailabilityReason('');
+    setLateMinutes(10);
     setPlanForm((current) => ({
       ...current,
       date,
@@ -1991,6 +2090,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       setActiveEntry(null);
       setActiveComposerSession(item.session);
       const availability = availabilityForSession(item.session.id);
+      setAvailabilityDraft(availability?.status ?? 'expected');
       setAvailabilityReason(availability?.reason ?? '');
       setLateMinutes(availability?.lateMinutes ?? 10);
       setPlanForm({
@@ -2046,8 +2146,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               </div>
             </div>
             <div className="grid w-full min-w-0 grid-cols-3 gap-2 lg:w-auto lg:min-w-[440px] [&>*]:min-h-[92px]">
-              <Metric label="7 days" value={`${weeklyLoad}`} />
-              <Metric label="ACWR" value={latest?.acwr && isBaselineReady ? latest.acwr.toFixed(2) : '—'} tone={zone.tone} />
+              <LoadRoomMetric latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} />
+              <Metric label="ACWR" value={latest?.acwr !== null && latest?.acwr !== undefined && isBaselineReady ? latest.acwr.toFixed(2) : '—'} tone={zone.tone} />
               <Metric label="State" value={zone.label} tone={zone.tone} />
             </div>
           </div>
@@ -2059,6 +2159,40 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         {activeView !== 'calendar' && !isBaselineReady ? (
           <section className="rounded-[1.75rem] border border-amber-300/25 sm:rounded-[2rem] bg-amber-300/[0.08] p-4 text-sm font-bold text-amber-100">
             Load baseline is still building. ACWR is calculated already, but it becomes meaningfully interpretable after about 30 days of calendar history.
+          </section>
+        ) : null}
+
+        {activeView === 'home' ? (
+          <section className="grid gap-3 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5 lg:grid-cols-[1fr_0.8fr]">
+            <div>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-sky-300">ACWR</p>
+                  <h2 className="mt-1 text-xl font-black tracking-tight">Load lane</h2>
+                </div>
+                <span className={`rounded-full border px-3 py-1.5 text-xs font-black ${zone.tone === 'high' ? 'border-rose-400/45 bg-rose-400/10 text-rose-100' : zone.tone === 'low' ? 'border-sky-400/45 bg-sky-400/10 text-sky-100' : zone.tone === 'ready' ? 'border-emerald-400/45 bg-emerald-400/10 text-emerald-100' : 'border-slate-700 text-slate-300'}`}>
+                  {latest?.acwr !== null && latest?.acwr !== undefined && isBaselineReady ? latest.acwr.toFixed(2) : '—'}
+                </span>
+              </div>
+              <AcwrGradientGauge acwr={latest?.acwr !== null && latest?.acwr !== undefined && isBaselineReady ? latest.acwr : null} />
+            </div>
+            {(() => {
+              const room = buildLoadRoomSummary(latest, sortedEntries, isBaselineReady);
+              return (
+                <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{room.label}</p>
+                      <p className="mt-1 text-sm font-bold text-slate-400">{room.detail}</p>
+                    </div>
+                    <span className="text-2xl font-black text-white">{room.value}</span>
+                  </div>
+                  <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-900">
+                    <div className={`h-full rounded-full ${room.mode === 'low' ? 'bg-sky-300' : room.mode === 'high' ? 'bg-rose-300' : room.mode === 'ready' ? 'bg-emerald-300' : 'bg-slate-700'}`} style={{ width: `${room.fillPercent}%` }} />
+                  </div>
+                </div>
+              );
+            })()}
           </section>
         ) : null}
 
@@ -2081,7 +2215,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           <LoadDetailsPanel
             entries={sortedEntries}
             latestEwma={latest}
-            latestRolling={latestRolling}
             baselineDays={baselineDays}
           />
         ) : null}
@@ -2205,13 +2338,19 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               <button type="button" onClick={() => { setComposerOpen(false); setActiveComposerSession(null); setActiveEntry(null); }} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">Close</button>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              {LOAD_TRAINING_TYPES.slice(0, 6).map((type) => (
-                <button key={type} type="button" onClick={() => setSessionTrainingType(type)} className={`rounded-2xl border px-3 py-2 text-left text-xs font-black transition ${planForm.trainingType === type ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-300'}`}>
-                  {LOAD_TYPE_LABELS[type]}
-                </button>
-              ))}
-            </div>
+            {activeComposerSession?.source === 'team_session' ? (
+              <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm font-black text-slate-200">
+                {LOAD_TYPE_LABELS[planForm.trainingType]} · locked by team session
+              </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                {LOAD_TRAINING_TYPES.slice(0, 6).map((type) => (
+                  <button key={type} type="button" onClick={() => setSessionTrainingType(type)} className={`rounded-2xl border px-3 py-2 text-left text-xs font-black transition ${planForm.trainingType === type ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-300'}`}>
+                    {LOAD_TYPE_LABELS[type]}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div className="mt-4 flex max-w-full flex-wrap gap-2">
               <label className="w-[9rem] max-w-[calc(100vw-2rem)] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500 sm:w-[10rem]">
@@ -2250,19 +2389,30 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                       {activeComposerSession && !isWarmup ? (
                         <div className="space-y-3">
                           <div className="grid grid-cols-3 gap-2">
-                            <button type="button" onClick={() => setTeamSessionAvailability(activeComposerSession, 'expected')} className={`rounded-xl border px-3 py-2 text-xs font-black ${!mark ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>Available</button>
-                            <button type="button" onClick={() => setTeamSessionAvailability(activeComposerSession, 'late', availabilityReason, lateMinutes)} className={`rounded-xl border px-3 py-2 text-xs font-black ${mark?.status === 'late' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>Late</button>
-                            <button type="button" onClick={() => setTeamSessionAvailability(activeComposerSession, 'out', availabilityReason, null)} className={`rounded-xl border px-3 py-2 text-xs font-black ${mark?.status === 'out' ? 'border-rose-300 bg-rose-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>Out</button>
+                            <button type="button" onClick={() => setAvailabilityDraft('expected')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'expected' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>Available</button>
+                            <button type="button" onClick={() => setAvailabilityDraft('late')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'late' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>Late</button>
+                            <button type="button" onClick={() => setAvailabilityDraft('out')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'out' ? 'border-rose-300 bg-rose-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>Out</button>
                           </div>
-                          <label className="block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                            Reason
-                            <textarea value={availabilityReason} onChange={(event) => setAvailabilityReason(event.target.value)} placeholder="e.g. school, injury, traffic" className="mt-2 min-h-20 w-full resize-y rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold normal-case tracking-normal text-white outline-none placeholder:text-slate-600 focus:border-emerald-300" />
-                          </label>
-                          <label className="block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                            Late minutes
-                            <input type="range" min="5" max="60" step="5" value={lateMinutes} onChange={(event) => setLateMinutes(Number(event.target.value))} className="mt-2 w-full accent-sky-300" />
-                            <span className="mt-1 block text-sm font-black normal-case tracking-normal text-white">{lateMinutes} min</span>
-                          </label>
+                          {availabilityDraft === 'late' || availabilityDraft === 'out' ? (
+                            <label className="block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                              Reason
+                              <textarea value={availabilityReason} onChange={(event) => setAvailabilityReason(event.target.value)} placeholder="e.g. school, injury, traffic" className="mt-2 min-h-20 w-full resize-y rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold normal-case tracking-normal text-white outline-none placeholder:text-slate-600 focus:border-emerald-300" />
+                            </label>
+                          ) : null}
+                          {availabilityDraft === 'late' ? (
+                            <label className="block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                              Late minutes
+                              <input type="range" min="5" max="60" step="5" value={lateMinutes} onChange={(event) => setLateMinutes(Number(event.target.value))} className="mt-2 w-full accent-sky-300" />
+                              <span className="mt-1 block text-sm font-black normal-case tracking-normal text-white">{lateMinutes} min</span>
+                            </label>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => setTeamSessionAvailability(activeComposerSession, availabilityDraft, availabilityReason, availabilityDraft === 'late' ? lateMinutes : null)}
+                            className="w-full rounded-2xl bg-emerald-300 px-4 py-3 text-sm font-black text-slate-950"
+                          >
+                            Save availability
+                          </button>
                         </div>
                       ) : null}
                     </>
@@ -2397,12 +2547,10 @@ function sessionEstimateLabel(au: number, averageSessionLoad: number) {
 function LoadDetailsPanel({
   entries,
   latestEwma,
-  latestRolling,
   baselineDays,
 }: {
   entries: AthleteLoadEntry[];
   latestEwma: ReturnType<typeof getLatestACWR>;
-  latestRolling: ReturnType<typeof getLatestACWR>;
   baselineDays: number;
 }) {
   const today = todayISO();
@@ -2411,14 +2559,12 @@ function LoadDetailsPanel({
   const last28ISO = `${last28Start.getFullYear()}-${String(last28Start.getMonth() + 1).padStart(2, '0')}-${String(last28Start.getDate()).padStart(2, '0')}`;
   const recentEntries = entries.filter((entry) => entry.date >= last28ISO);
   const recentLoad = recentEntries.reduce((sum, entry) => sum + entry.load, 0);
-  const activeRecentEntries = recentEntries.filter((entry) => entry.load > 0);
-  const averageSessionLoad = activeRecentEntries.length
-    ? Math.round(activeRecentEntries.reduce((sum, entry) => sum + entry.load, 0) / activeRecentEntries.length)
-    : 500;
+  const averageSessionLoad = averageRecentSessionLoad(recentEntries);
   const zone = loadZone(latestEwma?.acwr ?? null, latestEwma?.chronicFull ?? false);
   const overloadLimit = latestEwma ? ewmaLoadForTargetRatio(latestEwma.acuteLoad, latestEwma.chronicLoad, ACWR_ZONES.high) : null;
   const lowFloor = latestEwma ? ewmaLoadForTargetRatio(latestEwma.acuteLoad, latestEwma.chronicLoad, ACWR_ZONES.low) : null;
   const currentAcwr = latestEwma?.acwr ?? null;
+  const roomSummary = buildLoadRoomSummary(latestEwma, entries, (latestEwma?.chronicFull ?? false) && baselineDays >= 30);
   const headroomAu = overloadLimit === null ? null : Math.max(0, overloadLimit);
   const lowGapAu = lowFloor === null || currentAcwr === null || currentAcwr >= ACWR_ZONES.low ? 0 : Math.max(0, lowFloor);
   const bestMove = zone.tone === 'high'
@@ -2451,7 +2597,7 @@ function LoadDetailsPanel({
     {
       label: 'Current zone',
       value: zone.label,
-      detail: currentAcwr ? `EWMA ${currentAcwr.toFixed(2)} / rolling ${latestRolling?.acwr?.toFixed(2) ?? 'n/a'}` : 'Baseline building',
+      detail: currentAcwr !== null ? `EWMA ${currentAcwr.toFixed(2)}` : 'Baseline building',
       tone: zone.tone === 'high' ? 'text-rose-100' : zone.tone === 'low' ? 'text-sky-100' : 'text-white',
     },
     {
@@ -2480,6 +2626,38 @@ function LoadDetailsPanel({
               <p className="mt-2 text-xs font-bold text-slate-500">{card.detail}</p>
             </div>
           ))}
+        </div>
+        <div className="mt-5 grid gap-3 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">ACWR lane</p>
+                <p className="mt-1 text-sm font-bold text-slate-400">Blue low · green optimal · red overload</p>
+              </div>
+              <span className="text-2xl font-black text-white">{currentAcwr !== null ? currentAcwr.toFixed(2) : '—'}</span>
+            </div>
+            <AcwrGradientGauge acwr={currentAcwr} />
+          </div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{roomSummary.label}</p>
+                <p className="mt-1 text-sm font-bold text-slate-400">{roomSummary.detail}</p>
+              </div>
+              <span className="text-2xl font-black text-white">{roomSummary.value}</span>
+            </div>
+            <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-900">
+              <div
+                className={`h-full rounded-full ${roomSummary.mode === 'low' ? 'bg-sky-300' : roomSummary.mode === 'high' ? 'bg-rose-300' : roomSummary.mode === 'ready' ? 'bg-emerald-300' : 'bg-slate-700'}`}
+                style={{ width: `${roomSummary.fillPercent}%` }}
+              />
+            </div>
+            <div className="mt-2 flex justify-between text-[10px] font-black uppercase tracking-[0.12em] text-slate-600">
+              <span>Low</span>
+              <span>Optimal</span>
+              <span>Overload</span>
+            </div>
+          </div>
         </div>
         <div className="mt-5 rounded-2xl border border-dashed border-slate-700 bg-slate-950/45 p-4 text-sm font-bold text-slate-400">
           {baselineDays < 30
