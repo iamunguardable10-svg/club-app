@@ -553,6 +553,18 @@ function averageRecentSessionLoad(entries: AthleteLoadEntry[]) {
 }
 
 type LoadRoomMode = 'baseline' | 'underload' | 'ready' | 'overload';
+type LoadRoomSummary = {
+  label: string;
+  value: string;
+  detail: string;
+  tone: 'default' | 'ready' | 'high' | 'low' | 'neutral';
+  mode: LoadRoomMode;
+  markerPercent: number | null;
+  lowPercent: number;
+  highPercent: number;
+  roomStartPercent: number;
+  roomWidthPercent: number;
+};
 
 function acwrPercent(acwr: number | null) {
   if (acwr === null) return null;
@@ -634,7 +646,7 @@ function buildLoadRoomSummary(latest: ReturnType<typeof getLatestACWR>, entries:
   };
 }
 
-function LoadRoomGauge({ room, compact = false }: { room: ReturnType<typeof buildLoadRoomSummary>; compact?: boolean }) {
+function LoadRoomGauge({ room, compact = false }: { room: LoadRoomSummary; compact?: boolean }) {
   const highlightClass = room.mode === 'underload'
     ? 'bg-sky-300/65'
     : room.mode === 'overload'
@@ -683,6 +695,42 @@ function LoadRoomMetric({ latest, entries, baselineReady }: { latest: ReturnType
     <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-3 sm:p-4 ${toneClass}`}>
       <div>
         <p className="truncate text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{room.label}</p>
+        <p className="mt-2 truncate text-xl font-black tracking-tight sm:text-2xl">{room.value}</p>
+      </div>
+      <div>
+        <LoadRoomGauge room={room} compact />
+        <p className="mt-1 truncate text-[10px] font-bold text-slate-400">{room.detail}</p>
+      </div>
+    </div>
+  );
+}
+
+function AcwrMetric({ latest, baselineReady, tone }: { latest: ReturnType<typeof getLatestACWR>; baselineReady: boolean; tone: 'default' | 'ready' | 'high' | 'low' | 'neutral' }) {
+  const acwr = latest?.acwr ?? null;
+  const displayAcwr = acwr !== null && baselineReady ? acwr : null;
+  const room = {
+    label: 'ACWR',
+    value: displayAcwr !== null ? displayAcwr.toFixed(2) : '-',
+    detail: displayAcwr !== null ? (tone === 'high' ? 'High' : tone === 'low' ? 'Low' : 'Optimal') : '30 days needed',
+    tone,
+    mode: 'baseline' as LoadRoomMode,
+    markerPercent: acwrPercent(displayAcwr),
+    lowPercent: ACWR_ZONES.low * 50,
+    highPercent: ACWR_ZONES.high * 50,
+    roomStartPercent: 0,
+    roomWidthPercent: 0,
+  };
+  const toneClass = tone === 'ready'
+    ? 'border-emerald-400/35 bg-emerald-400/10 text-emerald-100'
+    : tone === 'high'
+      ? 'border-rose-400/35 bg-rose-400/10 text-rose-100'
+      : tone === 'low'
+        ? 'border-sky-400/35 bg-sky-400/10 text-sky-100'
+        : 'border-slate-800 bg-slate-950/55 text-white';
+  return (
+    <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-3 sm:p-4 ${toneClass}`}>
+      <div>
+        <p className="truncate text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">ACWR</p>
         <p className="mt-2 truncate text-xl font-black tracking-tight sm:text-2xl">{room.value}</p>
       </div>
       <div>
@@ -881,7 +929,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
   const chartMargin = (fullscreen = false) => ({
     top: fullscreen ? 16 : 14,
     right: fullscreen ? 18 : 8,
-    bottom: fullscreen ? 4 : 4,
+    bottom: fullscreen ? 22 : 24,
     left: fullscreen ? 14 : isMobile ? 0 : 22,
   });
   const openFullscreen = () => {
@@ -905,6 +953,9 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
           tickLine={false}
           axisLine={false}
           interval={range === 7 ? 0 : isMobile ? 1 : range === 14 ? 1 : range === 30 ? 4 : 9}
+          angle={-28}
+          textAnchor="end"
+          height={36}
         />
         <YAxis
           yAxisId="load"
@@ -1036,16 +1087,16 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
           <button
             type="button"
             onClick={() => setShowLoadLines((current) => !current)}
-            className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${showLoadLines ? 'border-amber-300 bg-amber-300 text-slate-950' : 'border-slate-800 bg-slate-950/80 text-slate-400 hover:text-slate-100'}`}
+            className={`rounded-full border px-2.5 py-1 text-[10px] font-black transition ${showLoadLines ? 'border-amber-300 bg-amber-300 text-slate-950' : 'border-slate-800 bg-slate-950/80 text-slate-400 hover:text-slate-100'}`}
           >
-            Acute / chronic
+            A/C
           </button>
         </div>
         <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
           <span className="hidden items-center gap-1.5 sm:inline-flex"><span className="h-px w-5 bg-sky-300" /> low 0.8</span>
           <span className="hidden items-center gap-1.5 sm:inline-flex"><span className="h-px w-5 bg-rose-300" /> high 1.3</span>
-          <button type="button" onClick={openFullscreen} className="inline-flex rounded-full border border-slate-700 bg-slate-950/80 px-3 py-1.5 text-xs font-black text-slate-200 shadow-sm sm:hidden">
-            Fullscreen
+          <button type="button" onClick={openFullscreen} aria-label="Open chart fullscreen" className="inline-grid h-8 w-8 place-items-center rounded-full border border-slate-700 bg-slate-950/80 text-sm font-black text-slate-200 shadow-sm sm:hidden">
+            ⛶
           </button>
         </div>
       </div>
@@ -2173,6 +2224,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       : 'Add load';
   const activeView = initialView ?? 'home';
 
+  useEffect(() => {
+    if (activeView !== 'calendar' || typeof window === 'undefined') return;
+    window.setTimeout(() => {
+      document.getElementById('athlete-calendar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  }, [activeView]);
+
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#050712] text-white">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(56,189,248,0.16),transparent_28rem),radial-gradient(circle_at_92%_8%,rgba(52,211,153,0.12),transparent_30rem)]" />
@@ -2190,7 +2248,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             </div>
             <div className="grid w-full min-w-0 grid-cols-3 gap-2 lg:w-auto lg:min-w-[440px] [&>*]:min-h-[92px]">
               <LoadRoomMetric latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} />
-              <Metric label="ACWR" value={latest?.acwr !== null && latest?.acwr !== undefined && isBaselineReady ? latest.acwr.toFixed(2) : '—'} tone={zone.tone} />
+              <AcwrMetric latest={latest} baselineReady={isBaselineReady} tone={zone.tone} />
               <Metric label="Zone" value={zone.label} tone={zone.tone} />
             </div>
           </div>
@@ -2229,9 +2287,12 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         ) : null}
 
         {activeView === 'calendar' ? (
-          <AthleteCalendar items={calendarItems} onEmptySlot={openComposer} onItemSelect={openCalendarItem} onPlanTimeChange={updatePlanTimeFromCalendar} />
-        ) : (
-          <section className={`grid min-w-0 items-stretch gap-5 ${activeView === 'home' ? 'lg:grid-cols-[0.9fr_1.1fr]' : ''}`}>
+          <div id="athlete-calendar" className="scroll-mt-24">
+            <AthleteCalendar items={calendarItems} onEmptySlot={openComposer} onItemSelect={openCalendarItem} onPlanTimeChange={updatePlanTimeFromCalendar} />
+          </div>
+        ) : activeView === 'home' ? (
+          <section className={`grid min-w-0 items-stretch gap-5 ${todayPending.length > 0 ? 'lg:grid-cols-[0.9fr_1.1fr]' : ''}`}>
+            {todayPending.length > 0 ? (
             <div className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -2241,7 +2302,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{todayPending.length}</span>
               </div>
               <div className="mt-4 space-y-3">
-                {todayPending.length === 0 ? <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">Clear</div> : null}
                 {todayPending.map((session) => {
                   const active = activePendingId === session.id;
                   const defaultDuration = session.expectedDurationMinutes ?? (session.endsAt ? Math.max(30, Math.round((new Date(session.endsAt).getTime() - new Date(session.startsAt).getTime()) / 60000)) : 90);
@@ -2260,14 +2320,15 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 })}
               </div>
             </div>
+            ) : null}
 
-            {activeView === 'home' ? <div className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 sm:p-5">
+            <div className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Calendar</p>
                   <h2 className="mt-1 text-2xl font-black tracking-tight">Next up</h2>
                 </div>
-                <Link href="/athlete/calendar" className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:border-emerald-300 hover:text-emerald-100">Open</Link>
+                <Link href="/athlete/calendar#athlete-calendar" className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:border-emerald-300 hover:text-emerald-100">Open</Link>
               </div>
               {nextSession ? (
                 <button type="button" onClick={() => openCalendarItem({ id: nextSession.id, title: nextSession.title, date: nextSession.date, startsAt: nextSession.startsAt, endsAt: nextSession.endsAt, trainingType: nextSession.trainingType, teamName: nextSession.teamName, status: nextSession.date < todayISO() ? 'missing' : 'planned', source: nextSession.source ?? 'team_session', session: nextSession })} className="mt-4 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.06] p-5 text-left transition hover:border-emerald-300/55">
@@ -2290,9 +2351,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   ))}
                 </div>
               ) : null}
-            </div> : null}
+            </div>
           </section>
-        )}
+        ) : null}
       </div>
       {activeDetailItem ? (
         <div className="fixed inset-0 z-50 flex items-end bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
@@ -2504,7 +2565,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
 const athleteNavItems: Array<{ view: AthleteView; label: string; href: string; icon: string }> = [
   { view: 'home', label: 'Today', href: '/athlete/home', icon: '●' },
-  { view: 'calendar', label: 'Calendar', href: '/athlete/calendar', icon: '▦' },
+  { view: 'calendar', label: 'Calendar', href: '/athlete/calendar#athlete-calendar', icon: '▦' },
   { view: 'load', label: 'Load', href: '/athlete/load', icon: '⌁' },
 ];
 
