@@ -168,7 +168,8 @@ V1 uses EWMA as the default ACWR method for athlete and coach-facing surfaces. E
 - Load graph can overlay acute and chronic load lines on top of daily load bars.
 - Acute and chronic load lines are rendered as dashed supporting lines; the athlete-facing cards do not lead with raw acute/chronic numbers.
 - The top Load cockpit replaces raw `7 days AU` with an ACWR-colored room indicator: blue underload gap, green room to 1.3, red overload debt when the athlete is already above the safe lane.
-- Today is the cockpit with pending inputs and next session context. The full graph and deeper load interpretation live on the Load tab only, avoiding duplicate graph/status blocks.
+- Today is the cockpit with pending inputs, next session context, and the load graph. The Load tab keeps the deeper interpretation below the same graph.
+- Acute/chronic support lines are available through the compact `A/C` toggle and default to off.
 - The Load tab leads with one status surface: ACWR lane, room/overload/underload amount, and the concise next action.
 - Training mix is shown as percentage distribution from the last 28 days so athletes and coaches can see which session types dominate the load.
 

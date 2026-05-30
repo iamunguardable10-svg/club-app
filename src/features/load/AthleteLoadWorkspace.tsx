@@ -850,7 +850,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
   const [range, setRange] = useState<LoadChartRange>(14);
-  const [showLoadLines, setShowLoadLines] = useState(true);
+  const [showLoadLines, setShowLoadLines] = useState(false);
 
   useEffect(() => {
     const syncViewport = () => {
@@ -1095,7 +1095,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
         <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
           <span className="hidden items-center gap-1.5 sm:inline-flex"><span className="h-px w-5 bg-sky-300" /> low 0.8</span>
           <span className="hidden items-center gap-1.5 sm:inline-flex"><span className="h-px w-5 bg-rose-300" /> high 1.3</span>
-          <button type="button" onClick={openFullscreen} aria-label="Open chart fullscreen" className="inline-grid h-8 w-8 place-items-center rounded-full border border-slate-700 bg-slate-950/80 text-sm font-black text-slate-200 shadow-sm sm:hidden">
+          <button type="button" onClick={openFullscreen} aria-label="Open chart fullscreen" className="inline-grid h-8 w-8 place-items-center bg-transparent text-lg font-black text-slate-300 transition hover:text-white sm:hidden">
             ⛶
           </button>
         </div>
@@ -2263,7 +2263,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           </section>
         ) : null}
 
-        {activeView === 'load' ? (
+        {activeView !== 'calendar' ? (
           <section className="grid min-w-0 items-stretch gap-5">
             <div className="h-full min-w-0 overflow-hidden rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
