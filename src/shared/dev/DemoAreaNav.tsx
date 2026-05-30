@@ -36,11 +36,11 @@ const sections = [
     title: 'Department Workspace',
     description: 'Department operations across teams, schedules, coaches and facilities.',
     links: [
-      { href: '/department/overview', label: 'Overview' },
-      { href: '/department/teams', label: 'Teams' },
-      { href: '/department/schedule', label: 'Schedule' },
-      { href: '/department/coaches', label: 'Coaches' },
-      { href: '/department/facilities', label: 'Facilities' },
+      { href: '/demo/department/overview', label: 'Demo Overview' },
+      { href: '/demo/department/teams', label: 'Demo Teams' },
+      { href: '/demo/department/schedule', label: 'Demo Schedule' },
+      { href: '/demo/department/coaches', label: 'Demo Coaches' },
+      { href: '/demo/department/facilities', label: 'Demo Facilities' },
     ],
   },
   {

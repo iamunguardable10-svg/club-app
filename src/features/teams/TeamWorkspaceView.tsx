@@ -924,26 +924,28 @@ export function TeamWorkspaceView({
 
   return (
     <section className="space-y-5 pb-24 md:pb-0">
-      <div className="rounded-3xl border border-slate-800 bg-slate-950/75 p-6">
-        <Link href={data.backHref} className="text-sm font-black text-sky-300 hover:text-sky-200">{data.backLabel ?? 'Back to teams'}</Link>
-        <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-300">Team workspace</p>
-            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">{data.name}</h1>
-            <p className="mt-2 text-sm text-slate-400">{data.departmentName} · {data.defaultFacilityName ?? 'No default facility yet'}</p>
+      <div className="sticky top-0 z-30 rounded-2xl border border-slate-800 bg-slate-950/92 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:static md:p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <Link href={data.backHref} className="text-xs font-black text-sky-300 hover:text-sky-200">{data.backLabel ?? 'Back'}</Link>
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <h1 className="truncate text-xl font-black tracking-tight text-white sm:text-2xl">{data.name}</h1>
+              <span className="hidden text-sm font-bold text-slate-500 sm:inline">·</span>
+              <span className="truncate text-xs font-bold text-slate-400 sm:text-sm">{data.departmentName}{data.defaultFacilityName ? ` · ${data.defaultFacilityName}` : ''}</span>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2 text-xs font-black">
-            <span className="rounded-full border border-sky-500/40 bg-sky-950/30 px-3 py-1 text-sky-100">{roleLabel(data.role)}</span>
-            <span className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">{data.playerCount} players</span>
+          <div className="flex shrink-0 items-center gap-1.5 text-[10px] font-black sm:text-xs">
+            <span className="hidden rounded-full border border-sky-500/40 bg-sky-950/30 px-2.5 py-1 text-sky-100 sm:inline-flex">{roleLabel(data.role)}</span>
+            <span className="rounded-full border border-slate-700 px-2.5 py-1 text-slate-300">{data.playerCount}</span>
             {setupActions.length > 0 ? (
-              <span className="rounded-full border border-amber-500/50 bg-amber-950/25 px-3 py-1 text-amber-100">{setupActions.length} setup gaps</span>
+              <span className="rounded-full border border-amber-500/50 bg-amber-950/25 px-2.5 py-1 text-amber-100">{setupActions.length}</span>
             ) : (
-              <span className="rounded-full border border-emerald-500/50 bg-emerald-950/25 px-3 py-1 text-emerald-100">Ready</span>
+              <span className="rounded-full border border-emerald-500/50 bg-emerald-950/25 px-2.5 py-1 text-emerald-100">OK</span>
             )}
           </div>
         </div>
 
-        <div className="mt-5 hidden flex-wrap gap-2 md:flex">
+        <div className="mt-3 hidden flex-wrap gap-2 md:flex">
           {desktopSections.map((section) => (
             <button
               key={section}

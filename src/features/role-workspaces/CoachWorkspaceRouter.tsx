@@ -345,10 +345,12 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   return (
     <main className="os-page">
       <div className="os-container space-y-5">
-        <section className="rounded-[2rem] border border-slate-800 bg-slate-950/72 p-6 text-white shadow-[0_28px_90px_rgba(0,0,0,0.28)]">
-          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Coach OS</p>
-          <h1 className="mt-3 text-4xl font-black tracking-tight">{titleForMode(mode)}</h1>
-          <CoachTopNav mode={mode} singleTeamId={singleTeam?.id ?? null} />
+        <section className="sticky top-0 z-30 rounded-2xl border border-slate-800 bg-slate-950/92 p-3 text-white shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:static md:p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Coach OS</p>
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <h1 className="text-2xl font-black tracking-tight">{titleForMode(mode)}</h1>
+            <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-black text-slate-300">{teams.length} teams</span>
+          </div>
         </section>
 
         {teams.length === 0 ? (
@@ -401,16 +403,14 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             </div>
             <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {teams.map((team) => (
-                <article key={team.id} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white transition hover:border-emerald-300/50 hover:bg-slate-900/70">
+                <Link key={team.id} href={`/coach/team?teamId=${team.id}`} className="block rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white transition hover:border-emerald-300/50 hover:bg-slate-900/70">
                   <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">{team.departmentName}</p>
-                  <h3 className="mt-2 text-2xl font-black">{team.name}</h3>
-                  <p className="mt-2 text-sm font-bold text-slate-400">{team.role.replace('_', ' ')}</p>
-                  <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs font-black">
-                    <Link href={`/coach/team?teamId=${team.id}`} className="rounded-2xl border border-slate-800 bg-slate-950 px-2 py-2 hover:border-emerald-300/60">Team</Link>
-                    <Link href={`/coach/sessions?teamId=${team.id}`} className="rounded-2xl border border-slate-800 bg-slate-950 px-2 py-2 hover:border-sky-300/60">Calendar</Link>
-                    <Link href={`/coach/load?teamId=${team.id}`} className="rounded-2xl border border-slate-800 bg-slate-950 px-2 py-2 hover:border-fuchsia-300/60">Players</Link>
+                  <div className="mt-2 flex items-center justify-between gap-3">
+                    <h3 className="text-2xl font-black">{team.name}</h3>
+                    <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-black text-slate-300">Open</span>
                   </div>
-                </article>
+                  <p className="mt-2 text-sm font-bold text-slate-400">{team.role.replace('_', ' ')}</p>
+                </Link>
               ))}
             </div>
           </section>

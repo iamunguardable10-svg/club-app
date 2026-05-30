@@ -19,7 +19,7 @@ const demoPaths = [
   {
     label: 'Department',
     title: 'Department demo',
-    href: '/demo/admin/departments',
+    href: '/demo/department/teams',
     accent: 'text-violet-300',
     icon: Users,
   },

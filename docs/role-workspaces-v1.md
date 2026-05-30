@@ -85,3 +85,15 @@ Important boundary:
 
 - `attendance_records` remains the future finalized-attendance source.
 - Coach Today uses athlete pre-session availability only; it should not be treated as final attendance.
+
+Correction:
+
+- Coach team cards are launchers only: tapping/clicking the team opens the existing Team Workspace directly.
+- The Coach shell should not expose a parallel mini-navigation for Team/Calendar/Players on each card; those sections already live inside Team Workspace.
+- Coach Today remains a lightweight cross-team availability overview, not a replacement for Team Workspace.
+
+Scope correction:
+
+- Demo Department entry now opens a department-lead scoped Basketball workspace instead of the club-level demo Departments page.
+- Demo Coach is scoped to assigned demo coach teams only, not every demo team in the club.
+- Role workspaces should use compact app-bar navigation on mobile. The large hero/card header belongs to admin/marketing/setup surfaces, not operational role shells.

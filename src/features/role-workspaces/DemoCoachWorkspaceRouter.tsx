@@ -23,6 +23,7 @@ type DemoCoachSession = {
 };
 
 const DEMO_AVAILABILITY_KEY = 'club-app.demo.athlete-availability';
+const DEMO_COACH_TEAM_IDS = new Set(['basketball-u14-boys', 'basketball-u16-boys']);
 
 function sectionForMode(mode: CoachMode): TeamWorkspaceSection {
   if (mode === 'sessions') return 'calendar';
@@ -140,7 +141,7 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
 
   useEffect(() => {
     const currentSetup = getDemoClubSetup();
-    const currentTeams = getDemoTeams(currentSetup);
+    const currentTeams = getDemoTeams(currentSetup).filter((team) => DEMO_COACH_TEAM_IDS.has(team.id));
     setSetup(currentSetup);
     setTeams(currentTeams);
     setSessions(buildCoachSessions(currentTeams, getDemoSessions()));
@@ -163,15 +164,12 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   return (
     <main className="os-page">
       <div className="os-container space-y-5">
-        <section className="rounded-[2rem] border border-slate-800 bg-slate-950/72 p-6 text-white shadow-[0_28px_90px_rgba(0,0,0,0.28)]">
-          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Demo Coach OS</p>
-          <h1 className="mt-3 text-4xl font-black tracking-tight">{titleForMode(mode)}</h1>
-          <nav className="mt-5 flex flex-wrap gap-2">
-            {(['today', 'team', 'sessions', 'attendance', 'load'] as CoachMode[]).map((item) => {
-              const href = item === 'today' || !singleTeam ? `/demo/coach/${item}` : `/demo/coach/${item}?teamId=${singleTeam.id}`;
-              return <Link key={item} href={href} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === item ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950 text-slate-200'}`}>{titleForMode(item)}</Link>;
-            })}
-          </nav>
+        <section className="sticky top-0 z-30 rounded-2xl border border-slate-800 bg-slate-950/92 p-3 text-white shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:static md:p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Demo Coach OS</p>
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <h1 className="text-2xl font-black tracking-tight">{titleForMode(mode)}</h1>
+            <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-black text-slate-300">{teams.length} teams</span>
+          </div>
         </section>
 
         {!setup ? <section className="rounded-3xl border border-amber-500/35 bg-amber-950/20 p-5 text-amber-100">No demo club yet.</section> : null}
@@ -201,15 +199,13 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Teams</p><h2 className="mt-2 text-2xl font-black">Select team</h2></div><span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{teams.length} assigned</span></div>
           <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {teams.map((team) => (
-              <article key={team.id} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
+              <Link key={team.id} href={`/demo/coach/team?teamId=${encodeURIComponent(team.id)}`} className="block rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white transition hover:border-emerald-300/50 hover:bg-slate-900/70">
                 <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">{team.department}</p>
-                <h3 className="mt-2 text-2xl font-black">{team.name}</h3>
-                <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs font-black">
-                  <Link href={`/demo/coach/team?teamId=${encodeURIComponent(team.id)}`} className="rounded-2xl border border-slate-800 bg-slate-950 px-2 py-2 hover:border-emerald-300/60">Team</Link>
-                  <Link href={`/demo/coach/sessions?teamId=${encodeURIComponent(team.id)}`} className="rounded-2xl border border-slate-800 bg-slate-950 px-2 py-2 hover:border-sky-300/60">Calendar</Link>
-                  <Link href={`/demo/coach/load?teamId=${encodeURIComponent(team.id)}`} className="rounded-2xl border border-slate-800 bg-slate-950 px-2 py-2 hover:border-fuchsia-300/60">Players</Link>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <h3 className="text-2xl font-black">{team.name}</h3>
+                  <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-black text-slate-300">Open</span>
                 </div>
-              </article>
+              </Link>
             ))}
           </div>
         </section>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { AdminShell } from '@/shared/admin/AdminShell';
 import {
@@ -41,6 +41,17 @@ type DemoInvite = {
 const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
 const DEMO_FACILITY_REQUESTS_KEY = 'club-app.demo.facility-requests';
 const DEMO_INVITES_KEY = 'club-app.demo.invites';
+
+function DepartmentFrame({ frame, children }: { frame: 'admin' | 'department'; children: ReactNode }) {
+  if (frame === 'department') {
+    return (
+      <main className="os-page">
+        <div className="os-container">{children}</div>
+      </main>
+    );
+  }
+  return <AdminShell mode="demo">{children}</AdminShell>;
+}
 
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
@@ -97,7 +108,17 @@ function createInviteToken() {
   return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentName: string }) {
+export function DemoAdminDepartmentWorkspace({
+  departmentName,
+  frame = 'admin',
+  backHref = '/demo/admin/departments',
+  backLabel = 'Back to local departments',
+}: {
+  departmentName: string;
+  frame?: 'admin' | 'department';
+  backHref?: string;
+  backLabel?: string;
+}) {
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [teams, setTeams] = useState<DemoTeam[]>([]);
   const [assignments, setAssignments] = useState<DemoAssignment[]>([]);
@@ -312,22 +333,22 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
 
   if (!setup) {
     return (
-      <AdminShell mode="demo">
+      <DepartmentFrame frame={frame}>
         <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6 shadow-sm">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local department</p>
           <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">No local demo club yet</h1>
           <Link href="/demo/create-club" className="mt-5 inline-block rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950">Create local demo setup</Link>
         </section>
-      </AdminShell>
+      </DepartmentFrame>
     );
   }
 
   const showFacilitySetup = isEditMode || departmentFacilities.length === 0;
 
   return (
-    <AdminShell mode="demo">
+    <DepartmentFrame frame={frame}>
       <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6 shadow-sm">
-        <Link href="/demo/admin/departments" className="inline-flex items-center text-sm font-black text-amber-200 hover:text-amber-100">← Back to local departments</Link>
+        <Link href={backHref} className="inline-flex items-center text-sm font-black text-amber-200 hover:text-amber-100">← {backLabel}</Link>
         <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local department workspace</p>
@@ -559,6 +580,6 @@ export function DemoAdminDepartmentWorkspace({ departmentName }: { departmentNam
         onClose={() => setComposerTeamId(null)}
         onSubmit={handleCreateSession}
       />
-    </AdminShell>
+    </DepartmentFrame>
   );
 }
