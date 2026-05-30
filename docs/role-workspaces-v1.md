@@ -69,3 +69,19 @@ Player cards inside Team Workspace should open a Player Load Detail surface:
 - Demo players receive generated load history so coaches can test the graph and insight layout immediately.
 - Live players use Supabase `load_entries` where readable through RLS; missing attendance/readiness remain explicit placeholders.
 - The overlay shows 7-day load, EWMA ACWR, state, attendance placeholder, load graph, missing input and training mix.
+
+## Coach Today / Team Workspace update
+
+Implementation update:
+
+- `/coach/today` is now the coach-level cockpit across assigned teams instead of a second team workspace.
+- Coach team cards route into the existing Team Workspace via `/coach/team?teamId=...`, `/coach/sessions?teamId=...`, `/coach/load?teamId=...`.
+- The coach frame intentionally avoids broad admin navigation. Real work still happens inside Team Workspace sections: Home, Calendar, Players, Groups, Staff / Settings.
+- Today aggregates the coach's own team sessions for the current day and shows athlete availability flags from `availability` (`out`, `late`, reason, late minutes).
+- Demo coach routes mirror the same product behavior through `/demo/coach/today`, `/demo/coach/team`, `/demo/coach/sessions`, `/demo/coach/attendance`, and `/demo/coach/load` without requiring login.
+- Team Workspace coach-role detection now checks the current user's own active coach membership, not whether any coach exists on the team.
+
+Important boundary:
+
+- `attendance_records` remains the future finalized-attendance source.
+- Coach Today uses athlete pre-session availability only; it should not be treated as final attendance.

@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AdminShell } from '@/shared/admin/AdminShell';
 import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoSessions, saveDemoTeams, type DemoClubSetup, type DemoSession, type DemoTeam } from '@/shared/dev/demoStorage';
 import type { AthleteLoadEntry, LoadTrainingType } from '@/features/load/loadTypes';
-import { TeamWorkspaceView, type TeamWorkspaceData, type TeamWorkspacePlayer, type TeamWorkspaceStaffRole } from './TeamWorkspaceView';
+import { TeamWorkspaceView, type TeamWorkspaceData, type TeamWorkspacePlayer, type TeamWorkspaceRole, type TeamWorkspaceStaffRole } from './TeamWorkspaceView';
 
 type DemoInvite = {
   id: string;
@@ -23,6 +23,17 @@ const DEMO_INVITES_KEY = 'club-app.demo.invites';
 const DEMO_PLAYERS_KEY = 'club-app.demo.players';
 const DEMO_EXTRA_COACH_ROLES_KEY = 'club-app.demo.extra-coach-roles';
 const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
+
+function DemoTeamWorkspaceFrame({ frame, children }: { frame: 'admin' | 'coach'; children: ReactNode }) {
+  if (frame === 'coach') {
+    return (
+      <main className="os-page">
+        <div className="os-container">{children}</div>
+      </main>
+    );
+  }
+  return <AdminShell mode="demo">{children}</AdminShell>;
+}
 
 type DemoFacilityAssignment = { department: string; facility: string };
 
@@ -164,11 +175,15 @@ export function DemoTeamWorkspace({
   backHref = '/demo/admin/teams',
   backLabel = 'Back to teams',
   initialSection = 'dashboard',
+  frame = 'admin',
+  role = 'admin',
 }: {
   teamId: string;
   backHref?: string;
   backLabel?: string;
   initialSection?: Parameters<typeof TeamWorkspaceView>[0]['initialSection'];
+  frame?: 'admin' | 'coach';
+  role?: TeamWorkspaceRole;
 }) {
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [teams, setTeams] = useState<DemoTeam[]>([]);
@@ -359,7 +374,7 @@ export function DemoTeamWorkspace({
       availableFacilities: availableFacilities.map((facility) => ({ id: facility, name: facility })),
       playerCount: teamPlayers.length,
       players: enrichedPlayers,
-      role: 'admin',
+      role,
       staff: {
         headCoaches: headInvite ? ['Invite pending'] : [],
         assistantCoaches: assistantInvite ? ['Invite pending'] : [],
@@ -391,29 +406,29 @@ export function DemoTeamWorkspace({
       calendarHref: team.defaultFacility ? `/demo/admin/facilities/${encodeURIComponent(team.defaultFacility)}/calendar?from=team&teamName=${encodeURIComponent(team.name)}&departmentName=${encodeURIComponent(team.department)}` : null,
       staffHref: `/demo/admin/people?departmentName=${encodeURIComponent(team.department)}&teamName=${encodeURIComponent(team.name)}`,
     };
-  }, [backHref, backLabel, extraCoachRoles, facilityAssignments, invites, players, sessions, setup?.facilityDetails, teamId, teams]);
+  }, [backHref, backLabel, extraCoachRoles, facilityAssignments, invites, players, role, sessions, setup?.facilityDetails, teamId, teams]);
 
   if (!setup) {
     return (
-      <AdminShell mode="demo">
+      <DemoTeamWorkspaceFrame frame={frame}>
         <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6">
           <h1 className="text-2xl font-black">No demo club yet</h1>
           <p className="mt-2 text-sm text-amber-100">Create a demo club before opening team workspaces.</p>
         </section>
-      </AdminShell>
+      </DemoTeamWorkspaceFrame>
     );
   }
 
   if (!data) {
     return (
-      <AdminShell mode="demo">
+      <DemoTeamWorkspaceFrame frame={frame}>
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">Demo team not found.</section>
-      </AdminShell>
+      </DemoTeamWorkspaceFrame>
     );
   }
 
   return (
-    <AdminShell mode="demo">
+    <DemoTeamWorkspaceFrame frame={frame}>
       <TeamWorkspaceView
         data={data}
         initialSection={initialSection}
@@ -428,6 +443,6 @@ export function DemoTeamWorkspace({
         onAddCoachRole={handleAddCoachRole}
         onRemoveCoachRole={handleRemoveCoachRole}
       />
-    </AdminShell>
+    </DemoTeamWorkspaceFrame>
   );
 }

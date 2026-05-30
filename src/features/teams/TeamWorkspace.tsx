@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminShell } from '@/shared/admin/AdminShell';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
@@ -54,16 +54,29 @@ function profileLabel(profile: Profile | undefined, fallback: string) {
   return profile?.full_name || profile?.email || fallback;
 }
 
+function TeamWorkspaceFrame({ frame, children }: { frame: 'admin' | 'coach'; children: ReactNode }) {
+  if (frame === 'coach') {
+    return (
+      <main className="os-page">
+        <div className="os-container">{children}</div>
+      </main>
+    );
+  }
+  return <AdminShell>{children}</AdminShell>;
+}
+
 export function TeamWorkspace({
   teamId,
   backHref = '/admin/teams',
   backLabel = 'Back to teams',
   initialSection = 'dashboard',
+  frame = 'admin',
 }: {
   teamId: string;
   backHref?: string;
   backLabel?: string;
   initialSection?: Parameters<typeof TeamWorkspaceView>[0]['initialSection'];
+  frame?: 'admin' | 'coach';
 }) {
   const router = useRouter();
   const [team, setTeam] = useState<Team | null>(null);
@@ -80,6 +93,7 @@ export function TeamWorkspace({
   const [departmentFacilityIds, setDepartmentFacilityIds] = useState<string[]>([]);
   const [loadEntries, setLoadEntries] = useState<PlayerLoadEntry[]>([]);
   const [availabilityRows, setAvailabilityRows] = useState<AvailabilityRow[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
 
@@ -103,6 +117,7 @@ export function TeamWorkspace({
         router.replace(`/auth/login?next=/admin/teams/${teamId}`);
         return;
       }
+      setCurrentUserId(user.id);
 
       const teamResult = await supabase.from('teams').select('id, club_id, department_id, name, default_facility_id').eq('id', teamId).single();
       if (!isMounted) return;
@@ -378,7 +393,7 @@ export function TeamWorkspace({
     const activeMemberships = memberships.filter((membership) => membership.status === 'active');
     const isAdmin = clubMemberships.some((membership) => membership.role === 'club_admin');
     const isLead = clubMemberships.some((membership) => membership.role === 'department_lead' && membership.department_id === team.department_id);
-    const isCoach = activeMemberships.some((membership) => membership.role === 'head_coach' || membership.role === 'assistant_coach');
+    const isCoach = activeMemberships.some((membership) => membership.user_id === currentUserId && (membership.role === 'head_coach' || membership.role === 'assistant_coach'));
     const role: TeamWorkspaceRole = isAdmin ? 'admin' : isLead ? 'department_lead' : isCoach ? 'coach' : 'viewer';
     const pendingInviteFor = (staffRole: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) =>
       invites.find((invite) => invite.status === 'pending' && invite.role === staffRole && (invite.coach_role_slot_id ?? null) === (coachRoleSlotId ?? null));
@@ -472,14 +487,14 @@ export function TeamWorkspace({
       calendarHref: team.default_facility_id ? `/admin/facilities/${team.default_facility_id}/calendar?from=team&teamId=${team.id}&departmentId=${team.department_id}` : null,
       staffHref: `/admin/people?department=${team.department_id}&team=${team.id}`,
     };
-  }, [availabilityRows, backHref, backLabel, clubMemberships, coachRoleSlots, contextSessions, department, departmentFacilityIds, facilities, facility, facilityById, invites, loadEntries, memberships, profileById, sessions, team]);
+  }, [availabilityRows, backHref, backLabel, clubMemberships, coachRoleSlots, contextSessions, currentUserId, department, departmentFacilityIds, facilities, facility, facilityById, invites, loadEntries, memberships, profileById, sessions, team]);
 
-  if (state === 'loading') return <AdminShell><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">Loading team...</section></AdminShell>;
-  if (state === 'error') return <AdminShell><section className="rounded-3xl border border-red-500/40 bg-red-950/20 p-6 text-red-100">{error}</section></AdminShell>;
-  if (!data) return <AdminShell><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">Team not found.</section></AdminShell>;
+  if (state === 'loading') return <TeamWorkspaceFrame frame={frame}><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">Loading team...</section></TeamWorkspaceFrame>;
+  if (state === 'error') return <TeamWorkspaceFrame frame={frame}><section className="rounded-3xl border border-red-500/40 bg-red-950/20 p-6 text-red-100">{error}</section></TeamWorkspaceFrame>;
+  if (!data) return <TeamWorkspaceFrame frame={frame}><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">Team not found.</section></TeamWorkspaceFrame>;
 
   return (
-    <AdminShell>
+    <TeamWorkspaceFrame frame={frame}>
       <TeamWorkspaceView
         data={data}
         initialSection={initialSection}
@@ -493,6 +508,6 @@ export function TeamWorkspace({
         onAddCoachRole={handleAddCoachRole}
         onRemoveCoachRole={handleRemoveCoachRole}
       />
-    </AdminShell>
+    </TeamWorkspaceFrame>
   );
 }
