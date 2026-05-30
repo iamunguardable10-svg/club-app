@@ -552,24 +552,58 @@ function averageRecentSessionLoad(entries: AthleteLoadEntry[]) {
   return Math.max(1, Math.round(active.reduce((sum, entry) => sum + entry.load, 0) / active.length));
 }
 
+type LoadRoomMode = 'baseline' | 'underload' | 'ready' | 'overload';
+
+function acwrPercent(acwr: number | null) {
+  if (acwr === null) return null;
+  return Math.min(100, Math.max(0, (acwr / 2) * 100));
+}
+
 function buildLoadRoomSummary(latest: ReturnType<typeof getLatestACWR>, entries: AthleteLoadEntry[], baselineReady: boolean) {
   const averageSessionLoad = averageRecentSessionLoad(entries);
-  if (!latest || !baselineReady) {
+  const currentAcwr = latest?.acwr ?? null;
+  const markerPercent = acwrPercent(currentAcwr);
+
+  if (!latest || !baselineReady || currentAcwr === null) {
     return {
-      label: 'Room',
-      value: '—',
-      detail: 'Baseline building',
+      label: 'Load room',
+      value: '-',
+      detail: '30 days needed',
       tone: 'neutral' as const,
-      fillPercent: 0,
-      mode: 'neutral' as const,
+      mode: 'baseline' as LoadRoomMode,
+      markerPercent,
+      lowPercent: ACWR_ZONES.low * 50,
+      highPercent: ACWR_ZONES.high * 50,
+      roomStartPercent: 0,
+      roomWidthPercent: 0,
     };
   }
 
-  const currentAcwr = latest.acwr ?? null;
   const overloadLimit = ewmaLoadForTargetRatio(latest.acuteLoad, latest.chronicLoad, ACWR_ZONES.high);
   const lowFloor = ewmaLoadForTargetRatio(latest.acuteLoad, latest.chronicLoad, ACWR_ZONES.low);
-  const lowGapAu = lowFloor === null || currentAcwr === null || currentAcwr >= ACWR_ZONES.low ? 0 : Math.max(0, lowFloor);
-  const headroomAu = overloadLimit === null ? null : Math.max(0, overloadLimit);
+  const lowGapAu = currentAcwr < ACWR_ZONES.low && lowFloor !== null ? Math.max(0, lowFloor) : 0;
+  const overloadDebtAu = currentAcwr > ACWR_ZONES.high
+    ? Math.max(1, Math.round(latest.acuteLoad - ACWR_ZONES.high * latest.chronicLoad))
+    : 0;
+  const headroomAu = currentAcwr <= ACWR_ZONES.high && overloadLimit !== null ? Math.max(0, overloadLimit) : 0;
+  const lowPercent = ACWR_ZONES.low * 50;
+  const highPercent = ACWR_ZONES.high * 50;
+  const marker = markerPercent ?? 0;
+
+  if (overloadDebtAu > 0) {
+    return {
+      label: 'Overload',
+      value: `${overloadDebtAu} AU`,
+      detail: 'above safe lane',
+      tone: 'high' as const,
+      mode: 'overload' as LoadRoomMode,
+      markerPercent,
+      lowPercent,
+      highPercent,
+      roomStartPercent: highPercent,
+      roomWidthPercent: Math.max(4, Math.min(100 - highPercent, marker - highPercent)),
+    };
+  }
 
   if (lowGapAu > 0) {
     return {
@@ -577,30 +611,63 @@ function buildLoadRoomSummary(latest: ReturnType<typeof getLatestACWR>, entries:
       value: `${lowGapAu} AU`,
       detail: sessionEstimateLabel(lowGapAu, averageSessionLoad),
       tone: 'low' as const,
-      fillPercent: Math.min(100, Math.max(8, (lowGapAu / Math.max(averageSessionLoad * 2, 1)) * 100)),
-      mode: 'low' as const,
-    };
-  }
-
-  if (headroomAu === null) {
-    return {
-      label: 'Room',
-      value: '—',
-      detail: 'Needs baseline',
-      tone: 'neutral' as const,
-      fillPercent: 0,
-      mode: 'neutral' as const,
+      mode: 'underload' as LoadRoomMode,
+      markerPercent,
+      lowPercent,
+      highPercent,
+      roomStartPercent: marker,
+      roomWidthPercent: Math.max(4, lowPercent - marker),
     };
   }
 
   return {
-    label: 'Overload room',
+    label: 'Room to high',
     value: `${headroomAu} AU`,
     detail: sessionEstimateLabel(headroomAu, averageSessionLoad),
     tone: headroomAu < averageSessionLoad * 0.5 ? 'high' as const : 'ready' as const,
-    fillPercent: Math.min(100, Math.max(6, (headroomAu / Math.max(averageSessionLoad * 2, 1)) * 100)),
-    mode: headroomAu < averageSessionLoad * 0.5 ? 'high' as const : 'ready' as const,
+    mode: 'ready' as LoadRoomMode,
+    markerPercent,
+    lowPercent,
+    highPercent,
+    roomStartPercent: marker,
+    roomWidthPercent: Math.max(4, highPercent - marker),
   };
+}
+
+function LoadRoomGauge({ room, compact = false }: { room: ReturnType<typeof buildLoadRoomSummary>; compact?: boolean }) {
+  const highlightClass = room.mode === 'underload'
+    ? 'bg-sky-300/65'
+    : room.mode === 'overload'
+      ? 'bg-rose-300/75'
+      : room.mode === 'ready'
+        ? 'bg-emerald-300/65'
+        : 'bg-slate-600/50';
+
+  return (
+    <div className={compact ? 'mt-2' : 'mt-4'}>
+      <div className="relative h-5">
+        <div className="absolute inset-x-0 top-2 h-2 overflow-hidden rounded-full bg-slate-900">
+          <div className="absolute inset-y-0 left-0 bg-sky-400/30" style={{ width: `${room.lowPercent}%` }} />
+          <div className="absolute inset-y-0 bg-emerald-400/35" style={{ left: `${room.lowPercent}%`, width: `${room.highPercent - room.lowPercent}%` }} />
+          <div className="absolute inset-y-0 right-0 bg-rose-400/30" style={{ left: `${room.highPercent}%` }} />
+          {room.roomWidthPercent > 0 ? (
+            <div className={`absolute inset-y-0 rounded-full ${highlightClass}`} style={{ left: `${room.roomStartPercent}%`, width: `${room.roomWidthPercent}%` }} />
+          ) : null}
+        </div>
+        <span className="absolute top-0 z-10 h-5 w-px bg-sky-100/70" style={{ left: `${room.lowPercent}%` }} />
+        <span className="absolute top-0 z-10 h-5 w-px bg-rose-100/80" style={{ left: `${room.highPercent}%` }} />
+        {room.markerPercent !== null ? (
+          <span className="absolute top-0 z-20 h-5 w-5 -translate-x-1/2 rounded-full border-[3px] border-slate-950 bg-white shadow-[0_8px_22px_rgba(0,0,0,0.45)]" style={{ left: `${room.markerPercent}%` }} />
+        ) : null}
+      </div>
+      {!compact ? (
+        <div className="relative h-4 text-[10px] font-black text-slate-500">
+          <span className="absolute -translate-x-1/2" style={{ left: `${room.lowPercent}%` }}>0.8</span>
+          <span className="absolute -translate-x-1/2" style={{ left: `${room.highPercent}%` }}>1.3</span>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function LoadRoomMetric({ latest, entries, baselineReady }: { latest: ReturnType<typeof getLatestACWR>; entries: AthleteLoadEntry[]; baselineReady: boolean }) {
@@ -612,43 +679,15 @@ function LoadRoomMetric({ latest, entries, baselineReady }: { latest: ReturnType
       : room.tone === 'low'
         ? 'border-sky-400/35 bg-sky-400/10 text-sky-100'
         : 'border-slate-800 bg-slate-950/55 text-white';
-  const fillClass = room.mode === 'low'
-    ? 'bg-sky-300'
-    : room.mode === 'high'
-      ? 'bg-rose-300'
-      : room.mode === 'ready'
-        ? 'bg-emerald-300'
-        : 'bg-slate-700';
   return (
     <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-3 sm:p-4 ${toneClass}`}>
-      <p className="truncate text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{room.label}</p>
-      <p className="mt-2 truncate text-xl font-black tracking-tight sm:text-2xl">{room.value}</p>
-      <div className="mt-3">
-        <div className="h-2 overflow-hidden rounded-full bg-slate-950/70">
-          <div className={`h-full rounded-full ${fillClass}`} style={{ width: `${room.fillPercent}%` }} />
-        </div>
+      <div>
+        <p className="truncate text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{room.label}</p>
+        <p className="mt-2 truncate text-xl font-black tracking-tight sm:text-2xl">{room.value}</p>
+      </div>
+      <div>
+        <LoadRoomGauge room={room} compact />
         <p className="mt-1 truncate text-[10px] font-bold text-slate-400">{room.detail}</p>
-      </div>
-    </div>
-  );
-}
-
-function AcwrGradientGauge({ acwr }: { acwr: number | null }) {
-  const marker = acwr === null ? null : Math.min(100, Math.max(0, (acwr / 2) * 100));
-  return (
-    <div className="mt-4">
-      <div className="relative h-6">
-        <div className="absolute inset-x-0 top-2 h-2 rounded-full bg-[linear-gradient(90deg,#38bdf8_0%,#38bdf8_39%,#34d399_42%,#34d399_65%,#fb7185_70%,#fb7185_100%)]" />
-        {marker !== null ? (
-          <span
-            className="absolute top-0 z-10 h-6 w-6 -translate-x-1/2 rounded-full border-[3px] border-slate-950 bg-white shadow-[0_0_0_2px_rgba(255,255,255,0.18),0_10px_24px_rgba(0,0,0,0.45)]"
-            style={{ left: `${marker}%` }}
-          />
-        ) : null}
-      </div>
-      <div className="relative h-4 text-[10px] font-black text-slate-400">
-        <span className="absolute left-[40%] -translate-x-1/2">0.8</span>
-        <span className="absolute left-[65%] -translate-x-1/2">1.3</span>
       </div>
     </div>
   );
@@ -1950,11 +1989,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   }
 
   async function setTeamSessionAvailability(session: AthletePendingSession, status: 'expected' | 'late' | 'out', reason = '', minutes: number | null = null) {
-    if (session.source !== 'team_session') return;
+    if (session.source !== 'team_session') return false;
     const trimmedReason = reason.trim();
     if ((status === 'late' || status === 'out') && !trimmedReason) {
       setError('Please add a short reason so your coach has context.');
-      return;
+      return false;
     }
     setError(null);
 
@@ -1976,7 +2015,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       const supabase = createBrowserSupabaseClient();
       const { data: authData } = await supabase.auth.getUser();
       const userId = authData.user?.id;
-      if (!userId) return;
+      if (!userId) return false;
 
       const { error: upsertError } = await supabase
         .from('availability')
@@ -1988,8 +2027,12 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           late_minutes: status === 'late' ? minutes : null,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'session_id,user_id' });
-      if (upsertError) setError(upsertError.message);
+      if (upsertError) {
+        setError(upsertError.message);
+        return false;
+      }
     }
+    return true;
   }
 
   async function submitUnifiedSession() {
@@ -2148,7 +2191,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             <div className="grid w-full min-w-0 grid-cols-3 gap-2 lg:w-auto lg:min-w-[440px] [&>*]:min-h-[92px]">
               <LoadRoomMetric latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} />
               <Metric label="ACWR" value={latest?.acwr !== null && latest?.acwr !== undefined && isBaselineReady ? latest.acwr.toFixed(2) : '—'} tone={zone.tone} />
-              <Metric label="State" value={zone.label} tone={zone.tone} />
+              <Metric label="Zone" value={zone.label} tone={zone.tone} />
             </div>
           </div>
         </header>
@@ -2156,47 +2199,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
         {error ? <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 px-4 py-3 text-sm font-bold text-rose-100">{error}</div> : null}
 
-        {activeView !== 'calendar' && !isBaselineReady ? (
+        {activeView === 'load' && !isBaselineReady ? (
           <section className="rounded-[1.75rem] border border-amber-300/25 sm:rounded-[2rem] bg-amber-300/[0.08] p-4 text-sm font-bold text-amber-100">
-            Load baseline is still building. ACWR is calculated already, but it becomes meaningfully interpretable after about 30 days of calendar history.
+            Load guidance gets reliable after about 30 recorded days.
           </section>
         ) : null}
 
-        {activeView === 'home' ? (
-          <section className="grid gap-3 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5 lg:grid-cols-[1fr_0.8fr]">
-            <div>
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-sky-300">ACWR</p>
-                  <h2 className="mt-1 text-xl font-black tracking-tight">Load lane</h2>
-                </div>
-                <span className={`rounded-full border px-3 py-1.5 text-xs font-black ${zone.tone === 'high' ? 'border-rose-400/45 bg-rose-400/10 text-rose-100' : zone.tone === 'low' ? 'border-sky-400/45 bg-sky-400/10 text-sky-100' : zone.tone === 'ready' ? 'border-emerald-400/45 bg-emerald-400/10 text-emerald-100' : 'border-slate-700 text-slate-300'}`}>
-                  {latest?.acwr !== null && latest?.acwr !== undefined && isBaselineReady ? latest.acwr.toFixed(2) : '—'}
-                </span>
-              </div>
-              <AcwrGradientGauge acwr={latest?.acwr !== null && latest?.acwr !== undefined && isBaselineReady ? latest.acwr : null} />
-            </div>
-            {(() => {
-              const room = buildLoadRoomSummary(latest, sortedEntries, isBaselineReady);
-              return (
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{room.label}</p>
-                      <p className="mt-1 text-sm font-bold text-slate-400">{room.detail}</p>
-                    </div>
-                    <span className="text-2xl font-black text-white">{room.value}</span>
-                  </div>
-                  <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-900">
-                    <div className={`h-full rounded-full ${room.mode === 'low' ? 'bg-sky-300' : room.mode === 'high' ? 'bg-rose-300' : room.mode === 'ready' ? 'bg-emerald-300' : 'bg-slate-700'}`} style={{ width: `${room.fillPercent}%` }} />
-                  </div>
-                </div>
-              );
-            })()}
-          </section>
-        ) : null}
-
-        {activeView !== 'calendar' ? (
+        {activeView === 'load' ? (
           <section className="grid min-w-0 items-stretch gap-5">
             <div className="h-full min-w-0 overflow-hidden rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
@@ -2408,7 +2417,12 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                           ) : null}
                           <button
                             type="button"
-                            onClick={() => setTeamSessionAvailability(activeComposerSession, availabilityDraft, availabilityReason, availabilityDraft === 'late' ? lateMinutes : null)}
+                            onClick={async () => {
+                              const saved = await setTeamSessionAvailability(activeComposerSession, availabilityDraft, availabilityReason, availabilityDraft === 'late' ? lateMinutes : null);
+                              if (!saved) return;
+                              setComposerOpen(false);
+                              setActiveComposerSession(null);
+                            }}
                             className="w-full rounded-2xl bg-emerald-300 px-4 py-3 text-sm font-black text-slate-950"
                           >
                             Save availability
@@ -2559,19 +2573,17 @@ function LoadDetailsPanel({
   const last28ISO = `${last28Start.getFullYear()}-${String(last28Start.getMonth() + 1).padStart(2, '0')}-${String(last28Start.getDate()).padStart(2, '0')}`;
   const recentEntries = entries.filter((entry) => entry.date >= last28ISO);
   const recentLoad = recentEntries.reduce((sum, entry) => sum + entry.load, 0);
-  const averageSessionLoad = averageRecentSessionLoad(recentEntries);
-  const zone = loadZone(latestEwma?.acwr ?? null, latestEwma?.chronicFull ?? false);
-  const overloadLimit = latestEwma ? ewmaLoadForTargetRatio(latestEwma.acuteLoad, latestEwma.chronicLoad, ACWR_ZONES.high) : null;
-  const lowFloor = latestEwma ? ewmaLoadForTargetRatio(latestEwma.acuteLoad, latestEwma.chronicLoad, ACWR_ZONES.low) : null;
+  const baselineReady = (latestEwma?.chronicFull ?? false) && baselineDays >= 30;
   const currentAcwr = latestEwma?.acwr ?? null;
-  const roomSummary = buildLoadRoomSummary(latestEwma, entries, (latestEwma?.chronicFull ?? false) && baselineDays >= 30);
-  const headroomAu = overloadLimit === null ? null : Math.max(0, overloadLimit);
-  const lowGapAu = lowFloor === null || currentAcwr === null || currentAcwr >= ACWR_ZONES.low ? 0 : Math.max(0, lowFloor);
-  const bestMove = zone.tone === 'high'
-    ? 'Keep today light or recover.'
-    : zone.tone === 'low'
-      ? 'Add controlled team or strength load.'
-      : 'Normal training room available.';
+  const zone = loadZone(currentAcwr, baselineReady);
+  const roomSummary = buildLoadRoomSummary(latestEwma, entries, baselineReady);
+  const guidance = roomSummary.mode === 'overload'
+    ? 'Stay light until the red segment clears.'
+    : roomSummary.mode === 'underload'
+      ? 'Add controlled load to re-enter the green lane.'
+      : roomSummary.mode === 'ready'
+        ? 'Normal training room is available.'
+        : 'Keep logging sessions to build the baseline.';
   const trainingMix = LOAD_TRAINING_TYPES
     .map((type) => ({
       type,
@@ -2581,126 +2593,67 @@ function LoadDetailsPanel({
     .filter((item) => item.load > 0)
     .sort((a, b) => b.load - a.load);
 
-  const cards = [
-    {
-      label: 'Room before overload',
-      value: headroomAu === null ? 'n/a' : `${headroomAu} AU`,
-      detail: headroomAu === null ? 'Needs baseline' : sessionEstimateLabel(headroomAu, averageSessionLoad),
-      tone: headroomAu !== null && headroomAu < averageSessionLoad * 0.5 ? 'text-rose-100' : 'text-emerald-100',
-    },
-    {
-      label: 'Low-load gap',
-      value: lowGapAu > 0 ? `${lowGapAu} AU` : 'Covered',
-      detail: lowGapAu > 0 ? sessionEstimateLabel(lowGapAu, averageSessionLoad) : 'No underload correction needed',
-      tone: lowGapAu > 0 ? 'text-sky-100' : 'text-slate-100',
-    },
-    {
-      label: 'Current zone',
-      value: zone.label,
-      detail: currentAcwr !== null ? `EWMA ${currentAcwr.toFixed(2)}` : 'Baseline building',
-      tone: zone.tone === 'high' ? 'text-rose-100' : zone.tone === 'low' ? 'text-sky-100' : 'text-white',
-    },
-    {
-      label: 'Best next move',
-      value: bestMove,
-      detail: `${baselineDays} baseline days`,
-      tone: 'text-amber-100',
-    },
-  ];
-
   return (
-    <section className="grid gap-5 xl:grid-cols-[1fr_0.8fr]">
+    <section className="grid gap-5 xl:grid-cols-[1fr_0.75fr]">
       <div className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-amber-300">Load details</p>
-            <h2 className="mt-1 text-2xl font-black tracking-tight">Training room and risk</h2>
+            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-amber-300">Load status</p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight">Room and risk</h2>
           </div>
-          <span className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs font-black text-slate-300">EWMA default</span>
+          <span className={`rounded-full border px-3 py-1.5 text-xs font-black ${zone.tone === 'high' ? 'border-rose-400/45 bg-rose-400/10 text-rose-100' : zone.tone === 'low' ? 'border-sky-400/45 bg-sky-400/10 text-sky-100' : zone.tone === 'ready' ? 'border-emerald-400/45 bg-emerald-400/10 text-emerald-100' : 'border-slate-700 text-slate-300'}`}>
+            {currentAcwr !== null && baselineReady ? `${currentAcwr.toFixed(2)} ACWR` : 'Building'}
+          </span>
         </div>
-        <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {cards.map((card) => (
-            <div key={card.label} className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{card.label}</p>
-              <p className={`mt-3 min-h-14 text-2xl font-black leading-tight ${card.tone}`}>{card.value}</p>
-              <p className="mt-2 text-xs font-bold text-slate-500">{card.detail}</p>
+
+        <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">ACWR lane</p>
+              <p className="mt-1 text-sm font-bold text-slate-400">{guidance}</p>
             </div>
-          ))}
-        </div>
-        <div className="mt-5 grid gap-3 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">ACWR lane</p>
-                <p className="mt-1 text-sm font-bold text-slate-400">Blue low · green optimal · red overload</p>
-              </div>
-              <span className="text-2xl font-black text-white">{currentAcwr !== null ? currentAcwr.toFixed(2) : '—'}</span>
-            </div>
-            <AcwrGradientGauge acwr={currentAcwr} />
+            <span className="text-2xl font-black text-white">{roomSummary.value}</span>
           </div>
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{roomSummary.label}</p>
-                <p className="mt-1 text-sm font-bold text-slate-400">{roomSummary.detail}</p>
-              </div>
-              <span className="text-2xl font-black text-white">{roomSummary.value}</span>
-            </div>
-            <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-900">
-              <div
-                className={`h-full rounded-full ${roomSummary.mode === 'low' ? 'bg-sky-300' : roomSummary.mode === 'high' ? 'bg-rose-300' : roomSummary.mode === 'ready' ? 'bg-emerald-300' : 'bg-slate-700'}`}
-                style={{ width: `${roomSummary.fillPercent}%` }}
-              />
-            </div>
-            <div className="mt-2 flex justify-between text-[10px] font-black uppercase tracking-[0.12em] text-slate-600">
-              <span>Low</span>
-              <span>Optimal</span>
-              <span>Overload</span>
-            </div>
+          <LoadRoomGauge room={roomSummary} />
+          <div className="mt-2 flex justify-between text-[10px] font-black uppercase tracking-[0.12em] text-slate-600">
+            <span>Low</span>
+            <span>0.8-1.3</span>
+            <span>High</span>
           </div>
         </div>
-        <div className="mt-5 rounded-2xl border border-dashed border-slate-700 bg-slate-950/45 p-4 text-sm font-bold text-slate-400">
-          {baselineDays < 30
-            ? 'Baseline warning: load guidance becomes much more reliable after 30 recorded days.'
-            : 'Guidance uses EWMA load. Acute and chronic values remain in the graph/tooltip, not as primary athlete cards.'}
-        </div>
+
+        {baselineDays < 30 ? (
+          <div className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-300/[0.08] p-3 text-sm font-bold text-amber-100">
+            Reliable guidance starts after about 30 recorded days.
+          </div>
+        ) : null}
       </div>
 
       <div className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">
-        <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-300">Insights</p>
-        <h2 className="mt-1 text-2xl font-black tracking-tight">Training mix</h2>
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-300">Mix</p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight">Last 28 days</h2>
+          </div>
+          <span className="text-xs font-black text-slate-500">{recentLoad} AU</span>
+        </div>
         <div className="mt-5 space-y-3">
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-black text-white">Last 28 days</p>
-              <span className="text-xs font-black text-slate-500">{recentLoad} AU</span>
-            </div>
-            {trainingMix.length > 0 ? (
-              <div className="mt-3 space-y-3">
-                {trainingMix.slice(0, 6).map((item) => {
-                  const percent = Math.round((item.load / Math.max(recentLoad, 1)) * 100);
-                  return (
-                    <div key={item.type}>
-                      <div className="flex justify-between text-xs font-black text-slate-300">
-                        <span>{item.label}</span>
-                        <span>{percent}%</span>
-                      </div>
-                      <div className="mt-1 h-2 rounded-full bg-slate-900">
-                        <div className="h-2 rounded-full" style={{ width: `${Math.max(6, percent)}%`, backgroundColor: LOAD_TYPE_COLORS[item.type] }} />
-                      </div>
-                      <p className="mt-1 text-[10px] font-bold text-slate-600">{item.load} AU</p>
-                    </div>
-                  );
-                })}
+          {trainingMix.length > 0 ? trainingMix.slice(0, 6).map((item) => {
+            const percent = Math.round((item.load / Math.max(recentLoad, 1)) * 100);
+            return (
+              <div key={item.type} className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
+                <div className="flex justify-between text-xs font-black text-slate-300">
+                  <span>{item.label}</span>
+                  <span>{percent}%</span>
+                </div>
+                <div className="mt-2 h-2 rounded-full bg-slate-900">
+                  <div className="h-2 rounded-full" style={{ width: `${Math.max(6, percent)}%`, backgroundColor: LOAD_TYPE_COLORS[item.type] }} />
+                </div>
               </div>
-            ) : <p className="mt-2 text-sm font-bold text-slate-500">No recent load yet.</p>}
-          </div>
-          <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/45 p-4 text-sm font-bold text-slate-400">
-            Attendance insight placeholder: coach view will show attendance rate, missed sessions and repeated absence patterns below load.
-          </div>
-          <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/45 p-4 text-sm font-bold text-slate-400">
-            Readiness placeholder: availability, soreness, sleep or wellness check-ins can attach here without changing the load graph.
-          </div>
+            );
+          }) : (
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4 text-sm font-bold text-slate-500">No recent load.</div>
+          )}
         </div>
       </div>
     </section>

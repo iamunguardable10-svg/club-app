@@ -167,10 +167,10 @@ V1 uses EWMA as the default ACWR method for athlete and coach-facing surfaces. E
 
 - Load graph can overlay acute and chronic load lines on top of daily load bars.
 - Acute and chronic load lines are rendered as dashed supporting lines; the athlete-facing cards do not lead with raw acute/chronic numbers.
-- The top Load cockpit replaces raw `7 days AU` with estimated AU room before overload or low-load gap. Today and Load both expose the ACWR gradient lane so the athlete can see whether the current EWMA value is low, optimal, or high.
-- The Load tab leads with useful action context: estimated AU room before overload, low-load gap if the athlete is under the target range, current EWMA zone and a simple next-move hint.
+- The top Load cockpit replaces raw `7 days AU` with an ACWR-colored room indicator: blue underload gap, green room to 1.3, red overload debt when the athlete is already above the safe lane.
+- Today is the cockpit with pending inputs and next session context. The full graph and deeper load interpretation live on the Load tab only, avoiding duplicate graph/status blocks.
+- The Load tab leads with one status surface: ACWR lane, room/overload/underload amount, and the concise next action.
 - Training mix is shown as percentage distribution from the last 28 days so athletes and coaches can see which session types dominate the load.
-- Attendance and readiness are present as explicit placeholders until those data models are connected.
 
 ## Athlete session cancellation
 
@@ -192,6 +192,7 @@ V1 uses EWMA as the default ACWR method for athlete and coach-facing surfaces. E
 - Availability starts as a compact three-choice state. Reason appears only after choosing `late` or `out`; expected delay minutes appears only after choosing `late`.
 - Planned team sessions keep their team-defined session type locked in the athlete overlay. The athlete can report availability before the session is due, and can report load only after the session is due.
 - `late` and `out` require a short reason; `late` also stores expected delay minutes.
+- Saving availability closes the session overlay after a successful write; validation errors keep the overlay open.
 - Live mode writes to the existing `availability` table using statuses `expected`, `late`, and `out`; demo mode mirrors the same behavior in localStorage.
 - Cancelled/out sessions render red in the athlete calendar. Late sessions render blue so they are visible without implying absence.
 - Warmup sessions inherit game availability context and are not edited independently.
