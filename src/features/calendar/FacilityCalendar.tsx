@@ -613,17 +613,17 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
   if (state === 'error') return <main className="min-h-screen bg-slate-950 p-8 text-white">{error}</main>;
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#064E3B_0,#070A12_45%)] px-4 py-8 text-white sm:px-8">
+    <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-8">
       <div className="mx-auto max-w-7xl space-y-5">
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6">
-          <Link href={backTarget.href} className="text-sm font-black text-emerald-300 hover:text-emerald-200">{backTarget.label}</Link>
-          <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-emerald-300">Smart facility calendar</p>
+        <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.22)] ring-1 ring-white/[0.03]">
+          <Link href={backTarget.href} className="text-sm font-black text-slate-300 hover:text-white">{backTarget.label}</Link>
+          <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-slate-500">Facility calendar</p>
           <h1 className="mt-3 text-3xl font-black sm:text-5xl">{facility?.name}</h1>
           <p className="mt-2 text-sm text-slate-400">{facility?.address ?? 'No address set'}</p>
           <div className="mt-4 flex flex-wrap gap-2 text-xs font-black">
-            {highlightedTeam ? <span className="rounded-full border border-sky-400/70 bg-sky-950/50 px-3 py-1 text-sky-100">Focus team: {highlightedTeam.name}</span> : null}
-            {highlightedDepartment ? <span className="rounded-full border border-emerald-400/50 bg-emerald-950/30 px-3 py-1 text-emerald-100">Department: {highlightedDepartment.name}</span> : null}
-            {!highlightedTeam && !highlightedDepartment ? <span className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">Full facility view</span> : null}
+            {highlightedTeam ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-200">Team: {highlightedTeam.name}</span> : null}
+            {highlightedDepartment ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-200">Department: {highlightedDepartment.name}</span> : null}
+            {!highlightedTeam && !highlightedDepartment ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-300">Full view</span> : null}
           </div>
         </section>
 

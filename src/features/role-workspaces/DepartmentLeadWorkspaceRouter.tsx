@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AdminDepartmentWorkspace, type AdminDepartmentWorkspaceSection } from '@/features/admin/AdminDepartmentWorkspace';
+import { AdminPeopleManager } from '@/features/admin/AdminPeopleManager';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 
 type DepartmentMode = 'overview' | 'teams' | 'schedule' | 'coaches' | 'facilities' | 'settings';
@@ -136,7 +137,11 @@ function DepartmentLeadWorkspaceRouterInner({ mode }: { mode: DepartmentMode }) 
       <main className="os-page">
         <div className="os-container space-y-5 pb-24 md:pb-0">
           <DepartmentLeadNav mode={mode} department={selectedDepartment} />
-          <AdminDepartmentWorkspace departmentId={selectedDepartment.id} frame="department" section={workspaceSectionFor(mode)} />
+          {mode === 'coaches' ? (
+            <AdminPeopleManager frame="department" departmentId={selectedDepartment.id} />
+          ) : (
+            <AdminDepartmentWorkspace departmentId={selectedDepartment.id} frame="department" section={workspaceSectionFor(mode)} />
+          )}
         </div>
       </main>
     );

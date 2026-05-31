@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { AdminShell } from '@/shared/admin/AdminShell';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 import { SessionComposer, type SessionComposerPayload } from '@/features/sessions/SessionComposer';
+import { DepartmentScheduleCalendar } from '@/features/calendar/DepartmentScheduleCalendar';
 
 type ClubMembership = {
   club_id: string;
@@ -65,6 +66,8 @@ type Session = {
   team_id: string;
   title: string;
   starts_at: string;
+  ends_at: string | null;
+  facility_id: string | null;
   status: 'scheduled' | 'cancelled' | 'completed';
 };
 
@@ -169,6 +172,7 @@ export function AdminDepartmentWorkspace({
     [assignedFacilityIds, facilities],
   );
 
+  const teamById = useMemo(() => new Map(teams.map((team) => [team.id, team])), [teams]);
   const facilityById = useMemo(() => new Map(facilities.map((facility) => [facility.id, facility])), [facilities]);
   const profileById = useMemo(() => new Map(profiles.map((profile) => [profile.id, profile])), [profiles]);
 
@@ -204,7 +208,9 @@ export function AdminDepartmentWorkspace({
 
   const nextSessionByTeam = useMemo(() => {
     const map = new Map<string, Session>();
+    const now = Date.now();
     for (const session of sessions) {
+      if (new Date(session.starts_at).getTime() < now) continue;
       if (!map.has(session.team_id)) map.set(session.team_id, session);
     }
     return map;
@@ -313,6 +319,11 @@ export function AdminDepartmentWorkspace({
       return;
     }
 
+    const sessionsFrom = new Date();
+    sessionsFrom.setDate(sessionsFrom.getDate() - 30);
+    const sessionsUntil = new Date();
+    sessionsUntil.setDate(sessionsUntil.getDate() + 180);
+
     const [clubResult, teamsResult, facilitiesResult, assignmentsResult, membershipsResult, invitesResult, sessionsResult] = await Promise.all([
       supabase.from('clubs').select('id, name').eq('id', resolvedDepartment.club_id).single(),
       supabase.from('teams').select('id, name, default_facility_id').eq('department_id', resolvedDepartment.id).order('name'),
@@ -331,12 +342,13 @@ export function AdminDepartmentWorkspace({
         .eq('status', 'pending'),
       supabase
         .from('sessions')
-        .select('id, team_id, title, starts_at, status')
+        .select('id, team_id, title, starts_at, ends_at, facility_id, status')
         .eq('department_id', resolvedDepartment.id)
         .eq('status', 'scheduled')
-        .gte('starts_at', new Date().toISOString())
+        .gte('starts_at', sessionsFrom.toISOString())
+        .lte('starts_at', sessionsUntil.toISOString())
         .order('starts_at', { ascending: true })
-        .limit(50),
+        .limit(500),
     ]);
 
     const firstError =
@@ -1186,17 +1198,20 @@ export function AdminDepartmentWorkspace({
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Schedule</p>
           <h2 className="mt-2 text-xl font-black">Department schedule</h2>
-          <div className="mt-5 grid gap-3 md:grid-cols-2">
-            {teams.length > 0 ? teams.map((team) => {
-              const nextSession = nextSessionByTeam.get(team.id);
-              return (
-                <Link key={team.id} href={`/admin/teams/${team.id}?from=department&departmentId=${department?.id ?? ''}&section=calendar`} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-sky-300/50">
-                  <p className="text-sm font-black text-white">{team.name}</p>
-                  <p className="mt-2 text-xs font-bold text-slate-400">{formatNextSession(nextSession)}</p>
-                </Link>
-              );
-            }) : <p className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">No teams yet.</p>}
-          </div>
+          {teams.length > 0 ? (
+            <DepartmentScheduleCalendar
+              teamOptions={teams.map((team) => ({ id: team.id, name: team.name }))}
+              sessions={sessions.map((session) => ({
+                id: session.id,
+                title: session.title,
+                teamId: session.team_id,
+                teamName: teamById.get(session.team_id)?.name ?? 'Team',
+                facilityName: session.facility_id ? facilityById.get(session.facility_id)?.name ?? null : null,
+                startsAt: session.starts_at,
+                endsAt: session.ends_at,
+              }))}
+            />
+          ) : <p className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">No teams yet.</p>}
         </section>
       ) : null}
       {showSettingsSection ? (

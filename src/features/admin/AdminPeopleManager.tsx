@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AdminShell } from '@/shared/admin/AdminShell';
@@ -34,6 +34,13 @@ type PendingRevoke = Invite | null;
 
 type LoadState = 'loading' | 'ready' | 'no_admin_membership' | 'error';
 
+type PeopleManagerFrame = 'admin' | 'department';
+
+function PeopleFrame({ frame, children }: { frame: PeopleManagerFrame; children: ReactNode }) {
+  if (frame === 'department') return <>{children}</>;
+  return <AdminShell>{children}</AdminShell>;
+}
+
 function isMissingAuthSessionError(message?: string) {
   return message?.toLowerCase().includes('auth session missing') ?? false;
 }
@@ -66,10 +73,10 @@ function statusBadge(status: 'missing' | 'pending' | 'accepted') {
   return 'border-slate-700 bg-slate-900 text-slate-300';
 }
 
-export function AdminPeopleManager() {
+export function AdminPeopleManager({ frame = 'admin', departmentId }: { frame?: PeopleManagerFrame; departmentId?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const requestedDepartmentId = searchParams.get('department') ?? '';
+  const requestedDepartmentId = departmentId ?? searchParams.get('department') ?? '';
 
   const [state, setState] = useState<LoadState>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -153,13 +160,20 @@ export function AdminPeopleManager() {
       return;
     }
 
-    const { data: memberships, error: membershipError } = await supabase
+    const membershipQuery = supabase
       .from('club_memberships')
-      .select('club_id')
+      .select('club_id, department_id, role')
       .eq('user_id', user.id)
-      .eq('role', 'club_admin')
-      .eq('status', 'active')
-      .limit(1);
+      .eq('status', 'active');
+
+    if (frame === 'department') {
+      membershipQuery.eq('role', 'department_lead');
+      if (departmentId) membershipQuery.eq('department_id', departmentId);
+    } else {
+      membershipQuery.eq('role', 'club_admin').limit(1);
+    }
+
+    const { data: memberships, error: membershipError } = await membershipQuery;
 
     if (membershipError) {
       setError(membershipError.message);
@@ -167,7 +181,8 @@ export function AdminPeopleManager() {
       return;
     }
 
-    const adminMembership = (memberships ?? [])[0] as ClubMembership | undefined;
+    const visibleMemberships = (memberships ?? []) as Array<ClubMembership & { department_id?: string | null; role?: string }>;
+    const adminMembership = visibleMemberships[0];
 
     if (!adminMembership) {
       setState('no_admin_membership');
@@ -175,20 +190,37 @@ export function AdminPeopleManager() {
     }
 
     const resolvedClubId = adminMembership.club_id;
+    const scopedDepartmentIds = frame === 'department'
+      ? Array.from(new Set(visibleMemberships.map((membership) => membership.department_id).filter(Boolean))) as string[]
+      : [];
+
+    let departmentsQuery = supabase.from('departments').select('id, name').eq('club_id', resolvedClubId).order('name');
+    let teamsQuery = supabase.from('teams').select('id, name, department_id').eq('club_id', resolvedClubId).order('name');
+    let invitesQuery = supabase
+      .from('invites')
+      .select('id, token, role, invite_type, department_id, team_id, status, expires_at, created_at, coach_role_slot_id')
+      .eq('club_id', resolvedClubId)
+      .in('role', ['department_lead', 'head_coach', 'assistant_coach'])
+      .order('created_at', { ascending: false });
+    let leadMembershipsQuery = supabase.from('club_memberships').select('department_id, user_id, role').eq('club_id', resolvedClubId).eq('role', 'department_lead').eq('status', 'active');
+    let coachRoleSlotsQuery = supabase.from('team_coach_role_slots').select('id, club_id, department_id, team_id, label').eq('club_id', resolvedClubId).order('label');
+
+    if (frame === 'department') {
+      departmentsQuery = departmentsQuery.in('id', scopedDepartmentIds);
+      teamsQuery = teamsQuery.in('department_id', scopedDepartmentIds);
+      invitesQuery = invitesQuery.in('department_id', scopedDepartmentIds);
+      leadMembershipsQuery = leadMembershipsQuery.in('department_id', scopedDepartmentIds);
+      coachRoleSlotsQuery = coachRoleSlotsQuery.in('department_id', scopedDepartmentIds);
+    }
 
     const [clubResult, departmentsResult, teamsResult, invitesResult, leadMembershipsResult, teamMembershipsResult, coachRoleSlotsResult] = await Promise.all([
       supabase.from('clubs').select('id, name').eq('id', resolvedClubId).single(),
-      supabase.from('departments').select('id, name').eq('club_id', resolvedClubId).order('name'),
-      supabase.from('teams').select('id, name, department_id').eq('club_id', resolvedClubId).order('name'),
-      supabase
-        .from('invites')
-        .select('id, token, role, invite_type, department_id, team_id, status, expires_at, created_at, coach_role_slot_id')
-        .eq('club_id', resolvedClubId)
-        .in('role', ['department_lead', 'head_coach', 'assistant_coach'])
-        .order('created_at', { ascending: false }),
-      supabase.from('club_memberships').select('department_id, user_id, role').eq('club_id', resolvedClubId).eq('role', 'department_lead').eq('status', 'active'),
-      supabase.from('team_memberships').select('team_id, user_id, role, coach_role_slot_id').eq('club_id', resolvedClubId).in('role', ['head_coach', 'assistant_coach']).eq('status', 'active'),
-      supabase.from('team_coach_role_slots').select('id, club_id, department_id, team_id, label').eq('club_id', resolvedClubId).order('label'),
+      departmentsQuery,
+      teamsQuery,
+      invitesQuery,
+      leadMembershipsQuery,
+      supabase.from('team_memberships').select('team_id, user_id, role, coach_role_slot_id, department_id').eq('club_id', resolvedClubId).in('role', ['head_coach', 'assistant_coach']).eq('status', 'active'),
+      coachRoleSlotsQuery,
     ]);
 
     const firstError = clubResult.error ?? departmentsResult.error ?? teamsResult.error ?? invitesResult.error ?? leadMembershipsResult.error ?? teamMembershipsResult.error ?? coachRoleSlotsResult.error;
@@ -202,7 +234,8 @@ export function AdminPeopleManager() {
     const loadedDepartments = (departmentsResult.data ?? []) as Department[];
     const loadedTeams = (teamsResult.data ?? []) as Team[];
     const loadedLeadMemberships = (leadMembershipsResult.data ?? []) as ClubMembershipRow[];
-    const loadedTeamMemberships = (teamMembershipsResult.data ?? []) as TeamMembership[];
+    const loadedTeamIds = new Set(loadedTeams.map((team) => team.id));
+    const loadedTeamMemberships = ((teamMembershipsResult.data ?? []) as TeamMembership[]).filter((membership) => loadedTeamIds.has(membership.team_id));
     const profileIds = Array.from(new Set([...loadedLeadMemberships.map((membership) => membership.user_id), ...loadedTeamMemberships.map((membership) => membership.user_id)]));
     let loadedProfiles: Profile[] = [];
     if (profileIds.length > 0) {
@@ -234,7 +267,7 @@ export function AdminPeopleManager() {
   useEffect(() => {
     loadPeopleData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requestedDepartmentId]);
+  }, [requestedDepartmentId, departmentId, frame]);
 
   useEffect(() => {
     if (selectedRole === 'department_lead') {
@@ -397,44 +430,44 @@ export function AdminPeopleManager() {
 
   if (state === 'loading') {
     return (
-      <AdminShell>
+      <PeopleFrame frame={frame}>
         <section className="os-section text-center">
           <p className="text-sm font-bold text-slate-300">Loading staff...</p>
         </section>
-      </AdminShell>
+      </PeopleFrame>
     );
   }
 
   if (state === 'no_admin_membership') {
     return (
-      <AdminShell>
+      <PeopleFrame frame={frame}>
         <section className="os-section">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Staff</p>
-          <h1 className="mt-3 text-3xl font-black">No admin club found</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-400">Create a club first before inviting people.</p>
-          <Link href="/onboarding/create-club" className="mt-5 inline-block rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950">
+          <h1 className="mt-3 text-3xl font-black">{frame === 'department' ? 'No department access found' : 'No admin club found'}</h1>
+          <p className="mt-3 text-sm leading-6 text-slate-400">{frame === 'department' ? 'A club admin must add you as department lead first.' : 'Create a club first before inviting people.'}</p>
+          {frame === 'admin' ? <Link href="/onboarding/create-club" className="mt-5 inline-block rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950">
             Create club setup
-          </Link>
+          </Link> : null}
         </section>
-      </AdminShell>
+      </PeopleFrame>
     );
   }
 
   if (state === 'error') {
     return (
-      <AdminShell>
+      <PeopleFrame frame={frame}>
         <section className="rounded-3xl border border-red-900/70 bg-red-950/30 p-6 shadow-[0_24px_90px_rgba(0,0,0,0.24)] ring-1 ring-white/[0.03]">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-red-300">Staff error</p>
           <h1 className="mt-3 text-3xl font-black">Could not load staff</h1>
           <p className="mt-3 text-sm leading-6 text-red-100">{error}</p>
         </section>
-      </AdminShell>
+      </PeopleFrame>
     );
   }
 
   return (
-    <AdminShell>
-      <section className="os-hero">
+    <PeopleFrame frame={frame}>
+      {frame === 'admin' ? <section className="os-hero">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-sky-300">Staff</p>
@@ -444,7 +477,7 @@ export function AdminPeopleManager() {
             {isEditMode ? 'Done editing' : 'Edit staff'}
           </button>
         </div>
-      </section>
+      </section> : null}
 
       {error ? <section className="rounded-2xl border border-red-900/70 bg-red-950/30 px-4 py-3 text-sm text-red-100">{error}</section> : null}
 
@@ -469,9 +502,9 @@ export function AdminPeopleManager() {
                       {leadMembership ? <span>{profileLabel(profileById.get(leadMembership.user_id))}</span> : leadInvite ? (
                         <>
                           <span>Invite pending</span>
-                          <button type="button" onClick={() => handleQuickInvite('department_lead', department.id)} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900">{copiedToken === leadInvite.token ? 'Copied' : 'Copy'}</button>
+                          {frame === 'admin' ? <button type="button" onClick={() => handleQuickInvite('department_lead', department.id)} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900">{copiedToken === leadInvite.token ? 'Copied' : 'Copy'}</button> : null}
                         </>
-                      ) : <button type="button" onClick={() => handleQuickInvite('department_lead', department.id)} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900">Invite</button>}
+                      ) : frame === 'admin' ? <button type="button" onClick={() => handleQuickInvite('department_lead', department.id)} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900">Invite</button> : <span>Missing</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -658,6 +691,6 @@ export function AdminPeopleManager() {
           setPendingRevoke(null);
         }}
       />
-    </AdminShell>
+    </PeopleFrame>
   );
 }

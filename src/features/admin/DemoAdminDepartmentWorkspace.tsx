@@ -16,6 +16,7 @@ import {
 } from '@/shared/dev/demoStorage';
 import { DemoSessionComposer } from '@/features/sessions/DemoSessionComposer';
 import type { SessionComposerPayload } from '@/features/sessions/SessionComposer';
+import { DepartmentScheduleCalendar } from '@/features/calendar/DepartmentScheduleCalendar';
 
 type DemoAssignment = { department: string; facility: string };
 type DemoFacilityRequest = {
@@ -609,17 +610,23 @@ export function DemoAdminDepartmentWorkspace({
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Schedule</p>
           <h2 className="mt-2 text-xl font-black">Department schedule</h2>
-          <div className="mt-5 grid gap-3 md:grid-cols-2">
-            {departmentTeams.length > 0 ? departmentTeams.map((team) => {
-              const nextSession = nextSessionByTeam.get(team.id);
-              return (
-                <Link key={team.id} href={`/demo/admin/teams/${encodeURIComponent(team.id)}?from=department&departmentName=${encodeURIComponent(departmentName)}&section=calendar`} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-sky-300/50">
-                  <p className="text-sm font-black text-white">{team.name}</p>
-                  <p className="mt-2 text-xs font-bold text-slate-400">{nextSession ? new Date(nextSession.startsAt).toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : 'No session yet'}</p>
-                </Link>
-              );
-            }) : <p className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">No teams yet.</p>}
-          </div>
+          {departmentTeams.length > 0 ? (
+            <DepartmentScheduleCalendar
+              teamOptions={departmentTeams.map((team) => ({ id: team.id, name: team.name }))}
+              sessions={sessions.filter((session) => session.department === departmentName).map((session) => {
+                const team = departmentTeams.find((item) => item.name === session.team);
+                return {
+                  id: session.id,
+                  title: session.title,
+                  teamId: team?.id ?? session.team,
+                  teamName: session.team,
+                  facilityName: session.facility,
+                  startsAt: session.startsAt,
+                  endsAt: session.endsAt,
+                };
+              })}
+            />
+          ) : <p className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">No teams yet.</p>}
         </section>
       ) : null}
       {showSettingsSection ? (

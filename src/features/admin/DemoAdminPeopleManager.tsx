@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AdminShell } from '@/shared/admin/AdminShell';
@@ -29,6 +29,13 @@ type DemoExtraCoachRole = {
 
 const DEMO_INVITES_KEY = 'club-app.demo.invites';
 const DEMO_EXTRA_COACH_ROLES_KEY = 'club-app.demo.extra-coach-roles';
+
+type DemoPeopleFrame = 'admin' | 'department';
+
+function DemoPeopleFrameShell({ frame, children }: { frame: DemoPeopleFrame; children: ReactNode }) {
+  if (frame === 'department') return <>{children}</>;
+  return <AdminShell mode="demo">{children}</AdminShell>;
+}
 
 function getDemoInvites(): DemoInvite[] {
   if (typeof window === 'undefined') return [];
@@ -82,9 +89,9 @@ function statusBadge(status: 'missing' | 'pending' | 'accepted') {
   return 'border-slate-700 bg-slate-900 text-slate-300';
 }
 
-export function DemoAdminPeopleManager() {
+export function DemoAdminPeopleManager({ frame = 'admin', departmentName }: { frame?: DemoPeopleFrame; departmentName?: string }) {
   const searchParams = useSearchParams();
-  const requestedDepartment = searchParams.get('department') ?? '';
+  const requestedDepartment = departmentName ?? searchParams.get('department') ?? '';
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [teams, setTeams] = useState<DemoTeam[]>([]);
   const [invites, setInvites] = useState<DemoInvite[]>([]);
@@ -114,8 +121,9 @@ export function DemoAdminPeopleManager() {
     setExtraCoachRoles(getDemoExtraCoachRoles());
     setSelectedDepartment(initialDepartment);
     setSelectedTeam(initialTeam?.name ?? '');
-    setExpandedDepartments(Object.fromEntries((currentSetup?.departments ?? []).map((department) => [department, true])));
-  }, [requestedDepartment]);
+    const visibleDepartments = departmentName ? [departmentName] : currentSetup?.departments ?? [];
+    setExpandedDepartments(Object.fromEntries(visibleDepartments.map((department) => [department, true])));
+  }, [departmentName, requestedDepartment]);
 
   const teamsForSelectedDepartment = useMemo(() => {
     return teams.filter((team) => team.department === selectedDepartment);
@@ -227,7 +235,7 @@ export function DemoAdminPeopleManager() {
 
   if (!setup) {
     return (
-      <AdminShell mode="demo">
+      <DemoPeopleFrameShell frame={frame}>
         <section className="os-hero border-amber-500/25 bg-amber-950/10">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo staff</p>
           <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">No local demo club yet</h1>
@@ -235,13 +243,15 @@ export function DemoAdminPeopleManager() {
             Create local demo setup
           </Link>
         </section>
-      </AdminShell>
+      </DemoPeopleFrameShell>
     );
   }
 
+  const visibleDepartments = departmentName ? setup.departments.filter((department) => department === departmentName) : setup.departments;
+
   return (
-    <AdminShell mode="demo">
-      <section className="os-hero border-amber-500/25 bg-amber-950/10">
+    <DemoPeopleFrameShell frame={frame}>
+      {frame === 'admin' ? <section className="os-hero border-amber-500/25 bg-amber-950/10">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local demo staff</p>
@@ -251,13 +261,13 @@ export function DemoAdminPeopleManager() {
             {isEditMode ? 'Done editing' : 'Edit staff'}
           </button>
         </div>
-      </section>
+      </section> : null}
 
       <section className="os-section">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Role coverage</p>
-        <h2 className="mt-2 text-xl font-black">Departments</h2>
+        <h2 className="mt-2 text-xl font-black">{frame === 'department' ? 'Staff' : 'Departments'}</h2>
         <div className="mt-4 grid gap-3">
-          {setup.departments.map((department) => {
+          {visibleDepartments.map((department) => {
             const leadInvite = latestInviteByScope.get(`department_lead:${department}::`);
             const leadStatus = leadInvite?.status === 'accepted' ? 'accepted' : leadInvite?.status === 'pending' ? 'pending' : 'missing';
             const departmentTeams = teams.filter((team) => team.department === department);
@@ -273,9 +283,9 @@ export function DemoAdminPeopleManager() {
                       {leadStatus === 'accepted' ? <span>Accepted</span> : leadStatus === 'pending' ? (
                         <>
                           <span>Invite pending</span>
-                          <button type="button" onClick={() => handleQuickInvite('department_lead', department)} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900">{copiedToken === leadInvite?.token ? 'Copied' : 'Copy'}</button>
+                          {frame === 'admin' ? <button type="button" onClick={() => handleQuickInvite('department_lead', department)} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900">{copiedToken === leadInvite?.token ? 'Copied' : 'Copy'}</button> : null}
                         </>
-                      ) : <button type="button" onClick={() => handleQuickInvite('department_lead', department)} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900">Invite</button>}
+                      ) : frame === 'admin' ? <button type="button" onClick={() => handleQuickInvite('department_lead', department)} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900">Invite</button> : <span>Missing</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -370,6 +380,6 @@ export function DemoAdminPeopleManager() {
           setPendingRevoke(null);
         }}
       />
-    </AdminShell>
+    </DemoPeopleFrameShell>
   );
 }
