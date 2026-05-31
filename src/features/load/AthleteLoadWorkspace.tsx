@@ -1264,7 +1264,7 @@ function AthleteCalendar({
     return item.source === 'athlete_plan' && item.session && item.status !== 'reported';
   }
 
-  function dragProjection(activeDrag: { item: AthleteCalendarItem; kind: 'move' | 'resize'; startedAt: string; durationMinutes: number }, pointerEvent: PointerEvent, startClientX: number) {
+  function dragProjection(activeDrag: { item: AthleteCalendarItem; kind: 'move' | 'resize'; startedAt: string; durationMinutes: number }, pointerEvent: PointerEvent, startClientX: number, startClientY: number) {
     const element = document.elementFromPoint(pointerEvent.clientX, pointerEvent.clientY) as HTMLElement | null;
     const dayElement = element?.closest('[data-athlete-day]') as HTMLElement | null;
     const originalStart = new Date(activeDrag.startedAt);
@@ -1272,6 +1272,7 @@ function AthleteCalendar({
     const isMobileTarget = dayElement?.dataset.density === 'mobile';
     const hourHeight = dayElement?.dataset.density === 'desktop' ? desktopHourHeight : mobileHourHeight;
     const pointerMinutes = dayElement ? minutesFromPointer(dayElement, pointerEvent.clientY, hourHeight) : originalStartMinutes;
+    const deltaMinutes = Math.round(((pointerEvent.clientY - startClientY) / hourHeight) * 60 / 15) * 15;
     const duration = activeDrag.kind === 'move'
       ? activeDrag.durationMinutes
       : Math.max(15, Math.round((pointerMinutes - originalStartMinutes) / 15) * 15);
@@ -1296,7 +1297,7 @@ function AthleteCalendar({
         ? projectedMobileDate
         : dayElement?.dataset.athleteDay ?? activeDrag.item.date;
     const startMinutes = activeDrag.kind === 'move'
-      ? Math.max(0, Math.min(pointerMinutes, gridMinutes - duration))
+      ? Math.max(0, Math.min(originalStartMinutes + deltaMinutes, gridMinutes - duration))
       : Math.max(0, Math.min(gridMinutes - 15, originalStartMinutes));
     const startsAt = dateTimeISO(date, startMinutes);
     const endsAt = new Date(new Date(startsAt).getTime() + duration * 60_000).toISOString();
@@ -1334,14 +1335,14 @@ function AthleteCalendar({
         setDrag(activeDrag);
       }
       pointerEvent.preventDefault();
-      const projection = dragProjection(activeDrag, pointerEvent, startX);
+      const projection = dragProjection(activeDrag, pointerEvent, startX, startY);
       setDragPreview({ id: activeDrag.item.id, date: projection.date, startsAt: projection.startsAt, endsAt: projection.endsAt, duration: projection.duration });
     }
 
     function finish(pointerEvent: PointerEvent) {
       cleanup();
       if (!isDragging) return;
-      const projection = dragProjection(activeDrag, pointerEvent, startX);
+      const projection = dragProjection(activeDrag, pointerEvent, startX, startY);
       if (activeDrag.item.session) onPlanTimeChange(activeDrag.item.session, projection.startsAt, projection.duration);
       setDrag(null);
       setDragPreview(null);
