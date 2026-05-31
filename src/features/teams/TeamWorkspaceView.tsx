@@ -322,7 +322,7 @@ function PlayerLoadDetail({
                 {filteredAttendance.slice(0, 5).map((event) => (
                   <div key={`${event.sessionId}-${event.status}`} className={`rounded-2xl border p-3 ${event.status === 'out' ? 'border-rose-400/35 bg-rose-400/10' : 'border-sky-400/35 bg-sky-400/10'}`}>
                     <p className="text-sm font-black text-white">{event.title}</p>
-                    <p className="mt-1 text-xs font-bold text-slate-400">{new Date(event.startsAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })} ? {event.status === 'out' ? 'Out' : `Late${event.lateMinutes ? ` ${event.lateMinutes}m` : ''}`}</p>
+                    <p className="mt-1 text-xs font-bold text-slate-400">{new Date(event.startsAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })} · {event.status === 'out' ? 'Out' : `Late${event.lateMinutes ? ` ${event.lateMinutes}m` : ''}`}</p>
                     {event.reason ? <p className="mt-2 text-xs font-bold text-slate-300">{event.reason}</p> : null}
                   </div>
                 ))}
@@ -727,24 +727,6 @@ function TeamSmartCalendar({
 
   return (
     <div className="mt-5 space-y-4">
-      <div className="hidden items-center justify-end gap-2 md:flex">
-        <button
-          type="button"
-          onClick={() => {
-            if (mode === 'edit') {
-              setMode('view');
-              setDrag(null);
-              setDraft(null);
-              return;
-            }
-            setMode('edit');
-          }}
-          disabled={!canManageCalendar}
-          className={`rounded-full border px-3 py-1.5 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'} disabled:cursor-not-allowed disabled:opacity-50`}
-        >
-          {mode === 'edit' ? 'Done' : 'Edit'}
-        </button>
-      </div>
       <SmartSessionCalendar
         mode={mode}
         canCreateSessions={canManageCalendar}
@@ -763,6 +745,7 @@ function TeamSmartCalendar({
         sessions={smartSessions}
         draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, teamLabel: data.name } : null}
         dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null}
+        toolbarAccessory={data.calendarHref ? <Link href={data.calendarHref} className="max-w-[13rem] truncate rounded-full border border-sky-500/60 px-3 py-1.5 text-xs font-black text-sky-100 hover:bg-sky-950/40">{data.defaultFacilityName ?? 'Facility'}</Link> : null}
         calendarScrollRef={calendarScrollRef}
         setDayRef={(index, element) => { dayRefs.current[index] = element; }}
         onSetMode={setMode}
@@ -1000,7 +983,6 @@ export function TeamWorkspaceView({
               <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Team calendar</p>
               <h2 className="mt-2 text-2xl font-black">Sessions for {data.name}</h2>
             </div>
-            {data.calendarHref ? <Link href={data.calendarHref} className="rounded-full border border-sky-500/60 px-3 py-1.5 text-xs font-black text-sky-100 hover:bg-sky-950/40">Facility</Link> : null}
           </div>
           <TeamSmartCalendar data={data} onSessionTimeChange={onSessionTimeChange} onSessionCreate={onSessionCreate} onSessionFacilityChange={onSessionFacilityChange} />
           {data.sessions.length === 0 ? <div className="mt-5"><EmptyCard title="No team sessions yet" /></div> : null}
@@ -1040,7 +1022,7 @@ export function TeamWorkspaceView({
                       <p className="font-black text-white">{player.name}</p>
                       <span className={`rounded-full border px-2 py-1 text-[10px] font-black ${acwrToneClass(summary.zone.tone)}`}>{summary.acwr !== null ? summary.acwr.toFixed(2) : '?'} ACWR</span>
                     </div>
-                    {player.groups && player.groups.length > 0 ? <p className="mt-2 text-xs font-bold text-slate-500">{player.groups.join(' ? ')}</p> : null}
+                    {player.groups && player.groups.length > 0 ? <p className="mt-2 text-xs font-bold text-slate-500">{player.groups.join(' · ')}</p> : null}
                     <div className="mt-3 flex items-center justify-between gap-2 text-xs font-bold text-slate-400">
                       <span>{acwrDisplayLabel(summary)}</span>
                       <span>{attendanceFlags > 0 ? `${attendanceFlags} attendance flags` : 'No attendance flags'}</span>

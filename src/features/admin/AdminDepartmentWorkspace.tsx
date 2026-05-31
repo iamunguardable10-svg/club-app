@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AdminShell } from '@/shared/admin/AdminShell';
@@ -70,6 +70,12 @@ type Session = {
 
 type LoadState = 'loading' | 'ready' | 'no_access' | 'not_found' | 'error';
 type FacilityDraftStep = 'idle' | 'name' | 'usage' | 'shared_confirm' | 'reported';
+export type AdminDepartmentWorkspaceSection = 'all' | 'teams' | 'facilities' | 'coaches' | 'schedule' | 'settings';
+
+function DepartmentWorkspaceFrame({ frame, children }: { frame: 'admin' | 'department'; children: ReactNode }) {
+  if (frame === 'department') return <>{children}</>;
+  return <AdminShell>{children}</AdminShell>;
+}
 
 function isMissingAuthSessionError(message?: string) {
   return message?.toLowerCase().includes('auth session missing') ?? false;
@@ -116,7 +122,15 @@ function formatNextSession(session?: Session) {
   })}`;
 }
 
-export function AdminDepartmentWorkspace({ departmentId }: { departmentId: string }) {
+export function AdminDepartmentWorkspace({
+  departmentId,
+  frame = 'admin',
+  section = 'all',
+}: {
+  departmentId: string;
+  frame?: 'admin' | 'department';
+  section?: AdminDepartmentWorkspaceSection;
+}) {
   const router = useRouter();
   const [state, setState] = useState<LoadState>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -688,17 +702,17 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
 
   if (state === 'loading') {
     return (
-      <AdminShell>
+      <DepartmentWorkspaceFrame frame={frame}>
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 text-center">
           <p className="text-sm font-bold text-slate-300">Loading department workspace...</p>
         </section>
-      </AdminShell>
+      </DepartmentWorkspaceFrame>
     );
   }
 
   if (state === 'not_found') {
     return (
-      <AdminShell>
+      <DepartmentWorkspaceFrame frame={frame}>
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-red-300">Department</p>
           <h1 className="mt-3 text-3xl font-black">Department not found</h1>
@@ -706,64 +720,71 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
             Back to departments
           </Link>
         </section>
-      </AdminShell>
+      </DepartmentWorkspaceFrame>
     );
   }
 
   if (state === 'no_access') {
     return (
-      <AdminShell>
+      <DepartmentWorkspaceFrame frame={frame}>
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Department</p>
           <h1 className="mt-3 text-3xl font-black">No department access</h1>
           <p className="mt-3 text-sm leading-6 text-slate-400">You need a club admin or department lead membership for this department.</p>
         </section>
-      </AdminShell>
+      </DepartmentWorkspaceFrame>
     );
   }
 
   if (state === 'error') {
     return (
-      <AdminShell>
+      <DepartmentWorkspaceFrame frame={frame}>
         <section className="rounded-3xl border border-red-900/70 bg-red-950/30 p-6">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-red-300">Department error</p>
           <h1 className="mt-3 text-3xl font-black">Could not load department</h1>
           <p className="mt-3 text-sm leading-6 text-red-100">{error}</p>
         </section>
-      </AdminShell>
+      </DepartmentWorkspaceFrame>
     );
   }
 
   const showFacilitySetup = isEditMode || departmentFacilities.length === 0;
+  const activeSection = frame === 'department' ? section : 'all';
+  const showAttention = activeSection === 'all';
+  const showFacilitiesSection = activeSection === 'all' || activeSection === 'facilities';
+  const showTeamsSection = activeSection === 'all' || activeSection === 'teams' || activeSection === 'coaches';
+  const showTeamCreate = activeSection === 'all' || activeSection === 'teams';
+  const showScheduleSection = activeSection === 'schedule';
+  const showSettingsSection = activeSection === 'settings';
 
   return (
-    <AdminShell>
-      <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 shadow-sm">
-        <Link href="/admin/departments" className="inline-flex items-center text-sm font-black text-violet-300 hover:text-violet-200">
+    <DepartmentWorkspaceFrame frame={frame}>
+      <section className={`rounded-3xl border border-slate-800 bg-slate-950/80 shadow-sm ${frame === 'department' ? 'p-4' : 'p-6'}`}>
+        {frame === 'admin' ? <Link href="/admin/departments" className="inline-flex items-center text-sm font-black text-violet-300 hover:text-violet-200">
           ← Back to departments
-        </Link>
+        </Link> : null}
         <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-violet-300">Department workspace</p>
-            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">{department?.name}</h1>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-violet-300">{frame === 'department' ? 'Department OS' : 'Department workspace'}</p>
+            <h1 className={`mt-3 font-black tracking-tight ${frame === 'department' ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-5xl'}`}>{department?.name}</h1>
           </div>
           <button
             type="button"
             onClick={() => setIsEditMode((current) => !current)}
             className={
               isEditMode
-                ? 'w-fit rounded-xl bg-violet-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-violet-200'
-                : 'w-fit rounded-xl border border-violet-500/70 px-4 py-3 text-sm font-black text-violet-200 transition hover:bg-violet-950/40'
+                ? 'w-fit rounded-full bg-violet-300 px-3 py-1.5 text-xs font-black text-slate-950 transition hover:bg-violet-200'
+                : 'w-fit rounded-full border border-violet-500/70 px-3 py-1.5 text-xs font-black text-violet-200 transition hover:bg-violet-950/40'
             }
           >
-            {isEditMode ? 'Done editing' : 'Edit department'}
+            {isEditMode ? 'Done' : 'Edit'}
           </button>
         </div>
       </section>
 
       {error ? <section className="rounded-2xl border border-red-900/70 bg-red-950/30 px-4 py-3 text-sm text-red-100">{error}</section> : null}
 
-      {attentionItems.length > 0 ? (
+      {showAttention && attentionItems.length > 0 ? (
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">Needs attention</p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -776,7 +797,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
         </section>
       ) : null}
 
-      <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+      {showFacilitiesSection ? <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Facilities</p>
@@ -982,9 +1003,9 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
             </div>
           </div>
         ) : null}
-      </section>
+      </section> : null}
 
-      {isEditMode || teams.length === 0 ? (
+      {showTeamCreate && (isEditMode || teams.length === 0) ? (
         <form onSubmit={handleCreateTeam} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">{teams.length === 0 ? 'First team' : 'Edit mode'}</p>
           <h2 className="mt-2 text-xl font-black">{teams.length === 0 ? 'Create the first team' : 'Add team'}</h2>
@@ -1007,11 +1028,11 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
         </form>
       ) : null}
 
-      <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+      {showTeamsSection ? <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Teams</p>
-            <h2 className="mt-2 text-xl font-black">Department teams</h2>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">{activeSection === 'coaches' ? 'Staff' : 'Teams'}</p>
+            <h2 className="mt-2 text-xl font-black">{activeSection === 'coaches' ? 'Team staff coverage' : 'Department teams'}</h2>
           </div>
           <span className="text-sm font-bold text-slate-400">{teams.length} teams</span>
         </div>
@@ -1113,7 +1134,7 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
                         <span className="hidden lg:inline">{formatNextSession(nextSession)}</span>
                       </div>
 
-                      {!isEditMode ? (
+                      {!isEditMode && activeSection !== 'coaches' ? (
                         <button
                           type="button"
                           onClick={() => setComposerTeamId(team.id)}
@@ -1160,7 +1181,40 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
             </p>
           )}
         </div>
-      </section>
+      </section> : null}
+      {showScheduleSection ? (
+        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Schedule</p>
+          <h2 className="mt-2 text-xl font-black">Department schedule</h2>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            {teams.length > 0 ? teams.map((team) => {
+              const nextSession = nextSessionByTeam.get(team.id);
+              return (
+                <Link key={team.id} href={`/admin/teams/${team.id}?from=department&departmentId=${department?.id ?? ''}&section=calendar`} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-sky-300/50">
+                  <p className="text-sm font-black text-white">{team.name}</p>
+                  <p className="mt-2 text-xs font-bold text-slate-400">{formatNextSession(nextSession)}</p>
+                </Link>
+              );
+            }) : <p className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">No teams yet.</p>}
+          </div>
+        </section>
+      ) : null}
+      {showSettingsSection ? (
+        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Settings</p>
+          <h2 className="mt-2 text-xl font-black">Department settings</h2>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+              <p className="text-sm font-black text-white">Teams</p>
+              <p className="mt-2 text-xs font-bold text-slate-400">{teams.length} active department teams</p>
+            </div>
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+              <p className="text-sm font-black text-white">Facilities</p>
+              <p className="mt-2 text-xs font-bold text-slate-400">{departmentFacilities.length} assigned halls</p>
+            </div>
+          </div>
+        </section>
+      ) : null}
       <SessionComposer
         open={composerTeamId !== null}
         teams={teams.map((team) => ({
@@ -1175,6 +1229,6 @@ export function AdminDepartmentWorkspace({ departmentId }: { departmentId: strin
         onClose={() => setComposerTeamId(null)}
         onSubmit={handleCreateSession}
       />
-    </AdminShell>
+    </DepartmentWorkspaceFrame>
   );
 }

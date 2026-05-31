@@ -27,6 +27,7 @@ type DemoFacilityRequest = {
   status: 'open' | 'resolved' | 'rejected';
 };
 type FacilityDraftStep = 'idle' | 'name' | 'usage' | 'shared_confirm' | 'reported';
+type DemoDepartmentWorkspaceMode = 'all' | 'teams' | 'facilities' | 'coaches' | 'schedule' | 'settings';
 type DemoInvite = {
   id: string;
   token: string;
@@ -51,6 +52,35 @@ function DepartmentFrame({ frame, children }: { frame: 'admin' | 'department'; c
     );
   }
   return <AdminShell mode="demo">{children}</AdminShell>;
+}
+
+function modeTitle(mode: DemoDepartmentWorkspaceMode) {
+  if (mode === 'facilities') return 'Facilities';
+  if (mode === 'coaches') return 'Staff';
+  if (mode === 'schedule') return 'Schedule';
+  if (mode === 'settings') return 'Settings';
+  return 'Teams';
+}
+
+function DemoDepartmentNav({ mode }: { mode: DemoDepartmentWorkspaceMode }) {
+  const items: DemoDepartmentWorkspaceMode[] = ['teams', 'facilities', 'coaches', 'schedule', 'settings'];
+  return (
+    <section className="sticky top-0 z-30 rounded-2xl border border-slate-800 bg-slate-950/92 p-3 text-white shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:static md:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Demo Department OS</p>
+          <h1 className="mt-1 text-2xl font-black tracking-tight">{modeTitle(mode)}</h1>
+        </div>
+        <nav className="flex flex-wrap gap-1.5">
+          {items.map((item) => (
+            <Link key={item} href={`/demo/department/${item}`} className={`rounded-full border px-3 py-1.5 text-xs font-black ${mode === item ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950 text-slate-200 hover:bg-slate-900'}`}>
+              {modeTitle(item)}
+            </Link>
+          ))}
+        </nav>
+      </div>
+    </section>
+  );
 }
 
 function readJson<T>(key: string, fallback: T): T {
@@ -113,11 +143,13 @@ export function DemoAdminDepartmentWorkspace({
   frame = 'admin',
   backHref = '/demo/admin/departments',
   backLabel = 'Back to local departments',
+  mode = 'all',
 }: {
   departmentName: string;
   frame?: 'admin' | 'department';
   backHref?: string;
   backLabel?: string;
+  mode?: DemoDepartmentWorkspaceMode;
 }) {
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [teams, setTeams] = useState<DemoTeam[]>([]);
@@ -344,9 +376,16 @@ export function DemoAdminDepartmentWorkspace({
   }
 
   const showFacilitySetup = isEditMode || departmentFacilities.length === 0;
+  const activeMode = frame === 'department' ? mode : 'all';
+  const showFacilitiesSection = activeMode === 'all' || activeMode === 'facilities';
+  const showTeamsSection = activeMode === 'all' || activeMode === 'teams' || activeMode === 'coaches';
+  const showTeamCreate = activeMode === 'all' || activeMode === 'teams';
+  const showScheduleSection = activeMode === 'schedule';
+  const showSettingsSection = activeMode === 'settings';
 
   return (
     <DepartmentFrame frame={frame}>
+      {frame === 'department' ? <DemoDepartmentNav mode={activeMode === 'all' ? 'teams' : activeMode} /> : null}
       <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6 shadow-sm">
         <Link href={backHref} className="inline-flex items-center text-sm font-black text-amber-200 hover:text-amber-100">← {backLabel}</Link>
         <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -361,7 +400,7 @@ export function DemoAdminDepartmentWorkspace({
         </div>
       </section>
 
-      <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+      {showFacilitiesSection ? <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Facilities</p>
@@ -462,9 +501,9 @@ export function DemoAdminDepartmentWorkspace({
             </div>
           </div>
         ) : null}
-      </section>
+      </section> : null}
 
-      {isEditMode || departmentTeams.length === 0 ? (
+      {showTeamCreate && (isEditMode || departmentTeams.length === 0) ? (
         <form onSubmit={handleCreateTeam} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">{departmentTeams.length === 0 ? 'First team' : 'Edit mode'}</p>
           <h2 className="mt-2 text-xl font-black">{departmentTeams.length === 0 ? 'Create the first local team' : 'Add local team'}</h2>
@@ -475,11 +514,11 @@ export function DemoAdminDepartmentWorkspace({
         </form>
       ) : null}
 
-      <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+      {showTeamsSection ? <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Teams</p>
-            <h2 className="mt-2 text-xl font-black">Department teams</h2>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">{activeMode === 'coaches' ? 'Staff' : 'Teams'}</p>
+            <h2 className="mt-2 text-xl font-black">{activeMode === 'coaches' ? 'Team staff coverage' : 'Department teams'}</h2>
           </div>
           <span className="text-sm font-bold text-slate-400">{departmentTeams.length} teams</span>
         </div>
@@ -565,7 +604,34 @@ export function DemoAdminDepartmentWorkspace({
             <p className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">No teams yet.</p>
           )}
         </div>
-      </section>
+      </section> : null}
+      {showScheduleSection ? (
+        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Schedule</p>
+          <h2 className="mt-2 text-xl font-black">Department schedule</h2>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            {departmentTeams.length > 0 ? departmentTeams.map((team) => {
+              const nextSession = nextSessionByTeam.get(team.id);
+              return (
+                <Link key={team.id} href={`/demo/admin/teams/${encodeURIComponent(team.id)}?from=department&departmentName=${encodeURIComponent(departmentName)}&section=calendar`} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-sky-300/50">
+                  <p className="text-sm font-black text-white">{team.name}</p>
+                  <p className="mt-2 text-xs font-bold text-slate-400">{nextSession ? new Date(nextSession.startsAt).toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : 'No session yet'}</p>
+                </Link>
+              );
+            }) : <p className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">No teams yet.</p>}
+          </div>
+        </section>
+      ) : null}
+      {showSettingsSection ? (
+        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Settings</p>
+          <h2 className="mt-2 text-xl font-black">Department settings</h2>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4"><p className="text-sm font-black text-white">Teams</p><p className="mt-2 text-xs font-bold text-slate-400">{departmentTeams.length} local teams</p></div>
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4"><p className="text-sm font-black text-white">Facilities</p><p className="mt-2 text-xs font-bold text-slate-400">{departmentFacilities.length} assigned halls</p></div>
+          </div>
+        </section>
+      ) : null}
       <DemoSessionComposer
         open={composerTeamId !== null}
         teams={departmentTeams.map((team) => ({

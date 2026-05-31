@@ -111,9 +111,9 @@ function CoachSessionCard({ session }: { session: CoachSession }) {
     <article className="rounded-3xl border border-slate-800 bg-slate-950/72 p-4 text-white shadow-[0_18px_70px_rgba(0,0,0,0.22)]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">{session.departmentName} ? {session.teamName}</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">{session.departmentName} · {session.teamName}</p>
           <h3 className="mt-2 text-xl font-black">{session.title}</h3>
-          <p className="mt-1 text-sm font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt)}{session.facilityName ? ` ? ${session.facilityName}` : ''}</p>
+          <p className="mt-1 text-sm font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
         </div>
         <Link href={`/coach/sessions?teamId=${session.teamId}`} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open</Link>
       </div>
@@ -125,7 +125,7 @@ function CoachSessionCard({ session }: { session: CoachSession }) {
             <span className="text-lg font-black text-white">{out.length}</span>
           </div>
           {out.slice(0, 3).map((item) => (
-            <p key={item.id} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.reason ? ` ? ${item.reason}` : ''}</p>
+            <p key={item.id} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.reason ? ` · ${item.reason}` : ''}</p>
           ))}
         </div>
         <div className={`rounded-2xl border p-3 ${late.length > 0 ? 'border-sky-400/35 bg-sky-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
@@ -134,7 +134,7 @@ function CoachSessionCard({ session }: { session: CoachSession }) {
             <span className="text-lg font-black text-white">{late.length}</span>
           </div>
           {late.slice(0, 3).map((item) => (
-            <p key={item.id} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` ? ${item.lateMinutes}m` : ''}{item.reason ? ` ? ${item.reason}` : ''}</p>
+            <p key={item.id} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${item.lateMinutes}m` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>
           ))}
         </div>
       </div>
@@ -330,7 +330,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const initialSection = useMemo(() => sectionForMode(mode), [mode]);
   const today = useMemo(() => new Date(), []);
   const todaySessions = sessions.filter((session) => isSameLocalDay(session.startsAt, today));
-  const upcomingSessions = sessions.filter((session) => new Date(session.startsAt).getTime() >= Date.now()).slice(0, 4);
+  const upcomingSessions = sessions.filter((session) => new Date(session.startsAt).getTime() >= Date.now() && !isSameLocalDay(session.startsAt, today)).slice(0, 4);
   const nextSessionByTeamId = useMemo(() => {
     const map = new Map<string, CoachSession>();
     const upcoming = [...sessions]
@@ -397,7 +397,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
                   {upcomingSessions.map((session) => (
                     <Link key={session.id} href={`/coach/sessions?teamId=${session.teamId}`} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 transition hover:border-sky-300/50 hover:bg-slate-900/70">
                       <p className="text-sm font-black text-white">{session.teamName}</p>
-                      <p className="mt-1 text-xs font-bold text-slate-400">{new Date(session.startsAt).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' })} ? {formatTimeRange(session.startsAt, session.endsAt)}</p>
+                      <p className="mt-1 text-xs font-bold text-slate-400">{new Date(session.startsAt).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' })} · {formatTimeRange(session.startsAt, session.endsAt)}</p>
                       <p className="mt-3 text-xs font-black text-slate-500">{session.availability.length} availability flags</p>
                     </Link>
                   ))}
