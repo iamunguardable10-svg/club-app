@@ -1437,8 +1437,12 @@ function AthleteCalendar({
     );
   }
 
+  function itemDisplayDate(item: AthleteCalendarItem) {
+    return dragPreview?.id === item.id ? dragPreview.date : item.date;
+  }
+
   const activeDay = days[clampDayIndex(activeDayIndex)];
-  const activeDayItems = items.filter((item) => item.date === isoDate(activeDay));
+  const activeDayItems = items.filter((item) => itemDisplayDate(item) === isoDate(activeDay));
 
   return (
     <section className="min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-3 sm:rounded-[2rem] sm:p-5">
@@ -1485,7 +1489,7 @@ function AthleteCalendar({
               </div>
               {days.map((day) => {
                 const date = isoDate(day);
-                const dayItems = items.filter((item) => item.date === date);
+                const dayItems = items.filter((item) => itemDisplayDate(item) === date);
                 return (
                   <div key={day.toISOString()} data-athlete-day={date} data-density="mobile" onClick={(event) => pickSlot(day, event, mobileHourHeight)} className={`relative border-l border-slate-900 transition-colors ${dragPreview?.date === date ? 'bg-sky-300/[0.07] ring-1 ring-inset ring-sky-300/35' : ''}`} style={{ height: gridHeightMobile }}>
                     {hours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: mobileHourHeight }} />)}
@@ -1531,7 +1535,7 @@ function AthleteCalendar({
           </div>
           {days.map((day) => {
             const date = isoDate(day);
-            const dayItems = items.filter((item) => item.date === date);
+            const dayItems = items.filter((item) => itemDisplayDate(item) === date);
             return (
               <div key={day.toISOString()} data-athlete-day={date} data-density="desktop" onClick={(event) => pickSlot(day, event, desktopHourHeight)} className={`relative border-l border-slate-900 transition-colors ${dragPreview?.date === date ? 'bg-sky-300/[0.05] ring-1 ring-inset ring-sky-300/30' : ''}`} style={{ height: gridHeightDesktop }}>
                 {hours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: desktopHourHeight }} />)}

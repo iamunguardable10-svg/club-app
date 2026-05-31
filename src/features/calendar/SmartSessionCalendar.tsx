@@ -42,11 +42,16 @@ type SmartSessionCalendarProps = {
   sessions: SmartCalendarSession[];
   draft: SmartCalendarDraft | null;
   dragSessionId?: string | null;
+  weekLabel?: string;
+  isCurrentWeek?: boolean;
   toolbarAccessory?: ReactNode;
   calendarScrollRef: RefObject<HTMLDivElement | null>;
   setDayRef: (index: number, element: HTMLDivElement | null) => void;
   onSetMode: (mode: SmartCalendarMode) => void;
   onClearDraft: () => void;
+  onPreviousWeek?: () => void;
+  onNextWeek?: () => void;
+  onResetWeek?: () => void;
   onMobileDaySelect: (index: number) => void;
   onMobileCalendarViewChange: (view: SmartMobileCalendarView) => void;
   onMobileDaySwipeStart: (event: PointerEvent<HTMLDivElement>) => void;
@@ -119,11 +124,16 @@ export function SmartSessionCalendar({
   sessions,
   draft,
   dragSessionId,
+  weekLabel,
+  isCurrentWeek = true,
   toolbarAccessory,
   calendarScrollRef,
   setDayRef,
   onSetMode,
   onClearDraft,
+  onPreviousWeek,
+  onNextWeek,
+  onResetWeek,
   onMobileDaySelect,
   onMobileCalendarViewChange,
   onMobileDaySwipeStart,
@@ -143,23 +153,37 @@ export function SmartSessionCalendar({
 
   return (
     <>
-      <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
-        {toolbarAccessory}
-        <button
-          type="button"
-          onClick={() => {
-            if (mode === 'edit') {
-              onSetMode('view');
-              onClearDraft();
-              return;
-            }
-            onSetMode('edit');
-          }}
-          disabled={!canCreateSessions}
-          className={`rounded-full border px-3 py-1.5 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'} disabled:cursor-not-allowed disabled:opacity-50`}
-        >
-          {mode === 'edit' ? 'Done' : 'Edit'}
-        </button>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          {onPreviousWeek ? (
+            <button type="button" onClick={onPreviousWeek} className="grid h-8 w-8 place-items-center rounded-full border border-slate-700 bg-slate-950/70 text-sm font-black text-slate-200 hover:border-slate-500" aria-label="Previous week">‹</button>
+          ) : null}
+          {weekLabel ? <span className="max-w-[9rem] truncate rounded-full border border-slate-800 bg-slate-950/70 px-3 py-1.5 text-xs font-black text-slate-300 sm:max-w-none">{weekLabel}</span> : null}
+          {onNextWeek ? (
+            <button type="button" onClick={onNextWeek} className="grid h-8 w-8 place-items-center rounded-full border border-slate-700 bg-slate-950/70 text-sm font-black text-slate-200 hover:border-slate-500" aria-label="Next week">›</button>
+          ) : null}
+          {onResetWeek && !isCurrentWeek ? (
+            <button type="button" onClick={onResetWeek} className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-black text-slate-200 hover:border-emerald-300/70">↺ Week</button>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {toolbarAccessory}
+          <button
+            type="button"
+            onClick={() => {
+              if (mode === 'edit') {
+                onSetMode('view');
+                onClearDraft();
+                return;
+              }
+              onSetMode('edit');
+            }}
+            disabled={!canCreateSessions}
+            className={`rounded-full border px-3 py-1.5 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'} disabled:cursor-not-allowed disabled:opacity-50`}
+          >
+            {mode === 'edit' ? 'Done' : 'Edit'}
+          </button>
+        </div>
       </div>
 
       {dragPreviewSession ? (

@@ -25,15 +25,24 @@ const minutesPerPixel = 60 / hourHeight;
 const slotMinutes = 15;
 const defaultDurationMinutes = 90;
 const dayColumnMinWidth = 150;
-const days = Array.from({ length: 7 }, (_, index) => {
-  const date = new Date();
-  const day = date.getDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  const monday = new Date(date);
-  monday.setDate(date.getDate() + mondayOffset + index);
-  monday.setHours(0, 0, 0, 0);
-  return monday;
-});
+
+function buildWeekDays(weekOffset = 0) {
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    const day = date.getDay();
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    date.setDate(date.getDate() + mondayOffset + weekOffset * 7 + index);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  });
+}
+
+function formatWeekLabel(days: Date[]) {
+  const first = days[0];
+  const last = days[6];
+  if (!first || !last) return '';
+  return `${first.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })} - ${last.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}`;
+}
 
 function sameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -87,7 +96,10 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
   const mobileDaySwipeRef = useRef<{ startX: number; startY: number } | null>(null);
   const [sessions, setSessions] = useState<DemoSession[]>([]);
   const [mode, setMode] = useState<'view' | 'edit'>('view');
-  const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, days.findIndex((day) => sameDay(day, new Date()))));
+  const [weekOffset, setWeekOffset] = useState(0);
+  const days = useMemo(() => buildWeekDays(weekOffset), [weekOffset]);
+  const weekLabel = useMemo(() => formatWeekLabel(days), [days]);
+  const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, buildWeekDays().findIndex((day) => sameDay(day, new Date()))));
   const [mobileCalendarView, setMobileCalendarView] = useState<'week' | 'day'>('week');
   const [dayTransitionDirection, setDayTransitionDirection] = useState<'next' | 'previous' | null>(null);
   const [desktopHourHeight, setDesktopHourHeight] = useState(hourHeight);
@@ -99,6 +111,23 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
   const setup = useMemo(() => getDemoClubSetup(), []);
   const teams = useMemo(() => getDemoTeams(setup), [setup]);
   const facilities = useMemo(() => (setup?.facilities ?? [facilityName]).map((name) => ({ id: name, name })), [facilityName, setup]);
+
+  function changeWeek(delta: number) {
+    setDraft(null);
+    setDrag(null);
+    setEditingSession(null);
+    setSelectedSession(null);
+    setWeekOffset((current) => current + delta);
+  }
+
+  function resetWeek() {
+    setDraft(null);
+    setDrag(null);
+    setEditingSession(null);
+    setSelectedSession(null);
+    setWeekOffset(0);
+    setActiveDayIndex(Math.max(0, buildWeekDays().findIndex((day) => sameDay(day, new Date()))));
+  }
 
   useEffect(() => {
     setSessions(getDemoSessions().filter((session) => session.facility === facilityName));
@@ -437,10 +466,15 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
           sessions={calendarSessions}
           draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null}
           dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null}
+          weekLabel={weekLabel}
+          isCurrentWeek={weekOffset === 0}
           calendarScrollRef={calendarScrollRef}
           setDayRef={(index, element) => { dayRefs.current[index] = element; }}
           onSetMode={setMode}
           onClearDraft={() => setDraft(null)}
+          onPreviousWeek={() => changeWeek(-1)}
+          onNextWeek={() => changeWeek(1)}
+          onResetWeek={resetWeek}
           onMobileDaySelect={switchMobileDay}
           onMobileCalendarViewChange={setMobileCalendarView}
           onMobileDaySwipeStart={handleMobileDaySwipeStart}

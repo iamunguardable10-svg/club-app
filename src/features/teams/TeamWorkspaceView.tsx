@@ -91,15 +91,22 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function buildWeekDays() {
+function buildWeekDays(weekOffset = 0) {
   return Array.from({ length: 7 }, (_, index) => {
     const date = new Date();
     const day = date.getDay();
     const mondayOffset = day === 0 ? -6 : 1 - day;
-    date.setDate(date.getDate() + mondayOffset + index);
+    date.setDate(date.getDate() + mondayOffset + weekOffset * 7 + index);
     date.setHours(0, 0, 0, 0);
     return date;
   });
+}
+
+function formatWeekLabel(days: Date[]) {
+  const first = days[0];
+  const last = days[6];
+  if (!first || !last) return '';
+  return `${first.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })} - ${last.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}`;
 }
 
 function sameDay(a: Date, b: Date) {
@@ -435,9 +442,10 @@ function TeamSmartCalendar({
   onSessionCreate?: (startsAt: string, endsAt: string) => void | Promise<void>;
   onSessionFacilityChange?: (sessionId: string, facilityId: string) => void | Promise<void>;
 }) {
-  const days = useMemo(() => buildWeekDays(), []);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const days = useMemo(() => buildWeekDays(weekOffset), [weekOffset]);
   const todayIndex = useMemo(() => Math.max(0, days.findIndex((day) => sameDay(day, new Date()))), [days]);
-  const [activeDayIndex, setActiveDayIndex] = useState(todayIndex);
+  const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, buildWeekDays().findIndex((day) => sameDay(day, new Date()))));
   const [mobileCalendarView, setMobileCalendarView] = useState<'week' | 'day'>('week');
   const [dayTransitionDirection, setDayTransitionDirection] = useState<'next' | 'previous' | null>(null);
   const [desktopHourHeight, setDesktopHourHeight] = useState(baseDesktopHourHeight);
@@ -456,6 +464,23 @@ function TeamSmartCalendar({
   const canManageExistingSessions = data.role !== 'viewer' && Boolean(onSessionTimeChange);
   const canCreateSessions = data.role !== 'viewer' && Boolean(onSessionCreate && (data.defaultFacilityId || (data.availableFacilities?.length ?? 0) > 0));
   const canManageCalendar = canManageExistingSessions || canCreateSessions;
+  const weekLabel = useMemo(() => formatWeekLabel(days), [days]);
+
+  function changeWeek(delta: number) {
+    setDraft(null);
+    setDrag(null);
+    setSelectedSessionId(null);
+    setWeekOffset((current) => current + delta);
+  }
+
+  function resetWeek() {
+    setDraft(null);
+    setDrag(null);
+    setSelectedSessionId(null);
+    setWeekOffset(0);
+    setActiveDayIndex(Math.max(0, buildWeekDays().findIndex((day) => sameDay(day, new Date()))));
+  }
+
   useEffect(() => {
     if (!drag) setLocalSessions(data.sessions);
   }, [data.sessions, drag]);
@@ -745,11 +770,16 @@ function TeamSmartCalendar({
         sessions={smartSessions}
         draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, teamLabel: data.name } : null}
         dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null}
+        weekLabel={weekLabel}
+        isCurrentWeek={weekOffset === 0}
         toolbarAccessory={data.calendarHref ? <Link href={data.calendarHref} className="max-w-[13rem] truncate rounded-full border border-sky-500/60 px-3 py-1.5 text-xs font-black text-sky-100 hover:bg-sky-950/40">{data.defaultFacilityName ?? 'Facility'}</Link> : null}
         calendarScrollRef={calendarScrollRef}
         setDayRef={(index, element) => { dayRefs.current[index] = element; }}
         onSetMode={setMode}
         onClearDraft={() => setDraft(null)}
+        onPreviousWeek={() => changeWeek(-1)}
+        onNextWeek={() => changeWeek(1)}
+        onResetWeek={resetWeek}
         onMobileDaySelect={switchMobileDay}
         onMobileCalendarViewChange={setMobileCalendarView}
         onMobileDaySwipeStart={handleMobileDaySwipeStart}
