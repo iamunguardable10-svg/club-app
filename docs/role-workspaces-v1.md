@@ -97,3 +97,34 @@ Scope correction:
 - Demo Department entry now opens a department-lead scoped Basketball workspace instead of the club-level demo Departments page.
 - Demo Coach is scoped to assigned demo coach teams only, not every demo team in the club.
 - Role workspaces should use compact app-bar navigation on mobile. The large hero/card header belongs to admin/marketing/setup surfaces, not operational role shells.
+
+## Calendar and role-shell polish update
+
+Implementation rules added after the athlete-calendar pass:
+
+- Shared calendar surfaces should use the compact control pattern from Athlete OS: one small `Edit` / `Done` toggle, no large edit buttons, and no helper copy when the state is visually obvious.
+- Mobile week/day calendars should render the full 08:00-23:00 operating window without an inner vertical scroll when the slot grid fits in the card. The page may scroll; the calendar grid itself should not fight touch gestures.
+- Team Workspace and Facility Calendar should keep using the same shared `SmartSessionCalendar` engine so coach, team, facility and athlete calendars do not drift.
+- Coach team cards are launchers into Team Workspace. They should not say `Open`, should not show assigned-count badges, and should show the next planned session instead of redundant status text.
+
+## Department-lead shell decision
+
+Department lead is not a mini club-admin. The role shell is scoped to exactly one department unless the user explicitly has multiple department-lead memberships.
+
+Target pages:
+
+- Teams: team list and team-entry launchers.
+- Facilities: department halls and facility calendar context.
+- Staff: the existing Staff role coverage filtered to this department.
+- Settings: department defaults and setup choices.
+
+Navigation rule:
+
+- Department-level navigation must stay outside Team Workspace navigation. If a department lead opens a team, Team Workspace takes over with its own bottom nav.
+- If the same person is department lead and head coach, entry context decides the shell: department pages stay department-scoped; team pages stay team-scoped.
+
+Facility authority rule:
+
+- If a club/admin layer exists, a department lead should request access to shared/global facilities rather than silently self-assign every shared hall.
+- If the department is the highest active layer in a bottom-up setup, facilities are department-owned by default; `shared` is not exposed as a governance concept until a club layer exists.
+- Promoting a department-only facility to shared should become an explicit request/approval flow once a club admin surface exists.

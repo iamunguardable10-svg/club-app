@@ -416,7 +416,6 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
             {teamName ? <span className="rounded-full border border-sky-400/70 bg-sky-950/50 px-3 py-1 text-sky-100">Focus team: {teamName}</span> : null}
             {departmentName ? <span className="rounded-full border border-emerald-400/50 bg-emerald-950/30 px-3 py-1 text-emerald-100">Department: {departmentName}</span> : null}
             {!teamName && !departmentName ? <span className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">Full facility view</span> : null}
-            <span className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">{mode === 'edit' ? 'Tap a free slot to draft a session' : 'View mode: tap sessions for details'}</span>
           </div>
           <div className="mt-5 hidden flex-wrap gap-2 md:flex">
             <button
@@ -429,9 +428,9 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
                 }
                 setMode('edit');
               }}
-              className={`rounded-xl border px-4 py-2 text-sm font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'}`}
+              className={`rounded-full border px-3 py-1.5 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'}`}
             >
-              {mode === 'edit' ? 'Done editing' : 'Edit calendar'}
+              {mode === 'edit' ? 'Done' : 'Edit'}
             </button>
           </div>
         </section>

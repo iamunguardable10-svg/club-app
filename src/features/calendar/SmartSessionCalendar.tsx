@@ -135,7 +135,7 @@ export function SmartSessionCalendar({
 
   return (
     <>
-      <div className="md:hidden">
+      <div className="mb-2 flex justify-end md:hidden">
         <button
           type="button"
           onClick={() => {
@@ -147,9 +147,9 @@ export function SmartSessionCalendar({
             onSetMode('edit');
           }}
           disabled={!canCreateSessions}
-          className={`w-full rounded-xl border px-3 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'} disabled:cursor-not-allowed disabled:opacity-50`}
+          className={`rounded-full border px-3 py-1.5 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'} disabled:cursor-not-allowed disabled:opacity-50`}
         >
-          {mode === 'edit' ? 'Done editing' : 'Edit calendar'}
+          {mode === 'edit' ? 'Done' : 'Edit'}
         </button>
       </div>
 
@@ -164,7 +164,7 @@ export function SmartSessionCalendar({
             </button>
           ))}
         </div>
-        <div ref={calendarScrollRef} className="max-h-[62vh] overflow-y-auto overscroll-contain touch-pan-y">
+        <div ref={calendarScrollRef} className="overflow-hidden touch-pan-y">
           <div className="grid grid-cols-[34px_repeat(7,minmax(0,1fr))]">
             <div className="bg-slate-950/95">
               {mobileVisibleHours.map((hour) => <div key={hour} className="border-b border-slate-900 px-1 py-1 text-[9px] font-bold text-slate-500" style={{ height: mobileHourHeight }}>{String(hour).padStart(2, '0')}</div>)}
@@ -209,7 +209,7 @@ export function SmartSessionCalendar({
             <button type="button" onClick={() => onMobileDaySelect(activeDayIndex + 1)} className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-black text-slate-200">›</button>
           </div>
         </div>
-        <div ref={calendarScrollRef} onPointerDown={onMobileDaySwipeStart} onPointerUp={onMobileDaySwipeEnd} onPointerCancel={onMobileDaySwipeCancel} className={`max-h-[64vh] overflow-y-auto overscroll-contain rounded-b-3xl touch-pan-y transition-all duration-200 ${dayTransitionDirection === 'next' ? 'translate-x-1 scale-[0.99] ring-2 ring-sky-300/40' : dayTransitionDirection === 'previous' ? '-translate-x-1 scale-[0.99] ring-2 ring-sky-300/40' : ''}`}>
+        <div ref={calendarScrollRef} onPointerDown={onMobileDaySwipeStart} onPointerUp={onMobileDaySwipeEnd} onPointerCancel={onMobileDaySwipeCancel} className={`overflow-hidden rounded-b-3xl touch-pan-y transition-all duration-200 ${dayTransitionDirection === 'next' ? 'translate-x-1 scale-[0.99] ring-2 ring-sky-300/40' : dayTransitionDirection === 'previous' ? '-translate-x-1 scale-[0.99] ring-2 ring-sky-300/40' : ''}`}>
           <div className="grid grid-cols-[52px_minmax(0,1fr)]">
             <div className="bg-slate-950/95">
               {mobileVisibleHours.map((hour) => <div key={hour} className="border-b border-slate-900 px-2 py-1 text-[10px] font-bold text-slate-500" style={{ height: mobileHourHeight }}>{String(hour).padStart(2, '0')}:00</div>)}
@@ -247,13 +247,13 @@ export function SmartSessionCalendar({
       </section>
 
       <section className="hidden overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:block">
-        <div className="overflow-x-auto">
-          <div className="min-w-0 md:min-w-[1122px]">
-            <div className="grid grid-cols-[72px_minmax(170px,1fr)] border-b border-slate-800 text-xs font-black uppercase tracking-[0.16em] text-slate-500 md:grid-cols-[72px_repeat(7,minmax(150px,1fr))]">
+        <div className="overflow-hidden">
+          <div className="min-w-0">
+            <div className="grid grid-cols-[72px_minmax(170px,1fr)] border-b border-slate-800 text-xs font-black uppercase tracking-[0.16em] text-slate-500 md:grid-cols-[72px_repeat(7,minmax(0,1fr))]">
               <div className="sticky left-0 z-20 bg-slate-950/95 p-3">Time</div>
               {days.map((day, index) => <div key={day.toISOString()} className={`border-l border-slate-800 p-3 ${index === activeDayIndex ? 'block' : 'hidden'} md:block`}>{day.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</div>)}
             </div>
-            <div className="grid grid-cols-[72px_minmax(170px,1fr)] md:grid-cols-[72px_repeat(7,minmax(150px,1fr))]">
+            <div className="grid grid-cols-[72px_minmax(170px,1fr)] md:grid-cols-[72px_repeat(7,minmax(0,1fr))]">
               <div className="sticky left-0 z-10 bg-slate-950/95">
                 {hours.map((hour) => <div key={hour} className="border-b border-slate-900 p-3 text-xs font-bold text-slate-500" style={{ height: desktopHourHeight }}>{String(hour).padStart(2, '0')}:00</div>)}
               </div>

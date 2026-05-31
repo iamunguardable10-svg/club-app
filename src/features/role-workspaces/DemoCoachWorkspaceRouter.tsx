@@ -45,6 +45,12 @@ function formatTimeRange(startsAt: string, endsAt: string | null) {
   return `${new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(start)} - ${new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(end)}`;
 }
 
+function formatNextSession(session: DemoCoachSession | undefined) {
+  if (!session) return 'No planned session yet';
+  const date = new Date(session.startsAt).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' });
+  return `${date} · ${formatTimeRange(session.startsAt, session.endsAt)}`;
+}
+
 function sameLocalDay(value: string, day: Date) {
   const date = new Date(value);
   return date.getFullYear() === day.getFullYear() && date.getMonth() === day.getMonth() && date.getDate() === day.getDate();
@@ -153,6 +159,16 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const today = useMemo(() => new Date(), []);
   const todaySessions = sessions.filter((session) => sameLocalDay(session.startsAt, today));
   const upcomingSessions = sessions.filter((session) => new Date(session.startsAt).getTime() >= Date.now()).slice(0, 4);
+  const nextSessionByTeamId = useMemo(() => {
+    const map = new Map<string, DemoCoachSession>();
+    const upcoming = [...sessions]
+      .filter((session) => new Date(session.startsAt).getTime() >= Date.now())
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+    for (const session of upcoming) {
+      if (!map.has(session.teamId)) map.set(session.teamId, session);
+    }
+    return map;
+  }, [sessions]);
 
   if (selectedTeam && mode !== 'today') {
     return <DemoTeamWorkspace teamId={selectedTeam.id} backHref="/demo/coach/today" backLabel="Back to Today" initialSection={initialSection} frame="coach" role="coach" />;
@@ -168,7 +184,6 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Demo Coach OS</p>
           <div className="mt-1 flex items-center justify-between gap-3">
             <h1 className="text-2xl font-black tracking-tight">{titleForMode(mode)}</h1>
-            <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-black text-slate-300">{teams.length} teams</span>
           </div>
         </section>
 
@@ -178,7 +193,7 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div><p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Today</p><h2 className="mt-2 text-2xl font-black">Sessions and availability</h2></div>
-              <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{todaySessions.length} today</span>
+              {todaySessions.length > 0 ? <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{todaySessions.length} today</span> : null}
             </div>
             <div className="mt-5 grid gap-3 lg:grid-cols-2">
               {todaySessions.length > 0 ? todaySessions.map((session) => <DemoSessionCard key={session.id} session={session} />) : <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions today.</div>}
@@ -196,17 +211,22 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         ) : null}
 
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
-          <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Teams</p><h2 className="mt-2 text-2xl font-black">Select team</h2></div><span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{teams.length} assigned</span></div>
+          <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Teams</p><h2 className="mt-2 text-2xl font-black">Select team</h2></div></div>
           <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {teams.map((team) => (
-              <Link key={team.id} href={`/demo/coach/team?teamId=${encodeURIComponent(team.id)}`} className="block rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white transition hover:border-emerald-300/50 hover:bg-slate-900/70">
-                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">{team.department}</p>
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <h3 className="text-2xl font-black">{team.name}</h3>
-                  <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-black text-slate-300">Open</span>
-                </div>
-              </Link>
-            ))}
+            {teams.map((team) => {
+              const nextSession = nextSessionByTeamId.get(team.id);
+              return (
+                <Link key={team.id} href={`/demo/coach/team?teamId=${encodeURIComponent(team.id)}`} className="block rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white transition hover:border-emerald-300/50 hover:bg-slate-900/70">
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">{team.department}</p>
+                  <h3 className="mt-2 text-2xl font-black">{team.name}</h3>
+                  <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Next session</p>
+                    <p className="mt-1 text-sm font-black text-slate-200">{nextSession ? nextSession.title : 'None planned'}</p>
+                    <p className="mt-1 text-xs font-bold text-slate-500">{formatNextSession(nextSession)}</p>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </section>
       </div>

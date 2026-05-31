@@ -727,7 +727,7 @@ function TeamSmartCalendar({
 
   return (
     <div className="mt-5 space-y-4">
-      <div className="hidden items-center justify-between gap-3 md:flex">
+      <div className="hidden items-center justify-end gap-2 md:flex">
         <button
           type="button"
           onClick={() => {
@@ -740,11 +740,10 @@ function TeamSmartCalendar({
             setMode('edit');
           }}
           disabled={!canManageCalendar}
-          className={`rounded-xl border px-4 py-2 text-sm font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'} disabled:cursor-not-allowed disabled:opacity-50`}
+          className={`rounded-full border px-3 py-1.5 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'} disabled:cursor-not-allowed disabled:opacity-50`}
         >
-          {mode === 'edit' ? 'Done editing' : 'Edit calendar'}
+          {mode === 'edit' ? 'Done' : 'Edit'}
         </button>
-        {mode === 'edit' && canManageCalendar ? <p className="text-xs font-bold text-slate-500">Tap free slots to create. Drag sessions or drafts to move; use the lower handle to resize.</p> : null}
       </div>
       <SmartSessionCalendar
         mode={mode}
@@ -1001,7 +1000,7 @@ export function TeamWorkspaceView({
               <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Team calendar</p>
               <h2 className="mt-2 text-2xl font-black">Sessions for {data.name}</h2>
             </div>
-            {data.calendarHref ? <Link href={data.calendarHref} className="rounded-xl border border-sky-500/60 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Open facility calendar</Link> : null}
+            {data.calendarHref ? <Link href={data.calendarHref} className="rounded-full border border-sky-500/60 px-3 py-1.5 text-xs font-black text-sky-100 hover:bg-sky-950/40">Facility</Link> : null}
           </div>
           <TeamSmartCalendar data={data} onSessionTimeChange={onSessionTimeChange} onSessionCreate={onSessionCreate} onSessionFacilityChange={onSessionFacilityChange} />
           {data.sessions.length === 0 ? <div className="mt-5"><EmptyCard title="No team sessions yet" /></div> : null}
