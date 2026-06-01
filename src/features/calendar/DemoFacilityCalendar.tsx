@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { DemoSessionComposer } from '@/features/sessions/DemoSessionComposer';
 import type { SessionComposerPayload } from '@/features/sessions/SessionComposer';
+import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
 import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoSessions, type DemoSession } from '@/shared/dev/demoStorage';
@@ -79,13 +80,6 @@ function durationMinutes(start: Date, end: Date) {
 
 function sessionDurationMinutes(session: { startsAt: string; endsAt: string }) {
   return durationMinutes(new Date(session.startsAt), new Date(session.endsAt));
-}
-
-function formatTimeRange(startsAt: string, endsAt: string | null) {
-  const start = new Date(startsAt);
-  const end = endsAt ? new Date(endsAt) : addMinutes(start, 60);
-  const formatter = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
-  return `${formatter.format(start)} - ${formatter.format(end)}`;
 }
 
 export function DemoFacilityCalendar({ facilityName, from, departmentName, teamName }: DemoFacilityCalendarProps) {
@@ -496,24 +490,24 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
       </div>
 
       {selectedSession ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 p-3 backdrop-blur-sm sm:items-center">
-          <section className="w-full max-w-lg rounded-3xl border border-slate-800 bg-slate-950 p-5 shadow-2xl">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Session details</p>
-            <h2 className="mt-2 text-2xl font-black">{selectedSession.title}</h2>
-            <div className="mt-4 grid gap-2 text-sm text-slate-300">
-              <p><span className="font-black text-slate-100">Time:</span> {formatTimeRange(selectedSession.startsAt, selectedSession.endsAt)}</p>
-              <p><span className="font-black text-slate-100">Team:</span> {selectedSession.team}</p>
-              <p><span className="font-black text-slate-100">Department:</span> {selectedSession.department}</p>
-              <p><span className="font-black text-slate-100">Attendance:</span> Planned</p>
-              <p><span className="font-black text-slate-100">Load:</span> Not reported yet</p>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => setSelectedSession(null)} className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Close</button>
-              <button type="button" onClick={() => setEditingSession(selectedSession)} className="rounded-xl border border-sky-500/70 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Edit</button>
+        <SessionDetailSheet
+          title={selectedSession.title}
+          startsAt={selectedSession.startsAt}
+          endsAt={selectedSession.endsAt}
+          teamName={selectedSession.team}
+          departmentName={selectedSession.department}
+          facilityName={selectedSession.facility}
+          facilityId={selectedSession.facility}
+          attendance={{ status: 'Planned' }}
+          load={{ status: 'Not reported yet' }}
+          actions={(
+            <>
+              <button type="button" onClick={() => { setSelectedSession(null); setEditingSession(selectedSession); }} className="rounded-xl border border-sky-500/70 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Edit</button>
               <button type="button" onClick={() => handleDeleteSession(selectedSession)} className="rounded-xl border border-red-500/60 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-950/30">Delete</button>
-            </div>
-          </section>
-        </div>
+            </>
+          )}
+          onClose={() => setSelectedSession(null)}
+        />
       ) : null}
 
       <DemoSessionComposer

@@ -107,7 +107,9 @@ Current behavior:
 - Draft sessions are confirmed or cancelled inside the draft card.
 - Existing sessions can be moved and resized in Edit mode.
 - Tapping a session opens a modal detail sheet.
-- Session details show time, facility, group targeting, attendance placeholder and load placeholder.
+- Session details use the shared `SessionDetailSheet`.
+- The sheet shows time, team/department context, compact per-session facility editing, participant scope, group targeting, attendance flags and load status.
+- The same sheet is used by the team calendar, facility calendars and department schedule so the session surface stays consistent across role contexts.
 
 Facility behavior:
 
@@ -275,7 +277,7 @@ Current parity expectations:
 
 ## Known current limitations
 
-1. Session details are still placeholders for attendance and load.
+1. Attendance and load data inside Session Details V1 is partially connected; team sessions show flags and reported-load counts, while facility/department views still show status-level summaries.
 2. Player invite/code flow is not implemented.
 3. Group insights are placeholders until load, attendance and playing-time data are joined.
 4. Custom coach roles currently inherit assistant-coach style behavior.
@@ -283,7 +285,7 @@ Current parity expectations:
 
 ## Next recommended slice
 
-Before building advanced attendance, first define Session Details V1:
+After Session Details V1, the next slice is advanced attendance:
 
 ```txt
 session status

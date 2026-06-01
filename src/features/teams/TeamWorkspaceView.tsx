@@ -7,6 +7,7 @@ import { LoadChart } from '@/features/load/AthleteLoadWorkspace';
 import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
 import { ACWR_ZONES, LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/features/load/loadTypes';
 import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
+import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 
 export type TeamWorkspaceRole = 'admin' | 'department_lead' | 'coach' | 'viewer';
 export type TeamWorkspaceSection = 'dashboard' | 'calendar' | 'players' | 'groups' | 'settings';
@@ -519,7 +520,49 @@ function TeamSmartCalendar({
   }, [canManageExistingSessions, data.contextSessions, data.departmentName, data.name, drag, localSessions]);
 
   const selectedSession = localSessions.find((session) => session.id === selectedSessionId) ?? null;
-  const selectedSessionFacilityTone = facilityTone(selectedSession?.facilityName ?? data.defaultFacilityName);
+  const selectedSessionPlayerIds = useMemo(() => {
+    if (!selectedSession || !selectedSession.groupIds?.length) return (data.players ?? []).map((player) => player.id);
+    const ids = new Set<string>();
+    for (const groupId of selectedSession.groupIds) {
+      const group = data.groups.find((item) => item.id === groupId);
+      for (const playerId of group?.playerIds ?? []) ids.add(playerId);
+    }
+    return Array.from(ids);
+  }, [data.groups, data.players, selectedSession]);
+  const selectedSessionPlayers = useMemo(
+    () => (data.players ?? []).filter((player) => selectedSessionPlayerIds.includes(player.id)),
+    [data.players, selectedSessionPlayerIds],
+  );
+  const selectedSessionAttendance = useMemo(() => {
+    if (!selectedSession) return undefined;
+    const notes = selectedSessionPlayers.flatMap((player) =>
+      (player.attendanceEvents ?? [])
+        .filter((event) => event.sessionId === selectedSession.id)
+        .map((event) => ({
+          id: `${player.id}-${event.sessionId}-${event.status}`,
+          name: player.name,
+          status: event.status,
+          detail: event.status === 'late' && event.lateMinutes ? `${event.lateMinutes} min` : event.reason,
+        })),
+    );
+    return {
+      expected: selectedSessionPlayers.length,
+      late: notes.filter((note) => note.status === 'late').length,
+      out: notes.filter((note) => note.status === 'out').length,
+      notes,
+    };
+  }, [selectedSession, selectedSessionPlayers]);
+  const selectedSessionLoad = useMemo(() => {
+    if (!selectedSession) return undefined;
+    const reported = selectedSessionPlayers.filter((player) => (player.loadEntries ?? []).some((entry) => entry.sessionId === selectedSession.id)).length;
+    const missing = Math.max(0, selectedSessionPlayers.length - reported);
+    return {
+      reported,
+      missing,
+      planned: selectedSessionPlayers.length,
+      status: reported > 0 ? `${reported}/${selectedSessionPlayers.length} reported` : 'Prepared',
+    };
+  }, [selectedSession, selectedSessionPlayers]);
 
   useEffect(() => {
     function updateDesktopScale() {
@@ -687,13 +730,6 @@ function TeamSmartCalendar({
     await onSessionGroupsChange(selectedSession.id, groupIds);
   }
 
-  function toggleSelectedSessionGroup(groupId: string) {
-    if (!selectedSession) return;
-    const currentGroupIds = selectedSession.groupIds ?? [];
-    const nextGroupIds = currentGroupIds.includes(groupId) ? currentGroupIds.filter((id) => id !== groupId) : [...currentGroupIds, groupId];
-    void handleSelectedSessionGroupsChange(nextGroupIds);
-  }
-
   useEffect(() => {
     if (!drag) return;
     const activeDrag = drag;
@@ -819,68 +855,26 @@ function TeamSmartCalendar({
       />
 
       {selectedSession ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/75 p-3 backdrop-blur-sm sm:items-center">
-          <section className="w-full max-w-lg rounded-3xl border border-slate-800 bg-slate-950 p-5 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Session details</p>
-                <h3 className="mt-2 text-2xl font-black text-white">{selectedSession.title}</h3>
-              </div>
-              <button type="button" onClick={() => setSelectedSessionId(null)} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Close</button>
-            </div>
-            <div className="mt-4 grid gap-2 text-sm text-slate-300">
-              <p><span className="font-black text-slate-100">Time:</span> {formatTimeRange(selectedSession.startsAt, selectedSession.endsAt)}</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-black text-slate-100">Facility:</span>
-                {canManageCalendar && onSessionFacilityChange && data.availableFacilities && data.availableFacilities.length > 0 ? (
-                  <select
-                    value={selectedSession.facilityId ?? data.defaultFacilityId ?? ''}
-                    onChange={(event) => { void handleSelectedSessionFacilityChange(event.target.value); }}
-                    disabled={isSavingSessionFacility}
-                    className={`max-w-44 rounded-lg border ${selectedSessionFacilityTone.border} bg-slate-950/90 px-2.5 py-1.5 text-xs font-black ${selectedSessionFacilityTone.text} outline-none ${selectedSessionFacilityTone.focus} disabled:opacity-60`}
-                  >
-                    <option value="">Select facility</option>
-                    {data.availableFacilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
-                  </select>
-                ) : (
-                  <span>{selectedSession.facilityName ?? data.defaultFacilityName ?? 'Facility not set'}</span>
-                )}
-              </div>
-              <p><span className="font-black text-slate-100">Attendance:</span> Prepared for check-in.</p>
-              <p><span className="font-black text-slate-100">Load:</span> Not reported yet.</p>
-              {data.groups.length > 0 ? (
-                <div className="mt-2 rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Groups</p>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      disabled={!onSessionGroupsChange}
-                      onClick={() => { void handleSelectedSessionGroupsChange([]); }}
-                      className={`rounded-full border px-2.5 py-1 text-xs font-black ${!selectedSession.groupIds?.length ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:text-white'} disabled:opacity-60`}
-                    >
-                      Whole team
-                    </button>
-                    {data.groups.map((group) => {
-                      const selected = Boolean(selectedSession.groupIds?.includes(group.id));
-                      return (
-                        <button
-                          key={group.id}
-                          type="button"
-                          disabled={!onSessionGroupsChange}
-                          onClick={() => toggleSelectedSessionGroup(group.id)}
-                          className={`rounded-full border px-2.5 py-1 text-xs font-black ${selected ? 'border-sky-300 bg-sky-950/50 text-sky-100' : 'border-slate-700 text-slate-300 hover:text-white'} disabled:opacity-60`}
-                        >
-                          {group.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-          </section>
-        </div>
+        <SessionDetailSheet
+          title={selectedSession.title}
+          startsAt={selectedSession.startsAt}
+          endsAt={selectedSession.endsAt}
+          teamName={data.name}
+          departmentName={data.departmentName}
+          facilityName={selectedSession.facilityName ?? data.defaultFacilityName}
+          facilityId={selectedSession.facilityId ?? data.defaultFacilityId}
+          facilityOptions={data.availableFacilities ?? []}
+          canEditFacility={canManageCalendar && Boolean(onSessionFacilityChange)}
+          isSavingFacility={isSavingSessionFacility}
+          onFacilityChange={handleSelectedSessionFacilityChange}
+          groups={data.groups.map((group) => ({ id: group.id, name: group.name, playerCount: group.playerCount }))}
+          selectedGroupIds={selectedSession.groupIds ?? []}
+          canEditGroups={canManageCalendar && Boolean(onSessionGroupsChange)}
+          onGroupsChange={handleSelectedSessionGroupsChange}
+          attendance={selectedSessionAttendance}
+          load={selectedSessionLoad}
+          onClose={() => setSelectedSessionId(null)}
+        />
       ) : null}
     </div>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 
 export type DepartmentScheduleSession = {
   id: string;
@@ -159,22 +160,16 @@ export function DepartmentScheduleCalendar({ sessions, teamOptions }: { sessions
         </div>
       </div>
       {activeSession ? (
-        <div className="fixed inset-0 z-50 grid place-items-end bg-black/65 p-3 backdrop-blur-sm sm:place-items-center" onClick={() => setActiveSession(null)}>
-          <section className="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-950 p-5 text-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Session</p>
-                <h3 className="mt-2 text-2xl font-black">{activeSession.title}</h3>
-              </div>
-              <button type="button" onClick={() => setActiveSession(null)} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-200">Close</button>
-            </div>
-            <div className="mt-5 grid gap-3 text-sm font-bold text-slate-300">
-              <p><span className="text-slate-500">Team</span><br />{activeSession.teamName}</p>
-              <p><span className="text-slate-500">Time</span><br />{formatTime(activeSession.startsAt)} - {formatTime(sessionEnd(activeSession).toISOString())}</p>
-              <p><span className="text-slate-500">Facility</span><br />{activeSession.facilityName ?? 'No facility set'}</p>
-            </div>
-          </section>
-        </div>
+        <SessionDetailSheet
+          title={activeSession.title}
+          startsAt={activeSession.startsAt}
+          endsAt={activeSession.endsAt}
+          teamName={activeSession.teamName}
+          facilityName={activeSession.facilityName}
+          attendance={{ status: 'Planned' }}
+          load={{ status: 'Not reported yet' }}
+          onClose={() => setActiveSession(null)}
+        />
       ) : null}
     </div>
   );
