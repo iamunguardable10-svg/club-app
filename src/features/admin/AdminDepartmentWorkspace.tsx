@@ -823,7 +823,7 @@ export function AdminDepartmentWorkspace({
             {departmentFacilities.map((facility) => (
               <Link
                 key={facility.id}
-                href={`/admin/facilities/${facility.id}/calendar?from=departments&departmentId=${currentDepartmentId}`}
+                href={`/admin/facilities/${facility.id}/calendar?from=${frame === 'department' ? 'department' : 'departments'}&departmentId=${currentDepartmentId}`}
                 className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300"
               >
                 <p className="font-black text-white">{facility.name}</p>

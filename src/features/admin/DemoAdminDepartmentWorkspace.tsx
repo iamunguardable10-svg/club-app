@@ -412,7 +412,7 @@ export function DemoAdminDepartmentWorkspace({
             {departmentFacilities.map((facilityName) => {
               const facility = facilityByName.get(facilityName);
               return (
-                <Link key={facilityName} href={`/demo/admin/facilities/${encodeFacilityName(facilityName)}/calendar?from=departments&departmentName=${encodeURIComponent(departmentName)}`} className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-emerald-400 hover:bg-emerald-950/20 active:border-emerald-300">
+                <Link key={facilityName} href={`/demo/admin/facilities/${encodeFacilityName(facilityName)}/calendar?from=${frame === 'department' ? 'department' : 'departments'}&departmentName=${encodeURIComponent(departmentName)}`} className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 transition hover:border-slate-500 hover:bg-slate-900 active:border-slate-400">
                   <p className="font-black text-white">{facilityName}</p>
                   <p className="mt-1 text-xs text-slate-500">{facility?.scope === 'department_only' ? 'Department-only hall' : 'Shared club facility'} · {facility?.address || 'No address'}</p>
                 </Link>

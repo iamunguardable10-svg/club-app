@@ -242,6 +242,12 @@ export function DemoTeamWorkspace({
     setSessions(nextSessions);
   }
 
+  function handleSessionGroupsChange(sessionId: string, groupIds: string[]) {
+    const nextSessions = sessions.map((session) => session.id === sessionId ? { ...session, groupIds } : session);
+    saveDemoSessions(nextSessions);
+    setSessions(nextSessions);
+  }
+
   function handleSessionCreate(startsAt: string, endsAt: string) {
     const team = teams.find((item) => item.id === teamId);
     const assignedFacilityNames = new Set(facilityAssignments.filter((assignment) => assignment.department === team?.department).map((assignment) => assignment.facility));
@@ -456,6 +462,7 @@ export function DemoTeamWorkspace({
         endsAt: session.endsAt,
         facilityId: session.facility,
         facilityName: session.facility,
+        groupIds: session.groupIds ?? [],
       })),
       contextSessions: contextSessions.map((session) => ({
         id: session.id,
@@ -510,6 +517,7 @@ export function DemoTeamWorkspace({
         onSessionTimeChange={handleSessionTimeChange}
         onSessionCreate={handleSessionCreate}
         onSessionFacilityChange={handleSessionFacilityChange}
+        onSessionGroupsChange={handleSessionGroupsChange}
         onAddDemoPlayers={handleAddDemoPlayers}
         onInviteStaff={handleInviteStaff}
         onCopyStaffInvite={handleCopyStaffInvite}

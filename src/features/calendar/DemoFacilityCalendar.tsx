@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEve
 import { DemoSessionComposer } from '@/features/sessions/DemoSessionComposer';
 import type { SessionComposerPayload } from '@/features/sessions/SessionComposer';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
+import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
 import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoSessions, type DemoSession } from '@/shared/dev/demoStorage';
 
 type DemoFacilityCalendarProps = {
@@ -338,7 +339,9 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
   }
 
   const backTarget =
-    from === 'departments'
+    from === 'department'
+      ? { href: '/demo/department/facilities', label: 'Back to facilities' }
+      : from === 'departments'
       ? { href: '/demo/admin/departments', label: 'Back to local departments' }
       : from === 'overview'
         ? { href: '/demo/admin/overview', label: 'Back to local overview' }
@@ -436,6 +439,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-8">
+      {from === 'department' ? <DepartmentLeadDrawer mode="facilities" basePath="/demo/department" departmentName={departmentName} /> : null}
       <div className="mx-auto max-w-7xl space-y-5">
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.22)] ring-1 ring-white/[0.03]">
           <Link href={backTarget.href} className="text-sm font-black text-slate-300 hover:text-white">{backTarget.label}</Link>

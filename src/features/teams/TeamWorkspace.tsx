@@ -18,6 +18,7 @@ type Invite = { id: string; token: string; role: 'head_coach' | 'assistant_coach
 type CoachRoleSlot = { id: string; label: string };
 type PlayerGroup = { id: string; name: string };
 type PlayerGroupMember = { group_id: string; team_membership_id: string };
+type SessionGroup = { session_id: string; group_id: string };
 type AvailabilityRow = {
   session_id: string;
   user_id: string;
@@ -93,6 +94,7 @@ export function TeamWorkspace({
   const [coachRoleSlots, setCoachRoleSlots] = useState<CoachRoleSlot[]>([]);
   const [playerGroups, setPlayerGroups] = useState<PlayerGroup[]>([]);
   const [playerGroupMembers, setPlayerGroupMembers] = useState<PlayerGroupMember[]>([]);
+  const [sessionGroups, setSessionGroups] = useState<SessionGroup[]>([]);
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [departmentFacilityIds, setDepartmentFacilityIds] = useState<string[]>([]);
   const [loadEntries, setLoadEntries] = useState<PlayerLoadEntry[]>([]);
@@ -157,7 +159,9 @@ export function TeamWorkspace({
 
       const loadedMemberships = (membershipsResult.data ?? []) as Membership[];
       const loadedPlayerGroups = (playerGroupsResult.data ?? []) as PlayerGroup[];
+      const loadedSessions = (sessionsResult.data ?? []) as Session[];
       let loadedPlayerGroupMembers: PlayerGroupMember[] = [];
+      let loadedSessionGroups: SessionGroup[] = [];
       if (loadedPlayerGroups.length > 0) {
         const { data: memberRows, error: memberRowsError } = await supabase
           .from('player_group_members')
@@ -169,6 +173,18 @@ export function TeamWorkspace({
           return;
         }
         loadedPlayerGroupMembers = (memberRows ?? []) as PlayerGroupMember[];
+      }
+      if (loadedSessions.length > 0) {
+        const { data: sessionGroupRows, error: sessionGroupError } = await supabase
+          .from('session_groups')
+          .select('session_id, group_id')
+          .in('session_id', loadedSessions.map((session) => session.id));
+        if (sessionGroupError) {
+          setError(sessionGroupError.message);
+          setState('error');
+          return;
+        }
+        loadedSessionGroups = (sessionGroupRows ?? []) as SessionGroup[];
       }
       const profileIds = Array.from(new Set(loadedMemberships.filter((membership) => membership.user_id).map((membership) => membership.user_id)));
       let loadedProfiles: Profile[] = [];
@@ -238,12 +254,13 @@ export function TeamWorkspace({
       setFacility((facilityResult.data as Facility | null) ?? null);
       setMemberships(loadedMemberships);
       setClubMemberships((clubMembershipsResult.data ?? []) as ClubMembership[]);
-      setSessions((sessionsResult.data ?? []) as Session[]);
+      setSessions(loadedSessions);
       setContextSessions((contextSessionsResult.data ?? []) as Session[]);
       setInvites((invitesResult.data ?? []) as Invite[]);
       setCoachRoleSlots((coachRoleSlotsResult.data ?? []) as CoachRoleSlot[]);
       setPlayerGroups(loadedPlayerGroups);
       setPlayerGroupMembers(loadedPlayerGroupMembers);
+      setSessionGroups(loadedSessionGroups);
       setFacilities((facilitiesResult.data ?? []) as Facility[]);
       setDepartmentFacilityIds(((departmentFacilitiesResult.data ?? []) as { facility_id: string }[]).map((item) => item.facility_id));
       setProfiles(loadedProfiles);
@@ -409,6 +426,28 @@ export function TeamWorkspace({
     setInvites((current) => current.filter((invite) => invite.coach_role_slot_id !== coachRoleSlotId));
   }
 
+  async function handleSessionGroupsChange(sessionId: string, groupIds: string[]) {
+    const supabase = createBrowserSupabaseClient();
+    const { error: deleteError } = await supabase.from('session_groups').delete().eq('session_id', sessionId);
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+    if (groupIds.length > 0) {
+      const { error: insertError } = await supabase
+        .from('session_groups')
+        .insert(groupIds.map((groupId) => ({ session_id: sessionId, group_id: groupId })));
+      if (insertError) {
+        setError(insertError.message);
+        return;
+      }
+    }
+    setSessionGroups((current) => [
+      ...current.filter((row) => row.session_id !== sessionId),
+      ...groupIds.map((groupId) => ({ session_id: sessionId, group_id: groupId })),
+    ]);
+  }
+
   async function handleAddGroup(name: string) {
     if (!team) return;
     const supabase = createBrowserSupabaseClient();
@@ -547,6 +586,7 @@ export function TeamWorkspace({
         endsAt: session.ends_at,
         facilityId: session.facility_id,
         facilityName: session.facility_id ? facilityById.get(session.facility_id)?.name ?? null : null,
+        groupIds: sessionGroups.filter((row) => row.session_id === session.id).map((row) => row.group_id),
       })),
       contextSessions: contextSessions.map((session) => ({
         id: session.id,
@@ -574,7 +614,7 @@ export function TeamWorkspace({
       calendarHref: team.default_facility_id ? `/admin/facilities/${team.default_facility_id}/calendar?from=team&teamId=${team.id}&departmentId=${team.department_id}` : null,
       staffHref: frame === 'department' ? `/department/coaches?departmentId=${team.department_id}` : `/admin/people?department=${team.department_id}&team=${team.id}`,
     };
-  }, [availabilityRows, backHref, backLabel, clubMemberships, coachRoleSlots, contextSessions, currentUserId, department, departmentFacilityIds, facilities, facility, facilityById, frame, invites, loadEntries, memberships, playerGroupMembers, playerGroups, profileById, sessions, team]);
+  }, [availabilityRows, backHref, backLabel, clubMemberships, coachRoleSlots, contextSessions, currentUserId, department, departmentFacilityIds, facilities, facility, facilityById, frame, invites, loadEntries, memberships, playerGroupMembers, playerGroups, profileById, sessionGroups, sessions, team]);
 
   if (state === 'loading') return <TeamWorkspaceFrame frame={frame}><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">Loading team...</section></TeamWorkspaceFrame>;
   if (state === 'error') return <TeamWorkspaceFrame frame={frame}><section className="rounded-3xl border border-red-500/40 bg-red-950/20 p-6 text-red-100">{error}</section></TeamWorkspaceFrame>;
@@ -589,6 +629,7 @@ export function TeamWorkspace({
         onSessionTimeChange={handleSessionTimeChange}
         onSessionCreate={handleSessionCreate}
         onSessionFacilityChange={handleSessionFacilityChange}
+        onSessionGroupsChange={handleSessionGroupsChange}
         onInviteStaff={handleInviteStaff}
         onCopyStaffInvite={handleCopyStaffInvite}
         onRevokeStaffInvite={handleRevokeStaffInvite}

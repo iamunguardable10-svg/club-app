@@ -35,6 +35,7 @@ export type DemoSession = {
   startsAt: string;
   endsAt: string;
   facility: string | null;
+  groupIds?: string[];
   createdAt: string;
 };
 

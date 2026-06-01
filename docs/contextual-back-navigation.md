@@ -21,12 +21,15 @@ Facility calendar routes now support a `from` query parameter:
 ```txt
 /admin/facilities/[facilityId]/calendar?from=departments
 /demo/admin/facilities/[facilityName]/calendar?from=departments
+/admin/facilities/[facilityId]/calendar?from=department&departmentId=...
+/demo/admin/facilities/[facilityName]/calendar?from=department&departmentName=...
 ```
 
 Back-link behavior:
 
 ```txt
 from=departments → back to Departments
+from=department  → back to the department lead Facilities surface
 from=overview    → back to Overview
 missing/unknown  → back to Facilities
 ```
@@ -45,6 +48,8 @@ This means:
 ```txt
 Department card → Facility chip → Facility calendar → Back to Departments
 ```
+
+Department-lead facility cards use `from=department`, so the facility calendar keeps the department drawer visible and returns to the scoped department facilities page instead of leaking back into Admin.
 
 ## Why not only router.back()
 

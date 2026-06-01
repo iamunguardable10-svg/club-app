@@ -107,7 +107,7 @@ Current behavior:
 - Draft sessions are confirmed or cancelled inside the draft card.
 - Existing sessions can be moved and resized in Edit mode.
 - Tapping a session opens a modal detail sheet.
-- Session details currently show time, facility, attendance placeholder and load placeholder.
+- Session details show time, facility, group targeting, attendance placeholder and load placeholder.
 
 Facility behavior:
 
@@ -168,7 +168,7 @@ Bench unit
 Rehab
 ```
 
-Real mode currently shows placeholders.
+Real mode stores groups in Supabase through `player_groups` and player assignments through `player_group_members`.
 
 Product rule:
 
@@ -178,12 +178,24 @@ Groups belong to a team, not globally to a department.
 
 If a coach manages multiple teams, the coach manages separate groups inside each team.
 
-Future group jobs:
+Current behavior:
 
 - create/edit/delete groups
 - assign players to groups
-- target sessions to groups
+- view group cards without member-management clutter
+- switch into explicit Edit groups mode for create/delete/member assignment
+- tap a group card for the future insight surface
+- target sessions to groups from the team calendar session detail modal
+
+Future group insight jobs:
+
+- average load
+- playing time
+- attendance pattern
+- quick player analysis
 - combine group targeting with individual player targeting
+
+Session group targeting is stored in `session_groups` in standard mode and on `DemoSession.groupIds` in demo mode.
 
 ### Staff / Settings
 
@@ -257,6 +269,7 @@ Current parity expectations:
 - staff invite state exists in both
 - default facility selector exists in both
 - per-session facility selector exists in both
+- per-session group selector exists in both
 - parent/back context exists in both
 - demo uses localStorage, standard uses Supabase
 
@@ -264,10 +277,9 @@ Current parity expectations:
 
 1. Session details are still placeholders for attendance and load.
 2. Player invite/code flow is not implemented.
-3. Real player/group model is not fully implemented yet.
-4. Session group targeting is not implemented yet.
-5. Custom coach roles currently inherit assistant-coach style behavior.
-6. Facility conflict handling is still visual/contextual, not a hard scheduling conflict system.
+3. Group insights are placeholders until load, attendance and playing-time data are joined.
+4. Custom coach roles currently inherit assistant-coach style behavior.
+5. Facility conflict handling is still visual/contextual, not a hard scheduling conflict system.
 
 ## Next recommended slice
 
@@ -290,4 +302,3 @@ coach dashboard
 team calendar modal
 future athlete view
 ```
-

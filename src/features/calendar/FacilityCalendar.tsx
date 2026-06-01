@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEve
 import { useRouter } from 'next/navigation';
 import { SessionComposer, type SessionComposerPayload } from '@/features/sessions/SessionComposer';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
+import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 
 type Facility = { id: string; club_id: string; name: string; address: string | null };
@@ -456,7 +457,9 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
   }, [draft, drag]);
 
   const backTarget =
-    from === 'departments'
+    from === 'department'
+      ? { href: `/department/facilities${departmentId ? `?departmentId=${departmentId}` : ''}`, label: 'Back to facilities' }
+      : from === 'departments'
       ? { href: '/admin/departments', label: 'Back to departments' }
       : from === 'overview'
         ? { href: '/admin/overview', label: 'Back to overview' }
@@ -614,6 +617,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-8">
+      {from === 'department' ? <DepartmentLeadDrawer mode="facilities" basePath="/department" departmentId={departmentId} departmentName={highlightedDepartment?.name} /> : null}
       <div className="mx-auto max-w-7xl space-y-5">
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.22)] ring-1 ring-white/[0.03]">
           <Link href={backTarget.href} className="text-sm font-black text-slate-300 hover:text-white">{backTarget.label}</Link>

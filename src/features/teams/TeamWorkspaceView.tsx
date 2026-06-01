@@ -18,6 +18,7 @@ export type TeamWorkspaceSession = {
   endsAt: string | null;
   facilityId?: string | null;
   facilityName?: string | null;
+  groupIds?: string[];
 };
 
 export type TeamWorkspaceStaff = {
@@ -442,11 +443,13 @@ function TeamSmartCalendar({
   onSessionTimeChange,
   onSessionCreate,
   onSessionFacilityChange,
+  onSessionGroupsChange,
 }: {
   data: TeamWorkspaceData;
   onSessionTimeChange?: (sessionId: string, startsAt: string, endsAt: string) => void | Promise<void>;
   onSessionCreate?: (startsAt: string, endsAt: string) => void | Promise<void>;
   onSessionFacilityChange?: (sessionId: string, facilityId: string) => void | Promise<void>;
+  onSessionGroupsChange?: (sessionId: string, groupIds: string[]) => void | Promise<void>;
 }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const days = useMemo(() => buildWeekDays(weekOffset), [weekOffset]);
@@ -676,6 +679,21 @@ function TeamSmartCalendar({
     }
   }
 
+  async function handleSelectedSessionGroupsChange(groupIds: string[]) {
+    if (!selectedSession || !onSessionGroupsChange) return;
+    setLocalSessions((current) =>
+      current.map((session) => (session.id === selectedSession.id ? { ...session, groupIds } : session)),
+    );
+    await onSessionGroupsChange(selectedSession.id, groupIds);
+  }
+
+  function toggleSelectedSessionGroup(groupId: string) {
+    if (!selectedSession) return;
+    const currentGroupIds = selectedSession.groupIds ?? [];
+    const nextGroupIds = currentGroupIds.includes(groupId) ? currentGroupIds.filter((id) => id !== groupId) : [...currentGroupIds, groupId];
+    void handleSelectedSessionGroupsChange(nextGroupIds);
+  }
+
   useEffect(() => {
     if (!drag) return;
     const activeDrag = drag;
@@ -830,6 +848,35 @@ function TeamSmartCalendar({
               </div>
               <p><span className="font-black text-slate-100">Attendance:</span> Prepared for check-in.</p>
               <p><span className="font-black text-slate-100">Load:</span> Not reported yet.</p>
+              {data.groups.length > 0 ? (
+                <div className="mt-2 rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Groups</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      disabled={!onSessionGroupsChange}
+                      onClick={() => { void handleSelectedSessionGroupsChange([]); }}
+                      className={`rounded-full border px-2.5 py-1 text-xs font-black ${!selectedSession.groupIds?.length ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:text-white'} disabled:opacity-60`}
+                    >
+                      Whole team
+                    </button>
+                    {data.groups.map((group) => {
+                      const selected = Boolean(selectedSession.groupIds?.includes(group.id));
+                      return (
+                        <button
+                          key={group.id}
+                          type="button"
+                          disabled={!onSessionGroupsChange}
+                          onClick={() => toggleSelectedSessionGroup(group.id)}
+                          className={`rounded-full border px-2.5 py-1 text-xs font-black ${selected ? 'border-sky-300 bg-sky-950/50 text-sky-100' : 'border-slate-700 text-slate-300 hover:text-white'} disabled:opacity-60`}
+                        >
+                          {group.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
             </div>
 
           </section>
@@ -846,6 +893,7 @@ export function TeamWorkspaceView({
   onSessionTimeChange,
   onSessionCreate,
   onSessionFacilityChange,
+  onSessionGroupsChange,
   onAddDemoPlayers,
   onInviteStaff,
   onCopyStaffInvite,
@@ -862,6 +910,7 @@ export function TeamWorkspaceView({
   onSessionTimeChange?: (sessionId: string, startsAt: string, endsAt: string) => void | Promise<void>;
   onSessionCreate?: (startsAt: string, endsAt: string) => void | Promise<void>;
   onSessionFacilityChange?: (sessionId: string, facilityId: string) => void | Promise<void>;
+  onSessionGroupsChange?: (sessionId: string, groupIds: string[]) => void | Promise<void>;
   onAddDemoPlayers?: () => void | Promise<void>;
   onInviteStaff?: (role: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) => void | Promise<void>;
   onCopyStaffInvite?: (token: string) => void | Promise<void>;
@@ -891,6 +940,13 @@ export function TeamWorkspaceView({
   ] satisfies TeamWorkspaceStaffRole[];
   const [newCoachRoleLabel, setNewCoachRoleLabel] = useState('');
   const [newGroupName, setNewGroupName] = useState('');
+  const [isGroupEditMode, setIsGroupEditMode] = useState(false);
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  const activeGroup = useMemo(() => data.groups.find((group) => group.id === activeGroupId) ?? null, [activeGroupId, data.groups]);
+  const activeGroupPlayers = useMemo(() => {
+    if (!activeGroup) return [];
+    return players.filter((player) => activeGroup.playerIds?.includes(player.id) || player.groups?.includes(activeGroup.id) || player.groups?.includes(activeGroup.name));
+  }, [activeGroup, players]);
   const nextSession = useMemo(() => {
     const now = Date.now();
     return [...data.sessions].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()).find((session) => new Date(session.startsAt).getTime() >= now) ?? data.sessions[0];
@@ -1042,7 +1098,7 @@ export function TeamWorkspaceView({
               <h2 className="mt-2 text-2xl font-black">Sessions for {data.name}</h2>
             </div>
           </div>
-          <TeamSmartCalendar data={data} onSessionTimeChange={onSessionTimeChange} onSessionCreate={onSessionCreate} onSessionFacilityChange={onSessionFacilityChange} />
+          <TeamSmartCalendar data={data} onSessionTimeChange={onSessionTimeChange} onSessionCreate={onSessionCreate} onSessionFacilityChange={onSessionFacilityChange} onSessionGroupsChange={onSessionGroupsChange} />
           {data.sessions.length === 0 ? <div className="mt-5"><EmptyCard title="No team sessions yet" /></div> : null}
         </section>
       ) : null}
@@ -1100,41 +1156,61 @@ export function TeamWorkspaceView({
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Team internal</p>
               <h2 className="mt-2 text-2xl font-black">Groups</h2>
             </div>
-            {onAddGroup ? (
-              <div className="flex w-full max-w-md gap-2 sm:w-auto">
-                <input
-                  value={newGroupName}
-                  onChange={(event) => setNewGroupName(event.target.value)}
-                  placeholder="e.g. Starting Five"
-                  className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm font-bold text-slate-100 outline-none focus:border-sky-300"
-                />
-                <button type="button" onClick={handleAddGroup} className="rounded-xl border border-sky-500/50 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/35">
-                  Add
+            <div className="flex flex-wrap items-center gap-2">
+              {(onAddGroup || onRemoveGroup || onTogglePlayerGroup) ? (
+                <button
+                  type="button"
+                  onClick={() => setIsGroupEditMode((current) => !current)}
+                  className={`rounded-xl border px-4 py-2 text-xs font-black transition ${isGroupEditMode ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-200 hover:bg-slate-900'}`}
+                >
+                  {isGroupEditMode ? 'Done' : 'Edit groups'}
                 </button>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
+          {isGroupEditMode && onAddGroup ? (
+            <div className="mt-4 flex w-full max-w-md gap-2">
+              <input
+                value={newGroupName}
+                onChange={(event) => setNewGroupName(event.target.value)}
+                placeholder="e.g. Starting Five"
+                className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm font-bold text-slate-100 outline-none focus:border-sky-300"
+              />
+              <button type="button" onClick={handleAddGroup} className="rounded-xl border border-sky-500/50 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/35">
+                Add
+              </button>
+            </div>
+          ) : null}
           <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {data.groups.map((group) => (
-              <div key={group.id} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+            {data.groups.map((group) => {
+              const groupPlayers = players.filter((player) => group.playerIds?.includes(player.id) || player.groups?.includes(group.id) || player.groups?.includes(group.name));
+              return (
+              <article
+                key={group.id}
+                onClick={!isGroupEditMode ? () => setActiveGroupId(group.id) : undefined}
+                className={`rounded-2xl border border-slate-800 bg-slate-900/50 p-4 transition ${!isGroupEditMode ? 'cursor-pointer hover:border-emerald-300/50 hover:bg-slate-900' : ''}`}
+              >
                 <div className="flex items-start justify-between gap-3">
-                  <p className="font-black">{group.name}</p>
-                  {onRemoveGroup ? (
+                  <div>
+                    <p className="font-black">{group.name}</p>
+                    <p className="mt-1 text-xs font-black text-slate-500">{group.playerCount} players</p>
+                  </div>
+                  {isGroupEditMode && onRemoveGroup ? (
                     <button type="button" onClick={() => onRemoveGroup(group.id)} className="rounded-lg border border-red-500/40 px-2 py-1 text-[10px] font-black text-red-100 hover:bg-red-950/30">
                       Remove
                     </button>
                   ) : null}
                 </div>
-                <p className="mt-1 text-sm text-slate-400">{group.description}</p>
-                <p className="mt-3 text-xs font-black text-slate-500">{group.playerCount} players</p>
-                {players.filter((player) => player.groups?.includes(group.id) || player.groups?.includes(group.name)).length > 0 ? (
+                <p className="mt-3 text-sm text-slate-400">{isGroupEditMode ? 'Select team members for this group.' : 'Tap for group insights.'}</p>
+                {groupPlayers.length > 0 ? (
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    {players.filter((player) => player.groups?.includes(group.id) || player.groups?.includes(group.name)).slice(0, 6).map((player) => (
+                    {groupPlayers.slice(0, 6).map((player) => (
                       <span key={player.id} className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-bold text-slate-300">{player.name}</span>
                     ))}
+                    {groupPlayers.length > 6 ? <span className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-bold text-slate-500">+{groupPlayers.length - 6}</span> : null}
                   </div>
                 ) : null}
-                {players.length > 0 && onTogglePlayerGroup ? (
+                {isGroupEditMode && players.length > 0 && onTogglePlayerGroup ? (
                   <div className="mt-4 border-t border-slate-800 pt-3">
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Members</p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
@@ -1154,11 +1230,51 @@ export function TeamWorkspaceView({
                     </div>
                   </div>
                 ) : null}
-              </div>
-            ))}
+              </article>
+              );
+            })}
             {data.groups.length === 0 ? <EmptyCard title="No groups yet" /> : null}
           </div>
         </section>
+      ) : null}
+
+      {activeGroup ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/75 p-3 backdrop-blur-sm sm:items-center">
+          <section className="w-full max-w-lg rounded-3xl border border-slate-800 bg-slate-950 p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Group insight</p>
+                <h3 className="mt-2 text-2xl font-black text-white">{activeGroup.name}</h3>
+              </div>
+              <button type="button" onClick={() => setActiveGroupId(null)} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Close</button>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avg load</p>
+                <p className="mt-2 text-lg font-black text-slate-100">Prepared</p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Minutes</p>
+                <p className="mt-2 text-lg font-black text-slate-100">Soon</p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Players</p>
+                <p className="mt-2 text-lg font-black text-slate-100">{activeGroupPlayers.length}</p>
+              </div>
+            </div>
+            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
+              <p className="text-sm font-black text-slate-100">Quick analysis</p>
+              <p className="mt-1 text-sm text-slate-400">Load, attendance and playing-time patterns will sit here once those signals are connected.</p>
+              {activeGroupPlayers.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {activeGroupPlayers.map((player) => (
+                    <span key={player.id} className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-bold text-slate-300">{player.name}</span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </section>
+        </div>
       ) : null}
 
       {activeSection === 'settings' ? (

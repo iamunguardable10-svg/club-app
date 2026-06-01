@@ -28,10 +28,10 @@ export function DepartmentLeadDrawer({
 
   return (
     <details className="fixed left-3 top-3 z-[70] text-white">
-      <summary className="grid h-11 w-11 cursor-pointer list-none place-items-center rounded-2xl border border-slate-700/90 bg-slate-950/92 text-lg font-black shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur transition hover:border-slate-500 [&::-webkit-details-marker]:hidden">
+      <summary className="grid h-11 w-11 cursor-pointer list-none place-items-center rounded-2xl border border-white/10 bg-slate-950/58 text-lg font-black shadow-[0_18px_60px_rgba(0,0,0,0.30)] ring-1 ring-white/[0.05] backdrop-blur-xl transition hover:border-white/20 hover:bg-slate-900/68 [&::-webkit-details-marker]:hidden">
         ☰
       </summary>
-      <nav className="mt-2 w-60 rounded-3xl border border-slate-800 bg-slate-950/96 p-2 shadow-2xl ring-1 ring-white/[0.03] backdrop-blur">
+      <nav className="mt-2 w-60 rounded-3xl border border-white/10 bg-slate-950/86 p-2 shadow-2xl ring-1 ring-white/[0.05] backdrop-blur-xl">
         <div className="px-3 py-2">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Department OS</p>
           {departmentName ? <p className="mt-1 truncate text-sm font-black text-slate-100">{departmentName}</p> : null}
