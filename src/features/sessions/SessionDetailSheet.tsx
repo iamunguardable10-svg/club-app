@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 export type SessionDetailGroup = {
   id: string;
@@ -32,6 +32,13 @@ export type SessionDetailLoad = {
   missing?: number;
   planned?: number;
   status?: string;
+};
+
+export type SessionDetailLoadRisk = {
+  id: string;
+  name: string;
+  status: 'high' | 'low';
+  detail?: string | null;
 };
 
 function formatTimeRange(startsAt: string, endsAt: string | null) {
@@ -79,6 +86,8 @@ export function SessionDetailSheet({
   onGroupsChange,
   attendance,
   load,
+  loadRisks = [],
+  editDetails,
   actions,
   onClose,
 }: {
@@ -99,10 +108,13 @@ export function SessionDetailSheet({
   onGroupsChange?: (groupIds: string[]) => void | Promise<void>;
   attendance?: SessionDetailAttendance;
   load?: SessionDetailLoad;
+  loadRisks?: SessionDetailLoadRisk[];
+  editDetails?: ReactNode;
   actions?: ReactNode;
   onClose: () => void;
 }) {
   const wholeTeamSelected = selectedGroupIds.length === 0;
+  const [showEditDetails, setShowEditDetails] = useState(false);
 
   function toggleGroup(groupId: string) {
     if (!onGroupsChange) return;
@@ -201,6 +213,33 @@ export function SessionDetailSheet({
                 </div>
               ))}
             </div>
+          </div>
+        ) : null}
+
+        {loadRisks.length > 0 ? (
+          <div className="mt-3 rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Load risks</p>
+            <div className="mt-3 grid gap-2">
+              {loadRisks.map((risk) => (
+                <div key={risk.id} className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm font-bold ${risk.status === 'high' ? 'border-rose-400/30 bg-rose-400/10' : 'border-sky-400/30 bg-sky-400/10'}`}>
+                  <span className="text-slate-100">{risk.name}</span>
+                  <span className={risk.status === 'high' ? 'text-rose-200' : 'text-sky-200'}>{risk.status === 'high' ? 'High load' : 'Low load'}{risk.detail ? ` · ${risk.detail}` : ''}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {editDetails ? (
+          <div className="mt-3 rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
+            <button
+              type="button"
+              onClick={() => setShowEditDetails((current) => !current)}
+              className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/35"
+            >
+              {showEditDetails ? 'Hide edit' : 'Edit session'}
+            </button>
+            {showEditDetails ? <div className="mt-4">{editDetails}</div> : null}
           </div>
         ) : null}
 

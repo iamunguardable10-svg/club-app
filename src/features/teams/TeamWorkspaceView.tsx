@@ -198,6 +198,23 @@ function acwrDisplayLabel(summary: ReturnType<typeof playerLoadSummary>) {
   return summary.zone.tone === 'neutral' ? 'Building trend' : summary.zone.label;
 }
 
+function loadRiskLine(player: TeamWorkspacePlayer) {
+  const summary = playerLoadSummary(player);
+  if (summary.zone.tone !== 'high' && summary.zone.tone !== 'low') return null;
+  return {
+    id: player.id,
+    name: player.name,
+    status: summary.zone.tone,
+    detail: summary.acwr !== null ? `${summary.acwr.toFixed(2)} ACWR` : null,
+  };
+}
+
+function averageMinutes(entries: AthleteLoadEntry[], predicate: (entry: AthleteLoadEntry) => boolean) {
+  const relevant = entries.filter(predicate);
+  if (relevant.length === 0) return null;
+  return Math.round(relevant.reduce((sum, entry) => sum + entry.durationMinutes, 0) / relevant.length);
+}
+
 function ewmaLoadForTargetRatio(acuteLoad: number, chronicLoad: number, targetRatio: number) {
   const acuteLambda = 2 / (7 + 1);
   const chronicLambda = 2 / (28 + 1);
@@ -283,6 +300,8 @@ function PlayerLoadDetail({
     return acc;
   }, {})).sort((a, b) => b[1] - a[1]);
   const attendanceLabel = player.attendanceRate ? `${player.attendanceRate}%` : filteredAttendance.length === 0 ? 'Clean' : `${filteredAttendance.length} flags`;
+  const avgGameMinutes = averageMinutes(recentEntries, (entry) => entry.trainingType === 'game');
+  const avgTrainingMinutes = averageMinutes(recentEntries, (entry) => entry.trainingType !== 'game' && entry.trainingType !== 'recovery');
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-slate-950/80 px-3 pb-3 pt-8 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
@@ -341,6 +360,17 @@ function PlayerLoadDetail({
                     {event.reason ? <p className="mt-2 text-xs font-bold text-slate-300">{event.reason}</p> : null}
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avg game minutes</p>
+                <p className="mt-2 text-2xl font-black text-white">{avgGameMinutes === null ? '—' : `${avgGameMinutes} min`}</p>
+              </div>
+              <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avg training minutes</p>
+                <p className="mt-2 text-2xl font-black text-white">{avgTrainingMinutes === null ? '—' : `${avgTrainingMinutes} min`}</p>
               </div>
             </div>
           </div>
@@ -563,6 +593,10 @@ function TeamSmartCalendar({
       status: reported > 0 ? `${reported}/${selectedSessionPlayers.length} reported` : 'Prepared',
     };
   }, [selectedSession, selectedSessionPlayers]);
+  const selectedSessionLoadRisks = useMemo(
+    () => selectedSessionPlayers.map(loadRiskLine).filter(Boolean) as { id: string; name: string; status: 'high' | 'low'; detail: string | null }[],
+    [selectedSessionPlayers],
+  );
 
   useEffect(() => {
     function updateDesktopScale() {
@@ -873,6 +907,13 @@ function TeamSmartCalendar({
           onGroupsChange={handleSelectedSessionGroupsChange}
           attendance={selectedSessionAttendance}
           load={selectedSessionLoad}
+          loadRisks={selectedSessionLoadRisks}
+          editDetails={canManageCalendar ? (
+            <div className="space-y-2 text-sm font-bold text-slate-300">
+              <p>Move or resize the session in calendar edit mode.</p>
+              <p>Facility and selected groups can be changed directly in this sheet.</p>
+            </div>
+          ) : null}
           onClose={() => setSelectedSessionId(null)}
         />
       ) : null}
@@ -941,6 +982,25 @@ export function TeamWorkspaceView({
     if (!activeGroup) return [];
     return players.filter((player) => activeGroup.playerIds?.includes(player.id) || player.groups?.includes(activeGroup.id) || player.groups?.includes(activeGroup.name));
   }, [activeGroup, players]);
+  const activeGroupLoadFlags = useMemo(
+    () => activeGroupPlayers.map(loadRiskLine).filter(Boolean) as { id: string; name: string; status: 'high' | 'low'; detail: string | null }[],
+    [activeGroupPlayers],
+  );
+  const activeGroupAttendanceFlags = useMemo(
+    () => activeGroupPlayers.flatMap((player) =>
+      (player.attendanceEvents ?? [])
+        .filter((event) => event.status === 'out' || event.status === 'late')
+        .slice(0, 2)
+        .map((event) => ({
+          id: `${player.id}-${event.sessionId}-${event.status}`,
+          name: player.name,
+          status: event.status,
+          detail: event.status === 'late' && event.lateMinutes ? `${event.lateMinutes}m late` : event.reason ?? null,
+          title: event.title,
+        })),
+    ),
+    [activeGroupPlayers],
+  );
   const nextSession = useMemo(() => {
     const now = Date.now();
     return [...data.sessions].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()).find((session) => new Date(session.startsAt).getTime() >= now) ?? data.sessions[0];
@@ -1178,6 +1238,13 @@ export function TeamWorkspaceView({
           <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {data.groups.map((group) => {
               const groupPlayers = players.filter((player) => group.playerIds?.includes(player.id) || player.groups?.includes(group.id) || player.groups?.includes(group.name));
+              const loadFlags = groupPlayers.map(loadRiskLine).filter(Boolean) as { id: string; name: string; status: 'high' | 'low'; detail: string | null }[];
+              const attendanceFlags = groupPlayers.flatMap((player) =>
+                (player.attendanceEvents ?? [])
+                  .filter((event) => event.status === 'out' || event.status === 'late')
+                  .slice(0, 1)
+                  .map((event) => ({ id: `${player.id}-${event.sessionId}-${event.status}`, name: player.name, status: event.status, detail: event.status === 'late' && event.lateMinutes ? `${event.lateMinutes}m late` : event.reason ?? 'Out' })),
+              );
               return (
               <article
                 key={group.id}
@@ -1187,7 +1254,7 @@ export function TeamWorkspaceView({
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-black">{group.name}</p>
-                    <p className="mt-1 text-xs font-black text-slate-500">{group.playerCount} players</p>
+                    <p className="mt-1 text-xs font-black text-slate-500">{loadFlags.length || attendanceFlags.length ? 'Needs attention' : 'No current flags'}</p>
                   </div>
                   {isGroupEditMode && onRemoveGroup ? (
                     <button type="button" onClick={() => onRemoveGroup(group.id)} className="rounded-lg border border-red-500/40 px-2 py-1 text-[10px] font-black text-red-100 hover:bg-red-950/30">
@@ -1195,7 +1262,15 @@ export function TeamWorkspaceView({
                     </button>
                   ) : null}
                 </div>
-                <p className="mt-3 text-sm text-slate-400">{isGroupEditMode ? 'Select team members for this group.' : 'Tap for group insights.'}</p>
+                <div className="mt-3 space-y-2 text-xs font-bold">
+                  {loadFlags.slice(0, 3).map((flag) => (
+                    <p key={flag.id} className={flag.status === 'high' ? 'text-rose-200' : 'text-sky-200'}>{flag.status === 'high' ? 'High load' : 'Low load'} · {flag.name}{flag.detail ? ` · ${flag.detail}` : ''}</p>
+                  ))}
+                  {attendanceFlags.slice(0, 2).map((flag) => (
+                    <p key={flag.id} className={flag.status === 'out' ? 'text-rose-200' : 'text-amber-200'}>{flag.status === 'out' ? 'Out' : 'Late'} · {flag.name}{flag.detail ? ` · ${flag.detail}` : ''}</p>
+                  ))}
+                  {!loadFlags.length && !attendanceFlags.length ? <p className="text-slate-400">{isGroupEditMode ? 'Select team members for this group.' : 'Tap for details.'}</p> : null}
+                </div>
                 {groupPlayers.length > 0 ? (
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {groupPlayers.slice(0, 6).map((player) => (
@@ -1242,30 +1317,35 @@ export function TeamWorkspaceView({
               </div>
               <button type="button" onClick={() => setActiveGroupId(null)} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Close</button>
             </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avg load</p>
-                <p className="mt-2 text-lg font-black text-slate-100">Prepared</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Load flags</p>
+                <div className="mt-3 space-y-2">
+                  {activeGroupLoadFlags.length === 0 ? <p className="text-sm font-bold text-slate-500">No current load flags.</p> : null}
+                  {activeGroupLoadFlags.map((flag) => (
+                    <p key={flag.id} className={`text-sm font-bold ${flag.status === 'high' ? 'text-rose-200' : 'text-sky-200'}`}>{flag.name} · {flag.status === 'high' ? 'High' : 'Low'}{flag.detail ? ` · ${flag.detail}` : ''}</p>
+                  ))}
+                </div>
               </div>
               <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Minutes</p>
-                <p className="mt-2 text-lg font-black text-slate-100">Soon</p>
-              </div>
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Players</p>
-                <p className="mt-2 text-lg font-black text-slate-100">{activeGroupPlayers.length}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Attendance flags</p>
+                <div className="mt-3 space-y-2">
+                  {activeGroupAttendanceFlags.length === 0 ? <p className="text-sm font-bold text-slate-500">No late/out marks.</p> : null}
+                  {activeGroupAttendanceFlags.map((flag) => (
+                    <p key={flag.id} className={`text-sm font-bold ${flag.status === 'out' ? 'text-rose-200' : 'text-amber-200'}`}>{flag.name} · {flag.status === 'out' ? 'Out' : 'Late'}{flag.detail ? ` · ${flag.detail}` : ''}</p>
+                  ))}
+                </div>
               </div>
             </div>
             <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
-              <p className="text-sm font-black text-slate-100">Quick analysis</p>
-              <p className="mt-1 text-sm text-slate-400">Load, attendance and playing-time patterns will sit here once those signals are connected.</p>
+              <p className="text-sm font-black text-slate-100">Players</p>
               {activeGroupPlayers.length > 0 ? (
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {activeGroupPlayers.map((player) => (
                     <span key={player.id} className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-bold text-slate-300">{player.name}</span>
                   ))}
                 </div>
-              ) : null}
+              ) : <p className="mt-2 text-sm font-bold text-slate-500">No players in this group yet.</p>}
             </div>
           </section>
         </div>

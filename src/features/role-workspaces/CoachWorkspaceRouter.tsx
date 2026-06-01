@@ -5,6 +5,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TeamWorkspace } from '@/features/teams/TeamWorkspace';
 import type { TeamWorkspaceSection } from '@/features/teams/TeamWorkspaceView';
+import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
+import { sessionTypeToLoadType, type AthleteLoadEntry, type LoadTrainingType } from '@/features/load/loadTypes';
+import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 
 type CoachMode = 'today' | 'team' | 'sessions' | 'attendance' | 'load';
@@ -27,6 +30,14 @@ type CoachSession = {
   departmentName: string;
   facilityName: string | null;
   availability: CoachAvailability[];
+  players: CoachPlayer[];
+};
+type CoachPlayer = {
+  id: string;
+  name: string;
+  loadEntries: AthleteLoadEntry[];
+  acwr: number | null;
+  risk: 'high' | 'low' | 'ready' | 'baseline';
 };
 
 type SessionRow = {
@@ -40,6 +51,20 @@ type SessionRow = {
 };
 type AvailabilityRow = { session_id: string; user_id: string; status: 'late' | 'out'; reason: string | null; late_minutes: number | null };
 type ProfileRow = { id: string; full_name: string | null; email: string | null };
+type LoadEntryRow = {
+  id: string;
+  session_id: string | null;
+  user_id: string;
+  team_id: string | null;
+  entry_date: string | null;
+  training_type: LoadTrainingType | null;
+  rpe: number;
+  duration_minutes: number;
+  session_load: number | null;
+  note: string | null;
+  submitted_at: string;
+  sessions?: { title?: string | null; starts_at?: string | null; session_type?: string | null; teams?: { name?: string | null } | null } | null;
+};
 
 function sectionForMode(mode: CoachMode): TeamWorkspaceSection {
   if (mode === 'sessions') return 'calendar';
@@ -82,6 +107,19 @@ function profileName(profile: ProfileRow | undefined, fallback: string) {
   return profile?.full_name || profile?.email || fallback;
 }
 
+function toCoachPlayer(userId: string, teamId: string, profile: ProfileRow | undefined, loadEntries: (AthleteLoadEntry & { userId: string })[]): CoachPlayer {
+  const entries = loadEntries.filter((entry) => entry.userId === userId && (!entry.teamId || entry.teamId === teamId)).map(({ userId: _userId, ...entry }) => entry);
+  const latest = getLatestACWR(entries, 'ewma');
+  const zone = loadZone(latest?.acwr ?? null, latest?.chronicFull ?? false);
+  return {
+    id: userId,
+    name: profileName(profile, 'Player'),
+    loadEntries: entries,
+    acwr: latest?.acwr ?? null,
+    risk: zone.tone === 'high' ? 'high' : zone.tone === 'low' ? 'low' : zone.tone === 'ready' ? 'ready' : 'baseline',
+  };
+}
+
 function summarizeAvailability(session: CoachSession) {
   const out = session.availability.filter((item) => item.status === 'out');
   const late = session.availability.filter((item) => item.status === 'late');
@@ -104,9 +142,10 @@ function CoachTopNav({ mode, singleTeamId }: { mode: CoachMode; singleTeamId?: s
   );
 }
 
-function CoachSessionCard({ session }: { session: CoachSession }) {
+function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDetails: () => void }) {
   const { out, late } = summarizeAvailability(session);
   const flags = [...out, ...late];
+  const loadFlags = session.players.filter((player) => player.risk === 'high' || player.risk === 'low');
   return (
     <article className="rounded-3xl border border-slate-800 bg-slate-950/72 p-4 text-white shadow-[0_18px_70px_rgba(0,0,0,0.22)]">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -115,7 +154,10 @@ function CoachSessionCard({ session }: { session: CoachSession }) {
           <h3 className="mt-2 text-xl font-black">{session.title}</h3>
           <p className="mt-1 text-sm font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
         </div>
-        <Link href={`/coach/sessions?teamId=${session.teamId}`} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open</Link>
+        <div className="flex gap-2">
+          <button type="button" onClick={onDetails} className="rounded-xl border border-emerald-500/55 px-3 py-2 text-xs font-black text-emerald-100 hover:bg-emerald-950/35">Details</button>
+          <Link href={`/coach/sessions?teamId=${session.teamId}`} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Calendar</Link>
+        </div>
       </div>
 
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -140,6 +182,15 @@ function CoachSessionCard({ session }: { session: CoachSession }) {
       </div>
 
       {flags.length === 0 ? <p className="mt-3 text-sm font-bold text-slate-500">No late/out marks yet.</p> : null}
+      {loadFlags.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {loadFlags.slice(0, 4).map((player) => (
+            <span key={player.id} className={`rounded-full border px-2 py-1 text-[11px] font-black ${player.risk === 'high' ? 'border-rose-400/40 text-rose-100' : 'border-sky-400/40 text-sky-100'}`}>
+              {player.name} · {player.acwr?.toFixed(2) ?? '?'} ACWR
+            </span>
+          ))}
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -150,6 +201,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const selectedTeamId = searchParams.get('teamId');
   const [teams, setTeams] = useState<CoachTeam[]>([]);
   const [sessions, setSessions] = useState<CoachSession[]>([]);
+  const [activeSession, setActiveSession] = useState<CoachSession | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
 
@@ -251,6 +303,49 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       const athleteIds = Array.from(new Set(athleteRows.map((row) => row.user_id)));
       let availabilityRows: AvailabilityRow[] = [];
       let profileRows: ProfileRow[] = [];
+      let loadedLoadEntries: (AthleteLoadEntry & { userId: string })[] = [];
+
+      if (athleteIds.length > 0) {
+        const { data: profilesRaw, error: profilesError } = await supabase.from('profiles').select('id, full_name, email').in('id', athleteIds);
+        if (!mounted) return;
+        if (profilesError) {
+          setError(profilesError.message);
+          setState('error');
+          return;
+        }
+        profileRows = (profilesRaw ?? []) as ProfileRow[];
+
+        const { data: loadRows, error: loadError } = await supabase
+          .from('load_entries')
+          .select('id, session_id, user_id, team_id, entry_date, training_type, rpe, duration_minutes, session_load, note, submitted_at, sessions(title, starts_at, session_type, teams(name))')
+          .in('user_id', athleteIds)
+          .order('submitted_at', { ascending: true });
+        if (!mounted) return;
+        if (loadError) {
+          setError(loadError.message);
+          setState('error');
+          return;
+        }
+        loadedLoadEntries = ((loadRows ?? []) as unknown as LoadEntryRow[]).map((row) => {
+          const trainingType = row.training_type ?? sessionTypeToLoadType(row.sessions?.session_type);
+          return {
+            id: row.id,
+            sessionId: row.session_id,
+            teamId: row.team_id,
+            teamName: row.sessions?.teams?.name ?? null,
+            date: row.entry_date ?? row.sessions?.starts_at?.slice(0, 10) ?? row.submitted_at.slice(0, 10),
+            startsAt: row.sessions?.starts_at ?? row.submitted_at,
+            title: row.sessions?.title ?? 'Training',
+            trainingType,
+            rpe: row.rpe,
+            durationMinutes: row.duration_minutes,
+            load: row.session_load ?? row.rpe * row.duration_minutes,
+            note: row.note,
+            source: row.session_id ? 'planned_session' : 'manual',
+            userId: row.user_id,
+          };
+        });
+      }
 
       if (sessionIds.length > 0 && athleteIds.length > 0) {
         const { data: availabilityRaw, error: availabilityError } = await supabase
@@ -266,22 +361,18 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           return;
         }
         availabilityRows = (availabilityRaw ?? []) as AvailabilityRow[];
-
-        const availabilityUserIds = Array.from(new Set(availabilityRows.map((row) => row.user_id)));
-        if (availabilityUserIds.length > 0) {
-          const { data: profilesRaw, error: profilesError } = await supabase.from('profiles').select('id, full_name, email').in('id', availabilityUserIds);
-          if (!mounted) return;
-          if (profilesError) {
-            setError(profilesError.message);
-            setState('error');
-            return;
-          }
-          profileRows = (profilesRaw ?? []) as ProfileRow[];
-        }
       }
 
       const teamById = new Map(loadedTeams.map((team) => [team.id, team]));
       const profileById = new Map(profileRows.map((profile) => [profile.id, profile]));
+      const athleteIdsByTeamId = new Map<string, string[]>();
+      for (const row of athleteRows) {
+        athleteIdsByTeamId.set(row.team_id, [...(athleteIdsByTeamId.get(row.team_id) ?? []), row.user_id]);
+      }
+      const playersByTeamId = new Map<string, CoachPlayer[]>();
+      for (const team of loadedTeams) {
+        playersByTeamId.set(team.id, (athleteIdsByTeamId.get(team.id) ?? []).map((userId) => toCoachPlayer(userId, team.id, profileById.get(userId), loadedLoadEntries)));
+      }
       const availabilityBySessionId = new Map<string, CoachAvailability[]>();
       for (const row of availabilityRows) {
         availabilityBySessionId.set(row.session_id, [
@@ -311,6 +402,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             departmentName: team.departmentName,
             facilityName: facilityNameFromRow(session),
             availability: availabilityBySessionId.get(session.id) ?? [],
+            players: playersByTeamId.get(team.id) ?? [],
           } satisfies CoachSession;
         });
 
@@ -386,7 +478,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
                 {todaySessions.length > 0 ? <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{todaySessions.length} today</span> : null}
               </div>
               <div className="mt-5 grid gap-3 lg:grid-cols-2">
-                {todaySessions.length > 0 ? todaySessions.map((session) => <CoachSessionCard key={session.id} session={session} />) : <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions today.</div>}
+                {todaySessions.length > 0 ? todaySessions.map((session) => <CoachSessionCard key={session.id} session={session} onDetails={() => setActiveSession(session)} />) : <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions today.</div>}
               </div>
             </section>
 
@@ -405,6 +497,37 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
               </section>
             ) : null}
           </>
+        ) : null}
+
+        {activeSession ? (
+          <SessionDetailSheet
+            title={activeSession.title}
+            startsAt={activeSession.startsAt}
+            endsAt={activeSession.endsAt}
+            teamName={activeSession.teamName}
+            departmentName={activeSession.departmentName}
+            facilityName={activeSession.facilityName}
+            attendance={{
+              expected: activeSession.players.length,
+              late: activeSession.availability.filter((item) => item.status === 'late').length,
+              out: activeSession.availability.filter((item) => item.status === 'out').length,
+              notes: activeSession.availability.map((item) => ({
+                id: item.id,
+                name: item.playerName,
+                status: item.status,
+                detail: item.status === 'late' && item.lateMinutes ? `${item.lateMinutes} min` : item.reason,
+              })),
+            }}
+            load={{
+              planned: activeSession.players.length,
+              status: activeSession.players.length > 0 ? `${activeSession.players.length} players` : 'No roster yet',
+            }}
+            loadRisks={activeSession.players
+              .filter((player) => player.risk === 'high' || player.risk === 'low')
+              .map((player) => ({ id: player.id, name: player.name, status: player.risk as 'high' | 'low', detail: player.acwr !== null ? `${player.acwr.toFixed(2)} ACWR` : null }))}
+            actions={<Link href={`/coach/sessions?teamId=${activeSession.teamId}`} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</Link>}
+            onClose={() => setActiveSession(null)}
+          />
         ) : null}
 
         {teams.length > 0 ? (

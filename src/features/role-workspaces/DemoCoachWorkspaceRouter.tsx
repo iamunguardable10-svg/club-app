@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DemoTeamWorkspace } from '@/features/teams/DemoTeamWorkspace';
 import type { TeamWorkspaceSection } from '@/features/teams/TeamWorkspaceView';
+import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { getDemoClubSetup, getDemoSessions, getDemoTeams, type DemoClubSetup, type DemoSession, type DemoTeam } from '@/shared/dev/demoStorage';
 
 type CoachMode = 'today' | 'team' | 'sessions' | 'attendance' | 'load';
@@ -20,6 +21,7 @@ type DemoCoachSession = {
   departmentName: string;
   facilityName: string | null;
   availability: { id: string; playerName: string; status: 'late' | 'out'; reason: string | null; lateMinutes: number | null }[];
+  players: { id: string; name: string; risk: 'high' | 'low' | 'ready'; acwr: number }[];
 };
 
 const DEMO_AVAILABILITY_KEY = 'club-app.demo.athlete-availability';
@@ -112,14 +114,25 @@ function buildCoachSessions(teams: DemoTeam[], storedSessions: DemoSession[]) {
         departmentName: team.department,
         facilityName: session.facility,
         availability: mark && (mark.status === 'late' || mark.status === 'out') ? [{ id: `${session.id}-demo-athlete`, playerName: 'Demo Athlete', status: mark.status, reason: mark.reason, lateMinutes: mark.lateMinutes }] : fallbackFlags,
+        players: index === 0
+          ? [
+              { id: 'noah-keller', name: 'Noah Keller', risk: 'high', acwr: 1.41 },
+              { id: 'elias-wagner', name: 'Elias Wagner', risk: 'ready', acwr: 1.05 },
+              { id: 'leo-bauer', name: 'Leo Bauer', risk: 'low', acwr: 0.74 },
+            ]
+          : [
+              { id: 'mika-schulz', name: 'Mika Schulz', risk: 'ready', acwr: 1.11 },
+              { id: 'jonas-meyer', name: 'Jonas Meyer', risk: 'high', acwr: 1.34 },
+            ],
       } satisfies DemoCoachSession;
     })
     .filter(Boolean) as DemoCoachSession[];
 }
 
-function DemoSessionCard({ session }: { session: DemoCoachSession }) {
+function DemoSessionCard({ session, onDetails }: { session: DemoCoachSession; onDetails: () => void }) {
   const out = session.availability.filter((item) => item.status === 'out');
   const late = session.availability.filter((item) => item.status === 'late');
+  const loadFlags = session.players.filter((player) => player.risk === 'high' || player.risk === 'low');
   return (
     <article className="rounded-3xl border border-slate-800 bg-slate-950/72 p-4 text-white shadow-[0_18px_70px_rgba(0,0,0,0.22)]">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -128,12 +141,16 @@ function DemoSessionCard({ session }: { session: DemoCoachSession }) {
           <h3 className="mt-2 text-xl font-black">{session.title}</h3>
           <p className="mt-1 text-sm font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
         </div>
-        <Link href={`/demo/coach/sessions?teamId=${encodeURIComponent(session.teamId)}`} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open</Link>
+        <div className="flex gap-2">
+          <button type="button" onClick={onDetails} className="rounded-xl border border-emerald-500/55 px-3 py-2 text-xs font-black text-emerald-100 hover:bg-emerald-950/35">Details</button>
+          <Link href={`/demo/coach/sessions?teamId=${encodeURIComponent(session.teamId)}`} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Calendar</Link>
+        </div>
       </div>
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         <div className={`rounded-2xl border p-3 ${out.length > 0 ? 'border-rose-400/35 bg-rose-400/10' : 'border-slate-800 bg-slate-950/60'}`}><div className="flex items-center justify-between"><p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Out</p><span className="text-lg font-black">{out.length}</span></div>{out.map((item) => <p key={item.id} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.reason ? ` · ${item.reason}` : ''}</p>)}</div>
         <div className={`rounded-2xl border p-3 ${late.length > 0 ? 'border-sky-400/35 bg-sky-400/10' : 'border-slate-800 bg-slate-950/60'}`}><div className="flex items-center justify-between"><p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Late</p><span className="text-lg font-black">{late.length}</span></div>{late.map((item) => <p key={item.id} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${item.lateMinutes}m` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>)}</div>
       </div>
+      {loadFlags.length > 0 ? <div className="mt-3 flex flex-wrap gap-1.5">{loadFlags.map((player) => <span key={player.id} className={`rounded-full border px-2 py-1 text-[11px] font-black ${player.risk === 'high' ? 'border-rose-400/40 text-rose-100' : 'border-sky-400/40 text-sky-100'}`}>{player.name} · {player.acwr.toFixed(2)} ACWR</span>)}</div> : null}
     </article>
   );
 }
@@ -144,6 +161,7 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [teams, setTeams] = useState<DemoTeam[]>([]);
   const [sessions, setSessions] = useState<DemoCoachSession[]>([]);
+  const [activeSession, setActiveSession] = useState<DemoCoachSession | null>(null);
 
   useEffect(() => {
     const currentSetup = getDemoClubSetup();
@@ -196,7 +214,7 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
               {todaySessions.length > 0 ? <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{todaySessions.length} today</span> : null}
             </div>
             <div className="mt-5 grid gap-3 lg:grid-cols-2">
-              {todaySessions.length > 0 ? todaySessions.map((session) => <DemoSessionCard key={session.id} session={session} />) : <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions today.</div>}
+              {todaySessions.length > 0 ? todaySessions.map((session) => <DemoSessionCard key={session.id} session={session} onDetails={() => setActiveSession(session)} />) : <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions today.</div>}
             </div>
           </section>
         ) : null}
@@ -229,6 +247,34 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             })}
           </div>
         </section>
+
+        {activeSession ? (
+          <SessionDetailSheet
+            title={activeSession.title}
+            startsAt={activeSession.startsAt}
+            endsAt={activeSession.endsAt}
+            teamName={activeSession.teamName}
+            departmentName={activeSession.departmentName}
+            facilityName={activeSession.facilityName}
+            attendance={{
+              expected: activeSession.players.length,
+              late: activeSession.availability.filter((item) => item.status === 'late').length,
+              out: activeSession.availability.filter((item) => item.status === 'out').length,
+              notes: activeSession.availability.map((item) => ({
+                id: item.id,
+                name: item.playerName,
+                status: item.status,
+                detail: item.status === 'late' && item.lateMinutes ? `${item.lateMinutes} min` : item.reason,
+              })),
+            }}
+            load={{ planned: activeSession.players.length, status: `${activeSession.players.length} players` }}
+            loadRisks={activeSession.players
+              .filter((player) => player.risk === 'high' || player.risk === 'low')
+              .map((player) => ({ id: player.id, name: player.name, status: player.risk as 'high' | 'low', detail: `${player.acwr.toFixed(2)} ACWR` }))}
+            actions={<Link href={`/demo/coach/sessions?teamId=${encodeURIComponent(activeSession.teamId)}`} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</Link>}
+            onClose={() => setActiveSession(null)}
+          />
+        ) : null}
       </div>
     </main>
   );

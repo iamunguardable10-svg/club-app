@@ -275,11 +275,36 @@ Current parity expectations:
 - parent/back context exists in both
 - demo uses localStorage, standard uses Supabase
 
+## Session details and coach today
+
+Session details are now shared across team, facility, department schedule and coach-today surfaces.
+
+Coach Today is player-centered:
+
+```txt
+Session
+-> out / late players
+-> high / low load players
+-> link back into the team calendar
+```
+
+Groups remain team-internal targeting and analysis. They are not the primary unit for the coach-today session view; the session view must name the concrete affected players.
+
+Group cards should avoid abstract metrics when concrete player-level signals exist. Prefer:
+
+```txt
+High load -> player names
+Low load  -> player names
+Attendance flags -> player names
+```
+
+over counts, generic averages, or placeholder copy.
+
 ## Known current limitations
 
-1. Attendance and load data inside Session Details V1 is partially connected; team sessions show flags and reported-load counts, while facility/department views still show status-level summaries.
+1. Attendance and load data inside Session Details V1 is partially connected; team sessions and coach today show player flags, while facility/department views still show status-level summaries.
 2. Player invite/code flow is not implemented.
-3. Group insights are placeholders until load, attendance and playing-time data are joined.
+3. Group insights show connected load and attendance player names, but deeper playing-time analytics are still basic.
 4. Custom coach roles currently inherit assistant-coach style behavior.
 5. Facility conflict handling is still visual/contextual, not a hard scheduling conflict system.
 
