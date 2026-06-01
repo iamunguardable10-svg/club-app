@@ -474,6 +474,9 @@ export function DemoTeamWorkspace({
       })),
       backHref,
       backLabel,
+      departmentNav: frame === 'department'
+        ? { basePath: '/demo/department', departmentName: team.department }
+        : null,
       calendarHref: team.defaultFacility ? `/demo/admin/facilities/${encodeURIComponent(team.defaultFacility)}/calendar?from=team&teamName=${encodeURIComponent(team.name)}&departmentName=${encodeURIComponent(team.department)}` : null,
       staffHref: frame === 'department' ? '/demo/department/coaches' : `/demo/admin/people?departmentName=${encodeURIComponent(team.department)}&teamName=${encodeURIComponent(team.name)}`,
     };

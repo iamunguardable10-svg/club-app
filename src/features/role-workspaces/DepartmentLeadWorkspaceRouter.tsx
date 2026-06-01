@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AdminDepartmentWorkspace, type AdminDepartmentWorkspaceSection } from '@/features/admin/AdminDepartmentWorkspace';
 import { AdminPeopleManager } from '@/features/admin/AdminPeopleManager';
+import { DepartmentLeadDrawer, type DepartmentLeadMode } from '@/features/role-workspaces/DepartmentLeadDrawer';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 
 type DepartmentMode = 'overview' | 'teams' | 'schedule' | 'coaches' | 'facilities' | 'settings';
@@ -28,36 +29,15 @@ function workspaceSectionFor(mode: DepartmentMode): AdminDepartmentWorkspaceSect
 }
 
 function DepartmentLeadNav({ mode, department }: { mode: DepartmentMode; department?: LeadDepartment | null }) {
-  const items: DepartmentMode[] = ['teams', 'facilities', 'coaches', 'schedule', 'settings'];
-  const suffix = department ? `?departmentId=${department.id}` : '';
+  const drawerMode = (mode === 'overview' ? 'teams' : mode) as DepartmentLeadMode;
   return (
-    <section className="sticky top-0 z-30 rounded-2xl border border-slate-800 bg-slate-950/92 p-3 text-white shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:static md:p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">Department OS</p>
-          <h1 className="mt-1 text-xl font-black tracking-tight md:text-2xl">{department?.name ?? titleForMode(mode)}</h1>
-        </div>
-        <details className="relative md:hidden">
-          <summary className="list-none rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-100 [&::-webkit-details-marker]:hidden">
-            Menu
-          </summary>
-          <nav className="absolute right-0 mt-2 grid min-w-44 gap-1 rounded-2xl border border-slate-800 bg-slate-950 p-2 shadow-2xl">
-            {items.map((item) => (
-              <Link key={item} href={`/department/${item}${suffix}`} className={`rounded-xl px-3 py-2 text-sm font-black ${mode === item ? 'bg-slate-100 text-slate-950' : 'text-slate-200 hover:bg-slate-900'}`}>
-                {titleForMode(item)}
-              </Link>
-            ))}
-          </nav>
-        </details>
-        <nav className="hidden flex-wrap gap-1.5 md:flex">
-          {items.map((item) => (
-            <Link key={item} href={`/department/${item}${suffix}`} className={`rounded-full border px-3 py-1.5 text-xs font-black ${mode === item ? 'border-slate-200 bg-slate-100 text-slate-950' : 'border-slate-700 bg-slate-950 text-slate-200 hover:bg-slate-900'}`}>
-              {titleForMode(item)}
-            </Link>
-          ))}
-        </nav>
-      </div>
-    </section>
+    <>
+      <DepartmentLeadDrawer mode={drawerMode} basePath="/department" departmentId={department?.id} departmentName={department?.name} />
+      <section className="rounded-2xl border border-slate-800 bg-slate-950/72 p-4 text-white shadow-[0_18px_60px_rgba(0,0,0,0.18)] md:p-5">
+        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">Department OS</p>
+        <h1 className="mt-1 text-2xl font-black tracking-tight md:text-3xl">{department?.name ?? titleForMode(mode)}</h1>
+      </section>
+    </>
   );
 }
 

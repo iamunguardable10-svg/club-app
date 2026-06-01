@@ -67,12 +67,6 @@ function profileLabel(profile?: Profile) {
   return profile?.full_name || profile?.email || 'Assigned staff member';
 }
 
-function statusBadge(status: 'missing' | 'pending' | 'accepted') {
-  if (status === 'accepted') return 'border-emerald-500/40 bg-emerald-950/30 text-emerald-200';
-  if (status === 'pending') return 'border-amber-500/40 bg-amber-950/30 text-amber-200';
-  return 'border-slate-700 bg-slate-900 text-slate-300';
-}
-
 export function AdminPeopleManager({ frame = 'admin', departmentId }: { frame?: PeopleManagerFrame; departmentId?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -488,7 +482,6 @@ export function AdminPeopleManager({ frame = 'admin', departmentId }: { frame?: 
           {departments.map((department) => {
             const leadMembership = leadByDepartment.get(department.id);
             const leadInvite = pendingInviteByScope.get(`department_lead:${department.id}::`);
-            const leadStatus = leadMembership ? 'accepted' : leadInvite ? 'pending' : 'missing';
             const departmentTeams = teamsByDepartment.get(department.id) ?? [];
             const isExpanded = expandedDepartments[department.id] ?? true;
 
@@ -499,7 +492,7 @@ export function AdminPeopleManager({ frame = 'admin', departmentId }: { frame?: 
                     <h3 className="text-lg font-black text-white">{department.name}</h3>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-400">
                       <span>Department Lead:</span>
-                      {leadMembership ? <span>{profileLabel(profileById.get(leadMembership.user_id))}</span> : leadInvite ? (
+                      {frame === 'department' ? <span>You</span> : leadMembership ? <span>{profileLabel(profileById.get(leadMembership.user_id))}</span> : leadInvite ? (
                         <>
                           <span>Invite pending</span>
                           {frame === 'admin' ? <button type="button" onClick={() => handleQuickInvite('department_lead', department.id)} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900">{copiedToken === leadInvite.token ? 'Copied' : 'Copy'}</button> : null}
@@ -508,7 +501,6 @@ export function AdminPeopleManager({ frame = 'admin', departmentId }: { frame?: 
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {leadStatus !== 'missing' ? <span className={`w-fit rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.16em] ${statusBadge(leadStatus)}`}>{leadStatus}</span> : null}
                     <button type="button" onClick={() => setExpandedDepartments((current) => ({ ...current, [department.id]: !isExpanded }))} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-300 transition hover:border-sky-400/50 hover:bg-slate-900">{isExpanded ? 'Collapse' : 'Expand'}</button>
                   </div>
                 </div>

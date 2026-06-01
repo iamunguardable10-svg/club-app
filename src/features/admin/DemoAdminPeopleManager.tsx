@@ -83,12 +83,6 @@ function saveDemoExtraCoachRoles(roles: DemoExtraCoachRole[]) {
   window.localStorage.setItem(DEMO_EXTRA_COACH_ROLES_KEY, JSON.stringify(roles));
 }
 
-function statusBadge(status: 'missing' | 'pending' | 'accepted') {
-  if (status === 'accepted') return 'border-emerald-500/40 bg-emerald-950/30 text-emerald-200';
-  if (status === 'pending') return 'border-amber-500/40 bg-amber-950/30 text-amber-200';
-  return 'border-slate-700 bg-slate-900 text-slate-300';
-}
-
 export function DemoAdminPeopleManager({ frame = 'admin', departmentName }: { frame?: DemoPeopleFrame; departmentName?: string }) {
   const searchParams = useSearchParams();
   const requestedDepartment = departmentName ?? searchParams.get('department') ?? '';
@@ -280,7 +274,7 @@ export function DemoAdminPeopleManager({ frame = 'admin', departmentName }: { fr
                     <h3 className="text-lg font-black text-white">{department}</h3>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-400">
                       <span>Department Lead:</span>
-                      {leadStatus === 'accepted' ? <span>Accepted</span> : leadStatus === 'pending' ? (
+                      {frame === 'department' ? <span>You</span> : leadStatus === 'accepted' ? <span>Accepted</span> : leadStatus === 'pending' ? (
                         <>
                           <span>Invite pending</span>
                           {frame === 'admin' ? <button type="button" onClick={() => handleQuickInvite('department_lead', department)} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900">{copiedToken === leadInvite?.token ? 'Copied' : 'Copy'}</button> : null}
@@ -289,7 +283,6 @@ export function DemoAdminPeopleManager({ frame = 'admin', departmentName }: { fr
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {leadStatus !== 'missing' ? <span className={`w-fit rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.16em] ${statusBadge(leadStatus)}`}>{leadStatus}</span> : null}
                     <button type="button" onClick={() => setExpandedDepartments((current) => ({ ...current, [department]: !isExpanded }))} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-300 transition hover:border-sky-400/50 hover:bg-slate-900">
                       {isExpanded ? 'Collapse' : 'Expand'}
                     </button>

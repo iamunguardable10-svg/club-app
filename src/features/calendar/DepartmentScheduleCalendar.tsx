@@ -14,7 +14,7 @@ export type DepartmentScheduleSession = {
 
 const firstHour = 8;
 const lastHour = 23;
-const hourHeight = 44;
+const hourHeight = 34;
 const hours = Array.from({ length: lastHour - firstHour + 1 }, (_, index) => firstHour + index);
 
 function addDays(date: Date, days: number) {
@@ -98,29 +98,32 @@ export function DepartmentScheduleCalendar({ sessions, teamOptions }: { sessions
           <button type="button" onClick={() => setWeekOffset((value) => value + 1)} className="grid h-8 w-8 place-items-center rounded-full border border-slate-700 bg-slate-950/70 text-sm font-black text-slate-200">›</button>
           {weekOffset !== 0 ? <button type="button" onClick={() => setWeekOffset(0)} className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-black text-slate-200">↺ Week</button> : null}
         </div>
-        <div className="flex max-w-full flex-wrap gap-1.5">
-          <button type="button" onClick={() => setSelectedTeamIds([])} className={`rounded-full border px-3 py-1.5 text-xs font-black ${selectedTeamIds.length === 0 ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 bg-slate-950/80 text-slate-300'}`}>
-            All teams
-          </button>
-          {teamOptions.map((team) => {
-            const selected = selectedTeamIds.includes(team.id);
-            return (
-              <button key={team.id} type="button" onClick={() => toggleTeam(team.id)} className={`rounded-full border px-3 py-1.5 text-xs font-black ${selected ? 'border-sky-300 bg-sky-950/50 text-sky-100' : 'border-slate-700 bg-slate-950/80 text-slate-300 hover:text-white'}`}>
-                {team.name}
-              </button>
-            );
-          })}
-        </div>
+        <details className="relative">
+          <summary className="list-none rounded-full border border-slate-700 bg-slate-950/80 px-3 py-1.5 text-xs font-black text-slate-200 [&::-webkit-details-marker]:hidden">
+            {selectedTeamIds.length === 0 ? 'All teams' : `${selectedTeamIds.length} teams`}
+          </summary>
+          <div className="absolute right-0 z-20 mt-2 grid w-56 gap-1 rounded-2xl border border-slate-800 bg-slate-950 p-2 shadow-2xl">
+            <button type="button" onClick={() => setSelectedTeamIds([])} className={`rounded-xl px-3 py-2 text-left text-xs font-black ${selectedTeamIds.length === 0 ? 'bg-slate-100 text-slate-950' : 'text-slate-300 hover:bg-slate-900'}`}>All teams</button>
+            {teamOptions.map((team) => {
+              const selected = selectedTeamIds.includes(team.id);
+              return (
+                <button key={team.id} type="button" onClick={() => toggleTeam(team.id)} className={`rounded-xl px-3 py-2 text-left text-xs font-black ${selected ? 'bg-sky-950/60 text-sky-100' : 'text-slate-300 hover:bg-slate-900 hover:text-white'}`}>
+                  {selected ? '✓ ' : ''}{team.name}
+                </button>
+              );
+            })}
+          </div>
+        </details>
       </div>
 
       <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80">
-        <div className="grid grid-cols-[54px_repeat(7,minmax(96px,1fr))] border-b border-slate-800 text-[10px] font-black uppercase tracking-[0.12em] text-slate-500 md:grid-cols-[68px_repeat(7,minmax(120px,1fr))]">
-          <div className="bg-slate-950/95 p-2 md:p-3">Time</div>
-          {days.map((day) => <div key={day.toISOString()} className="border-l border-slate-800 p-2 md:p-3">{day.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</div>)}
+        <div className="grid grid-cols-[34px_repeat(7,minmax(0,1fr))] border-b border-slate-800 text-[9px] font-black uppercase tracking-[0.08em] text-slate-500 md:grid-cols-[68px_repeat(7,minmax(120px,1fr))] md:text-[10px] md:tracking-[0.12em]">
+          <div className="bg-slate-950/95 px-1.5 py-2 md:p-3">Time</div>
+          {days.map((day) => <div key={day.toISOString()} className="border-l border-slate-800 px-1 py-2 md:p-3">{day.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</div>)}
         </div>
-        <div className="grid grid-cols-[54px_repeat(7,minmax(96px,1fr))] md:grid-cols-[68px_repeat(7,minmax(120px,1fr))]">
+        <div className="grid grid-cols-[34px_repeat(7,minmax(0,1fr))] md:grid-cols-[68px_repeat(7,minmax(120px,1fr))]">
           <div className="bg-slate-950/95">
-            {hours.map((hour) => <div key={hour} className="border-b border-slate-900 px-2 py-1 text-[10px] font-bold text-slate-500 md:px-3" style={{ height: hourHeight }}>{String(hour).padStart(2, '0')}:00</div>)}
+            {hours.map((hour) => <div key={hour} className="border-b border-slate-900 px-1 py-1 text-[9px] font-bold text-slate-500 md:px-3 md:text-[10px]" style={{ height: hourHeight }}>{String(hour).padStart(2, '0')}</div>)}
           </div>
           {days.map((day) => {
             const date = isoDate(day);
@@ -142,11 +145,11 @@ export function DepartmentScheduleCalendar({ sessions, teamOptions }: { sessions
                       key={session.id}
                       type="button"
                       onClick={() => setActiveSession(session)}
-                      className="absolute overflow-hidden rounded-xl border border-slate-700/90 bg-slate-900/90 px-2 py-1 text-left shadow-sm ring-1 ring-white/[0.03] transition hover:border-sky-300/70"
+                      className="absolute overflow-hidden rounded-lg border border-slate-700/90 bg-slate-900/90 px-1 py-0.5 text-left shadow-sm ring-1 ring-white/[0.03] transition hover:border-sky-300/70 md:rounded-xl md:px-2 md:py-1"
                       style={{ top, height, left: `calc(${left}% + 2px)`, width: `calc(${width}% - 4px)` }}
                     >
-                      <p className="truncate text-[10px] font-black text-white md:text-xs">{session.teamName}</p>
-                      {height > 38 ? <p className="truncate text-[9px] font-bold text-slate-400 md:text-[10px]">{formatTime(session.startsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p> : null}
+                      <p className="truncate text-[8px] font-black text-white md:text-xs">{session.teamName}</p>
+                      {height > 34 ? <p className="truncate text-[8px] font-bold text-slate-400 md:text-[10px]">{formatTime(session.startsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p> : null}
                     </button>
                   );
                 })}

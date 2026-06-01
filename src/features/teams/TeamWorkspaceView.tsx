@@ -6,6 +6,7 @@ import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/cale
 import { LoadChart } from '@/features/load/AthleteLoadWorkspace';
 import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
 import { ACWR_ZONES, LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/features/load/loadTypes';
+import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
 
 export type TeamWorkspaceRole = 'admin' | 'department_lead' | 'coach' | 'viewer';
 export type TeamWorkspaceSection = 'dashboard' | 'calendar' | 'players' | 'groups' | 'settings';
@@ -73,6 +74,11 @@ export type TeamWorkspaceData = {
   backLabel?: string;
   calendarHref?: string | null;
   staffHref?: string | null;
+  departmentNav?: {
+    basePath: '/department' | '/demo/department';
+    departmentId?: string | null;
+    departmentName?: string | null;
+  } | null;
 };
 
 type TeamCalendarDrag = { target: 'session' | 'draft'; sessionId?: string; kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date; minutesPerPixel: number };
@@ -950,6 +956,14 @@ export function TeamWorkspaceView({
 
   return (
     <section className="space-y-5 pb-24 md:pb-0">
+      {data.departmentNav ? (
+        <DepartmentLeadDrawer
+          mode="teams"
+          basePath={data.departmentNav.basePath}
+          departmentId={data.departmentNav.departmentId}
+          departmentName={data.departmentNav.departmentName}
+        />
+      ) : null}
       <div className="sticky top-0 z-30 rounded-2xl border border-slate-800 bg-slate-950/92 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:static md:p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">

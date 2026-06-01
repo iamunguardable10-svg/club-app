@@ -17,6 +17,7 @@ import {
 import { DemoSessionComposer } from '@/features/sessions/DemoSessionComposer';
 import type { SessionComposerPayload } from '@/features/sessions/SessionComposer';
 import { DepartmentScheduleCalendar } from '@/features/calendar/DepartmentScheduleCalendar';
+import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
 
 type DemoAssignment = { department: string; facility: string };
 type DemoFacilityRequest = {
@@ -64,38 +65,18 @@ function modeTitle(mode: DemoDepartmentWorkspaceMode) {
 }
 
 function DemoDepartmentNav({ mode, isEditMode, onToggleEdit }: { mode: DemoDepartmentWorkspaceMode; isEditMode: boolean; onToggleEdit: () => void }) {
-  const items: DemoDepartmentWorkspaceMode[] = ['teams', 'facilities', 'coaches', 'schedule', 'settings'];
+  const drawerMode = (mode === 'all' ? 'teams' : mode) as 'teams' | 'facilities' | 'coaches' | 'schedule' | 'settings';
   return (
-    <section className="sticky top-0 z-30 rounded-2xl border border-slate-800 bg-slate-950/92 p-3 text-white shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:static md:p-4">
+    <section className="rounded-2xl border border-slate-800 bg-slate-950/72 p-4 text-white shadow-[0_18px_60px_rgba(0,0,0,0.18)] md:p-5">
+      <DepartmentLeadDrawer mode={drawerMode} basePath="/demo/department" departmentName="Basketball" />
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">Demo Department OS</p>
           <h1 className="mt-1 text-xl font-black tracking-tight md:text-2xl">{modeTitle(mode)}</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={onToggleEdit} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-100 hover:bg-slate-900">
-            {isEditMode ? 'Done' : 'Edit'}
-          </button>
-          <details className="relative md:hidden">
-            <summary className="list-none rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-100 [&::-webkit-details-marker]:hidden">
-              Menu
-            </summary>
-            <nav className="absolute right-0 mt-2 grid min-w-44 gap-1 rounded-2xl border border-slate-800 bg-slate-950 p-2 shadow-2xl">
-              {items.map((item) => (
-                <Link key={item} href={`/demo/department/${item}`} className={`rounded-xl px-3 py-2 text-sm font-black ${mode === item ? 'bg-slate-100 text-slate-950' : 'text-slate-200 hover:bg-slate-900'}`}>
-                  {modeTitle(item)}
-                </Link>
-              ))}
-            </nav>
-          </details>
-        </div>
-        <nav className="hidden flex-wrap gap-1.5 md:flex">
-          {items.map((item) => (
-            <Link key={item} href={`/demo/department/${item}`} className={`rounded-full border px-3 py-1.5 text-xs font-black ${mode === item ? 'border-slate-200 bg-slate-100 text-slate-950' : 'border-slate-700 bg-slate-950 text-slate-200 hover:bg-slate-900'}`}>
-              {modeTitle(item)}
-            </Link>
-          ))}
-        </nav>
+        <button type="button" onClick={onToggleEdit} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-100 hover:bg-slate-900">
+          {isEditMode ? 'Done' : 'Edit'}
+        </button>
       </div>
     </section>
   );
