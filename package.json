@@ -9,7 +9,10 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm run build"
+    "check": "npm run typecheck && npm run build",
+    "review:claude": "node scripts/claude-review.mjs",
+    "check:review": "npm run check && npm run review:claude",
+    "hooks:claude-review": "node scripts/install-claude-review-hook.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.48.1",

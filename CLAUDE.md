@@ -74,3 +74,25 @@ If Claude Code edits files, report:
 - what changed
 - validation commands run
 - risks or open points
+
+## Automated local review
+
+This repo includes a local Claude Code review command:
+
+```bash
+npm run review:claude
+```
+
+It runs Claude Code non-interactively with the `club-os-reviewer` agent and disallows edit tools. For a full local gate:
+
+```bash
+npm run check:review
+```
+
+To install the local pre-push hook in this working tree:
+
+```bash
+npm run hooks:claude-review
+```
+
+The hook is local to `.git/hooks/pre-push` and is intentionally not committed. It runs `npm run check:review` before push.
