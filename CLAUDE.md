@@ -1,4 +1,4 @@
-﻿# CLAUDE.md — Club OS Challenger Rules
+# CLAUDE.md — Club OS Challenger Rules
 
 ## Role
 
@@ -96,3 +96,6 @@ npm run hooks:claude-review
 ```
 
 The hook is local to `.git/hooks/pre-push` and is intentionally not committed. It runs `npm run check:review` before push.
+
+Note: `next-env.d.ts` is tracked in this repo and `next build` can regenerate it. The local `check:review` gate runs `npm run clean:next-env` before Claude review so generated Next drift does not pollute review findings. If `next-env.d.ts` is intentionally staged, the clean step restores only the worktree from the index and preserves the staged change.
+
