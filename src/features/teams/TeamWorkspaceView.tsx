@@ -503,7 +503,7 @@ function StaffRoleGrid({
     const copied = copiedToken === token;
     return `rounded-lg border px-2.5 py-1 text-xs font-black transition ${
       copied
-        ? 'scale-[1.03] border-emerald-300 bg-emerald-300 text-slate-950 shadow-[0_0_24px_rgba(110,231,183,0.22)]'
+        ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100'
         : 'border-slate-700 text-slate-200 hover:bg-slate-800'
     }`;
   }
@@ -1003,11 +1003,7 @@ function TeamSmartCalendar({
           })}
           canEditTime={canManageCalendar && Boolean(onSessionTimeChange)}
           onTimeChange={handleSelectedSessionTimeChange}
-          editDetails={canManageCalendar ? (
-            <div className="space-y-2 text-sm font-bold text-slate-300">
-              <p>Facility and selected groups can be changed directly above.</p>
-            </div>
-          ) : null}
+          editDetails={null}
           onClose={() => setSelectedSessionId(null)}
         />
       ) : null}

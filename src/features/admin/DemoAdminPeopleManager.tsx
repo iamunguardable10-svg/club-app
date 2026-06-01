@@ -231,7 +231,7 @@ export function DemoAdminPeopleManager({ frame = 'admin', departmentName }: { fr
     const copied = Boolean(token && copiedToken === token);
     return `rounded-lg border px-2.5 py-1 text-xs font-black transition ${
       copied
-        ? 'scale-[1.03] border-emerald-300 bg-emerald-300 text-slate-950 shadow-[0_0_24px_rgba(110,231,183,0.22)]'
+        ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100'
         : 'border-slate-700/90 bg-slate-950/40 text-slate-200 hover:border-sky-400/50 hover:bg-slate-900'
     }`;
   }
