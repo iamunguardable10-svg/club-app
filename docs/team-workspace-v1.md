@@ -329,3 +329,19 @@ coach dashboard
 team calendar modal
 future athlete view
 ```
+
+## Session detail refinement
+
+Session cards in Coach Today, Coach Next and Team Home open the same session detail sheet by tapping the card. The sheet should stay player-first:
+
+```txt
+attendance flags
+load risks
+edit controls
+expected player list
+context
+```
+
+Do not lead with generic attendance/load/scope metric cards when they only repeat obvious state. Late is amber; low load remains blue.
+
+In team-owned session details, edit mode inside the sheet exposes start time and duration. Drag/resize remains available in the calendar edit mode, but the sheet must support quick time edits without explanatory copy.

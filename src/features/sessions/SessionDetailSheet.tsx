@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, type ReactNode } from 'react';
 
@@ -41,6 +41,13 @@ export type SessionDetailLoadRisk = {
   detail?: string | null;
 };
 
+export type SessionDetailParticipant = {
+  id: string;
+  name: string;
+  status?: 'expected' | 'late' | 'out' | 'present';
+  detail?: string | null;
+};
+
 function formatTimeRange(startsAt: string, endsAt: string | null) {
   const start = new Date(startsAt);
   const end = endsAt ? new Date(endsAt) : new Date(start.getTime() + 60 * 60_000);
@@ -49,23 +56,10 @@ function formatTimeRange(startsAt: string, endsAt: string | null) {
   return `${day} · ${time.format(start)} - ${time.format(end)}`;
 }
 
-function MetricCard({ label, value, tone = 'slate' }: { label: string; value: string | number; tone?: 'slate' | 'emerald' | 'amber' | 'red' | 'sky' }) {
-  const toneClass =
-    tone === 'emerald'
-      ? 'border-emerald-400/35 bg-emerald-950/20 text-emerald-100'
-      : tone === 'amber'
-        ? 'border-amber-400/35 bg-amber-950/20 text-amber-100'
-        : tone === 'red'
-          ? 'border-red-400/35 bg-red-950/20 text-red-100'
-          : tone === 'sky'
-            ? 'border-sky-400/35 bg-sky-950/20 text-sky-100'
-            : 'border-slate-800 bg-slate-900/45 text-slate-100';
-  return (
-    <div className={`rounded-2xl border p-3 ${toneClass}`}>
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] opacity-70">{label}</p>
-      <p className="mt-2 text-xl font-black">{value}</p>
-    </div>
-  );
+function statusClass(status?: string) {
+  if (status === 'out') return 'text-red-200';
+  if (status === 'late') return 'text-amber-200';
+  return 'text-emerald-200';
 }
 
 export function SessionDetailSheet({
@@ -85,9 +79,12 @@ export function SessionDetailSheet({
   canEditGroups = false,
   onGroupsChange,
   attendance,
-  load,
+  load: _load,
   loadRisks = [],
+  participants = [],
   editDetails,
+  canEditTime = false,
+  onTimeChange,
   actions,
   onClose,
 }: {
@@ -109,12 +106,26 @@ export function SessionDetailSheet({
   attendance?: SessionDetailAttendance;
   load?: SessionDetailLoad;
   loadRisks?: SessionDetailLoadRisk[];
+  participants?: SessionDetailParticipant[];
   editDetails?: ReactNode;
+  canEditTime?: boolean;
+  onTimeChange?: (startsAt: string, endsAt: string) => void | Promise<void>;
   actions?: ReactNode;
   onClose: () => void;
 }) {
   const wholeTeamSelected = selectedGroupIds.length === 0;
   const [showEditDetails, setShowEditDetails] = useState(false);
+  const [showParticipants, setShowParticipants] = useState(false);
+  const [isSavingTime, setIsSavingTime] = useState(false);
+  const [timeValue, setTimeValue] = useState(() => {
+    const start = new Date(startsAt);
+    return `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
+  });
+  const [durationValue, setDurationValue] = useState(() => {
+    const start = new Date(startsAt);
+    const end = endsAt ? new Date(endsAt) : new Date(start.getTime() + 60 * 60_000);
+    return String(Math.max(30, Math.round((end.getTime() - start.getTime()) / 60_000)));
+  });
 
   function toggleGroup(groupId: string) {
     if (!onGroupsChange) return;
@@ -122,6 +133,23 @@ export function SessionDetailSheet({
       ? selectedGroupIds.filter((id) => id !== groupId)
       : [...selectedGroupIds, groupId];
     void onGroupsChange(next);
+  }
+
+  async function saveTimeChange() {
+    if (!onTimeChange) return;
+    const [hours, minutes] = timeValue.split(':').map(Number);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return;
+    const duration = Math.max(30, Number.parseInt(durationValue, 10) || 60);
+    const start = new Date(startsAt);
+    start.setHours(hours, minutes, 0, 0);
+    const end = new Date(start.getTime() + duration * 60_000);
+    setIsSavingTime(true);
+    try {
+      await onTimeChange(start.toISOString(), end.toISOString());
+      setShowEditDetails(false);
+    } finally {
+      setIsSavingTime(false);
+    }
   }
 
   return (
@@ -138,68 +166,36 @@ export function SessionDetailSheet({
           </button>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <MetricCard label="Attendance" value={attendance?.status ?? (attendance?.out || attendance?.late ? `${attendance?.out ?? 0} out · ${attendance?.late ?? 0} late` : `${attendance?.expected ?? 0} expected`)} tone={attendance?.out ? 'red' : attendance?.late ? 'amber' : 'emerald'} />
-          <MetricCard label="Load" value={load?.status ?? (load?.missing ? `${load.missing} missing` : 'Prepared')} tone={load?.missing ? 'amber' : 'sky'} />
-          <MetricCard label="Scope" value={wholeTeamSelected ? 'Whole team' : `${selectedGroupIds.length} groups`} />
-        </div>
-
-        <div className="mt-5 grid gap-3 md:grid-cols-2">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Context</p>
-            <div className="mt-3 grid gap-2 text-sm font-bold text-slate-300">
-              {teamName ? <p><span className="text-slate-500">Team</span><br />{teamName}</p> : null}
-              {departmentName ? <p><span className="text-slate-500">Department</span><br />{departmentName}</p> : null}
-              <div>
-                <span className="text-slate-500">Facility</span>
-                {canEditFacility && onFacilityChange && facilityOptions.length > 0 ? (
-                  <select
-                    value={facilityId ?? ''}
-                    onChange={(event) => { void onFacilityChange(event.target.value); }}
-                    disabled={isSavingFacility}
-                    className="mt-2 w-full max-w-52 rounded-lg border border-slate-700 bg-slate-950/90 px-2.5 py-1.5 text-xs font-black text-slate-100 outline-none focus:border-sky-300 disabled:opacity-60"
+        <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Participants</p>
+          {groups.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                disabled={!canEditGroups || !onGroupsChange}
+                onClick={() => { void onGroupsChange?.([]); }}
+                className={`rounded-full border px-2.5 py-1 text-xs font-black ${wholeTeamSelected ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:text-white'} disabled:opacity-70`}
+              >
+                Whole team
+              </button>
+              {groups.map((group) => {
+                const selected = selectedGroupIds.includes(group.id);
+                return (
+                  <button
+                    key={group.id}
+                    type="button"
+                    disabled={!canEditGroups || !onGroupsChange}
+                    onClick={() => toggleGroup(group.id)}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-black ${selected ? 'border-sky-300 bg-sky-950/50 text-sky-100' : 'border-slate-700 text-slate-300 hover:text-white'} disabled:opacity-70`}
                   >
-                    <option value="">Select facility</option>
-                    {facilityOptions.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
-                  </select>
-                ) : (
-                  <p className="mt-1 text-slate-300">{facilityName ?? 'No facility set'}</p>
-                )}
-              </div>
+                    {group.name}{typeof group.playerCount === 'number' ? ` · ${group.playerCount}` : ''}
+                  </button>
+                );
+              })}
             </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Participants</p>
-            {groups.length > 0 ? (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  disabled={!canEditGroups || !onGroupsChange}
-                  onClick={() => { void onGroupsChange?.([]); }}
-                  className={`rounded-full border px-2.5 py-1 text-xs font-black ${wholeTeamSelected ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:text-white'} disabled:opacity-70`}
-                >
-                  Whole team
-                </button>
-                {groups.map((group) => {
-                  const selected = selectedGroupIds.includes(group.id);
-                  return (
-                    <button
-                      key={group.id}
-                      type="button"
-                      disabled={!canEditGroups || !onGroupsChange}
-                      onClick={() => toggleGroup(group.id)}
-                      className={`rounded-full border px-2.5 py-1 text-xs font-black ${selected ? 'border-sky-300 bg-sky-950/50 text-sky-100' : 'border-slate-700 text-slate-300 hover:text-white'} disabled:opacity-70`}
-                    >
-                      {group.name}{typeof group.playerCount === 'number' ? ` · ${group.playerCount}` : ''}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="mt-3 text-sm font-bold text-slate-400">Whole team</p>
-            )}
-          </div>
+          ) : (
+            <p className="mt-3 text-sm font-bold text-slate-400">Whole team</p>
+          )}
         </div>
 
         {attendance?.notes && attendance.notes.length > 0 ? (
@@ -209,7 +205,7 @@ export function SessionDetailSheet({
               {attendance.notes.map((note) => (
                 <div key={note.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm font-bold">
                   <span className="text-slate-100">{note.name}</span>
-                  <span className={note.status === 'out' ? 'text-red-200' : note.status === 'late' ? 'text-amber-200' : 'text-emerald-200'}>{note.status}{note.detail ? ` · ${note.detail}` : ''}</span>
+                  <span className={statusClass(note.status)}>{note.status}{note.detail ? ` · ${note.detail}` : ''}</span>
                 </div>
               ))}
             </div>
@@ -239,9 +235,70 @@ export function SessionDetailSheet({
             >
               {showEditDetails ? 'Hide edit' : 'Edit session'}
             </button>
-            {showEditDetails ? <div className="mt-4">{editDetails}</div> : null}
+            {showEditDetails ? (
+              <div className="mt-4 space-y-4">
+                {canEditTime && onTimeChange ? (
+                  <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                    <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                      Start
+                      <input value={timeValue} onChange={(event) => setTimeValue(event.target.value)} type="time" className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-black text-slate-100 outline-none focus:border-sky-300" />
+                    </label>
+                    <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                      Duration
+                      <input value={durationValue} onChange={(event) => setDurationValue(event.target.value)} type="number" min={30} step={15} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-black text-slate-100 outline-none focus:border-sky-300" />
+                    </label>
+                    <button type="button" onClick={() => { void saveTimeChange(); }} disabled={isSavingTime} className="self-end rounded-xl border border-emerald-300 bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950 disabled:opacity-60">
+                      Save
+                    </button>
+                  </div>
+                ) : null}
+                {editDetails}
+              </div>
+            ) : null}
           </div>
         ) : null}
+
+        {participants.length > 0 ? (
+          <div className="mt-3 rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
+            <button type="button" onClick={() => setShowParticipants((current) => !current)} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-200 hover:bg-slate-900">
+              {showParticipants ? 'Hide expected players' : `Expected players (${participants.length})`}
+            </button>
+            {showParticipants ? (
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {participants.map((player) => (
+                  <div key={player.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm font-bold">
+                    <span className="text-slate-100">{player.name}</span>
+                    <span className={statusClass(player.status)}>{player.status ?? 'expected'}{player.detail ? ` · ${player.detail}` : ''}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="mt-3 rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Context</p>
+          <div className="mt-3 grid gap-3 text-sm font-bold text-slate-300 sm:grid-cols-3">
+            {teamName ? <p><span className="text-slate-500">Team</span><br />{teamName}</p> : null}
+            {departmentName ? <p><span className="text-slate-500">Department</span><br />{departmentName}</p> : null}
+            <div>
+              <span className="text-slate-500">Facility</span>
+              {canEditFacility && onFacilityChange && facilityOptions.length > 0 ? (
+                <select
+                  value={facilityId ?? ''}
+                  onChange={(event) => { void onFacilityChange(event.target.value); }}
+                  disabled={isSavingFacility}
+                  className="mt-2 w-full max-w-52 rounded-lg border border-slate-700 bg-slate-950/90 px-2.5 py-1.5 text-xs font-black text-slate-100 outline-none focus:border-sky-300 disabled:opacity-60"
+                >
+                  <option value="">Select facility</option>
+                  {facilityOptions.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
+                </select>
+              ) : (
+                <p className="mt-1 text-slate-300">{facilityName ?? 'No facility set'}</p>
+              )}
+            </div>
+          </div>
+        </div>
 
         {actions ? <div className="mt-5 flex flex-wrap justify-end gap-2">{actions}</div> : null}
       </section>

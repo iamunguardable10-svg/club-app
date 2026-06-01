@@ -147,17 +147,14 @@ function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDet
   const flags = [...out, ...late];
   const loadFlags = session.players.filter((player) => player.risk === 'high' || player.risk === 'low');
   return (
-    <article className="rounded-3xl border border-slate-800 bg-slate-950/72 p-4 text-white shadow-[0_18px_70px_rgba(0,0,0,0.22)]">
+    <button type="button" onClick={onDetails} className="block w-full rounded-3xl border border-slate-800 bg-slate-950/72 p-4 text-left text-white shadow-[0_18px_70px_rgba(0,0,0,0.22)] transition hover:border-emerald-300/45 hover:bg-slate-900/70">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">{session.departmentName} · {session.teamName}</p>
           <h3 className="mt-2 text-xl font-black">{session.title}</h3>
           <p className="mt-1 text-sm font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
         </div>
-        <div className="flex gap-2">
-          <button type="button" onClick={onDetails} className="rounded-xl border border-emerald-500/55 px-3 py-2 text-xs font-black text-emerald-100 hover:bg-emerald-950/35">Details</button>
-          <Link href={`/coach/sessions?teamId=${session.teamId}`} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Calendar</Link>
-        </div>
+        <span className="text-lg font-black text-slate-500">›</span>
       </div>
 
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -170,7 +167,7 @@ function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDet
             <p key={item.id} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.reason ? ` · ${item.reason}` : ''}</p>
           ))}
         </div>
-        <div className={`rounded-2xl border p-3 ${late.length > 0 ? 'border-sky-400/35 bg-sky-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
+        <div className={`rounded-2xl border p-3 ${late.length > 0 ? 'border-amber-400/35 bg-amber-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Late</p>
             <span className="text-lg font-black text-white">{late.length}</span>
@@ -191,7 +188,7 @@ function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDet
           ))}
         </div>
       ) : null}
-    </article>
+    </button>
   );
 }
 
@@ -487,11 +484,11 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Next</p>
                 <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
                   {upcomingSessions.map((session) => (
-                    <Link key={session.id} href={`/coach/sessions?teamId=${session.teamId}`} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 transition hover:border-sky-300/50 hover:bg-slate-900/70">
+                    <button key={session.id} type="button" onClick={() => setActiveSession(session)} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-left transition hover:border-sky-300/50 hover:bg-slate-900/70">
                       <p className="text-sm font-black text-white">{session.teamName}</p>
                       <p className="mt-1 text-xs font-bold text-slate-400">{new Date(session.startsAt).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' })} · {formatTimeRange(session.startsAt, session.endsAt)}</p>
                       <p className="mt-3 text-xs font-black text-slate-500">{session.availability.length} availability flags</p>
-                    </Link>
+                    </button>
                   ))}
                 </div>
               </section>
@@ -525,6 +522,15 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             loadRisks={activeSession.players
               .filter((player) => player.risk === 'high' || player.risk === 'low')
               .map((player) => ({ id: player.id, name: player.name, status: player.risk as 'high' | 'low', detail: player.acwr !== null ? `${player.acwr.toFixed(2)} ACWR` : null }))}
+            participants={activeSession.players.map((player) => {
+              const flag = activeSession.availability.find((item) => item.userId === player.id);
+              return {
+                id: player.id,
+                name: player.name,
+                status: flag?.status ?? 'expected',
+                detail: flag?.status === 'late' && flag.lateMinutes ? `${flag.lateMinutes} min` : flag?.reason ?? null,
+              };
+            })}
             actions={<Link href={`/coach/sessions?teamId=${activeSession.teamId}`} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</Link>}
             onClose={() => setActiveSession(null)}
           />

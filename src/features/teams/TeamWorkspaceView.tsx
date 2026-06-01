@@ -365,11 +365,11 @@ function PlayerLoadDetail({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avg game minutes</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avg game minutes / session</p>
                 <p className="mt-2 text-2xl font-black text-white">{avgGameMinutes === null ? '—' : `${avgGameMinutes} min`}</p>
               </div>
               <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avg training minutes</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avg training minutes / session</p>
                 <p className="mt-2 text-2xl font-black text-white">{avgTrainingMinutes === null ? '—' : `${avgTrainingMinutes} min`}</p>
               </div>
             </div>
@@ -764,6 +764,14 @@ function TeamSmartCalendar({
     await onSessionGroupsChange(selectedSession.id, groupIds);
   }
 
+  async function handleSelectedSessionTimeChange(startsAt: string, endsAt: string) {
+    if (!selectedSession || !onSessionTimeChange) return;
+    setLocalSessions((current) =>
+      current.map((session) => (session.id === selectedSession.id ? { ...session, startsAt, endsAt } : session)),
+    );
+    await onSessionTimeChange(selectedSession.id, startsAt, endsAt);
+  }
+
   useEffect(() => {
     if (!drag) return;
     const activeDrag = drag;
@@ -908,10 +916,20 @@ function TeamSmartCalendar({
           attendance={selectedSessionAttendance}
           load={selectedSessionLoad}
           loadRisks={selectedSessionLoadRisks}
+          participants={selectedSessionPlayers.map((player) => {
+            const flag = (player.attendanceEvents ?? []).find((event) => event.sessionId === selectedSession.id);
+            return {
+              id: player.id,
+              name: player.name,
+              status: flag?.status ?? 'expected',
+              detail: flag?.status === 'late' && flag.lateMinutes ? `${flag.lateMinutes} min` : flag?.reason ?? null,
+            };
+          })}
+          canEditTime={canManageCalendar && Boolean(onSessionTimeChange)}
+          onTimeChange={handleSelectedSessionTimeChange}
           editDetails={canManageCalendar ? (
             <div className="space-y-2 text-sm font-bold text-slate-300">
-              <p>Move or resize the session in calendar edit mode.</p>
-              <p>Facility and selected groups can be changed directly in this sheet.</p>
+              <p>Facility and selected groups can be changed directly above.</p>
             </div>
           ) : null}
           onClose={() => setSelectedSessionId(null)}
@@ -959,6 +977,7 @@ export function TeamWorkspaceView({
   const [activeSection, setActiveSection] = useState<TeamWorkspaceSection>(initialSection);
   const [isSavingDefault, setIsSavingDefault] = useState(false);
   const [activePlayer, setActivePlayer] = useState<TeamWorkspacePlayer | null>(null);
+  const [dashboardSession, setDashboardSession] = useState<TeamWorkspaceSession | null>(null);
   const [playerSort, setPlayerSort] = useState<'risk' | 'az'>('risk');
   const selectedFacilityTone = facilityTone(data.defaultFacilityName);
   const players = data.players ?? [];
@@ -1044,6 +1063,35 @@ export function TeamWorkspaceView({
     }
   }
 
+  function playersForSession(session: TeamWorkspaceSession | null) {
+    if (!session?.groupIds?.length) return players;
+    const ids = new Set<string>();
+    for (const groupId of session.groupIds) {
+      const group = data.groups.find((item) => item.id === groupId);
+      for (const playerId of group?.playerIds ?? []) ids.add(playerId);
+    }
+    return players.filter((player) => ids.has(player.id));
+  }
+
+  function attendanceForSession(session: TeamWorkspaceSession, sessionPlayers: TeamWorkspacePlayer[]) {
+    const notes = sessionPlayers.flatMap((player) =>
+      (player.attendanceEvents ?? [])
+        .filter((event) => event.sessionId === session.id)
+        .map((event) => ({
+          id: `${player.id}-${event.sessionId}-${event.status}`,
+          name: player.name,
+          status: event.status,
+          detail: event.status === 'late' && event.lateMinutes ? `${event.lateMinutes} min` : event.reason,
+        })),
+    );
+    return {
+      expected: sessionPlayers.length,
+      late: notes.filter((note) => note.status === 'late').length,
+      out: notes.filter((note) => note.status === 'out').length,
+      notes,
+    };
+  }
+
   async function handleAddDemoPlayers() {
     if (!onAddDemoPlayers) return;
     await onAddDemoPlayers();
@@ -1114,7 +1162,7 @@ export function TeamWorkspaceView({
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Today / next</p>
             {nextSession ? (
-              <button type="button" onClick={() => setActiveSection('calendar')} className="mt-4 w-full rounded-2xl border border-sky-500/30 bg-sky-950/25 p-4 text-left transition hover:border-sky-300/60">
+              <button type="button" onClick={() => setDashboardSession(nextSession)} className="mt-4 w-full rounded-2xl border border-sky-500/30 bg-sky-950/25 p-4 text-left transition hover:border-sky-300/60">
                 <p className="text-xl font-black">{nextSession.title}</p>
                 <p className="mt-1 text-sm text-slate-300">{formatTimeRange(nextSession.startsAt, nextSession.endsAt)}</p>
                 <p className="mt-1 text-sm text-slate-400">{nextSession.facilityName ?? data.defaultFacilityName ?? 'Facility not set'}</p>
@@ -1391,6 +1439,40 @@ export function TeamWorkspaceView({
           </div>
         </section>
       ) : null}
+
+      {dashboardSession ? (() => {
+        const sessionPlayers = playersForSession(dashboardSession);
+        const attendance = attendanceForSession(dashboardSession, sessionPlayers);
+        return (
+          <SessionDetailSheet
+            title={dashboardSession.title}
+            startsAt={dashboardSession.startsAt}
+            endsAt={dashboardSession.endsAt}
+            teamName={data.name}
+            departmentName={data.departmentName}
+            facilityName={dashboardSession.facilityName ?? data.defaultFacilityName}
+            facilityId={dashboardSession.facilityId ?? data.defaultFacilityId}
+            facilityOptions={data.availableFacilities ?? []}
+            canEditFacility={false}
+            groups={data.groups.map((group) => ({ id: group.id, name: group.name, playerCount: group.playerCount }))}
+            selectedGroupIds={dashboardSession.groupIds ?? []}
+            canEditGroups={false}
+            attendance={attendance}
+            loadRisks={sessionPlayers.map(loadRiskLine).filter(Boolean) as { id: string; name: string; status: 'high' | 'low'; detail: string | null }[]}
+            participants={sessionPlayers.map((player) => {
+              const flag = (player.attendanceEvents ?? []).find((event) => event.sessionId === dashboardSession.id);
+              return {
+                id: player.id,
+                name: player.name,
+                status: flag?.status ?? 'expected',
+                detail: flag?.status === 'late' && flag.lateMinutes ? `${flag.lateMinutes} min` : flag?.reason ?? null,
+              };
+            })}
+            actions={<button type="button" onClick={() => { setDashboardSession(null); setActiveSection('calendar'); }} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</button>}
+            onClose={() => setDashboardSession(null)}
+          />
+        );
+      })() : null}
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950/95 p-2 backdrop-blur md:hidden" aria-label="Team mobile navigation">
         <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">

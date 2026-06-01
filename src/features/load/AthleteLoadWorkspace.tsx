@@ -847,6 +847,7 @@ function plannedProjectionLoad(point?: ACWRDataPoint) {
 
 export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; pendingSessions: AthletePendingSession[] }) {
   const [isMobile, setIsMobile] = useState(false);
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
   const [range, setRange] = useState<LoadChartRange>(14);
@@ -856,6 +857,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
     const syncViewport = () => {
       const mobile = window.innerWidth < 640;
       setIsMobile(mobile);
+      setIsCompactViewport(window.innerWidth < 1024);
       setIsLandscape(window.innerWidth > window.innerHeight);
       if (mobile && !isFullscreen) {
         setRange((current) => (current === 60 ? 30 : current));
@@ -924,8 +926,8 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
   const maxLoad = Math.max(600, ...chartData.map((day) => Math.max(day.totalLoad, day.forecastLoad)));
   const ranges = isMobile ? ([7, 14, 30] as const) : ([7, 14, 30, 60] as const);
   const fullscreenRanges = [14, 30, 60] as const;
-  const chartMinWidth = isMobile ? '100%' : range === 7 ? 540 : range === 14 ? 680 : range === 30 ? 920 : 1480;
-  const chartHeight = isMobile ? (range === 7 ? 300 : 320) : 360;
+  const chartMinWidth = isCompactViewport ? '100%' : range === 7 ? 540 : range === 14 ? 680 : range === 30 ? 920 : 1480;
+  const chartHeight = isMobile ? (range === 7 ? 300 : 320) : isCompactViewport ? 340 : 360;
   const chartMargin = (fullscreen = false) => ({
     top: fullscreen ? 16 : 14,
     right: fullscreen ? 18 : 8,
@@ -1037,10 +1039,10 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
           yAxisId="acwr"
           type="monotone"
           dataKey="acwr"
-          stroke="#7dd3fc"
+          stroke="#f472b6"
           strokeWidth={3}
-          dot={{ r: range === 7 ? 4 : 2, fill: '#0f172a', stroke: '#7dd3fc', strokeWidth: 2 }}
-          activeDot={{ r: 6, fill: '#ecfeff', stroke: '#38bdf8', strokeWidth: 3 }}
+          dot={{ r: range === 7 ? 4 : 2, fill: '#0f172a', stroke: '#f472b6', strokeWidth: 2 }}
+          activeDot={{ r: 6, fill: '#fdf2f8', stroke: '#f472b6', strokeWidth: 3 }}
           connectNulls={false}
           name="ACWR"
         />
@@ -1100,7 +1102,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
           </button>
         </div>
       </div>
-      <div className={`${isMobile ? 'overflow-hidden' : 'overflow-x-auto'} w-full max-w-full pb-1`}>
+      <div className={`${isCompactViewport ? 'overflow-hidden' : 'overflow-x-auto'} w-full max-w-full pb-1`}>
         <div style={{ minWidth: chartMinWidth, height: chartHeight }}>
           {chart(false)}
         </div>

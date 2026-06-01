@@ -333,7 +333,13 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
   }
 
   const backTarget =
-    from === 'department'
+    from === 'coachTeam' && teamName
+      ? { href: `/demo/coach/team?teamId=${encodeURIComponent(teams.find((team) => team.name === teamName && (!departmentName || team.department === departmentName))?.id ?? teamName)}`, label: 'Back to team' }
+      : from === 'departmentTeam' && teamName
+      ? { href: `/demo/admin/teams/${encodeURIComponent(teams.find((team) => team.name === teamName && (!departmentName || team.department === departmentName))?.id ?? teamName)}?from=department${departmentName ? `&departmentName=${encodeURIComponent(departmentName)}` : ''}`, label: 'Back to team' }
+      : from === 'team' && teamName
+      ? { href: `/demo/admin/teams/${encodeURIComponent(teams.find((team) => team.name === teamName && (!departmentName || team.department === departmentName))?.id ?? teamName)}${departmentName ? `?from=adminDepartment&departmentName=${encodeURIComponent(departmentName)}` : ''}`, label: 'Back to team' }
+      : from === 'department'
       ? { href: '/demo/department/facilities', label: 'Back to facilities' }
       : from === 'departments'
       ? { href: '/demo/admin/departments', label: 'Back to local departments' }
