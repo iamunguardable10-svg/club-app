@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { SessionComposer, type SessionComposerPayload } from '@/features/sessions/SessionComposer';
+import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
@@ -103,17 +104,55 @@ function durationMinutes(start: Date, end: Date) {
   return Math.max(30, Math.round((end.getTime() - start.getTime()) / 60_000));
 }
 
-function formatTimeRange(startsAt: string, endsAt: string | null) {
-  const start = new Date(startsAt);
-  const end = endsAt ? new Date(endsAt) : addMinutes(start, 60);
-  const formatter = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
-  return `${formatter.format(start)} - ${formatter.format(end)}`;
-}
-
 function sessionTone(session: Session, departmentId?: string, teamId?: string) {
   if (teamId && session.owner_team_id === teamId) return 'primary';
   if (departmentId && session.department_id === departmentId) return 'secondary';
   return 'muted';
+}
+
+function FacilityRoleNav({ from, teamId }: { from?: string; teamId?: string }) {
+  if (from === 'coachTeam') {
+    const suffix = teamId ? `?teamId=${teamId}` : '';
+    const links = [
+      { href: '/coach/today', label: 'Today' },
+      { href: `/coach/team${suffix}`, label: 'Team' },
+      { href: `/coach/sessions${suffix}`, label: 'Calendar' },
+      { href: `/coach/attendance${suffix}`, label: 'Attendance' },
+      { href: `/coach/load${suffix}`, label: 'Load' },
+    ];
+    return (
+      <nav className="sticky top-3 z-30 rounded-3xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_18px_80px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.04] backdrop-blur-xl" aria-label="Coach navigation">
+        <div className="flex flex-wrap gap-1.5">
+          {links.map((link) => (
+            <Link key={link.href} href={link.href} className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-black text-slate-200 transition hover:border-emerald-300/40 hover:bg-emerald-300/10 hover:text-white">
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      </nav>
+    );
+  }
+
+  if (from === 'department' || from === 'departmentTeam') return null;
+
+  const links = [
+    { href: '/admin/overview', label: 'Overview' },
+    { href: '/admin/departments', label: 'Departments' },
+    { href: '/admin/teams', label: 'Teams' },
+    { href: '/admin/facilities', label: 'Facilities' },
+    { href: '/admin/people', label: 'Staff' },
+  ];
+  return (
+    <nav className="sticky top-3 z-30 rounded-3xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_18px_80px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.04] backdrop-blur-xl" aria-label="Admin navigation">
+      <div className="flex flex-wrap gap-1.5">
+        {links.map((link) => (
+          <Link key={link.href} href={link.href} className={`rounded-2xl border px-3 py-2 text-xs font-black transition ${link.label === 'Facilities' ? 'border-sky-300/40 bg-sky-300/10 text-white' : 'border-white/10 bg-white/[0.03] text-slate-200 hover:border-sky-300/40 hover:bg-sky-300/10 hover:text-white'}`}>
+            {link.label}
+          </Link>
+        ))}
+      </div>
+    </nav>
+  );
 }
 
 export function FacilityCalendar({ facilityId, from, departmentId, teamId }: FacilityCalendarProps) {
@@ -457,7 +496,13 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
   }, [draft, drag]);
 
   const backTarget =
-    from === 'department'
+    from === 'coachTeam' && teamId
+      ? { href: `/coach/team?teamId=${teamId}`, label: 'Back to team' }
+      : from === 'departmentTeam' && teamId && departmentId
+      ? { href: `/admin/teams/${teamId}?from=department&departmentId=${departmentId}`, label: 'Back to team' }
+      : from === 'team' && teamId
+      ? { href: `/admin/teams/${teamId}${departmentId ? `?from=adminDepartment&departmentId=${departmentId}` : ''}`, label: 'Back to team' }
+      : from === 'department'
       ? { href: `/department/facilities${departmentId ? `?departmentId=${departmentId}` : ''}`, label: 'Back to facilities' }
       : from === 'departments'
       ? { href: '/admin/departments', label: 'Back to departments' }
@@ -617,8 +662,9 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-8">
-      {from === 'department' ? <DepartmentLeadDrawer mode="facilities" basePath="/department" departmentId={departmentId} departmentName={highlightedDepartment?.name} /> : null}
+      {from === 'department' || from === 'departmentTeam' ? <DepartmentLeadDrawer mode="facilities" basePath="/department" departmentId={departmentId} departmentName={highlightedDepartment?.name} /> : null}
       <div className="mx-auto max-w-7xl space-y-5">
+        <FacilityRoleNav from={from} teamId={teamId} />
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.22)] ring-1 ring-white/[0.03]">
           <Link href={backTarget.href} className="text-sm font-black text-slate-300 hover:text-white">{backTarget.label}</Link>
           <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-slate-500">Facility calendar</p>
@@ -678,28 +724,24 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
         const team = teamById.get(selectedSession.owner_team_id);
         const department = departmentById.get(selectedSession.department_id);
         return (
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 p-3 backdrop-blur-sm sm:items-center">
-            <section className="w-full max-w-lg rounded-3xl border border-slate-800 bg-slate-950 p-5 shadow-2xl">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Session details</p>
-              <h2 className="mt-2 text-2xl font-black">{selectedSession.title}</h2>
-              <div className="mt-4 grid gap-2 text-sm text-slate-300">
-                <p><span className="font-black text-slate-100">Time:</span> {formatTimeRange(selectedSession.starts_at, selectedSession.ends_at)}</p>
-                <p><span className="font-black text-slate-100">Team:</span> {team?.name ?? 'Team'}</p>
-                <p><span className="font-black text-slate-100">Department:</span> {department?.name ?? 'Department'}</p>
-                <p><span className="font-black text-slate-100">Attendance:</span> Planned</p>
-                <p><span className="font-black text-slate-100">Load:</span> Not reported yet</p>
-              </div>
-              <div className="mt-5 flex justify-end gap-2">
-                <button type="button" onClick={() => setSelectedSession(null)} className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Close</button>
-                {canManageSession(selectedSession) ? (
-                  <>
-                    <button type="button" onClick={() => setEditingSession(selectedSession)} className="rounded-xl border border-sky-500/70 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Edit</button>
-                    <button type="button" onClick={() => handleDeleteSession(selectedSession)} className="rounded-xl border border-red-500/60 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-950/30">Delete</button>
-                  </>
-                ) : null}
-              </div>
-            </section>
-          </div>
+          <SessionDetailSheet
+            title={selectedSession.title}
+            startsAt={selectedSession.starts_at}
+            endsAt={selectedSession.ends_at}
+            teamName={team?.name ?? 'Team'}
+            departmentName={department?.name ?? 'Department'}
+            facilityName={facility?.name ?? null}
+            facilityId={facilityId}
+            attendance={{ status: 'Planned' }}
+            load={{ status: 'Not reported yet' }}
+            actions={canManageSession(selectedSession) ? (
+              <>
+                <button type="button" onClick={() => { setSelectedSession(null); setEditingSession(selectedSession); }} className="rounded-xl border border-sky-500/70 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Edit</button>
+                <button type="button" onClick={() => handleDeleteSession(selectedSession)} className="rounded-xl border border-red-500/60 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-950/30">Delete</button>
+              </>
+            ) : null}
+            onClose={() => setSelectedSession(null)}
+          />
         );
       })() : null}
 

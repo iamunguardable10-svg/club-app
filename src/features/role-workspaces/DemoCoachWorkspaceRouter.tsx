@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DemoTeamWorkspace } from '@/features/teams/DemoTeamWorkspace';
 import type { TeamWorkspaceSection } from '@/features/teams/TeamWorkspaceView';
+import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { getDemoClubSetup, getDemoSessions, getDemoTeams, type DemoClubSetup, type DemoSession, type DemoTeam } from '@/shared/dev/demoStorage';
 
 type CoachMode = 'today' | 'team' | 'sessions' | 'attendance' | 'load';
@@ -19,7 +20,8 @@ type DemoCoachSession = {
   teamName: string;
   departmentName: string;
   facilityName: string | null;
-  availability: { id: string; playerName: string; status: 'late' | 'out'; reason: string | null; lateMinutes: number | null }[];
+  availability: { id: string; playerId?: string; playerName: string; status: 'late' | 'out'; reason: string | null; lateMinutes: number | null }[];
+  players: { id: string; name: string; risk: 'high' | 'low' | 'ready'; acwr: number }[];
 };
 
 const DEMO_AVAILABILITY_KEY = 'club-app.demo.athlete-availability';
@@ -94,13 +96,14 @@ function buildCoachSessions(teams: DemoTeam[], storedSessions: DemoSession[]) {
   const sessions = storedSessions.length > 0 ? storedSessions : fallbackSessions(teams);
   const teamByName = new Map(teams.map((team) => [`${team.department}:${team.name}`, team]));
   return sessions
-    .map((session, index) => {
+    .map((session) => {
       const team = teamByName.get(`${session.department}:${session.team}`);
       if (!team) return null;
+      const isPrimaryDemoTeam = team.id === 'basketball-u14-boys';
       const mark = availability.get(session.id);
-      const fallbackFlags = mark ? [] : index === 0 ? [
-        { id: `${session.id}-late`, playerName: 'Noah Keller', status: 'late' as const, reason: 'Traffic', lateMinutes: 15 },
-        { id: `${session.id}-out`, playerName: 'Elias Wagner', status: 'out' as const, reason: 'School', lateMinutes: null },
+      const fallbackFlags = mark ? [] : isPrimaryDemoTeam ? [
+        { id: `${session.id}-late`, playerId: 'noah-keller', playerName: 'Noah Keller', status: 'late' as const, reason: 'Traffic', lateMinutes: 15 },
+        { id: `${session.id}-out`, playerId: 'elias-wagner', playerName: 'Elias Wagner', status: 'out' as const, reason: 'School', lateMinutes: null },
       ] : [];
       return {
         id: session.id,
@@ -111,30 +114,42 @@ function buildCoachSessions(teams: DemoTeam[], storedSessions: DemoSession[]) {
         teamName: team.name,
         departmentName: team.department,
         facilityName: session.facility,
-        availability: mark && (mark.status === 'late' || mark.status === 'out') ? [{ id: `${session.id}-demo-athlete`, playerName: 'Demo Athlete', status: mark.status, reason: mark.reason, lateMinutes: mark.lateMinutes }] : fallbackFlags,
+        availability: mark && (mark.status === 'late' || mark.status === 'out') ? [{ id: `${session.id}-demo-athlete`, playerId: 'demo-athlete', playerName: 'Demo Athlete', status: mark.status, reason: mark.reason, lateMinutes: mark.lateMinutes }] : fallbackFlags,
+        players: isPrimaryDemoTeam
+          ? [
+              { id: 'noah-keller', name: 'Noah Keller', risk: 'high', acwr: 1.41 },
+              { id: 'elias-wagner', name: 'Elias Wagner', risk: 'ready', acwr: 1.05 },
+              { id: 'leo-bauer', name: 'Leo Bauer', risk: 'low', acwr: 0.74 },
+            ]
+          : [
+              { id: 'mika-schulz', name: 'Mika Schulz', risk: 'ready', acwr: 1.11 },
+              { id: 'jonas-meyer', name: 'Jonas Meyer', risk: 'high', acwr: 1.34 },
+            ],
       } satisfies DemoCoachSession;
     })
     .filter(Boolean) as DemoCoachSession[];
 }
 
-function DemoSessionCard({ session }: { session: DemoCoachSession }) {
+function DemoSessionCard({ session, onDetails }: { session: DemoCoachSession; onDetails: () => void }) {
   const out = session.availability.filter((item) => item.status === 'out');
   const late = session.availability.filter((item) => item.status === 'late');
+  const loadFlags = session.players.filter((player) => player.risk === 'high' || player.risk === 'low');
   return (
-    <article className="rounded-3xl border border-slate-800 bg-slate-950/72 p-4 text-white shadow-[0_18px_70px_rgba(0,0,0,0.22)]">
+    <button type="button" onClick={onDetails} className="block w-full rounded-3xl border border-slate-800 bg-slate-950/72 p-4 text-left text-white shadow-[0_18px_70px_rgba(0,0,0,0.22)] transition hover:border-emerald-300/45 hover:bg-slate-900/70">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">{session.departmentName} · {session.teamName}</p>
           <h3 className="mt-2 text-xl font-black">{session.title}</h3>
           <p className="mt-1 text-sm font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
         </div>
-        <Link href={`/demo/coach/sessions?teamId=${encodeURIComponent(session.teamId)}`} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open</Link>
+        <span className="text-lg font-black text-slate-500">›</span>
       </div>
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         <div className={`rounded-2xl border p-3 ${out.length > 0 ? 'border-rose-400/35 bg-rose-400/10' : 'border-slate-800 bg-slate-950/60'}`}><div className="flex items-center justify-between"><p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Out</p><span className="text-lg font-black">{out.length}</span></div>{out.map((item) => <p key={item.id} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.reason ? ` · ${item.reason}` : ''}</p>)}</div>
-        <div className={`rounded-2xl border p-3 ${late.length > 0 ? 'border-sky-400/35 bg-sky-400/10' : 'border-slate-800 bg-slate-950/60'}`}><div className="flex items-center justify-between"><p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Late</p><span className="text-lg font-black">{late.length}</span></div>{late.map((item) => <p key={item.id} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${item.lateMinutes}m` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>)}</div>
+        <div className={`rounded-2xl border p-3 ${late.length > 0 ? 'border-amber-400/35 bg-amber-400/10' : 'border-slate-800 bg-slate-950/60'}`}><div className="flex items-center justify-between"><p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Late</p><span className="text-lg font-black">{late.length}</span></div>{late.map((item) => <p key={item.id} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${item.lateMinutes}m` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>)}</div>
       </div>
-    </article>
+      {loadFlags.length > 0 ? <div className="mt-3 flex flex-wrap gap-1.5">{loadFlags.map((player) => <span key={player.id} className={`rounded-full border px-2 py-1 text-[11px] font-black ${player.risk === 'high' ? 'border-rose-400/40 text-rose-100' : 'border-sky-400/40 text-sky-100'}`}>{player.name} · {player.acwr.toFixed(2)} ACWR</span>)}</div> : null}
+    </button>
   );
 }
 
@@ -144,6 +159,7 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [teams, setTeams] = useState<DemoTeam[]>([]);
   const [sessions, setSessions] = useState<DemoCoachSession[]>([]);
+  const [activeSession, setActiveSession] = useState<DemoCoachSession | null>(null);
 
   useEffect(() => {
     const currentSetup = getDemoClubSetup();
@@ -196,7 +212,7 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
               {todaySessions.length > 0 ? <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{todaySessions.length} today</span> : null}
             </div>
             <div className="mt-5 grid gap-3 lg:grid-cols-2">
-              {todaySessions.length > 0 ? todaySessions.map((session) => <DemoSessionCard key={session.id} session={session} />) : <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions today.</div>}
+              {todaySessions.length > 0 ? todaySessions.map((session) => <DemoSessionCard key={session.id} session={session} onDetails={() => setActiveSession(session)} />) : <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions today.</div>}
             </div>
           </section>
         ) : null}
@@ -205,7 +221,7 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Next</p>
             <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-              {upcomingSessions.map((session) => <Link key={session.id} href={`/demo/coach/sessions?teamId=${encodeURIComponent(session.teamId)}`} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 transition hover:border-sky-300/50"><p className="text-sm font-black">{session.teamName}</p><p className="mt-1 text-xs font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt)}</p><p className="mt-3 text-xs font-black text-slate-500">{session.availability.length} availability flags</p></Link>)}
+              {upcomingSessions.map((session) => <button key={session.id} type="button" onClick={() => setActiveSession(session)} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-left transition hover:border-sky-300/50"><p className="text-sm font-black">{session.teamName}</p><p className="mt-1 text-xs font-bold text-slate-400">{new Date(session.startsAt).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' })} · {formatTimeRange(session.startsAt, session.endsAt)}</p><p className="mt-3 text-xs font-black text-slate-500">{session.availability.length} availability flags</p></button>)}
             </div>
           </section>
         ) : null}
@@ -229,6 +245,43 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             })}
           </div>
         </section>
+
+        {activeSession ? (
+          <SessionDetailSheet
+            title={activeSession.title}
+            startsAt={activeSession.startsAt}
+            endsAt={activeSession.endsAt}
+            teamName={activeSession.teamName}
+            departmentName={activeSession.departmentName}
+            facilityName={activeSession.facilityName}
+            attendance={{
+              expected: activeSession.players.length,
+              late: activeSession.availability.filter((item) => item.status === 'late').length,
+              out: activeSession.availability.filter((item) => item.status === 'out').length,
+              notes: activeSession.availability.map((item) => ({
+                id: item.id,
+                name: item.playerName,
+                status: item.status,
+                detail: item.status === 'late' && item.lateMinutes ? `${item.lateMinutes} min` : item.reason,
+              })),
+            }}
+            load={{ planned: activeSession.players.length, status: `${activeSession.players.length} players` }}
+            loadRisks={activeSession.players
+              .filter((player) => player.risk === 'high' || player.risk === 'low')
+              .map((player) => ({ id: player.id, name: player.name, status: player.risk as 'high' | 'low', detail: `${player.acwr.toFixed(2)} ACWR` }))}
+            participants={activeSession.players.map((player) => {
+              const flag = activeSession.availability.find((item) => item.playerId === player.id || item.playerName === player.name);
+              return {
+                id: player.id,
+                name: player.name,
+                status: flag?.status ?? 'expected',
+                detail: flag?.status === 'late' && flag.lateMinutes ? `${flag.lateMinutes} min` : flag?.reason ?? null,
+              };
+            })}
+            actions={<Link href={`/demo/coach/sessions?teamId=${encodeURIComponent(activeSession.teamId)}`} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</Link>}
+            onClose={() => setActiveSession(null)}
+          />
+        ) : null}
       </div>
     </main>
   );

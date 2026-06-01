@@ -505,7 +505,18 @@ export function TeamWorkspace({
     const isAdmin = clubMemberships.some((membership) => membership.role === 'club_admin');
     const isLead = clubMemberships.some((membership) => membership.role === 'department_lead' && membership.department_id === team.department_id);
     const isCoach = activeMemberships.some((membership) => membership.user_id === currentUserId && (membership.role === 'head_coach' || membership.role === 'assistant_coach'));
-    const role: TeamWorkspaceRole = isAdmin ? 'admin' : isLead ? 'department_lead' : isCoach ? 'coach' : 'viewer';
+    const role: TeamWorkspaceRole =
+      frame === 'department' && isLead
+        ? 'department_lead'
+        : frame === 'coach' && isCoach
+          ? 'coach'
+          : isAdmin
+            ? 'admin'
+            : isLead
+              ? 'department_lead'
+              : isCoach
+                ? 'coach'
+                : 'viewer';
     const pendingInviteFor = (staffRole: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) =>
       invites.find((invite) => invite.status === 'pending' && invite.role === staffRole && (invite.coach_role_slot_id ?? null) === (coachRoleSlotId ?? null));
     const membershipFor = (staffRole: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) =>
@@ -611,7 +622,9 @@ export function TeamWorkspace({
       departmentNav: frame === 'department'
         ? { basePath: '/department', departmentId: team.department_id, departmentName: department.name }
         : null,
-      calendarHref: team.default_facility_id ? `/admin/facilities/${team.default_facility_id}/calendar?from=team&teamId=${team.id}&departmentId=${team.department_id}` : null,
+      calendarHref: team.default_facility_id
+        ? `/admin/facilities/${team.default_facility_id}/calendar?from=${frame === 'coach' ? 'coachTeam' : frame === 'department' ? 'departmentTeam' : 'team'}&teamId=${team.id}&departmentId=${team.department_id}`
+        : null,
       staffHref: frame === 'department' ? `/department/coaches?departmentId=${team.department_id}` : `/admin/people?department=${team.department_id}&team=${team.id}`,
     };
   }, [availabilityRows, backHref, backLabel, clubMemberships, coachRoleSlots, contextSessions, currentUserId, department, departmentFacilityIds, facilities, facility, facilityById, frame, invites, loadEntries, memberships, playerGroupMembers, playerGroups, profileById, sessionGroups, sessions, team]);

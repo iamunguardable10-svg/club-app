@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { DemoSessionComposer } from '@/features/sessions/DemoSessionComposer';
 import type { SessionComposerPayload } from '@/features/sessions/SessionComposer';
+import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
 import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoSessions, type DemoSession } from '@/shared/dev/demoStorage';
@@ -81,11 +82,49 @@ function sessionDurationMinutes(session: { startsAt: string; endsAt: string }) {
   return durationMinutes(new Date(session.startsAt), new Date(session.endsAt));
 }
 
-function formatTimeRange(startsAt: string, endsAt: string | null) {
-  const start = new Date(startsAt);
-  const end = endsAt ? new Date(endsAt) : addMinutes(start, 60);
-  const formatter = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
-  return `${formatter.format(start)} - ${formatter.format(end)}`;
+function DemoFacilityRoleNav({ from, teamId }: { from?: string; teamId?: string | null }) {
+  if (from === 'coachTeam') {
+    const suffix = teamId ? `?teamId=${encodeURIComponent(teamId)}` : '';
+    const links = [
+      { href: '/demo/coach/today', label: 'Today' },
+      { href: `/demo/coach/team${suffix}`, label: 'Team' },
+      { href: `/demo/coach/sessions${suffix}`, label: 'Calendar' },
+      { href: `/demo/coach/attendance${suffix}`, label: 'Attendance' },
+      { href: `/demo/coach/load${suffix}`, label: 'Load' },
+    ];
+    return (
+      <nav className="sticky top-3 z-30 rounded-3xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_18px_80px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.04] backdrop-blur-xl" aria-label="Demo coach navigation">
+        <div className="flex flex-wrap gap-1.5">
+          {links.map((link) => (
+            <Link key={link.href} href={link.href} className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-black text-slate-200 transition hover:border-emerald-300/40 hover:bg-emerald-300/10 hover:text-white">
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      </nav>
+    );
+  }
+
+  if (from === 'department' || from === 'departmentTeam') return null;
+
+  const links = [
+    { href: '/demo/admin/overview', label: 'Overview' },
+    { href: '/demo/admin/departments', label: 'Departments' },
+    { href: '/demo/admin/teams', label: 'Teams' },
+    { href: '/demo/admin/facilities', label: 'Facilities' },
+    { href: '/demo/admin/people', label: 'Staff' },
+  ];
+  return (
+    <nav className="sticky top-3 z-30 rounded-3xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_18px_80px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.04] backdrop-blur-xl" aria-label="Demo admin navigation">
+      <div className="flex flex-wrap gap-1.5">
+        {links.map((link) => (
+          <Link key={link.href} href={link.href} className={`rounded-2xl border px-3 py-2 text-xs font-black transition ${link.label === 'Facilities' ? 'border-sky-300/40 bg-sky-300/10 text-white' : 'border-white/10 bg-white/[0.03] text-slate-200 hover:border-sky-300/40 hover:bg-sky-300/10 hover:text-white'}`}>
+            {link.label}
+          </Link>
+        ))}
+      </div>
+    </nav>
+  );
 }
 
 export function DemoFacilityCalendar({ facilityName, from, departmentName, teamName }: DemoFacilityCalendarProps) {
@@ -339,7 +378,13 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
   }
 
   const backTarget =
-    from === 'department'
+    from === 'coachTeam' && teamName
+      ? { href: `/demo/coach/team?teamId=${encodeURIComponent(teams.find((team) => team.name === teamName && (!departmentName || team.department === departmentName))?.id ?? teamName)}`, label: 'Back to team' }
+      : from === 'departmentTeam' && teamName
+      ? { href: `/demo/admin/teams/${encodeURIComponent(teams.find((team) => team.name === teamName && (!departmentName || team.department === departmentName))?.id ?? teamName)}?from=department${departmentName ? `&departmentName=${encodeURIComponent(departmentName)}` : ''}`, label: 'Back to team' }
+      : from === 'team' && teamName
+      ? { href: `/demo/admin/teams/${encodeURIComponent(teams.find((team) => team.name === teamName && (!departmentName || team.department === departmentName))?.id ?? teamName)}${departmentName ? `?from=adminDepartment&departmentName=${encodeURIComponent(departmentName)}` : ''}`, label: 'Back to team' }
+      : from === 'department'
       ? { href: '/demo/department/facilities', label: 'Back to facilities' }
       : from === 'departments'
       ? { href: '/demo/admin/departments', label: 'Back to local departments' }
@@ -439,8 +484,9 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-8">
-      {from === 'department' ? <DepartmentLeadDrawer mode="facilities" basePath="/demo/department" departmentName={departmentName} /> : null}
+      {from === 'department' || from === 'departmentTeam' ? <DepartmentLeadDrawer mode="facilities" basePath="/demo/department" departmentName={departmentName} /> : null}
       <div className="mx-auto max-w-7xl space-y-5">
+        <DemoFacilityRoleNav from={from} teamId={contextTeamId} />
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.22)] ring-1 ring-white/[0.03]">
           <Link href={backTarget.href} className="text-sm font-black text-slate-300 hover:text-white">{backTarget.label}</Link>
           <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-slate-500">Facility calendar</p>
@@ -496,24 +542,24 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
       </div>
 
       {selectedSession ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 p-3 backdrop-blur-sm sm:items-center">
-          <section className="w-full max-w-lg rounded-3xl border border-slate-800 bg-slate-950 p-5 shadow-2xl">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Session details</p>
-            <h2 className="mt-2 text-2xl font-black">{selectedSession.title}</h2>
-            <div className="mt-4 grid gap-2 text-sm text-slate-300">
-              <p><span className="font-black text-slate-100">Time:</span> {formatTimeRange(selectedSession.startsAt, selectedSession.endsAt)}</p>
-              <p><span className="font-black text-slate-100">Team:</span> {selectedSession.team}</p>
-              <p><span className="font-black text-slate-100">Department:</span> {selectedSession.department}</p>
-              <p><span className="font-black text-slate-100">Attendance:</span> Planned</p>
-              <p><span className="font-black text-slate-100">Load:</span> Not reported yet</p>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => setSelectedSession(null)} className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Close</button>
-              <button type="button" onClick={() => setEditingSession(selectedSession)} className="rounded-xl border border-sky-500/70 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Edit</button>
+        <SessionDetailSheet
+          title={selectedSession.title}
+          startsAt={selectedSession.startsAt}
+          endsAt={selectedSession.endsAt}
+          teamName={selectedSession.team}
+          departmentName={selectedSession.department}
+          facilityName={selectedSession.facility}
+          facilityId={selectedSession.facility}
+          attendance={{ status: 'Planned' }}
+          load={{ status: 'Not reported yet' }}
+          actions={(
+            <>
+              <button type="button" onClick={() => { setSelectedSession(null); setEditingSession(selectedSession); }} className="rounded-xl border border-sky-500/70 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Edit</button>
               <button type="button" onClick={() => handleDeleteSession(selectedSession)} className="rounded-xl border border-red-500/60 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-950/30">Delete</button>
-            </div>
-          </section>
-        </div>
+            </>
+          )}
+          onClose={() => setSelectedSession(null)}
+        />
       ) : null}
 
       <DemoSessionComposer

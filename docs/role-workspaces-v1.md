@@ -128,3 +128,17 @@ Facility authority rule:
 - If a club/admin layer exists, a department lead should request access to shared/global facilities rather than silently self-assign every shared hall.
 - If the department is the highest active layer in a bottom-up setup, facilities are department-owned by default; `shared` is not exposed as a governance concept until a club layer exists.
 - Promoting a department-only facility to shared should become an explicit request/approval flow once a club admin surface exists.
+
+## Coach shell direction
+
+Coach OS should stay role-level, not duplicate Team Workspace.
+
+Recommended top-level coach pages:
+
+- `Today`: operational cockpit across all assigned teams. Shows today's sessions, late/out players, load risks and quick entry points.
+- `Teams`: launcher into each Team Workspace. If the coach has one team, this can be visually compressed but should still be reachable as the team surface.
+- `Calendar`: coach-wide calendar containing all sessions from assigned teams, using the same Untis calendar engine filtered to coach scope.
+- `Facilities`: hall calendars for facilities used by assigned teams, with coach context preserved in navigation.
+
+Single-team coach behavior: default entry may go straight to `Today`, but the shell still needs `Calendar` and `Facilities`. Do not collapse everything into Team Workspace because hall-time discovery is role-level, not team-local.
+- Copy actions for staff invites and trainer links should give immediate inline feedback: show `Copied` briefly, then return to the persistent state such as `Copy` or `Trainer link active`.

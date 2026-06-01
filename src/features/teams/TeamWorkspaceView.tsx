@@ -7,6 +7,7 @@ import { LoadChart } from '@/features/load/AthleteLoadWorkspace';
 import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
 import { ACWR_ZONES, LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/features/load/loadTypes';
 import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
+import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 
 export type TeamWorkspaceRole = 'admin' | 'department_lead' | 'coach' | 'viewer';
 export type TeamWorkspaceSection = 'dashboard' | 'calendar' | 'players' | 'groups' | 'settings';
@@ -197,6 +198,82 @@ function acwrDisplayLabel(summary: ReturnType<typeof playerLoadSummary>) {
   return summary.zone.tone === 'neutral' ? 'Building trend' : summary.zone.label;
 }
 
+function loadRiskLine(player: TeamWorkspacePlayer) {
+  const summary = playerLoadSummary(player);
+  if (summary.zone.tone !== 'high' && summary.zone.tone !== 'low') return null;
+  return {
+    id: player.id,
+    name: player.name,
+    status: summary.zone.tone,
+    detail: summary.acwr !== null ? `${summary.acwr.toFixed(2)} ACWR` : null,
+  };
+}
+
+function TeamDashboardSessionCard({
+  session,
+  players,
+  fallbackFacilityName,
+  onOpen,
+}: {
+  session: TeamWorkspaceSession;
+  players: TeamWorkspacePlayer[];
+  fallbackFacilityName?: string | null;
+  onOpen: () => void;
+}) {
+  const notes = players.flatMap((player) =>
+    (player.attendanceEvents ?? [])
+      .filter((event) => event.sessionId === session.id)
+      .map((event) => ({ ...event, playerName: player.name })),
+  );
+  const out = notes.filter((event) => event.status === 'out');
+  const late = notes.filter((event) => event.status === 'late');
+  const loadFlags = players.map(loadRiskLine).filter(Boolean) as { id: string; name: string; status: 'high' | 'low'; detail: string | null }[];
+  const displayFacility = session.facilityName ?? fallbackFacilityName ?? null;
+
+  return (
+    <button type="button" onClick={onOpen} className="mt-4 block w-full rounded-3xl border border-slate-800 bg-slate-950/72 p-4 text-left text-white shadow-[0_18px_70px_rgba(0,0,0,0.18)] transition hover:border-emerald-300/45 hover:bg-slate-900/70">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-xl font-black">{session.title}</h3>
+          <p className="mt-1 text-sm font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt)}{displayFacility ? ` · ${displayFacility}` : ''}</p>
+        </div>
+        <span className="text-lg font-black text-slate-500">›</span>
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className={`rounded-2xl border p-3 ${out.length > 0 ? 'border-rose-400/35 bg-rose-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Out</p>
+            <span className="text-lg font-black text-white">{out.length}</span>
+          </div>
+          {out.slice(0, 3).map((item) => <p key={`${item.sessionId}-${item.playerName}-out`} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.reason ? ` · ${item.reason}` : ''}</p>)}
+        </div>
+        <div className={`rounded-2xl border p-3 ${late.length > 0 ? 'border-amber-400/35 bg-amber-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Late</p>
+            <span className="text-lg font-black text-white">{late.length}</span>
+          </div>
+          {late.slice(0, 3).map((item) => <p key={`${item.sessionId}-${item.playerName}-late`} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${item.lateMinutes}m` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>)}
+        </div>
+      </div>
+      {loadFlags.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {loadFlags.slice(0, 4).map((risk) => (
+            <span key={risk.id} className={`rounded-full border px-2 py-1 text-[11px] font-black ${risk.status === 'high' ? 'border-rose-400/40 text-rose-100' : 'border-sky-400/40 text-sky-100'}`}>
+              {risk.name}{risk.detail ? ` · ${risk.detail}` : ''}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </button>
+  );
+}
+
+function averageMinutes(entries: AthleteLoadEntry[], predicate: (entry: AthleteLoadEntry) => boolean) {
+  const relevant = entries.filter(predicate);
+  if (relevant.length === 0) return null;
+  return Math.round(relevant.reduce((sum, entry) => sum + entry.durationMinutes, 0) / relevant.length);
+}
+
 function ewmaLoadForTargetRatio(acuteLoad: number, chronicLoad: number, targetRatio: number) {
   const acuteLambda = 2 / (7 + 1);
   const chronicLambda = 2 / (28 + 1);
@@ -282,6 +359,8 @@ function PlayerLoadDetail({
     return acc;
   }, {})).sort((a, b) => b[1] - a[1]);
   const attendanceLabel = player.attendanceRate ? `${player.attendanceRate}%` : filteredAttendance.length === 0 ? 'Clean' : `${filteredAttendance.length} flags`;
+  const avgGameMinutes = averageMinutes(recentEntries, (entry) => entry.trainingType === 'game');
+  const avgTrainingMinutes = averageMinutes(recentEntries, (entry) => entry.trainingType !== 'game' && entry.trainingType !== 'recovery');
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-slate-950/80 px-3 pb-3 pt-8 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
@@ -340,6 +419,17 @@ function PlayerLoadDetail({
                     {event.reason ? <p className="mt-2 text-xs font-bold text-slate-300">{event.reason}</p> : null}
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avg game minutes / session</p>
+                <p className="mt-2 text-2xl font-black text-white">{avgGameMinutes === null ? '—' : `${avgGameMinutes} min`}</p>
+              </div>
+              <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avg training minutes / session</p>
+                <p className="mt-2 text-2xl font-black text-white">{avgTrainingMinutes === null ? '—' : `${avgTrainingMinutes} min`}</p>
               </div>
             </div>
           </div>
@@ -401,6 +491,23 @@ function StaffRoleGrid({
   onRevoke?: (inviteId: string) => void | Promise<void>;
   onRemoveRole?: (coachRoleSlotId: string) => void | Promise<void>;
 }) {
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
+
+  async function handleCopy(token: string) {
+    await onCopy?.(token);
+    setCopiedToken(token);
+    window.setTimeout(() => setCopiedToken((current) => (current === token ? null : current)), 1400);
+  }
+
+  function copyClass(token: string) {
+    const copied = copiedToken === token;
+    return `rounded-lg border px-2.5 py-1 text-xs font-black transition ${
+      copied
+        ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100'
+        : 'border-slate-700 text-slate-200 hover:bg-slate-800'
+    }`;
+  }
+
   return (
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       {roles.map((role) => (
@@ -411,7 +518,7 @@ function StaffRoleGrid({
             {role.status === 'pending' ? (
               <>
                 <span>Invite pending</span>
-                {role.inviteToken ? <button type="button" onClick={() => onCopy?.(role.inviteToken!)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 hover:bg-slate-800">Copy</button> : null}
+                {role.inviteToken ? <button type="button" onClick={() => { void handleCopy(role.inviteToken!); }} className={copyClass(role.inviteToken)}>{copiedToken === role.inviteToken ? 'Copied' : 'Copy'}</button> : null}
                 {role.inviteId ? <button type="button" onClick={() => onRevoke?.(role.inviteId!)} className="rounded-lg border border-red-500/60 px-2.5 py-1 text-xs font-black text-red-200 hover:bg-red-950/40">Revoke</button> : null}
               </>
             ) : null}
@@ -519,7 +626,53 @@ function TeamSmartCalendar({
   }, [canManageExistingSessions, data.contextSessions, data.departmentName, data.name, drag, localSessions]);
 
   const selectedSession = localSessions.find((session) => session.id === selectedSessionId) ?? null;
-  const selectedSessionFacilityTone = facilityTone(selectedSession?.facilityName ?? data.defaultFacilityName);
+  const selectedSessionPlayerIds = useMemo(() => {
+    if (!selectedSession || !selectedSession.groupIds?.length) return (data.players ?? []).map((player) => player.id);
+    const ids = new Set<string>();
+    for (const groupId of selectedSession.groupIds) {
+      const group = data.groups.find((item) => item.id === groupId);
+      for (const playerId of group?.playerIds ?? []) ids.add(playerId);
+    }
+    return Array.from(ids);
+  }, [data.groups, data.players, selectedSession]);
+  const selectedSessionPlayers = useMemo(
+    () => (data.players ?? []).filter((player) => selectedSessionPlayerIds.includes(player.id)),
+    [data.players, selectedSessionPlayerIds],
+  );
+  const selectedSessionAttendance = useMemo(() => {
+    if (!selectedSession) return undefined;
+    const notes = selectedSessionPlayers.flatMap((player) =>
+      (player.attendanceEvents ?? [])
+        .filter((event) => event.sessionId === selectedSession.id)
+        .map((event) => ({
+          id: `${player.id}-${event.sessionId}-${event.status}`,
+          name: player.name,
+          status: event.status,
+          detail: event.status === 'late' && event.lateMinutes ? `${event.lateMinutes} min` : event.reason,
+        })),
+    );
+    return {
+      expected: selectedSessionPlayers.length,
+      late: notes.filter((note) => note.status === 'late').length,
+      out: notes.filter((note) => note.status === 'out').length,
+      notes,
+    };
+  }, [selectedSession, selectedSessionPlayers]);
+  const selectedSessionLoad = useMemo(() => {
+    if (!selectedSession || selectedSessionPlayers.every((player) => player.loadEntries === undefined)) return undefined;
+    const reported = selectedSessionPlayers.filter((player) => (player.loadEntries ?? []).some((entry) => entry.sessionId === selectedSession.id)).length;
+    const missing = Math.max(0, selectedSessionPlayers.length - reported);
+    return {
+      reported,
+      missing,
+      planned: selectedSessionPlayers.length,
+      status: reported > 0 ? `${reported}/${selectedSessionPlayers.length} reported` : 'Prepared',
+    };
+  }, [selectedSession, selectedSessionPlayers]);
+  const selectedSessionLoadRisks = useMemo(
+    () => selectedSessionPlayers.map(loadRiskLine).filter(Boolean) as { id: string; name: string; status: 'high' | 'low'; detail: string | null }[],
+    [selectedSessionPlayers],
+  );
 
   useEffect(() => {
     function updateDesktopScale() {
@@ -687,11 +840,12 @@ function TeamSmartCalendar({
     await onSessionGroupsChange(selectedSession.id, groupIds);
   }
 
-  function toggleSelectedSessionGroup(groupId: string) {
-    if (!selectedSession) return;
-    const currentGroupIds = selectedSession.groupIds ?? [];
-    const nextGroupIds = currentGroupIds.includes(groupId) ? currentGroupIds.filter((id) => id !== groupId) : [...currentGroupIds, groupId];
-    void handleSelectedSessionGroupsChange(nextGroupIds);
+  async function handleSelectedSessionTimeChange(startsAt: string, endsAt: string) {
+    if (!selectedSession || !onSessionTimeChange) return;
+    setLocalSessions((current) =>
+      current.map((session) => (session.id === selectedSession.id ? { ...session, startsAt, endsAt } : session)),
+    );
+    await onSessionTimeChange(selectedSession.id, startsAt, endsAt);
   }
 
   useEffect(() => {
@@ -819,68 +973,39 @@ function TeamSmartCalendar({
       />
 
       {selectedSession ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/75 p-3 backdrop-blur-sm sm:items-center">
-          <section className="w-full max-w-lg rounded-3xl border border-slate-800 bg-slate-950 p-5 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Session details</p>
-                <h3 className="mt-2 text-2xl font-black text-white">{selectedSession.title}</h3>
-              </div>
-              <button type="button" onClick={() => setSelectedSessionId(null)} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Close</button>
-            </div>
-            <div className="mt-4 grid gap-2 text-sm text-slate-300">
-              <p><span className="font-black text-slate-100">Time:</span> {formatTimeRange(selectedSession.startsAt, selectedSession.endsAt)}</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-black text-slate-100">Facility:</span>
-                {canManageCalendar && onSessionFacilityChange && data.availableFacilities && data.availableFacilities.length > 0 ? (
-                  <select
-                    value={selectedSession.facilityId ?? data.defaultFacilityId ?? ''}
-                    onChange={(event) => { void handleSelectedSessionFacilityChange(event.target.value); }}
-                    disabled={isSavingSessionFacility}
-                    className={`max-w-44 rounded-lg border ${selectedSessionFacilityTone.border} bg-slate-950/90 px-2.5 py-1.5 text-xs font-black ${selectedSessionFacilityTone.text} outline-none ${selectedSessionFacilityTone.focus} disabled:opacity-60`}
-                  >
-                    <option value="">Select facility</option>
-                    {data.availableFacilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
-                  </select>
-                ) : (
-                  <span>{selectedSession.facilityName ?? data.defaultFacilityName ?? 'Facility not set'}</span>
-                )}
-              </div>
-              <p><span className="font-black text-slate-100">Attendance:</span> Prepared for check-in.</p>
-              <p><span className="font-black text-slate-100">Load:</span> Not reported yet.</p>
-              {data.groups.length > 0 ? (
-                <div className="mt-2 rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Groups</p>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      disabled={!onSessionGroupsChange}
-                      onClick={() => { void handleSelectedSessionGroupsChange([]); }}
-                      className={`rounded-full border px-2.5 py-1 text-xs font-black ${!selectedSession.groupIds?.length ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:text-white'} disabled:opacity-60`}
-                    >
-                      Whole team
-                    </button>
-                    {data.groups.map((group) => {
-                      const selected = Boolean(selectedSession.groupIds?.includes(group.id));
-                      return (
-                        <button
-                          key={group.id}
-                          type="button"
-                          disabled={!onSessionGroupsChange}
-                          onClick={() => toggleSelectedSessionGroup(group.id)}
-                          className={`rounded-full border px-2.5 py-1 text-xs font-black ${selected ? 'border-sky-300 bg-sky-950/50 text-sky-100' : 'border-slate-700 text-slate-300 hover:text-white'} disabled:opacity-60`}
-                        >
-                          {group.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-          </section>
-        </div>
+        <SessionDetailSheet
+          title={selectedSession.title}
+          startsAt={selectedSession.startsAt}
+          endsAt={selectedSession.endsAt}
+          teamName={data.name}
+          departmentName={data.departmentName}
+          facilityName={selectedSession.facilityName ?? data.defaultFacilityName}
+          facilityId={selectedSession.facilityId ?? data.defaultFacilityId}
+          facilityOptions={data.availableFacilities ?? []}
+          canEditFacility={canManageCalendar && Boolean(onSessionFacilityChange)}
+          isSavingFacility={isSavingSessionFacility}
+          onFacilityChange={handleSelectedSessionFacilityChange}
+          groups={data.groups.map((group) => ({ id: group.id, name: group.name, playerCount: group.playerCount }))}
+          selectedGroupIds={selectedSession.groupIds ?? []}
+          canEditGroups={canManageCalendar && Boolean(onSessionGroupsChange)}
+          onGroupsChange={handleSelectedSessionGroupsChange}
+          attendance={selectedSessionAttendance}
+          load={selectedSessionLoad}
+          loadRisks={selectedSessionLoadRisks}
+          participants={selectedSessionPlayers.map((player) => {
+            const flag = (player.attendanceEvents ?? []).find((event) => event.sessionId === selectedSession.id);
+            return {
+              id: player.id,
+              name: player.name,
+              status: flag?.status ?? 'expected',
+              detail: flag?.status === 'late' && flag.lateMinutes ? `${flag.lateMinutes} min` : flag?.reason ?? null,
+            };
+          })}
+          canEditTime={canManageCalendar && Boolean(onSessionTimeChange)}
+          onTimeChange={handleSelectedSessionTimeChange}
+          editDetails={null}
+          onClose={() => setSelectedSessionId(null)}
+        />
       ) : null}
     </div>
   );
@@ -924,6 +1049,8 @@ export function TeamWorkspaceView({
   const [activeSection, setActiveSection] = useState<TeamWorkspaceSection>(initialSection);
   const [isSavingDefault, setIsSavingDefault] = useState(false);
   const [activePlayer, setActivePlayer] = useState<TeamWorkspacePlayer | null>(null);
+  const [dashboardSession, setDashboardSession] = useState<TeamWorkspaceSession | null>(null);
+  const [isSavingDashboardSessionFacility, setIsSavingDashboardSessionFacility] = useState(false);
   const [playerSort, setPlayerSort] = useState<'risk' | 'az'>('risk');
   const selectedFacilityTone = facilityTone(data.defaultFacilityName);
   const players = data.players ?? [];
@@ -947,6 +1074,10 @@ export function TeamWorkspaceView({
     if (!activeGroup) return [];
     return players.filter((player) => activeGroup.playerIds?.includes(player.id) || player.groups?.includes(activeGroup.id) || player.groups?.includes(activeGroup.name));
   }, [activeGroup, players]);
+  const activeGroupLoadFlags = useMemo(
+    () => activeGroupPlayers.map(loadRiskLine).filter(Boolean) as { id: string; name: string; status: 'high' | 'low'; detail: string | null }[],
+    [activeGroupPlayers],
+  );
   const nextSession = useMemo(() => {
     const now = Date.now();
     return [...data.sessions].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()).find((session) => new Date(session.startsAt).getTime() >= now) ?? data.sessions[0];
@@ -987,6 +1118,71 @@ export function TeamWorkspaceView({
       await onDefaultFacilityChange(facilityId);
     } finally {
       setIsSavingDefault(false);
+    }
+  }
+
+  function playersForSession(session: TeamWorkspaceSession | null) {
+    if (!session?.groupIds?.length) return players;
+    const ids = new Set<string>();
+    for (const groupId of session.groupIds) {
+      const group = data.groups.find((item) => item.id === groupId);
+      for (const playerId of group?.playerIds ?? []) ids.add(playerId);
+    }
+    return players.filter((player) => ids.has(player.id));
+  }
+
+  function attendanceForSession(session: TeamWorkspaceSession, sessionPlayers: TeamWorkspacePlayer[]) {
+    const notes = sessionPlayers.flatMap((player) =>
+      (player.attendanceEvents ?? [])
+        .filter((event) => event.sessionId === session.id)
+        .map((event) => ({
+          id: `${player.id}-${event.sessionId}-${event.status}`,
+          name: player.name,
+          status: event.status,
+          detail: event.status === 'late' && event.lateMinutes ? `${event.lateMinutes} min` : event.reason,
+        })),
+    );
+    return {
+      expected: sessionPlayers.length,
+      late: notes.filter((note) => note.status === 'late').length,
+      out: notes.filter((note) => note.status === 'out').length,
+      notes,
+    };
+  }
+
+  function loadForSession(session: TeamWorkspaceSession, sessionPlayers: TeamWorkspacePlayer[]) {
+    if (sessionPlayers.every((player) => player.loadEntries === undefined)) return undefined;
+    const reported = sessionPlayers.filter((player) => (player.loadEntries ?? []).some((entry) => entry.sessionId === session.id)).length;
+    const missing = Math.max(0, sessionPlayers.length - reported);
+    return {
+      reported,
+      missing,
+      planned: sessionPlayers.length,
+      status: reported > 0 ? `${reported}/${sessionPlayers.length} reported` : 'Pending input',
+    };
+  }
+
+  async function handleDashboardSessionFacilityChange(facilityId: string) {
+    if (!dashboardSession || !onSessionFacilityChange) return;
+    const facility = data.availableFacilities?.find((item) => item.id === facilityId);
+    setIsSavingDashboardSessionFacility(true);
+    try {
+      await onSessionFacilityChange(dashboardSession.id, facilityId);
+      setDashboardSession((current) => current?.id === dashboardSession.id ? { ...current, facilityId, facilityName: facility?.name ?? current.facilityName ?? null } : current);
+    } finally {
+      setIsSavingDashboardSessionFacility(false);
+    }
+  }
+
+  async function handleDashboardSessionGroupsChange(groupIds: string[]) {
+    if (!dashboardSession || !onSessionGroupsChange) return;
+    const previousGroupIds = dashboardSession.groupIds ?? [];
+    setDashboardSession((current) => current?.id === dashboardSession.id ? { ...current, groupIds } : current);
+    try {
+      await onSessionGroupsChange(dashboardSession.id, groupIds);
+    } catch (error) {
+      setDashboardSession((current) => current?.id === dashboardSession.id ? { ...current, groupIds: previousGroupIds } : current);
+      throw error;
     }
   }
 
@@ -1060,11 +1256,7 @@ export function TeamWorkspaceView({
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Today / next</p>
             {nextSession ? (
-              <button type="button" onClick={() => setActiveSection('calendar')} className="mt-4 w-full rounded-2xl border border-sky-500/30 bg-sky-950/25 p-4 text-left transition hover:border-sky-300/60">
-                <p className="text-xl font-black">{nextSession.title}</p>
-                <p className="mt-1 text-sm text-slate-300">{formatTimeRange(nextSession.startsAt, nextSession.endsAt)}</p>
-                <p className="mt-1 text-sm text-slate-400">{nextSession.facilityName ?? data.defaultFacilityName ?? 'Facility not set'}</p>
-              </button>
+              <TeamDashboardSessionCard session={nextSession} players={playersForSession(nextSession)} fallbackFacilityName={data.defaultFacilityName} onOpen={() => setDashboardSession(nextSession)} />
             ) : (
               <EmptyCard title="No upcoming session" />
             )}
@@ -1184,6 +1376,7 @@ export function TeamWorkspaceView({
           <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {data.groups.map((group) => {
               const groupPlayers = players.filter((player) => group.playerIds?.includes(player.id) || player.groups?.includes(group.id) || player.groups?.includes(group.name));
+              const loadFlags = groupPlayers.map(loadRiskLine).filter(Boolean) as { id: string; name: string; status: 'high' | 'low'; detail: string | null }[];
               return (
               <article
                 key={group.id}
@@ -1193,7 +1386,7 @@ export function TeamWorkspaceView({
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-black">{group.name}</p>
-                    <p className="mt-1 text-xs font-black text-slate-500">{group.playerCount} players</p>
+                    <p className="mt-1 text-xs font-black text-slate-500">{group.playerCount} players | {loadFlags.length ? `${loadFlags.length} load flag${loadFlags.length === 1 ? '' : 's'}` : 'No load flags'}</p>
                   </div>
                   {isGroupEditMode && onRemoveGroup ? (
                     <button type="button" onClick={() => onRemoveGroup(group.id)} className="rounded-lg border border-red-500/40 px-2 py-1 text-[10px] font-black text-red-100 hover:bg-red-950/30">
@@ -1201,7 +1394,12 @@ export function TeamWorkspaceView({
                     </button>
                   ) : null}
                 </div>
-                <p className="mt-3 text-sm text-slate-400">{isGroupEditMode ? 'Select team members for this group.' : 'Tap for group insights.'}</p>
+                <div className="mt-3 space-y-2 text-xs font-bold">
+                  {loadFlags.slice(0, 3).map((flag) => (
+                    <p key={flag.id} className={flag.status === 'high' ? 'text-rose-200' : 'text-sky-200'}>{flag.status === 'high' ? 'High load' : 'Low load'} · {flag.name}{flag.detail ? ` · ${flag.detail}` : ''}</p>
+                  ))}
+                  {!loadFlags.length ? <p className="text-slate-400">{isGroupEditMode ? 'Select team members for this group.' : 'Tap for details.'}</p> : null}
+                </div>
                 {groupPlayers.length > 0 ? (
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {groupPlayers.slice(0, 6).map((player) => (
@@ -1248,30 +1446,26 @@ export function TeamWorkspaceView({
               </div>
               <button type="button" onClick={() => setActiveGroupId(null)} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Close</button>
             </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="mt-5 grid gap-3">
               <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avg load</p>
-                <p className="mt-2 text-lg font-black text-slate-100">Prepared</p>
-              </div>
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Minutes</p>
-                <p className="mt-2 text-lg font-black text-slate-100">Soon</p>
-              </div>
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Players</p>
-                <p className="mt-2 text-lg font-black text-slate-100">{activeGroupPlayers.length}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Load flags</p>
+                <div className="mt-3 space-y-2">
+                  {activeGroupLoadFlags.length === 0 ? <p className="text-sm font-bold text-slate-500">No current load flags.</p> : null}
+                  {activeGroupLoadFlags.map((flag) => (
+                    <p key={flag.id} className={`text-sm font-bold ${flag.status === 'high' ? 'text-rose-200' : 'text-sky-200'}`}>{flag.name} · {flag.status === 'high' ? 'High' : 'Low'}{flag.detail ? ` · ${flag.detail}` : ''}</p>
+                  ))}
+                </div>
               </div>
             </div>
             <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
-              <p className="text-sm font-black text-slate-100">Quick analysis</p>
-              <p className="mt-1 text-sm text-slate-400">Load, attendance and playing-time patterns will sit here once those signals are connected.</p>
+              <p className="text-sm font-black text-slate-100">Players</p>
               {activeGroupPlayers.length > 0 ? (
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {activeGroupPlayers.map((player) => (
                     <span key={player.id} className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-bold text-slate-300">{player.name}</span>
                   ))}
                 </div>
-              ) : null}
+              ) : <p className="mt-2 text-sm font-bold text-slate-500">No players in this group yet.</p>}
             </div>
           </section>
         </div>
@@ -1317,6 +1511,44 @@ export function TeamWorkspaceView({
           </div>
         </section>
       ) : null}
+
+      {dashboardSession ? (() => {
+        const sessionPlayers = playersForSession(dashboardSession);
+        const attendance = attendanceForSession(dashboardSession, sessionPlayers);
+        return (
+          <SessionDetailSheet
+            title={dashboardSession.title}
+            startsAt={dashboardSession.startsAt}
+            endsAt={dashboardSession.endsAt}
+            teamName={data.name}
+            departmentName={data.departmentName}
+            facilityName={dashboardSession.facilityName ?? data.defaultFacilityName}
+            facilityId={dashboardSession.facilityId ?? data.defaultFacilityId}
+            facilityOptions={data.availableFacilities ?? []}
+            canEditFacility={data.role !== 'viewer' && Boolean(onSessionFacilityChange)}
+            isSavingFacility={isSavingDashboardSessionFacility}
+            onFacilityChange={handleDashboardSessionFacilityChange}
+            groups={data.groups.map((group) => ({ id: group.id, name: group.name, playerCount: group.playerCount }))}
+            selectedGroupIds={dashboardSession.groupIds ?? []}
+            canEditGroups={data.role !== 'viewer' && Boolean(onSessionGroupsChange)}
+            onGroupsChange={handleDashboardSessionGroupsChange}
+            attendance={attendance}
+            load={loadForSession(dashboardSession, sessionPlayers)}
+            loadRisks={sessionPlayers.map(loadRiskLine).filter(Boolean) as { id: string; name: string; status: 'high' | 'low'; detail: string | null }[]}
+            participants={sessionPlayers.map((player) => {
+              const flag = (player.attendanceEvents ?? []).find((event) => event.sessionId === dashboardSession.id);
+              return {
+                id: player.id,
+                name: player.name,
+                status: flag?.status ?? 'expected',
+                detail: flag?.status === 'late' && flag.lateMinutes ? `${flag.lateMinutes} min` : flag?.reason ?? null,
+              };
+            })}
+            actions={<button type="button" onClick={() => { setDashboardSession(null); setActiveSection('calendar'); }} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</button>}
+            onClose={() => setDashboardSession(null)}
+          />
+        );
+      })() : null}
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950/95 p-2 backdrop-blur md:hidden" aria-label="Team mobile navigation">
         <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">

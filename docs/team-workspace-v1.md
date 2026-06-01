@@ -107,7 +107,9 @@ Current behavior:
 - Draft sessions are confirmed or cancelled inside the draft card.
 - Existing sessions can be moved and resized in Edit mode.
 - Tapping a session opens a modal detail sheet.
-- Session details show time, facility, group targeting, attendance placeholder and load placeholder.
+- Session details use the shared `SessionDetailSheet`.
+- The sheet shows time, team/department context, compact per-session facility editing, participant scope, group targeting, attendance flags and load status.
+- The same sheet is used by the team calendar, facility calendars and department schedule so the session surface stays consistent across role contexts.
 
 Facility behavior:
 
@@ -273,17 +275,42 @@ Current parity expectations:
 - parent/back context exists in both
 - demo uses localStorage, standard uses Supabase
 
+## Session details and coach today
+
+Session details are now shared across team, facility, department schedule and coach-today surfaces.
+
+Coach Today is player-centered:
+
+```txt
+Session
+-> out / late players
+-> high / low load players
+-> link back into the team calendar
+```
+
+Groups remain team-internal targeting and analysis. They are not the primary unit for the coach-today session view; the session view must name the concrete affected players.
+
+Group cards should avoid abstract metrics when concrete player-level signals exist. Prefer:
+
+```txt
+High load -> player names
+Low load  -> player names
+Attendance flags -> player names
+```
+
+over counts, generic averages, or placeholder copy.
+
 ## Known current limitations
 
-1. Session details are still placeholders for attendance and load.
+1. Attendance and load data inside Session Details V1 is partially connected; team sessions and coach today show player flags, while facility/department views still show status-level summaries.
 2. Player invite/code flow is not implemented.
-3. Group insights are placeholders until load, attendance and playing-time data are joined.
+3. Group insights show connected load and attendance player names, but deeper playing-time analytics are still basic.
 4. Custom coach roles currently inherit assistant-coach style behavior.
 5. Facility conflict handling is still visual/contextual, not a hard scheduling conflict system.
 
 ## Next recommended slice
 
-Before building advanced attendance, first define Session Details V1:
+After Session Details V1, the next slice is advanced attendance:
 
 ```txt
 session status
@@ -302,3 +329,26 @@ coach dashboard
 team calendar modal
 future athlete view
 ```
+
+## Session detail refinement
+
+Session cards in Coach Today, Coach Next and Team Home open the same session detail sheet by tapping the card. The sheet should stay player-first:
+
+```txt
+attendance flags
+load risks
+edit controls
+expected player list
+context
+```
+
+Do not lead with generic attendance/load/scope metric cards when they only repeat obvious state. Late is amber; low load remains blue.
+
+In team-owned session details, edit mode inside the sheet exposes start time and duration. Drag/resize remains available in the calendar edit mode, but the sheet must support quick time edits without explanatory copy.
+
+## Follow-up refinements: player lists, load chart fit, role navigation
+
+- Load charts must fit inside their card on desktop, iPad and mobile for every supported range, including 60 days. Do not reintroduce horizontal chart scroll as the default interaction.
+- Session detail `Expected players` lists only athletes expected to come or marked late. Players marked out stay in Attendance flags and should not be counted as expected.
+- Team Home session cards should mirror the coach Today card pattern: tap the whole card for details, show out/late and load-risk previews, and avoid detached Details buttons.
+- Facility calendars should preserve the active role shell. Coach context shows coach navigation, department context shows the department drawer, and admin context shows admin navigation.

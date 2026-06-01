@@ -847,6 +847,7 @@ function plannedProjectionLoad(point?: ACWRDataPoint) {
 
 export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; pendingSessions: AthletePendingSession[] }) {
   const [isMobile, setIsMobile] = useState(false);
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
   const [range, setRange] = useState<LoadChartRange>(14);
@@ -856,6 +857,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
     const syncViewport = () => {
       const mobile = window.innerWidth < 640;
       setIsMobile(mobile);
+      setIsCompactViewport(window.innerWidth < 1024);
       setIsLandscape(window.innerWidth > window.innerHeight);
       if (mobile && !isFullscreen) {
         setRange((current) => (current === 60 ? 30 : current));
@@ -924,8 +926,8 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
   const maxLoad = Math.max(600, ...chartData.map((day) => Math.max(day.totalLoad, day.forecastLoad)));
   const ranges = isMobile ? ([7, 14, 30] as const) : ([7, 14, 30, 60] as const);
   const fullscreenRanges = [14, 30, 60] as const;
-  const chartMinWidth = isMobile ? '100%' : range === 7 ? 540 : range === 14 ? 680 : range === 30 ? 920 : 1480;
-  const chartHeight = isMobile ? (range === 7 ? 300 : 320) : 360;
+  const chartMinWidth = '100%';
+  const chartHeight = isMobile ? (range === 7 ? 300 : 320) : isCompactViewport ? 340 : 360;
   const chartMargin = (fullscreen = false) => ({
     top: fullscreen ? 16 : 14,
     right: fullscreen ? 18 : 8,
@@ -1037,10 +1039,10 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
           yAxisId="acwr"
           type="monotone"
           dataKey="acwr"
-          stroke="#7dd3fc"
+          stroke="#f472b6"
           strokeWidth={3}
-          dot={{ r: range === 7 ? 4 : 2, fill: '#0f172a', stroke: '#7dd3fc', strokeWidth: 2 }}
-          activeDot={{ r: 6, fill: '#ecfeff', stroke: '#38bdf8', strokeWidth: 3 }}
+          dot={{ r: range === 7 ? 4 : 2, fill: '#0f172a', stroke: '#f472b6', strokeWidth: 2 }}
+          activeDot={{ r: 6, fill: '#fdf2f8', stroke: '#f472b6', strokeWidth: 3 }}
           connectNulls={false}
           name="ACWR"
         />
@@ -1100,7 +1102,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
           </button>
         </div>
       </div>
-      <div className={`${isMobile ? 'overflow-hidden' : 'overflow-x-auto'} w-full max-w-full pb-1`}>
+      <div className="w-full max-w-full overflow-hidden pb-1">
         <div style={{ minWidth: chartMinWidth, height: chartHeight }}>
           {chart(false)}
         </div>
@@ -1773,10 +1775,10 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       window.localStorage.setItem(LOAD_SHARE_ACTIVE_KEY, url);
       setActiveShareUrl(url);
       setShareStatus('copied');
-      window.setTimeout(() => setShareStatus('idle'), 2200);
+      window.setTimeout(() => setShareStatus('idle'), 1400);
     } catch {
       setShareStatus('error');
-      window.setTimeout(() => setShareStatus('idle'), 2200);
+      window.setTimeout(() => setShareStatus('idle'), 1400);
     }
   }
 
@@ -2246,8 +2248,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300">Athlete OS</p>
               <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-6xl">Load cockpit</h1>
               <div className="mt-5 flex flex-wrap gap-2">
-                <button type="button" onClick={copyTrainerShareLink} className={`rounded-full border px-4 py-2 text-xs font-black ${shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
-                  {shareStatus === 'copied' ? 'Link active' : shareStatus === 'error' ? 'Error' : shareActive ? 'Trainer link active' : 'Trainer link'}
+                <button type="button" onClick={copyTrainerShareLink} className={`rounded-full border px-4 py-2 text-xs font-black transition ${shareStatus === 'copied' ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100' : shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
+                  {shareStatus === 'copied' ? 'Copied' : shareStatus === 'error' ? 'Error' : shareActive ? 'Trainer link active' : 'Trainer link'}
                 </button>
               </div>
             </div>
