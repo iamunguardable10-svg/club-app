@@ -49,7 +49,7 @@ function DepartmentFrame({ frame, children }: { frame: 'admin' | 'department'; c
   if (frame === 'department') {
     return (
       <main className="os-page">
-        <div className="os-container">{children}</div>
+        <div className="os-container space-y-5 pb-24 md:pb-0">{children}</div>
       </main>
     );
   }
