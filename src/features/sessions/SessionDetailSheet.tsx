@@ -239,16 +239,19 @@ export function SessionDetailSheet({
             {showEditDetails ? (
               <div className="mt-4 space-y-4">
                 {canEditTime && onTimeChange ? (
-                  <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-                    <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  <div className="flex min-w-0 flex-wrap items-end gap-3">
+                    <label className="w-28 min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                       Start
-                      <input value={timeValue} onChange={(event) => setTimeValue(event.target.value)} type="time" className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-black text-slate-100 outline-none focus:border-sky-300" />
+                      <input value={timeValue} onChange={(event) => setTimeValue(event.target.value)} type="time" className="mt-2 h-10 w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-2 text-center text-sm font-black text-slate-100 outline-none focus:border-sky-300 [color-scheme:dark]" />
                     </label>
-                    <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                      Duration
-                      <input value={durationValue} onChange={(event) => setDurationValue(event.target.value)} type="number" min={30} step={15} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-black text-slate-100 outline-none focus:border-sky-300" />
+                    <label className="min-w-[11rem] flex-1 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                      <span className="flex items-center justify-between gap-3">
+                        <span>Duration</span>
+                        <span className="text-slate-200">{durationValue} min</span>
+                      </span>
+                      <input value={durationValue} onChange={(event) => setDurationValue(event.target.value)} type="range" min={30} max={240} step={15} className="mt-3 w-full accent-sky-300" />
                     </label>
-                    <button type="button" onClick={() => { void saveTimeChange(); }} disabled={isSavingTime} className="self-end rounded-xl border border-emerald-300 bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950 disabled:opacity-60">
+                    <button type="button" onClick={() => { void saveTimeChange(); }} disabled={isSavingTime} className="h-10 rounded-xl border border-emerald-300 bg-emerald-300 px-4 text-xs font-black text-slate-950 disabled:opacity-60">
                       Save
                     </button>
                   </div>

@@ -419,7 +419,16 @@ export function AdminPeopleManager({ frame = 'admin', departmentId }: { frame?: 
   async function handleCopy(token: string) {
     await navigator.clipboard.writeText(getInviteUrl(token));
     setCopiedToken(token);
-    window.setTimeout(() => setCopiedToken(null), 1500);
+    window.setTimeout(() => setCopiedToken((current) => (current === token ? null : current)), 1400);
+  }
+
+  function copyButtonClass(token?: string | null) {
+    const copied = Boolean(token && copiedToken === token);
+    return `rounded-lg border px-2.5 py-1 text-xs font-black transition ${
+      copied
+        ? 'scale-[1.03] border-emerald-300 bg-emerald-300 text-slate-950 shadow-[0_0_24px_rgba(110,231,183,0.22)]'
+        : 'border-slate-700/90 bg-slate-950/40 text-slate-200 hover:border-sky-400/50 hover:bg-slate-900'
+    }`;
   }
 
   if (state === 'loading') {
@@ -495,7 +504,7 @@ export function AdminPeopleManager({ frame = 'admin', departmentId }: { frame?: 
                       {frame === 'department' ? <span>You</span> : leadMembership ? <span>{profileLabel(profileById.get(leadMembership.user_id))}</span> : leadInvite ? (
                         <>
                           <span>Invite pending</span>
-                          {frame === 'admin' ? <button type="button" onClick={() => handleQuickInvite('department_lead', department.id)} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900">{copiedToken === leadInvite.token ? 'Copied' : 'Copy'}</button> : null}
+                          {frame === 'admin' ? <button type="button" onClick={() => handleQuickInvite('department_lead', department.id)} className={copyButtonClass(leadInvite.token)}>{copiedToken === leadInvite.token ? 'Copied' : 'Copy'}</button> : null}
                         </>
                       ) : frame === 'admin' ? <button type="button" onClick={() => handleQuickInvite('department_lead', department.id)} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900">Invite</button> : <span>Missing</span>}
                     </div>
@@ -524,7 +533,7 @@ export function AdminPeopleManager({ frame = 'admin', departmentId }: { frame?: 
                             {headCoach ? <span>{profileLabel(profileById.get(headCoach.user_id))}</span> : headInvite ? (
                               <>
                                 <span>Invite pending</span>
-                                <button type="button" onClick={() => handleQuickInvite('head_coach', department.id, team.id)} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900">{copiedToken === headInvite.token ? 'Copied' : 'Copy'}</button>
+                                <button type="button" onClick={() => handleQuickInvite('head_coach', department.id, team.id)} className={copyButtonClass(headInvite.token)}>{copiedToken === headInvite.token ? 'Copied' : 'Copy'}</button>
                               </>
                             ) : <button type="button" onClick={() => handleQuickInvite('head_coach', department.id, team.id)} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900">Invite</button>}
                           </div>
@@ -535,7 +544,7 @@ export function AdminPeopleManager({ frame = 'admin', departmentId }: { frame?: 
                             {assistantCoach ? <span>{profileLabel(profileById.get(assistantCoach.user_id))}</span> : assistantInvite ? (
                               <>
                                 <span>Invite pending</span>
-                                <button type="button" onClick={() => handleQuickInvite('assistant_coach', department.id, team.id)} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900">{copiedToken === assistantInvite.token ? 'Copied' : 'Copy'}</button>
+                                <button type="button" onClick={() => handleQuickInvite('assistant_coach', department.id, team.id)} className={copyButtonClass(assistantInvite.token)}>{copiedToken === assistantInvite.token ? 'Copied' : 'Copy'}</button>
                               </>
                             ) : <button type="button" onClick={() => handleQuickInvite('assistant_coach', department.id, team.id)} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900">Invite</button>}
                           </div>
@@ -550,7 +559,7 @@ export function AdminPeopleManager({ frame = 'admin', departmentId }: { frame?: 
                                 {membership ? <span>{profileLabel(profileById.get(membership.user_id))}</span> : invite ? (
                                   <>
                                     <span>Invite pending</span>
-                                    <button type="button" onClick={() => handleQuickInvite('assistant_coach', department.id, team.id, slot.id)} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900">{copiedToken === invite.token ? 'Copied' : 'Copy'}</button>
+                                    <button type="button" onClick={() => handleQuickInvite('assistant_coach', department.id, team.id, slot.id)} className={copyButtonClass(invite.token)}>{copiedToken === invite.token ? 'Copied' : 'Copy'}</button>
                                   </>
                                 ) : <button type="button" onClick={() => handleQuickInvite('assistant_coach', department.id, team.id, slot.id)} className="rounded-lg border border-slate-700/90 bg-slate-950/40 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-sky-400/50 hover:bg-slate-900">Invite</button>}
                                 {isEditMode ? <button type="button" onClick={() => handleRemoveCoachRole(slot.id)} className="rounded-lg border border-red-500/45 bg-red-950/10 px-2.5 py-1 text-xs font-black text-red-200 transition hover:bg-red-950/30">Remove</button> : null}
@@ -642,7 +651,7 @@ export function AdminPeopleManager({ frame = 'admin', departmentId }: { frame?: 
                       <p className="mt-3 break-all rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-xs text-slate-300">{getInviteUrl(invite.token)}</p>
                     </div>
                     <div className="flex gap-2 sm:flex-col">
-                      <button type="button" onClick={() => handleCopy(invite.token)} className="rounded-xl border border-sky-500/60 px-3 py-2 text-xs font-black text-sky-200 hover:bg-sky-950/40">{copiedToken === invite.token ? 'Copied' : 'Copy'}</button>
+                      <button type="button" onClick={() => handleCopy(invite.token)} className={`${copyButtonClass(invite.token)} rounded-xl px-3 py-2`}>{copiedToken === invite.token ? 'Copied' : 'Copy'}</button>
                       <button type="button" disabled={isSaving} onClick={() => setPendingRevoke(invite)} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-200 hover:bg-red-950/40 disabled:opacity-50">Revoke</button>
                     </div>
                   </div>

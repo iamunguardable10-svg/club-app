@@ -491,6 +491,23 @@ function StaffRoleGrid({
   onRevoke?: (inviteId: string) => void | Promise<void>;
   onRemoveRole?: (coachRoleSlotId: string) => void | Promise<void>;
 }) {
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
+
+  async function handleCopy(token: string) {
+    await onCopy?.(token);
+    setCopiedToken(token);
+    window.setTimeout(() => setCopiedToken((current) => (current === token ? null : current)), 1400);
+  }
+
+  function copyClass(token: string) {
+    const copied = copiedToken === token;
+    return `rounded-lg border px-2.5 py-1 text-xs font-black transition ${
+      copied
+        ? 'scale-[1.03] border-emerald-300 bg-emerald-300 text-slate-950 shadow-[0_0_24px_rgba(110,231,183,0.22)]'
+        : 'border-slate-700 text-slate-200 hover:bg-slate-800'
+    }`;
+  }
+
   return (
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       {roles.map((role) => (
@@ -501,7 +518,7 @@ function StaffRoleGrid({
             {role.status === 'pending' ? (
               <>
                 <span>Invite pending</span>
-                {role.inviteToken ? <button type="button" onClick={() => onCopy?.(role.inviteToken!)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 hover:bg-slate-800">Copy</button> : null}
+                {role.inviteToken ? <button type="button" onClick={() => { void handleCopy(role.inviteToken!); }} className={copyClass(role.inviteToken)}>{copiedToken === role.inviteToken ? 'Copied' : 'Copy'}</button> : null}
                 {role.inviteId ? <button type="button" onClick={() => onRevoke?.(role.inviteId!)} className="rounded-lg border border-red-500/60 px-2.5 py-1 text-xs font-black text-red-200 hover:bg-red-950/40">Revoke</button> : null}
               </>
             ) : null}
@@ -1064,21 +1081,6 @@ export function TeamWorkspaceView({
     () => activeGroupPlayers.map(loadRiskLine).filter(Boolean) as { id: string; name: string; status: 'high' | 'low'; detail: string | null }[],
     [activeGroupPlayers],
   );
-  const activeGroupAttendanceFlags = useMemo(
-    () => activeGroupPlayers.flatMap((player) =>
-      (player.attendanceEvents ?? [])
-        .filter((event) => event.status === 'out' || event.status === 'late')
-        .slice(0, 2)
-        .map((event) => ({
-          id: `${player.id}-${event.sessionId}-${event.status}`,
-          name: player.name,
-          status: event.status,
-          detail: event.status === 'late' && event.lateMinutes ? `${event.lateMinutes}m late` : event.reason ?? null,
-          title: event.title,
-        })),
-    ),
-    [activeGroupPlayers],
-  );
   const nextSession = useMemo(() => {
     const now = Date.now();
     return [...data.sessions].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()).find((session) => new Date(session.startsAt).getTime() >= now) ?? data.sessions[0];
@@ -1342,12 +1344,6 @@ export function TeamWorkspaceView({
             {data.groups.map((group) => {
               const groupPlayers = players.filter((player) => group.playerIds?.includes(player.id) || player.groups?.includes(group.id) || player.groups?.includes(group.name));
               const loadFlags = groupPlayers.map(loadRiskLine).filter(Boolean) as { id: string; name: string; status: 'high' | 'low'; detail: string | null }[];
-              const attendanceFlags = groupPlayers.flatMap((player) =>
-                (player.attendanceEvents ?? [])
-                  .filter((event) => event.status === 'out' || event.status === 'late')
-                  .slice(0, 1)
-                  .map((event) => ({ id: `${player.id}-${event.sessionId}-${event.status}`, name: player.name, status: event.status, detail: event.status === 'late' && event.lateMinutes ? `${event.lateMinutes}m late` : event.reason ?? 'Out' })),
-              );
               return (
               <article
                 key={group.id}
@@ -1357,7 +1353,7 @@ export function TeamWorkspaceView({
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-black">{group.name}</p>
-                    <p className="mt-1 text-xs font-black text-slate-500">{loadFlags.length || attendanceFlags.length ? 'Needs attention' : 'No current flags'}</p>
+                    <p className="mt-1 text-xs font-black text-slate-500">{loadFlags.length ? 'Load attention' : 'No current load flags'}</p>
                   </div>
                   {isGroupEditMode && onRemoveGroup ? (
                     <button type="button" onClick={() => onRemoveGroup(group.id)} className="rounded-lg border border-red-500/40 px-2 py-1 text-[10px] font-black text-red-100 hover:bg-red-950/30">
@@ -1369,10 +1365,7 @@ export function TeamWorkspaceView({
                   {loadFlags.slice(0, 3).map((flag) => (
                     <p key={flag.id} className={flag.status === 'high' ? 'text-rose-200' : 'text-sky-200'}>{flag.status === 'high' ? 'High load' : 'Low load'} · {flag.name}{flag.detail ? ` · ${flag.detail}` : ''}</p>
                   ))}
-                  {attendanceFlags.slice(0, 2).map((flag) => (
-                    <p key={flag.id} className={flag.status === 'out' ? 'text-rose-200' : 'text-amber-200'}>{flag.status === 'out' ? 'Out' : 'Late'} · {flag.name}{flag.detail ? ` · ${flag.detail}` : ''}</p>
-                  ))}
-                  {!loadFlags.length && !attendanceFlags.length ? <p className="text-slate-400">{isGroupEditMode ? 'Select team members for this group.' : 'Tap for details.'}</p> : null}
+                  {!loadFlags.length ? <p className="text-slate-400">{isGroupEditMode ? 'Select team members for this group.' : 'Tap for details.'}</p> : null}
                 </div>
                 {groupPlayers.length > 0 ? (
                   <div className="mt-3 flex flex-wrap gap-1.5">
@@ -1420,22 +1413,13 @@ export function TeamWorkspaceView({
               </div>
               <button type="button" onClick={() => setActiveGroupId(null)} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Close</button>
             </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="mt-5 grid gap-3">
               <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Load flags</p>
                 <div className="mt-3 space-y-2">
                   {activeGroupLoadFlags.length === 0 ? <p className="text-sm font-bold text-slate-500">No current load flags.</p> : null}
                   {activeGroupLoadFlags.map((flag) => (
                     <p key={flag.id} className={`text-sm font-bold ${flag.status === 'high' ? 'text-rose-200' : 'text-sky-200'}`}>{flag.name} · {flag.status === 'high' ? 'High' : 'Low'}{flag.detail ? ` · ${flag.detail}` : ''}</p>
-                  ))}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Attendance flags</p>
-                <div className="mt-3 space-y-2">
-                  {activeGroupAttendanceFlags.length === 0 ? <p className="text-sm font-bold text-slate-500">No late/out marks.</p> : null}
-                  {activeGroupAttendanceFlags.map((flag) => (
-                    <p key={flag.id} className={`text-sm font-bold ${flag.status === 'out' ? 'text-rose-200' : 'text-amber-200'}`}>{flag.name} · {flag.status === 'out' ? 'Out' : 'Late'}{flag.detail ? ` · ${flag.detail}` : ''}</p>
                   ))}
                 </div>
               </div>

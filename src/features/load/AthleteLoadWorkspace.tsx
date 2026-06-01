@@ -1775,10 +1775,10 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       window.localStorage.setItem(LOAD_SHARE_ACTIVE_KEY, url);
       setActiveShareUrl(url);
       setShareStatus('copied');
-      window.setTimeout(() => setShareStatus('idle'), 2200);
+      window.setTimeout(() => setShareStatus('idle'), 1400);
     } catch {
       setShareStatus('error');
-      window.setTimeout(() => setShareStatus('idle'), 2200);
+      window.setTimeout(() => setShareStatus('idle'), 1400);
     }
   }
 
@@ -2248,8 +2248,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300">Athlete OS</p>
               <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-6xl">Load cockpit</h1>
               <div className="mt-5 flex flex-wrap gap-2">
-                <button type="button" onClick={copyTrainerShareLink} className={`rounded-full border px-4 py-2 text-xs font-black ${shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
-                  {shareStatus === 'copied' ? 'Link active' : shareStatus === 'error' ? 'Error' : shareActive ? 'Trainer link active' : 'Trainer link'}
+                <button type="button" onClick={copyTrainerShareLink} className={`rounded-full border px-4 py-2 text-xs font-black transition ${shareStatus === 'copied' ? 'scale-[1.03] border-emerald-300 bg-emerald-300 text-slate-950 shadow-[0_0_28px_rgba(110,231,183,0.22)]' : shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
+                  {shareStatus === 'copied' ? 'Copied' : shareStatus === 'error' ? 'Error' : shareActive ? 'Trainer link active' : 'Trainer link'}
                 </button>
               </div>
             </div>
