@@ -68,6 +68,8 @@ Player cards inside Team Workspace should open a Player Load Detail surface:
 - Team Workspace player cards open a focused Player Load overlay.
 - Demo players receive generated load history so coaches can test the graph and insight layout immediately.
 - Live players use Supabase `load_entries` where readable through RLS; missing attendance/readiness remain explicit placeholders.
+- Coach reads of athlete load data must stay behind Supabase RLS for authorised team staff, department leads or club admins; UI scoping alone is not sufficient.
+- Session group visibility uses `session_groups_select_context` / `can_view_session`; coaches must be able to read group targeting for their assigned sessions or scoped player lists can degrade incorrectly.
 - The overlay shows 7-day load, EWMA ACWR, state, attendance placeholder, load graph, missing input and training mix.
 
 ## Coach Today / Team Workspace update
@@ -105,6 +107,7 @@ Implementation rules added after the athlete-calendar pass:
 - Shared calendar surfaces should use the compact control pattern from Athlete OS: one small `Edit` / `Done` toggle, no large edit buttons, and no helper copy when the state is visually obvious.
 - Mobile week/day calendars should render the full 08:00-23:00 operating window without an inner vertical scroll when the slot grid fits in the card. The page may scroll; the calendar grid itself should not fight touch gestures.
 - Team Workspace and Facility Calendar should keep using the same shared `SmartSessionCalendar` engine so coach, team, facility and athlete calendars do not drift.
+- Copy actions for staff invites and trainer links should give immediate inline feedback: show `Copied` briefly, then return to the persistent state such as `Copy` or `Trainer link active`.
 - Coach team cards are launchers into Team Workspace. They should not say `Open`, should not show assigned-count badges, and should show the next planned session instead of redundant status text.
 
 ## Department-lead shell decision
@@ -141,4 +144,3 @@ Recommended top-level coach pages:
 - `Facilities`: hall calendars for facilities used by assigned teams, with coach context preserved in navigation.
 
 Single-team coach behavior: default entry may go straight to `Today`, but the shell still needs `Calendar` and `Facilities`. Do not collapse everything into Team Workspace because hall-time discovery is role-level, not team-local.
-- Copy actions for staff invites and trainer links should give immediate inline feedback: show `Copied` briefly, then return to the persistent state such as `Copy` or `Trainer link active`.

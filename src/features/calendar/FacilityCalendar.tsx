@@ -134,6 +134,8 @@ function FacilityRoleNav({ from, teamId }: { from?: string; teamId?: string }) {
   }
 
   if (from === 'department' || from === 'departmentTeam') return null;
+  // Fail closed for unknown contexts: new facility-calendar entry points must opt into the correct role nav here.
+  if (from !== 'overview' && from !== 'departments' && from !== 'facilities' && from !== 'team') return null;
 
   const links = [
     { href: '/admin/overview', label: 'Overview' },
@@ -508,7 +510,9 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
       ? { href: '/admin/departments', label: 'Back to departments' }
       : from === 'overview'
         ? { href: '/admin/overview', label: 'Back to overview' }
-        : { href: '/admin/facilities', label: 'Back to facilities' };
+        : from === 'facilities'
+          ? { href: '/admin/facilities', label: 'Back to facilities' }
+          : { href: '/app', label: 'Back' };
 
   function handleSlotPointerDown(day: Date, event: PointerEvent<HTMLDivElement>) {
     if (mode !== 'edit' || !canCreateSessions) return;

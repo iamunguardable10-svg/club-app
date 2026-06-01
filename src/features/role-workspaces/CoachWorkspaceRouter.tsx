@@ -29,6 +29,7 @@ type CoachSession = {
   teamName: string;
   departmentName: string;
   facilityName: string | null;
+  groupIds: string[];
   availability: CoachAvailability[];
   players: CoachPlayer[];
 };
@@ -50,6 +51,9 @@ type SessionRow = {
   facilities?: { name?: string | null } | { name?: string | null }[] | null;
 };
 type AvailabilityRow = { session_id: string; user_id: string; status: 'late' | 'out'; reason: string | null; late_minutes: number | null };
+type AthleteMembershipRow = { id: string; team_id: string; user_id: string };
+type SessionGroupRow = { session_id: string; group_id: string };
+type PlayerGroupMemberRow = { group_id: string; team_membership_id: string };
 type ProfileRow = { id: string; full_name: string | null; email: string | null };
 type LoadEntryRow = {
   id: string;
@@ -284,7 +288,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       const sessionIds = sessionRows.map((session) => session.id);
       const { data: athleteRowsRaw, error: athleteError } = await supabase
         .from('team_memberships')
-        .select('team_id, user_id')
+        .select('id, team_id, user_id')
         .in('team_id', loadedTeams.map((team) => team.id))
         .eq('role', 'athlete')
         .eq('status', 'active');
@@ -296,11 +300,41 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         return;
       }
 
-      const athleteRows = (athleteRowsRaw ?? []) as { team_id: string; user_id: string }[];
+      const athleteRows = (athleteRowsRaw ?? []) as AthleteMembershipRow[];
       const athleteIds = Array.from(new Set(athleteRows.map((row) => row.user_id)));
       let availabilityRows: AvailabilityRow[] = [];
       let profileRows: ProfileRow[] = [];
       let loadedLoadEntries: (AthleteLoadEntry & { userId: string })[] = [];
+      let sessionGroupRows: SessionGroupRow[] = [];
+      let playerGroupMemberRows: PlayerGroupMemberRow[] = [];
+
+      if (sessionIds.length > 0) {
+        const { data: sessionGroupRowsRaw, error: sessionGroupError } = await supabase
+          .from('session_groups')
+          .select('session_id, group_id')
+          .in('session_id', sessionIds);
+        if (!mounted) return;
+        if (sessionGroupError) {
+          setError(sessionGroupError.message);
+          setState('error');
+          return;
+        }
+        sessionGroupRows = (sessionGroupRowsRaw ?? []) as SessionGroupRow[];
+      }
+
+      if (athleteRows.length > 0) {
+        const { data: playerGroupMemberRowsRaw, error: playerGroupMemberError } = await supabase
+          .from('player_group_members')
+          .select('group_id, team_membership_id')
+          .in('team_membership_id', athleteRows.map((row) => row.id));
+        if (!mounted) return;
+        if (playerGroupMemberError) {
+          setError(playerGroupMemberError.message);
+          setState('error');
+          return;
+        }
+        playerGroupMemberRows = (playerGroupMemberRowsRaw ?? []) as PlayerGroupMemberRow[];
+      }
 
       if (athleteIds.length > 0) {
         const { data: profilesRaw, error: profilesError } = await supabase.from('profiles').select('id, full_name, email').in('id', athleteIds);
@@ -314,6 +348,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
 
         const loadCutoff = new Date();
         loadCutoff.setDate(loadCutoff.getDate() - 90);
+        // Sensitive athlete load data: RLS must restrict rows to the athlete themselves and authorised team staff/department/club admins.
         const { data: loadRows, error: loadError } = await supabase
           .from('load_entries')
           .select('id, session_id, user_id, team_id, entry_date, training_type, rpe, duration_minutes, session_load, note, submitted_at, sessions(title, starts_at, session_type, teams(name))')
@@ -373,6 +408,15 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       for (const team of loadedTeams) {
         playersByTeamId.set(team.id, (athleteIdsByTeamId.get(team.id) ?? []).map((userId) => toCoachPlayer(userId, team.id, profileById.get(userId), loadedLoadEntries)));
       }
+      const teamMembershipIdByUserTeam = new Map(athleteRows.map((row) => [`${row.team_id}:${row.user_id}`, row.id]));
+      const groupIdsByMembershipId = new Map<string, Set<string>>();
+      for (const row of playerGroupMemberRows) {
+        groupIdsByMembershipId.set(row.team_membership_id, new Set([...(groupIdsByMembershipId.get(row.team_membership_id) ?? []), row.group_id]));
+      }
+      const sessionGroupIdsBySessionId = new Map<string, string[]>();
+      for (const row of sessionGroupRows) {
+        sessionGroupIdsBySessionId.set(row.session_id, [...(sessionGroupIdsBySessionId.get(row.session_id) ?? []), row.group_id]);
+      }
       const availabilityBySessionId = new Map<string, CoachAvailability[]>();
       for (const row of availabilityRows) {
         availabilityBySessionId.set(row.session_id, [
@@ -392,6 +436,21 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         .filter((session) => session.owner_team_id && teamById.has(session.owner_team_id))
         .map((session) => {
           const team = teamById.get(session.owner_team_id!)!;
+          const groupIds = sessionGroupIdsBySessionId.get(session.id) ?? [];
+          const teamPlayers = playersByTeamId.get(team.id) ?? [];
+          const scopedPlayers = groupIds.length === 0
+            ? teamPlayers
+            : teamPlayers.filter((player) => {
+                const membershipId = teamMembershipIdByUserTeam.get(`${team.id}:${player.id}`);
+                if (!membershipId) return false;
+                const playerGroupIds = groupIdsByMembershipId.get(membershipId) ?? new Set<string>();
+                return groupIds.some((groupId) => playerGroupIds.has(groupId));
+              });
+          const scopedPlayerIds = new Set(scopedPlayers.map((player) => player.id));
+          const sessionAvailability = availabilityBySessionId.get(session.id) ?? [];
+          const scopedAvailability = groupIds.length === 0
+            ? sessionAvailability
+            : sessionAvailability.filter((row) => scopedPlayerIds.has(row.userId));
           return {
             id: session.id,
             title: session.title,
@@ -401,8 +460,9 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             teamName: team.name,
             departmentName: team.departmentName,
             facilityName: facilityNameFromRow(session),
-            availability: availabilityBySessionId.get(session.id) ?? [],
-            players: playersByTeamId.get(team.id) ?? [],
+            groupIds,
+            availability: scopedAvailability,
+            players: scopedPlayers,
           } satisfies CoachSession;
         });
 

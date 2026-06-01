@@ -106,6 +106,8 @@ function DemoFacilityRoleNav({ from, teamId }: { from?: string; teamId?: string 
   }
 
   if (from === 'department' || from === 'departmentTeam') return null;
+  // Fail closed for unknown contexts: new facility-calendar entry points must opt into the correct role nav here.
+  if (from !== 'overview' && from !== 'departments' && from !== 'facilities' && from !== 'team') return null;
 
   const links = [
     { href: '/demo/admin/overview', label: 'Overview' },
@@ -390,7 +392,9 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
       ? { href: '/demo/admin/departments', label: 'Back to local departments' }
       : from === 'overview'
         ? { href: '/demo/admin/overview', label: 'Back to local overview' }
-        : { href: '/demo/admin/facilities', label: 'Back to local facilities' };
+        : from === 'facilities'
+          ? { href: '/demo/admin/facilities', label: 'Back to local facilities' }
+          : { href: '/demo', label: 'Back' };
 
   function handleSlotPointerDown(day: Date, event: PointerEvent<HTMLDivElement>) {
     if (mode !== 'edit') return;
@@ -549,7 +553,6 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
           teamName={selectedSession.team}
           departmentName={selectedSession.department}
           facilityName={selectedSession.facility}
-          facilityId={selectedSession.facility}
           attendance={{ status: 'Planned' }}
           load={{ status: 'Not reported yet' }}
           actions={(
