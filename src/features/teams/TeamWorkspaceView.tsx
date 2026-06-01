@@ -68,7 +68,7 @@ export type TeamWorkspaceData = {
   staffRoles?: TeamWorkspaceStaffRole[];
   sessions: TeamWorkspaceSession[];
   contextSessions?: TeamWorkspaceSession[];
-  groups: { id: string; name: string; description: string; playerCount: number }[];
+  groups: { id: string; name: string; description: string; playerCount: number; playerIds?: string[] }[];
   backHref: string;
   backLabel?: string;
   calendarHref?: string | null;
@@ -846,6 +846,9 @@ export function TeamWorkspaceView({
   onRevokeStaffInvite,
   onAddCoachRole,
   onRemoveCoachRole,
+  onAddGroup,
+  onRemoveGroup,
+  onTogglePlayerGroup,
 }: {
   data: TeamWorkspaceData;
   initialSection?: TeamWorkspaceSection;
@@ -859,6 +862,9 @@ export function TeamWorkspaceView({
   onRevokeStaffInvite?: (inviteId: string) => void | Promise<void>;
   onAddCoachRole?: (label: string) => void | Promise<void>;
   onRemoveCoachRole?: (coachRoleSlotId: string) => void | Promise<void>;
+  onAddGroup?: (name: string) => void | Promise<void>;
+  onRemoveGroup?: (groupId: string) => void | Promise<void>;
+  onTogglePlayerGroup?: (groupId: string, playerId: string) => void | Promise<void>;
 }) {
   const [activeSection, setActiveSection] = useState<TeamWorkspaceSection>(initialSection);
   const [isSavingDefault, setIsSavingDefault] = useState(false);
@@ -878,6 +884,7 @@ export function TeamWorkspaceView({
     { id: 'assistant-coach', label: 'Assistant Coach', role: 'assistant_coach', status: data.staff.assistantCoaches.length > 0 ? 'accepted' : 'missing', value: data.staff.assistantCoaches.join(', ') || null },
   ] satisfies TeamWorkspaceStaffRole[];
   const [newCoachRoleLabel, setNewCoachRoleLabel] = useState('');
+  const [newGroupName, setNewGroupName] = useState('');
   const nextSession = useMemo(() => {
     const now = Date.now();
     return [...data.sessions].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()).find((session) => new Date(session.startsAt).getTime() >= now) ?? data.sessions[0];
@@ -932,6 +939,13 @@ export function TeamWorkspaceView({
     if (!label || !onAddCoachRole) return;
     await onAddCoachRole(label);
     setNewCoachRoleLabel('');
+  }
+
+  async function handleAddGroup() {
+    const name = newGroupName.trim();
+    if (!name || !onAddGroup) return;
+    await onAddGroup(name);
+    setNewGroupName('');
   }
 
   return (
@@ -1067,12 +1081,36 @@ export function TeamWorkspaceView({
 
       {activeSection === 'groups' ? (
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-fuchsia-300">Team internal</p>
-          <h2 className="mt-2 text-2xl font-black">Groups</h2>
-          <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Team internal</p>
+              <h2 className="mt-2 text-2xl font-black">Groups</h2>
+            </div>
+            {onAddGroup ? (
+              <div className="flex w-full max-w-md gap-2 sm:w-auto">
+                <input
+                  value={newGroupName}
+                  onChange={(event) => setNewGroupName(event.target.value)}
+                  placeholder="e.g. Starting Five"
+                  className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm font-bold text-slate-100 outline-none focus:border-sky-300"
+                />
+                <button type="button" onClick={handleAddGroup} className="rounded-xl border border-sky-500/50 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/35">
+                  Add
+                </button>
+              </div>
+            ) : null}
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {data.groups.map((group) => (
               <div key={group.id} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-                <p className="font-black">{group.name}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-black">{group.name}</p>
+                  {onRemoveGroup ? (
+                    <button type="button" onClick={() => onRemoveGroup(group.id)} className="rounded-lg border border-red-500/40 px-2 py-1 text-[10px] font-black text-red-100 hover:bg-red-950/30">
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
                 <p className="mt-1 text-sm text-slate-400">{group.description}</p>
                 <p className="mt-3 text-xs font-black text-slate-500">{group.playerCount} players</p>
                 {players.filter((player) => player.groups?.includes(group.id) || player.groups?.includes(group.name)).length > 0 ? (
@@ -1082,8 +1120,29 @@ export function TeamWorkspaceView({
                     ))}
                   </div>
                 ) : null}
+                {players.length > 0 && onTogglePlayerGroup ? (
+                  <div className="mt-4 border-t border-slate-800 pt-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Members</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {players.map((player) => {
+                        const selected = Boolean(group.playerIds?.includes(player.id) || player.groups?.includes(group.id) || player.groups?.includes(group.name));
+                        return (
+                          <button
+                            key={player.id}
+                            type="button"
+                            onClick={() => onTogglePlayerGroup(group.id, player.id)}
+                            className={`rounded-full border px-2 py-1 text-[11px] font-bold transition ${selected ? 'border-emerald-400/60 bg-emerald-950/30 text-emerald-100' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+                          >
+                            {player.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ))}
+            {data.groups.length === 0 ? <EmptyCard title="No groups yet" /> : null}
           </div>
         </section>
       ) : null}

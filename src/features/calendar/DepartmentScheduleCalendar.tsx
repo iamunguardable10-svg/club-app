@@ -81,11 +81,13 @@ function layoutDaySessions(sessions: DepartmentScheduleSession[]) {
 
 export function DepartmentScheduleCalendar({ sessions, teamOptions }: { sessions: DepartmentScheduleSession[]; teamOptions: Array<{ id: string; name: string }> }) {
   const [weekOffset, setWeekOffset] = useState(0);
-  const [teamFilter, setTeamFilter] = useState('all');
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
+  const [activeSession, setActiveSession] = useState<DepartmentScheduleSession | null>(null);
   const days = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(weekStart(), weekOffset * 7 + index)), [weekOffset]);
   const weekLabel = `${days[0].toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })} - ${days[6].toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}`;
-  const visibleSessions = useMemo(() => sessions.filter((session) => teamFilter === 'all' || session.teamId === teamFilter), [sessions, teamFilter]);
+  const visibleSessions = useMemo(() => sessions.filter((session) => selectedTeamIds.length === 0 || selectedTeamIds.includes(session.teamId)), [sessions, selectedTeamIds]);
   const gridHeight = hours.length * hourHeight;
+  const toggleTeam = (teamId: string) => setSelectedTeamIds((current) => current.includes(teamId) ? current.filter((id) => id !== teamId) : [...current, teamId]);
 
   return (
     <div className="mt-5 space-y-3">
@@ -96,10 +98,19 @@ export function DepartmentScheduleCalendar({ sessions, teamOptions }: { sessions
           <button type="button" onClick={() => setWeekOffset((value) => value + 1)} className="grid h-8 w-8 place-items-center rounded-full border border-slate-700 bg-slate-950/70 text-sm font-black text-slate-200">›</button>
           {weekOffset !== 0 ? <button type="button" onClick={() => setWeekOffset(0)} className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-black text-slate-200">↺ Week</button> : null}
         </div>
-        <select value={teamFilter} onChange={(event) => setTeamFilter(event.target.value)} className="max-w-full rounded-full border border-slate-700 bg-slate-950/80 px-3 py-1.5 text-xs font-black text-slate-200 outline-none focus:border-sky-300">
-          <option value="all">All teams</option>
-          {teamOptions.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
-        </select>
+        <div className="flex max-w-full flex-wrap gap-1.5">
+          <button type="button" onClick={() => setSelectedTeamIds([])} className={`rounded-full border px-3 py-1.5 text-xs font-black ${selectedTeamIds.length === 0 ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 bg-slate-950/80 text-slate-300'}`}>
+            All teams
+          </button>
+          {teamOptions.map((team) => {
+            const selected = selectedTeamIds.includes(team.id);
+            return (
+              <button key={team.id} type="button" onClick={() => toggleTeam(team.id)} className={`rounded-full border px-3 py-1.5 text-xs font-black ${selected ? 'border-sky-300 bg-sky-950/50 text-sky-100' : 'border-slate-700 bg-slate-950/80 text-slate-300 hover:text-white'}`}>
+                {team.name}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80">
@@ -127,10 +138,16 @@ export function DepartmentScheduleCalendar({ sessions, teamOptions }: { sessions
                   const width = 100 / itemLayout.columns;
                   const left = itemLayout.column * width;
                   return (
-                    <article key={session.id} className="absolute overflow-hidden rounded-xl border border-slate-700/90 bg-slate-900/90 px-2 py-1 text-left shadow-sm ring-1 ring-white/[0.03]" style={{ top, height, left: `calc(${left}% + 2px)`, width: `calc(${width}% - 4px)` }}>
+                    <button
+                      key={session.id}
+                      type="button"
+                      onClick={() => setActiveSession(session)}
+                      className="absolute overflow-hidden rounded-xl border border-slate-700/90 bg-slate-900/90 px-2 py-1 text-left shadow-sm ring-1 ring-white/[0.03] transition hover:border-sky-300/70"
+                      style={{ top, height, left: `calc(${left}% + 2px)`, width: `calc(${width}% - 4px)` }}
+                    >
                       <p className="truncate text-[10px] font-black text-white md:text-xs">{session.teamName}</p>
                       {height > 38 ? <p className="truncate text-[9px] font-bold text-slate-400 md:text-[10px]">{formatTime(session.startsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p> : null}
-                    </article>
+                    </button>
                   );
                 })}
               </div>
@@ -138,6 +155,24 @@ export function DepartmentScheduleCalendar({ sessions, teamOptions }: { sessions
           })}
         </div>
       </div>
+      {activeSession ? (
+        <div className="fixed inset-0 z-50 grid place-items-end bg-black/65 p-3 backdrop-blur-sm sm:place-items-center" onClick={() => setActiveSession(null)}>
+          <section className="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-950 p-5 text-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Session</p>
+                <h3 className="mt-2 text-2xl font-black">{activeSession.title}</h3>
+              </div>
+              <button type="button" onClick={() => setActiveSession(null)} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-200">Close</button>
+            </div>
+            <div className="mt-5 grid gap-3 text-sm font-bold text-slate-300">
+              <p><span className="text-slate-500">Team</span><br />{activeSession.teamName}</p>
+              <p><span className="text-slate-500">Time</span><br />{formatTime(activeSession.startsAt)} - {formatTime(sessionEnd(activeSession).toISOString())}</p>
+              <p><span className="text-slate-500">Facility</span><br />{activeSession.facilityName ?? 'No facility set'}</p>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

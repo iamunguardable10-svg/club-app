@@ -18,14 +18,16 @@ type DemoInvite = {
   expiresAt?: string | null;
 };
 type DemoExtraCoachRole = { id: string; department: string; team: string; label: string };
+type DemoPlayerGroup = { id: string; teamId: string; name: string };
 
 const DEMO_INVITES_KEY = 'club-app.demo.invites';
 const DEMO_PLAYERS_KEY = 'club-app.demo.players';
 const DEMO_EXTRA_COACH_ROLES_KEY = 'club-app.demo.extra-coach-roles';
 const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
+const DEMO_PLAYER_GROUPS_KEY = 'club-app.demo.player-groups';
 
-function DemoTeamWorkspaceFrame({ frame, children }: { frame: 'admin' | 'coach'; children: ReactNode }) {
-  if (frame === 'coach') {
+function DemoTeamWorkspaceFrame({ frame, children }: { frame: 'admin' | 'coach' | 'department'; children: ReactNode }) {
+  if (frame === 'coach' || frame === 'department') {
     return (
       <main className="os-page">
         <div className="os-container">{children}</div>
@@ -154,6 +156,22 @@ function saveDemoPlayers(players: DemoPlayer[]) {
   window.localStorage.setItem(DEMO_PLAYERS_KEY, JSON.stringify(players));
 }
 
+function getDemoPlayerGroups(): DemoPlayerGroup[] {
+  if (typeof window === 'undefined') return [];
+  const raw = window.localStorage.getItem(DEMO_PLAYER_GROUPS_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as DemoPlayerGroup[];
+  } catch {
+    return [];
+  }
+}
+
+function saveDemoPlayerGroups(groups: DemoPlayerGroup[]) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(DEMO_PLAYER_GROUPS_KEY, JSON.stringify(groups));
+}
+
 function getDemoExtraCoachRoles(): DemoExtraCoachRole[] {
   if (typeof window === 'undefined') return [];
   const raw = window.localStorage.getItem(DEMO_EXTRA_COACH_ROLES_KEY);
@@ -182,7 +200,7 @@ export function DemoTeamWorkspace({
   backHref?: string;
   backLabel?: string;
   initialSection?: Parameters<typeof TeamWorkspaceView>[0]['initialSection'];
-  frame?: 'admin' | 'coach';
+  frame?: 'admin' | 'coach' | 'department';
   role?: TeamWorkspaceRole;
 }) {
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
@@ -190,6 +208,7 @@ export function DemoTeamWorkspace({
   const [sessions, setSessions] = useState<DemoSession[]>([]);
   const [invites, setInvites] = useState<DemoInvite[]>([]);
   const [players, setPlayers] = useState<DemoPlayer[]>([]);
+  const [playerGroups, setPlayerGroups] = useState<DemoPlayerGroup[]>([]);
   const [extraCoachRoles, setExtraCoachRoles] = useState<DemoExtraCoachRole[]>([]);
   const [facilityAssignments, setFacilityAssignments] = useState<DemoFacilityAssignment[]>([]);
 
@@ -200,6 +219,7 @@ export function DemoTeamWorkspace({
     setSessions(getDemoSessions());
     setInvites(getDemoInvites());
     setPlayers(getDemoPlayers());
+    setPlayerGroups(getDemoPlayerGroups());
     setExtraCoachRoles(getDemoExtraCoachRoles());
     setFacilityAssignments(getDemoFacilityAssignments());
   }, []);
@@ -298,6 +318,47 @@ export function DemoTeamWorkspace({
     setInvites(nextInvites);
   }
 
+  function ensureSeedGroups(currentGroups = playerGroups) {
+    const existing = currentGroups.filter((group) => group.teamId === teamId);
+    if (existing.length > 0) return currentGroups;
+    const seed = [
+      { id: 'starting-five', teamId, name: 'Starting Five' },
+      { id: 'bench-unit', teamId, name: 'Bench unit' },
+      { id: 'rehab', teamId, name: 'Rehab' },
+    ];
+    const nextGroups = [...currentGroups, ...seed];
+    saveDemoPlayerGroups(nextGroups);
+    setPlayerGroups(nextGroups);
+    return nextGroups;
+  }
+
+  function handleAddGroup(name: string) {
+    const nextGroups = [...ensureSeedGroups(), { id: crypto.randomUUID(), teamId, name }];
+    saveDemoPlayerGroups(nextGroups);
+    setPlayerGroups(nextGroups);
+  }
+
+  function handleRemoveGroup(groupId: string) {
+    const nextGroups = playerGroups.filter((group) => group.id !== groupId);
+    const nextPlayers = players.map((player) => player.teamId === teamId ? { ...player, groups: player.groups?.filter((group) => group !== groupId) ?? [] } : player);
+    saveDemoPlayerGroups(nextGroups);
+    saveDemoPlayers(nextPlayers);
+    setPlayerGroups(nextGroups);
+    setPlayers(nextPlayers);
+  }
+
+  function handleTogglePlayerGroup(groupId: string, playerId: string) {
+    const nextPlayers = players.map((player) => {
+      if (player.id !== playerId) return player;
+      const groups = player.groups ?? [];
+      return groups.includes(groupId)
+        ? { ...player, groups: groups.filter((group) => group !== groupId) }
+        : { ...player, groups: [...groups, groupId] };
+    });
+    saveDemoPlayers(nextPlayers);
+    setPlayers(nextPlayers);
+  }
+
   const data = useMemo<TeamWorkspaceData | null>(() => {
     const team = teams.find((item) => item.id === teamId);
     if (!team) return null;
@@ -363,6 +424,14 @@ export function DemoTeamWorkspace({
       makeStaffRole('assistant-coach', 'Assistant Coach', 'assistant_coach', null),
       ...teamExtraRoles.map((role) => makeStaffRole(role.id, role.label, 'assistant_coach', role.id, true)),
     ];
+    const teamGroups = playerGroups.filter((group) => group.teamId === team.id);
+    const fallbackGroups = teamGroups.length > 0
+      ? teamGroups
+      : [
+        { id: 'starting-five', teamId: team.id, name: 'Starting Five' },
+        { id: 'bench-unit', teamId: team.id, name: 'Bench unit' },
+        { id: 'rehab', teamId: team.id, name: 'Rehab' },
+      ];
     const countGroup = (groupId: string) => teamPlayers.filter((player) => player.groups?.includes(groupId)).length;
 
     return {
@@ -396,17 +465,19 @@ export function DemoTeamWorkspace({
         facilityId: session.facility,
         facilityName: session.team,
       })),
-      groups: [
-        { id: 'starting-five', name: 'Starting Five', description: 'Team-internal core group for session planning.', playerCount: countGroup('starting-five') },
-        { id: 'bench-unit', name: 'Bench unit', description: 'Second unit / rotation group.', playerCount: countGroup('bench-unit') },
-        { id: 'rehab', name: 'Rehab', description: 'Players with modified load.', playerCount: countGroup('rehab') },
-      ],
+      groups: fallbackGroups.map((group) => ({
+        id: group.id,
+        name: group.name,
+        description: 'Team-internal group for session planning.',
+        playerCount: countGroup(group.id),
+        playerIds: teamPlayers.filter((player) => player.groups?.includes(group.id)).map((player) => player.id),
+      })),
       backHref,
       backLabel,
       calendarHref: team.defaultFacility ? `/demo/admin/facilities/${encodeURIComponent(team.defaultFacility)}/calendar?from=team&teamName=${encodeURIComponent(team.name)}&departmentName=${encodeURIComponent(team.department)}` : null,
-      staffHref: `/demo/admin/people?departmentName=${encodeURIComponent(team.department)}&teamName=${encodeURIComponent(team.name)}`,
+      staffHref: frame === 'department' ? '/demo/department/coaches' : `/demo/admin/people?departmentName=${encodeURIComponent(team.department)}&teamName=${encodeURIComponent(team.name)}`,
     };
-  }, [backHref, backLabel, extraCoachRoles, facilityAssignments, invites, players, role, sessions, setup?.facilityDetails, teamId, teams]);
+  }, [backHref, backLabel, extraCoachRoles, facilityAssignments, frame, invites, playerGroups, players, role, sessions, setup?.facilityDetails, teamId, teams]);
 
   if (!setup) {
     return (
@@ -442,6 +513,9 @@ export function DemoTeamWorkspace({
         onRevokeStaffInvite={handleRevokeStaffInvite}
         onAddCoachRole={handleAddCoachRole}
         onRemoveCoachRole={handleRemoveCoachRole}
+        onAddGroup={handleAddGroup}
+        onRemoveGroup={handleRemoveGroup}
+        onTogglePlayerGroup={handleTogglePlayerGroup}
       />
     </DemoTeamWorkspaceFrame>
   );

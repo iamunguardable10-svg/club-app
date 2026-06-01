@@ -63,18 +63,35 @@ function modeTitle(mode: DemoDepartmentWorkspaceMode) {
   return 'Teams';
 }
 
-function DemoDepartmentNav({ mode }: { mode: DemoDepartmentWorkspaceMode }) {
+function DemoDepartmentNav({ mode, isEditMode, onToggleEdit }: { mode: DemoDepartmentWorkspaceMode; isEditMode: boolean; onToggleEdit: () => void }) {
   const items: DemoDepartmentWorkspaceMode[] = ['teams', 'facilities', 'coaches', 'schedule', 'settings'];
   return (
     <section className="sticky top-0 z-30 rounded-2xl border border-slate-800 bg-slate-950/92 p-3 text-white shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:static md:p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Demo Department OS</p>
-          <h1 className="mt-1 text-2xl font-black tracking-tight">{modeTitle(mode)}</h1>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">Demo Department OS</p>
+          <h1 className="mt-1 text-xl font-black tracking-tight md:text-2xl">{modeTitle(mode)}</h1>
         </div>
-        <nav className="flex flex-wrap gap-1.5">
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={onToggleEdit} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-100 hover:bg-slate-900">
+            {isEditMode ? 'Done' : 'Edit'}
+          </button>
+          <details className="relative md:hidden">
+            <summary className="list-none rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-100 [&::-webkit-details-marker]:hidden">
+              Menu
+            </summary>
+            <nav className="absolute right-0 mt-2 grid min-w-44 gap-1 rounded-2xl border border-slate-800 bg-slate-950 p-2 shadow-2xl">
+              {items.map((item) => (
+                <Link key={item} href={`/demo/department/${item}`} className={`rounded-xl px-3 py-2 text-sm font-black ${mode === item ? 'bg-slate-100 text-slate-950' : 'text-slate-200 hover:bg-slate-900'}`}>
+                  {modeTitle(item)}
+                </Link>
+              ))}
+            </nav>
+          </details>
+        </div>
+        <nav className="hidden flex-wrap gap-1.5 md:flex">
           {items.map((item) => (
-            <Link key={item} href={`/demo/department/${item}`} className={`rounded-full border px-3 py-1.5 text-xs font-black ${mode === item ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950 text-slate-200 hover:bg-slate-900'}`}>
+            <Link key={item} href={`/demo/department/${item}`} className={`rounded-full border px-3 py-1.5 text-xs font-black ${mode === item ? 'border-slate-200 bg-slate-100 text-slate-950' : 'border-slate-700 bg-slate-950 text-slate-200 hover:bg-slate-900'}`}>
               {modeTitle(item)}
             </Link>
           ))}
@@ -386,20 +403,19 @@ export function DemoAdminDepartmentWorkspace({
 
   return (
     <DepartmentFrame frame={frame}>
-      {frame === 'department' ? <DemoDepartmentNav mode={activeMode === 'all' ? 'teams' : activeMode} /> : null}
-      <section className="rounded-3xl border border-amber-500/30 bg-amber-950/20 p-6 shadow-sm">
+      {frame === 'department' ? <DemoDepartmentNav mode={activeMode === 'all' ? 'teams' : activeMode} isEditMode={isEditMode} onToggleEdit={() => setIsEditMode((current) => !current)} /> : null}
+      {frame === 'admin' ? <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6 shadow-sm">
         <Link href={backHref} className="inline-flex items-center text-sm font-black text-amber-200 hover:text-amber-100">← {backLabel}</Link>
         <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">Local department workspace</p>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">Local department workspace</p>
             <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">{departmentName}</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-100/80">Browser-only team overview for {setup.clubName}.</p>
           </div>
-          <button type="button" onClick={() => setIsEditMode((current) => !current)} className={isEditMode ? 'w-fit rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200' : 'w-fit rounded-xl border border-amber-500/70 px-4 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-950/40'}>
+          <button type="button" onClick={() => setIsEditMode((current) => !current)} className={isEditMode ? 'w-fit rounded-xl bg-slate-100 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-white' : 'w-fit rounded-xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-200 transition hover:bg-slate-900'}>
             {isEditMode ? 'Done editing' : 'Edit department'}
           </button>
         </div>
-      </section>
+      </section> : null}
 
       {showFacilitiesSection ? <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -536,7 +552,7 @@ export function DemoAdminDepartmentWorkspace({
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
                       <h3 className="text-xl font-black text-white">
-                        <Link href={`/demo/admin/teams/${encodeURIComponent(team.id)}?from=department&departmentName=${encodeURIComponent(departmentName)}`} className="transition hover:text-sky-200">
+                        <Link href={`/demo/admin/teams/${encodeURIComponent(team.id)}?from=${frame === 'department' ? 'department' : 'adminDepartment'}&departmentName=${encodeURIComponent(departmentName)}`} className="transition hover:text-sky-200">
                           {team.name}
                         </Link>
                       </h3>
@@ -591,7 +607,7 @@ export function DemoAdminDepartmentWorkspace({
                           {nextSession ? `Next ${new Date(nextSession.startsAt).toLocaleDateString(undefined, { weekday: 'short' })} ${new Date(nextSession.startsAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}` : 'No session yet'}
                         </span>
                       </div>
-                      {!isEditMode ? (
+                      {!isEditMode && frame === 'admin' ? (
                         <button type="button" onClick={() => setComposerTeamId(team.id)} className="mt-3 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200 transition hover:bg-slate-800">
                           Create session
                         </button>

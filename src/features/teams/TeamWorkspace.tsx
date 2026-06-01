@@ -10,12 +10,14 @@ import { TeamWorkspaceView, type TeamWorkspaceData, type TeamWorkspaceRole, type
 type Team = { id: string; club_id: string; department_id: string; name: string; default_facility_id: string | null };
 type Department = { id: string; club_id: string; name: string };
 type Facility = { id: string; name: string };
-type Membership = { user_id: string; role: 'head_coach' | 'assistant_coach' | 'athlete'; status: 'active' | 'inactive' | 'invited'; coach_role_slot_id: string | null };
+type Membership = { id: string; user_id: string; role: 'head_coach' | 'assistant_coach' | 'athlete'; status: 'active' | 'inactive' | 'invited'; coach_role_slot_id: string | null };
 type ClubMembership = { role: 'club_admin' | 'department_lead'; department_id: string | null };
 type Profile = { id: string; full_name: string; email: string | null };
 type Session = { id: string; title: string; starts_at: string; ends_at: string | null; facility_id: string | null };
 type Invite = { id: string; token: string; role: 'head_coach' | 'assistant_coach'; status: 'pending' | 'accepted' | 'revoked' | 'expired'; coach_role_slot_id: string | null };
 type CoachRoleSlot = { id: string; label: string };
+type PlayerGroup = { id: string; name: string };
+type PlayerGroupMember = { group_id: string; team_membership_id: string };
 type AvailabilityRow = {
   session_id: string;
   user_id: string;
@@ -54,8 +56,8 @@ function profileLabel(profile: Profile | undefined, fallback: string) {
   return profile?.full_name || profile?.email || fallback;
 }
 
-function TeamWorkspaceFrame({ frame, children }: { frame: 'admin' | 'coach'; children: ReactNode }) {
-  if (frame === 'coach') {
+function TeamWorkspaceFrame({ frame, children }: { frame: 'admin' | 'coach' | 'department'; children: ReactNode }) {
+  if (frame === 'coach' || frame === 'department') {
     return (
       <main className="os-page">
         <div className="os-container">{children}</div>
@@ -76,7 +78,7 @@ export function TeamWorkspace({
   backHref?: string;
   backLabel?: string;
   initialSection?: Parameters<typeof TeamWorkspaceView>[0]['initialSection'];
-  frame?: 'admin' | 'coach';
+  frame?: 'admin' | 'coach' | 'department';
 }) {
   const router = useRouter();
   const [team, setTeam] = useState<Team | null>(null);
@@ -89,6 +91,8 @@ export function TeamWorkspace({
   const [contextSessions, setContextSessions] = useState<Session[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [coachRoleSlots, setCoachRoleSlots] = useState<CoachRoleSlot[]>([]);
+  const [playerGroups, setPlayerGroups] = useState<PlayerGroup[]>([]);
+  const [playerGroupMembers, setPlayerGroupMembers] = useState<PlayerGroupMember[]>([]);
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [departmentFacilityIds, setDepartmentFacilityIds] = useState<string[]>([]);
   const [loadEntries, setLoadEntries] = useState<PlayerLoadEntry[]>([]);
@@ -128,10 +132,10 @@ export function TeamWorkspace({
       }
 
       const loadedTeam = teamResult.data as Team;
-      const [departmentResult, facilityResult, membershipsResult, clubMembershipsResult, sessionsResult, facilitiesResult, departmentFacilitiesResult, contextSessionsResult, invitesResult, coachRoleSlotsResult] = await Promise.all([
+      const [departmentResult, facilityResult, membershipsResult, clubMembershipsResult, sessionsResult, facilitiesResult, departmentFacilitiesResult, contextSessionsResult, invitesResult, coachRoleSlotsResult, playerGroupsResult] = await Promise.all([
         supabase.from('departments').select('id, club_id, name').eq('id', loadedTeam.department_id).single(),
         loadedTeam.default_facility_id ? supabase.from('facilities').select('id, name').eq('id', loadedTeam.default_facility_id).single() : Promise.resolve({ data: null, error: null }),
-        supabase.from('team_memberships').select('user_id, role, status, coach_role_slot_id').eq('team_id', loadedTeam.id),
+        supabase.from('team_memberships').select('id, user_id, role, status, coach_role_slot_id').eq('team_id', loadedTeam.id),
         supabase.from('club_memberships').select('role, department_id').eq('club_id', loadedTeam.club_id).eq('user_id', user.id).eq('status', 'active'),
         supabase.from('sessions').select('id, title, starts_at, ends_at, facility_id').eq('owner_team_id', loadedTeam.id).order('starts_at'),
         supabase.from('facilities').select('id, name').eq('club_id', loadedTeam.club_id).order('name'),
@@ -141,9 +145,10 @@ export function TeamWorkspace({
           : Promise.resolve({ data: [], error: null }),
         supabase.from('invites').select('id, token, role, status, coach_role_slot_id').eq('team_id', loadedTeam.id).in('role', ['head_coach', 'assistant_coach']).eq('status', 'pending').order('created_at', { ascending: false }),
         supabase.from('team_coach_role_slots').select('id, label').eq('team_id', loadedTeam.id).order('label'),
+        supabase.from('player_groups').select('id, name').eq('team_id', loadedTeam.id).order('name'),
       ]);
 
-      const firstError = departmentResult.error ?? facilityResult.error ?? membershipsResult.error ?? clubMembershipsResult.error ?? sessionsResult.error ?? facilitiesResult.error ?? departmentFacilitiesResult.error ?? contextSessionsResult.error ?? invitesResult.error ?? coachRoleSlotsResult.error;
+      const firstError = departmentResult.error ?? facilityResult.error ?? membershipsResult.error ?? clubMembershipsResult.error ?? sessionsResult.error ?? facilitiesResult.error ?? departmentFacilitiesResult.error ?? contextSessionsResult.error ?? invitesResult.error ?? coachRoleSlotsResult.error ?? playerGroupsResult.error;
       if (firstError) {
         setError(firstError.message);
         setState('error');
@@ -151,6 +156,20 @@ export function TeamWorkspace({
       }
 
       const loadedMemberships = (membershipsResult.data ?? []) as Membership[];
+      const loadedPlayerGroups = (playerGroupsResult.data ?? []) as PlayerGroup[];
+      let loadedPlayerGroupMembers: PlayerGroupMember[] = [];
+      if (loadedPlayerGroups.length > 0) {
+        const { data: memberRows, error: memberRowsError } = await supabase
+          .from('player_group_members')
+          .select('group_id, team_membership_id')
+          .in('group_id', loadedPlayerGroups.map((group) => group.id));
+        if (memberRowsError) {
+          setError(memberRowsError.message);
+          setState('error');
+          return;
+        }
+        loadedPlayerGroupMembers = (memberRows ?? []) as PlayerGroupMember[];
+      }
       const profileIds = Array.from(new Set(loadedMemberships.filter((membership) => membership.user_id).map((membership) => membership.user_id)));
       let loadedProfiles: Profile[] = [];
       let loadedLoadEntries: PlayerLoadEntry[] = [];
@@ -223,6 +242,8 @@ export function TeamWorkspace({
       setContextSessions((contextSessionsResult.data ?? []) as Session[]);
       setInvites((invitesResult.data ?? []) as Invite[]);
       setCoachRoleSlots((coachRoleSlotsResult.data ?? []) as CoachRoleSlot[]);
+      setPlayerGroups(loadedPlayerGroups);
+      setPlayerGroupMembers(loadedPlayerGroupMembers);
       setFacilities((facilitiesResult.data ?? []) as Facility[]);
       setDepartmentFacilityIds(((departmentFacilitiesResult.data ?? []) as { facility_id: string }[]).map((item) => item.facility_id));
       setProfiles(loadedProfiles);
@@ -388,6 +409,57 @@ export function TeamWorkspace({
     setInvites((current) => current.filter((invite) => invite.coach_role_slot_id !== coachRoleSlotId));
   }
 
+  async function handleAddGroup(name: string) {
+    if (!team) return;
+    const supabase = createBrowserSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const { data: insertedGroup, error: insertError } = await supabase
+      .from('player_groups')
+      .insert({ team_id: team.id, name, created_by: user?.id ?? null })
+      .select('id, name')
+      .single();
+    if (insertError) {
+      setError(insertError.message);
+      return;
+    }
+    setPlayerGroups((current) => [...current, insertedGroup as PlayerGroup].sort((a, b) => a.name.localeCompare(b.name)));
+  }
+
+  async function handleRemoveGroup(groupId: string) {
+    const supabase = createBrowserSupabaseClient();
+    const { error: deleteError } = await supabase.from('player_groups').delete().eq('id', groupId);
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+    setPlayerGroups((current) => current.filter((group) => group.id !== groupId));
+    setPlayerGroupMembers((current) => current.filter((member) => member.group_id !== groupId));
+  }
+
+  async function handleTogglePlayerGroup(groupId: string, playerId: string) {
+    const membership = memberships.find((item) => item.user_id === playerId && item.role === 'athlete');
+    if (!membership) return;
+    const existing = playerGroupMembers.find((member) => member.group_id === groupId && member.team_membership_id === membership.id);
+    const supabase = createBrowserSupabaseClient();
+    if (existing) {
+      const { error: deleteError } = await supabase.from('player_group_members').delete().eq('group_id', groupId).eq('team_membership_id', membership.id);
+      if (deleteError) {
+        setError(deleteError.message);
+        return;
+      }
+      setPlayerGroupMembers((current) => current.filter((member) => !(member.group_id === groupId && member.team_membership_id === membership.id)));
+      return;
+    }
+    const { error: insertError } = await supabase.from('player_group_members').insert({ group_id: groupId, team_membership_id: membership.id });
+    if (insertError) {
+      setError(insertError.message);
+      return;
+    }
+    setPlayerGroupMembers((current) => [...current, { group_id: groupId, team_membership_id: membership.id }]);
+  }
+
   const data = useMemo<TeamWorkspaceData | null>(() => {
     if (!team || !department) return null;
     const activeMemberships = memberships.filter((membership) => membership.status === 'active');
@@ -430,9 +502,16 @@ export function TeamWorkspace({
     for (const row of availabilityRows) {
       availabilityByUserId.set(row.user_id, [...(availabilityByUserId.get(row.user_id) ?? []), row]);
     }
+    const groupsByMembershipId = new Map<string, string[]>();
+    for (const member of playerGroupMembers) {
+      const group = playerGroups.find((item) => item.id === member.group_id);
+      if (!group) continue;
+      groupsByMembershipId.set(member.team_membership_id, [...(groupsByMembershipId.get(member.team_membership_id) ?? []), group.name]);
+    }
     const players = athleteMemberships.map((membership) => ({
       id: membership.user_id,
       name: profileLabel(profileById.get(membership.user_id), 'Player'),
+      groups: groupsByMembershipId.get(membership.id) ?? [],
       loadEntries: loadEntriesByUserId.get(membership.user_id) ?? [],
       attendanceRate: null,
       missedSessions: availabilityByUserId.get(membership.user_id)?.filter((row) => row.status === 'out').length ?? null,
@@ -477,17 +556,22 @@ export function TeamWorkspace({
         facilityId: session.facility_id,
         facilityName: session.facility_id ? facilityById.get(session.facility_id)?.name ?? null : null,
       })),
-      groups: [
-        { id: 'starting-lineup', name: 'Starting group', description: 'Prepared for coach-defined core groups.', playerCount: 0 },
-        { id: 'rehab', name: 'Rehab / modified load', description: 'Players with individual planning constraints.', playerCount: 0 },
-        { id: 'position-groups', name: 'Position groups', description: 'Team-internal training groups.', playerCount: 0 },
-      ],
+      groups: playerGroups.map((group) => ({
+        id: group.id,
+        name: group.name,
+        description: 'Team-internal group for planning and load context.',
+        playerCount: playerGroupMembers.filter((member) => member.group_id === group.id).length,
+        playerIds: playerGroupMembers
+          .filter((member) => member.group_id === group.id)
+          .map((member) => activeMemberships.find((membership) => membership.id === member.team_membership_id)?.user_id)
+          .filter(Boolean) as string[],
+      })),
       backHref,
       backLabel,
       calendarHref: team.default_facility_id ? `/admin/facilities/${team.default_facility_id}/calendar?from=team&teamId=${team.id}&departmentId=${team.department_id}` : null,
-      staffHref: `/admin/people?department=${team.department_id}&team=${team.id}`,
+      staffHref: frame === 'department' ? `/department/coaches?departmentId=${team.department_id}` : `/admin/people?department=${team.department_id}&team=${team.id}`,
     };
-  }, [availabilityRows, backHref, backLabel, clubMemberships, coachRoleSlots, contextSessions, currentUserId, department, departmentFacilityIds, facilities, facility, facilityById, invites, loadEntries, memberships, profileById, sessions, team]);
+  }, [availabilityRows, backHref, backLabel, clubMemberships, coachRoleSlots, contextSessions, currentUserId, department, departmentFacilityIds, facilities, facility, facilityById, frame, invites, loadEntries, memberships, playerGroupMembers, playerGroups, profileById, sessions, team]);
 
   if (state === 'loading') return <TeamWorkspaceFrame frame={frame}><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">Loading team...</section></TeamWorkspaceFrame>;
   if (state === 'error') return <TeamWorkspaceFrame frame={frame}><section className="rounded-3xl border border-red-500/40 bg-red-950/20 p-6 text-red-100">{error}</section></TeamWorkspaceFrame>;
@@ -507,6 +591,9 @@ export function TeamWorkspace({
         onRevokeStaffInvite={handleRevokeStaffInvite}
         onAddCoachRole={handleAddCoachRole}
         onRemoveCoachRole={handleRemoveCoachRole}
+        onAddGroup={handleAddGroup}
+        onRemoveGroup={handleRemoveGroup}
+        onTogglePlayerGroup={handleTogglePlayerGroup}
       />
     </TeamWorkspaceFrame>
   );
