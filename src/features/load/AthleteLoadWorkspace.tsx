@@ -926,7 +926,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
   const maxLoad = Math.max(600, ...chartData.map((day) => Math.max(day.totalLoad, day.forecastLoad)));
   const ranges = isMobile ? ([7, 14, 30] as const) : ([7, 14, 30, 60] as const);
   const fullscreenRanges = [14, 30, 60] as const;
-  const chartMinWidth = isCompactViewport ? '100%' : range === 7 ? 540 : range === 14 ? 680 : range === 30 ? 920 : 1480;
+  const chartMinWidth = '100%';
   const chartHeight = isMobile ? (range === 7 ? 300 : 320) : isCompactViewport ? 340 : 360;
   const chartMargin = (fullscreen = false) => ({
     top: fullscreen ? 16 : 14,
@@ -1102,7 +1102,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
           </button>
         </div>
       </div>
-      <div className={`${isCompactViewport ? 'overflow-hidden' : 'overflow-x-auto'} w-full max-w-full pb-1`}>
+      <div className="w-full max-w-full overflow-hidden pb-1">
         <div style={{ minWidth: chartMinWidth, height: chartHeight }}>
           {chart(false)}
         </div>

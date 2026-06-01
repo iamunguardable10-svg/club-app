@@ -126,6 +126,7 @@ export function SessionDetailSheet({
     const end = endsAt ? new Date(endsAt) : new Date(start.getTime() + 60 * 60_000);
     return String(Math.max(30, Math.round((end.getTime() - start.getTime()) / 60_000)));
   });
+  const expectedParticipants = participants.filter((player) => player.status !== 'out');
 
   function toggleGroup(groupId: string) {
     if (!onGroupsChange) return;
@@ -258,14 +259,14 @@ export function SessionDetailSheet({
           </div>
         ) : null}
 
-        {participants.length > 0 ? (
+        {expectedParticipants.length > 0 ? (
           <div className="mt-3 rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
             <button type="button" onClick={() => setShowParticipants((current) => !current)} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-200 hover:bg-slate-900">
-              {showParticipants ? 'Hide expected players' : `Expected players (${participants.length})`}
+              {showParticipants ? 'Hide expected players' : `Expected players (${expectedParticipants.length})`}
             </button>
             {showParticipants ? (
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {participants.map((player) => (
+                {expectedParticipants.map((player) => (
                   <div key={player.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm font-bold">
                     <span className="text-slate-100">{player.name}</span>
                     <span className={statusClass(player.status)}>{player.status ?? 'expected'}{player.detail ? ` · ${player.detail}` : ''}</span>

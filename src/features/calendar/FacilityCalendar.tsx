@@ -110,6 +110,51 @@ function sessionTone(session: Session, departmentId?: string, teamId?: string) {
   return 'muted';
 }
 
+function FacilityRoleNav({ from, teamId }: { from?: string; teamId?: string }) {
+  if (from === 'coachTeam') {
+    const suffix = teamId ? `?teamId=${teamId}` : '';
+    const links = [
+      { href: '/coach/today', label: 'Today' },
+      { href: `/coach/team${suffix}`, label: 'Team' },
+      { href: `/coach/sessions${suffix}`, label: 'Calendar' },
+      { href: `/coach/attendance${suffix}`, label: 'Attendance' },
+      { href: `/coach/load${suffix}`, label: 'Load' },
+    ];
+    return (
+      <nav className="sticky top-3 z-30 rounded-3xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_18px_80px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.04] backdrop-blur-xl" aria-label="Coach navigation">
+        <div className="flex flex-wrap gap-1.5">
+          {links.map((link) => (
+            <Link key={link.href} href={link.href} className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-black text-slate-200 transition hover:border-emerald-300/40 hover:bg-emerald-300/10 hover:text-white">
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      </nav>
+    );
+  }
+
+  if (from === 'department' || from === 'departmentTeam') return null;
+
+  const links = [
+    { href: '/admin/overview', label: 'Overview' },
+    { href: '/admin/departments', label: 'Departments' },
+    { href: '/admin/teams', label: 'Teams' },
+    { href: '/admin/facilities', label: 'Facilities' },
+    { href: '/admin/people', label: 'Staff' },
+  ];
+  return (
+    <nav className="sticky top-3 z-30 rounded-3xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_18px_80px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.04] backdrop-blur-xl" aria-label="Admin navigation">
+      <div className="flex flex-wrap gap-1.5">
+        {links.map((link) => (
+          <Link key={link.href} href={link.href} className={`rounded-2xl border px-3 py-2 text-xs font-black transition ${link.label === 'Facilities' ? 'border-sky-300/40 bg-sky-300/10 text-white' : 'border-white/10 bg-white/[0.03] text-slate-200 hover:border-sky-300/40 hover:bg-sky-300/10 hover:text-white'}`}>
+            {link.label}
+          </Link>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
 export function FacilityCalendar({ facilityId, from, departmentId, teamId }: FacilityCalendarProps) {
   const router = useRouter();
   const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -619,6 +664,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-8">
       {from === 'department' || from === 'departmentTeam' ? <DepartmentLeadDrawer mode="facilities" basePath="/department" departmentId={departmentId} departmentName={highlightedDepartment?.name} /> : null}
       <div className="mx-auto max-w-7xl space-y-5">
+        <FacilityRoleNav from={from} teamId={teamId} />
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.22)] ring-1 ring-white/[0.03]">
           <Link href={backTarget.href} className="text-sm font-black text-slate-300 hover:text-white">{backTarget.label}</Link>
           <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-slate-500">Facility calendar</p>

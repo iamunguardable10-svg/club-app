@@ -345,3 +345,10 @@ context
 Do not lead with generic attendance/load/scope metric cards when they only repeat obvious state. Late is amber; low load remains blue.
 
 In team-owned session details, edit mode inside the sheet exposes start time and duration. Drag/resize remains available in the calendar edit mode, but the sheet must support quick time edits without explanatory copy.
+
+## Follow-up refinements: player lists, load chart fit, role navigation
+
+- Load charts must fit inside their card on desktop, iPad and mobile for every supported range, including 60 days. Do not reintroduce horizontal chart scroll as the default interaction.
+- Session detail `Expected players` lists only athletes expected to come or marked late. Players marked out stay in Attendance flags and should not be counted as expected.
+- Team Home session cards should mirror the coach Today card pattern: tap the whole card for details, show out/late and load-risk previews, and avoid detached Details buttons.
+- Facility calendars should preserve the active role shell. Coach context shows coach navigation, department context shows the department drawer, and admin context shows admin navigation.

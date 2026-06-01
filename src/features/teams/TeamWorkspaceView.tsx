@@ -209,6 +209,65 @@ function loadRiskLine(player: TeamWorkspacePlayer) {
   };
 }
 
+function TeamDashboardSessionCard({
+  session,
+  players,
+  fallbackFacilityName,
+  onOpen,
+}: {
+  session: TeamWorkspaceSession;
+  players: TeamWorkspacePlayer[];
+  fallbackFacilityName?: string | null;
+  onOpen: () => void;
+}) {
+  const notes = players.flatMap((player) =>
+    (player.attendanceEvents ?? [])
+      .filter((event) => event.sessionId === session.id)
+      .map((event) => ({ ...event, playerName: player.name })),
+  );
+  const out = notes.filter((event) => event.status === 'out');
+  const late = notes.filter((event) => event.status === 'late');
+  const loadFlags = players.map(loadRiskLine).filter(Boolean) as { id: string; name: string; status: 'high' | 'low'; detail: string | null }[];
+  const displayFacility = session.facilityName ?? fallbackFacilityName ?? null;
+
+  return (
+    <button type="button" onClick={onOpen} className="mt-4 block w-full rounded-3xl border border-slate-800 bg-slate-950/72 p-4 text-left text-white shadow-[0_18px_70px_rgba(0,0,0,0.18)] transition hover:border-emerald-300/45 hover:bg-slate-900/70">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-xl font-black">{session.title}</h3>
+          <p className="mt-1 text-sm font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt)}{displayFacility ? ` · ${displayFacility}` : ''}</p>
+        </div>
+        <span className="text-lg font-black text-slate-500">›</span>
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className={`rounded-2xl border p-3 ${out.length > 0 ? 'border-rose-400/35 bg-rose-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Out</p>
+            <span className="text-lg font-black text-white">{out.length}</span>
+          </div>
+          {out.slice(0, 3).map((item) => <p key={`${item.sessionId}-${item.playerName}-out`} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.reason ? ` · ${item.reason}` : ''}</p>)}
+        </div>
+        <div className={`rounded-2xl border p-3 ${late.length > 0 ? 'border-amber-400/35 bg-amber-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Late</p>
+            <span className="text-lg font-black text-white">{late.length}</span>
+          </div>
+          {late.slice(0, 3).map((item) => <p key={`${item.sessionId}-${item.playerName}-late`} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${item.lateMinutes}m` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>)}
+        </div>
+      </div>
+      {loadFlags.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {loadFlags.slice(0, 4).map((risk) => (
+            <span key={risk.id} className={`rounded-full border px-2 py-1 text-[11px] font-black ${risk.status === 'high' ? 'border-rose-400/40 text-rose-100' : 'border-sky-400/40 text-sky-100'}`}>
+              {risk.name}{risk.detail ? ` · ${risk.detail}` : ''}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </button>
+  );
+}
+
 function averageMinutes(entries: AthleteLoadEntry[], predicate: (entry: AthleteLoadEntry) => boolean) {
   const relevant = entries.filter(predicate);
   if (relevant.length === 0) return null;
@@ -1162,11 +1221,7 @@ export function TeamWorkspaceView({
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Today / next</p>
             {nextSession ? (
-              <button type="button" onClick={() => setDashboardSession(nextSession)} className="mt-4 w-full rounded-2xl border border-sky-500/30 bg-sky-950/25 p-4 text-left transition hover:border-sky-300/60">
-                <p className="text-xl font-black">{nextSession.title}</p>
-                <p className="mt-1 text-sm text-slate-300">{formatTimeRange(nextSession.startsAt, nextSession.endsAt)}</p>
-                <p className="mt-1 text-sm text-slate-400">{nextSession.facilityName ?? data.defaultFacilityName ?? 'Facility not set'}</p>
-              </button>
+              <TeamDashboardSessionCard session={nextSession} players={playersForSession(nextSession)} fallbackFacilityName={data.defaultFacilityName} onOpen={() => setDashboardSession(nextSession)} />
             ) : (
               <EmptyCard title="No upcoming session" />
             )}

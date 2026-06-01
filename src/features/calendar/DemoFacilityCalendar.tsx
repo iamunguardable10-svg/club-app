@@ -82,6 +82,51 @@ function sessionDurationMinutes(session: { startsAt: string; endsAt: string }) {
   return durationMinutes(new Date(session.startsAt), new Date(session.endsAt));
 }
 
+function DemoFacilityRoleNav({ from, teamId }: { from?: string; teamId?: string | null }) {
+  if (from === 'coachTeam') {
+    const suffix = teamId ? `?teamId=${encodeURIComponent(teamId)}` : '';
+    const links = [
+      { href: '/demo/coach/today', label: 'Today' },
+      { href: `/demo/coach/team${suffix}`, label: 'Team' },
+      { href: `/demo/coach/sessions${suffix}`, label: 'Calendar' },
+      { href: `/demo/coach/attendance${suffix}`, label: 'Attendance' },
+      { href: `/demo/coach/load${suffix}`, label: 'Load' },
+    ];
+    return (
+      <nav className="sticky top-3 z-30 rounded-3xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_18px_80px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.04] backdrop-blur-xl" aria-label="Demo coach navigation">
+        <div className="flex flex-wrap gap-1.5">
+          {links.map((link) => (
+            <Link key={link.href} href={link.href} className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-black text-slate-200 transition hover:border-emerald-300/40 hover:bg-emerald-300/10 hover:text-white">
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      </nav>
+    );
+  }
+
+  if (from === 'department' || from === 'departmentTeam') return null;
+
+  const links = [
+    { href: '/demo/admin/overview', label: 'Overview' },
+    { href: '/demo/admin/departments', label: 'Departments' },
+    { href: '/demo/admin/teams', label: 'Teams' },
+    { href: '/demo/admin/facilities', label: 'Facilities' },
+    { href: '/demo/admin/people', label: 'Staff' },
+  ];
+  return (
+    <nav className="sticky top-3 z-30 rounded-3xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_18px_80px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.04] backdrop-blur-xl" aria-label="Demo admin navigation">
+      <div className="flex flex-wrap gap-1.5">
+        {links.map((link) => (
+          <Link key={link.href} href={link.href} className={`rounded-2xl border px-3 py-2 text-xs font-black transition ${link.label === 'Facilities' ? 'border-sky-300/40 bg-sky-300/10 text-white' : 'border-white/10 bg-white/[0.03] text-slate-200 hover:border-sky-300/40 hover:bg-sky-300/10 hover:text-white'}`}>
+            {link.label}
+          </Link>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
 export function DemoFacilityCalendar({ facilityName, from, departmentName, teamName }: DemoFacilityCalendarProps) {
   const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
   const calendarScrollRef = useRef<HTMLDivElement | null>(null);
@@ -439,8 +484,9 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-8">
-      {from === 'department' ? <DepartmentLeadDrawer mode="facilities" basePath="/demo/department" departmentName={departmentName} /> : null}
+      {from === 'department' || from === 'departmentTeam' ? <DepartmentLeadDrawer mode="facilities" basePath="/demo/department" departmentName={departmentName} /> : null}
       <div className="mx-auto max-w-7xl space-y-5">
+        <DemoFacilityRoleNav from={from} teamId={contextTeamId} />
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.22)] ring-1 ring-white/[0.03]">
           <Link href={backTarget.href} className="text-sm font-black text-slate-300 hover:text-white">{backTarget.label}</Link>
           <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-slate-500">Facility calendar</p>
