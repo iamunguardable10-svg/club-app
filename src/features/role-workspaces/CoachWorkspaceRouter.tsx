@@ -9,6 +9,7 @@ import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
 import { sessionTypeToLoadType, type AthleteLoadEntry, type LoadTrainingType } from '@/features/load/loadTypes';
 import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
+import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 
@@ -25,6 +26,7 @@ type CoachAvailability = {
 export type CoachSession = {
   id: string;
   title: string;
+  sessionType: string;
   startsAt: string;
   endsAt: string | null;
   teamId: string;
@@ -47,6 +49,7 @@ export type CoachPlayer = {
 type SessionRow = {
   id: string;
   title: string;
+  session_type: string;
   starts_at: string;
   ends_at: string | null;
   owner_team_id: string | null;
@@ -265,9 +268,21 @@ function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDet
 
 
 type CoachCalendarDrag = { target: 'session' | 'draft'; sessionId?: string; kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date; minutesPerPixel: number };
-type CoachCalendarDraft = { startsAt: string; endsAt: string; teamId: string | null; facilityId: string | null; groupIds: string[] };
-export type CoachSessionMutation = { sessionId: string; startsAt: string; endsAt: string; facilityId: string; groupIds: string[] };
-export type CoachSessionCreateInput = { startsAt: string; endsAt: string; teamId: string; facilityId: string; groupIds: string[] };
+type CoachCalendarDraft = { startsAt: string; endsAt: string; teamId: string | null; facilityId: string | null; groupIds: string[]; sessionType: string };
+export type CoachSessionMutation = { sessionId: string; startsAt: string; endsAt: string; facilityId: string; groupIds: string[]; sessionType: string };
+export type CoachSessionCreateInput = { startsAt: string; endsAt: string; teamId: string; facilityId: string; groupIds: string[]; sessionType: string };
+
+const coachSessionTypes = [
+  { value: 'training', label: 'Team training' },
+  { value: 'game', label: 'Game' },
+  { value: 'strength', label: 'Strength' },
+  { value: 'individual', label: 'Individual' },
+  { value: 'recovery', label: 'Recovery' },
+];
+
+function labelForCoachSessionType(value: string) {
+  return coachSessionTypes.find((type) => type.value === value)?.label ?? 'Training';
+}
 
 function CoachSessionEditSheet({
   title,
@@ -285,10 +300,10 @@ function CoachSessionEditSheet({
   teams: CoachTeam[];
   facilities: CoachFacility[];
   groups: CoachGroup[];
-  initial: { startsAt: string; endsAt: string; teamId: string | null; facilityId: string | null; groupIds: string[] };
+  initial: { startsAt: string; endsAt: string; teamId: string | null; facilityId: string | null; groupIds: string[]; sessionType?: string | null };
   allowTeamChange: boolean;
   isSaving: boolean;
-  onSave: (value: { startsAt: string; endsAt: string; teamId: string; facilityId: string; groupIds: string[] }) => void | Promise<void>;
+  onSave: (value: { startsAt: string; endsAt: string; teamId: string; facilityId: string; groupIds: string[]; sessionType: string }) => void | Promise<void>;
   onDelete?: () => void;
   onClose: () => void;
 }) {
@@ -303,6 +318,7 @@ function CoachSessionEditSheet({
     return `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
   });
   const [durationValue, setDurationValue] = useState(() => String(durationMinutes(new Date(initial.startsAt), new Date(initial.endsAt))));
+  const [sessionType, setSessionType] = useState(initial.sessionType ?? 'training');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const teamGroups = groups.filter((group) => group.teamId === teamId);
 
@@ -329,7 +345,7 @@ function CoachSessionEditSheet({
     const start = new Date(initial.startsAt);
     start.setHours(Number.isFinite(hours) ? hours : start.getHours(), Number.isFinite(minutes) ? minutes : start.getMinutes(), 0, 0);
     const duration = Math.max(30, Number.parseInt(durationValue, 10) || 90);
-    await onSave({ teamId, facilityId, groupIds, startsAt: start.toISOString(), endsAt: addMinutes(start, duration).toISOString() });
+    await onSave({ teamId, facilityId, groupIds, sessionType, startsAt: start.toISOString(), endsAt: addMinutes(start, duration).toISOString() });
   }
 
   return (
@@ -358,11 +374,20 @@ function CoachSessionEditSheet({
           </label>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-end">
-          <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-            Start
-            <input value={timeValue} onChange={(event) => setTimeValue(event.target.value)} type="time" className="mt-2 h-11 w-32 rounded-xl border border-slate-700 bg-slate-950 px-2 text-center text-sm font-black text-slate-100 outline-none focus:border-sky-300 [color-scheme:dark]" />
+        <div className="mt-3 grid grid-cols-[minmax(0,1fr)_7.25rem] gap-2 sm:grid-cols-[minmax(0,1fr)_8rem] sm:gap-3">
+          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+            Type
+            <select value={sessionType} onChange={(event) => setSessionType(event.target.value)} className="mt-2 h-11 w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-2 text-xs font-black text-slate-100 outline-none focus:border-sky-300 sm:px-3 sm:text-sm">
+              {coachSessionTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+            </select>
           </label>
+          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+            Start
+            <input value={timeValue} onChange={(event) => setTimeValue(event.target.value)} type="time" className="mt-2 h-11 w-full rounded-xl border border-slate-700 bg-slate-950 px-1.5 text-center text-base font-black tracking-tight text-slate-100 outline-none focus:border-sky-300 [color-scheme:dark] sm:px-2 sm:text-sm" />
+          </label>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:items-end">
           <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
             <span className="flex items-center justify-between gap-3"><span>Duration</span><span className="text-slate-200">{durationValue} min</span></span>
             <input value={durationValue} onChange={(event) => setDurationValue(event.target.value)} type="range" min={30} max={240} step={15} className="mt-3 w-full accent-sky-300" />
@@ -439,16 +464,20 @@ export function CoachCalendarSurface({
     return () => window.removeEventListener('resize', updateDesktopScale);
   }, []);
 
-  const smartSessions = useMemo<SmartCalendarSession[]>(() => localSessions.map((session) => ({
-    id: session.id,
-    title: session.title,
-    startsAt: session.startsAt,
-    endsAt: session.endsAt,
-    teamName: session.teamName,
-    departmentName: session.departmentName,
-    tone: 'primary',
-    canManage: true,
-  })), [localSessions]);
+  const smartSessions = useMemo<SmartCalendarSession[]>(() => {
+    const tones = ['accent1', 'accent2', 'accent3', 'accent4'] as const;
+    const toneByTeamId = new Map(teams.map((team, index) => [team.id, tones[index % tones.length]]));
+    return localSessions.map((session) => ({
+      id: session.id,
+      title: session.title,
+      startsAt: session.startsAt,
+      endsAt: session.endsAt,
+      teamName: session.teamName,
+      departmentName: session.departmentName,
+      tone: toneByTeamId.get(session.teamId) ?? 'primary',
+      canManage: true,
+    }));
+  }, [localSessions, teams]);
 
   function changeWeek(delta: number) { setDraft(null); setEditor(null); setDrag(null); setWeekOffset((current) => current + delta); }
   function resetWeek() { setDraft(null); setEditor(null); setDrag(null); setWeekOffset(0); setActiveDayIndex(Math.max(0, buildWeekDays().findIndex((day) => sameDay(day, new Date())))); }
@@ -495,8 +524,8 @@ export function CoachCalendarSurface({
       const clickedMinutes = clamp(roundToSlot(((clientY - rect.top) / Math.max(rect.height, 1)) * visibleMinutes), 0, visibleMinutes - 30);
       const start = createDateForCalendarMinute(day, (baseHour - firstHour) * 60 + clickedMinutes);
       const team = defaultTeamForDay(day);
-      setDraft({ startsAt: start.toISOString(), endsAt: addMinutes(start, 90).toISOString(), teamId: team?.id ?? null, facilityId: defaultFacilityForTeam(team), groupIds: [] });
-      window.setTimeout(() => setEditor({ kind: 'draft' }), 0);
+      setDraft({ startsAt: start.toISOString(), endsAt: addMinutes(start, 90).toISOString(), teamId: team?.id ?? null, facilityId: defaultFacilityForTeam(team), groupIds: [], sessionType: 'training' });
+      setEditor(null);
     }
     if (event.pointerType === 'mouse') { createDraftAt(startY); return; }
     function createDraftFromTap(upEvent: globalThis.PointerEvent) {
@@ -546,13 +575,13 @@ export function CoachCalendarSurface({
       if (activeDrag.kind === 'resize') { const nextDuration = clamp(originalDuration + deltaMinutes, 30, maxMinutes - currentStartMinutes); applyTimes(activeDrag.originalStart, addMinutes(activeDrag.originalStart, nextDuration)); return; }
       const targetDay = days[dayIndexFromPointer(event.clientX)]; const nextStartMinutes = clamp(currentStartMinutes + deltaMinutes, 0, maxMinutes - originalDuration); const nextStart = createDateForCalendarMinute(targetDay, nextStartMinutes); applyTimes(nextStart, addMinutes(nextStart, originalDuration));
     }
-    function handlePointerUp() { setDrag(null); if (activeDrag.target === 'session' && activeDrag.sessionId) void onUpdateSession({ sessionId: activeDrag.sessionId, startsAt: latestStart.toISOString(), endsAt: latestEnd.toISOString(), facilityId: originalSession?.facilityId ?? '', groupIds: originalSession?.groupIds ?? [] }); }
+    function handlePointerUp() { setDrag(null); if (activeDrag.target === 'session' && activeDrag.sessionId) void onUpdateSession({ sessionId: activeDrag.sessionId, startsAt: latestStart.toISOString(), endsAt: latestEnd.toISOString(), facilityId: originalSession?.facilityId ?? '', groupIds: originalSession?.groupIds ?? [], sessionType: originalSession?.sessionType ?? 'training' }); }
     window.addEventListener('pointermove', handlePointerMove); window.addEventListener('pointerup', handlePointerUp, { once: true });
     return () => { window.removeEventListener('pointermove', handlePointerMove); window.removeEventListener('pointerup', handlePointerUp); };
   }, [activeDayIndex, days, desktopHourHeight, drag, mobileCalendarView, onUpdateSession]);
 
   const editingSession = editor?.kind === 'session' ? localSessions.find((session) => session.id === editor.sessionId) ?? null : null;
-  const editorInitial = editingSession ? { startsAt: editingSession.startsAt, endsAt: editingSession.endsAt ?? addMinutes(new Date(editingSession.startsAt), 90).toISOString(), teamId: editingSession.teamId, facilityId: editingSession.facilityId, groupIds: editingSession.groupIds } : draft;
+  const editorInitial = editingSession ? { startsAt: editingSession.startsAt, endsAt: editingSession.endsAt ?? addMinutes(new Date(editingSession.startsAt), 90).toISOString(), teamId: editingSession.teamId, facilityId: editingSession.facilityId, groupIds: editingSession.groupIds, sessionType: editingSession.sessionType } : draft;
   return (
     <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
       <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Coach calendar</p><h2 className="mt-2 text-2xl font-black">All assigned teams</h2></div></div>
@@ -647,7 +676,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
 
       const { data: sessionRowsRaw, error: sessionsError } = await supabase
         .from('sessions')
-        .select('id, title, starts_at, ends_at, owner_team_id, department_id, facility_id, facilities(name)')
+        .select('id, title, session_type, starts_at, ends_at, owner_team_id, department_id, facility_id, facilities(name)')
         .in('owner_team_id', loadedTeams.map((team) => team.id))
         .gte('starts_at', start.toISOString())
         .lte('starts_at', futureLimit.toISOString())
@@ -876,6 +905,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           return {
             id: session.id,
             title: session.title,
+            sessionType: session.session_type ?? 'training',
             startsAt: session.starts_at,
             endsAt: session.ends_at,
             teamId: team.id,
@@ -932,8 +962,8 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         team_id: team.id,
         owner_team_id: team.id,
         created_by: userResult.user?.id ?? null,
-        title: 'Training',
-        session_type: 'training',
+        title: labelForCoachSessionType(input.sessionType),
+        session_type: input.sessionType,
         starts_at: input.startsAt,
         ends_at: input.endsAt,
         facility_id: input.facilityId,
@@ -955,7 +985,12 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       return;
     }
     const supabase = createBrowserSupabaseClient();
-    const updatePayload: { starts_at: string; ends_at: string; facility_id?: string } = { starts_at: input.startsAt, ends_at: input.endsAt };
+    const updatePayload: { starts_at: string; ends_at: string; session_type: string; title: string; facility_id?: string } = {
+      starts_at: input.startsAt,
+      ends_at: input.endsAt,
+      session_type: input.sessionType,
+      title: labelForCoachSessionType(input.sessionType),
+    };
     if (input.facilityId) updatePayload.facility_id = input.facilityId;
     const { error: updateError } = await supabase.from('sessions').update(updatePayload).eq('id', input.sessionId);
     if (updateError) { setError(updateError.message); return; }
@@ -965,7 +1000,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       const { error: insertGroupsError } = await supabase.from('session_groups').insert(input.groupIds.map((groupId) => ({ session_id: input.sessionId, group_id: groupId })));
       if (insertGroupsError) { setError(insertGroupsError.message); setReloadKey((current) => current + 1); return; }
     }
-    setSessions((current) => current.map((session) => session.id === input.sessionId ? { ...session, startsAt: input.startsAt, endsAt: input.endsAt, facilityId: input.facilityId || session.facilityId, facilityName: facilities.find((facility) => facility.id === input.facilityId)?.name ?? session.facilityName, groupIds: input.groupIds } : session));
+    setSessions((current) => current.map((session) => session.id === input.sessionId ? { ...session, title: labelForCoachSessionType(input.sessionType), sessionType: input.sessionType, startsAt: input.startsAt, endsAt: input.endsAt, facilityId: input.facilityId || session.facilityId, facilityName: facilities.find((facility) => facility.id === input.facilityId)?.name ?? session.facilityName, groupIds: input.groupIds } : session));
   }
 
   async function handleCoachSessionDelete(sessionId: string) {
@@ -1008,13 +1043,13 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
 
   return (
     <main className="os-page">
+      <CoachDrawer mode={mode === 'attendance' || mode === 'load' ? 'team' : mode} basePath="/coach" teamId={singleTeam?.id ?? selectedTeamId} />
       <div className="os-container space-y-5">
         <section className="sticky top-0 z-30 rounded-2xl border border-slate-800 bg-slate-950/92 p-3 text-white shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:static md:p-4">
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Coach OS</p>
           <div className="mt-1 flex items-center justify-between gap-3">
             <h1 className="text-2xl font-black tracking-tight">{titleForMode(mode)}</h1>
           </div>
-          <CoachTopNav mode={mode} singleTeamId={singleTeam?.id ?? null} />
         </section>
 
         {teams.length === 0 ? (
@@ -1066,8 +1101,11 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             <h2 className="mt-2 text-2xl font-black">Department halls</h2>
             <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {facilities.map((facility) => {
-                const contextTeam = teams.find((team) => facility.departmentIds.includes(team.departmentId)) ?? teams[0];
-                const href = contextTeam ? `/coach/facilities/${facility.id}/calendar?from=coachFacilities&teamId=${contextTeam.id}&departmentId=${contextTeam.departmentId}` : `/coach/facilities/${facility.id}/calendar?from=coachFacilities`;
+                const facilityTeams = teams.filter((team) => facility.departmentIds.includes(team.departmentId));
+                const teamIds = facilityTeams.map((team) => team.id).join(',');
+                const departmentIds = Array.from(new Set(facilityTeams.map((team) => team.departmentId))).join(',');
+                const contextTeam = facilityTeams.length === 1 ? facilityTeams[0] : null;
+                const href = contextTeam ? `/coach/facilities/${facility.id}/calendar?from=coachFacilities&teamId=${contextTeam.id}&departmentId=${contextTeam.departmentId}&teamIds=${encodeURIComponent(teamIds)}&departmentIds=${encodeURIComponent(departmentIds)}` : `/coach/facilities/${facility.id}/calendar?from=coachFacilities&teamIds=${encodeURIComponent(teamIds)}&departmentIds=${encodeURIComponent(departmentIds)}`;
                 return <Link key={facility.id} href={href} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 transition hover:border-sky-300/45 hover:bg-slate-900/70"><p className="text-lg font-black text-white">{facility.name}</p><p className="mt-2 text-xs font-bold text-slate-500">{facility.departmentIds.length} department context{facility.departmentIds.length === 1 ? '' : 's'}</p></Link>;
               })}
             </div>
@@ -1152,7 +1190,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           onCancel={() => setDeleteSessionId(null)}
         />
 
-        {(mode === 'today' || mode === 'team') && teams.length > 0 ? (
+        {mode === 'team' && teams.length > 0 ? (
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>

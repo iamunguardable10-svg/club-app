@@ -7,6 +7,7 @@ import { DemoTeamWorkspace } from '@/features/teams/DemoTeamWorkspace';
 import type { TeamWorkspaceSection } from '@/features/teams/TeamWorkspaceView';
 import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
+import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { CoachCalendarSurface, type CoachFacility, type CoachGroup, type CoachSession, type CoachSessionCreateInput, type CoachSessionMutation, type CoachTeam } from '@/features/role-workspaces/CoachWorkspaceRouter';
 import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoSessions, type DemoClubSetup, type DemoSession, type DemoTeam } from '@/shared/dev/demoStorage';
 
@@ -16,12 +17,14 @@ type DemoAvailabilityMark = { status: 'expected' | 'late' | 'out'; reason: strin
 type DemoCoachSession = {
   id: string;
   title: string;
+  sessionType: string;
   startsAt: string;
   endsAt: string | null;
   teamId: string;
   teamName: string;
   departmentName: string;
   facilityName: string | null;
+  groupIds: string[];
   availability: { id: string; playerId?: string; playerName: string; status: 'late' | 'out'; reason: string | null; lateMinutes: number | null }[];
   players: { id: string; name: string; risk: 'high' | 'low' | 'ready'; acwr: number }[];
 };
@@ -43,6 +46,14 @@ function titleForMode(mode: CoachMode) {
   if (mode === 'load') return 'Player load';
   if (mode === 'team') return 'Teams';
   return 'Today';
+}
+
+function labelForDemoSessionType(value: string) {
+  if (value === 'game') return 'Game';
+  if (value === 'strength') return 'Strength';
+  if (value === 'individual') return 'Individual';
+  if (value === 'recovery') return 'Recovery';
+  return 'Team training';
 }
 
 function formatTimeRange(startsAt: string, endsAt: string | null) {
@@ -118,6 +129,7 @@ function fallbackSessions(teams: DemoTeam[]) {
     startsAt: isoAt(0, index === 0 ? 18 : 19, index === 0 ? 0 : 30),
     endsAt: isoAt(0, index === 0 ? 19 : 21, index === 0 ? 30 : 0),
     facility: team.defaultFacility ?? 'Main Hall',
+    groupIds: [],
     createdAt: new Date().toISOString(),
   } satisfies DemoSession));
 }
@@ -139,12 +151,14 @@ function buildCoachSessions(teams: DemoTeam[], storedSessions: DemoSession[]) {
       return {
         id: session.id,
         title: session.title,
+        sessionType: session.sessionType ?? 'training',
         startsAt: session.startsAt,
         endsAt: session.endsAt,
         teamId: team.id,
         teamName: team.name,
         departmentName: team.department,
         facilityName: session.facility,
+        groupIds: session.groupIds ?? [],
         availability: mark && (mark.status === 'late' || mark.status === 'out') ? [{ id: `${session.id}-demo-athlete`, playerId: 'demo-athlete', playerName: 'Demo Athlete', status: mark.status, reason: mark.reason, lateMinutes: mark.lateMinutes }] : fallbackFlags,
         players: isPrimaryDemoTeam
           ? [
@@ -235,8 +249,9 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const coachTeams = useMemo<CoachTeam[]>(() => teams.map((team) => ({ id: team.id, clubId: 'demo-club', name: team.name, departmentId: team.department, departmentName: team.department, defaultFacilityId: team.defaultFacility, role: 'coach' })), [teams]);
   const coachSessions = useMemo<CoachSession[]>(() => sessions.map((session) => ({
     ...session,
+    sessionType: session.sessionType,
     facilityId: session.facilityName,
-    groupIds: [],
+    groupIds: session.groupIds,
     availability: session.availability.map((item) => ({ ...item, userId: item.playerId ?? item.playerName })),
     players: session.players.map((player) => ({ ...player, loadEntries: [] })),
   })), [sessions]);
@@ -250,11 +265,11 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   async function handleDemoCreateSession(input: CoachSessionCreateInput) {
     const team = teams.find((item) => item.id === input.teamId);
     if (!team) return;
-    refreshDemoSessions([...rawSessions, { id: `demo-session-${Date.now()}`, department: team.department, team: team.name, title: 'Training', sessionType: 'training', startsAt: input.startsAt, endsAt: input.endsAt, facility: input.facilityId, groupIds: input.groupIds, createdAt: new Date().toISOString() }]);
+    refreshDemoSessions([...rawSessions, { id: `demo-session-${Date.now()}`, department: team.department, team: team.name, title: labelForDemoSessionType(input.sessionType), sessionType: input.sessionType, startsAt: input.startsAt, endsAt: input.endsAt, facility: input.facilityId, groupIds: input.groupIds, createdAt: new Date().toISOString() }]);
   }
 
   async function handleDemoUpdateSession(input: CoachSessionMutation) {
-    refreshDemoSessions(rawSessions.map((session) => session.id === input.sessionId ? { ...session, startsAt: input.startsAt, endsAt: input.endsAt, facility: input.facilityId, groupIds: input.groupIds } : session));
+    refreshDemoSessions(rawSessions.map((session) => session.id === input.sessionId ? { ...session, title: labelForDemoSessionType(input.sessionType), sessionType: input.sessionType, startsAt: input.startsAt, endsAt: input.endsAt, facility: input.facilityId, groupIds: input.groupIds } : session));
   }
 
   async function handleDemoDeleteSession(sessionId: string) {
@@ -275,13 +290,13 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
 
   return (
     <main className="os-page">
+      <CoachDrawer mode={mode === 'attendance' || mode === 'load' ? 'team' : mode} basePath="/demo/coach" teamId={singleTeam?.id ?? selectedTeamId} />
       <div className="os-container space-y-5">
         <section className="sticky top-0 z-30 rounded-2xl border border-slate-800 bg-slate-950/92 p-3 text-white shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:static md:p-4">
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Demo Coach OS</p>
           <div className="mt-1 flex items-center justify-between gap-3">
             <h1 className="text-2xl font-black tracking-tight">{titleForMode(mode)}</h1>
           </div>
-          <DemoCoachTopNav mode={mode} singleTeamId={singleTeam?.id ?? null} />
         </section>
 
         {!setup ? <section className="rounded-3xl border border-amber-500/35 bg-amber-950/20 p-5 text-amber-100">No demo club yet.</section> : null}
@@ -314,7 +329,13 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         {mode === 'facilities' && teams.length > 0 ? (
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Facilities</p><h2 className="mt-2 text-2xl font-black">Department halls</h2>
-            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{facilities.map((facility) => <Link key={facility.id} href={`/demo/coach/facilities/${encodeURIComponent(facility.id)}/calendar?from=coachFacilities&teamName=${encodeURIComponent(teams[0]?.name ?? '')}&departmentName=${encodeURIComponent(teams[0]?.department ?? '')}`} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 transition hover:border-sky-300/45"><p className="text-lg font-black text-white">{facility.name}</p></Link>)}</div>
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{facilities.map((facility) => {
+              const facilityTeams = teams.filter((team) => facility.departmentIds.includes(team.department));
+              const teamNames = facilityTeams.map((team) => team.name).join(',');
+              const departmentNames = Array.from(new Set(facilityTeams.map((team) => team.department))).join(',');
+              const singleTeam = facilityTeams.length === 1 ? facilityTeams[0] : null;
+              return <Link key={facility.id} href={`/demo/coach/facilities/${encodeURIComponent(facility.id)}/calendar?from=coachFacilities&teamName=${encodeURIComponent(singleTeam?.name ?? '')}&departmentName=${encodeURIComponent(singleTeam?.department ?? '')}&teamNames=${encodeURIComponent(teamNames)}&departmentNames=${encodeURIComponent(departmentNames)}`} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 transition hover:border-sky-300/45"><p className="text-lg font-black text-white">{facility.name}</p></Link>;
+            })}</div>
           </section>
         ) : null}
 
@@ -325,7 +346,7 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           </section>
         ) : null}
 
-        {(mode === 'today' || mode === 'team') ? (
+        {mode === 'team' ? (
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
           <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Teams</p><h2 className="mt-2 text-2xl font-black">Select team</h2></div></div>
           <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">

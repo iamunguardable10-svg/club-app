@@ -4,7 +4,7 @@ import type { KeyboardEvent, MouseEvent, PointerEvent, ReactNode, RefObject } fr
 
 export type SmartCalendarMode = 'view' | 'edit';
 export type SmartMobileCalendarView = 'week' | 'day';
-export type SmartCalendarTone = 'primary' | 'secondary' | 'muted';
+export type SmartCalendarTone = 'primary' | 'secondary' | 'accent1' | 'accent2' | 'accent3' | 'accent4' | 'muted';
 export type SmartCalendarDragKind = 'move' | 'resize';
 
 export type SmartCalendarSession = {
@@ -103,6 +103,10 @@ function smartIsoDate(date: Date) {
 function toneClassFor(tone: SmartCalendarTone, density: 'compact' | 'regular') {
   if (tone === 'primary') return density === 'compact' ? 'border-sky-400 bg-sky-950/80 text-white' : 'border-sky-400 bg-sky-950/70 text-white shadow-[0_0_0_1px_rgba(56,189,248,0.35)]';
   if (tone === 'secondary') return density === 'compact' ? 'border-emerald-500/60 bg-emerald-950/60 text-slate-100' : 'border-emerald-500/60 bg-emerald-950/35 text-slate-100';
+  if (tone === 'accent1') return density === 'compact' ? 'border-sky-400/75 bg-sky-950/70 text-white' : 'border-sky-400/75 bg-sky-950/45 text-white shadow-[0_0_0_1px_rgba(56,189,248,0.22)]';
+  if (tone === 'accent2') return density === 'compact' ? 'border-violet-400/70 bg-violet-950/65 text-white' : 'border-violet-400/70 bg-violet-950/40 text-white shadow-[0_0_0_1px_rgba(167,139,250,0.18)]';
+  if (tone === 'accent3') return density === 'compact' ? 'border-amber-300/70 bg-amber-950/55 text-white' : 'border-amber-300/70 bg-amber-950/32 text-white shadow-[0_0_0_1px_rgba(252,211,77,0.16)]';
+  if (tone === 'accent4') return density === 'compact' ? 'border-emerald-400/70 bg-emerald-950/60 text-white' : 'border-emerald-400/70 bg-emerald-950/35 text-white shadow-[0_0_0_1px_rgba(52,211,153,0.16)]';
   return density === 'compact' ? 'border-slate-700 bg-slate-900/80 text-slate-300' : 'border-slate-800 bg-slate-900/50 text-slate-400';
 }
 

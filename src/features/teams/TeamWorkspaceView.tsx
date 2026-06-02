@@ -8,6 +8,7 @@ import { LoadChart } from '@/features/load/AthleteLoadWorkspace';
 import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
 import { ACWR_ZONES, LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/features/load/loadTypes';
 import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
+import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 
 export type TeamWorkspaceRole = 'admin' | 'department_lead' | 'coach' | 'viewer';
@@ -81,6 +82,9 @@ export type TeamWorkspaceData = {
     basePath: '/department' | '/demo/department';
     departmentId?: string | null;
     departmentName?: string | null;
+  } | null;
+  coachNav?: {
+    basePath: '/coach' | '/demo/coach';
   } | null;
 };
 
@@ -1250,6 +1254,7 @@ export function TeamWorkspaceView({
           departmentName={data.departmentNav.departmentName}
         />
       ) : null}
+      {data.coachNav ? <CoachDrawer mode="team" basePath={data.coachNav.basePath} teamId={data.id} /> : null}
       <div className="sticky top-0 z-30 rounded-2xl border border-slate-800 bg-slate-950/92 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:static md:p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">

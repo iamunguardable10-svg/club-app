@@ -7,6 +7,7 @@ import type { SessionComposerPayload } from '@/features/sessions/SessionComposer
 import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
+import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoSessions, type DemoSession } from '@/shared/dev/demoStorage';
 
 type DemoFacilityCalendarProps = {
@@ -14,6 +15,8 @@ type DemoFacilityCalendarProps = {
   from?: string;
   departmentName?: string;
   teamName?: string;
+  departmentNames?: string;
+  teamNames?: string;
 };
 type DraftSession = { startsAt: string; endsAt: string; teamId: string | null; facilityName: string };
 type DragState = { target: 'draft' | 'session'; sessionId?: string; kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date; minutesPerPixel: number };
@@ -82,6 +85,10 @@ function sessionDurationMinutes(session: { startsAt: string; endsAt: string }) {
   return durationMinutes(new Date(session.startsAt), new Date(session.endsAt));
 }
 
+function splitParamNames(value?: string) {
+  return new Set((value ?? '').split(',').map((item) => item.trim()).filter(Boolean));
+}
+
 function DemoFacilityRoleNav({ from, teamId }: { from?: string; teamId?: string | null }) {
   if (from === 'coachTeam') {
     const suffix = teamId ? `?teamId=${encodeURIComponent(teamId)}` : '';
@@ -129,7 +136,7 @@ function DemoFacilityRoleNav({ from, teamId }: { from?: string; teamId?: string 
   );
 }
 
-export function DemoFacilityCalendar({ facilityName, from, departmentName, teamName }: DemoFacilityCalendarProps) {
+export function DemoFacilityCalendar({ facilityName, from, departmentName, teamName, departmentNames, teamNames }: DemoFacilityCalendarProps) {
   const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
   const calendarScrollRef = useRef<HTMLDivElement | null>(null);
   const didDragRef = useRef(false);
@@ -177,6 +184,8 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
 
   const contextTeamId = teamName ? (teams.find((team) => team.name === teamName)?.id ?? null) : null;
   const fallbackTeamId = contextTeamId;
+  const highlightedTeamNames = useMemo(() => splitParamNames(teamNames), [teamNames]);
+  const highlightedDepartmentNames = useMemo(() => splitParamNames(departmentNames), [departmentNames]);
 
   const calendarSessions = useMemo<SmartCalendarSession[]>(
     () =>
@@ -187,10 +196,10 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
         endsAt: session.endsAt,
         teamName: session.team,
         departmentName: session.department,
-        tone: teamName && session.team === teamName ? 'primary' : departmentName && session.department === departmentName ? 'secondary' : 'muted',
+        tone: (teamName && session.team === teamName) || highlightedTeamNames.has(session.team) ? 'primary' : (departmentName && session.department === departmentName) || highlightedDepartmentNames.has(session.department) ? 'secondary' : 'muted',
         canManage: true,
       })),
-    [departmentName, sessions, teamName],
+    [departmentName, highlightedDepartmentNames, highlightedTeamNames, sessions, teamName],
   );
   const mobileVisibleHours = useMemo(() => hours.filter((hour) => hour >= 8 && hour <= 23), []);
   const mobileFirstHour = mobileVisibleHours[0] ?? firstHour;
@@ -491,6 +500,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-8">
       {from === 'department' || from === 'departmentTeam' ? <DepartmentLeadDrawer mode="facilities" basePath="/demo/department" departmentName={departmentName} /> : null}
+      {from?.startsWith('coach') ? <CoachDrawer mode="facilities" basePath="/demo/coach" teamId={contextTeamId} /> : null}
       <div className="mx-auto max-w-7xl space-y-5">
         <DemoFacilityRoleNav from={from} teamId={contextTeamId} />
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.22)] ring-1 ring-white/[0.03]">

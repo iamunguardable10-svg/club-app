@@ -484,7 +484,8 @@ export function DemoTeamWorkspace({
       departmentNav: frame === 'department'
         ? { basePath: '/demo/department', departmentName: team.department }
         : null,
-      calendarHref: team.defaultFacility ? `/demo/admin/facilities/${encodeURIComponent(team.defaultFacility)}/calendar?from=${frame === 'coach' ? 'coachTeam' : frame === 'department' ? 'departmentTeam' : 'team'}&teamName=${encodeURIComponent(team.name)}&departmentName=${encodeURIComponent(team.department)}` : null,
+      coachNav: frame === 'coach' ? { basePath: '/demo/coach' } : null,
+      calendarHref: team.defaultFacility ? `${frame === 'coach' ? '/demo/coach' : '/demo/admin'}/facilities/${encodeURIComponent(team.defaultFacility)}/calendar?from=${frame === 'coach' ? 'coachTeam' : frame === 'department' ? 'departmentTeam' : 'team'}&teamName=${encodeURIComponent(team.name)}&departmentName=${encodeURIComponent(team.department)}` : null,
       staffHref: frame === 'department' ? '/demo/department/coaches' : `/demo/admin/people?departmentName=${encodeURIComponent(team.department)}&teamName=${encodeURIComponent(team.name)}`,
     };
   }, [backHref, backLabel, extraCoachRoles, facilityAssignments, frame, invites, playerGroups, players, role, sessions, setup?.facilityDetails, teamId, teams]);

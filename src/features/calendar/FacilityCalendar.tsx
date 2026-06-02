@@ -7,6 +7,7 @@ import { SessionComposer, type SessionComposerPayload } from '@/features/session
 import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
+import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 
 type Facility = { id: string; club_id: string; name: string; address: string | null };
@@ -32,6 +33,8 @@ type FacilityCalendarProps = {
   from?: string;
   departmentId?: string;
   teamId?: string;
+  departmentIds?: string;
+  teamIds?: string;
 };
 
 const hours = Array.from({ length: 17 }, (_, index) => index + 7);
@@ -104,9 +107,13 @@ function durationMinutes(start: Date, end: Date) {
   return Math.max(30, Math.round((end.getTime() - start.getTime()) / 60_000));
 }
 
-function sessionTone(session: Session, departmentId?: string, teamId?: string) {
-  if (teamId && session.owner_team_id === teamId) return 'primary';
-  if (departmentId && session.department_id === departmentId) return 'secondary';
+function splitParamIds(value?: string) {
+  return new Set((value ?? '').split(',').map((item) => item.trim()).filter(Boolean));
+}
+
+function sessionTone(session: Session, departmentId?: string, teamId?: string, departmentIds = new Set<string>(), teamIds = new Set<string>()) {
+  if ((teamId && session.owner_team_id === teamId) || teamIds.has(session.owner_team_id)) return 'primary';
+  if ((departmentId && session.department_id === departmentId) || departmentIds.has(session.department_id)) return 'secondary';
   return 'muted';
 }
 
@@ -157,7 +164,7 @@ function FacilityRoleNav({ from, teamId }: { from?: string; teamId?: string }) {
   );
 }
 
-export function FacilityCalendar({ facilityId, from, departmentId, teamId }: FacilityCalendarProps) {
+export function FacilityCalendar({ facilityId, from, departmentId, teamId, departmentIds, teamIds }: FacilityCalendarProps) {
   const router = useRouter();
   const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
   const calendarScrollRef = useRef<HTMLDivElement | null>(null);
@@ -221,8 +228,8 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
         setError(userError.message);
         return;
       }
-      if (!user) {
-        router.replace(`/auth/login?next=/admin/facilities/${facilityId}/calendar`);
+  if (!user) {
+        router.replace(`/auth/login?next=${from?.startsWith('coach') ? `/coach/facilities/${facilityId}/calendar` : `/admin/facilities/${facilityId}/calendar`}`);
         return;
       }
 
@@ -280,6 +287,8 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
   const teamById = useMemo(() => new Map(teams.map((team) => [team.id, team])), [teams]);
   const highlightedTeam = teamId ? teamById.get(teamId) : null;
   const highlightedDepartment = departmentId ? departmentById.get(departmentId) : null;
+  const highlightedTeamIds = useMemo(() => splitParamIds(teamIds), [teamIds]);
+  const highlightedDepartmentIds = useMemo(() => splitParamIds(departmentIds), [departmentIds]);
   const contextTeamId = teamId && teamById.has(teamId) ? teamId : null;
   const fallbackTeamId = contextTeamId;
   const isClubAdmin = clubMemberships.some((membership) => membership.role === 'club_admin');
@@ -315,10 +324,10 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
         endsAt: session.ends_at,
         teamName: teamById.get(session.owner_team_id)?.name ?? 'Team',
         departmentName: departmentById.get(session.department_id)?.name ?? 'Department',
-        tone: sessionTone(session, departmentId, teamId),
+        tone: sessionTone(session, departmentId, teamId, highlightedDepartmentIds, highlightedTeamIds),
         canManage: canManageSession(session),
       })),
-    [departmentById, departmentId, sessions, teamById, teamId, isClubAdmin, managedDepartmentIds, managedTeamIds],
+    [departmentById, departmentId, highlightedDepartmentIds, highlightedTeamIds, sessions, teamById, teamId, isClubAdmin, managedDepartmentIds, managedTeamIds],
   );
   const mobileVisibleHours = useMemo(() => hours.filter((hour) => hour >= 8 && hour <= 23), []);
   const mobileFirstHour = mobileVisibleHours[0] ?? firstHour;
@@ -669,6 +678,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-8">
       {from === 'department' || from === 'departmentTeam' ? <DepartmentLeadDrawer mode="facilities" basePath="/department" departmentId={departmentId} departmentName={highlightedDepartment?.name} /> : null}
+      {from?.startsWith('coach') ? <CoachDrawer mode="facilities" basePath="/coach" teamId={teamId} /> : null}
       <div className="mx-auto max-w-7xl space-y-5">
         <FacilityRoleNav from={from} teamId={teamId} />
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.22)] ring-1 ring-white/[0.03]">
