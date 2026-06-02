@@ -9,6 +9,8 @@ export default async function DemoCoachFacilityCalendarPage({
     from?: string;
     departmentName?: string;
     teamName?: string;
+    departmentNames?: string;
+    teamNames?: string;
   }>;
 }) {
   const { facilityName } = await params;
@@ -21,6 +23,8 @@ export default async function DemoCoachFacilityCalendarPage({
       from={resolvedSearchParams?.from}
       departmentName={resolvedSearchParams?.departmentName}
       teamName={resolvedSearchParams?.teamName}
+      departmentNames={resolvedSearchParams?.departmentNames}
+      teamNames={resolvedSearchParams?.teamNames}
     />
   );
 }

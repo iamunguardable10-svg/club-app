@@ -633,8 +633,9 @@ export function TeamWorkspace({
       departmentNav: frame === 'department'
         ? { basePath: '/department', departmentId: team.department_id, departmentName: department.name }
         : null,
+      coachNav: frame === 'coach' ? { basePath: '/coach' } : null,
       calendarHref: team.default_facility_id
-        ? `/admin/facilities/${team.default_facility_id}/calendar?from=${frame === 'coach' ? 'coachTeam' : frame === 'department' ? 'departmentTeam' : 'team'}&teamId=${team.id}&departmentId=${team.department_id}`
+        ? `${frame === 'coach' ? '/coach' : '/admin'}/facilities/${team.default_facility_id}/calendar?from=${frame === 'coach' ? 'coachTeam' : frame === 'department' ? 'departmentTeam' : 'team'}&teamId=${team.id}&departmentId=${team.department_id}`
         : null,
       staffHref: frame === 'department' ? `/department/coaches?departmentId=${team.department_id}` : `/admin/people?department=${team.department_id}&team=${team.id}`,
     };

@@ -9,6 +9,8 @@ export default async function CoachFacilityCalendarPage({
     from?: string;
     departmentId?: string;
     teamId?: string;
+    departmentIds?: string;
+    teamIds?: string;
   }>;
 }) {
   const { facilityId } = await params;
@@ -20,6 +22,8 @@ export default async function CoachFacilityCalendarPage({
       from={resolvedSearchParams?.from}
       departmentId={resolvedSearchParams?.departmentId}
       teamId={resolvedSearchParams?.teamId}
+      departmentIds={resolvedSearchParams?.departmentIds}
+      teamIds={resolvedSearchParams?.teamIds}
     />
   );
 }
