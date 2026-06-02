@@ -380,7 +380,9 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
   }
 
   const backTarget =
-    from === 'coachTeam' && teamName
+    from === 'coachFacilities'
+      ? { href: '/demo/coach/facilities', label: 'Back to facilities' }
+      : from === 'coachTeam' && teamName
       ? { href: `/demo/coach/team?teamId=${encodeURIComponent(teams.find((team) => team.name === teamName && (!departmentName || team.department === departmentName))?.id ?? teamName)}`, label: 'Back to team' }
       : from === 'departmentTeam' && teamName
       ? { href: `/demo/admin/teams/${encodeURIComponent(teams.find((team) => team.name === teamName && (!departmentName || team.department === departmentName))?.id ?? teamName)}?from=department${departmentName ? `&departmentName=${encodeURIComponent(departmentName)}` : ''}`, label: 'Back to team' }

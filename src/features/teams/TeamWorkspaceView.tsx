@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { LoadChart } from '@/features/load/AthleteLoadWorkspace';
 import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
@@ -551,12 +552,14 @@ function TeamSmartCalendar({
   onSessionCreate,
   onSessionFacilityChange,
   onSessionGroupsChange,
+  onSessionDelete,
 }: {
   data: TeamWorkspaceData;
   onSessionTimeChange?: (sessionId: string, startsAt: string, endsAt: string) => void | Promise<void>;
   onSessionCreate?: (startsAt: string, endsAt: string) => void | Promise<void>;
   onSessionFacilityChange?: (sessionId: string, facilityId: string) => void | Promise<void>;
   onSessionGroupsChange?: (sessionId: string, groupIds: string[]) => void | Promise<void>;
+  onSessionDelete?: (sessionId: string) => void | Promise<void>;
 }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const days = useMemo(() => buildWeekDays(weekOffset), [weekOffset]);
@@ -566,6 +569,8 @@ function TeamSmartCalendar({
   const [dayTransitionDirection, setDayTransitionDirection] = useState<'next' | 'previous' | null>(null);
   const [desktopHourHeight, setDesktopHourHeight] = useState(baseDesktopHourHeight);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [isDeletingSession, setIsDeletingSession] = useState(false);
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [drag, setDrag] = useState<TeamCalendarDrag | null>(null);
   const [draft, setDraft] = useState<TeamCalendarDraft | null>(null);
@@ -586,6 +591,7 @@ function TeamSmartCalendar({
     setDraft(null);
     setDrag(null);
     setSelectedSessionId(null);
+    setDeleteTargetId(null);
     setWeekOffset((current) => current + delta);
   }
 
@@ -593,6 +599,7 @@ function TeamSmartCalendar({
     setDraft(null);
     setDrag(null);
     setSelectedSessionId(null);
+    setDeleteTargetId(null);
     setWeekOffset(0);
     setActiveDayIndex(Math.max(0, buildWeekDays().findIndex((day) => sameDay(day, new Date()))));
   }
@@ -848,6 +855,19 @@ function TeamSmartCalendar({
     await onSessionTimeChange(selectedSession.id, startsAt, endsAt);
   }
 
+  async function confirmDeleteSession() {
+    if (!deleteTargetId || !onSessionDelete) return;
+    setIsDeletingSession(true);
+    try {
+      await onSessionDelete(deleteTargetId);
+      setLocalSessions((current) => current.filter((session) => session.id !== deleteTargetId));
+      setSelectedSessionId(null);
+      setDeleteTargetId(null);
+    } finally {
+      setIsDeletingSession(false);
+    }
+  }
+
   useEffect(() => {
     if (!drag) return;
     const activeDrag = drag;
@@ -982,15 +1002,14 @@ function TeamSmartCalendar({
           facilityName={selectedSession.facilityName ?? data.defaultFacilityName}
           facilityId={selectedSession.facilityId ?? data.defaultFacilityId}
           facilityOptions={data.availableFacilities ?? []}
-          canEditFacility={canManageCalendar && Boolean(onSessionFacilityChange)}
+          canEditFacility={mode === 'edit' && canManageCalendar && Boolean(onSessionFacilityChange)}
           isSavingFacility={isSavingSessionFacility}
           onFacilityChange={handleSelectedSessionFacilityChange}
           groups={data.groups.map((group) => ({ id: group.id, name: group.name, playerCount: group.playerCount }))}
           selectedGroupIds={selectedSession.groupIds ?? []}
-          canEditGroups={canManageCalendar && Boolean(onSessionGroupsChange)}
+          canEditGroups={mode === 'edit' && canManageCalendar && Boolean(onSessionGroupsChange)}
           onGroupsChange={handleSelectedSessionGroupsChange}
           attendance={selectedSessionAttendance}
-          load={selectedSessionLoad}
           loadRisks={selectedSessionLoadRisks}
           participants={selectedSessionPlayers.map((player) => {
             const flag = (player.attendanceEvents ?? []).find((event) => event.sessionId === selectedSession.id);
@@ -1001,12 +1020,25 @@ function TeamSmartCalendar({
               detail: flag?.status === 'late' && flag.lateMinutes ? `${flag.lateMinutes} min` : flag?.reason ?? null,
             };
           })}
-          canEditTime={canManageCalendar && Boolean(onSessionTimeChange)}
+          canEditTime={mode === 'edit' && canManageCalendar && Boolean(onSessionTimeChange)}
           onTimeChange={handleSelectedSessionTimeChange}
           editDetails={null}
+          actions={mode === 'edit' && canManageCalendar && onSessionDelete ? <button type="button" onClick={() => setDeleteTargetId(selectedSession.id)} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">Delete session</button> : null}
           onClose={() => setSelectedSessionId(null)}
         />
       ) : null}
+
+      <AppConfirmDialog
+        isOpen={Boolean(deleteTargetId)}
+        title="Delete session?"
+        description="This removes the session from the team calendar and the affected athlete calendars."
+        confirmLabel="Delete session"
+        cancelLabel="Keep session"
+        tone="danger"
+        isConfirming={isDeletingSession}
+        onConfirm={() => { void confirmDeleteSession(); }}
+        onCancel={() => setDeleteTargetId(null)}
+      />
     </div>
   );
 }
@@ -1019,6 +1051,7 @@ export function TeamWorkspaceView({
   onSessionCreate,
   onSessionFacilityChange,
   onSessionGroupsChange,
+  onSessionDelete,
   onAddDemoPlayers,
   onInviteStaff,
   onCopyStaffInvite,
@@ -1036,6 +1069,7 @@ export function TeamWorkspaceView({
   onSessionCreate?: (startsAt: string, endsAt: string) => void | Promise<void>;
   onSessionFacilityChange?: (sessionId: string, facilityId: string) => void | Promise<void>;
   onSessionGroupsChange?: (sessionId: string, groupIds: string[]) => void | Promise<void>;
+  onSessionDelete?: (sessionId: string) => void | Promise<void>;
   onAddDemoPlayers?: () => void | Promise<void>;
   onInviteStaff?: (role: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) => void | Promise<void>;
   onCopyStaffInvite?: (token: string) => void | Promise<void>;

@@ -49,9 +49,9 @@ const sections = [
     links: [
       { href: '/coach/today', label: 'Today' },
       { href: '/coach/team', label: 'Team' },
-      { href: '/coach/sessions', label: 'Sessions' },
-      { href: '/coach/attendance', label: 'Attendance' },
-      { href: '/coach/load', label: 'Load' },
+      { href: '/coach/sessions', label: 'Calendar' },
+      { href: '/coach/facilities', label: 'Facilities' },
+      { href: '/coach/history', label: 'History' },
     ],
   },
   {

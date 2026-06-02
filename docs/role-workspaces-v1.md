@@ -144,3 +144,16 @@ Recommended top-level coach pages:
 - `Facilities`: hall calendars for facilities used by assigned teams, with coach context preserved in navigation.
 
 Single-team coach behavior: default entry may go straight to `Today`, but the shell still needs `Calendar` and `Facilities`. Do not collapse everything into Team Workspace because hall-time discovery is role-level, not team-local.
+
+
+## Coach Calendar and History V1
+
+Coach OS now separates role-level work from Team Workspace:
+
+- `Today` stays the cross-team cockpit for same-day sessions, late/out flags and load risks.
+- `Calendar` is a coach-wide Untis calendar using the shared `SmartSessionCalendar` engine across all assigned teams.
+- If a coach has one team, Team Workspace remains directly reachable, but role-level `Calendar`, `Facilities` and `History` still exist because hall discovery and historical review are not team-local only.
+- Creating a coach-calendar session opens the compact edit screen before saving. With multiple teams the coach must verify/select the team; the selected team's default facility is applied automatically and remains editable.
+- Group/participant targeting is editable only inside the edit-session screen, not through the read-only session detail screen, because changing participants affects athlete calendars.
+- Sessions can be deleted from coach and team calendar flows through `AppConfirmDialog`.
+- `History` V1 shows recent completed sessions and waits for a high enough load-report rate before treating average RPE as meaningful.

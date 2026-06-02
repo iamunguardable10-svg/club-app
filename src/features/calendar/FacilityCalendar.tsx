@@ -498,7 +498,9 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId }: Fac
   }, [draft, drag]);
 
   const backTarget =
-    from === 'coachTeam' && teamId
+    from === 'coachFacilities'
+      ? { href: '/coach/facilities', label: 'Back to facilities' }
+      : from === 'coachTeam' && teamId
       ? { href: `/coach/team?teamId=${teamId}`, label: 'Back to team' }
       : from === 'departmentTeam' && teamId && departmentId
       ? { href: `/admin/teams/${teamId}?from=department&departmentId=${departmentId}`, label: 'Back to team' }

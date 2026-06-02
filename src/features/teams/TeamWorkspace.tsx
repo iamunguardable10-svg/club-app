@@ -346,6 +346,17 @@ export function TeamWorkspace({
     setSessions((current) => [...current, insertedSession as Session].sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()));
   }
 
+  async function handleSessionDelete(sessionId: string) {
+    const supabase = createBrowserSupabaseClient();
+    const { error: deleteError } = await supabase.from('sessions').delete().eq('id', sessionId);
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+    setSessions((current) => current.filter((session) => session.id !== sessionId));
+    setSessionGroups((current) => current.filter((row) => row.session_id !== sessionId));
+  }
+
   function getInviteUrl(token: string) {
     if (typeof window === 'undefined') return `/invite/${token}`;
     return `${window.location.origin}/invite/${token}`;
@@ -643,6 +654,7 @@ export function TeamWorkspace({
         onSessionCreate={handleSessionCreate}
         onSessionFacilityChange={handleSessionFacilityChange}
         onSessionGroupsChange={handleSessionGroupsChange}
+        onSessionDelete={handleSessionDelete}
         onInviteStaff={handleInviteStaff}
         onCopyStaffInvite={handleCopyStaffInvite}
         onRevokeStaffInvite={handleRevokeStaffInvite}
