@@ -2627,7 +2627,7 @@ function sessionEstimateLabel(au: number, averageSessionLoad: number) {
 }
 
 function formatCompactNumber(value: number) {
-  return new Intl.NumberFormat('en', { maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
 }
 
 function LoadDetailsPanel({
