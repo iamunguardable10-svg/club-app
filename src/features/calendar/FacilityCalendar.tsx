@@ -27,6 +27,7 @@ type DraftSession = { startsAt: string; endsAt: string; teamId: string | null; f
 type DragState = { target: 'draft' | 'session'; sessionId?: string; kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date; minutesPerPixel: number };
 type ClubMembership = { role: 'club_admin' | 'department_lead'; department_id: string | null };
 type TeamMembership = { role: 'head_coach' | 'assistant_coach' | 'athlete'; department_id: string; team_id: string };
+type DepartmentFacility = { department_id: string };
 
 type FacilityCalendarProps = {
   facilityId: string;
@@ -175,6 +176,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   const [userId, setUserId] = useState<string | null>(null);
   const [facility, setFacility] = useState<Facility | null>(null);
   const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [assignedDepartmentIds, setAssignedDepartmentIds] = useState<Set<string>>(new Set());
   const [departments, setDepartments] = useState<Department[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -245,7 +247,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       const loadedFacility = facilityResult.data as Facility;
       const rangeStart = days[0].toISOString();
       const rangeEnd = new Date(days[6].getTime() + 24 * 60 * 60 * 1000).toISOString();
-      const [sessionsResult, departmentsResult, teamsResult, facilitiesResult, clubMembershipsResult, teamMembershipsResult] = await Promise.all([
+      const [sessionsResult, departmentsResult, teamsResult, facilitiesResult, departmentFacilitiesResult, clubMembershipsResult, teamMembershipsResult] = await Promise.all([
         supabase
           .from('sessions')
           .select('id, title, starts_at, ends_at, session_type, department_id, owner_team_id, created_by')
@@ -256,14 +258,15 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
         supabase.from('departments').select('id, name').eq('club_id', loadedFacility.club_id).order('name'),
         supabase.from('teams').select('id, name, department_id, default_facility_id').eq('club_id', loadedFacility.club_id).order('name'),
         supabase.from('facilities').select('id, club_id, name, address').eq('club_id', loadedFacility.club_id).order('name'),
+        supabase.from('department_facilities').select('department_id').eq('facility_id', facilityId),
         supabase.from('club_memberships').select('role, department_id').eq('club_id', loadedFacility.club_id).eq('user_id', user.id).eq('status', 'active'),
         supabase.from('team_memberships').select('role, department_id, team_id').eq('club_id', loadedFacility.club_id).eq('user_id', user.id).eq('status', 'active'),
       ]);
 
       if (!isMounted) return;
-      if (sessionsResult.error ?? departmentsResult.error ?? teamsResult.error ?? facilitiesResult.error ?? clubMembershipsResult.error ?? teamMembershipsResult.error) {
+      if (sessionsResult.error ?? departmentsResult.error ?? teamsResult.error ?? facilitiesResult.error ?? departmentFacilitiesResult.error ?? clubMembershipsResult.error ?? teamMembershipsResult.error) {
         setState('error');
-        setError((sessionsResult.error ?? departmentsResult.error ?? teamsResult.error ?? facilitiesResult.error ?? clubMembershipsResult.error ?? teamMembershipsResult.error)?.message ?? 'Could not load calendar context.');
+        setError((sessionsResult.error ?? departmentsResult.error ?? teamsResult.error ?? facilitiesResult.error ?? departmentFacilitiesResult.error ?? clubMembershipsResult.error ?? teamMembershipsResult.error)?.message ?? 'Could not load calendar context.');
         return;
       }
 
@@ -272,6 +275,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       setDepartments((departmentsResult.data ?? []) as Department[]);
       setTeams((teamsResult.data ?? []) as Team[]);
       setFacilities((facilitiesResult.data ?? [loadedFacility]) as Facility[]);
+      setAssignedDepartmentIds(new Set(((departmentFacilitiesResult.data ?? []) as DepartmentFacility[]).map((item) => item.department_id)));
       setClubMemberships((clubMembershipsResult.data ?? []) as ClubMembership[]);
       setTeamMemberships((teamMembershipsResult.data ?? []) as TeamMembership[]);
       setState('ready');
@@ -300,16 +304,18 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     () => new Set(teamMemberships.filter((membership) => membership.role === 'head_coach' || membership.role === 'assistant_coach').map((membership) => membership.team_id)),
     [teamMemberships],
   );
-  const canCreateSessions = isClubAdmin || managedDepartmentIds.size > 0 || managedTeamIds.size > 0;
   const manageableTeams = useMemo(
     () =>
       teams.filter((team) => {
+        if (!assignedDepartmentIds.has(team.department_id)) return false;
         if (isClubAdmin) return true;
         if (managedDepartmentIds.has(team.department_id)) return true;
         return managedTeamIds.has(team.id);
       }),
-    [isClubAdmin, managedDepartmentIds, managedTeamIds, teams],
+    [assignedDepartmentIds, isClubAdmin, managedDepartmentIds, managedTeamIds, teams],
   );
+  const manageableTeamIds = useMemo(() => new Set(manageableTeams.map((team) => team.id)), [manageableTeams]);
+  const canCreateSessions = manageableTeamIds.size > 0;
   const manageableDepartments = useMemo(() => {
     const departmentIds = new Set(manageableTeams.map((team) => team.department_id));
     return departments.filter((department) => departmentIds.has(department.id));
@@ -335,6 +341,14 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
 
   function canManageSession(session: Session) {
     return isClubAdmin || managedDepartmentIds.has(session.department_id) || managedTeamIds.has(session.owner_team_id);
+  }
+
+  function assertWritableSessionPayload(payload: SessionComposerPayload) {
+    if (payload.facilityId !== facilityId) throw new Error('This calendar can only write sessions for this facility.');
+    const team = teams.find((item) => item.id === payload.ownerTeamId);
+    if (!team) throw new Error('Choose a team first.');
+    if (!manageableTeamIds.has(team.id)) throw new Error('You can only schedule assigned teams in this facility.');
+    return team;
   }
 
   useEffect(() => {
@@ -578,8 +592,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
 
   async function handleCreateSession(payload: SessionComposerPayload) {
     if (!facility) throw new Error('Facility is missing.');
-    const team = teams.find((item) => item.id === payload.ownerTeamId);
-    if (!team) throw new Error('Choose a team first.');
+    const team = assertWritableSessionPayload(payload);
     const supabase = createBrowserSupabaseClient();
     const { data, error: insertError } = await supabase
       .from('sessions')
@@ -608,8 +621,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   async function handleUpdateSession(payload: SessionComposerPayload) {
     if (!editingSession) return;
     if (!canManageSession(editingSession)) throw new Error('You do not have permission to edit this session.');
-    const team = teams.find((item) => item.id === payload.ownerTeamId);
-    if (!team) throw new Error('Choose a team first.');
+    const team = assertWritableSessionPayload(payload);
     const supabase = createBrowserSupabaseClient();
     const { data, error: updateError } = await supabase
       .from('sessions')

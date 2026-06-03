@@ -271,7 +271,8 @@ Permission rule:
 
 - URL context controls highlighting and default UI state only.
 - Write permission must be derived from server-side memberships and assignments, not from `teamIds`, `departmentIds`, `teamNames` or `departmentNames` query parameters.
-- Open enforcement requirement: facility calendar create/edit routes must verify manageable teams from membership data before writes. URL parameters are never sufficient evidence of permission.
+- Real Supabase writes are guarded by `can_write_session_context(...)`: the session team must match the club/department, the user must be club admin, department lead or staff of that team, and any selected facility must be assigned to the session department through `department_facilities`.
+- The facility calendar UI also filters create/edit team choices to teams the current user can manage in the current facility context. This is only UX support; RLS remains the authority.
 
 This avoids the previous failure mode where a coach opened a hall calendar and only one of several assigned teams was highlighted.
 

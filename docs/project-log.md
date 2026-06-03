@@ -742,11 +742,11 @@ Current behavior / direction:
 - [implemented] Facility calendars preserve the entry role: admin, department lead, coach or team.
 - [implemented] Coach facility links pass all relevant coach teams/departments, not just one selected team.
 - [implemented] Facility calendars highlight all coach teams in context and lightly highlight the related department context.
-- [open enforcement requirement] Coach-created facility-calendar session writes must verify manageable teams from server-side membership data. URL query context is display/default context only.
+- [implemented] Coach-created facility-calendar session writes now verify manageable team and department-facility context through Supabase RLS. URL query context is display/default context only.
 
-Open security task:
+Security note:
 
-- Before exposing coach facility-calendar writes beyond demo/testing, verify create/edit/delete authorization from server-side membership and assignment data. Do not trust `teamIds`, `departmentIds`, `teamNames` or `departmentNames` query parameters for permission.
+- `can_write_session_context(...)` checks the authenticated user against club admin, department lead or team staff membership, validates the session's team/department/club relationship, and rejects facility writes when the facility is not assigned to that department.
 
 ### Athlete/load
 
