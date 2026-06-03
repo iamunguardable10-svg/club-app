@@ -747,6 +747,8 @@ Current behavior / direction:
 Security note:
 
 - `can_write_session_context(...)` checks the authenticated user against club admin, department lead or team staff membership, validates the session's team/department/club relationship, and rejects facility writes when the facility is not assigned to that department.
+- Facility assignment is now required before club admins, department leads or coaches create sessions in a facility calendar. The UI surfaces this as a neutral notice instead of silently hiding all create paths.
+- Deleting a session remains owner-team permission based through `can_manage_session(id)`, so authorised staff can remove stale sessions even if facility assignments later change.
 
 ### Athlete/load
 

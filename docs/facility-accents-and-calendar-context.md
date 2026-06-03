@@ -273,6 +273,8 @@ Permission rule:
 - Write permission must be derived from server-side memberships and assignments, not from `teamIds`, `departmentIds`, `teamNames` or `departmentNames` query parameters.
 - Real Supabase writes are guarded by `can_write_session_context(...)`: the session team must match the club/department, the user must be club admin, department lead or staff of that team, and any selected facility must be assigned to the session department through `department_facilities`.
 - The facility calendar UI also filters create/edit team choices to teams the current user can manage in the current facility context. This is only UX support; RLS remains the authority.
+- A club admin still has to assign a facility to at least one department before scheduling team sessions in that facility. This keeps the same department-scoped facility model for admins, department leads and coaches.
+- Session deletion remains governed by `can_manage_session(id)`. If a coach/admin can manage the session owner team, they can remove that session even if facility assignments changed later.
 
 This avoids the previous failure mode where a coach opened a hall calendar and only one of several assigned teams was highlighted.
 

@@ -320,6 +320,12 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     const departmentIds = new Set(manageableTeams.map((team) => team.department_id));
     return departments.filter((department) => departmentIds.has(department.id));
   }, [departments, manageableTeams]);
+  const hasRoleManagedTeams = isClubAdmin || managedDepartmentIds.size > 0 || managedTeamIds.size > 0;
+  const facilityAssignmentNotice = hasRoleManagedTeams && assignedDepartmentIds.size === 0
+    ? 'This facility is not assigned to a department yet. Assign it before creating sessions here.'
+    : hasRoleManagedTeams && manageableTeamIds.size === 0
+      ? 'No assigned team can use this facility yet.'
+      : null;
 
   const calendarSessions = useMemo<SmartCalendarSession[]>(
     () =>
@@ -703,6 +709,9 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
             {highlightedDepartment ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-200">Department: {highlightedDepartment.name}</span> : null}
             {!highlightedTeam && !highlightedDepartment ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-300">Full view</span> : null}
           </div>
+          {facilityAssignmentNotice ? (
+            <p className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm font-bold text-slate-300">{facilityAssignmentNotice}</p>
+          ) : null}
         </section>
 
         <SmartSessionCalendar
