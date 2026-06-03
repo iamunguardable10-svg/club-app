@@ -322,7 +322,9 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   }, [departments, manageableTeams]);
   const hasRoleManagedTeams = isClubAdmin || managedDepartmentIds.size > 0 || managedTeamIds.size > 0;
   const facilityAssignmentNotice = hasRoleManagedTeams && assignedDepartmentIds.size === 0
-    ? 'This facility is not assigned to a department yet. Assign it before creating sessions here.'
+    ? isClubAdmin
+      ? 'Assign this facility to a department before creating sessions here.'
+      : 'This facility is not assigned to a department yet. Ask a club admin to set it up.'
     : hasRoleManagedTeams && manageableTeamIds.size === 0
       ? 'No assigned team can use this facility yet.'
       : null;
@@ -710,7 +712,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
             {!highlightedTeam && !highlightedDepartment ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-300">Full view</span> : null}
           </div>
           {facilityAssignmentNotice ? (
-            <p className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm font-bold text-slate-300">{facilityAssignmentNotice}</p>
+            <p className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm font-medium text-slate-300">{facilityAssignmentNotice}</p>
           ) : null}
         </section>
 
