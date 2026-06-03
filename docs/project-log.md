@@ -699,3 +699,69 @@ Still placeholder / not fully implemented:
 14. Teams should not clutter `/admin/setup`; team detail belongs in department/team screens.
 15. The product should become a real club/team operating system, not a generic AI demo app.
 16. Local demo mode must remain easy to remove before production launch.
+
+---
+
+## 2026-06-03 — Recent implementation documentation catch-up
+
+This update records recent work that had landed in code before it was fully captured in docs.
+
+Scope note:
+
+- `Current behavior / direction` below documents the current code path where implemented and the intended direction where a slice is still being refined.
+- `Implementation rule` describes product/engineering constraints that future changes must preserve; when a rule is not yet enforced by code, it should be treated as an explicit implementation requirement.
+
+### Coach OS
+
+Current behavior / direction:
+
+- [implemented] Coach navigation now uses a collapsible role drawer instead of wide top navigation.
+- [implemented] The drawer is available in role-level Coach OS pages and in coach-context Team Workspace / Facility Calendar surfaces.
+- [implemented] Coach Today is scoped to same-day operating decisions and no longer repeats team launcher cards.
+- [implemented] Coach Teams remains the launcher surface into Team Workspace.
+- [implemented] Coach Calendar is a role-level calendar across assigned teams.
+- [implemented] Coach Facilities opens hall calendars with coach context preserved.
+- [implemented] Coach History is a first historical-review surface for completed sessions, attendance and load feedback quality.
+
+### Calendar/session model
+
+Implementation rule:
+
+- [requirement] Calendars should stay on the shared Untis-style calendar engine.
+- [requirement] View mode is safe/inspection-first.
+- [requirement] Edit mode enables moving, resizing, deleting and draft creation for sessions the user can manage.
+- [requirement] New session flow is draft-first: slot tap creates the draft in the calendar; the edit sheet opens only after the draft is deliberately confirmed or selected.
+- [requirement] Session type is part of the edit sheet and defaults to `Team training`.
+- [requirement] Team and facility selection can be shown side by side when both are required.
+- [requirement] Participant groups are changed only inside the edit session flow, not in the read-only detail sheet.
+
+### Facility context
+
+Current behavior / direction:
+
+- [implemented] Facility calendars preserve the entry role: admin, department lead, coach or team.
+- [implemented] Coach facility links pass all relevant coach teams/departments, not just one selected team.
+- [implemented] Facility calendars highlight all coach teams in context and lightly highlight the related department context.
+- [open enforcement requirement] Coach-created facility-calendar session writes must verify manageable teams from server-side membership data. URL query context is display/default context only.
+
+Open security task:
+
+- Before exposing coach facility-calendar writes beyond demo/testing, verify create/edit/delete authorization from server-side membership and assignment data. Do not trust `teamIds`, `departmentIds`, `teamNames` or `departmentNames` query parameters for permission.
+
+### Athlete/load
+
+Current behavior / direction:
+
+- [implemented] Athlete OS has a pinned navigation surface for Today, Calendar and Load.
+- [implemented] Athlete Calendar uses the same 08:00-23:00 calendar philosophy, with mobile-specific compact sizing and no inner scroll when the whole operating window fits.
+- [implemented] Athlete Load uses EWMA as the active ACWR method, keeps acute/chronic support lines optional, and focuses player-facing copy on room to overload/underload rather than raw metric clutter.
+- [implemented] Trainer link is active after copy and gives inline feedback.
+
+### Review workflow
+
+Current behavior / direction:
+
+- [implemented] The repo has a local pre-push hook that runs `npm run check:review`.
+- [implemented] `check:review` validates typecheck/build, restores generated `next-env.d.ts` drift, then runs Claude Code read-only review.
+- [requirement] If the Claude hook hangs, the hook should be fixed or the exception should be recorded in the task context before any release proceeds.
+- [implemented] ECC was not bulk-installed into the repo. Only the user-level `configure-ecc` bootstrap skill was installed so future ECC components can be selected deliberately. Details live in `docs/agent-workflow.md`.

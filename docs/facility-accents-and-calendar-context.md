@@ -226,6 +226,55 @@ Current explicit React link coverage:
 
 Top-level global facility cards intentionally open the full facility view without department context.
 
+### Coach facility context
+
+Coach-scoped facility links carry role context instead of falling back into admin navigation.
+
+Current real route shape:
+
+```txt
+/coach/facilities/[facilityId]/calendar?from=coachFacilities&teamIds=...&departmentIds=...
+/coach/facilities/[facilityId]/calendar?from=coachTeam&teamId=...&departmentId=...
+```
+
+Current demo route shape:
+
+```txt
+/demo/coach/facilities/[facilityName]/calendar?from=coachFacilities&teamNames=...&departmentNames=...
+/demo/coach/facilities/[facilityName]/calendar?from=coachTeam&teamName=...&departmentName=...
+```
+
+Structural parity rule:
+
+```txt
+real: teamIds / departmentIds
+demo: teamNames / departmentNames
+```
+
+The real route uses IDs and the demo route uses names, but the parameter structure should otherwise stay aligned.
+
+Authoritative shape:
+
+- real routes define the parameter shape
+- demo routes mirror the same parameters using names instead of IDs
+- any new context parameter must be added to both real and demo route shapes in the same change
+
+Behavior:
+
+- every assigned coach team using the facility is highlighted as primary context
+- the related department context is highlighted more lightly
+- the page keeps coach role navigation instead of showing admin facility back-links
+- if the coach can create sessions for at least one team in the facility context, edit/create mode stays available
+- if multiple teams are possible, no single team is silently preselected; the edit sheet must ask
+
+Permission rule:
+
+- URL context controls highlighting and default UI state only.
+- Write permission must be derived from server-side memberships and assignments, not from `teamIds`, `departmentIds`, `teamNames` or `departmentNames` query parameters.
+- Open enforcement requirement: facility calendar create/edit routes must verify manageable teams from membership data before writes. URL parameters are never sufficient evidence of permission.
+
+This avoids the previous failure mode where a coach opened a hall calendar and only one of several assigned teams was highlighted.
+
 ## Planned calendar highlighting behavior
 
 When facility calendars are built properly, they should read URL context and highlight accordingly.

@@ -199,6 +199,27 @@ Future group insight jobs:
 
 Session group targeting is stored in `session_groups` in standard mode and on `DemoSession.groupIds` in demo mode.
 
+### Session details and editing
+
+The team calendar uses the shared session detail and edit flow:
+
+- tapping a session in view mode opens the session detail sheet
+- the detail sheet is read-first: time, facility, participants, availability/attendance signals and load context
+- changing start time, duration, facility, type or groups belongs in the edit sheet
+- deleting a session requires `AppConfirmDialog`, not a browser confirm
+
+Important rule:
+
+```txt
+Participant scope is never changed accidentally from the read-only details sheet.
+```
+
+This is both a UX rule and a regression requirement. The canonical calendar/editing rule lives in `docs/calendar-session-blueprint-v1.md`.
+
+For coach-created team sessions, the default participant scope is the whole team unless groups are selected in the edit sheet.
+
+For team calendar sessions, the default facility comes from the team. The session facility can still be changed for a concrete unit when training takes place somewhere else.
+
 ### Staff / Settings
 
 This section contains:

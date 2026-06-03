@@ -267,6 +267,14 @@ V1 calendar views:
 - coach sees sessions for assigned teams
 - admin/department lead sees department or club-level overview
 
+Current implementation decision:
+
+- Calendars should share one reusable Untis-style engine instead of diverging per role.
+- View mode is the default. Edit/create mode must be explicit, especially on mobile.
+- Draft session creation and participant editing rules are defined canonically in `docs/calendar-session-blueprint-v1.md`.
+- Coach-wide calendars show all sessions from assigned teams and may use subtle team accents.
+- Facility calendars preserve the entry role and context: admin, department lead, coach or team.
+
 ---
 
 ## 19. Database
@@ -280,3 +288,10 @@ First step:
 - then create migrations
 
 No quick ad-hoc tables without a model.
+
+Session-type modeling decision:
+
+- Games are represented as a session/training type in V1.
+- Canonical game session type identifier: `game`.
+- Do not introduce a separate `games` table for basic load/minutes logic.
+- Game-specific metrics such as average game minutes should be calculated by filtering sessions/load records by the game session type.

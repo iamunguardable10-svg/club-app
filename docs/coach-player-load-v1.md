@@ -75,3 +75,29 @@ Likely next tables or columns:
 - Opening a player detail locks background page scroll to prevent accidental calendar/player inputs behind the overlay.
 - Coach attendance insight starts with a 30-day range and can switch to 60 or 90 days. It lists `late` and `out` session records with reason and late minutes where available.
 - Demo player data now includes representative late/out attendance events so the coach surface can be reviewed without setup.
+
+## Coach session detail signals
+
+Coach-facing session details should focus on who needs action, not generic session metadata.
+
+Useful sections:
+
+- expected players: players marked expected or late; out/cancelled players are excluded
+- late players: yellow state with expected delay and reason
+- out players: red state with reason
+- load risks: players currently high or low by EWMA ACWR
+- expandable expected-player list for the coach to quickly scan who is coming
+- context: team, department and facility, shown below the action-relevant sections
+
+Avoid empty summary cards such as `scope`, `load prepared`, or generic `context` blocks when they do not help the coach decide.
+
+Player detail should also include:
+
+- average training minutes over the selected recent period
+- average game minutes where game/session data exists
+- training mix as a visual percentage breakdown by session type
+
+Schema note:
+
+- Games are represented as a session/training type, not as a separate unrelated event model in V1. The canonical database decision lives in `docs/v1-decisions.md`.
+- Average game minutes should be calculated by filtering game-type sessions, not by introducing a separate games table.

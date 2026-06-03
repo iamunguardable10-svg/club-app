@@ -157,3 +157,22 @@ Coach OS now separates role-level work from Team Workspace:
 - Group/participant targeting is editable only inside the edit-session screen, not through the read-only session detail screen, because changing participants affects athlete calendars.
 - Sessions can be deleted from coach and team calendar flows through `AppConfirmDialog`.
 - `History` V1 shows recent completed sessions and waits for a high enough load-report rate before treating average RPE as meaningful.
+
+## Coach shell drawer and calendar polish
+
+Current implementation update:
+
+- Coach OS uses the same collapsible side drawer pattern as the department-lead shell instead of a wide top navigation.
+- The drawer is available in the role shell and remains available when the coach opens a team or a coach-scoped facility calendar.
+- `Today` no longer repeats team launcher cards. Team launchers live in the `Teams` page; Today stays focused on same-day operational sessions.
+- The role shell remains separate from Team Workspace bottom navigation. Opening a team routes into Team Workspace; the coach drawer remains the role-level way back to Today, Teams, Calendar, Facilities and History.
+- Coach calendar sessions use subtle per-team accents when several assigned teams appear in one coach-wide calendar. This is recognition metadata, not decorative full-card coloring.
+- Coach facility links carry all relevant coach team IDs/names plus department IDs/names. Facility calendars should highlight every assigned coach team in that hall and lightly highlight the related department context.
+- A coach may create sessions from a coach-scoped facility calendar when their role can create sessions for at least one team using that facility. If multiple assigned teams are possible, the edit sheet must ask for team selection instead of guessing the wrong team.
+- Coach facility URL context is display/default context only. Real write permission must be resolved from membership data, not from client-controlled query parameters.
+
+Implementation boundary:
+
+- Coach shell must not expose club Admin Overview, all-department governance, or unscoped staff/facility pages.
+- Department lead and coach can both open Team Workspace, but permissions and navigation context must remain role-scoped.
+- Canonical calendar interaction rules live in `docs/calendar-session-blueprint-v1.md`; this file records only the role-shell consequences.

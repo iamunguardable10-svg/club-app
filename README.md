@@ -32,11 +32,18 @@ V1 is a clean product and code foundation with placeholder screens. The priority
 
 ```txt
 /admin   - club setup, departments, teams, coaches, facilities, roles
-/coach   - today cockpit, team, sessions, attendance, load
+/coach   - today cockpit, teams, coach calendar, facilities, history
 /athlete - home, calendar, availability, load
 /invite  - coach and athlete invite acceptance
 /auth    - login, signup, session handling
 ```
+
+Role-shell rule:
+
+- Coach and department-lead shells are scoped operational surfaces, not alternate admin dashboards.
+- Department-lead routes live under `/department/...` and are documented in `docs/role-workspaces-v1.md`.
+- Team Workspace keeps its own Home / Calendar / Players / Groups / Staff-Settings navigation after a concrete team is opened.
+- Calendars share one Untis-style engine and become smarter through context rather than separate per-role implementations.
 
 ## Technical direction
 

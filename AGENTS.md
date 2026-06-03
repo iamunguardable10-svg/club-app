@@ -22,6 +22,7 @@ For feature, auth, role, Supabase, invite, facility, calendar or load work, also
 - `docs/project-log.md`
 - `docs/v1-decisions.md`
 - `docs/core-flows.md`
+- `docs/agent-workflow.md` when changing agent tooling, hooks, review workflow or ECC setup
 
 ## Hard product rules
 

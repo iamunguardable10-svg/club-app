@@ -32,6 +32,7 @@ For meaningful product or code reviews, read:
 - `docs/project-log.md`
 - `docs/v1-decisions.md`
 - `docs/core-flows.md`
+- `docs/agent-workflow.md` for local review hooks, ECC bootstrap decisions and builder/reviewer workflow
 - the current git diff
 
 ## Review output format

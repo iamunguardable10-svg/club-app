@@ -198,6 +198,51 @@ enter edit mode -> activate session editing -> move/resize
 
 The warning may later support "do not show again for this edit session".
 
+### Shared calendar implementation update
+
+Current rule:
+
+```txt
+Use one shared calendar engine and change behavior through context.
+```
+
+The same interaction model is now used across athlete, team, coach, department and facility calendars:
+
+- view mode is safe for inspection
+- edit mode enables moving, resizing and deleting manageable sessions
+- slot taps create a visual draft in the calendar first
+- the edit sheet opens only after the draft is intentionally confirmed or tapped, not immediately on the first empty-slot tap
+- existing sessions open a detail sheet in view mode
+- existing sessions open the compact edit flow from the edit action when the user has permission
+
+The draft-first rule matters because the calendar should be useful as a spatial planning tool. If a modal opens immediately on the first tap, users cannot first drag, resize and visually place the unit.
+
+### Session edit sheet V1
+
+The compact edit sheet owns all session-changing decisions:
+
+- start time
+- duration
+- session type
+- owner team
+- facility
+- participant scope / groups
+
+Defaults:
+
+```txt
+Team calendar  -> team fixed, team default facility preselected
+Coach calendar -> team preselected if one team is assigned; team required if several assigned teams exist
+Facility       -> facility fixed, team required unless context fixes one team
+Department     -> department fixed, team/facility scoped to that department
+```
+
+Session type defaults to `Team training`.
+
+Team and facility selection may sit side by side when both are required. On mobile, controls must stay compact and must not overflow the sheet.
+
+Participant and group targeting is editable only through the edit sheet. The read-only session detail sheet must not silently mutate participant scope because that directly changes athlete calendars.
+
 ---
 
 ## Session ownership model

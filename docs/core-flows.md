@@ -97,6 +97,10 @@ Coach
 3. Session appears in athlete calendars.
 4. Athletes can report availability.
 
+## Current UX rule
+
+Calendar planning is governed by `docs/calendar-session-blueprint-v1.md`: place the session draft spatially first, then open the compact edit sheet only for missing context such as team, facility, type and groups.
+
 ---
 
 # Flow 5 — Availability Reporting
@@ -149,6 +153,10 @@ Coach can then:
 - adjust session
 - contact players
 - finalize attendance
+
+Current navigation rule:
+
+Coach Today is not a team list. Team launchers live in the Coach Teams page and open Team Workspace. Today is for same-day session decisions only.
 
 ## Key principle
 
