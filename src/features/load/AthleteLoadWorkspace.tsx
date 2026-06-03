@@ -2626,6 +2626,10 @@ function sessionEstimateLabel(au: number, averageSessionLoad: number) {
   return `about ${sessions.toFixed(1)} sessions`;
 }
 
+function formatCompactNumber(value: number) {
+  return new Intl.NumberFormat('en', { maximumFractionDigits: 0 }).format(value);
+}
+
 function LoadDetailsPanel({
   entries,
   latestEwma,
@@ -2645,6 +2649,23 @@ function LoadDetailsPanel({
   const currentAcwr = latestEwma?.acwr ?? null;
   const zone = loadZone(currentAcwr, baselineReady);
   const roomSummary = buildLoadRoomSummary(latestEwma, entries, baselineReady);
+  const monotony = latestEwma?.monotony ?? null;
+  const strain = latestEwma?.strain ?? null;
+  const stabilityReady = monotony !== null && strain !== null;
+  const monotonyState = !stabilityReady
+    ? { label: 'Building', tone: 'neutral' as const, detail: 'needs varied 7d history' }
+    : monotony >= 2
+      ? { label: 'High routine stress', tone: 'high' as const, detail: 'same load pattern repeated' }
+      : monotony >= 1.5
+        ? { label: 'Watch monotony', tone: 'low' as const, detail: 'training rhythm is tight' }
+        : { label: 'Varied week', tone: 'ready' as const, detail: 'load is distributed' };
+  const stabilityToneClass = monotonyState.tone === 'high'
+    ? 'border-rose-400/35 bg-rose-400/10 text-rose-100'
+    : monotonyState.tone === 'low'
+      ? 'border-amber-300/35 bg-amber-300/10 text-amber-100'
+      : monotonyState.tone === 'ready'
+        ? 'border-emerald-400/35 bg-emerald-400/10 text-emerald-100'
+        : 'border-slate-800 bg-slate-950/75 text-slate-300';
   const guidance = roomSummary.mode === 'overload'
     ? 'Stay light until the red segment clears.'
     : roomSummary.mode === 'underload'
@@ -2695,6 +2716,26 @@ function LoadDetailsPanel({
             Reliable guidance starts after about 30 recorded days.
           </div>
         ) : null}
+
+        <div className={`mt-4 rounded-2xl border p-4 ${stabilityToneClass}`}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Week stability</p>
+              <p className="mt-1 text-lg font-black text-white">{monotonyState.label}</p>
+              <p className="mt-1 text-xs font-bold text-slate-400">{monotonyState.detail}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-right">
+              <div className="rounded-xl border border-white/10 bg-slate-950/45 px-3 py-2">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">Monotony</p>
+                <p className="mt-1 text-base font-black text-white">{stabilityReady ? monotony.toFixed(2) : '-'}</p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-slate-950/45 px-3 py-2">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">Strain</p>
+                <p className="mt-1 text-base font-black text-white">{stabilityReady ? `${formatCompactNumber(strain)} AU` : '-'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">

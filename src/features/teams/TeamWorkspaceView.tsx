@@ -1569,7 +1569,7 @@ export function TeamWorkspaceView({
             onFacilityChange={handleDashboardSessionFacilityChange}
             groups={data.groups.map((group) => ({ id: group.id, name: group.name, playerCount: group.playerCount }))}
             selectedGroupIds={dashboardSession.groupIds ?? []}
-            canEditGroups={data.role !== 'viewer' && Boolean(onSessionGroupsChange)}
+            canEditGroups={false}
             onGroupsChange={handleDashboardSessionGroupsChange}
             attendance={attendance}
             load={loadForSession(dashboardSession, sessionPlayers)}

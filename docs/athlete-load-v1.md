@@ -77,6 +77,15 @@ Athletes use one session form for both expected and completed load. Future dates
 
 V1 uses EWMA as the default ACWR method for athlete and coach-facing surfaces. EWMA uses lambda 2/(7+1) and 2/(28+1) over the filled calendar-day series. Rolling ACWR can remain available internally for later settings, but the active UI no longer exposes a method toggle.
 
+## Monotony and strain
+
+Athlete Load now calculates classic 7-day monotony and strain as secondary risk signals:
+
+- monotony = mean daily load over the last 7 filled calendar days / population standard deviation of those 7 daily loads
+- strain = 7-day total load × monotony
+
+These values are shown in the Load detail area as `Week stability`, not in the main cockpit. They are hidden as `building` when the 7-day window has no useful variance or fewer than 7 filled days, so the UI does not create infinite or misleading early values. V1 does not forecast monotony or strain; only historical 7-day stability is shown.
+
 
 ## Sharing and coach visibility
 

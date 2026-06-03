@@ -311,6 +311,8 @@ Session
 
 Groups remain team-internal targeting and analysis. They are not the primary unit for the coach-today session view; the session view must name the concrete affected players.
 
+Participant/group targeting is a session-edit action. Read-only session detail surfaces can show selected groups, but they should not let the coach silently change participant scope because that changes athlete calendars and availability expectations.
+
 Group cards should avoid abstract metrics when concrete player-level signals exist. Prefer:
 
 ```txt

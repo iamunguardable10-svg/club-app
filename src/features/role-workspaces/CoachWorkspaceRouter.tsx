@@ -275,13 +275,19 @@ export type CoachSessionCreateInput = { startsAt: string; endsAt: string; teamId
 const coachSessionTypes = [
   { value: 'training', label: 'Team training' },
   { value: 'game', label: 'Game' },
-  { value: 'strength', label: 'Strength' },
-  { value: 'individual', label: 'Individual' },
+  { value: 's_and_c', label: 'Strength' },
+  { value: 'other', label: 'Individual' },
   { value: 'recovery', label: 'Recovery' },
 ];
 
 function labelForCoachSessionType(value: string) {
-  return coachSessionTypes.find((type) => type.value === value)?.label ?? 'Training';
+  return coachSessionTypes.find((type) => type.value === normalizeCoachSessionType(value))?.label ?? 'Training';
+}
+
+function normalizeCoachSessionType(value?: string | null) {
+  if (value === 'strength') return 's_and_c';
+  if (value === 'individual') return 'other';
+  return value ?? 'training';
 }
 
 function CoachSessionEditSheet({
@@ -318,7 +324,7 @@ function CoachSessionEditSheet({
     return `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
   });
   const [durationValue, setDurationValue] = useState(() => String(durationMinutes(new Date(initial.startsAt), new Date(initial.endsAt))));
-  const [sessionType, setSessionType] = useState(initial.sessionType ?? 'training');
+  const [sessionType, setSessionType] = useState(normalizeCoachSessionType(initial.sessionType));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const teamGroups = groups.filter((group) => group.teamId === teamId);
 
@@ -581,12 +587,12 @@ export function CoachCalendarSurface({
   }, [activeDayIndex, days, desktopHourHeight, drag, mobileCalendarView, onUpdateSession]);
 
   const editingSession = editor?.kind === 'session' ? localSessions.find((session) => session.id === editor.sessionId) ?? null : null;
-  const editorInitial = editingSession ? { startsAt: editingSession.startsAt, endsAt: editingSession.endsAt ?? addMinutes(new Date(editingSession.startsAt), 90).toISOString(), teamId: editingSession.teamId, facilityId: editingSession.facilityId, groupIds: editingSession.groupIds, sessionType: editingSession.sessionType } : draft;
+  const editorInitial = editingSession ? { startsAt: editingSession.startsAt, endsAt: editingSession.endsAt ?? addMinutes(new Date(editingSession.startsAt), 90).toISOString(), teamId: editingSession.teamId, facilityId: editingSession.facilityId, groupIds: editingSession.groupIds, sessionType: normalizeCoachSessionType(editingSession.sessionType) } : draft;
   return (
     <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
       <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Coach calendar</p><h2 className="mt-2 text-2xl font-black">All assigned teams</h2></div></div>
       <SmartSessionCalendar mode={mode} canCreateSessions={teams.length > 0 && facilities.length > 0} days={days} hours={calendarHours} firstHour={firstHour} lastHour={lastHour} mobileVisibleHours={mobileVisibleHours} mobileFirstHour={mobileFirstHour} mobileHourHeight={mobileHourHeight} mobileGridHeight={mobileGridHeight} desktopHourHeight={desktopHourHeight} activeDayIndex={activeDayIndex} mobileCalendarView={mobileCalendarView} dayTransitionDirection={dayTransitionDirection} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null} weekLabel={weekLabel} isCurrentWeek={weekOffset === 0} calendarScrollRef={calendarScrollRef} setDayRef={(index, element) => { dayRefs.current[index] = element; }} onSetMode={setMode} onClearDraft={() => setDraft(null)} onPreviousWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onResetWeek={resetWeek} onMobileDaySelect={switchMobileDay} onMobileCalendarViewChange={setMobileCalendarView} onMobileDaySwipeStart={handleMobileDaySwipeStart} onMobileDaySwipeEnd={handleMobileDaySwipeEnd} onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }} onSlotPointerDown={handleSlotPointerDown} onSessionPointerDown={startSessionDrag} onSessionClick={handleSessionClick} onSessionKeyDown={handleSessionKeyDown} onDraftPointerDown={startDraftDrag} onDraftClick={() => setEditor({ kind: 'draft' })} onDraftCancel={() => setDraft(null)} />
-      {editor && editorInitial ? <CoachSessionEditSheet title={editor.kind === 'draft' ? 'New training' : editingSession?.title ?? 'Training'} teams={teams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { setIsSaving(true); try { if (editor.kind === 'draft') { await onCreateSession(value); setDraft(null); } else if (editingSession) { await onUpdateSession({ sessionId: editingSession.id, ...value }); } setEditor(null); } finally { setIsSaving(false); } }} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : undefined} onClose={() => setEditor(null)} /> : null}
+      {editor && editorInitial ? <CoachSessionEditSheet key={editor.kind === 'session' ? `session-${editor.sessionId}` : `draft-${editorInitial.startsAt}-${editorInitial.teamId ?? 'none'}`} title={editor.kind === 'draft' ? 'New training' : editingSession?.title ?? 'Training'} teams={teams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { setIsSaving(true); try { if (editor.kind === 'draft') { await onCreateSession(value); setDraft(null); } else if (editingSession) { await onUpdateSession({ sessionId: editingSession.id, ...value }); } setEditor(null); } finally { setIsSaving(false); } }} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : undefined} onClose={() => setEditor(null)} /> : null}
     </section>
   );
 }

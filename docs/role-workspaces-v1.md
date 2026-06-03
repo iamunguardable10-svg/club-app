@@ -153,7 +153,9 @@ Coach OS now separates role-level work from Team Workspace:
 - `Today` stays the cross-team cockpit for same-day sessions, late/out flags and load risks.
 - `Calendar` is a coach-wide Untis calendar using the shared `SmartSessionCalendar` engine across all assigned teams.
 - If a coach has one team, Team Workspace remains directly reachable, but role-level `Calendar`, `Facilities` and `History` still exist because hall discovery and historical review are not team-local only.
-- Creating a coach-calendar session opens the compact edit screen before saving. With multiple teams the coach must verify/select the team; the selected team's default facility is applied automatically and remains editable.
+- Creating a coach-calendar session first creates a draggable/resizable draft in the calendar. The compact edit screen opens only when the coach taps/confirms that draft or edits an existing session.
+- With multiple teams the coach must verify/select the team in the edit screen; the selected team's default facility is applied automatically and remains editable.
+- Coach calendar session types use the canonical `sessions.session_type` values from Supabase (`training`, `game`, `s_and_c`, `recovery`, `other`). The UI may label `s_and_c` as Strength and `other` as Individual, but it should not write athlete-load type values such as `strength` or `individual` into `sessions`.
 - Group/participant targeting is editable only inside the edit-session screen, not through the read-only session detail screen, because changing participants affects athlete calendars.
 - Sessions can be deleted from coach and team calendar flows through `AppConfirmDialog`.
 - `History` V1 shows recent completed sessions and waits for a high enough load-report rate before treating average RPE as meaningful.

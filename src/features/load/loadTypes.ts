@@ -96,6 +96,8 @@ export type ACWRDataPoint = {
   acuteLoad: number;
   chronicLoad: number;
   acwr: number | null;
+  monotony: number | null;
+  strain: number | null;
   chronicFull: boolean;
   isProjected?: boolean;
   forecastBasis?: string;

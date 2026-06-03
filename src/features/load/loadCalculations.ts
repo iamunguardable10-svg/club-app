@@ -83,6 +83,21 @@ function roundNullableRatio(value: number | null) {
   return value === null ? null : Math.round(value * 100) / 100;
 }
 
+function weeklyLoadStability(loads: number[], index: number) {
+  if (index < 6) return { monotony: null, strain: null };
+  const slice = loads.slice(index - 6, index + 1);
+  const total = slice.reduce((sum, value) => sum + value, 0);
+  const mean = total / slice.length;
+  const variance = slice.reduce((sum, value) => sum + (value - mean) ** 2, 0) / slice.length;
+  const standardDeviation = Math.sqrt(variance);
+  if (total <= 0 || standardDeviation <= 0) return { monotony: null, strain: null };
+  const monotony = mean / standardDeviation;
+  return {
+    monotony: roundNullableRatio(monotony),
+    strain: Math.round(total * monotony),
+  };
+}
+
 export function baselineAgeDays(entries: AthleteLoadEntry[]) {
   const days = fillMissingDays(aggregateDailyLoads(entries));
   return days.length;
@@ -108,6 +123,7 @@ export function calculateACWR(entries: AthleteLoadEntry[]): ACWRDataPoint[] {
   return days.map((day, index) => {
     const { acute, chronic } = trendAt(loads, index, 'rolling');
     const acwr = acwrRatio(index, acute, chronic);
+    const stability = weeklyLoadStability(loads, index);
 
     return {
       date: day.date,
@@ -115,6 +131,8 @@ export function calculateACWR(entries: AthleteLoadEntry[]): ACWRDataPoint[] {
       acuteLoad: Math.round(acute),
       chronicLoad: Math.round(chronic),
       acwr: roundNullableRatio(acwr),
+      monotony: stability.monotony,
+      strain: stability.strain,
       chronicFull: index >= 27,
     };
   });
@@ -129,12 +147,15 @@ export function calculateEWMA(entries: AthleteLoadEntry[]): ACWRDataPoint[] {
   return days.map((day, index) => {
     const { acute, chronic } = trendAt(loads, index, 'ewma');
     const acwr = acwrRatio(index, acute, chronic);
+    const stability = weeklyLoadStability(loads, index);
     return {
       date: day.date,
       totalLoad: day.totalLoad,
       acuteLoad: Math.round(acute),
       chronicLoad: Math.round(chronic),
       acwr: roundNullableRatio(acwr),
+      monotony: stability.monotony,
+      strain: stability.strain,
       chronicFull: index >= 27,
     };
   });
@@ -227,6 +248,8 @@ export function projectFutureACWR(entries: AthleteLoadEntry[], plannedSessions: 
       acuteLoad: Math.round(acute),
       chronicLoad: Math.round(chronic),
       acwr: roundNullableRatio(acwr),
+      monotony: null,
+      strain: null,
       chronicFull: index >= 27,
       isProjected: true,
       forecastBasis,
