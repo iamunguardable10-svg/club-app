@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type LoadTrainingType } from '@/features/load/loadTypes';
 import type { CoachSession } from '@/features/role-workspaces/CoachTypes';
+import { PlayerLoadDetail, type PlayerLoadDetailPlayer } from '@/features/players/PlayerLoadDetail';
 
 type LoadRiskPlayer = { risk: string; acwr: number | null };
 
@@ -52,42 +54,74 @@ export function CoachSessionDetailOverlay({
   onClose: () => void;
 }) {
   const summary = summarizeCoachSession(session);
+  const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
+  const activePlayer = session.players.find((player) => player.id === activePlayerId) ?? null;
+  const activePlayerDetail: PlayerLoadDetailPlayer | null = activePlayer
+    ? {
+        id: activePlayer.id,
+        name: activePlayer.name,
+        loadEntries: activePlayer.loadEntries,
+        attendanceEvents: session.availability
+          .filter((item) => item.userId === activePlayer.id)
+          .map((item) => ({
+            sessionId: session.id,
+            title: session.title,
+            startsAt: session.startsAt,
+            status: item.status,
+            reason: item.reason,
+            lateMinutes: item.lateMinutes,
+          })),
+      }
+    : null;
   return (
-    <SessionDetailSheet
-      title={session.title}
-      startsAt={session.startsAt}
-      endsAt={session.endsAt}
-      teamName={session.teamName}
-      departmentName={session.departmentName}
-      facilityName={session.facilityName}
-      attendance={{
-        expected: session.players.length,
-        late: summary.late.length,
-        out: summary.out.length,
-        notes: session.availability.map((item) => ({
-          id: item.id,
-          name: item.playerName,
-          status: item.status,
-          detail: item.status === 'late' && item.lateMinutes ? `${item.lateMinutes} min` : item.reason,
-        })),
-      }}
-      loadRisks={summary.risks.map((player) => ({ id: player.id, name: player.name, status: player.risk as 'high' | 'low', detail: player.acwr !== null ? `${player.acwr.toFixed(2)} ACWR` : null }))}
-      participants={session.players.map((player) => {
-        const flag = session.availability.find((item) => item.userId === player.id);
-        return {
-          id: player.id,
-          name: player.name,
-          status: flag?.status ?? 'expected',
-          detail: flag?.status === 'late' && flag.lateMinutes ? `${flag.lateMinutes} min` : flag?.reason ?? null,
-        };
-      })}
-      actions={<>
-        <button type="button" onClick={onEdit} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit session</button>
-        <button type="button" onClick={onDelete} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">Delete session</button>
-        <Link href={calendarHref} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</Link>
-      </>}
-      onClose={onClose}
-    />
+    <>
+      <SessionDetailSheet
+        title={session.title}
+        startsAt={session.startsAt}
+        endsAt={session.endsAt}
+        teamName={session.teamName}
+        departmentName={session.departmentName}
+        facilityName={session.facilityName}
+        attendance={{
+          expected: session.players.length,
+          late: summary.late.length,
+          out: summary.out.length,
+          notes: session.availability.map((item) => ({
+            id: item.id,
+            name: item.playerName,
+            status: item.status,
+            detail: item.status === 'late' && item.lateMinutes ? `${item.lateMinutes} min` : item.reason,
+          })),
+        }}
+        loadRisks={summary.risks.map((player) => ({ id: player.id, name: player.name, status: player.risk as 'high' | 'low', detail: player.acwr !== null ? `${player.acwr.toFixed(2)} ACWR` : null }))}
+        participants={session.players.map((player) => {
+          const flag = session.availability.find((item) => item.userId === player.id);
+          return {
+            id: player.id,
+            name: player.name,
+            status: flag?.status ?? 'expected',
+            detail: flag?.status === 'late' && flag.lateMinutes ? `${flag.lateMinutes} min` : flag?.reason ?? null,
+          };
+        })}
+        onParticipantSelect={setActivePlayerId}
+        actions={<>
+          <button type="button" onClick={onEdit} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit session</button>
+          <button type="button" onClick={onDelete} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">Delete session</button>
+          <Link href={calendarHref} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</Link>
+        </>}
+        onClose={onClose}
+      />
+      {activePlayerDetail ? (
+        <PlayerLoadDetail
+          player={activePlayerDetail}
+          teamName={session.teamName}
+          attendanceContextLabel="From this session"
+          emptyAttendanceLabel="No late/out flag for this session."
+          showAttendanceRange={false}
+          onClose={() => setActivePlayerId(null)}
+        />
+      ) : null}
+    </>
   );
 }
 

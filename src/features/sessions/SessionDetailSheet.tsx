@@ -83,6 +83,7 @@ export function SessionDetailSheet({
   load,
   loadRisks = [],
   participants = [],
+  onParticipantSelect,
   editDetails,
   editOpenKey,
   canEditTime = false,
@@ -109,6 +110,7 @@ export function SessionDetailSheet({
   load?: SessionDetailLoad;
   loadRisks?: SessionDetailLoadRisk[];
   participants?: SessionDetailParticipant[];
+  onParticipantSelect?: (participantId: string) => void;
   editDetails?: ReactNode;
   editOpenKey?: string | null;
   canEditTime?: boolean;
@@ -262,12 +264,20 @@ export function SessionDetailSheet({
           <div className="mt-3 rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Load risks</p>
             <div className="mt-3 grid gap-2">
-              {loadRisks.map((risk) => (
-                <div key={risk.id} className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm font-bold ${risk.status === 'high' ? 'border-rose-400/30 bg-rose-400/10' : 'border-sky-400/30 bg-sky-400/10'}`}>
-                  <span className="text-slate-100">{risk.name}</span>
-                  <span className={risk.status === 'high' ? 'text-rose-200' : 'text-sky-200'}>{risk.status === 'high' ? 'High load' : 'Low load'}{risk.detail ? ` · ${risk.detail}` : ''}</span>
-                </div>
-              ))}
+              {loadRisks.map((risk) => {
+                const className = `flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm font-bold transition ${risk.status === 'high' ? 'border-rose-400/30 bg-rose-400/10' : 'border-sky-400/30 bg-sky-400/10'} ${onParticipantSelect ? 'hover:border-white/35 hover:bg-slate-900/65' : ''}`;
+                const content = (
+                  <>
+                    <span className="text-slate-100">{risk.name}</span>
+                    <span className={risk.status === 'high' ? 'text-rose-200' : 'text-sky-200'}>{risk.status === 'high' ? 'High load' : 'Low load'}{risk.detail ? ` · ${risk.detail}` : ''}</span>
+                  </>
+                );
+                return onParticipantSelect ? (
+                  <button key={risk.id} type="button" onClick={() => onParticipantSelect(risk.id)} className={className}>{content}</button>
+                ) : (
+                  <div key={risk.id} className={className}>{content}</div>
+                );
+              })}
             </div>
           </div>
         ) : null}
@@ -314,12 +324,20 @@ export function SessionDetailSheet({
             </button>
             {showParticipants ? (
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {expectedParticipants.map((player) => (
-                  <div key={player.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm font-bold">
-                    <span className="text-slate-100">{player.name}</span>
-                    <span className={statusClass(player.status)}>{player.status ?? 'expected'}{player.detail ? ` · ${player.detail}` : ''}</span>
-                  </div>
-                ))}
+                {expectedParticipants.map((player) => {
+                  const className = `flex w-full items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-left text-sm font-bold transition ${onParticipantSelect ? 'hover:border-emerald-300/50 hover:bg-slate-900' : ''}`;
+                  const content = (
+                    <>
+                      <span className="text-slate-100">{player.name}</span>
+                      <span className={statusClass(player.status)}>{player.status ?? 'expected'}{player.detail ? ` · ${player.detail}` : ''}</span>
+                    </>
+                  );
+                  return onParticipantSelect ? (
+                    <button key={player.id} type="button" onClick={() => onParticipantSelect(player.id)} className={className}>{content}</button>
+                  ) : (
+                    <div key={player.id} className={className}>{content}</div>
+                  );
+                })}
               </div>
             ) : null}
           </div>
