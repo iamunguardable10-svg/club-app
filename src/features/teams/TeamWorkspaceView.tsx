@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
+import { findFacilityConflicts, formatConflictDescription, type ConflictSession } from '@/features/calendar/sessionConflicts';
 import { LoadChart } from '@/features/load/AthleteLoadWorkspace';
 import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
 import { LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/features/load/loadTypes';
@@ -91,6 +92,10 @@ export type TeamWorkspaceData = {
 
 type TeamCalendarDrag = { target: 'session' | 'draft'; sessionId?: string; kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date; minutesPerPixel: number };
 type TeamCalendarDraft = { startsAt: string; endsAt: string };
+type TeamCalendarSave =
+  | { kind: 'create'; startsAt: string; endsAt: string }
+  | { kind: 'time'; sessionId: string; startsAt: string; endsAt: string }
+  | { kind: 'facility'; sessionId: string; facilityId: string };
 
 const calendarHours = Array.from({ length: 17 }, (_, index) => index + 7);
 const firstHour = calendarHours[0] ?? 7;
@@ -372,6 +377,9 @@ function TeamSmartCalendar({
   const [draft, setDraft] = useState<TeamCalendarDraft | null>(null);
   const [localSessions, setLocalSessions] = useState<TeamWorkspaceSession[]>(data.sessions);
   const [isSavingSessionFacility, setIsSavingSessionFacility] = useState(false);
+  const [isSavingCalendar, setIsSavingCalendar] = useState(false);
+  const [pendingConflictSave, setPendingConflictSave] = useState<TeamCalendarSave | null>(null);
+  const [conflictDescription, setConflictDescription] = useState<string | null>(null);
   const didDragRef = useRef(false);
   const calendarScrollRef = useRef<HTMLDivElement | null>(null);
   const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -382,6 +390,35 @@ function TeamSmartCalendar({
   const canCreateSessions = data.role !== 'viewer' && Boolean(onSessionCreate && (data.defaultFacilityId || (data.availableFacilities?.length ?? 0) > 0));
   const canManageCalendar = canManageExistingSessions || canCreateSessions;
   const weekLabel = useMemo(() => formatWeekLabel(days), [days]);
+
+  const conflictSessions = useMemo<ConflictSession[]>(() => {
+    const byId = new Map<string, ConflictSession>();
+    for (const session of data.contextSessions ?? []) {
+      byId.set(session.id, {
+        id: session.id,
+        title: session.title,
+        startsAt: session.startsAt,
+        endsAt: session.endsAt,
+        facilityId: session.facilityId ?? null,
+        facilityName: session.facilityName ?? null,
+        teamName: null,
+        departmentName: null,
+      });
+    }
+    for (const session of localSessions) {
+      byId.set(session.id, {
+        id: session.id,
+        title: session.title,
+        startsAt: session.startsAt,
+        endsAt: session.endsAt,
+        facilityId: session.facilityId ?? data.defaultFacilityId ?? null,
+        facilityName: session.facilityName ?? data.defaultFacilityName ?? null,
+        teamName: data.name,
+        departmentName: data.departmentName,
+      });
+    }
+    return Array.from(byId.values());
+  }, [data.contextSessions, data.defaultFacilityId, data.defaultFacilityName, data.departmentName, data.name, localSessions]);
 
   function changeWeek(delta: number) {
     setDraft(null);
@@ -614,26 +651,75 @@ function TeamSmartCalendar({
     });
   }
 
+  async function persistTeamCalendarSave(save: TeamCalendarSave) {
+    setIsSavingCalendar(true);
+    try {
+      if (save.kind === 'create') {
+        if (!onSessionCreate) return false;
+        await onSessionCreate(save.startsAt, save.endsAt);
+        setDraft(null);
+        return true;
+      }
+      if (save.kind === 'time') {
+        if (!onSessionTimeChange) return false;
+        setLocalSessions((current) =>
+          current.map((session) => (session.id === save.sessionId ? { ...session, startsAt: save.startsAt, endsAt: save.endsAt } : session)),
+        );
+        await onSessionTimeChange(save.sessionId, save.startsAt, save.endsAt);
+        return true;
+      }
+      if (!onSessionFacilityChange) return false;
+      const facility = data.availableFacilities?.find((item) => item.id === save.facilityId);
+      setIsSavingSessionFacility(true);
+      await onSessionFacilityChange(save.sessionId, save.facilityId);
+      setLocalSessions((current) =>
+        current.map((session) =>
+          session.id === save.sessionId ? { ...session, facilityId: save.facilityId, facilityName: facility?.name ?? session.facilityName ?? null } : session,
+        ),
+      );
+      return true;
+    } finally {
+      setIsSavingSessionFacility(false);
+      setIsSavingCalendar(false);
+    }
+  }
+
+  async function requestTeamCalendarSave(save: TeamCalendarSave, bypassConflict = false) {
+    const session = save.kind === 'create' ? null : localSessions.find((item) => item.id === save.sessionId) ?? null;
+    const facilityId = save.kind === 'create'
+      ? data.defaultFacilityId ?? data.availableFacilities?.[0]?.id ?? null
+      : save.kind === 'facility'
+        ? save.facilityId
+        : session?.facilityId ?? data.defaultFacilityId ?? null;
+    const candidate = save.kind === 'create'
+      ? { startsAt: save.startsAt, endsAt: save.endsAt, facilityId }
+      : save.kind === 'time'
+        ? { id: save.sessionId, startsAt: save.startsAt, endsAt: save.endsAt, facilityId }
+        : { id: save.sessionId, startsAt: session?.startsAt ?? new Date().toISOString(), endsAt: session?.endsAt ?? null, facilityId };
+    const conflicts = bypassConflict ? [] : findFacilityConflicts(candidate, conflictSessions);
+    if (conflicts.length > 0) {
+      setSelectedSessionId(null);
+      setPendingConflictSave(save);
+      setConflictDescription(formatConflictDescription(conflicts));
+      return false;
+    }
+    return persistTeamCalendarSave(save);
+  }
+
+  function cancelTeamConflictSave() {
+    setPendingConflictSave(null);
+    setConflictDescription(null);
+    setLocalSessions(data.sessions);
+  }
+
   async function confirmDraft() {
     if (!draft || !onSessionCreate) return;
-    await onSessionCreate(draft.startsAt, draft.endsAt);
-    setDraft(null);
+    await requestTeamCalendarSave({ kind: 'create', startsAt: draft.startsAt, endsAt: draft.endsAt });
   }
 
   async function handleSelectedSessionFacilityChange(facilityId: string) {
     if (!selectedSession || !onSessionFacilityChange) return;
-    const facility = data.availableFacilities?.find((item) => item.id === facilityId);
-    setIsSavingSessionFacility(true);
-    try {
-      await onSessionFacilityChange(selectedSession.id, facilityId);
-      setLocalSessions((current) =>
-        current.map((session) =>
-          session.id === selectedSession.id ? { ...session, facilityId, facilityName: facility?.name ?? session.facilityName ?? null } : session,
-        ),
-      );
-    } finally {
-      setIsSavingSessionFacility(false);
-    }
+    await requestTeamCalendarSave({ kind: 'facility', sessionId: selectedSession.id, facilityId });
   }
 
   async function handleSelectedSessionGroupsChange(groupIds: string[]) {
@@ -645,11 +731,8 @@ function TeamSmartCalendar({
   }
 
   async function handleSelectedSessionTimeChange(startsAt: string, endsAt: string) {
-    if (!selectedSession || !onSessionTimeChange) return;
-    setLocalSessions((current) =>
-      current.map((session) => (session.id === selectedSession.id ? { ...session, startsAt, endsAt } : session)),
-    );
-    await onSessionTimeChange(selectedSession.id, startsAt, endsAt);
+    if (!selectedSession) return;
+    await requestTeamCalendarSave({ kind: 'time', sessionId: selectedSession.id, startsAt, endsAt });
   }
 
   async function confirmDeleteSession() {
@@ -669,6 +752,11 @@ function TeamSmartCalendar({
     setMode('edit');
     setSelectedSessionEditKey(`${sessionId}-${Date.now()}`);
   }
+
+  const requestTeamCalendarSaveRef = useRef(requestTeamCalendarSave);
+  useEffect(() => {
+    requestTeamCalendarSaveRef.current = requestTeamCalendarSave;
+  }, [requestTeamCalendarSave]);
 
   useEffect(() => {
     if (!drag) return;
@@ -738,7 +826,7 @@ function TeamSmartCalendar({
     function handlePointerUp() {
       setDrag(null);
       if (activeDrag.target === 'session' && activeDrag.sessionId) {
-        void onSessionTimeChange?.(activeDrag.sessionId, latestStart.toISOString(), latestEnd.toISOString());
+        void requestTeamCalendarSaveRef.current({ kind: 'time', sessionId: activeDrag.sessionId, startsAt: latestStart.toISOString(), endsAt: latestEnd.toISOString() });
       }
     }
 
@@ -748,7 +836,7 @@ function TeamSmartCalendar({
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
     };
-  }, [activeDayIndex, days, desktopHourHeight, drag, mobileCalendarView, onSessionTimeChange]);
+  }, [activeDayIndex, days, desktopHourHeight, drag, mobileCalendarView]);
 
   return (
     <div className="mt-5 space-y-4">
@@ -846,6 +934,22 @@ function TeamSmartCalendar({
         isConfirming={isDeletingSession}
         onConfirm={() => { void confirmDeleteSession(); }}
         onCancel={() => setDeleteTargetId(null)}
+      />
+      <AppConfirmDialog
+        isOpen={Boolean(pendingConflictSave)}
+        title="Hall conflict"
+        description={conflictDescription ?? 'This hall already has another session at this time.'}
+        confirmLabel="Keep anyway"
+        cancelLabel="Review time"
+        isConfirming={isSavingCalendar}
+        onConfirm={() => {
+          if (!pendingConflictSave) return;
+          void requestTeamCalendarSave(pendingConflictSave, true).then(() => {
+            setPendingConflictSave(null);
+            setConflictDescription(null);
+          });
+        }}
+        onCancel={cancelTeamConflictSave}
       />
     </div>
   );

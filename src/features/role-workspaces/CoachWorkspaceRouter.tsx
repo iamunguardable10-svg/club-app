@@ -10,6 +10,7 @@ import { sessionTypeToLoadType, type AthleteLoadEntry, type LoadTrainingType } f
 import type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 import { CoachHistorySessionCard, CoachSessionDetailOverlay, sortCoachLoadRisks } from '@/features/role-workspaces/CoachSessionSurfaces';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
+import { findFacilityConflicts, formatConflictDescription, type ConflictSession } from '@/features/calendar/sessionConflicts';
 import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
@@ -237,6 +238,7 @@ function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDet
 
 type CoachCalendarDrag = { target: 'session' | 'draft'; sessionId?: string; kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date; minutesPerPixel: number };
 type CoachCalendarDraft = { startsAt: string; endsAt: string; teamId: string | null; facilityId: string | null; groupIds: string[]; sessionType: string };
+type CoachCalendarSave = { kind: 'create'; input: CoachSessionCreateInput } | { kind: 'update'; input: CoachSessionMutation };
 
 const coachSessionTypes = [
   { value: 'training', label: 'Team training' },
@@ -441,6 +443,7 @@ export function CoachCalendarSurface({
   sessions,
   facilities,
   groups,
+  facilityConflictSessions = [],
   onCreateSession,
   onUpdateSession,
   onDeleteSession,
@@ -452,6 +455,7 @@ export function CoachCalendarSurface({
   sessions: CoachSession[];
   facilities: CoachFacility[];
   groups: CoachGroup[];
+  facilityConflictSessions?: ConflictSession[];
   onCreateSession: (input: CoachSessionCreateInput) => void | Promise<void>;
   onUpdateSession: (input: CoachSessionMutation) => void | Promise<void>;
   onDeleteSession: (sessionId: string) => void | Promise<void>;
@@ -471,6 +475,8 @@ export function CoachCalendarSurface({
   const [localSessions, setLocalSessions] = useState<CoachSession[]>(sessions);
   const [editor, setEditor] = useState<{ kind: 'draft' } | { kind: 'session'; sessionId: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [pendingConflictSave, setPendingConflictSave] = useState<CoachCalendarSave | null>(null);
+  const [conflictDescription, setConflictDescription] = useState<string | null>(null);
   const didDragRef = useRef(false);
   const calendarScrollRef = useRef<HTMLDivElement | null>(null);
   const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -512,6 +518,64 @@ export function CoachCalendarSurface({
       canManage: true,
     }));
   }, [localSessions, teams]);
+
+  const conflictSessions = useMemo<ConflictSession[]>(() => {
+    const byId = new Map<string, ConflictSession>();
+    for (const session of facilityConflictSessions) byId.set(session.id, session);
+    for (const session of localSessions) {
+      byId.set(session.id, {
+        id: session.id,
+        title: session.title,
+        startsAt: session.startsAt,
+        endsAt: session.endsAt,
+        facilityId: session.facilityId,
+        facilityName: session.facilityName,
+        teamName: session.teamName,
+        departmentName: session.departmentName,
+      });
+    }
+    return Array.from(byId.values());
+  }, [facilityConflictSessions, localSessions]);
+
+  const persistCoachCalendarSave = useCallback(async (save: CoachCalendarSave) => {
+    setIsSaving(true);
+    try {
+      if (save.kind === 'create') {
+        await onCreateSession(save.input);
+        setDraft(null);
+      } else {
+        await onUpdateSession(save.input);
+      }
+      setEditor(null);
+      return true;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [onCreateSession, onUpdateSession]);
+
+  const requestCoachCalendarSave = useCallback(async (save: CoachCalendarSave, bypassConflict = false) => {
+    const candidate = save.kind === 'create'
+      ? { startsAt: save.input.startsAt, endsAt: save.input.endsAt, facilityId: save.input.facilityId }
+      : { id: save.input.sessionId, startsAt: save.input.startsAt, endsAt: save.input.endsAt, facilityId: save.input.facilityId };
+    const conflicts = bypassConflict ? [] : findFacilityConflicts(candidate, conflictSessions);
+    if (conflicts.length > 0) {
+      setEditor(null);
+      setPendingConflictSave(save);
+      setConflictDescription(formatConflictDescription(conflicts));
+      return false;
+    }
+    return persistCoachCalendarSave(save);
+  }, [conflictSessions, persistCoachCalendarSave]);
+
+  const cancelConflictSave = useCallback(() => {
+    setPendingConflictSave(null);
+    setConflictDescription(null);
+    setLocalSessions(sessions);
+  }, [sessions]);
+  const requestCoachCalendarSaveRef = useRef(requestCoachCalendarSave);
+  useEffect(() => {
+    requestCoachCalendarSaveRef.current = requestCoachCalendarSave;
+  }, [requestCoachCalendarSave]);
 
   function changeWeek(delta: number) { setDraft(null); setEditor(null); setDrag(null); setWeekOffset((current) => current + delta); }
   function resetWeek() { setDraft(null); setEditor(null); setDrag(null); setWeekOffset(0); setActiveDayIndex(Math.max(0, buildWeekDays().findIndex((day) => sameDay(day, new Date())))); }
@@ -641,10 +705,10 @@ export function CoachCalendarSurface({
       if (activeDrag.kind === 'resize') { const nextDuration = clamp(originalDuration + deltaMinutes, 30, maxMinutes - currentStartMinutes); applyTimes(activeDrag.originalStart, addMinutes(activeDrag.originalStart, nextDuration)); return; }
       const targetDay = days[dayIndexFromPointer(event.clientX)]; const nextStartMinutes = clamp(currentStartMinutes + deltaMinutes, 0, maxMinutes - originalDuration); const nextStart = createDateForCalendarMinute(targetDay, nextStartMinutes); applyTimes(nextStart, addMinutes(nextStart, originalDuration));
     }
-    function handlePointerUp() { setDrag(null); if (activeDrag.target === 'session' && activeDrag.sessionId) void onUpdateSession({ sessionId: activeDrag.sessionId, startsAt: latestStart.toISOString(), endsAt: latestEnd.toISOString(), facilityId: originalSession?.facilityId ?? '', groupIds: originalSession?.groupIds ?? [], sessionType: originalSession?.sessionType ?? 'training' }); }
+    function handlePointerUp() { setDrag(null); if (activeDrag.target === 'session' && activeDrag.sessionId) void requestCoachCalendarSaveRef.current({ kind: 'update', input: { sessionId: activeDrag.sessionId, startsAt: latestStart.toISOString(), endsAt: latestEnd.toISOString(), facilityId: originalSession?.facilityId ?? '', groupIds: originalSession?.groupIds ?? [], sessionType: originalSession?.sessionType ?? 'training' } }); }
     window.addEventListener('pointermove', handlePointerMove); window.addEventListener('pointerup', handlePointerUp, { once: true });
     return () => { window.removeEventListener('pointermove', handlePointerMove); window.removeEventListener('pointerup', handlePointerUp); };
-  }, [activeDayIndex, days, desktopHourHeight, drag, mobileCalendarView, onUpdateSession]);
+  }, [activeDayIndex, days, desktopHourHeight, drag, mobileCalendarView]);
 
   const editingSession = editor?.kind === 'session' ? localSessions.find((session) => session.id === editor.sessionId) ?? null : null;
   const editorInitial = editingSession ? { startsAt: editingSession.startsAt, endsAt: editingSession.endsAt ?? addMinutes(new Date(editingSession.startsAt), 90).toISOString(), teamId: editingSession.teamId, facilityId: editingSession.facilityId, groupIds: editingSession.groupIds, sessionType: normalizeCoachSessionType(editingSession.sessionType) } : draft;
@@ -652,7 +716,17 @@ export function CoachCalendarSurface({
     <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
       <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Coach calendar</p><h2 className="mt-2 text-2xl font-black">All assigned teams</h2></div></div>
       <SmartSessionCalendar mode={mode} canCreateSessions={teams.length > 0 && facilities.length > 0} days={days} hours={calendarHours} firstHour={firstHour} lastHour={lastHour} mobileVisibleHours={mobileVisibleHours} mobileFirstHour={mobileFirstHour} mobileHourHeight={mobileHourHeight} mobileGridHeight={mobileGridHeight} desktopHourHeight={desktopHourHeight} activeDayIndex={activeDayIndex} mobileCalendarView={mobileCalendarView} dayTransitionDirection={dayTransitionDirection} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null} weekLabel={weekLabel} isCurrentWeek={weekOffset === 0} calendarScrollRef={calendarScrollRef} setDayRef={(index, element) => { dayRefs.current[index] = element; }} onSetMode={setMode} onClearDraft={() => setDraft(null)} onPreviousWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onResetWeek={resetWeek} onMobileDaySelect={switchMobileDay} onMobileCalendarViewChange={setMobileCalendarView} onMobileDaySwipeStart={handleMobileDaySwipeStart} onMobileDaySwipeEnd={handleMobileDaySwipeEnd} onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }} onSlotPointerDown={handleSlotPointerDown} onSessionPointerDown={startSessionDrag} onSessionClick={handleSessionClick} onSessionKeyDown={handleSessionKeyDown} onDraftPointerDown={startDraftDrag} onDraftClick={() => setEditor({ kind: 'draft' })} onDraftCancel={() => setDraft(null)} />
-      {editor && editorInitial ? <CoachSessionEditSheet key={editor.kind === 'session' ? `session-${editor.sessionId}` : `draft-${editorInitial.startsAt}`} title={editor.kind === 'draft' ? 'New training' : editingSession?.title ?? 'Training'} teams={teams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { setIsSaving(true); try { if (editor.kind === 'draft') { await onCreateSession(value); setDraft(null); } else if (editingSession) { await onUpdateSession({ sessionId: editingSession.id, ...value }); } setEditor(null); } finally { setIsSaving(false); } }} onDraftUpdate={editor.kind === 'draft' ? (value) => setDraft((current) => current ? { ...current, ...value } : current) : undefined} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : undefined} onClose={() => setEditor(null)} /> : null}
+      {editor && editorInitial ? <CoachSessionEditSheet key={editor.kind === 'session' ? `session-${editor.sessionId}` : `draft-${editorInitial.startsAt}`} title={editor.kind === 'draft' ? 'New training' : editingSession?.title ?? 'Training'} teams={teams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { if (editor.kind === 'draft') { await requestCoachCalendarSave({ kind: 'create', input: value }); } else if (editingSession) { await requestCoachCalendarSave({ kind: 'update', input: { sessionId: editingSession.id, ...value } }); } }} onDraftUpdate={editor.kind === 'draft' ? (value) => setDraft((current) => current ? { ...current, ...value } : current) : undefined} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : undefined} onClose={() => setEditor(null)} /> : null}
+      <AppConfirmDialog
+        isOpen={Boolean(pendingConflictSave)}
+        title="Hall conflict"
+        description={conflictDescription ?? 'This hall already has another session at this time.'}
+        confirmLabel="Keep anyway"
+        cancelLabel="Cancel"
+        isConfirming={isSaving}
+        onConfirm={() => { if (pendingConflictSave) void requestCoachCalendarSave(pendingConflictSave, true).then(() => { setPendingConflictSave(null); setConflictDescription(null); }); }}
+        onCancel={cancelConflictSave}
+      />
     </section>
   );
 }
@@ -664,6 +738,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const editSessionId = searchParams.get('editSessionId');
   const [teams, setTeams] = useState<CoachTeam[]>([]);
   const [sessions, setSessions] = useState<CoachSession[]>([]);
+  const [facilityConflictSessions, setFacilityConflictSessions] = useState<ConflictSession[]>([]);
   const [facilities, setFacilities] = useState<CoachFacility[]>([]);
   const [groups, setGroups] = useState<CoachGroup[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
@@ -710,6 +785,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       if (teamIds.length === 0) {
         setTeams([]);
         setSessions([]);
+        setFacilityConflictSessions([]);
         setFacilities([]);
         setGroups([]);
         setState('ready');
@@ -791,6 +867,45 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           name: facility.name,
           departmentIds: departmentFacilityRows.filter((row) => row.facility_id === facility.id).map((row) => row.department_id),
         }));
+      }
+      let loadedFacilityConflictSessions: ConflictSession[] = [];
+      if (facilityIds.length > 0) {
+        const clubIds = Array.from(new Set(loadedTeams.map((team) => team.clubId)));
+        // Security note: this intentionally stays club-scoped; sessions RLS must also enforce club/team membership.
+        const { data: facilitySessionRowsRaw, error: facilitySessionsError } = await supabase
+          .from('sessions')
+          .select('id, title, starts_at, ends_at, facility_id, owner_team_id')
+          .in('club_id', clubIds)
+          .in('facility_id', facilityIds)
+          .gte('starts_at', start.toISOString())
+          .lte('starts_at', futureLimit.toISOString())
+          .order('starts_at', { ascending: true })
+          .limit(1000);
+        if (!mounted) return;
+        if (facilitySessionsError) {
+          console.warn('Facility conflict guard unavailable', facilitySessionsError.message);
+        } else {
+          if ((facilitySessionRowsRaw?.length ?? 0) === 1000) console.warn('Facility conflict guard reached session limit; some conflicts may be missing.');
+          const facilityNameById = new Map(loadedFacilities.map((facility) => [facility.id, facility.name]));
+          const facilitySessionRows = (facilitySessionRowsRaw ?? []) as { id: string; title: string; starts_at: string; ends_at: string | null; facility_id: string | null; owner_team_id: string | null }[];
+          const ownerTeamIds = Array.from(new Set(facilitySessionRows.map((session) => session.owner_team_id).filter(Boolean))) as string[];
+          const teamNameById = new Map(loadedTeams.map((team) => [team.id, team.name]));
+          if (ownerTeamIds.length > 0) {
+            const { data: ownerTeamRowsRaw } = await supabase.from('teams').select('id, name').in('id', ownerTeamIds);
+            if (!mounted) return;
+            for (const team of (ownerTeamRowsRaw ?? []) as { id: string; name: string }[]) teamNameById.set(team.id, team.name);
+          }
+          loadedFacilityConflictSessions = facilitySessionRows.map((session) => ({
+            id: session.id,
+            title: session.title,
+            startsAt: session.starts_at,
+            endsAt: session.ends_at,
+            facilityId: session.facility_id,
+            facilityName: session.facility_id ? facilityNameById.get(session.facility_id) ?? null : null,
+            teamName: session.owner_team_id ? teamNameById.get(session.owner_team_id) ?? 'Another team' : 'Another booking',
+            departmentName: null,
+          }));
+        }
       }
 
       const sessionIds = sessionRows.map((session) => session.id);
@@ -994,6 +1109,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
 
       setTeams(loadedTeams);
       setFacilities(loadedFacilities);
+      setFacilityConflictSessions(loadedFacilityConflictSessions);
       setGroups(loadedGroups);
       setSessions(loadedSessions);
       setState('ready');
@@ -1178,6 +1294,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             sessions={sessions}
             facilities={facilities}
             groups={groups}
+            facilityConflictSessions={facilityConflictSessions}
             editSessionId={editSessionId}
             onEditSessionHandled={clearEditSessionParam}
             onCreateSession={handleCoachSessionCreate}

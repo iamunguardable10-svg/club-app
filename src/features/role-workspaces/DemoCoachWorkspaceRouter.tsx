@@ -10,6 +10,7 @@ import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { CoachCalendarSurface, CoachSessionEditSheet, normalizeCoachSessionType } from '@/features/role-workspaces/CoachWorkspaceRouter';
 import type { CoachFacility, CoachGroup, CoachMode, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 import { CoachHistorySessionCard, CoachSessionDetailOverlay, sortCoachLoadRisks } from '@/features/role-workspaces/CoachSessionSurfaces';
+import type { ConflictSession } from '@/features/calendar/sessionConflicts';
 import { sessionTypeToLoadType, type AthleteLoadEntry } from '@/features/load/loadTypes';
 import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoSessions, type DemoClubSetup, type DemoSession, type DemoTeam } from '@/shared/dev/demoStorage';
 
@@ -27,7 +28,7 @@ type DemoCoachSession = {
   facilityName: string | null;
   groupIds: string[];
   availability: { id: string; playerId?: string; playerName: string; status: 'late' | 'out'; reason: string | null; lateMinutes: number | null }[];
-  players: { id: string; name: string; risk: 'high' | 'low' | 'ready'; acwr: number }[];
+  players: { id: string; name: string; risk: 'high' | 'low' | 'ready'; acwr: number; loadEntries?: AthleteLoadEntry[] }[];
 };
 
 const DEMO_AVAILABILITY_KEY = 'club-app.demo.athlete-availability';
@@ -260,7 +261,7 @@ function buildCoachSessions(teams: DemoTeam[], storedSessions: DemoSession[], de
   const availability = readDemoAvailability();
   const sessions = storedSessions.length > 0 ? storedSessions : fallbackSessions(teams);
   const teamByName = new Map(teams.map((team) => [`${team.department}:${team.name}`, team]));
-  return sessions
+  const builtSessions = sessions
     .map((session) => {
       const team = teamByName.get(`${session.department}:${session.team}`);
       if (!team) return null;
@@ -286,6 +287,17 @@ function buildCoachSessions(teams: DemoTeam[], storedSessions: DemoSession[], de
       } satisfies DemoCoachSession;
     })
     .filter(Boolean) as DemoCoachSession[];
+  return builtSessions.map((session) => ({
+    ...session,
+    players: session.players.map((player) => ({
+      ...player,
+      loadEntries: builtSessions.flatMap((candidate) =>
+        candidate.players.some((candidatePlayer) => candidatePlayer.id === player.id)
+          ? demoLoadEntriesForSession(candidate, player)
+          : [],
+      ),
+    })),
+  }));
 }
 
 function DemoSessionCard({ session, onDetails }: { session: DemoCoachSession; onDetails: () => void }) {
@@ -384,8 +396,18 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     facilityId: session.facilityName,
     groupIds: session.groupIds,
     availability: session.availability.map((item) => ({ ...item, userId: item.playerId ?? item.playerName })),
-    players: session.players.map((player) => ({ ...player, loadEntries: demoLoadEntriesForSession(session, player) })),
+    players: session.players.map((player) => ({ ...player, loadEntries: player.loadEntries ?? demoLoadEntriesForSession(session, player) })),
   })), [demoSessions]);
+  const facilityConflictSessions = useMemo<ConflictSession[]>(() => coachSessions.map((session) => ({
+    id: session.id,
+    title: session.title,
+    startsAt: session.startsAt,
+    endsAt: session.endsAt,
+    facilityId: session.facilityId,
+    facilityName: session.facilityName,
+    teamName: session.teamName,
+    departmentName: session.departmentName,
+  })), [coachSessions]);
 
   function refreshDemoSessions(nextRaw: DemoSession[]) {
     saveDemoSessions(nextRaw);
@@ -468,6 +490,7 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             sessions={coachSessions}
             facilities={facilities}
             groups={groups}
+            facilityConflictSessions={facilityConflictSessions}
             editSessionId={editSessionId}
             onEditSessionHandled={clearEditSessionParam}
             onCreateSession={handleDemoCreateSession}
