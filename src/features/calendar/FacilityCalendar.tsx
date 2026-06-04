@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { SessionComposer, type SessionComposerPayload } from '@/features/sessions/SessionComposer';
 import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
+import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
+import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictCandidate, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
 import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
 import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
@@ -25,6 +27,10 @@ type Session = {
 };
 type DraftSession = { startsAt: string; endsAt: string; teamId: string | null; facilityId: string };
 type DragState = { target: 'draft' | 'session'; sessionId?: string; kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date; minutesPerPixel: number };
+type FacilityCalendarSave =
+  | { kind: 'time'; sessionId: string; startsAt: string; endsAt: string; originalStartsAt: string; originalEndsAt: string }
+  | { kind: 'create'; payload: SessionComposerPayload }
+  | { kind: 'update'; sessionId: string; payload: SessionComposerPayload; originalSession?: Session };
 type ClubMembership = { role: 'club_admin' | 'department_lead'; department_id: string | null };
 type TeamMembership = { role: 'head_coach' | 'assistant_coach' | 'athlete'; department_id: string; team_id: string };
 type DepartmentFacility = { department_id: string };
@@ -195,10 +201,15 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [pendingConflictSave, setPendingConflictSave] = useState<FacilityCalendarSave | null>(null);
+  const [conflictDescription, setConflictDescription] = useState<string | null>(null);
+  const [conflictSuggestions, setConflictSuggestions] = useState<ConflictSuggestion[]>([]);
+  const [allowedConflictKey, setAllowedConflictKey] = useState<string | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
 
   function changeWeek(delta: number) {
+    setAllowedConflictKey(null);
     setDraft(null);
     setDrag(null);
     setEditingSession(null);
@@ -343,6 +354,17 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       })),
     [departmentById, departmentId, highlightedDepartmentIds, highlightedTeamIds, sessions, teamById, teamId, isClubAdmin, managedDepartmentIds, managedTeamIds],
   );
+  const conflictSessions = useMemo<ConflictSession[]>(() => sessions.map((session) => ({
+    id: session.id,
+    title: session.title,
+    startsAt: session.starts_at,
+    endsAt: session.ends_at,
+    facilityId,
+    facilityName: facility?.name ?? null,
+    teamName: teamById.get(session.owner_team_id)?.name ?? null,
+    departmentName: departmentById.get(session.department_id)?.name ?? null,
+  })), [departmentById, facility?.name, facilityId, sessions, teamById]);
+
   const mobileVisibleHours = useMemo(() => hours.filter((hour) => hour >= 8 && hour <= 23), []);
   const mobileFirstHour = mobileVisibleHours[0] ?? firstHour;
   const mobileGridHeight = mobileVisibleHours.length * mobileHourHeight;
@@ -500,24 +522,14 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     function handlePointerUp() {
       setDrag(null);
       if (activeDrag.target !== 'session' || !activeDrag.sessionId) return;
-      const startsAt = latestStart.toISOString();
-      const endsAt = latestEnd.toISOString();
-      const supabase = createBrowserSupabaseClient();
-      void supabase
-        .from('sessions')
-        .update({ starts_at: startsAt, ends_at: endsAt })
-        .eq('id', activeDrag.sessionId)
-        .then(({ error: updateError }) => {
-          if (!updateError) return;
-          setError(updateError.message);
-          setSessions((current) =>
-            current.map((session) =>
-              session.id === activeDrag.sessionId
-                ? { ...session, starts_at: activeDrag.originalStart.toISOString(), ends_at: activeDrag.originalEnd.toISOString() }
-                : session,
-            ),
-          );
-        });
+      void requestFacilityCalendarSave({
+        kind: 'time',
+        sessionId: activeDrag.sessionId,
+        startsAt: latestStart.toISOString(),
+        endsAt: latestEnd.toISOString(),
+        originalStartsAt: activeDrag.originalStart.toISOString(),
+        originalEndsAt: activeDrag.originalEnd.toISOString(),
+      });
     }
 
     window.addEventListener('pointermove', handlePointerMove);
@@ -598,7 +610,124 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     });
   }
 
+  function facilitySaveKey(save: FacilityCalendarSave) {
+    if (save.kind === 'create') return `create:${save.payload.startsAt}:${save.payload.endsAt}:${save.payload.facilityId ?? ''}:${save.payload.ownerTeamId}`;
+    if (save.kind === 'update') return `update:${save.sessionId}:${save.payload.startsAt}:${save.payload.endsAt}:${save.payload.facilityId ?? ''}:${save.payload.ownerTeamId}`;
+    return `time:${save.sessionId}:${save.startsAt}:${save.endsAt}`;
+  }
+
+  function facilityCandidateForSave(save: FacilityCalendarSave): ConflictCandidate {
+    if (save.kind === 'create') return { startsAt: save.payload.startsAt, endsAt: save.payload.endsAt, facilityId: save.payload.facilityId };
+    if (save.kind === 'update') return { id: save.sessionId, startsAt: save.payload.startsAt, endsAt: save.payload.endsAt, facilityId: save.payload.facilityId };
+    return { id: save.sessionId, startsAt: save.startsAt, endsAt: save.endsAt, facilityId };
+  }
+
+  function moveFacilitySave(save: FacilityCalendarSave, suggestion: ConflictSuggestion): FacilityCalendarSave {
+    if (save.kind === 'create') return { kind: 'create', payload: { ...save.payload, startsAt: suggestion.startsAt, endsAt: suggestion.endsAt } };
+    if (save.kind === 'update') return { kind: 'update', sessionId: save.sessionId, payload: { ...save.payload, startsAt: suggestion.startsAt, endsAt: suggestion.endsAt }, originalSession: save.originalSession };
+    return { ...save, startsAt: suggestion.startsAt, endsAt: suggestion.endsAt };
+  }
+
+  function rollbackFacilitySave(save: FacilityCalendarSave) {
+    if (save.kind !== 'time') return;
+    setSessions((current) => current.map((session) => session.id === save.sessionId ? { ...session, starts_at: save.originalStartsAt, ends_at: save.originalEndsAt } : session));
+  }
+
+  function openFacilityEditorForSave(save: FacilityCalendarSave) {
+    setPendingConflictSave(null);
+    setConflictDescription(null);
+    setConflictSuggestions([]);
+    setMode('edit');
+    if (save.kind === 'create') {
+      setDraft({ startsAt: save.payload.startsAt, endsAt: save.payload.endsAt, teamId: save.payload.ownerTeamId, facilityId });
+      setComposerOpen(true);
+      return;
+    }
+    const baseSession = save.kind === 'update' ? save.originalSession ?? sessions.find((session) => session.id === save.sessionId) ?? null : sessions.find((session) => session.id === save.sessionId) ?? null;
+    if (!baseSession) return;
+    const nextSession = save.kind === 'update'
+      ? {
+          ...baseSession,
+          title: save.payload.title,
+          session_type: save.payload.sessionType,
+          starts_at: save.payload.startsAt,
+          ends_at: save.payload.endsAt,
+          owner_team_id: save.payload.ownerTeamId,
+          team_id: save.payload.ownerTeamId,
+          department_id: teams.find((team) => team.id === save.payload.ownerTeamId)?.department_id ?? baseSession.department_id,
+        }
+      : { ...baseSession, starts_at: save.startsAt, ends_at: save.endsAt };
+    setSessions((current) => current.map((session) => session.id === nextSession.id ? nextSession : session));
+    setSelectedSession(null);
+    setEditingSession(nextSession);
+  }
+
+  async function persistFacilityCalendarSave(save: FacilityCalendarSave) {
+    if (save.kind === 'create') return persistCreateSession(save.payload);
+    if (save.kind === 'update') return persistUpdateSession(save.sessionId, save.payload, save.originalSession);
+    const supabase = createBrowserSupabaseClient();
+    const { error: updateError } = await supabase.from('sessions').update({ starts_at: save.startsAt, ends_at: save.endsAt }).eq('id', save.sessionId);
+    if (updateError) {
+      setError(updateError.message);
+      rollbackFacilitySave(save);
+      return false;
+    }
+    return true;
+  }
+
+  async function requestFacilityCalendarSave(save: FacilityCalendarSave, bypassConflict = false) {
+    const candidate = facilityCandidateForSave(save);
+    const saveKey = facilitySaveKey(save);
+    const conflicts = bypassConflict || saveKey === allowedConflictKey ? [] : findFacilityConflicts(candidate, conflictSessions);
+    if (conflicts.length > 0) {
+      if (save.kind === 'time') rollbackFacilitySave(save);
+      setSelectedSession(null);
+      setEditingSession(null);
+      setComposerOpen(false);
+      setPendingConflictSave(save);
+      setConflictDescription(formatConflictDescription(conflicts));
+      setConflictSuggestions(suggestFacilityConflictMoves(candidate, conflictSessions));
+      return false;
+    }
+    setAllowedConflictKey((current) => (current === saveKey ? null : current));
+    return persistFacilityCalendarSave(save);
+  }
+
+  function reviewFacilityConflictSave() {
+    if (!pendingConflictSave) return;
+    const suggestion = conflictSuggestions[0];
+    if (suggestion) {
+      openFacilityEditorForSave(moveFacilitySave(pendingConflictSave, suggestion));
+      return;
+    }
+    openFacilityEditorForSave(pendingConflictSave);
+  }
+
+  function keepFacilityConflictForReview() {
+    if (!pendingConflictSave) return;
+    setAllowedConflictKey(facilitySaveKey(pendingConflictSave));
+    openFacilityEditorForSave(pendingConflictSave);
+  }
+
+  function applyFacilityConflictSuggestion(suggestion: ConflictSuggestion) {
+    if (!pendingConflictSave) return;
+    openFacilityEditorForSave(moveFacilitySave(pendingConflictSave, suggestion));
+  }
+
+
+  function cancelFacilityConflictSave() {
+    if (pendingConflictSave) rollbackFacilitySave(pendingConflictSave);
+    setPendingConflictSave(null);
+    setConflictDescription(null);
+    setConflictSuggestions([]);
+  }
+
   async function handleCreateSession(payload: SessionComposerPayload) {
+    const accepted = await requestFacilityCalendarSave({ kind: 'create', payload });
+    if (accepted === false) return;
+  }
+
+  async function persistCreateSession(payload: SessionComposerPayload) {
     if (!facility) throw new Error('Facility is missing.');
     const team = assertWritableSessionPayload(payload);
     const supabase = createBrowserSupabaseClient();
@@ -624,11 +753,19 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     setSessions((current) => [...current, data as Session].sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()));
     setDraft(null);
     setComposerOpen(false);
+    return true;
   }
 
   async function handleUpdateSession(payload: SessionComposerPayload) {
     if (!editingSession) return;
-    if (!canManageSession(editingSession)) throw new Error('You do not have permission to edit this session.');
+    const accepted = await requestFacilityCalendarSave({ kind: 'update', sessionId: editingSession.id, payload, originalSession: editingSession });
+    if (accepted === false) return;
+  }
+
+  async function persistUpdateSession(sessionId: string, payload: SessionComposerPayload, originalSession?: Session) {
+    const currentSession = originalSession ?? sessions.find((session) => session.id === sessionId);
+    if (!currentSession) return;
+    if (!canManageSession(currentSession)) throw new Error('You do not have permission to edit this session.');
     const team = assertWritableSessionPayload(payload);
     const supabase = createBrowserSupabaseClient();
     const { data, error: updateError } = await supabase
@@ -643,16 +780,17 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
         ends_at: payload.endsAt,
         facility_id: payload.facilityId,
       })
-      .eq('id', editingSession.id)
+      .eq('id', sessionId)
       .select('id, title, starts_at, ends_at, session_type, department_id, owner_team_id, created_by')
       .single();
 
     if (updateError) throw updateError;
     setSessions((current) =>
-      current.map((session) => (session.id === editingSession.id ? (data as Session) : session)).sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()),
+      current.map((session) => (session.id === sessionId ? (data as Session) : session)).sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()),
     );
     setEditingSession(null);
     setSelectedSession(null);
+    return true;
   }
 
   async function handleDeleteSession(session: Session) {
@@ -815,6 +953,15 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
         lockedFacilityId={facilityId}
         onClose={() => setEditingSession(null)}
         onSubmit={handleUpdateSession}
+      />
+      <FacilityConflictDialog
+        isOpen={Boolean(pendingConflictSave)}
+        description={conflictDescription ?? 'This hall already has another session at this time.'}
+        suggestions={conflictSuggestions}
+        onSuggestion={applyFacilityConflictSuggestion}
+        onReviewTime={reviewFacilityConflictSave}
+        onKeepAnyway={keepFacilityConflictForReview}
+        onCancel={cancelFacilityConflictSave}
       />
     </main>
   );

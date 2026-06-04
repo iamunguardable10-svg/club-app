@@ -6,6 +6,8 @@ import { DemoSessionComposer } from '@/features/sessions/DemoSessionComposer';
 import type { SessionComposerPayload } from '@/features/sessions/SessionComposer';
 import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
+import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
+import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictCandidate, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
 import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
 import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoSessions, type DemoSession } from '@/shared/dev/demoStorage';
@@ -20,6 +22,10 @@ type DemoFacilityCalendarProps = {
 };
 type DraftSession = { startsAt: string; endsAt: string; teamId: string | null; facilityName: string };
 type DragState = { target: 'draft' | 'session'; sessionId?: string; kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date; minutesPerPixel: number };
+type DemoFacilityCalendarSave =
+  | { kind: 'time'; sessionId: string; startsAt: string; endsAt: string; originalStartsAt: string; originalEndsAt: string }
+  | { kind: 'create'; payload: SessionComposerPayload }
+  | { kind: 'update'; sessionId: string; payload: SessionComposerPayload };
 
 const hours = Array.from({ length: 17 }, (_, index) => index + 7);
 const firstHour = hours[0] ?? 7;
@@ -157,11 +163,16 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<DemoSession | null>(null);
   const [selectedSession, setSelectedSession] = useState<DemoSession | null>(null);
+  const [pendingConflictSave, setPendingConflictSave] = useState<DemoFacilityCalendarSave | null>(null);
+  const [conflictDescription, setConflictDescription] = useState<string | null>(null);
+  const [conflictSuggestions, setConflictSuggestions] = useState<ConflictSuggestion[]>([]);
+  const [allowedConflictKey, setAllowedConflictKey] = useState<string | null>(null);
   const setup = useMemo(() => getDemoClubSetup(), []);
   const teams = useMemo(() => getDemoTeams(setup), [setup]);
   const facilities = useMemo(() => (setup?.facilities ?? [facilityName]).map((name) => ({ id: name, name })), [facilityName, setup]);
 
   function changeWeek(delta: number) {
+    setAllowedConflictKey(null);
     setDraft(null);
     setDrag(null);
     setEditingSession(null);
@@ -201,6 +212,17 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
       })),
     [departmentName, highlightedDepartmentNames, highlightedTeamNames, sessions, teamName],
   );
+  const conflictSessions = useMemo<ConflictSession[]>(() => sessions.map((session) => ({
+    id: session.id,
+    title: session.title,
+    startsAt: session.startsAt,
+    endsAt: session.endsAt,
+    facilityId: facilityName,
+    facilityName,
+    teamName: session.team,
+    departmentName: session.department,
+  })), [facilityName, sessions]);
+
   const mobileVisibleHours = useMemo(() => hours.filter((hour) => hour >= 8 && hour <= 23), []);
   const mobileFirstHour = mobileVisibleHours[0] ?? firstHour;
   const mobileGridHeight = mobileVisibleHours.length * mobileHourHeight;
@@ -346,13 +368,14 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     function handlePointerUp() {
       setDrag(null);
       if (activeDrag.target !== 'session' || !activeDrag.sessionId) return;
-      const startsAt = latestStart.toISOString();
-      const endsAt = latestEnd.toISOString();
-      const allSessions = getDemoSessions().map((session) =>
-        session.id === activeDrag.sessionId ? { ...session, startsAt, endsAt } : session,
-      );
-      saveDemoSessions(allSessions);
-      setSessions(allSessions.filter((session) => session.facility === facilityName));
+      void requestDemoFacilityCalendarSave({
+        kind: 'time',
+        sessionId: activeDrag.sessionId,
+        startsAt: latestStart.toISOString(),
+        endsAt: latestEnd.toISOString(),
+        originalStartsAt: activeDrag.originalStart.toISOString(),
+        originalEndsAt: activeDrag.originalEnd.toISOString(),
+      });
     }
 
     window.addEventListener('pointermove', handlePointerMove);
@@ -448,7 +471,111 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     setDrag({ target: 'session', sessionId: session.id, kind, startX: event.clientX, startY: event.clientY, originalStart: new Date(session.startsAt), originalEnd: new Date(session.endsAt), minutesPerPixel: window.innerWidth < 768 ? 60 / mobileHourHeight : 60 / desktopHourHeight });
   }
 
+  function demoFacilitySaveKey(save: DemoFacilityCalendarSave) {
+    if (save.kind === 'create') return `create:${save.payload.startsAt}:${save.payload.endsAt}:${facilityName}:${save.payload.ownerTeamId}`;
+    if (save.kind === 'update') return `update:${save.sessionId}:${save.payload.startsAt}:${save.payload.endsAt}:${facilityName}:${save.payload.ownerTeamId}`;
+    return `time:${save.sessionId}:${save.startsAt}:${save.endsAt}`;
+  }
+
+  function demoFacilityCandidateForSave(save: DemoFacilityCalendarSave): ConflictCandidate {
+    if (save.kind === 'create') return { startsAt: save.payload.startsAt, endsAt: save.payload.endsAt, facilityId: facilityName };
+    if (save.kind === 'update') return { id: save.sessionId, startsAt: save.payload.startsAt, endsAt: save.payload.endsAt, facilityId: facilityName };
+    return { id: save.sessionId, startsAt: save.startsAt, endsAt: save.endsAt, facilityId: facilityName };
+  }
+
+  function moveDemoFacilitySave(save: DemoFacilityCalendarSave, suggestion: ConflictSuggestion): DemoFacilityCalendarSave {
+    if (save.kind === 'create') return { kind: 'create', payload: { ...save.payload, startsAt: suggestion.startsAt, endsAt: suggestion.endsAt } };
+    if (save.kind === 'update') return { kind: 'update', sessionId: save.sessionId, payload: { ...save.payload, startsAt: suggestion.startsAt, endsAt: suggestion.endsAt } };
+    return { ...save, startsAt: suggestion.startsAt, endsAt: suggestion.endsAt };
+  }
+
+  function rollbackDemoFacilitySave(save: DemoFacilityCalendarSave) {
+    if (save.kind !== 'time') return;
+    setSessions((current) => current.map((session) => session.id === save.sessionId ? { ...session, startsAt: save.originalStartsAt, endsAt: save.originalEndsAt } : session));
+  }
+
+  function openDemoFacilityEditorForSave(save: DemoFacilityCalendarSave) {
+    setPendingConflictSave(null);
+    setConflictDescription(null);
+    setConflictSuggestions([]);
+    setMode('edit');
+    if (save.kind === 'create') {
+      setDraft({ startsAt: save.payload.startsAt, endsAt: save.payload.endsAt, teamId: save.payload.ownerTeamId, facilityName });
+      setComposerOpen(true);
+      return;
+    }
+    const baseSession = sessions.find((session) => session.id === save.sessionId) ?? null;
+    if (!baseSession) return;
+    const team = save.kind === 'update' ? teams.find((item) => item.id === save.payload.ownerTeamId) : null;
+    const nextSession = save.kind === 'update'
+      ? { ...baseSession, department: team?.department ?? baseSession.department, team: team?.name ?? baseSession.team, title: save.payload.title, sessionType: save.payload.sessionType, startsAt: save.payload.startsAt, endsAt: save.payload.endsAt }
+      : { ...baseSession, startsAt: save.startsAt, endsAt: save.endsAt };
+    setSessions((current) => current.map((session) => session.id === nextSession.id ? nextSession : session));
+    setSelectedSession(null);
+    setEditingSession(nextSession);
+  }
+
+  function persistDemoFacilityCalendarSave(save: DemoFacilityCalendarSave) {
+    if (save.kind === 'create') return persistCreateSession(save.payload);
+    if (save.kind === 'update') return persistUpdateSession(save.sessionId, save.payload);
+    const allSessions = getDemoSessions().map((session) => session.id === save.sessionId ? { ...session, startsAt: save.startsAt, endsAt: save.endsAt } : session);
+    saveDemoSessions(allSessions);
+    setSessions(allSessions.filter((session) => session.facility === facilityName));
+    return true;
+  }
+
+  async function requestDemoFacilityCalendarSave(save: DemoFacilityCalendarSave, bypassConflict = false) {
+    const candidate = demoFacilityCandidateForSave(save);
+    const saveKey = demoFacilitySaveKey(save);
+    const conflicts = bypassConflict || saveKey === allowedConflictKey ? [] : findFacilityConflicts(candidate, conflictSessions);
+    if (conflicts.length > 0) {
+      if (save.kind === 'time') rollbackDemoFacilitySave(save);
+      setSelectedSession(null);
+      setEditingSession(null);
+      setComposerOpen(false);
+      setPendingConflictSave(save);
+      setConflictDescription(formatConflictDescription(conflicts));
+      setConflictSuggestions(suggestFacilityConflictMoves(candidate, conflictSessions));
+      return false;
+    }
+    setAllowedConflictKey((current) => (current === saveKey ? null : current));
+    return persistDemoFacilityCalendarSave(save);
+  }
+
+  function reviewDemoFacilityConflictSave() {
+    if (!pendingConflictSave) return;
+    const suggestion = conflictSuggestions[0];
+    if (suggestion) {
+      openDemoFacilityEditorForSave(moveDemoFacilitySave(pendingConflictSave, suggestion));
+      return;
+    }
+    openDemoFacilityEditorForSave(pendingConflictSave);
+  }
+
+  function keepDemoFacilityConflictForReview() {
+    if (!pendingConflictSave) return;
+    setAllowedConflictKey(demoFacilitySaveKey(pendingConflictSave));
+    openDemoFacilityEditorForSave(pendingConflictSave);
+  }
+
+  function applyDemoFacilityConflictSuggestion(suggestion: ConflictSuggestion) {
+    if (!pendingConflictSave) return;
+    openDemoFacilityEditorForSave(moveDemoFacilitySave(pendingConflictSave, suggestion));
+  }
+
+  function cancelDemoFacilityConflictSave() {
+    if (pendingConflictSave) rollbackDemoFacilitySave(pendingConflictSave);
+    setPendingConflictSave(null);
+    setConflictDescription(null);
+    setConflictSuggestions([]);
+  }
+
   async function handleCreateSession(payload: SessionComposerPayload) {
+    const accepted = await requestDemoFacilityCalendarSave({ kind: 'create', payload });
+    if (accepted === false) return;
+  }
+
+  function persistCreateSession(payload: SessionComposerPayload) {
     const team = teams.find((item) => item.id === payload.ownerTeamId);
     if (!team) throw new Error('Choose a team first.');
     const nextSession: DemoSession = {
@@ -467,14 +594,22 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     setSessions(allSessions.filter((session) => session.facility === facilityName));
     setDraft(null);
     setComposerOpen(false);
+    return true;
   }
 
   async function handleUpdateSession(payload: SessionComposerPayload) {
     if (!editingSession) return;
+    const accepted = await requestDemoFacilityCalendarSave({ kind: 'update', sessionId: editingSession.id, payload });
+    if (accepted === false) return;
+  }
+
+  function persistUpdateSession(sessionId: string, payload: SessionComposerPayload) {
+    const currentSession = sessions.find((session) => session.id === sessionId);
+    if (!currentSession) return;
     const team = teams.find((item) => item.id === payload.ownerTeamId);
     if (!team) throw new Error('Choose a team first.');
     const updatedSession: DemoSession = {
-      ...editingSession,
+      ...currentSession,
       department: team.department,
       team: team.name,
       title: payload.title,
@@ -483,11 +618,12 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
       endsAt: payload.endsAt,
       facility: facilityName,
     };
-    const allSessions = getDemoSessions().map((session) => (session.id === editingSession.id ? updatedSession : session));
+    const allSessions = getDemoSessions().map((session) => (session.id === sessionId ? updatedSession : session));
     saveDemoSessions(allSessions);
     setSessions(allSessions.filter((session) => session.facility === facilityName));
     setEditingSession(null);
     setSelectedSession(null);
+    return true;
   }
 
   function handleDeleteSession(session: DemoSession) {
@@ -606,6 +742,15 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
         lockedFacilityId={facilityName}
         onClose={() => setEditingSession(null)}
         onSubmit={handleUpdateSession}
+      />
+      <FacilityConflictDialog
+        isOpen={Boolean(pendingConflictSave)}
+        description={conflictDescription ?? 'This hall already has another session at this time.'}
+        suggestions={conflictSuggestions}
+        onSuggestion={applyDemoFacilityConflictSuggestion}
+        onReviewTime={reviewDemoFacilityConflictSave}
+        onKeepAnyway={keepDemoFacilityConflictForReview}
+        onCancel={cancelDemoFacilityConflictSave}
       />
     </main>
   );

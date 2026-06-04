@@ -10,7 +10,8 @@ import { sessionTypeToLoadType, type AthleteLoadEntry, type LoadTrainingType } f
 import type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 import { CoachHistorySessionCard, CoachSessionDetailOverlay, sortCoachLoadRisks } from '@/features/role-workspaces/CoachSessionSurfaces';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
-import { findFacilityConflicts, formatConflictDescription, type ConflictSession } from '@/features/calendar/sessionConflicts';
+import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
+import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
 import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
@@ -477,6 +478,8 @@ export function CoachCalendarSurface({
   const [isSaving, setIsSaving] = useState(false);
   const [pendingConflictSave, setPendingConflictSave] = useState<CoachCalendarSave | null>(null);
   const [conflictDescription, setConflictDescription] = useState<string | null>(null);
+  const [conflictSuggestions, setConflictSuggestions] = useState<ConflictSuggestion[]>([]);
+  const [allowedConflictKey, setAllowedConflictKey] = useState<string | null>(null);
   const didDragRef = useRef(false);
   const calendarScrollRef = useRef<HTMLDivElement | null>(null);
   const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -553,23 +556,83 @@ export function CoachCalendarSurface({
     }
   }, [onCreateSession, onUpdateSession]);
 
+  const coachSaveKey = useCallback((save: CoachCalendarSave) => {
+    if (save.kind === 'create') {
+      return `create:${save.input.startsAt}:${save.input.endsAt}:${save.input.facilityId ?? ''}:${save.input.teamId ?? ''}`;
+    }
+    return `update:${save.input.sessionId}:${save.input.startsAt}:${save.input.endsAt}:${save.input.facilityId ?? ''}`;
+  }, []);
+
+  const coachCandidateForSave = useCallback((save: CoachCalendarSave) => save.kind === 'create'
+    ? { startsAt: save.input.startsAt, endsAt: save.input.endsAt, facilityId: save.input.facilityId }
+    : { id: save.input.sessionId, startsAt: save.input.startsAt, endsAt: save.input.endsAt, facilityId: save.input.facilityId }, []);
+
+  const moveCoachSave = useCallback((save: CoachCalendarSave, suggestion: ConflictSuggestion): CoachCalendarSave => save.kind === 'create'
+    ? { kind: 'create', input: { ...save.input, startsAt: suggestion.startsAt, endsAt: suggestion.endsAt } }
+    : { kind: 'update', input: { ...save.input, startsAt: suggestion.startsAt, endsAt: suggestion.endsAt } }, []);
+
+  const openCoachEditorForSave = useCallback((save: CoachCalendarSave) => {
+    setPendingConflictSave(null);
+    setConflictDescription(null);
+    setConflictSuggestions([]);
+    setMode('edit');
+    if (save.kind === 'create') {
+      setDraft(save.input);
+      setEditor({ kind: 'draft' });
+      return;
+    }
+    setDraft(null);
+    setLocalSessions((current) => current.map((session) => session.id === save.input.sessionId ? {
+      ...session,
+      startsAt: save.input.startsAt,
+      endsAt: save.input.endsAt,
+      facilityId: save.input.facilityId,
+      groupIds: save.input.groupIds,
+      sessionType: save.input.sessionType,
+    } : session));
+    setEditor({ kind: 'session', sessionId: save.input.sessionId });
+  }, []);
+
   const requestCoachCalendarSave = useCallback(async (save: CoachCalendarSave, bypassConflict = false) => {
-    const candidate = save.kind === 'create'
-      ? { startsAt: save.input.startsAt, endsAt: save.input.endsAt, facilityId: save.input.facilityId }
-      : { id: save.input.sessionId, startsAt: save.input.startsAt, endsAt: save.input.endsAt, facilityId: save.input.facilityId };
-    const conflicts = bypassConflict ? [] : findFacilityConflicts(candidate, conflictSessions);
+    const candidate = coachCandidateForSave(save);
+    const saveKey = coachSaveKey(save);
+    const conflicts = bypassConflict || saveKey === allowedConflictKey ? [] : findFacilityConflicts(candidate, conflictSessions);
     if (conflicts.length > 0) {
       setEditor(null);
       setPendingConflictSave(save);
       setConflictDescription(formatConflictDescription(conflicts));
+      setConflictSuggestions(suggestFacilityConflictMoves(candidate, conflictSessions));
       return false;
     }
+    setAllowedConflictKey((current) => (current === saveKey ? null : current));
     return persistCoachCalendarSave(save);
-  }, [conflictSessions, persistCoachCalendarSave]);
+  }, [allowedConflictKey, coachCandidateForSave, coachSaveKey, conflictSessions, persistCoachCalendarSave]);
+
+  const reviewConflictSave = useCallback(() => {
+    if (!pendingConflictSave) return;
+    const suggestion = conflictSuggestions[0];
+    if (suggestion) {
+      openCoachEditorForSave(moveCoachSave(pendingConflictSave, suggestion));
+      return;
+    }
+    openCoachEditorForSave(pendingConflictSave);
+  }, [conflictSuggestions, moveCoachSave, openCoachEditorForSave, pendingConflictSave]);
+
+  const keepConflictSaveForReview = useCallback(() => {
+    if (!pendingConflictSave) return;
+    setAllowedConflictKey(coachSaveKey(pendingConflictSave));
+    openCoachEditorForSave(pendingConflictSave);
+  }, [coachSaveKey, openCoachEditorForSave, pendingConflictSave]);
+
+  const applyConflictSuggestion = useCallback((suggestion: ConflictSuggestion) => {
+    if (!pendingConflictSave) return;
+    openCoachEditorForSave(moveCoachSave(pendingConflictSave, suggestion));
+  }, [moveCoachSave, openCoachEditorForSave, pendingConflictSave]);
 
   const cancelConflictSave = useCallback(() => {
     setPendingConflictSave(null);
     setConflictDescription(null);
+    setConflictSuggestions([]);
     setLocalSessions(sessions);
   }, [sessions]);
   const requestCoachCalendarSaveRef = useRef(requestCoachCalendarSave);
@@ -577,7 +640,7 @@ export function CoachCalendarSurface({
     requestCoachCalendarSaveRef.current = requestCoachCalendarSave;
   }, [requestCoachCalendarSave]);
 
-  function changeWeek(delta: number) { setDraft(null); setEditor(null); setDrag(null); setWeekOffset((current) => current + delta); }
+  function changeWeek(delta: number) { setAllowedConflictKey(null); setDraft(null); setEditor(null); setDrag(null); setWeekOffset((current) => current + delta); }
   function resetWeek() { setDraft(null); setEditor(null); setDrag(null); setWeekOffset(0); setActiveDayIndex(Math.max(0, buildWeekDays().findIndex((day) => sameDay(day, new Date())))); }
   function switchMobileDay(nextIndex: number) {
     const boundedIndex = clamp(nextIndex, 0, days.length - 1);
@@ -717,14 +780,14 @@ export function CoachCalendarSurface({
       <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Coach calendar</p><h2 className="mt-2 text-2xl font-black">All assigned teams</h2></div></div>
       <SmartSessionCalendar mode={mode} canCreateSessions={teams.length > 0 && facilities.length > 0} days={days} hours={calendarHours} firstHour={firstHour} lastHour={lastHour} mobileVisibleHours={mobileVisibleHours} mobileFirstHour={mobileFirstHour} mobileHourHeight={mobileHourHeight} mobileGridHeight={mobileGridHeight} desktopHourHeight={desktopHourHeight} activeDayIndex={activeDayIndex} mobileCalendarView={mobileCalendarView} dayTransitionDirection={dayTransitionDirection} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null} weekLabel={weekLabel} isCurrentWeek={weekOffset === 0} calendarScrollRef={calendarScrollRef} setDayRef={(index, element) => { dayRefs.current[index] = element; }} onSetMode={setMode} onClearDraft={() => setDraft(null)} onPreviousWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onResetWeek={resetWeek} onMobileDaySelect={switchMobileDay} onMobileCalendarViewChange={setMobileCalendarView} onMobileDaySwipeStart={handleMobileDaySwipeStart} onMobileDaySwipeEnd={handleMobileDaySwipeEnd} onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }} onSlotPointerDown={handleSlotPointerDown} onSessionPointerDown={startSessionDrag} onSessionClick={handleSessionClick} onSessionKeyDown={handleSessionKeyDown} onDraftPointerDown={startDraftDrag} onDraftClick={() => setEditor({ kind: 'draft' })} onDraftCancel={() => setDraft(null)} />
       {editor && editorInitial ? <CoachSessionEditSheet key={editor.kind === 'session' ? `session-${editor.sessionId}` : `draft-${editorInitial.startsAt}`} title={editor.kind === 'draft' ? 'New training' : editingSession?.title ?? 'Training'} teams={teams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { if (editor.kind === 'draft') { await requestCoachCalendarSave({ kind: 'create', input: value }); } else if (editingSession) { await requestCoachCalendarSave({ kind: 'update', input: { sessionId: editingSession.id, ...value } }); } }} onDraftUpdate={editor.kind === 'draft' ? (value) => setDraft((current) => current ? { ...current, ...value } : current) : undefined} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : undefined} onClose={() => setEditor(null)} /> : null}
-      <AppConfirmDialog
+      <FacilityConflictDialog
         isOpen={Boolean(pendingConflictSave)}
-        title="Hall conflict"
         description={conflictDescription ?? 'This hall already has another session at this time.'}
-        confirmLabel="Keep anyway"
-        cancelLabel="Cancel"
-        isConfirming={isSaving}
-        onConfirm={() => { if (pendingConflictSave) void requestCoachCalendarSave(pendingConflictSave, true).then(() => { setPendingConflictSave(null); setConflictDescription(null); }); }}
+        suggestions={conflictSuggestions}
+        isWorking={isSaving}
+        onSuggestion={applyConflictSuggestion}
+        onReviewTime={reviewConflictSave}
+        onKeepAnyway={keepConflictSaveForReview}
         onCancel={cancelConflictSave}
       />
     </section>

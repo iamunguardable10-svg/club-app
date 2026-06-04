@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
-import { findFacilityConflicts, formatConflictDescription, type ConflictSession } from '@/features/calendar/sessionConflicts';
+import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
+import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
 import { LoadChart } from '@/features/load/AthleteLoadWorkspace';
 import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
 import { LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/features/load/loadTypes';
@@ -380,6 +381,8 @@ function TeamSmartCalendar({
   const [isSavingCalendar, setIsSavingCalendar] = useState(false);
   const [pendingConflictSave, setPendingConflictSave] = useState<TeamCalendarSave | null>(null);
   const [conflictDescription, setConflictDescription] = useState<string | null>(null);
+  const [conflictSuggestions, setConflictSuggestions] = useState<ConflictSuggestion[]>([]);
+  const [allowedConflictKey, setAllowedConflictKey] = useState<string | null>(null);
   const didDragRef = useRef(false);
   const calendarScrollRef = useRef<HTMLDivElement | null>(null);
   const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -421,6 +424,7 @@ function TeamSmartCalendar({
   }, [data.contextSessions, data.defaultFacilityId, data.defaultFacilityName, data.departmentName, data.name, localSessions]);
 
   function changeWeek(delta: number) {
+    setAllowedConflictKey(null);
     setDraft(null);
     setDrag(null);
     setSelectedSessionId(null);
@@ -684,31 +688,92 @@ function TeamSmartCalendar({
     }
   }
 
-  async function requestTeamCalendarSave(save: TeamCalendarSave, bypassConflict = false) {
+  function teamSaveKey(save: TeamCalendarSave) {
+    return save.kind === 'create'
+      ? `create:${save.startsAt}:${save.endsAt}:${data.defaultFacilityId ?? data.availableFacilities?.[0]?.id ?? ''}`
+      : save.kind === 'time'
+        ? `time:${save.sessionId}:${save.startsAt}:${save.endsAt}`
+        : `facility:${save.sessionId}:${save.facilityId}`;
+  }
+
+  function teamCandidateForSave(save: TeamCalendarSave) {
     const session = save.kind === 'create' ? null : localSessions.find((item) => item.id === save.sessionId) ?? null;
     const facilityId = save.kind === 'create'
       ? data.defaultFacilityId ?? data.availableFacilities?.[0]?.id ?? null
       : save.kind === 'facility'
         ? save.facilityId
         : session?.facilityId ?? data.defaultFacilityId ?? null;
-    const candidate = save.kind === 'create'
+    return save.kind === 'create'
       ? { startsAt: save.startsAt, endsAt: save.endsAt, facilityId }
       : save.kind === 'time'
         ? { id: save.sessionId, startsAt: save.startsAt, endsAt: save.endsAt, facilityId }
         : { id: save.sessionId, startsAt: session?.startsAt ?? new Date().toISOString(), endsAt: session?.endsAt ?? null, facilityId };
-    const conflicts = bypassConflict ? [] : findFacilityConflicts(candidate, conflictSessions);
+  }
+
+  function moveTeamSave(save: TeamCalendarSave, suggestion: ConflictSuggestion): TeamCalendarSave {
+    if (save.kind === 'facility') return save;
+    return { ...save, startsAt: suggestion.startsAt, endsAt: suggestion.endsAt };
+  }
+
+  function openTeamEditorForSave(save: TeamCalendarSave) {
+    setPendingConflictSave(null);
+    setConflictDescription(null);
+    setConflictSuggestions([]);
+    setMode('edit');
+    if (save.kind === 'create') {
+      setSelectedSessionId(null);
+      setDraft({ startsAt: save.startsAt, endsAt: save.endsAt });
+      return;
+    }
+    setDraft(null);
+    if (save.kind === 'time') {
+      setLocalSessions((current) => current.map((session) => session.id === save.sessionId ? { ...session, startsAt: save.startsAt, endsAt: save.endsAt } : session));
+    }
+    setSelectedSessionId(save.sessionId);
+    openSelectedSessionEditor(save.sessionId);
+  }
+
+  async function requestTeamCalendarSave(save: TeamCalendarSave, bypassConflict = false) {
+    const candidate = teamCandidateForSave(save);
+    const saveKey = teamSaveKey(save);
+    const conflicts = bypassConflict || saveKey === allowedConflictKey ? [] : findFacilityConflicts(candidate, conflictSessions);
     if (conflicts.length > 0) {
       setSelectedSessionId(null);
       setPendingConflictSave(save);
       setConflictDescription(formatConflictDescription(conflicts));
+      setConflictSuggestions(suggestFacilityConflictMoves(candidate, conflictSessions));
       return false;
     }
+    setAllowedConflictKey((current) => (current === saveKey ? null : current));
     return persistTeamCalendarSave(save);
   }
+
+  function reviewTeamConflictSave() {
+    if (!pendingConflictSave) return;
+    const suggestion = conflictSuggestions[0];
+    if (suggestion) {
+      openTeamEditorForSave(moveTeamSave(pendingConflictSave, suggestion));
+      return;
+    }
+    openTeamEditorForSave(pendingConflictSave);
+  }
+
+  function keepTeamConflictForReview() {
+    if (!pendingConflictSave) return;
+    setAllowedConflictKey(teamSaveKey(pendingConflictSave));
+    openTeamEditorForSave(pendingConflictSave);
+  }
+
+  function applyTeamConflictSuggestion(suggestion: ConflictSuggestion) {
+    if (!pendingConflictSave) return;
+    openTeamEditorForSave(moveTeamSave(pendingConflictSave, suggestion));
+  }
+
 
   function cancelTeamConflictSave() {
     setPendingConflictSave(null);
     setConflictDescription(null);
+    setConflictSuggestions([]);
     setLocalSessions(data.sessions);
   }
 
@@ -935,20 +1000,14 @@ function TeamSmartCalendar({
         onConfirm={() => { void confirmDeleteSession(); }}
         onCancel={() => setDeleteTargetId(null)}
       />
-      <AppConfirmDialog
+      <FacilityConflictDialog
         isOpen={Boolean(pendingConflictSave)}
-        title="Hall conflict"
         description={conflictDescription ?? 'This hall already has another session at this time.'}
-        confirmLabel="Keep anyway"
-        cancelLabel="Review time"
-        isConfirming={isSavingCalendar}
-        onConfirm={() => {
-          if (!pendingConflictSave) return;
-          void requestTeamCalendarSave(pendingConflictSave, true).then(() => {
-            setPendingConflictSave(null);
-            setConflictDescription(null);
-          });
-        }}
+        suggestions={pendingConflictSave?.kind === 'facility' ? [] : conflictSuggestions}
+        isWorking={isSavingCalendar}
+        onSuggestion={applyTeamConflictSuggestion}
+        onReviewTime={reviewTeamConflictSave}
+        onKeepAnyway={keepTeamConflictForReview}
         onCancel={cancelTeamConflictSave}
       />
     </div>
