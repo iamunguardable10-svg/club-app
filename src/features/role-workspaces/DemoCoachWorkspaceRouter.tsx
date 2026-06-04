@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { DemoTeamWorkspace } from '@/features/teams/DemoTeamWorkspace';
+import { DemoTeamWorkspace, buildDemoPlayers } from '@/features/teams/DemoTeamWorkspace';
 import type { TeamWorkspaceSection } from '@/features/teams/TeamWorkspaceView';
 import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
@@ -82,6 +82,7 @@ function DemoCoachTopNav({ mode, singleTeamId }: { mode: CoachMode; singleTeamId
 
 const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
 const DEMO_PLAYER_GROUPS_KEY = 'club-app.demo.player-groups';
+const DEMO_PLAYERS_KEY = 'club-app.demo.players';
 type DemoFacilityAssignment = { department: string; facility: string };
 type DemoPlayerGroup = { id: string; teamId: string; name: string };
 type DemoPlayer = { id: string; teamId: string; name: string; groups?: string[] };
@@ -103,7 +104,23 @@ function saveDemoPlayerGroups(groups: DemoPlayerGroup[]) {
 
 function getDemoPlayers(): DemoPlayer[] {
   if (typeof window === 'undefined') return [];
-  try { return JSON.parse(window.localStorage.getItem('club-app.demo.players') ?? '[]') as DemoPlayer[]; } catch { return []; }
+  try { return JSON.parse(window.localStorage.getItem(DEMO_PLAYERS_KEY) ?? '[]') as DemoPlayer[]; } catch { return []; }
+}
+
+function saveDemoPlayers(players: DemoPlayer[]) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(DEMO_PLAYERS_KEY, JSON.stringify(players));
+}
+
+function ensureDemoPlayers(teams: DemoTeam[]) {
+  const existing = getDemoPlayers();
+  const teamIds = new Set(existing.map((player) => player.teamId));
+  const missingTeams = teams.filter((team) => !teamIds.has(team.id));
+  if (missingTeams.length === 0) return existing;
+  // Demo seed is non-destructive: existing team players are preserved until the demo is reset.
+  const merged = [...existing, ...missingTeams.flatMap((team) => buildDemoPlayers(team.id))];
+  saveDemoPlayers(merged);
+  return merged;
 }
 
 function ensureDemoPlayerGroups(teams: DemoTeam[]) {
@@ -235,6 +252,9 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const [groups, setGroups] = useState<CoachGroup[]>([]);
   const [activeSession, setActiveSession] = useState<DemoCoachSession | null>(null);
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
+  const clearEditSessionParam = useCallback(() => {
+    router.replace('/demo/coach/sessions');
+  }, [router]);
 
   useEffect(() => {
     const currentSetup = getDemoClubSetup();
@@ -242,7 +262,7 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     const currentSessions = getDemoSessions();
     const assignments = getDemoFacilityAssignments();
     const playerGroups = ensureDemoPlayerGroups(currentTeams);
-    const demoPlayers = getDemoPlayers();
+    const demoPlayers = ensureDemoPlayers(currentTeams);
     const facilityNames = currentSetup?.facilities ?? [];
     const effectiveSessions = currentSessions.length > 0 ? currentSessions : fallbackSessions(currentTeams);
     const demoDepartments = Array.from(new Set(currentTeams.map((team) => team.department)));
@@ -362,7 +382,7 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             facilities={facilities}
             groups={groups}
             editSessionId={editSessionId}
-            onEditSessionHandled={() => router.replace('/demo/coach/sessions')}
+            onEditSessionHandled={clearEditSessionParam}
             onCreateSession={handleDemoCreateSession}
             onUpdateSession={handleDemoUpdateSession}
             onDeleteSession={handleDemoDeleteSession}

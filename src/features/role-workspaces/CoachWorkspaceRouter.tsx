@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TeamWorkspace } from '@/features/teams/TeamWorkspace';
 import type { TeamWorkspaceSection } from '@/features/teams/TeamWorkspaceView';
@@ -44,8 +44,6 @@ export type CoachPlayer = {
   loadEntries: AthleteLoadEntry[];
   acwr: number | null;
   risk: 'high' | 'low' | 'ready' | 'baseline';
-  monotony?: number | null;
-  strain?: number | null;
 };
 
 type SessionRow = {
@@ -193,8 +191,6 @@ function toCoachPlayer(userId: string, teamId: string, profile: ProfileRow | und
     loadEntries: entries,
     acwr: latest?.acwr ?? null,
     risk: zone.tone === 'high' ? 'high' : zone.tone === 'low' ? 'low' : zone.tone === 'ready' ? 'ready' : 'baseline',
-    monotony: latest?.monotony ?? null,
-    strain: latest?.strain ?? null,
   };
 }
 
@@ -628,6 +624,9 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const [isDeletingSession, setIsDeletingSession] = useState(false);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
+  const clearEditSessionParam = useCallback(() => {
+    router.replace('/coach/sessions');
+  }, [router]);
 
   useEffect(() => {
     let mounted = true;
@@ -1121,7 +1120,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             facilities={facilities}
             groups={groups}
             editSessionId={editSessionId}
-            onEditSessionHandled={() => router.replace('/coach/sessions')}
+            onEditSessionHandled={clearEditSessionParam}
             onCreateSession={handleCoachSessionCreate}
             onUpdateSession={handleCoachSessionUpdate}
             onDeleteSession={handleCoachSessionDelete}

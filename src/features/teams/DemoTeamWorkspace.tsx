@@ -89,7 +89,7 @@ const demoPlayerSeed = [
   'Ben Carter',
 ];
 
-function buildDemoPlayers(teamId: string): DemoPlayer[] {
+export function buildDemoPlayers(teamId: string): DemoPlayer[] {
   return demoPlayerSeed.map((name, index) => {
     const groups = index < 5 ? ['starting-five'] : index < 10 ? ['bench-unit'] : ['rehab'];
     return { id: `${teamId}-demo-player-${index + 1}`, teamId, name, groups };
