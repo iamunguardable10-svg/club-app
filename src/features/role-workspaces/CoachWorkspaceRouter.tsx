@@ -12,6 +12,7 @@ import { CoachHistorySessionCard, CoachSessionDetailOverlay } from '@/features/r
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
+import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 export type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 
@@ -280,6 +281,8 @@ export function CoachSessionEditSheet({
   onClose: () => void;
   onDraftUpdate?: (value: Partial<CoachCalendarDraft>) => void;
 }) {
+  useBodyScrollLock(true);
+
   const [teamId, setTeamId] = useState(initial.teamId ?? (allowTeamChange && teams.length > 1 ? '' : teams[0]?.id ?? ''));
   const selectedTeam = teams.find((team) => team.id === teamId) ?? null;
   const facilityOptions = selectedTeam ? facilities.filter((facility) => facility.departmentIds.includes(selectedTeam.departmentId)) : [];
@@ -572,9 +575,41 @@ export function CoachCalendarSurface({
   }
   function handleSessionKeyDown(session: SmartCalendarSession, event: KeyboardEvent<HTMLElement>) { if (event.key !== 'Enter' && event.key !== ' ') return; event.preventDefault(); handleSessionClick(session, event as unknown as MouseEvent<HTMLElement>); }
   function startSessionDrag(session: SmartCalendarSession, kind: 'move' | 'resize', event: PointerEvent<HTMLElement>) {
-    event.stopPropagation(); if (mode !== 'edit' || !session.canManage) return; event.preventDefault(); didDragRef.current = false; setEditor(null);
+    event.stopPropagation(); if (mode !== 'edit' || !session.canManage) return;
     const start = new Date(session.startsAt);
-    setDrag({ target: 'session', sessionId: session.id, kind, startX: event.clientX, startY: event.clientY, originalStart: start, originalEnd: session.endsAt ? new Date(session.endsAt) : addMinutes(start, 60), minutesPerPixel: window.innerWidth < 768 ? 60 / mobileHourHeight : 60 / desktopHourHeight });
+    const nextDrag: CoachCalendarDrag = { target: 'session', sessionId: session.id, kind, startX: event.clientX, startY: event.clientY, originalStart: start, originalEnd: session.endsAt ? new Date(session.endsAt) : addMinutes(start, 60), minutesPerPixel: window.innerWidth < 768 ? 60 / mobileHourHeight : 60 / desktopHourHeight };
+
+    if (event.pointerType !== 'mouse' && kind === 'move') {
+      const pointerId = event.pointerId;
+      const startX = event.clientX;
+      const startY = event.clientY;
+      didDragRef.current = false;
+      function cleanup() {
+        window.removeEventListener('pointermove', handlePendingMove);
+        window.removeEventListener('pointerup', handlePendingUp);
+        window.removeEventListener('pointercancel', handlePendingUp);
+      }
+      function handlePendingMove(moveEvent: globalThis.PointerEvent) {
+        if (moveEvent.pointerId !== pointerId) return;
+        const movedEnough = Math.abs(moveEvent.clientX - startX) > 12 || Math.abs(moveEvent.clientY - startY) > 12;
+        if (!movedEnough) return;
+        didDragRef.current = true;
+        setEditor(null);
+        setDrag(nextDrag);
+        cleanup();
+      }
+      function handlePendingUp(upEvent: globalThis.PointerEvent) {
+        if (upEvent.pointerId !== pointerId) return;
+        cleanup();
+      }
+      window.addEventListener('pointermove', handlePendingMove);
+      window.addEventListener('pointerup', handlePendingUp, { once: true });
+      window.addEventListener('pointercancel', handlePendingUp, { once: true });
+      return;
+    }
+
+    event.preventDefault(); didDragRef.current = false; setEditor(null);
+    setDrag(nextDrag);
   }
   function startDraftDrag(kind: 'move' | 'resize', event: PointerEvent<HTMLElement>) {
     if (!draft) return; event.stopPropagation(); event.preventDefault(); didDragRef.current = false; setEditor(null);

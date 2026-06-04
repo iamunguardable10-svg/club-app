@@ -1,5 +1,7 @@
 'use client';
 
+import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
+
 type AppConfirmDialogProps = {
   isOpen: boolean;
   title: string;
@@ -23,6 +25,8 @@ export function AppConfirmDialog({
   onConfirm,
   onCancel,
 }: AppConfirmDialogProps) {
+  useBodyScrollLock(isOpen);
+
   if (!isOpen) return null;
 
   const confirmClass =

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 
 export type SessionComposerTeam = {
   id: string;
@@ -106,6 +107,8 @@ export function SessionComposer({
   onClose,
   onSubmit,
 }: SessionComposerProps) {
+  useBodyScrollLock(open);
+
   const inferredDepartments = useMemo(() => {
     if (departments.length > 0) return departments;
     const ids = Array.from(new Set(teams.map((team) => team.departmentId)));

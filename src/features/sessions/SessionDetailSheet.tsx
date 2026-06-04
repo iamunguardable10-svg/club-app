@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
+import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 
 export type SessionDetailGroup = {
   id: string;
@@ -115,6 +116,8 @@ export function SessionDetailSheet({
   actions?: ReactNode;
   onClose: () => void;
 }) {
+  useBodyScrollLock(true);
+
   const wholeTeamSelected = selectedGroupIds.length === 0;
   const [showEditDetails, setShowEditDetails] = useState(false);
   const [showParticipants, setShowParticipants] = useState(false);
