@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 export type SessionDetailGroup = {
   id: string;
@@ -83,6 +83,7 @@ export function SessionDetailSheet({
   loadRisks = [],
   participants = [],
   editDetails,
+  editOpenKey,
   canEditTime = false,
   onTimeChange,
   actions,
@@ -108,6 +109,7 @@ export function SessionDetailSheet({
   loadRisks?: SessionDetailLoadRisk[];
   participants?: SessionDetailParticipant[];
   editDetails?: ReactNode;
+  editOpenKey?: string | null;
   canEditTime?: boolean;
   onTimeChange?: (startsAt: string, endsAt: string) => void | Promise<void>;
   actions?: ReactNode;
@@ -128,6 +130,10 @@ export function SessionDetailSheet({
     return String(Math.max(30, Math.round((end.getTime() - start.getTime()) / 60_000)));
   });
   const expectedParticipants = participants.filter((player) => player.status !== 'out');
+
+  useEffect(() => {
+    if (editOpenKey) setShowEditDetails(true);
+  }, [editOpenKey]);
 
   async function saveGroupSelection(groupIds: string[]) {
     if (!onGroupsChange) return;

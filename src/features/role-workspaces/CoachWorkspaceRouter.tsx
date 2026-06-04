@@ -44,6 +44,8 @@ export type CoachPlayer = {
   loadEntries: AthleteLoadEntry[];
   acwr: number | null;
   risk: 'high' | 'low' | 'ready' | 'baseline';
+  monotony?: number | null;
+  strain?: number | null;
 };
 
 type SessionRow = {
@@ -191,6 +193,8 @@ function toCoachPlayer(userId: string, teamId: string, profile: ProfileRow | und
     loadEntries: entries,
     acwr: latest?.acwr ?? null,
     risk: zone.tone === 'high' ? 'high' : zone.tone === 'low' ? 'low' : zone.tone === 'ready' ? 'ready' : 'baseline',
+    monotony: latest?.monotony ?? null,
+    strain: latest?.strain ?? null,
   };
 }
 
@@ -429,6 +433,8 @@ export function CoachCalendarSurface({
   onUpdateSession,
   onDeleteSession,
   onDetails,
+  editSessionId = null,
+  onEditSessionHandled,
 }: {
   teams: CoachTeam[];
   sessions: CoachSession[];
@@ -438,6 +444,8 @@ export function CoachCalendarSurface({
   onUpdateSession: (input: CoachSessionMutation) => void | Promise<void>;
   onDeleteSession: (sessionId: string) => void | Promise<void>;
   onDetails: (session: CoachSession) => void;
+  editSessionId?: string | null;
+  onEditSessionHandled?: () => void;
 }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const days = useMemo(() => buildWeekDays(weekOffset), [weekOffset]);
@@ -459,6 +467,14 @@ export function CoachCalendarSurface({
   const weekLabel = useMemo(() => formatWeekLabel(days), [days]);
 
   useEffect(() => { if (!drag) setLocalSessions(sessions); }, [drag, sessions]);
+  useEffect(() => {
+    if (!editSessionId) return;
+    if (!localSessions.some((session) => session.id === editSessionId)) return;
+    setMode('edit');
+    setDraft(null);
+    setEditor({ kind: 'session', sessionId: editSessionId });
+    onEditSessionHandled?.();
+  }, [editSessionId, localSessions, onEditSessionHandled]);
   useEffect(() => {
     function updateDesktopScale() {
       if (window.innerWidth < 768) return;
@@ -601,6 +617,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedTeamId = searchParams.get('teamId');
+  const editSessionId = searchParams.get('editSessionId');
   const [teams, setTeams] = useState<CoachTeam[]>([]);
   const [sessions, setSessions] = useState<CoachSession[]>([]);
   const [facilities, setFacilities] = useState<CoachFacility[]>([]);
@@ -1098,7 +1115,18 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         ) : null}
 
         {mode === 'sessions' && teams.length > 0 ? (
-          <CoachCalendarSurface teams={teams} sessions={sessions} facilities={facilities} groups={groups} onCreateSession={handleCoachSessionCreate} onUpdateSession={handleCoachSessionUpdate} onDeleteSession={handleCoachSessionDelete} onDetails={setActiveSession} />
+          <CoachCalendarSurface
+            teams={teams}
+            sessions={sessions}
+            facilities={facilities}
+            groups={groups}
+            editSessionId={editSessionId}
+            onEditSessionHandled={() => router.replace('/coach/sessions')}
+            onCreateSession={handleCoachSessionCreate}
+            onUpdateSession={handleCoachSessionUpdate}
+            onDeleteSession={handleCoachSessionDelete}
+            onDetails={setActiveSession}
+          />
         ) : null}
 
         {mode === 'facilities' && teams.length > 0 ? (
@@ -1177,6 +1205,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
               };
             })}
             actions={<>
+              <button type="button" onClick={() => { setActiveSession(null); router.push(`/coach/sessions?editSessionId=${encodeURIComponent(activeSession.id)}`); }} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit session</button>
               <button type="button" onClick={() => setDeleteSessionId(activeSession.id)} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">Delete session</button>
               <Link href={`/coach/sessions`} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</Link>
             </>}

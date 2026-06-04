@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { DemoTeamWorkspace } from '@/features/teams/DemoTeamWorkspace';
 import type { TeamWorkspaceSection } from '@/features/teams/TeamWorkspaceView';
 import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
@@ -84,6 +84,7 @@ const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
 const DEMO_PLAYER_GROUPS_KEY = 'club-app.demo.player-groups';
 type DemoFacilityAssignment = { department: string; facility: string };
 type DemoPlayerGroup = { id: string; teamId: string; name: string };
+type DemoPlayer = { id: string; teamId: string; name: string; groups?: string[] };
 
 function getDemoFacilityAssignments(): DemoFacilityAssignment[] {
   if (typeof window === 'undefined') return [];
@@ -93,6 +94,29 @@ function getDemoFacilityAssignments(): DemoFacilityAssignment[] {
 function getDemoPlayerGroups(): DemoPlayerGroup[] {
   if (typeof window === 'undefined') return [];
   try { return JSON.parse(window.localStorage.getItem(DEMO_PLAYER_GROUPS_KEY) ?? '[]') as DemoPlayerGroup[]; } catch { return []; }
+}
+
+function saveDemoPlayerGroups(groups: DemoPlayerGroup[]) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(DEMO_PLAYER_GROUPS_KEY, JSON.stringify(groups));
+}
+
+function getDemoPlayers(): DemoPlayer[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(window.localStorage.getItem('club-app.demo.players') ?? '[]') as DemoPlayer[]; } catch { return []; }
+}
+
+function ensureDemoPlayerGroups(teams: DemoTeam[]) {
+  const existing = getDemoPlayerGroups();
+  const existingKeys = new Set(existing.map((group) => `${group.teamId}:${group.id}`));
+  const defaults = teams.flatMap((team) => [
+    { id: 'starting-five', teamId: team.id, name: 'Starting Five' },
+    { id: 'bench-unit', teamId: team.id, name: 'Bench unit' },
+    { id: 'rehab', teamId: team.id, name: 'Rehab' },
+  ]);
+  const merged = [...existing, ...defaults.filter((group) => !existingKeys.has(`${group.teamId}:${group.id}`))];
+  if (merged.length !== existing.length) saveDemoPlayerGroups(merged);
+  return merged;
 }
 
 function sameLocalDay(value: string, day: Date) {
@@ -199,8 +223,10 @@ function DemoSessionCard({ session, onDetails }: { session: DemoCoachSession; on
 }
 
 export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const selectedTeamId = searchParams.get('teamId');
+  const editSessionId = searchParams.get('editSessionId');
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [teams, setTeams] = useState<DemoTeam[]>([]);
   const [sessions, setSessions] = useState<DemoCoachSession[]>([]);
@@ -215,6 +241,8 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     const currentTeams = getDemoTeams(currentSetup).filter((team) => DEMO_COACH_TEAM_IDS.has(team.id));
     const currentSessions = getDemoSessions();
     const assignments = getDemoFacilityAssignments();
+    const playerGroups = ensureDemoPlayerGroups(currentTeams);
+    const demoPlayers = getDemoPlayers();
     const facilityNames = currentSetup?.facilities ?? [];
     const effectiveSessions = currentSessions.length > 0 ? currentSessions : fallbackSessions(currentTeams);
     const demoDepartments = Array.from(new Set(currentTeams.map((team) => team.department)));
@@ -226,7 +254,12 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     setRawSessions(effectiveSessions);
     setSessions(buildCoachSessions(currentTeams, effectiveSessions));
     setFacilities(facilityNames.map((name) => ({ id: name, name, departmentIds: effectiveAssignments.filter((item) => item.facility === name).map((item) => item.department) })));
-    setGroups(getDemoPlayerGroups().filter((group) => currentTeams.some((team) => team.id === group.teamId)).map((group) => ({ id: group.id, teamId: group.teamId, name: group.name, playerCount: 0 })));
+    setGroups(playerGroups.filter((group) => currentTeams.some((team) => team.id === group.teamId)).map((group) => ({
+      id: group.id,
+      teamId: group.teamId,
+      name: group.name,
+      playerCount: demoPlayers.filter((player) => player.teamId === group.teamId && player.groups?.includes(group.id)).length,
+    })));
   }, []);
 
   const selectedTeam = selectedTeamId ? teams.find((team) => team.id === selectedTeamId) ?? null : null;
@@ -323,7 +356,18 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         ) : null}
 
         {mode === 'sessions' && teams.length > 0 ? (
-          <CoachCalendarSurface teams={coachTeams} sessions={coachSessions} facilities={facilities} groups={groups} onCreateSession={handleDemoCreateSession} onUpdateSession={handleDemoUpdateSession} onDeleteSession={handleDemoDeleteSession} onDetails={(session) => setActiveSession(sessions.find((item) => item.id === session.id) ?? null)} />
+          <CoachCalendarSurface
+            teams={coachTeams}
+            sessions={coachSessions}
+            facilities={facilities}
+            groups={groups}
+            editSessionId={editSessionId}
+            onEditSessionHandled={() => router.replace('/demo/coach/sessions')}
+            onCreateSession={handleDemoCreateSession}
+            onUpdateSession={handleDemoUpdateSession}
+            onDeleteSession={handleDemoDeleteSession}
+            onDetails={(session) => setActiveSession(sessions.find((item) => item.id === session.id) ?? null)}
+          />
         ) : null}
 
         {mode === 'facilities' && teams.length > 0 ? (
@@ -400,6 +444,7 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
               };
             })}
             actions={<>
+              <button type="button" onClick={() => { setActiveSession(null); router.push(`/demo/coach/sessions?editSessionId=${encodeURIComponent(activeSession.id)}`); }} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit session</button>
               <button type="button" onClick={() => setDeleteSessionId(activeSession.id)} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">Delete session</button>
               <Link href={`/demo/coach/sessions`} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</Link>
             </>}

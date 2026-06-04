@@ -214,15 +214,30 @@ export function DemoTeamWorkspace({
 
   useEffect(() => {
     const currentSetup = getDemoClubSetup();
+    const currentPlayers = getDemoPlayers();
+    const currentGroups = getDemoPlayerGroups();
+    const hasPlayersForTeam = currentPlayers.some((player) => player.teamId === teamId);
+    const hasGroupsForTeam = currentGroups.some((group) => group.teamId === teamId);
+    const seededPlayers = hasPlayersForTeam ? currentPlayers : [...currentPlayers, ...buildDemoPlayers(teamId)];
+    const seededGroups = hasGroupsForTeam
+      ? currentGroups
+      : [
+        ...currentGroups,
+        { id: 'starting-five', teamId, name: 'Starting Five' },
+        { id: 'bench-unit', teamId, name: 'Bench unit' },
+        { id: 'rehab', teamId, name: 'Rehab' },
+      ];
+    if (!hasPlayersForTeam) saveDemoPlayers(seededPlayers);
+    if (!hasGroupsForTeam) saveDemoPlayerGroups(seededGroups);
     setSetup(currentSetup);
     setTeams(getDemoTeams(currentSetup));
     setSessions(getDemoSessions());
     setInvites(getDemoInvites());
-    setPlayers(getDemoPlayers());
-    setPlayerGroups(getDemoPlayerGroups());
+    setPlayers(seededPlayers);
+    setPlayerGroups(seededGroups);
     setExtraCoachRoles(getDemoExtraCoachRoles());
     setFacilityAssignments(getDemoFacilityAssignments());
-  }, []);
+  }, [teamId]);
 
   function handleDefaultFacilityChange(facility: string) {
     const nextTeams = teams.map((team) => team.id === teamId ? { ...team, defaultFacility: facility || null } : team);

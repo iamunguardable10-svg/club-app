@@ -366,6 +366,15 @@ function PlayerLoadDetail({
   const attendanceLabel = player.attendanceRate ? `${player.attendanceRate}%` : filteredAttendance.length === 0 ? 'Clean' : `${filteredAttendance.length} flags`;
   const avgGameMinutes = averageMinutes(recentEntries, (entry) => entry.trainingType === 'game');
   const avgTrainingMinutes = averageMinutes(recentEntries, (entry) => entry.trainingType !== 'game' && entry.trainingType !== 'recovery');
+  const monotony = summary.latest?.monotony ?? null;
+  const strain = summary.latest?.strain ?? null;
+  const stabilityState = monotony === null || strain === null
+    ? { label: 'Building', detail: 'Needs seven load days', tone: 'border-slate-800 bg-slate-950/70 text-slate-300' }
+    : monotony >= 2
+      ? { label: 'High monotony', detail: 'Load rhythm is too repetitive', tone: 'border-rose-400/45 bg-rose-400/10 text-rose-100' }
+      : monotony >= 1.5
+        ? { label: 'Watch rhythm', detail: 'Similar loads are stacking', tone: 'border-amber-400/45 bg-amber-400/10 text-amber-100' }
+        : { label: 'Stable rhythm', detail: 'Weekly variation looks healthy', tone: 'border-emerald-400/45 bg-emerald-400/10 text-emerald-100' };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-slate-950/80 px-3 pb-3 pt-8 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
@@ -435,6 +444,26 @@ function PlayerLoadDetail({
               <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avg training minutes / session</p>
                 <p className="mt-2 text-2xl font-black text-white">{avgTrainingMinutes === null ? '—' : `${avgTrainingMinutes} min`}</p>
+              </div>
+            </div>
+
+            <div className={`rounded-3xl border p-4 ${stabilityState.tone}`}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] opacity-70">Monotony / strain</p>
+                  <p className="mt-2 text-xl font-black text-white">{stabilityState.label}</p>
+                  <p className="mt-1 text-xs font-bold text-slate-300">{stabilityState.detail}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <div className="rounded-2xl border border-current/20 bg-slate-950/35 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] opacity-70">Monotony</p>
+                    <p className="mt-1 text-lg font-black text-white">{monotony === null ? '—' : monotony.toFixed(2)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-current/20 bg-slate-950/35 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] opacity-70">Strain</p>
+                    <p className="mt-1 text-lg font-black text-white">{strain === null ? '—' : `${Math.round(strain)} AU`}</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -573,6 +602,7 @@ function TeamSmartCalendar({
   const [dayTransitionDirection, setDayTransitionDirection] = useState<'next' | 'previous' | null>(null);
   const [desktopHourHeight, setDesktopHourHeight] = useState(baseDesktopHourHeight);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [selectedSessionEditKey, setSelectedSessionEditKey] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [isDeletingSession, setIsDeletingSession] = useState(false);
   const [mode, setMode] = useState<'view' | 'edit'>('view');
@@ -776,6 +806,7 @@ function TeamSmartCalendar({
       return;
     }
     if (session.id.startsWith('context-')) return;
+    setSelectedSessionEditKey(null);
     setSelectedSessionId(session.id);
   }
 
@@ -870,6 +901,11 @@ function TeamSmartCalendar({
     } finally {
       setIsDeletingSession(false);
     }
+  }
+
+  function openSelectedSessionEditor(sessionId: string) {
+    setMode('edit');
+    setSelectedSessionEditKey(`${sessionId}-${Date.now()}`);
   }
 
   useEffect(() => {
@@ -1027,7 +1063,13 @@ function TeamSmartCalendar({
           canEditTime={mode === 'edit' && canManageCalendar && Boolean(onSessionTimeChange)}
           onTimeChange={handleSelectedSessionTimeChange}
           editDetails={null}
-          actions={mode === 'edit' && canManageCalendar && onSessionDelete ? <button type="button" onClick={() => setDeleteTargetId(selectedSession.id)} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">Delete session</button> : null}
+          editOpenKey={selectedSessionEditKey}
+          actions={canManageCalendar ? (
+            <>
+              {mode === 'view' ? <button type="button" onClick={() => openSelectedSessionEditor(selectedSession.id)} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit session</button> : null}
+              {mode === 'edit' && onSessionDelete ? <button type="button" onClick={() => setDeleteTargetId(selectedSession.id)} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">Delete session</button> : null}
+            </>
+          ) : null}
           onClose={() => setSelectedSessionId(null)}
         />
       ) : null}
