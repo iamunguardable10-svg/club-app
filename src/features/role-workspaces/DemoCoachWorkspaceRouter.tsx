@@ -113,12 +113,18 @@ function saveDemoPlayers(players: DemoPlayer[]) {
 }
 
 function ensureDemoPlayers(teams: DemoTeam[]) {
+  if (teams.length === 0) return getDemoPlayers();
+  const activeTeamIds = new Set(teams.map((team) => team.id));
   const existing = getDemoPlayers();
-  const teamIds = new Set(existing.map((player) => player.teamId));
+  const pruned = existing.filter((player) => activeTeamIds.has(player.teamId));
+  const teamIds = new Set(pruned.map((player) => player.teamId));
   const missingTeams = teams.filter((team) => !teamIds.has(team.id));
-  if (missingTeams.length === 0) return existing;
-  // Demo seed is non-destructive: existing team players are preserved until the demo is reset.
-  const merged = [...existing, ...missingTeams.flatMap((team) => buildDemoPlayers(team.id))];
+  if (missingTeams.length === 0) {
+    if (pruned.length !== existing.length) saveDemoPlayers(pruned);
+    return pruned;
+  }
+  // Preserve existing players for active teams, prune stale teams, and seed only missing team rosters.
+  const merged = [...pruned, ...missingTeams.flatMap((team) => buildDemoPlayers(team.id))];
   saveDemoPlayers(merged);
   return merged;
 }
