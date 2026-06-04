@@ -5,6 +5,14 @@ import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type LoadTrainingType } from '@/features/load/loadTypes';
 import type { CoachSession } from '@/features/role-workspaces/CoachTypes';
 
+type LoadRiskPlayer = { risk: string; acwr: number | null };
+
+export function sortCoachLoadRisks<T extends LoadRiskPlayer>(players: T[]) {
+  return [...players]
+    .filter((player) => player.risk === 'high' || player.risk === 'low')
+    .sort((a, b) => (b.acwr ?? -Infinity) - (a.acwr ?? -Infinity));
+}
+
 function formatTimeRange(startsAt: string, endsAt: string | null) {
   const start = new Date(startsAt);
   const end = endsAt ? new Date(endsAt) : new Date(start.getTime() + 90 * 60_000);
@@ -26,7 +34,7 @@ function summarizeCoachSession(session: CoachSession) {
   const loadMix = Array.from(mix.entries())
     .map(([type, load]) => ({ type, load, share: load / totalMixLoad }))
     .sort((a, b) => b.load - a.load);
-  const risks = session.players.filter((player) => player.risk === 'high' || player.risk === 'low');
+  const risks = sortCoachLoadRisks(session.players);
   return { late, out, loadReports, reportRate, avgRpe, avgLoad, loadMix, risks };
 }
 

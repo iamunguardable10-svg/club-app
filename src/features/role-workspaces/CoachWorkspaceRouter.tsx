@@ -8,7 +8,7 @@ import type { TeamWorkspaceSection } from '@/features/teams/TeamWorkspaceView';
 import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
 import { sessionTypeToLoadType, type AthleteLoadEntry, type LoadTrainingType } from '@/features/load/loadTypes';
 import type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
-import { CoachHistorySessionCard, CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
+import { CoachHistorySessionCard, CoachSessionDetailOverlay, sortCoachLoadRisks } from '@/features/role-workspaces/CoachSessionSurfaces';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
@@ -187,7 +187,7 @@ function CoachTopNav({ mode, singleTeamId }: { mode: CoachMode; singleTeamId?: s
 function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDetails: () => void }) {
   const { out, late } = summarizeAvailability(session);
   const flags = [...out, ...late];
-  const loadFlags = session.players.filter((player) => player.risk === 'high' || player.risk === 'low');
+  const loadFlags = sortCoachLoadRisks(session.players);
   return (
     <button type="button" onClick={onDetails} className="block w-full rounded-3xl border border-slate-800 bg-slate-950/72 p-4 text-left text-white shadow-[0_18px_70px_rgba(0,0,0,0.22)] transition hover:border-emerald-300/45 hover:bg-slate-900/70">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -669,6 +669,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const [reloadKey, setReloadKey] = useState(0);
   const [activeSession, setActiveSession] = useState<CoachSession | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [returnToSessionId, setReturnToSessionId] = useState<string | null>(null);
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
   const [isDeletingSession, setIsDeletingSession] = useState(false);
   const [isSavingSessionEdit, setIsSavingSessionEdit] = useState(false);
@@ -1087,6 +1088,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       if (deleteError) { setError(deleteError.message); return; }
       setSessions((current) => current.filter((session) => session.id !== sessionId));
       setActiveSession(null);
+      setReturnToSessionId(null);
       setDeleteSessionId(null);
     } finally {
       setIsDeletingSession(false);
@@ -1095,6 +1097,12 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
 
   const historySessions = useMemo(() => [...sessions].filter((session) => new Date(session.startsAt).getTime() < Date.now()).sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()), [sessions]);
   const editingSession = editingSessionId ? sessions.find((session) => session.id === editingSessionId) ?? null : null;
+  function closeSessionEditor() {
+    const returnSession = returnToSessionId ? sessions.find((session) => session.id === returnToSessionId) ?? null : null;
+    setEditingSessionId(null);
+    setReturnToSessionId(null);
+    if (returnSession) setActiveSession(returnSession);
+  }
 
   if (state === 'loading') {
     return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">Loading coach workspace...</section></div></main>;
@@ -1210,7 +1218,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           <CoachSessionDetailOverlay
             session={activeSession}
             calendarHref="/coach/sessions"
-            onEdit={() => { setEditingSessionId(activeSession.id); setActiveSession(null); }}
+            onEdit={() => { setReturnToSessionId(activeSession.id); setEditingSessionId(activeSession.id); setActiveSession(null); }}
             onDelete={() => setDeleteSessionId(activeSession.id)}
             onClose={() => setActiveSession(null)}
           />
@@ -1237,6 +1245,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
               try {
                 await handleCoachSessionUpdate({ sessionId: editingSession.id, ...value });
                 setEditingSessionId(null);
+                setReturnToSessionId(null);
               } finally {
                 setIsSavingSessionEdit(false);
               }
@@ -1246,11 +1255,12 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
               try {
                 await handleCoachSessionDelete(editingSession.id);
                 setEditingSessionId(null);
+                setReturnToSessionId(null);
               } finally {
                 setIsSavingSessionEdit(false);
               }
             }}
-            onClose={() => setEditingSessionId(null)}
+            onClose={closeSessionEditor}
           />
         ) : null}
 
