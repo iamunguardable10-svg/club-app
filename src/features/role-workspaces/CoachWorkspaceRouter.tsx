@@ -266,6 +266,7 @@ export function CoachSessionEditSheet({
   onSave,
   onDelete,
   onClose,
+  onDraftUpdate,
 }: {
   title: string;
   teams: CoachTeam[];
@@ -277,8 +278,9 @@ export function CoachSessionEditSheet({
   onSave: (value: { startsAt: string; endsAt: string; teamId: string; facilityId: string; groupIds: string[]; sessionType: string }) => void | Promise<void>;
   onDelete?: () => void;
   onClose: () => void;
+  onDraftUpdate?: (value: Partial<CoachCalendarDraft>) => void;
 }) {
-  const [teamId, setTeamId] = useState(initial.teamId ?? teams[0]?.id ?? '');
+  const [teamId, setTeamId] = useState(initial.teamId ?? (allowTeamChange && teams.length > 1 ? '' : teams[0]?.id ?? ''));
   const selectedTeam = teams.find((team) => team.id === teamId) ?? null;
   const facilityOptions = facilities.filter((facility) => selectedTeam ? facility.departmentIds.includes(selectedTeam.departmentId) : true);
   const [facilityId, setFacilityId] = useState(initial.facilityId ?? selectedTeam?.defaultFacilityId ?? facilityOptions[0]?.id ?? '');
@@ -292,9 +294,17 @@ export function CoachSessionEditSheet({
   const [sessionType, setSessionType] = useState(normalizeCoachSessionType(initial.sessionType));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const teamGroups = groups.filter((group) => group.teamId === teamId);
+  const hasTeam = Boolean(selectedTeam);
+  const isDraftCreation = allowTeamChange;
 
   useEffect(() => {
     const nextTeam = teams.find((team) => team.id === teamId) ?? null;
+    if (!nextTeam) {
+      if (facilityId !== '') setFacilityId('');
+      setGroupIds([]);
+      previousTeamIdRef.current = teamId;
+      return;
+    }
     const nextFacilities = facilities.filter((facility) => nextTeam ? facility.departmentIds.includes(nextTeam.departmentId) : true);
     const teamChanged = previousTeamIdRef.current !== teamId;
     if (teamChanged) {
@@ -306,12 +316,43 @@ export function CoachSessionEditSheet({
     setGroupIds((current) => current.filter((groupId) => groups.some((group) => group.id === groupId && group.teamId === teamId)));
   }, [facilities, facilityId, groups, teamId, teams]);
 
+  function handleTeamSelect(nextTeamId: string) {
+    const nextTeam = teams.find((team) => team.id === nextTeamId) ?? null;
+    const nextFacilities = facilities.filter((facility) => nextTeam ? facility.departmentIds.includes(nextTeam.departmentId) : true);
+    const nextFacilityId = nextTeam?.defaultFacilityId && nextFacilities.some((facility) => facility.id === nextTeam.defaultFacilityId)
+      ? nextTeam.defaultFacilityId
+      : nextFacilities[0]?.id ?? '';
+    setTeamId(nextTeamId);
+    setFacilityId(nextFacilityId);
+    setGroupIds([]);
+    onDraftUpdate?.({ teamId: nextTeamId || null, facilityId: nextFacilityId || null, groupIds: [] });
+  }
+
+  function handleFacilitySelect(nextFacilityId: string) {
+    setFacilityId(nextFacilityId);
+    onDraftUpdate?.({ facilityId: nextFacilityId || null });
+  }
+
   function toggleGroup(groupId: string) {
-    setGroupIds((current) => current.includes(groupId) ? current.filter((id) => id !== groupId) : [...current, groupId]);
+    setGroupIds((current) => {
+      const next = current.includes(groupId) ? current.filter((id) => id !== groupId) : [...current, groupId];
+      onDraftUpdate?.({ groupIds: next });
+      return next;
+    });
+  }
+
+  function selectWholeTeam() {
+    setGroupIds([]);
+    onDraftUpdate?.({ groupIds: [] });
+  }
+
+  function handleSessionTypeSelect(nextType: string) {
+    setSessionType(nextType);
+    onDraftUpdate?.({ sessionType: nextType });
   }
 
   async function submit() {
-    if (!teamId || !facilityId) return;
+    if (!hasTeam || !teamId || !facilityId) return;
     const [hours, minutes] = timeValue.split(':').map(Number);
     const start = new Date(initial.startsAt);
     start.setHours(Number.isFinite(hours) ? hours : start.getHours(), Number.isFinite(minutes) ? minutes : start.getMinutes(), 0, 0);
@@ -333,13 +374,15 @@ export function CoachSessionEditSheet({
         <div className="mt-5 grid grid-cols-2 gap-2 sm:gap-3">
           <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
             Team
-            <select value={teamId} disabled={!allowTeamChange} onChange={(event) => setTeamId(event.target.value)} className="mt-2 h-11 w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-2 text-xs font-black text-slate-100 outline-none focus:border-sky-300 disabled:opacity-70 sm:px-3 sm:text-sm">
+            <select value={teamId} disabled={!allowTeamChange} onChange={(event) => handleTeamSelect(event.target.value)} className="mt-2 h-11 w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-2 text-xs font-black text-slate-100 outline-none focus:border-sky-300 disabled:opacity-60 sm:px-3 sm:text-sm">
+              {allowTeamChange && teams.length > 1 ? <option value="">Choose team</option> : null}
               {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
             </select>
           </label>
           <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
             Facility
-            <select value={facilityId} onChange={(event) => setFacilityId(event.target.value)} className="mt-2 h-11 w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-2 text-xs font-black text-slate-100 outline-none focus:border-sky-300 sm:px-3 sm:text-sm">
+            <select value={facilityId} disabled={!hasTeam} onChange={(event) => handleFacilitySelect(event.target.value)} className="mt-2 h-11 w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-2 text-xs font-black text-slate-100 outline-none focus:border-sky-300 disabled:opacity-60 sm:px-3 sm:text-sm">
+              {!hasTeam ? <option value="">Choose team first</option> : null}
               {facilityOptions.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
             </select>
           </label>
@@ -348,7 +391,7 @@ export function CoachSessionEditSheet({
         <div className="mt-3 grid grid-cols-[minmax(0,1fr)_7.25rem] gap-2 sm:grid-cols-[minmax(0,1fr)_8rem] sm:gap-3">
           <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
             Type
-            <select value={sessionType} onChange={(event) => setSessionType(event.target.value)} className="mt-2 h-11 w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-2 text-xs font-black text-slate-100 outline-none focus:border-sky-300 sm:px-3 sm:text-sm">
+            <select value={sessionType} onChange={(event) => handleSessionTypeSelect(event.target.value)} className="mt-2 h-11 w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-2 text-xs font-black text-slate-100 outline-none focus:border-sky-300 sm:px-3 sm:text-sm">
               {coachSessionTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
             </select>
           </label>
@@ -365,19 +408,26 @@ export function CoachSessionEditSheet({
           </label>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Participants</p>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <button type="button" onClick={() => setGroupIds([])} className={`rounded-full border px-2.5 py-1 text-xs font-black ${groupIds.length === 0 ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:text-white'}`}>Whole team</button>
-            {teamGroups.map((group) => (
-              <button key={group.id} type="button" onClick={() => toggleGroup(group.id)} className={`rounded-full border px-2.5 py-1 text-xs font-black ${groupIds.includes(group.id) ? 'border-sky-300 bg-sky-950/50 text-sky-100' : 'border-slate-700 text-slate-300 hover:text-white'}`}>{group.name}{group.playerCount ? ` · ${group.playerCount}` : ''}</button>
-            ))}
+        <div className={`mt-4 rounded-2xl border p-4 ${hasTeam ? 'border-slate-800 bg-slate-900/45' : 'border-slate-800/70 bg-slate-950/45 opacity-65'}`}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Participants</p>
+            {isDraftCreation && !hasTeam ? <span className="text-[10px] font-black text-slate-600">After team</span> : null}
           </div>
+          {hasTeam ? (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              <button type="button" onClick={selectWholeTeam} className={`rounded-full border px-2.5 py-1 text-xs font-black ${groupIds.length === 0 ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:text-white'}`}>Whole team</button>
+              {teamGroups.map((group) => (
+                <button key={group.id} type="button" onClick={() => toggleGroup(group.id)} className={`rounded-full border px-2.5 py-1 text-xs font-black ${groupIds.includes(group.id) ? 'border-sky-300 bg-sky-950/50 text-sky-100' : 'border-slate-700 text-slate-300 hover:text-white'}`}>{group.name}{group.playerCount ? ` · ${group.playerCount}` : ''}</button>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm font-bold text-slate-500">Choose a team to load team groups.</p>
+          )}
         </div>
 
         <div className="mt-5 flex flex-wrap justify-between gap-2">
           {onDelete ? <button type="button" onClick={() => setConfirmDelete(true)} className="rounded-xl border border-red-500/60 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-950/35">Delete</button> : <span />}
-          <button type="button" onClick={() => { void submit(); }} disabled={isSaving || !teamId || !facilityId} className="rounded-xl bg-emerald-300 px-5 py-2 text-sm font-black text-slate-950 disabled:opacity-60">{isSaving ? 'Saving...' : 'Save session'}</button>
+          <button type="button" onClick={() => { void submit(); }} disabled={isSaving || !hasTeam || !teamId || !facilityId} className="rounded-xl bg-emerald-300 px-5 py-2 text-sm font-black text-slate-950 disabled:opacity-60">{isSaving ? 'Saving...' : 'Save session'}</button>
         </div>
       </section>
       <AppConfirmDialog isOpen={confirmDelete} title="Delete session?" description="This removes the session from coach, team and athlete calendars." confirmLabel="Delete session" cancelLabel="Keep session" tone="danger" isConfirming={isSaving} onConfirm={() => { setConfirmDelete(false); onDelete?.(); }} onCancel={() => setConfirmDelete(false)} />
@@ -506,7 +556,7 @@ export function CoachCalendarSurface({
     function createDraftAt(clientY: number) {
       const clickedMinutes = clamp(roundToSlot(((clientY - rect.top) / Math.max(rect.height, 1)) * visibleMinutes), 0, visibleMinutes - 30);
       const start = createDateForCalendarMinute(day, (baseHour - firstHour) * 60 + clickedMinutes);
-      const team = defaultTeamForDay(day);
+      const team = teams.length === 1 ? defaultTeamForDay(day) : null;
       setDraft({ startsAt: start.toISOString(), endsAt: addMinutes(start, 90).toISOString(), teamId: team?.id ?? null, facilityId: defaultFacilityForTeam(team), groupIds: [], sessionType: 'training' });
       setEditor(null);
     }
@@ -569,7 +619,7 @@ export function CoachCalendarSurface({
     <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
       <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Coach calendar</p><h2 className="mt-2 text-2xl font-black">All assigned teams</h2></div></div>
       <SmartSessionCalendar mode={mode} canCreateSessions={teams.length > 0 && facilities.length > 0} days={days} hours={calendarHours} firstHour={firstHour} lastHour={lastHour} mobileVisibleHours={mobileVisibleHours} mobileFirstHour={mobileFirstHour} mobileHourHeight={mobileHourHeight} mobileGridHeight={mobileGridHeight} desktopHourHeight={desktopHourHeight} activeDayIndex={activeDayIndex} mobileCalendarView={mobileCalendarView} dayTransitionDirection={dayTransitionDirection} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null} weekLabel={weekLabel} isCurrentWeek={weekOffset === 0} calendarScrollRef={calendarScrollRef} setDayRef={(index, element) => { dayRefs.current[index] = element; }} onSetMode={setMode} onClearDraft={() => setDraft(null)} onPreviousWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onResetWeek={resetWeek} onMobileDaySelect={switchMobileDay} onMobileCalendarViewChange={setMobileCalendarView} onMobileDaySwipeStart={handleMobileDaySwipeStart} onMobileDaySwipeEnd={handleMobileDaySwipeEnd} onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }} onSlotPointerDown={handleSlotPointerDown} onSessionPointerDown={startSessionDrag} onSessionClick={handleSessionClick} onSessionKeyDown={handleSessionKeyDown} onDraftPointerDown={startDraftDrag} onDraftClick={() => setEditor({ kind: 'draft' })} onDraftCancel={() => setDraft(null)} />
-      {editor && editorInitial ? <CoachSessionEditSheet key={editor.kind === 'session' ? `session-${editor.sessionId}` : `draft-${editorInitial.startsAt}-${editorInitial.teamId ?? 'none'}`} title={editor.kind === 'draft' ? 'New training' : editingSession?.title ?? 'Training'} teams={teams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { setIsSaving(true); try { if (editor.kind === 'draft') { await onCreateSession(value); setDraft(null); } else if (editingSession) { await onUpdateSession({ sessionId: editingSession.id, ...value }); } setEditor(null); } finally { setIsSaving(false); } }} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : undefined} onClose={() => setEditor(null)} /> : null}
+      {editor && editorInitial ? <CoachSessionEditSheet key={editor.kind === 'session' ? `session-${editor.sessionId}` : `draft-${editorInitial.startsAt}`} title={editor.kind === 'draft' ? 'New training' : editingSession?.title ?? 'Training'} teams={teams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { setIsSaving(true); try { if (editor.kind === 'draft') { await onCreateSession(value); setDraft(null); } else if (editingSession) { await onUpdateSession({ sessionId: editingSession.id, ...value }); } setEditor(null); } finally { setIsSaving(false); } }} onDraftUpdate={editor.kind === 'draft' ? (value) => setDraft((current) => current ? { ...current, ...value } : current) : undefined} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : undefined} onClose={() => setEditor(null)} /> : null}
     </section>
   );
 }

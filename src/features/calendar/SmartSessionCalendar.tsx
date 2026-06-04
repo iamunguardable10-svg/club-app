@@ -80,7 +80,7 @@ export function smartDurationMinutes(start: Date, end: Date) {
 
 export function smartFormatTimeRange(startsAt: string, endsAt: string | null) {
   const start = new Date(startsAt);
-  const end = endsAt ? new Date(endsAt) : smartAddMinutes(start, 60);
+  const end = endsAt ? new Date(endsAt) : smartAddMinutes(start, 90);
   const formatter = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
   return `${formatter.format(start)} - ${formatter.format(end)}`;
 }
@@ -236,7 +236,7 @@ export function SmartSessionCalendar({
                     const start = new Date(draft.startsAt);
                     const top = Math.max(0, ((start.getHours() - mobileFirstHour) * 60 + start.getMinutes()) * (mobileHourHeight / 60));
                     const height = Math.min(Math.max(20, smartDurationMinutes(new Date(draft.startsAt), new Date(draft.endsAt)) * (mobileHourHeight / 60)), mobileGridHeight - top);
-                    return <article data-calendar-session="true" onPointerDown={(event) => onDraftPointerDown('move', event)} onClick={onDraftClick} style={{ top, height, touchAction: 'none' }} className="absolute left-0.5 right-0.5 z-20 cursor-grab overflow-hidden rounded-md border border-sky-300 bg-sky-500/40 px-1 py-0.5 text-[9px] font-black text-sky-50"><span>Training</span><button type="button" onPointerDown={(event) => onDraftPointerDown('resize', event)} className="absolute inset-x-1 bottom-0 h-2 rounded-t bg-sky-100/90" aria-label="Resize session draft" /></article>;
+                    return <article data-calendar-session="true" onPointerDown={(event) => onDraftPointerDown('move', event)} onClick={onDraftClick} style={{ top, height, touchAction: 'none' }} className="absolute left-0.5 right-0.5 z-20 cursor-grab overflow-hidden rounded-md border border-sky-300 bg-sky-500/40 px-1 py-0.5 text-[9px] font-black text-sky-50"><span>{draft.teamLabel ?? 'Choose team'}</span><button type="button" onPointerDown={(event) => onDraftPointerDown('resize', event)} className="absolute inset-x-1 bottom-0 h-2 rounded-t bg-sky-100/90" aria-label="Resize session draft" /></article>;
                   })() : null}
                 </div>
               );
@@ -284,7 +284,7 @@ export function SmartSessionCalendar({
                     const start = new Date(draft.startsAt);
                     const top = Math.max(0, ((start.getHours() - mobileFirstHour) * 60 + start.getMinutes()) * (mobileHourHeight / 60));
                     const height = Math.min(Math.max(24, smartDurationMinutes(new Date(draft.startsAt), new Date(draft.endsAt)) * (mobileHourHeight / 60)), mobileGridHeight - top);
-                    return <article data-calendar-session="true" onPointerDown={(event) => onDraftPointerDown('move', event)} onClick={onDraftClick} style={{ top, height, touchAction: 'none' }} className="absolute left-2 right-2 z-20 cursor-grab overflow-hidden rounded-xl border border-sky-300 bg-sky-500/40 px-2 py-1 text-xs font-black text-sky-50"><span>Training</span><button type="button" onPointerDown={(event) => onDraftPointerDown('resize', event)} className="absolute inset-x-4 bottom-0 h-3 rounded-t bg-sky-100/90" aria-label="Resize session draft" /></article>;
+                    return <article data-calendar-session="true" onPointerDown={(event) => onDraftPointerDown('move', event)} onClick={onDraftClick} style={{ top, height, touchAction: 'none' }} className="absolute left-2 right-2 z-20 cursor-grab overflow-hidden rounded-xl border border-sky-300 bg-sky-500/40 px-2 py-1 text-xs font-black text-sky-50"><span>{draft.teamLabel ?? 'Choose team'}</span><button type="button" onPointerDown={(event) => onDraftPointerDown('resize', event)} className="absolute inset-x-4 bottom-0 h-3 rounded-t bg-sky-100/90" aria-label="Resize session draft" /></article>;
                   })() : null}
                 </div>
               );
