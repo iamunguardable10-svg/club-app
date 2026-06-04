@@ -282,7 +282,7 @@ export function CoachSessionEditSheet({
 }) {
   const [teamId, setTeamId] = useState(initial.teamId ?? (allowTeamChange && teams.length > 1 ? '' : teams[0]?.id ?? ''));
   const selectedTeam = teams.find((team) => team.id === teamId) ?? null;
-  const facilityOptions = facilities.filter((facility) => selectedTeam ? facility.departmentIds.includes(selectedTeam.departmentId) : true);
+  const facilityOptions = selectedTeam ? facilities.filter((facility) => facility.departmentIds.includes(selectedTeam.departmentId)) : [];
   const [facilityId, setFacilityId] = useState(initial.facilityId ?? selectedTeam?.defaultFacilityId ?? facilityOptions[0]?.id ?? '');
   const previousTeamIdRef = useRef(teamId);
   const [groupIds, setGroupIds] = useState<string[]>(initial.groupIds);
@@ -295,13 +295,13 @@ export function CoachSessionEditSheet({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const teamGroups = groups.filter((group) => group.teamId === teamId);
   const hasTeam = Boolean(selectedTeam);
-  const isDraftCreation = allowTeamChange;
 
   useEffect(() => {
     const nextTeam = teams.find((team) => team.id === teamId) ?? null;
     if (!nextTeam) {
       if (facilityId !== '') setFacilityId('');
       setGroupIds([]);
+      onDraftUpdate?.({ facilityId: null, groupIds: [] });
       previousTeamIdRef.current = teamId;
       return;
     }
@@ -334,11 +334,9 @@ export function CoachSessionEditSheet({
   }
 
   function toggleGroup(groupId: string) {
-    setGroupIds((current) => {
-      const next = current.includes(groupId) ? current.filter((id) => id !== groupId) : [...current, groupId];
-      onDraftUpdate?.({ groupIds: next });
-      return next;
-    });
+    const next = groupIds.includes(groupId) ? groupIds.filter((id) => id !== groupId) : [...groupIds, groupId];
+    setGroupIds(next);
+    onDraftUpdate?.({ groupIds: next });
   }
 
   function selectWholeTeam() {
@@ -411,7 +409,7 @@ export function CoachSessionEditSheet({
         <div className={`mt-4 rounded-2xl border p-4 ${hasTeam ? 'border-slate-800 bg-slate-900/45' : 'border-slate-800/70 bg-slate-950/45 opacity-65'}`}>
           <div className="flex items-center justify-between gap-3">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Participants</p>
-            {isDraftCreation && !hasTeam ? <span className="text-[10px] font-black text-slate-600">After team</span> : null}
+            {allowTeamChange && !hasTeam ? <span className="text-[10px] font-black text-slate-600">After team</span> : null}
           </div>
           {hasTeam ? (
             <div className="mt-3 flex flex-wrap gap-1.5">
