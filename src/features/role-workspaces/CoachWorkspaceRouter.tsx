@@ -284,13 +284,13 @@ function labelForCoachSessionType(value: string) {
   return coachSessionTypes.find((type) => type.value === normalizeCoachSessionType(value))?.label ?? 'Training';
 }
 
-function normalizeCoachSessionType(value?: string | null) {
+export function normalizeCoachSessionType(value?: string | null) {
   if (value === 'strength') return 's_and_c';
   if (value === 'individual') return 'other';
   return value ?? 'training';
 }
 
-function CoachSessionEditSheet({
+export function CoachSessionEditSheet({
   title,
   teams,
   facilities,
@@ -620,8 +620,10 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const [groups, setGroups] = useState<CoachGroup[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
   const [activeSession, setActiveSession] = useState<CoachSession | null>(null);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
   const [isDeletingSession, setIsDeletingSession] = useState(false);
+  const [isSavingSessionEdit, setIsSavingSessionEdit] = useState(false);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const clearEditSessionParam = useCallback(() => {
@@ -1044,6 +1046,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   }
 
   const historySessions = useMemo(() => [...sessions].filter((session) => new Date(session.startsAt).getTime() < Date.now()).sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()), [sessions]);
+  const editingSession = editingSessionId ? sessions.find((session) => session.id === editingSessionId) ?? null : null;
 
   if (state === 'loading') {
     return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">Loading coach workspace...</section></div></main>;
@@ -1204,11 +1207,49 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
               };
             })}
             actions={<>
-              <button type="button" onClick={() => { setActiveSession(null); router.push(`/coach/sessions?editSessionId=${encodeURIComponent(activeSession.id)}`); }} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit session</button>
+              <button type="button" onClick={() => { setEditingSessionId(activeSession.id); setActiveSession(null); }} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit session</button>
               <button type="button" onClick={() => setDeleteSessionId(activeSession.id)} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">Delete session</button>
               <Link href={`/coach/sessions`} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</Link>
             </>}
             onClose={() => setActiveSession(null)}
+          />
+        ) : null}
+
+        {editingSession ? (
+          <CoachSessionEditSheet
+            title={editingSession.title}
+            teams={teams}
+            facilities={facilities}
+            groups={groups}
+            initial={{
+              startsAt: editingSession.startsAt,
+              endsAt: editingSession.endsAt ?? addMinutes(new Date(editingSession.startsAt), 90).toISOString(),
+              teamId: editingSession.teamId,
+              facilityId: editingSession.facilityId,
+              groupIds: editingSession.groupIds,
+              sessionType: normalizeCoachSessionType(editingSession.sessionType),
+            }}
+            allowTeamChange={false}
+            isSaving={isSavingSessionEdit}
+            onSave={async (value) => {
+              setIsSavingSessionEdit(true);
+              try {
+                await handleCoachSessionUpdate({ sessionId: editingSession.id, ...value });
+                setEditingSessionId(null);
+              } finally {
+                setIsSavingSessionEdit(false);
+              }
+            }}
+            onDelete={async () => {
+              setIsSavingSessionEdit(true);
+              try {
+                await handleCoachSessionDelete(editingSession.id);
+                setEditingSessionId(null);
+              } finally {
+                setIsSavingSessionEdit(false);
+              }
+            }}
+            onClose={() => setEditingSessionId(null)}
           />
         ) : null}
 

@@ -1130,6 +1130,7 @@ export function TeamWorkspaceView({
   const [isSavingDefault, setIsSavingDefault] = useState(false);
   const [activePlayer, setActivePlayer] = useState<TeamWorkspacePlayer | null>(null);
   const [dashboardSession, setDashboardSession] = useState<TeamWorkspaceSession | null>(null);
+  const [dashboardSessionEditKey, setDashboardSessionEditKey] = useState<string | null>(null);
   const [isSavingDashboardSessionFacility, setIsSavingDashboardSessionFacility] = useState(false);
   const [playerSort, setPlayerSort] = useState<'risk' | 'az'>('risk');
   const selectedFacilityTone = facilityTone(data.defaultFacilityName);
@@ -1266,6 +1267,18 @@ export function TeamWorkspaceView({
     }
   }
 
+  async function handleDashboardSessionTimeChange(startsAt: string, endsAt: string) {
+    if (!dashboardSession || !onSessionTimeChange) return;
+    const previousSession = dashboardSession;
+    setDashboardSession((current) => current?.id === dashboardSession.id ? { ...current, startsAt, endsAt } : current);
+    try {
+      await onSessionTimeChange(dashboardSession.id, startsAt, endsAt);
+    } catch (error) {
+      setDashboardSession((current) => current?.id === previousSession.id ? previousSession : current);
+      throw error;
+    }
+  }
+
   async function handleAddDemoPlayers() {
     if (!onAddDemoPlayers) return;
     await onAddDemoPlayers();
@@ -1337,7 +1350,7 @@ export function TeamWorkspaceView({
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Today / next</p>
             {nextSession ? (
-              <TeamDashboardSessionCard session={nextSession} players={playersForSession(nextSession)} fallbackFacilityName={data.defaultFacilityName} onOpen={() => setDashboardSession(nextSession)} />
+              <TeamDashboardSessionCard session={nextSession} players={playersForSession(nextSession)} fallbackFacilityName={data.defaultFacilityName} onOpen={() => { setDashboardSessionEditKey(null); setDashboardSession(nextSession); }} />
             ) : (
               <EmptyCard title="No upcoming session" />
             )}
@@ -1625,8 +1638,17 @@ export function TeamWorkspaceView({
                 detail: flag?.status === 'late' && flag.lateMinutes ? `${flag.lateMinutes} min` : flag?.reason ?? null,
               };
             })}
-            actions={<button type="button" onClick={() => { setDashboardSession(null); setActiveSection('calendar'); }} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</button>}
-            onClose={() => setDashboardSession(null)}
+            canEditTime={data.role !== 'viewer' && Boolean(onSessionTimeChange)}
+            onTimeChange={handleDashboardSessionTimeChange}
+            editOpenKey={dashboardSessionEditKey}
+            actions={<>
+              {data.role !== 'viewer' && onSessionTimeChange ? <button type="button" onClick={() => setDashboardSessionEditKey(`${dashboardSession.id}-${Date.now()}`)} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit session</button> : null}
+              <button type="button" onClick={() => { setDashboardSessionEditKey(null); setDashboardSession(null); setActiveSection('calendar'); }} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</button>
+            </>}
+            onClose={() => {
+              setDashboardSessionEditKey(null);
+              setDashboardSession(null);
+            }}
           />
         );
       })() : null}

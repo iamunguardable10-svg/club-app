@@ -8,7 +8,7 @@ import type { TeamWorkspaceSection } from '@/features/teams/TeamWorkspaceView';
 import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
-import { CoachCalendarSurface, type CoachFacility, type CoachGroup, type CoachSession, type CoachSessionCreateInput, type CoachSessionMutation, type CoachTeam } from '@/features/role-workspaces/CoachWorkspaceRouter';
+import { CoachCalendarSurface, CoachSessionEditSheet, normalizeCoachSessionType, type CoachFacility, type CoachGroup, type CoachSession, type CoachSessionCreateInput, type CoachSessionMutation, type CoachTeam } from '@/features/role-workspaces/CoachWorkspaceRouter';
 import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoSessions, type DemoClubSetup, type DemoSession, type DemoTeam } from '@/shared/dev/demoStorage';
 
 export type CoachMode = 'today' | 'team' | 'sessions' | 'attendance' | 'load' | 'history' | 'facilities';
@@ -257,7 +257,9 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const [facilities, setFacilities] = useState<CoachFacility[]>([]);
   const [groups, setGroups] = useState<CoachGroup[]>([]);
   const [activeSession, setActiveSession] = useState<DemoCoachSession | null>(null);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
+  const [isSavingSessionEdit, setIsSavingSessionEdit] = useState(false);
   const clearEditSessionParam = useCallback(() => {
     router.replace('/demo/coach/sessions');
   }, [router]);
@@ -338,6 +340,7 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   }
 
   const historySessions = useMemo(() => coachSessions.filter((session) => new Date(session.startsAt).getTime() < Date.now()).sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()), [coachSessions]);
+  const editingSession = editingSessionId ? coachSessions.find((session) => session.id === editingSessionId) ?? null : null;
 
   const shouldOpenTeamWorkspace = mode === 'team' || mode === 'attendance' || mode === 'load';
   if (selectedTeam && shouldOpenTeamWorkspace) {
@@ -470,11 +473,49 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
               };
             })}
             actions={<>
-              <button type="button" onClick={() => { setActiveSession(null); router.push(`/demo/coach/sessions?editSessionId=${encodeURIComponent(activeSession.id)}`); }} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit session</button>
+              <button type="button" onClick={() => { setEditingSessionId(activeSession.id); setActiveSession(null); }} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit session</button>
               <button type="button" onClick={() => setDeleteSessionId(activeSession.id)} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">Delete session</button>
               <Link href={`/demo/coach/sessions`} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</Link>
             </>}
             onClose={() => setActiveSession(null)}
+          />
+        ) : null}
+
+        {editingSession ? (
+          <CoachSessionEditSheet
+            title={editingSession.title}
+            teams={coachTeams}
+            facilities={facilities}
+            groups={groups}
+            initial={{
+              startsAt: editingSession.startsAt,
+              endsAt: editingSession.endsAt ?? new Date(new Date(editingSession.startsAt).getTime() + 90 * 60_000).toISOString(),
+              teamId: editingSession.teamId,
+              facilityId: editingSession.facilityId,
+              groupIds: editingSession.groupIds,
+              sessionType: normalizeCoachSessionType(editingSession.sessionType),
+            }}
+            allowTeamChange={false}
+            isSaving={isSavingSessionEdit}
+            onSave={async (value) => {
+              setIsSavingSessionEdit(true);
+              try {
+                await handleDemoUpdateSession({ sessionId: editingSession.id, ...value });
+                setEditingSessionId(null);
+              } finally {
+                setIsSavingSessionEdit(false);
+              }
+            }}
+            onDelete={async () => {
+              setIsSavingSessionEdit(true);
+              try {
+                await handleDemoDeleteSession(editingSession.id);
+                setEditingSessionId(null);
+              } finally {
+                setIsSavingSessionEdit(false);
+              }
+            }}
+            onClose={() => setEditingSessionId(null)}
           />
         ) : null}
 

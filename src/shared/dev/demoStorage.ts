@@ -51,6 +51,9 @@ const DEMO_TEAMS_KEY = 'club-app.demo.teams';
 const DEMO_SESSIONS_KEY = 'club-app.demo.sessions';
 const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
 const LEGACY_DEMO_FACILITY_META_KEY = 'club-app.demo.facility-meta';
+const DEMO_DATA_VERSION_KEY = 'club-app.demo.version';
+const CURRENT_DEMO_DATA_VERSION = '2026-06-04-session-sync-v1';
+let demoDataVersionChecked = false;
 
 const DEFAULT_DEMO_FACILITY_ADDRESSES: Record<string, string> = {
   'Main Hall': 'Sportstraße 1, Munich',
@@ -116,6 +119,21 @@ function seedDefaultFacilityAssignments() {
   ]));
 }
 
+function ensureDemoDataVersion() {
+  if (typeof window === 'undefined') return;
+  if (demoDataVersionChecked) return;
+  demoDataVersionChecked = true;
+  if (window.localStorage.getItem(DEMO_DATA_VERSION_KEY) === CURRENT_DEMO_DATA_VERSION) return;
+
+  const keys = Array.from({ length: window.localStorage.length }, (_, index) => window.localStorage.key(index)).filter(Boolean) as string[];
+  const resetKeys = keys.filter((key) => key.startsWith('club-app.demo.') && key !== DEMO_DATA_VERSION_KEY);
+  for (const key of resetKeys) window.localStorage.removeItem(key);
+  if (resetKeys.length > 0) {
+    console.info(`Club OS demo data reset for ${CURRENT_DEMO_DATA_VERSION}. Removed ${resetKeys.length} stale demo keys.`);
+  }
+  window.localStorage.setItem(DEMO_DATA_VERSION_KEY, CURRENT_DEMO_DATA_VERSION);
+}
+
 export function normalizeDemoClubSetup(data: DemoClubSetup): DemoClubSetup {
   const existingDetails = new Map((data.facilityDetails ?? []).map((facility) => [facility.name, facility]));
   const legacyDetails = new Map(getLegacyFacilityDetails().map((facility) => [facility.name, facility]));
@@ -143,11 +161,13 @@ export function normalizeDemoClubSetup(data: DemoClubSetup): DemoClubSetup {
 
 export function saveDemoClubSetup(data: DemoClubSetup) {
   if (typeof window === 'undefined') return;
+  ensureDemoDataVersion();
   window.localStorage.setItem(DEMO_CLUB_SETUP_KEY, JSON.stringify(normalizeDemoClubSetup(data)));
 }
 
 export function getDemoClubSetup(): DemoClubSetup | null {
   if (typeof window === 'undefined') return null;
+  ensureDemoDataVersion();
 
   const raw = window.localStorage.getItem(DEMO_CLUB_SETUP_KEY);
 
@@ -178,15 +198,19 @@ export function clearDemoClubSetup() {
   window.localStorage.removeItem(DEMO_SESSIONS_KEY);
   window.localStorage.removeItem(DEMO_FACILITY_ASSIGNMENTS_KEY);
   window.localStorage.removeItem(LEGACY_DEMO_FACILITY_META_KEY);
+  window.localStorage.removeItem(DEMO_DATA_VERSION_KEY);
+  demoDataVersionChecked = false;
 }
 
 export function saveDemoSessions(sessions: DemoSession[]) {
   if (typeof window === 'undefined') return;
+  ensureDemoDataVersion();
   window.localStorage.setItem(DEMO_SESSIONS_KEY, JSON.stringify(sessions));
 }
 
 export function getDemoSessions(): DemoSession[] {
   if (typeof window === 'undefined') return [];
+  ensureDemoDataVersion();
   const raw = window.localStorage.getItem(DEMO_SESSIONS_KEY);
   if (!raw) return [];
   try {
@@ -221,11 +245,13 @@ function createInitialDemoTeams(setup: DemoClubSetup): DemoTeam[] {
 
 export function saveDemoTeams(teams: DemoTeam[]) {
   if (typeof window === 'undefined') return;
+  ensureDemoDataVersion();
   window.localStorage.setItem(DEMO_TEAMS_KEY, JSON.stringify(teams));
 }
 
 export function getDemoTeams(setup?: DemoClubSetup | null): DemoTeam[] {
   if (typeof window === 'undefined') return [];
+  ensureDemoDataVersion();
 
   const raw = window.localStorage.getItem(DEMO_TEAMS_KEY);
 
