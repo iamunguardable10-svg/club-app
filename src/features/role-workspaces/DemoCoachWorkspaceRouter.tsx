@@ -144,16 +144,12 @@ function ensureDemoPlayers(teams: DemoTeam[]) {
   if (teams.length === 0) return getDemoPlayers();
   const activeTeamIds = new Set(teams.map((team) => team.id));
   const existing = getDemoPlayers();
+  // Seed and prune against all demo teams, not only the coach-visible subset.
   const pruned = existing.filter((player) => activeTeamIds.has(player.teamId));
   const teamIds = new Set(pruned.map((player) => player.teamId));
   const missingTeams = teams.filter((team) => !teamIds.has(team.id));
-  if (missingTeams.length === 0) {
-    if (pruned.length !== existing.length) saveDemoPlayers(pruned);
-    return pruned;
-  }
-  // Preserve existing players for active teams, prune stale teams, and seed only missing team rosters.
   const merged = [...pruned, ...missingTeams.flatMap((team) => buildDemoPlayers(team.id))];
-  saveDemoPlayers(merged);
+  if (merged.length !== existing.length || missingTeams.length > 0) saveDemoPlayers(merged);
   return merged;
 }
 
@@ -193,6 +189,57 @@ function readDemoAvailability() {
   }
 }
 
+function playerSeedIndex(player: Pick<DemoPlayer, 'id'>) {
+  const match = player.id.match(/demo-player-(\d+)$/);
+  return match ? Number(match[1]) - 1 : Array.from(player.id).reduce((sum, char) => sum + char.charCodeAt(0), 0) % 12;
+}
+
+function participantPlayersForSession(team: DemoTeam, session: DemoSession, players: DemoPlayer[]) {
+  const teamPlayers = players.filter((player) => player.teamId === team.id);
+  const groupIds = session.groupIds ?? [];
+  if (groupIds.length === 0) return teamPlayers;
+  const scoped = teamPlayers.filter((player) => groupIds.some((groupId) => player.groups?.includes(groupId)));
+  return scoped.length > 0 ? scoped : teamPlayers;
+}
+
+function demoRiskForPlayer(player: DemoPlayer) {
+  const index = playerSeedIndex(player);
+  if (index === 0 || index === 7) return { risk: 'high' as const, acwr: 1.36 + (index % 2) * 0.08 };
+  if (index === 2 || index === 10) return { risk: 'low' as const, acwr: 0.71 + (index % 2) * 0.04 };
+  return { risk: 'ready' as const, acwr: 0.92 + (index % 5) * 0.07 };
+}
+
+function automaticAvailabilityForSession(session: DemoSession, participants: DemoPlayer[]) {
+  if (participants.length < 4) return [];
+  const seed = Array.from(session.id).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const outPlayer = participants[seed % participants.length];
+  const latePlayer = [3, 4, 5]
+    .map((offset) => participants[(seed + offset) % participants.length])
+    .find((player) => player && player !== outPlayer);
+  const flags = [];
+  if (latePlayer && latePlayer !== outPlayer) {
+    flags.push({
+      id: `${session.id}-${latePlayer.id}-late`,
+      playerId: latePlayer.id,
+      playerName: latePlayer.name,
+      status: 'late' as const,
+      reason: seed % 2 === 0 ? 'Traffic' : 'School runs late',
+      lateMinutes: 10 + (seed % 3) * 5,
+    });
+  }
+  if (outPlayer && participants.length >= 5) {
+    flags.push({
+      id: `${session.id}-${outPlayer.id}-out`,
+      playerId: outPlayer.id,
+      playerName: outPlayer.name,
+      status: 'out' as const,
+      reason: seed % 2 === 0 ? 'School' : 'Sick',
+      lateMinutes: null,
+    });
+  }
+  return flags;
+}
+
 function fallbackSessions(teams: DemoTeam[]) {
   const preferred = teams.filter((team) => team.department === 'Basketball').slice(0, 2);
   return preferred.map((team, index) => ({
@@ -209,7 +256,7 @@ function fallbackSessions(teams: DemoTeam[]) {
   } satisfies DemoSession));
 }
 
-function buildCoachSessions(teams: DemoTeam[], storedSessions: DemoSession[]) {
+function buildCoachSessions(teams: DemoTeam[], storedSessions: DemoSession[], demoPlayers: DemoPlayer[]) {
   const availability = readDemoAvailability();
   const sessions = storedSessions.length > 0 ? storedSessions : fallbackSessions(teams);
   const teamByName = new Map(teams.map((team) => [`${team.department}:${team.name}`, team]));
@@ -217,12 +264,9 @@ function buildCoachSessions(teams: DemoTeam[], storedSessions: DemoSession[]) {
     .map((session) => {
       const team = teamByName.get(`${session.department}:${session.team}`);
       if (!team) return null;
-      const isPrimaryDemoTeam = team.id === 'basketball-u14-boys';
+      const participants = participantPlayersForSession(team, session, demoPlayers);
       const mark = availability.get(session.id);
-      const fallbackFlags = mark ? [] : isPrimaryDemoTeam ? [
-        { id: `${session.id}-late`, playerId: 'noah-keller', playerName: 'Noah Keller', status: 'late' as const, reason: 'Traffic', lateMinutes: 15 },
-        { id: `${session.id}-out`, playerId: 'elias-wagner', playerName: 'Elias Wagner', status: 'out' as const, reason: 'School', lateMinutes: null },
-      ] : [];
+      const fallbackFlags = mark ? [] : automaticAvailabilityForSession(session, participants);
       return {
         id: session.id,
         title: session.title,
@@ -235,16 +279,10 @@ function buildCoachSessions(teams: DemoTeam[], storedSessions: DemoSession[]) {
         facilityName: session.facility,
         groupIds: session.groupIds ?? [],
         availability: mark && (mark.status === 'late' || mark.status === 'out') ? [{ id: `${session.id}-demo-athlete`, playerId: 'demo-athlete', playerName: 'Demo Athlete', status: mark.status, reason: mark.reason, lateMinutes: mark.lateMinutes }] : fallbackFlags,
-        players: isPrimaryDemoTeam
-          ? [
-              { id: 'noah-keller', name: 'Noah Keller', risk: 'high', acwr: 1.41 },
-              { id: 'elias-wagner', name: 'Elias Wagner', risk: 'ready', acwr: 1.05 },
-              { id: 'leo-bauer', name: 'Leo Bauer', risk: 'low', acwr: 0.74 },
-            ]
-          : [
-              { id: 'mika-schulz', name: 'Mika Schulz', risk: 'ready', acwr: 1.11 },
-              { id: 'jonas-meyer', name: 'Jonas Meyer', risk: 'high', acwr: 1.34 },
-            ],
+        players: participants.map((player) => {
+          const risk = demoRiskForPlayer(player);
+          return { id: player.id, name: player.name, risk: risk.risk, acwr: risk.acwr };
+        }),
       } satisfies DemoCoachSession;
     })
     .filter(Boolean) as DemoCoachSession[];
@@ -280,6 +318,7 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const editSessionId = searchParams.get('editSessionId');
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [teams, setTeams] = useState<DemoTeam[]>([]);
+  const [allDemoTeams, setAllDemoTeams] = useState<DemoTeam[]>([]);
   const [sessions, setSessions] = useState<DemoCoachSession[]>([]);
   const [rawSessions, setRawSessions] = useState<DemoSession[]>([]);
   const [facilities, setFacilities] = useState<CoachFacility[]>([]);
@@ -294,11 +333,12 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
 
   useEffect(() => {
     const currentSetup = getDemoClubSetup();
-    const currentTeams = getDemoTeams(currentSetup).filter((team) => DEMO_COACH_TEAM_IDS.has(team.id));
+    const allTeams = getDemoTeams(currentSetup);
+    const currentTeams = allTeams.filter((team) => DEMO_COACH_TEAM_IDS.has(team.id));
     const currentSessions = getDemoSessions();
     const assignments = getDemoFacilityAssignments();
     const playerGroups = ensureDemoPlayerGroups(currentTeams);
-    const demoPlayers = ensureDemoPlayers(currentTeams);
+    const demoPlayers = ensureDemoPlayers(allTeams);
     const facilityNames = currentSetup?.facilities ?? [];
     const effectiveSessions = currentSessions.length > 0 ? currentSessions : fallbackSessions(currentTeams);
     const demoDepartments = Array.from(new Set(currentTeams.map((team) => team.department)));
@@ -306,9 +346,10 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       ? assignments
       : facilityNames.flatMap((facility) => demoDepartments.map((department) => ({ facility, department })));
     setSetup(currentSetup);
+    setAllDemoTeams(allTeams);
     setTeams(currentTeams);
     setRawSessions(effectiveSessions);
-    setSessions(buildCoachSessions(currentTeams, effectiveSessions));
+    setSessions(buildCoachSessions(currentTeams, effectiveSessions, demoPlayers));
     setFacilities(facilityNames.map((name) => ({ id: name, name, departmentIds: effectiveAssignments.filter((item) => item.facility === name).map((item) => item.department) })));
     setGroups(playerGroups.filter((group) => currentTeams.some((team) => team.id === group.teamId)).map((group) => ({
       id: group.id,
@@ -348,7 +389,7 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   function refreshDemoSessions(nextRaw: DemoSession[]) {
     saveDemoSessions(nextRaw);
     setRawSessions(nextRaw);
-    setSessions(buildCoachSessions(teams, nextRaw));
+    setSessions(buildCoachSessions(teams, nextRaw, ensureDemoPlayers(allDemoTeams.length > 0 ? allDemoTeams : teams)));
   }
 
   async function handleDemoCreateSession(input: CoachSessionCreateInput) {

@@ -52,7 +52,7 @@ const DEMO_SESSIONS_KEY = 'club-app.demo.sessions';
 const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
 const LEGACY_DEMO_FACILITY_META_KEY = 'club-app.demo.facility-meta';
 const DEMO_DATA_VERSION_KEY = 'club-app.demo.version';
-const CURRENT_DEMO_DATA_VERSION = '2026-06-04-coach-showcase-v2';
+const CURRENT_DEMO_DATA_VERSION = '2026-06-04-coach-showcase-v3';
 let demoDataVersionChecked = false;
 
 const DEFAULT_DEMO_FACILITY_ADDRESSES: Record<string, string> = {
@@ -234,12 +234,16 @@ function demoSessionForTeam(
 
 export function createDefaultDemoSessions(teams: DemoTeam[]) {
   const seeded = [
+    demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-team-history-1', offsetDays: -18, startHour: 18, startMinute: 15, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Main Hall' }),
+    demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-strength-history', offsetDays: -15, startHour: 17, durationMinutes: 70, title: 'Strength', sessionType: 's_and_c', facility: 'Weight Room', groupIds: ['starting-five'] }),
+    demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-team-history-2', offsetDays: -11, startHour: 18, startMinute: 30, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Main Hall', groupIds: ['bench-unit'] }),
     demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-game-past', offsetDays: -5, startHour: 16, durationMinutes: 120, title: 'Game', sessionType: 'game', facility: 'Main Hall' }),
     demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-team-past', offsetDays: -2, startHour: 18, startMinute: 15, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Main Hall', groupIds: ['starting-five', 'bench-unit'] }),
     demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-today', offsetDays: 0, startHour: 18, startMinute: 15, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Main Hall', groupIds: [] }),
     demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-strength-next', offsetDays: 2, startHour: 17, durationMinutes: 75, title: 'Strength', sessionType: 's_and_c', facility: 'Weight Room', groupIds: ['starting-five'] }),
     demoSessionForTeam(teams, 'basketball-u16-boys', { id: 'demo-u16-team-past', offsetDays: -3, startHour: 19, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Court 1', groupIds: [] }),
     demoSessionForTeam(teams, 'basketball-u16-boys', { id: 'demo-u16-today', offsetDays: 0, startHour: 19, startMinute: 45, durationMinutes: 90, title: 'Shooting session', sessionType: 'training', facility: 'Court 1', groupIds: ['bench-unit'] }),
+    demoSessionForTeam(teams, 'basketball-u16-boys', { id: 'demo-u16-strength-next', offsetDays: 1, startHour: 16, startMinute: 30, durationMinutes: 70, title: 'Strength', sessionType: 's_and_c', facility: 'Weight Room', groupIds: ['starting-five'] }),
     demoSessionForTeam(teams, 'basketball-u18-boys', { id: 'demo-u18-next', offsetDays: 1, startHour: 18, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Court 1' }),
     demoSessionForTeam(teams, 'basketball-first-team', { id: 'demo-first-game-next', offsetDays: 3, startHour: 16, durationMinutes: 120, title: 'Game', sessionType: 'game', facility: 'Main Hall' }),
   ].filter(Boolean) as DemoSession[];
