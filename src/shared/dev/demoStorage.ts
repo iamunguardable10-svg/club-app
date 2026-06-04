@@ -52,7 +52,7 @@ const DEMO_SESSIONS_KEY = 'club-app.demo.sessions';
 const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
 const LEGACY_DEMO_FACILITY_META_KEY = 'club-app.demo.facility-meta';
 const DEMO_DATA_VERSION_KEY = 'club-app.demo.version';
-const CURRENT_DEMO_DATA_VERSION = '2026-06-04-session-sync-v1';
+const CURRENT_DEMO_DATA_VERSION = '2026-06-04-coach-showcase-v2';
 let demoDataVersionChecked = false;
 
 const DEFAULT_DEMO_FACILITY_ADDRESSES: Record<string, string> = {
@@ -202,6 +202,56 @@ export function clearDemoClubSetup() {
   demoDataVersionChecked = false;
 }
 
+function isoDemoSessionAt(offsetDays: number, hour: number, minute = 0) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  date.setHours(hour, minute, 0, 0);
+  return date.toISOString();
+}
+
+function demoSessionForTeam(
+  teams: DemoTeam[],
+  teamId: string,
+  config: { id: string; offsetDays: number; startHour: number; startMinute?: number; durationMinutes: number; title: string; sessionType: string; facility?: string | null; groupIds?: string[] },
+) {
+  const team = teams.find((item) => item.id === teamId);
+  if (!team) return null;
+  const startsAt = isoDemoSessionAt(config.offsetDays, config.startHour, config.startMinute ?? 0);
+  const endsAt = new Date(new Date(startsAt).getTime() + config.durationMinutes * 60_000).toISOString();
+  return {
+    id: config.id,
+    department: team.department,
+    team: team.name,
+    title: config.title,
+    sessionType: config.sessionType,
+    startsAt,
+    endsAt,
+    facility: config.facility ?? team.defaultFacility ?? 'Main Hall',
+    groupIds: config.groupIds ?? [],
+    createdAt: new Date().toISOString(),
+  } satisfies DemoSession;
+}
+
+export function createDefaultDemoSessions(teams: DemoTeam[]) {
+  const seeded = [
+    demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-game-past', offsetDays: -5, startHour: 16, durationMinutes: 120, title: 'Game', sessionType: 'game', facility: 'Main Hall' }),
+    demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-team-past', offsetDays: -2, startHour: 18, startMinute: 15, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Main Hall', groupIds: ['starting-five', 'bench-unit'] }),
+    demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-today', offsetDays: 0, startHour: 18, startMinute: 15, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Main Hall', groupIds: [] }),
+    demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-strength-next', offsetDays: 2, startHour: 17, durationMinutes: 75, title: 'Strength', sessionType: 's_and_c', facility: 'Weight Room', groupIds: ['starting-five'] }),
+    demoSessionForTeam(teams, 'basketball-u16-boys', { id: 'demo-u16-team-past', offsetDays: -3, startHour: 19, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Court 1', groupIds: [] }),
+    demoSessionForTeam(teams, 'basketball-u16-boys', { id: 'demo-u16-today', offsetDays: 0, startHour: 19, startMinute: 45, durationMinutes: 90, title: 'Shooting session', sessionType: 'training', facility: 'Court 1', groupIds: ['bench-unit'] }),
+    demoSessionForTeam(teams, 'basketball-u18-boys', { id: 'demo-u18-next', offsetDays: 1, startHour: 18, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Court 1' }),
+    demoSessionForTeam(teams, 'basketball-first-team', { id: 'demo-first-game-next', offsetDays: 3, startHour: 16, durationMinutes: 120, title: 'Game', sessionType: 'game', facility: 'Main Hall' }),
+  ].filter(Boolean) as DemoSession[];
+  if (seeded.length > 0) return seeded;
+
+  return teams.slice(0, 3).flatMap((team, index) => {
+    const past = demoSessionForTeam(teams, team.id, { id: `demo-${team.id}-past`, offsetDays: -2 - index, startHour: 18, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: team.defaultFacility });
+    const next = demoSessionForTeam(teams, team.id, { id: `demo-${team.id}-next`, offsetDays: index, startHour: 18 + index, durationMinutes: 90, title: index === 0 ? 'Team training' : 'Shooting session', sessionType: 'training', facility: team.defaultFacility });
+    return [past, next].filter(Boolean) as DemoSession[];
+  });
+}
+
 export function saveDemoSessions(sessions: DemoSession[]) {
   if (typeof window === 'undefined') return;
   ensureDemoDataVersion();
@@ -212,7 +262,17 @@ export function getDemoSessions(): DemoSession[] {
   if (typeof window === 'undefined') return [];
   ensureDemoDataVersion();
   const raw = window.localStorage.getItem(DEMO_SESSIONS_KEY);
-  if (!raw) return [];
+  if (!raw) {
+    const setup = getDemoClubSetup();
+    const sessions = createDefaultDemoSessions(getDemoTeams(setup));
+    if (sessions.length === 0) {
+      if (process.env.NODE_ENV !== 'production') console.warn('Club OS demo session seed produced no sessions. Check demo team IDs before persisting.');
+      window.localStorage.setItem(DEMO_SESSIONS_KEY, JSON.stringify([]));
+      return [];
+    }
+    window.localStorage.setItem(DEMO_SESSIONS_KEY, JSON.stringify(sessions));
+    return sessions;
+  }
   try {
     return JSON.parse(raw) as DemoSession[];
   } catch {

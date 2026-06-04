@@ -7,44 +7,13 @@ import { TeamWorkspace } from '@/features/teams/TeamWorkspace';
 import type { TeamWorkspaceSection } from '@/features/teams/TeamWorkspaceView';
 import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
 import { sessionTypeToLoadType, type AthleteLoadEntry, type LoadTrainingType } from '@/features/load/loadTypes';
-import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
+import type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
+import { CoachHistorySessionCard, CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
-
-export type CoachMode = 'today' | 'team' | 'sessions' | 'attendance' | 'load' | 'history' | 'facilities';
-export type CoachTeam = { id: string; clubId: string; name: string; departmentId: string; departmentName: string; defaultFacilityId: string | null; role: string };
-type CoachAvailability = {
-  id: string;
-  userId: string;
-  playerName: string;
-  status: 'late' | 'out';
-  reason: string | null;
-  lateMinutes: number | null;
-};
-export type CoachSession = {
-  id: string;
-  title: string;
-  sessionType: string;
-  startsAt: string;
-  endsAt: string | null;
-  teamId: string;
-  teamName: string;
-  departmentName: string;
-  facilityId: string | null;
-  facilityName: string | null;
-  groupIds: string[];
-  availability: CoachAvailability[];
-  players: CoachPlayer[];
-};
-export type CoachPlayer = {
-  id: string;
-  name: string;
-  loadEntries: AthleteLoadEntry[];
-  acwr: number | null;
-  risk: 'high' | 'low' | 'ready' | 'baseline';
-};
+export type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 
 type SessionRow = {
   id: string;
@@ -61,8 +30,6 @@ type AvailabilityRow = { session_id: string; user_id: string; status: 'late' | '
 type AthleteMembershipRow = { id: string; team_id: string; user_id: string };
 type SessionGroupRow = { session_id: string; group_id: string };
 type PlayerGroupMemberRow = { group_id: string; team_membership_id: string };
-export type CoachFacility = { id: string; name: string; departmentIds: string[] };
-export type CoachGroup = { id: string; teamId: string; name: string; playerCount: number };
 type ProfileRow = { id: string; full_name: string | null; email: string | null };
 type LoadEntryRow = {
   id: string;
@@ -269,8 +236,6 @@ function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDet
 
 type CoachCalendarDrag = { target: 'session' | 'draft'; sessionId?: string; kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date; minutesPerPixel: number };
 type CoachCalendarDraft = { startsAt: string; endsAt: string; teamId: string | null; facilityId: string | null; groupIds: string[]; sessionType: string };
-export type CoachSessionMutation = { sessionId: string; startsAt: string; endsAt: string; facilityId: string; groupIds: string[]; sessionType: string };
-export type CoachSessionCreateInput = { startsAt: string; endsAt: string; teamId: string; facilityId: string; groupIds: string[]; sessionType: string };
 
 const coachSessionTypes = [
   { value: 'training', label: 'Team training' },
@@ -1153,64 +1118,17 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">History</p>
             <h2 className="mt-2 text-2xl font-black">Recent sessions</h2>
             <div className="mt-5 grid gap-3 lg:grid-cols-2">
-              {historySessions.length > 0 ? historySessions.slice(0, 12).map((session) => {
-                const loadReports = session.players.flatMap((player) => player.loadEntries.filter((entry) => entry.sessionId === session.id).map((entry) => ({ player, entry })));
-                const reportRate = session.players.length > 0 ? loadReports.length / session.players.length : 0;
-                const avgRpe = loadReports.length > 0 ? loadReports.reduce((sum, item) => sum + item.entry.rpe, 0) / loadReports.length : null;
-                const out = session.availability.filter((item) => item.status === 'out').length;
-                const late = session.availability.filter((item) => item.status === 'late').length;
-                return (
-                  <button key={session.id} type="button" onClick={() => setActiveSession(session)} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-left transition hover:border-violet-300/45 hover:bg-slate-900/70">
-                    <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{session.teamName} · {new Date(session.startsAt).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' })}</p>
-                    <h3 className="mt-2 text-xl font-black text-white">{session.title}</h3>
-                    <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                      <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Attendance</p><p className="mt-1 text-sm font-black text-slate-100">{Math.max(0, session.players.length - out)}/{session.players.length}</p></div>
-                      <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Flags</p><p className="mt-1 text-sm font-black text-slate-100">{late} late · {out} out</p></div>
-                      <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">RPE</p><p className="mt-1 text-sm font-black text-slate-100">{reportRate >= 0.8 && avgRpe !== null ? avgRpe.toFixed(1) : 'Waiting'}</p></div>
-                    </div>
-                  </button>
-                );
-              }) : <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No completed sessions yet.</div>}
+              {historySessions.length > 0 ? historySessions.slice(0, 12).map((session) => <CoachHistorySessionCard key={session.id} session={session} onDetails={() => setActiveSession(session)} />) : <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No completed sessions yet.</div>}
             </div>
           </section>
         ) : null}
 
         {activeSession ? (
-          <SessionDetailSheet
-            title={activeSession.title}
-            startsAt={activeSession.startsAt}
-            endsAt={activeSession.endsAt}
-            teamName={activeSession.teamName}
-            departmentName={activeSession.departmentName}
-            facilityName={activeSession.facilityName}
-            attendance={{
-              expected: activeSession.players.length,
-              late: activeSession.availability.filter((item) => item.status === 'late').length,
-              out: activeSession.availability.filter((item) => item.status === 'out').length,
-              notes: activeSession.availability.map((item) => ({
-                id: item.id,
-                name: item.playerName,
-                status: item.status,
-                detail: item.status === 'late' && item.lateMinutes ? `${item.lateMinutes} min` : item.reason,
-              })),
-            }}
-            loadRisks={activeSession.players
-              .filter((player) => player.risk === 'high' || player.risk === 'low')
-              .map((player) => ({ id: player.id, name: player.name, status: player.risk as 'high' | 'low', detail: player.acwr !== null ? `${player.acwr.toFixed(2)} ACWR` : null }))}
-            participants={activeSession.players.map((player) => {
-              const flag = activeSession.availability.find((item) => item.userId === player.id);
-              return {
-                id: player.id,
-                name: player.name,
-                status: flag?.status ?? 'expected',
-                detail: flag?.status === 'late' && flag.lateMinutes ? `${flag.lateMinutes} min` : flag?.reason ?? null,
-              };
-            })}
-            actions={<>
-              <button type="button" onClick={() => { setEditingSessionId(activeSession.id); setActiveSession(null); }} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit session</button>
-              <button type="button" onClick={() => setDeleteSessionId(activeSession.id)} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">Delete session</button>
-              <Link href={`/coach/sessions`} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</Link>
-            </>}
+          <CoachSessionDetailOverlay
+            session={activeSession}
+            calendarHref="/coach/sessions"
+            onEdit={() => { setEditingSessionId(activeSession.id); setActiveSession(null); }}
+            onDelete={() => setDeleteSessionId(activeSession.id)}
             onClose={() => setActiveSession(null)}
           />
         ) : null}
