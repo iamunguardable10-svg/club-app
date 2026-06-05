@@ -13,5 +13,5 @@ export function normalizeCoachSessionType(value?: string | null) {
 }
 
 export function labelForCoachSessionType(value: string) {
-  return coachSessionTypes.find((type) => type.value === normalizeCoachSessionType(value))?.label ?? 'Team training';
+  return coachSessionTypes.find((type) => type.value === normalizeCoachSessionType(value))?.label ?? 'Training';
 }
