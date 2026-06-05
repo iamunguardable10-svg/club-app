@@ -6,6 +6,7 @@ import { AdminShell } from '@/shared/admin/AdminShell';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 import { sessionTypeToLoadType, type AthleteLoadEntry, type LoadTrainingType } from '@/features/load/loadTypes';
 import { TeamWorkspaceView, type TeamWorkspaceData, type TeamWorkspaceRole, type TeamWorkspaceStaffRole } from './TeamWorkspaceView';
+import { labelForCoachSessionType } from '@/features/role-workspaces/CoachSessionEditSheet';
 
 type Team = { id: string; club_id: string; department_id: string; name: string; default_facility_id: string | null };
 type Department = { id: string; club_id: string; name: string };
@@ -55,14 +56,6 @@ function isMissingAuthSessionError(message?: string) {
 
 function profileLabel(profile: Profile | undefined, fallback: string) {
   return profile?.full_name || profile?.email || fallback;
-}
-
-function labelForSessionType(sessionType: string) {
-  if (sessionType === 'game') return 'Game';
-  if (sessionType === 's_and_c' || sessionType === 'strength') return 'Strength';
-  if (sessionType === 'recovery') return 'Recovery';
-  if (sessionType === 'other' || sessionType === 'individual') return 'Individual';
-  return 'Team training';
 }
 
 function TeamWorkspaceFrame({ frame, children }: { frame: 'admin' | 'coach' | 'department'; children: ReactNode }) {
@@ -320,9 +313,10 @@ export function TeamWorkspace({
   }
 
   async function handleSessionTypeChange(sessionId: string, sessionType: string) {
-    const title = labelForSessionType(sessionType);
+    if (!team) return;
+    const title = labelForCoachSessionType(sessionType);
     const supabase = createBrowserSupabaseClient();
-    const { error: updateError } = await supabase.from('sessions').update({ session_type: sessionType, title }).eq('id', sessionId);
+    const { error: updateError } = await supabase.from('sessions').update({ session_type: sessionType, title }).eq('id', sessionId).eq('owner_team_id', team.id);
     if (updateError) {
       setError(updateError.message);
       return;

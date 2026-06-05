@@ -5,6 +5,7 @@ import { AdminShell } from '@/shared/admin/AdminShell';
 import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoSessions, saveDemoTeams, type DemoClubSetup, type DemoSession, type DemoTeam } from '@/shared/dev/demoStorage';
 import type { AthleteLoadEntry, LoadTrainingType } from '@/features/load/loadTypes';
 import { TeamWorkspaceView, type TeamWorkspaceData, type TeamWorkspacePlayer, type TeamWorkspaceRole, type TeamWorkspaceStaffRole } from './TeamWorkspaceView';
+import { labelForCoachSessionType } from '@/features/role-workspaces/CoachSessionEditSheet';
 
 type DemoInvite = {
   id: string;
@@ -88,14 +89,6 @@ const demoPlayerSeed = [
   'Paul Schmidt',
   'Ben Carter',
 ];
-
-function labelForDemoSessionType(sessionType: string) {
-  if (sessionType === 'game') return 'Game';
-  if (sessionType === 's_and_c' || sessionType === 'strength') return 'Strength';
-  if (sessionType === 'recovery') return 'Recovery';
-  if (sessionType === 'other' || sessionType === 'individual') return 'Individual';
-  return 'Team training';
-}
 
 export function buildDemoPlayers(teamId: string): DemoPlayer[] {
   return demoPlayerSeed.map((name, index) => {
@@ -266,7 +259,7 @@ export function DemoTeamWorkspace({
   }
 
   function handleSessionTypeChange(sessionId: string, sessionType: string) {
-    const title = labelForDemoSessionType(sessionType);
+    const title = labelForCoachSessionType(sessionType);
     const nextSessions = sessions.map((session) => session.id === sessionId ? { ...session, sessionType, title } : session);
     saveDemoSessions(nextSessions);
     setSessions(nextSessions);
