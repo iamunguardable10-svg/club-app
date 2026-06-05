@@ -3,14 +3,14 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
 import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictCandidate, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
 import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
 import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
-import { CoachSessionEditSheet, normalizeCoachSessionType } from '@/features/role-workspaces/CoachWorkspaceRouter';
-import type { CoachFacility, CoachGroup, CoachTeam } from '@/features/role-workspaces/CoachTypes';
+import { CoachSessionEditSheet, normalizeCoachSessionType } from '@/features/role-workspaces/CoachSessionEditSheet';
+import { CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
+import type { CoachFacility, CoachGroup, CoachSession, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 
 type Facility = { id: string; club_id: string; name: string; address: string | null };
@@ -965,6 +965,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   function handleCalendarSessionClick(calendarSession: SmartCalendarSession, event: MouseEvent<HTMLElement>) {
     const session = resolveSession(calendarSession);
     if (!session) return;
+    if (from?.startsWith('coach') && !canManageSession(session)) return;
     if (didDragRef.current) {
       event.preventDefault();
       didDragRef.current = false;
@@ -975,7 +976,27 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
 
   function handleCalendarSessionKeyDown(calendarSession: SmartCalendarSession, event: KeyboardEvent<HTMLElement>) {
     const session = resolveSession(calendarSession);
-    if (session && (event.key === 'Enter' || event.key === ' ')) setSelectedSession(session);
+    if (session && (event.key === 'Enter' || event.key === ' ') && (!from?.startsWith('coach') || canManageSession(session))) setSelectedSession(session);
+  }
+
+  function coachSessionForFacility(session: Session): CoachSession {
+    const team = teamById.get(session.owner_team_id);
+    const department = departmentById.get(session.department_id);
+    return {
+      id: session.id,
+      title: session.title,
+      sessionType: session.session_type,
+      startsAt: session.starts_at,
+      endsAt: session.ends_at,
+      teamId: session.owner_team_id,
+      teamName: team?.name ?? 'Team',
+      departmentName: department?.name ?? 'Department',
+      facilityId,
+      facilityName: facility?.name ?? null,
+      groupIds: session.group_ids ?? [],
+      availability: [],
+      players: [],
+    };
   }
 
   const draftEditorInitial = draft
@@ -1057,31 +1078,18 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       </div>
 
       {selectedSession ? (() => {
-        const team = teamById.get(selectedSession.owner_team_id);
-        const department = departmentById.get(selectedSession.department_id);
+        const detailSession = coachSessionForFacility(selectedSession);
+        const canManageSelectedSession = canManageSession(selectedSession);
         return (
-          <SessionDetailSheet
-            title={selectedSession.title}
-            startsAt={selectedSession.starts_at}
-            endsAt={selectedSession.ends_at}
-            teamName={team?.name ?? 'Team'}
-            departmentName={department?.name ?? 'Department'}
-            facilityName={facility?.name ?? null}
-            facilityId={facilityId}
+          <CoachSessionDetailOverlay
+            session={detailSession}
+            calendarHref={null}
             groups={groups
               .filter((group) => group.teamId === selectedSession.owner_team_id)
               .map((group) => ({ id: group.id, name: group.name, playerCount: group.playerCount }))}
             selectedGroupIds={selectedSession.group_ids ?? []}
-            canEditGroups={mode === 'edit' && canManageSession(selectedSession)}
-            onGroupsChange={(groupIds) => handleSessionGroupsChange(selectedSession.id, groupIds)}
-            attendance={{ status: 'Planned' }}
-            load={{ status: 'Not reported yet' }}
-            actions={canManageSession(selectedSession) ? (
-              <>
-                <button type="button" onClick={() => { setSelectedSession(null); setEditingSession(selectedSession); }} className="rounded-xl border border-sky-500/70 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Edit</button>
-                <button type="button" onClick={() => handleDeleteSession(selectedSession)} className="rounded-xl border border-red-500/60 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-950/30">Delete</button>
-              </>
-            ) : null}
+            onEdit={canManageSelectedSession ? () => { setSelectedSession(null); setEditingSession(selectedSession); } : undefined}
+            onDelete={canManageSelectedSession ? () => { void handleDeleteSession(selectedSession); } : undefined}
             onClose={() => setSelectedSession(null)}
           />
         );

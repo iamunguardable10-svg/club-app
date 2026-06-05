@@ -11,8 +11,11 @@ import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
 import { LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/features/load/loadTypes';
 import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
 import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
-import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { PlayerLoadDetail } from '@/features/players/PlayerLoadDetail';
+import { CoachSessionEditSheet, normalizeCoachSessionType } from '@/features/role-workspaces/CoachSessionEditSheet';
+import { CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
+import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
+import type { CoachFacility, CoachGroup, CoachSession, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 
 export type TeamWorkspaceRole = 'admin' | 'department_lead' | 'coach' | 'viewer';
 export type TeamWorkspaceSection = 'dashboard' | 'calendar' | 'players' | 'groups' | 'settings';
@@ -25,6 +28,7 @@ export type TeamWorkspaceSession = {
   facilityId?: string | null;
   facilityName?: string | null;
   groupIds?: string[];
+  sessionType?: string | null;
 };
 
 export type TeamWorkspaceStaff = {
@@ -221,6 +225,44 @@ function loadRiskLine(player: TeamWorkspacePlayer) {
   };
 }
 
+function coachSessionFromTeamWorkspace(session: TeamWorkspaceSession, data: TeamWorkspaceData, players: TeamWorkspacePlayer[]): CoachSession {
+  return {
+    id: session.id,
+    title: session.title,
+    sessionType: session.sessionType ?? 'training',
+    startsAt: session.startsAt,
+    endsAt: session.endsAt,
+    teamId: data.id,
+    teamName: data.name,
+    departmentName: data.departmentName,
+    facilityId: session.facilityId ?? data.defaultFacilityId ?? null,
+    facilityName: session.facilityName ?? data.defaultFacilityName ?? null,
+    groupIds: session.groupIds ?? [],
+    availability: players.flatMap((player) =>
+      (player.attendanceEvents ?? [])
+        .filter((event) => event.sessionId === session.id)
+        .map((event) => ({
+          id: `${session.id}-${player.id}-${event.status}`,
+          userId: player.id,
+          playerName: player.name,
+          status: event.status,
+          reason: event.reason ?? null,
+          lateMinutes: event.lateMinutes ?? null,
+        })),
+    ),
+    players: players.map((player) => {
+      const summary = playerLoadSummary(player);
+      return {
+        id: player.id,
+        name: player.name,
+        loadEntries: player.loadEntries ?? [],
+        acwr: summary.acwr,
+        risk: summary.zone.tone === 'high' || summary.zone.tone === 'low' || summary.zone.tone === 'ready' ? summary.zone.tone : 'baseline',
+      };
+    }),
+  };
+}
+
 function TeamDashboardSessionCard({
   session,
   players,
@@ -378,6 +420,7 @@ function TeamSmartCalendar({
   const [draft, setDraft] = useState<TeamCalendarDraft | null>(null);
   const [localSessions, setLocalSessions] = useState<TeamWorkspaceSession[]>(data.sessions);
   const [isSavingSessionFacility, setIsSavingSessionFacility] = useState(false);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [isSavingCalendar, setIsSavingCalendar] = useState(false);
   const [pendingConflictSave, setPendingConflictSave] = useState<TeamCalendarSave | null>(null);
   const [conflictDescription, setConflictDescription] = useState<string | null>(null);
@@ -393,6 +436,24 @@ function TeamSmartCalendar({
   const canCreateSessions = data.role !== 'viewer' && Boolean(onSessionCreate && (data.defaultFacilityId || (data.availableFacilities?.length ?? 0) > 0));
   const canManageCalendar = canManageExistingSessions || canCreateSessions;
   const weekLabel = useMemo(() => formatWeekLabel(days), [days]);
+
+  const coachEditorTeams = useMemo<CoachTeam[]>(() => [{
+    id: data.id,
+    clubId: 'team-workspace',
+    name: data.name,
+    departmentId: data.departmentName,
+    departmentName: data.departmentName,
+    defaultFacilityId: data.defaultFacilityId ?? null,
+    role: data.role,
+  }], [data.defaultFacilityId, data.departmentName, data.id, data.name, data.role]);
+  const coachEditorFacilities = useMemo<CoachFacility[]>(
+    () => (data.availableFacilities ?? []).map((facility) => ({ id: facility.id, name: facility.name, departmentIds: [data.departmentName] })),
+    [data.availableFacilities, data.departmentName],
+  );
+  const coachEditorGroups = useMemo<CoachGroup[]>(
+    () => data.groups.map((group) => ({ id: group.id, teamId: data.id, name: group.name, playerCount: group.playerCount })),
+    [data.groups, data.id],
+  );
 
   const conflictSessions = useMemo<ConflictSession[]>(() => {
     const byId = new Map<string, ConflictSession>();
@@ -517,6 +578,12 @@ function TeamSmartCalendar({
     () => selectedSessionPlayers.map(loadRiskLine).filter(Boolean) as { id: string; name: string; status: 'high' | 'low'; detail: string | null }[],
     [selectedSessionPlayers],
   );
+
+  const selectedCoachSession = useMemo(
+    () => selectedSession ? coachSessionFromTeamWorkspace(selectedSession, data, selectedSessionPlayers) : null,
+    [data, selectedSession, selectedSessionPlayers],
+  );
+  const editingSession = localSessions.find((session) => session.id === editingSessionId) ?? null;
 
   useEffect(() => {
     function updateDesktopScale() {
@@ -800,6 +867,38 @@ function TeamSmartCalendar({
     await requestTeamCalendarSave({ kind: 'time', sessionId: selectedSession.id, startsAt, endsAt });
   }
 
+  async function handleCoachSessionEditSave(value: { startsAt: string; endsAt: string; teamId: string; facilityId: string; groupIds: string[]; sessionType: string }) {
+    if (!editingSession) return;
+    setIsSavingCalendar(true);
+    try {
+      if (editingSession.startsAt !== value.startsAt || (editingSession.endsAt ?? '') !== value.endsAt) {
+        const accepted = await requestTeamCalendarSave({ kind: 'time', sessionId: editingSession.id, startsAt: value.startsAt, endsAt: value.endsAt });
+        if (accepted === false) return;
+      }
+      const previousFacilityId = editingSession.facilityId ?? data.defaultFacilityId ?? '';
+      if (value.facilityId && value.facilityId !== previousFacilityId && onSessionFacilityChange) {
+        await onSessionFacilityChange(editingSession.id, value.facilityId);
+      }
+      if (onSessionGroupsChange && JSON.stringify(editingSession.groupIds ?? []) !== JSON.stringify(value.groupIds)) {
+        await onSessionGroupsChange(editingSession.id, value.groupIds);
+      }
+      const facility = data.availableFacilities?.find((item) => item.id === value.facilityId);
+      setLocalSessions((current) => current.map((session) => session.id === editingSession.id ? {
+        ...session,
+        startsAt: value.startsAt,
+        endsAt: value.endsAt,
+        facilityId: value.facilityId,
+        facilityName: facility?.name ?? session.facilityName ?? data.defaultFacilityName ?? null,
+        groupIds: value.groupIds,
+        sessionType: value.sessionType,
+      } : session));
+      setSelectedSessionId(editingSession.id);
+      setEditingSessionId(null);
+    } finally {
+      setIsSavingCalendar(false);
+    }
+  }
+
   async function confirmDeleteSession() {
     if (!deleteTargetId || !onSessionDelete) return;
     setIsDeletingSession(true);
@@ -807,6 +906,7 @@ function TeamSmartCalendar({
       await onSessionDelete(deleteTargetId);
       setLocalSessions((current) => current.filter((session) => session.id !== deleteTargetId));
       setSelectedSessionId(null);
+      setEditingSessionId(null);
       setDeleteTargetId(null);
     } finally {
       setIsDeletingSession(false);
@@ -816,6 +916,7 @@ function TeamSmartCalendar({
   function openSelectedSessionEditor(sessionId: string) {
     setMode('edit');
     setSelectedSessionEditKey(`${sessionId}-${Date.now()}`);
+    setEditingSessionId(sessionId);
   }
 
   const requestTeamCalendarSaveRef = useRef(requestTeamCalendarSave);
@@ -947,45 +1048,40 @@ function TeamSmartCalendar({
         onDraftCancel={() => setDraft(null)}
       />
 
-      {selectedSession ? (
-        <SessionDetailSheet
-          title={selectedSession.title}
-          startsAt={selectedSession.startsAt}
-          endsAt={selectedSession.endsAt}
-          teamName={data.name}
-          departmentName={data.departmentName}
-          facilityName={selectedSession.facilityName ?? data.defaultFacilityName}
-          facilityId={selectedSession.facilityId ?? data.defaultFacilityId}
-          facilityOptions={data.availableFacilities ?? []}
-          canEditFacility={mode === 'edit' && canManageCalendar && Boolean(onSessionFacilityChange)}
-          isSavingFacility={isSavingSessionFacility}
-          onFacilityChange={handleSelectedSessionFacilityChange}
-          groups={data.groups.map((group) => ({ id: group.id, name: group.name, playerCount: group.playerCount }))}
+      {selectedSession && selectedCoachSession ? (
+        <CoachSessionDetailOverlay
+          session={selectedCoachSession}
+          calendarHref={data.calendarHref ?? null}
+          groups={coachEditorGroups.map((group) => ({ id: group.id, name: group.name, playerCount: group.playerCount }))}
           selectedGroupIds={selectedSession.groupIds ?? []}
-          canEditGroups={mode === 'edit' && canManageCalendar && Boolean(onSessionGroupsChange)}
-          onGroupsChange={handleSelectedSessionGroupsChange}
-          attendance={selectedSessionAttendance}
-          loadRisks={selectedSessionLoadRisks}
-          participants={selectedSessionPlayers.map((player) => {
-            const flag = (player.attendanceEvents ?? []).find((event) => event.sessionId === selectedSession.id);
-            return {
-              id: player.id,
-              name: player.name,
-              status: flag?.status ?? 'expected',
-              detail: flag?.status === 'late' && flag.lateMinutes ? `${flag.lateMinutes} min` : flag?.reason ?? null,
-            };
-          })}
-          canEditTime={mode === 'edit' && canManageCalendar && Boolean(onSessionTimeChange)}
-          onTimeChange={handleSelectedSessionTimeChange}
-          editDetails={null}
-          editOpenKey={selectedSessionEditKey}
-          actions={canManageCalendar ? (
-            <>
-              {mode === 'view' ? <button type="button" onClick={() => openSelectedSessionEditor(selectedSession.id)} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit session</button> : null}
-              {mode === 'edit' && onSessionDelete ? <button type="button" onClick={() => setDeleteTargetId(selectedSession.id)} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">Delete session</button> : null}
-            </>
-          ) : null}
+          facilityOptions={data.availableFacilities ?? []}
+          canEditFacility={false}
+          onEdit={canManageCalendar ? () => openSelectedSessionEditor(selectedSession.id) : undefined}
+          onDelete={canManageCalendar && onSessionDelete ? () => setDeleteTargetId(selectedSession.id) : undefined}
           onClose={() => setSelectedSessionId(null)}
+        />
+      ) : null}
+
+      {editingSession ? (
+        <CoachSessionEditSheet
+          key={`team-session-${editingSession.id}-${editingSession.startsAt}`}
+          title={editingSession.title}
+          teams={coachEditorTeams}
+          facilities={coachEditorFacilities}
+          groups={coachEditorGroups}
+          initial={{
+            startsAt: editingSession.startsAt,
+            endsAt: editingSession.endsAt ?? addMinutes(new Date(editingSession.startsAt), 90).toISOString(),
+            teamId: data.id,
+            facilityId: editingSession.facilityId ?? data.defaultFacilityId ?? data.availableFacilities?.[0]?.id ?? null,
+            groupIds: editingSession.groupIds ?? [],
+            sessionType: normalizeCoachSessionType(editingSession.sessionType),
+          }}
+          allowTeamChange={false}
+          isSaving={isSavingCalendar}
+          onSave={handleCoachSessionEditSave}
+          onDelete={onSessionDelete ? () => setDeleteTargetId(editingSession.id) : undefined}
+          onClose={() => setEditingSessionId(null)}
         />
       ) : null}
 
@@ -1309,7 +1405,7 @@ export function TeamWorkspaceView({
               <h2 className="mt-2 text-2xl font-black">Sessions for {data.name}</h2>
             </div>
           </div>
-          <TeamSmartCalendar data={data} onSessionTimeChange={onSessionTimeChange} onSessionCreate={onSessionCreate} onSessionFacilityChange={onSessionFacilityChange} onSessionGroupsChange={onSessionGroupsChange} />
+          <TeamSmartCalendar data={data} onSessionTimeChange={onSessionTimeChange} onSessionCreate={onSessionCreate} onSessionFacilityChange={onSessionFacilityChange} onSessionGroupsChange={onSessionGroupsChange} onSessionDelete={onSessionDelete} />
           {data.sessions.length === 0 ? <div className="mt-5"><EmptyCard title="No team sessions yet" /></div> : null}
         </section>
       ) : null}

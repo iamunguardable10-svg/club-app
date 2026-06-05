@@ -767,3 +767,12 @@ Current behavior / direction:
 - [implemented] `check:review` validates typecheck/build, restores generated `next-env.d.ts` drift, then runs Claude Code read-only review.
 - [requirement] If the Claude hook hangs, the hook should be fixed or the exception should be recorded in the task context before any release proceeds.
 - [implemented] ECC was not bulk-installed into the repo. Only the user-level `configure-ecc` bootstrap skill was installed so future ECC components can be selected deliberately. Details live in `docs/agent-workflow.md`.
+
+---
+
+## 2026-06-05 — Session detail/editor reuse across calendars
+
+- Extracted the coach session edit sheet into a reusable shared component so coach, team and facility calendars use the same edit UI for time, facility, type and group participants.
+- Facility calendars now use the shared coach-style session detail overlay instead of maintaining their own divergent detail screen.
+- Coach-scoped facility calendars now only allow opening/editing/creating sessions for teams the coach actually manages; unmanaged facility bookings stay visible as context but are not editable from the coach surface.
+- Demo and Supabase-backed facility calendars were kept aligned for the same behavior.

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
+import { SessionDetailSheet, type SessionDetailFacilityOption, type SessionDetailGroup } from '@/features/sessions/SessionDetailSheet';
 import { LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type LoadTrainingType } from '@/features/load/loadTypes';
 import type { CoachSession } from '@/features/role-workspaces/CoachTypes';
 import { PlayerLoadDetail, type PlayerLoadDetailPlayer } from '@/features/players/PlayerLoadDetail';
@@ -43,14 +43,26 @@ function summarizeCoachSession(session: CoachSession) {
 export function CoachSessionDetailOverlay({
   session,
   calendarHref,
+  groups = [],
+  selectedGroupIds,
+  facilityOptions = [],
+  canEditFacility = false,
+  isSavingFacility = false,
+  onFacilityChange,
   onEdit,
   onDelete,
   onClose,
 }: {
   session: CoachSession;
-  calendarHref: string;
-  onEdit: () => void;
-  onDelete: () => void;
+  calendarHref?: string | null;
+  groups?: SessionDetailGroup[];
+  selectedGroupIds?: string[];
+  facilityOptions?: SessionDetailFacilityOption[];
+  canEditFacility?: boolean;
+  isSavingFacility?: boolean;
+  onFacilityChange?: (facilityId: string) => void | Promise<void>;
+  onEdit?: () => void;
+  onDelete?: () => void;
   onClose: () => void;
 }) {
   const summary = summarizeCoachSession(session);
@@ -82,6 +94,14 @@ export function CoachSessionDetailOverlay({
         teamName={session.teamName}
         departmentName={session.departmentName}
         facilityName={session.facilityName}
+        facilityId={session.facilityId}
+        facilityOptions={facilityOptions}
+        canEditFacility={canEditFacility}
+        isSavingFacility={isSavingFacility}
+        onFacilityChange={onFacilityChange}
+        groups={groups}
+        selectedGroupIds={selectedGroupIds ?? session.groupIds}
+        canEditGroups={false}
         attendance={{
           expected: session.players.length,
           late: summary.late.length,
@@ -105,9 +125,9 @@ export function CoachSessionDetailOverlay({
         })}
         onParticipantSelect={setActivePlayerId}
         actions={<>
-          <button type="button" onClick={onEdit} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit session</button>
-          <button type="button" onClick={onDelete} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">Delete session</button>
-          <Link href={calendarHref} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</Link>
+          {onEdit ? <button type="button" onClick={onEdit} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit session</button> : null}
+          {onDelete ? <button type="button" onClick={onDelete} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">Delete session</button> : null}
+          {calendarHref ? <Link href={calendarHref} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</Link> : null}
         </>}
         onClose={onClose}
       />

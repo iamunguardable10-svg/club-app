@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
-import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
 import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictCandidate, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
 import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
 import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
-import { CoachSessionEditSheet, normalizeCoachSessionType } from '@/features/role-workspaces/CoachWorkspaceRouter';
-import type { CoachFacility, CoachGroup, CoachTeam } from '@/features/role-workspaces/CoachTypes';
+import { CoachSessionEditSheet, normalizeCoachSessionType } from '@/features/role-workspaces/CoachSessionEditSheet';
+import { CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
+import type { CoachFacility, CoachGroup, CoachSession, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoSessions, type DemoSession, type DemoTeam } from '@/shared/dev/demoStorage';
 
 type DemoFacilityCalendarProps = {
@@ -39,6 +39,7 @@ const minutesPerPixel = 60 / hourHeight;
 const slotMinutes = 15;
 const defaultDurationMinutes = 90;
 const dayColumnMinWidth = 150;
+const DEMO_COACH_TEAM_IDS = new Set(['basketball-u14-boys', 'basketball-u16-boys']);
 
 function buildWeekDays(weekOffset = 0) {
   return Array.from({ length: 7 }, (_, index) => {
@@ -223,9 +224,14 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
       playerCount: storedPlayers.filter((player) => player.teamId === group.teamId && player.groups?.includes(group.id)).length,
     }));
   }, [teams]);
-  const editorTeams = useMemo<CoachTeam[]>(
-    () => teams.map((team) => ({ id: team.id, clubId: 'demo-club', name: team.name, departmentId: team.department, departmentName: team.department, defaultFacilityId: team.defaultFacility, role: from?.startsWith('coach') ? 'coach' : from?.startsWith('department') ? 'department_lead' : 'club_admin' })),
+  const manageableTeams = useMemo(
+    () => from?.startsWith('coach') ? teams.filter((team) => DEMO_COACH_TEAM_IDS.has(team.id)) : teams,
     [from, teams],
+  );
+  const manageableTeamIds = useMemo(() => new Set(manageableTeams.map((team) => team.id)), [manageableTeams]);
+  const editorTeams = useMemo<CoachTeam[]>(
+    () => manageableTeams.map((team) => ({ id: team.id, clubId: 'demo-club', name: team.name, departmentId: team.department, departmentName: team.department, defaultFacilityId: team.defaultFacility, role: from?.startsWith('coach') ? 'coach' : from?.startsWith('department') ? 'department_lead' : 'club_admin' })),
+    [from, manageableTeams],
   );
 
   function changeWeek(delta: number) {
@@ -265,9 +271,9 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
         teamName: session.team,
         departmentName: session.department,
         tone: (teamName && session.team === teamName) || highlightedTeamNames.has(session.team) ? 'primary' : (departmentName && session.department === departmentName) || highlightedDepartmentNames.has(session.department) ? 'secondary' : 'muted',
-        canManage: true,
+        canManage: !from?.startsWith('coach') || manageableTeamIds.has(findDemoSessionTeam(session, teams)?.id ?? ''),
       })),
-    [departmentName, highlightedDepartmentNames, highlightedTeamNames, sessions, teamName],
+    [departmentName, from, highlightedDepartmentNames, highlightedTeamNames, manageableTeamIds, sessions, teamName, teams],
   );
   const conflictSessions = useMemo<ConflictSession[]>(() => sessions.map((session) => ({
     id: session.id,
@@ -447,14 +453,20 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     return sessions.find((session) => session.id === calendarSession.id);
   }
 
+  function canManageDemoSession(session: DemoSession) {
+    if (!from?.startsWith('coach')) return true;
+    return manageableTeamIds.has(findDemoSessionTeam(session, teams)?.id ?? '');
+  }
+
   function handleCalendarSessionPointerDown(calendarSession: SmartCalendarSession, kind: DragState['kind'], event: PointerEvent<HTMLElement>) {
     const session = resolveSession(calendarSession);
-    if (session) startSessionDrag(session, kind, event);
+    if (session && canManageDemoSession(session)) startSessionDrag(session, kind, event);
   }
 
   function handleCalendarSessionClick(calendarSession: SmartCalendarSession, event: MouseEvent<HTMLElement>) {
     const session = resolveSession(calendarSession);
     if (!session) return;
+    if (!canManageDemoSession(session)) return;
     if (didDragRef.current) {
       event.preventDefault();
       didDragRef.current = false;
@@ -465,7 +477,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
 
   function handleCalendarSessionKeyDown(calendarSession: SmartCalendarSession, event: KeyboardEvent<HTMLElement>) {
     const session = resolveSession(calendarSession);
-    if (session && (event.key === 'Enter' || event.key === ' ')) setSelectedSession(session);
+    if (session && (event.key === 'Enter' || event.key === ' ') && canManageDemoSession(session)) setSelectedSession(session);
   }
 
   const backTarget =
@@ -505,7 +517,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
       const start = createDateForCalendarMinute(day, (baseHour - firstHour) * 60 + clickedMinutes);
       const end = addMinutes(start, defaultDurationMinutes);
       setSelectedSession(null);
-      setDraft({ startsAt: start.toISOString(), endsAt: end.toISOString(), teamId: fallbackTeamId, facilityName });
+      setDraft({ startsAt: start.toISOString(), endsAt: end.toISOString(), teamId: fallbackTeamId && manageableTeamIds.has(fallbackTeamId) ? fallbackTeamId : manageableTeams[0]?.id ?? null, facilityName });
     }
 
     window.addEventListener('pointerup', createDraftFromTap, { once: true });
@@ -635,6 +647,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
   function persistCreateSession(value: DemoFacilitySessionEditValue) {
     const team = teams.find((item) => item.id === value.teamId);
     if (!team) throw new Error('Choose a team first.');
+    if (!manageableTeamIds.has(team.id)) throw new Error('You can only schedule your assigned teams in this facility.');
     const nextSession: DemoSession = {
       id: crypto.randomUUID(),
       department: team.department,
@@ -666,6 +679,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     if (!currentSession) return;
     const team = teams.find((item) => item.id === value.teamId);
     if (!team) throw new Error('Choose a team first.');
+    if (!manageableTeamIds.has(team.id)) throw new Error('You can only schedule your assigned teams in this facility.');
     const updatedSession: DemoSession = {
       ...currentSession,
       department: team.department,
@@ -698,11 +712,30 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     setSelectedSession(null);
   }
 
+  function coachSessionForDemoFacility(session: DemoSession): CoachSession {
+    const team = findDemoSessionTeam(session, teams);
+    return {
+      id: session.id,
+      title: session.title,
+      sessionType: session.sessionType,
+      startsAt: session.startsAt,
+      endsAt: session.endsAt,
+      teamId: team?.id ?? session.team,
+      teamName: session.team,
+      departmentName: session.department,
+      facilityId: facilityName,
+      facilityName,
+      groupIds: session.groupIds ?? [],
+      availability: [],
+      players: [],
+    };
+  }
+
   const draftEditorInitial = draft
     ? {
         startsAt: draft.startsAt,
         endsAt: draft.endsAt,
-        teamId: draft.teamId ?? fallbackTeamId,
+        teamId: draft.teamId && manageableTeamIds.has(draft.teamId) ? draft.teamId : (fallbackTeamId && manageableTeamIds.has(fallbackTeamId) ? fallbackTeamId : manageableTeams[0]?.id ?? null),
         facilityId: facilityName,
         groupIds: [],
         sessionType: 'training',
@@ -728,7 +761,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
 
         <SmartSessionCalendar
           mode={mode}
-          canCreateSessions={true}
+          canCreateSessions={manageableTeamIds.size > 0}
           days={days}
           hours={hours}
           firstHour={firstHour}
@@ -769,30 +802,20 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
 
       </div>
 
-      {selectedSession ? (
-        <SessionDetailSheet
-          title={selectedSession.title}
-          startsAt={selectedSession.startsAt}
-          endsAt={selectedSession.endsAt}
-          teamName={selectedSession.team}
-          departmentName={selectedSession.department}
-          facilityName={selectedSession.facility}
-          facilityId={facilityName}
-          groups={groups.filter((group) => group.teamId === findDemoSessionTeam(selectedSession, teams)?.id).map((group) => ({ id: group.id, name: group.name, playerCount: group.playerCount }))}
-          selectedGroupIds={selectedSession.groupIds ?? []}
-          canEditGroups={mode === 'edit'}
-          onGroupsChange={(groupIds) => handleDemoSessionGroupsChange(selectedSession.id, groupIds)}
-          attendance={{ status: 'Planned' }}
-          load={{ status: 'Not reported yet' }}
-          actions={(
-            <>
-              <button type="button" onClick={() => { setSelectedSession(null); setEditingSession(selectedSession); }} className="rounded-xl border border-sky-500/70 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Edit</button>
-              <button type="button" onClick={() => handleDeleteSession(selectedSession)} className="rounded-xl border border-red-500/60 px-4 py-2 text-sm font-black text-red-100 hover:bg-red-950/30">Delete</button>
-            </>
-          )}
-          onClose={() => setSelectedSession(null)}
-        />
-      ) : null}
+      {selectedSession ? (() => {
+        const sessionTeam = findDemoSessionTeam(selectedSession, teams);
+        return (
+          <CoachSessionDetailOverlay
+            session={coachSessionForDemoFacility(selectedSession)}
+            calendarHref={null}
+            groups={groups.filter((group) => group.teamId === sessionTeam?.id).map((group) => ({ id: group.id, name: group.name, playerCount: group.playerCount }))}
+            selectedGroupIds={selectedSession.groupIds ?? []}
+            onEdit={() => { setSelectedSession(null); setEditingSession(selectedSession); }}
+            onDelete={() => handleDeleteSession(selectedSession)}
+            onClose={() => setSelectedSession(null)}
+          />
+        );
+      })() : null}
 
       {composerOpen && draftEditorInitial ? (
         <CoachSessionEditSheet
@@ -830,7 +853,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
           initial={{
             startsAt: editingSession.startsAt,
             endsAt: editingSession.endsAt,
-            teamId: editingTeam?.id ?? fallbackTeamId ?? teams[0]?.id ?? null,
+            teamId: editingTeam?.id ?? fallbackTeamId ?? manageableTeams[0]?.id ?? null,
             facilityId: facilityName,
             groupIds: editingSession.groupIds ?? [],
             sessionType: normalizeCoachSessionType(editingSession.sessionType),
