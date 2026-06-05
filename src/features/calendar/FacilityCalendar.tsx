@@ -132,6 +132,13 @@ function labelForFacilitySessionType(value?: string | null) {
   return facilitySessionTypes.find((type) => type.value === normalizeCoachSessionType(value))?.label ?? 'Training';
 }
 
+function titleForFacilitySessionUpdate(currentTitle: string, previousType: string, nextType: string) {
+  const previousLabel = labelForFacilitySessionType(previousType);
+  const nextLabel = labelForFacilitySessionType(nextType);
+  const genericLabels = new Set(facilitySessionTypes.map((type) => type.label));
+  return !currentTitle || currentTitle === previousLabel || genericLabels.has(currentTitle) ? nextLabel : currentTitle;
+}
+
 function splitParamIds(value?: string) {
   return new Set((value ?? '').split(',').map((item) => item.trim()).filter(Boolean));
 }
@@ -306,18 +313,34 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       let loadedGroups: CoachGroup[] = [];
       let sessionGroupRows: SessionGroupRow[] = [];
       if (loadedTeams.length > 0) {
-        const [{ data: groupRowsRaw, error: groupRowsError }, { data: memberRowsRaw }] = await Promise.all([
-          supabase.from('player_groups').select('id, team_id, name').in('team_id', loadedTeams.map((team) => team.id)).order('name'),
-          supabase.from('player_group_members').select('group_id, team_membership_id'),
-        ]);
+        const { data: groupRowsRaw, error: groupRowsError } = await supabase
+          .from('player_groups')
+          .select('id, team_id, name')
+          .in('team_id', loadedTeams.map((team) => team.id))
+          .order('name');
         if (!isMounted) return;
         if (groupRowsError) {
           setState('error');
           setError(groupRowsError.message);
           return;
         }
+        const groupRows = (groupRowsRaw ?? []) as PlayerGroupRow[];
+        let memberRowsRaw: { group_id: string; team_membership_id: string }[] = [];
+        if (groupRows.length > 0) {
+          const { data: scopedMemberRowsRaw, error: memberRowsError } = await supabase
+            .from('player_group_members')
+            .select('group_id, team_membership_id')
+            .in('group_id', groupRows.map((group) => group.id));
+          if (!isMounted) return;
+          if (memberRowsError) {
+            setState('error');
+            setError(memberRowsError.message);
+            return;
+          }
+          memberRowsRaw = (scopedMemberRowsRaw ?? []) as { group_id: string; team_membership_id: string }[];
+        }
         const memberRows = (memberRowsRaw ?? []) as { group_id: string; team_membership_id: string }[];
-        loadedGroups = ((groupRowsRaw ?? []) as PlayerGroupRow[]).map((group) => ({
+        loadedGroups = groupRows.map((group) => ({
           id: group.id,
           teamId: group.team_id,
           name: group.name,
@@ -726,7 +749,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     const nextSession = save.kind === 'update'
       ? {
           ...baseSession,
-          title: labelForFacilitySessionType(save.payload.sessionType),
+          title: titleForFacilitySessionUpdate(baseSession.title, baseSession.session_type, save.payload.sessionType),
           session_type: save.payload.sessionType,
           starts_at: save.payload.startsAt,
           ends_at: save.payload.endsAt,
@@ -867,7 +890,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
         department_id: team.department_id,
         team_id: value.teamId,
         owner_team_id: value.teamId,
-        title: labelForFacilitySessionType(value.sessionType),
+        title: titleForFacilitySessionUpdate(currentSession.title, currentSession.session_type, value.sessionType),
         session_type: value.sessionType,
         starts_at: value.startsAt,
         ends_at: value.endsAt,
@@ -902,15 +925,20 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     const session = sessions.find((item) => item.id === sessionId);
     if (!session || !canManageSession(session)) return;
     const supabase = createBrowserSupabaseClient();
-    const { error: deleteError } = await supabase.from('session_groups').delete().eq('session_id', sessionId);
-    if (deleteError) throw deleteError;
-    if (groupIds.length > 0) {
-      const { error: insertError } = await supabase
-        .from('session_groups')
-        .insert(groupIds.map((groupId) => ({ session_id: sessionId, group_id: groupId })));
-      if (insertError) throw insertError;
+    try {
+      const { error: deleteError } = await supabase.from('session_groups').delete().eq('session_id', sessionId);
+      if (deleteError) throw deleteError;
+      if (groupIds.length > 0) {
+        const { error: insertError } = await supabase
+          .from('session_groups')
+          .insert(groupIds.map((groupId) => ({ session_id: sessionId, group_id: groupId })));
+        if (insertError) throw insertError;
+      }
+      setSessions((current) => current.map((item) => (item.id === sessionId ? { ...item, group_ids: groupIds } : item)));
+    } catch (changeError) {
+      setError(changeError instanceof Error ? changeError.message : 'Could not update session groups.');
+      throw changeError;
     }
-    setSessions((current) => current.map((item) => (item.id === sessionId ? { ...item, group_ids: groupIds } : item)));
   }
 
   async function handleDeleteSession(session: Session) {

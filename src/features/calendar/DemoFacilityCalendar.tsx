@@ -102,6 +102,14 @@ function labelForDemoFacilitySessionType(value?: string | null) {
   return 'Team training';
 }
 
+function titleForDemoFacilitySessionUpdate(currentTitle: string, previousType: string, nextType: string) {
+  const previousLabel = labelForDemoFacilitySessionType(previousType);
+  const genericLabels = new Set(['Team training', 'Game', 'Strength', 'Individual', 'Recovery']);
+  return !currentTitle || currentTitle === previousLabel || genericLabels.has(currentTitle)
+    ? labelForDemoFacilitySessionType(nextType)
+    : currentTitle;
+}
+
 function findDemoSessionTeam(session: Pick<DemoSession, 'team' | 'department'>, teams: DemoTeam[]) {
   return teams.find((team) => team.name === session.team && team.department === session.department) ?? null;
 }
@@ -557,7 +565,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     if (!baseSession) return;
     const team = save.kind === 'update' ? teams.find((item) => item.id === save.payload.teamId) : null;
     const nextSession = save.kind === 'update'
-      ? { ...baseSession, department: team?.department ?? baseSession.department, team: team?.name ?? baseSession.team, title: labelForDemoFacilitySessionType(save.payload.sessionType), sessionType: save.payload.sessionType, startsAt: save.payload.startsAt, endsAt: save.payload.endsAt, groupIds: save.payload.groupIds }
+      ? { ...baseSession, department: team?.department ?? baseSession.department, team: team?.name ?? baseSession.team, title: titleForDemoFacilitySessionUpdate(baseSession.title, baseSession.sessionType, save.payload.sessionType), sessionType: save.payload.sessionType, startsAt: save.payload.startsAt, endsAt: save.payload.endsAt, groupIds: save.payload.groupIds }
       : { ...baseSession, startsAt: save.startsAt, endsAt: save.endsAt };
     setSessions((current) => current.map((session) => session.id === nextSession.id ? nextSession : session));
     setSelectedSession(null);
@@ -662,7 +670,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
       ...currentSession,
       department: team.department,
       team: team.name,
-      title: labelForDemoFacilitySessionType(value.sessionType),
+      title: titleForDemoFacilitySessionUpdate(currentSession.title, currentSession.sessionType, value.sessionType),
       sessionType: value.sessionType,
       startsAt: value.startsAt,
       endsAt: value.endsAt,
@@ -810,6 +818,9 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
         />
       ) : null}
       {editingSession ? (
+        (() => {
+          const editingTeam = findDemoSessionTeam(editingSession, teams);
+          return (
         <CoachSessionEditSheet
           key={`demo-facility-session-${editingSession.id}-${editingSession.startsAt}`}
           title={editingSession.title}
@@ -819,17 +830,19 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
           initial={{
             startsAt: editingSession.startsAt,
             endsAt: editingSession.endsAt,
-            teamId: findDemoSessionTeam(editingSession, teams)?.id ?? null,
+            teamId: editingTeam?.id ?? fallbackTeamId ?? teams[0]?.id ?? null,
             facilityId: facilityName,
             groupIds: editingSession.groupIds ?? [],
             sessionType: normalizeCoachSessionType(editingSession.sessionType),
           }}
-          allowTeamChange={false}
+          allowTeamChange={!editingTeam}
           isSaving={false}
           onSave={handleUpdateSession}
           onDelete={() => handleDeleteSession(editingSession)}
           onClose={() => setEditingSession(null)}
         />
+          );
+        })()
       ) : null}
       <FacilityConflictDialog
         isOpen={Boolean(pendingConflictSave)}
