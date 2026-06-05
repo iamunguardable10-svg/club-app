@@ -277,7 +277,7 @@ function buildCoachSessions(teams: DemoTeam[], storedSessions: DemoSession[], de
         teamId: team.id,
         teamName: team.name,
         departmentName: team.department,
-        facilityName: session.facility,
+        facilityName: session.facility ?? team.defaultFacility ?? null,
         groupIds: session.groupIds ?? [],
         availability: mark && (mark.status === 'late' || mark.status === 'out') ? [{ id: `${session.id}-demo-athlete`, playerId: 'demo-athlete', playerName: 'Demo Athlete', status: mark.status, reason: mark.reason, lateMinutes: mark.lateMinutes }] : fallbackFlags,
         players: participants.map((player) => {
@@ -398,16 +398,24 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     availability: session.availability.map((item) => ({ ...item, userId: item.playerId ?? item.playerName })),
     players: session.players.map((player) => ({ ...player, loadEntries: player.loadEntries ?? demoLoadEntriesForSession(session, player) })),
   })), [demoSessions]);
-  const facilityConflictSessions = useMemo<ConflictSession[]>(() => coachSessions.map((session) => ({
-    id: session.id,
-    title: session.title,
-    startsAt: session.startsAt,
-    endsAt: session.endsAt,
-    facilityId: session.facilityId,
-    facilityName: session.facilityName,
-    teamName: session.teamName,
-    departmentName: session.departmentName,
-  })), [coachSessions]);
+  const facilityConflictSessions = useMemo<ConflictSession[]>(() => {
+    const allTeams = allDemoTeams.length > 0 ? allDemoTeams : teams;
+    const teamByName = new Map(allTeams.map((team) => [`${team.department}:${team.name}`, team]));
+    return rawSessions.map((session) => {
+      const team = teamByName.get(`${session.department}:${session.team}`) ?? null;
+      const resolvedFacility = session.facility ?? team?.defaultFacility ?? null;
+      return {
+        id: session.id,
+        title: session.title,
+        startsAt: session.startsAt,
+        endsAt: session.endsAt,
+        facilityId: resolvedFacility,
+        facilityName: resolvedFacility,
+        teamName: team?.name ?? session.team,
+        departmentName: team?.department ?? session.department,
+      };
+    });
+  }, [allDemoTeams, rawSessions, teams]);
 
   function refreshDemoSessions(nextRaw: DemoSession[]) {
     saveDemoSessions(nextRaw);
