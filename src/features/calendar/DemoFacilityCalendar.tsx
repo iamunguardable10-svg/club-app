@@ -141,12 +141,13 @@ function splitParamNames(value?: string) {
   return new Set((value ?? '').split(',').map((item) => item.trim()).filter(Boolean));
 }
 
-function DemoFacilityRoleNav({ from }: { from?: string; teamId?: string | null }) {
+function DemoFacilityRoleNav({ from }: { from?: string }) {
+  // Team-scoped facility calendar entries use the explicit back target only.
   if (from === 'team' || from === 'coachTeam' || from === 'departmentTeam') return null;
 
   if (from === 'department') return null;
   // Fail closed for unknown contexts: new facility-calendar entry points must opt into the correct role nav here.
-  if (from !== 'overview' && from !== 'departments' && from !== 'facilities' && from !== 'team') return null;
+  if (from !== 'overview' && from !== 'departments' && from !== 'facilities') return null;
 
   const links = [
     { href: '/demo/admin/overview', label: 'Overview' },
@@ -755,7 +756,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
       {from === 'department' || from === 'departmentTeam' ? <DepartmentLeadDrawer mode="facilities" basePath="/demo/department" departmentName={departmentName} /> : null}
       {from?.startsWith('coach') ? <CoachDrawer mode="facilities" basePath="/demo/coach" teamId={contextTeamId} /> : null}
       <div className="mx-auto max-w-7xl space-y-5">
-        <DemoFacilityRoleNav from={from} teamId={contextTeamId} />
+        <DemoFacilityRoleNav from={from} />
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.22)] ring-1 ring-white/[0.03]">
           <Link href={backTarget.href} className="text-sm font-black text-slate-300 hover:text-white">{backTarget.label}</Link>
           <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-slate-500">Facility calendar</p>

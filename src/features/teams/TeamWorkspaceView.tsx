@@ -1059,6 +1059,7 @@ function TeamSmartCalendar({
       {selectedSession && selectedCoachSession ? (
         <CoachSessionDetailOverlay
           session={selectedCoachSession}
+          // Already inside the team calendar; the facility-calendar link stays in the calendar toolbar.
           calendarHref={null}
           groups={coachEditorGroups.map((group) => ({ id: group.id, name: group.name, playerCount: group.playerCount }))}
           selectedGroupIds={selectedSession.groupIds ?? []}
