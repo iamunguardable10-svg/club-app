@@ -30,6 +30,7 @@ type DemoFacilityCalendarSave =
   | { kind: 'update'; sessionId: string; payload: DemoFacilitySessionEditValue };
 type DemoPlayerGroup = { id: string; teamId: string; name: string };
 type DemoPlayer = { id: string; teamId: string; name: string; groups?: string[] };
+type DemoFacilityAssignment = { department: string; facility: string };
 
 const hours = Array.from({ length: 17 }, (_, index) => index + 7);
 const firstHour = hours[0] ?? 7;
@@ -41,6 +42,7 @@ const slotMinutes = 15;
 const defaultDurationMinutes = 90;
 const dayColumnMinWidth = 150;
 const DEMO_COACH_TEAM_IDS = new Set(['basketball-u14-boys', 'basketball-u16-boys']);
+const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
 
 function buildWeekDays(weekOffset = 0) {
   return Array.from({ length: 7 }, (_, index) => {
@@ -130,6 +132,11 @@ function readDemoPlayers(): DemoPlayer[] {
   try { return JSON.parse(window.localStorage.getItem('club-app.demo.players') ?? '[]') as DemoPlayer[]; } catch { return []; }
 }
 
+function readDemoFacilityAssignments(): DemoFacilityAssignment[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(window.localStorage.getItem(DEMO_FACILITY_ASSIGNMENTS_KEY) ?? '[]') as DemoFacilityAssignment[]; } catch { return []; }
+}
+
 function splitParamNames(value?: string) {
   return new Set((value ?? '').split(',').map((item) => item.trim()).filter(Boolean));
 }
@@ -208,7 +215,21 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
   const [allowedConflictKey, setAllowedConflictKey] = useState<string | null>(null);
   const setup = useMemo(() => getDemoClubSetup(), []);
   const teams = useMemo(() => getDemoTeams(setup), [setup]);
-  const facilities = useMemo<CoachFacility[]>(() => [{ id: facilityName, name: facilityName, departmentIds: setup?.departments ?? [] }], [facilityName, setup]);
+  const facilityAssignments = useMemo(() => readDemoFacilityAssignments(), [setup]);
+  const facilities = useMemo<CoachFacility[]>(() => {
+    const facilityNames = Array.from(new Set([...(setup?.facilities ?? []), facilityName]));
+    const detailsByName = new Map((setup?.facilityDetails ?? []).map((item) => [item.name, item]));
+    return facilityNames.map((name) => {
+      const assignedDepartments = facilityAssignments.filter((assignment) => assignment.facility === name).map((assignment) => assignment.department);
+      const ownerDepartment = detailsByName.get(name)?.ownerDepartment;
+      const departmentIds = Array.from(new Set([
+        ...assignedDepartments,
+        ...(ownerDepartment ? [ownerDepartment] : []),
+        ...(name === facilityName && assignedDepartments.length === 0 ? setup?.departments ?? [] : []),
+      ]));
+      return { id: name, name, departmentIds };
+    }).filter((facility) => facility.departmentIds.length > 0);
+  }, [facilityAssignments, facilityName, setup]);
   const groups = useMemo<CoachGroup[]>(() => {
     const storedGroups = readDemoPlayerGroups();
     const storedPlayers = readDemoPlayers();
@@ -542,14 +563,14 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
   }
 
   function demoFacilitySaveKey(save: DemoFacilityCalendarSave) {
-    if (save.kind === 'create') return `create:${save.payload.startsAt}:${save.payload.endsAt}:${facilityName}:${save.payload.teamId}`;
-    if (save.kind === 'update') return `update:${save.sessionId}:${save.payload.startsAt}:${save.payload.endsAt}:${facilityName}:${save.payload.teamId}`;
+    if (save.kind === 'create') return `create:${save.payload.startsAt}:${save.payload.endsAt}:${save.payload.facilityId}:${save.payload.teamId}`;
+    if (save.kind === 'update') return `update:${save.sessionId}:${save.payload.startsAt}:${save.payload.endsAt}:${save.payload.facilityId}:${save.payload.teamId}`;
     return `time:${save.sessionId}:${save.startsAt}:${save.endsAt}`;
   }
 
   function demoFacilityCandidateForSave(save: DemoFacilityCalendarSave): ConflictCandidate {
-    if (save.kind === 'create') return { startsAt: save.payload.startsAt, endsAt: save.payload.endsAt, facilityId: facilityName };
-    if (save.kind === 'update') return { id: save.sessionId, startsAt: save.payload.startsAt, endsAt: save.payload.endsAt, facilityId: facilityName };
+    if (save.kind === 'create') return { startsAt: save.payload.startsAt, endsAt: save.payload.endsAt, facilityId: save.payload.facilityId };
+    if (save.kind === 'update') return { id: save.sessionId, startsAt: save.payload.startsAt, endsAt: save.payload.endsAt, facilityId: save.payload.facilityId };
     return { id: save.sessionId, startsAt: save.startsAt, endsAt: save.endsAt, facilityId: facilityName };
   }
 
@@ -570,7 +591,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     setConflictSuggestions([]);
     setMode('edit');
     if (save.kind === 'create') {
-      setDraft({ startsAt: save.payload.startsAt, endsAt: save.payload.endsAt, teamId: save.payload.teamId, facilityName });
+      setDraft({ startsAt: save.payload.startsAt, endsAt: save.payload.endsAt, teamId: save.payload.teamId, facilityName: save.payload.facilityId });
       setComposerOpen(true);
       return;
     }
@@ -578,7 +599,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     if (!baseSession) return;
     const team = save.kind === 'update' ? teams.find((item) => item.id === save.payload.teamId) : null;
     const nextSession = save.kind === 'update'
-      ? { ...baseSession, department: team?.department ?? baseSession.department, team: team?.name ?? baseSession.team, title: titleForDemoFacilitySessionUpdate(baseSession.title, baseSession.sessionType, save.payload.sessionType), sessionType: save.payload.sessionType, startsAt: save.payload.startsAt, endsAt: save.payload.endsAt, groupIds: save.payload.groupIds }
+      ? { ...baseSession, department: team?.department ?? baseSession.department, team: team?.name ?? baseSession.team, title: titleForDemoFacilitySessionUpdate(baseSession.title, baseSession.sessionType, save.payload.sessionType), sessionType: save.payload.sessionType, startsAt: save.payload.startsAt, endsAt: save.payload.endsAt, facility: save.payload.facilityId, groupIds: save.payload.groupIds }
       : { ...baseSession, startsAt: save.startsAt, endsAt: save.endsAt };
     setSessions((current) => current.map((session) => session.id === nextSession.id ? nextSession : session));
     setSelectedSession(null);
@@ -649,6 +670,9 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     const team = teams.find((item) => item.id === value.teamId);
     if (!team) throw new Error('Choose a team first.');
     if (!manageableTeamIds.has(team.id)) throw new Error('You can only schedule your assigned teams in this facility.');
+    if (!facilities.some((facility) => facility.id === value.facilityId && facility.departmentIds.includes(team.department))) {
+      throw new Error('This hall is not assigned to the selected team department.');
+    }
     const nextSession: DemoSession = {
       id: crypto.randomUUID(),
       department: team.department,
@@ -657,7 +681,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
       sessionType: value.sessionType,
       startsAt: value.startsAt,
       endsAt: value.endsAt,
-      facility: facilityName,
+      facility: value.facilityId,
       groupIds: value.groupIds,
       createdAt: new Date().toISOString(),
     };
@@ -681,6 +705,9 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
     const team = teams.find((item) => item.id === value.teamId);
     if (!team) throw new Error('Choose a team first.');
     if (!manageableTeamIds.has(team.id)) throw new Error('You can only schedule your assigned teams in this facility.');
+    if (!facilities.some((facility) => facility.id === value.facilityId && facility.departmentIds.includes(team.department))) {
+      throw new Error('This hall is not assigned to the selected team department.');
+    }
     const updatedSession: DemoSession = {
       ...currentSession,
       department: team.department,
@@ -689,7 +716,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
       sessionType: value.sessionType,
       startsAt: value.startsAt,
       endsAt: value.endsAt,
-      facility: facilityName,
+      facility: value.facilityId,
       groupIds: value.groupIds,
     };
     const allSessions = getDemoSessions().map((session) => (session.id === sessionId ? updatedSession : session));
@@ -724,8 +751,8 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
       teamId: team?.id ?? session.team,
       teamName: session.team,
       departmentName: session.department,
-      facilityId: facilityName,
-      facilityName,
+      facilityId: session.facility ?? facilityName,
+      facilityName: session.facility ?? facilityName,
       groupIds: session.groupIds ?? [],
       availability: [],
       players: [],
@@ -737,7 +764,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
         startsAt: draft.startsAt,
         endsAt: draft.endsAt,
         teamId: draft.teamId && manageableTeamIds.has(draft.teamId) ? draft.teamId : (fallbackTeamId && manageableTeamIds.has(fallbackTeamId) ? fallbackTeamId : manageableTeams[0]?.id ?? null),
-        facilityId: facilityName,
+        facilityId: draft.facilityName,
         groupIds: [],
         sessionType: 'training',
       }
@@ -855,7 +882,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
             startsAt: editingSession.startsAt,
             endsAt: editingSession.endsAt,
             teamId: editingTeam?.id ?? fallbackTeamId ?? manageableTeams[0]?.id ?? null,
-            facilityId: facilityName,
+            facilityId: editingSession.facility ?? facilityName,
             groupIds: editingSession.groupIds ?? [],
             sessionType: normalizeCoachSessionType(editingSession.sessionType),
           }}
