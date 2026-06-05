@@ -553,7 +553,7 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         {activeCoachSession ? (
           <CoachSessionDetailOverlay
             session={activeCoachSession}
-            calendarHref="/demo/coach/sessions"
+            calendarHref={mode === 'today' ? '/demo/coach/sessions' : null}
             onEdit={() => { setReturnToSessionId(activeCoachSession.id); setEditingSessionId(activeCoachSession.id); setActiveSession(null); }}
             onDelete={() => setDeleteSessionId(activeCoachSession.id)}
             onClose={() => setActiveSession(null)}

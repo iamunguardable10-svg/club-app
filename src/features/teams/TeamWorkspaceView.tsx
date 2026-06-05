@@ -1059,7 +1059,7 @@ function TeamSmartCalendar({
       {selectedSession && selectedCoachSession ? (
         <CoachSessionDetailOverlay
           session={selectedCoachSession}
-          calendarHref={data.calendarHref ?? null}
+          calendarHref={null}
           groups={coachEditorGroups.map((group) => ({ id: group.id, name: group.name, playerCount: group.playerCount }))}
           selectedGroupIds={selectedSession.groupIds ?? []}
           facilityOptions={data.availableFacilities ?? []}

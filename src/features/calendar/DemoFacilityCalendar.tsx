@@ -141,30 +141,10 @@ function splitParamNames(value?: string) {
   return new Set((value ?? '').split(',').map((item) => item.trim()).filter(Boolean));
 }
 
-function DemoFacilityRoleNav({ from, teamId }: { from?: string; teamId?: string | null }) {
-  if (from === 'coachTeam') {
-    const suffix = teamId ? `?teamId=${encodeURIComponent(teamId)}` : '';
-    const links = [
-      { href: '/demo/coach/today', label: 'Today' },
-      { href: `/demo/coach/team${suffix}`, label: 'Team' },
-      { href: `/demo/coach/sessions${suffix}`, label: 'Calendar' },
-      { href: `/demo/coach/attendance${suffix}`, label: 'Attendance' },
-      { href: `/demo/coach/load${suffix}`, label: 'Load' },
-    ];
-    return (
-      <nav className="sticky top-3 z-30 rounded-3xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_18px_80px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.04] backdrop-blur-xl" aria-label="Demo coach navigation">
-        <div className="flex flex-wrap gap-1.5">
-          {links.map((link) => (
-            <Link key={link.href} href={link.href} className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-black text-slate-200 transition hover:border-emerald-300/40 hover:bg-emerald-300/10 hover:text-white">
-              {link.label}
-            </Link>
-          ))}
-        </div>
-      </nav>
-    );
-  }
+function DemoFacilityRoleNav({ from }: { from?: string; teamId?: string | null }) {
+  if (from === 'team' || from === 'coachTeam' || from === 'departmentTeam') return null;
 
-  if (from === 'department' || from === 'departmentTeam') return null;
+  if (from === 'department') return null;
   // Fail closed for unknown contexts: new facility-calendar entry points must opt into the correct role nav here.
   if (from !== 'overview' && from !== 'departments' && from !== 'facilities' && from !== 'team') return null;
 
