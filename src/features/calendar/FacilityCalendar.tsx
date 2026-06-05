@@ -959,7 +959,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
 
   function handleCalendarSessionPointerDown(calendarSession: SmartCalendarSession, kind: DragState['kind'], event: PointerEvent<HTMLElement>) {
     const session = resolveSession(calendarSession);
-    if (session) startSessionDrag(session, kind, event);
+    if (session && (!from?.startsWith('coach') || canManageSession(session))) startSessionDrag(session, kind, event);
   }
 
   function handleCalendarSessionClick(calendarSession: SmartCalendarSession, event: MouseEvent<HTMLElement>) {

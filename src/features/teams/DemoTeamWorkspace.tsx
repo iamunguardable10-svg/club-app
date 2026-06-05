@@ -89,6 +89,14 @@ const demoPlayerSeed = [
   'Ben Carter',
 ];
 
+function labelForDemoSessionType(sessionType: string) {
+  if (sessionType === 'game') return 'Game';
+  if (sessionType === 's_and_c' || sessionType === 'strength') return 'Strength';
+  if (sessionType === 'recovery') return 'Recovery';
+  if (sessionType === 'other' || sessionType === 'individual') return 'Individual';
+  return 'Team training';
+}
+
 export function buildDemoPlayers(teamId: string): DemoPlayer[] {
   return demoPlayerSeed.map((name, index) => {
     const groups = index < 5 ? ['starting-five'] : index < 10 ? ['bench-unit'] : ['rehab'];
@@ -253,6 +261,13 @@ export function DemoTeamWorkspace({
 
   function handleSessionFacilityChange(sessionId: string, facility: string) {
     const nextSessions = sessions.map((session) => session.id === sessionId ? { ...session, facility } : session);
+    saveDemoSessions(nextSessions);
+    setSessions(nextSessions);
+  }
+
+  function handleSessionTypeChange(sessionId: string, sessionType: string) {
+    const title = labelForDemoSessionType(sessionType);
+    const nextSessions = sessions.map((session) => session.id === sessionId ? { ...session, sessionType, title } : session);
     saveDemoSessions(nextSessions);
     setSessions(nextSessions);
   }
@@ -473,6 +488,7 @@ export function DemoTeamWorkspace({
       sessions: teamSessions.map((session) => ({
         id: session.id,
         title: session.title,
+        sessionType: session.sessionType,
         startsAt: session.startsAt,
         endsAt: session.endsAt,
         facilityId: session.facility,
@@ -482,6 +498,7 @@ export function DemoTeamWorkspace({
       contextSessions: contextSessions.map((session) => ({
         id: session.id,
         title: session.title,
+        sessionType: session.sessionType,
         startsAt: session.startsAt,
         endsAt: session.endsAt,
         facilityId: session.facility,
@@ -534,6 +551,7 @@ export function DemoTeamWorkspace({
         onSessionCreate={handleSessionCreate}
         onSessionFacilityChange={handleSessionFacilityChange}
         onSessionGroupsChange={handleSessionGroupsChange}
+        onSessionTypeChange={handleSessionTypeChange}
         onAddDemoPlayers={handleAddDemoPlayers}
         onInviteStaff={handleInviteStaff}
         onCopyStaffInvite={handleCopyStaffInvite}

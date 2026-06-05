@@ -13,7 +13,7 @@ type Facility = { id: string; name: string };
 type Membership = { id: string; user_id: string; role: 'head_coach' | 'assistant_coach' | 'athlete'; status: 'active' | 'inactive' | 'invited'; coach_role_slot_id: string | null };
 type ClubMembership = { role: 'club_admin' | 'department_lead'; department_id: string | null };
 type Profile = { id: string; full_name: string; email: string | null };
-type Session = { id: string; title: string; starts_at: string; ends_at: string | null; facility_id: string | null };
+type Session = { id: string; title: string; session_type: string; starts_at: string; ends_at: string | null; facility_id: string | null };
 type Invite = { id: string; token: string; role: 'head_coach' | 'assistant_coach'; status: 'pending' | 'accepted' | 'revoked' | 'expired'; coach_role_slot_id: string | null };
 type CoachRoleSlot = { id: string; label: string };
 type PlayerGroup = { id: string; name: string };
@@ -55,6 +55,14 @@ function isMissingAuthSessionError(message?: string) {
 
 function profileLabel(profile: Profile | undefined, fallback: string) {
   return profile?.full_name || profile?.email || fallback;
+}
+
+function labelForSessionType(sessionType: string) {
+  if (sessionType === 'game') return 'Game';
+  if (sessionType === 's_and_c' || sessionType === 'strength') return 'Strength';
+  if (sessionType === 'recovery') return 'Recovery';
+  if (sessionType === 'other' || sessionType === 'individual') return 'Individual';
+  return 'Team training';
 }
 
 function TeamWorkspaceFrame({ frame, children }: { frame: 'admin' | 'coach' | 'department'; children: ReactNode }) {
@@ -139,11 +147,11 @@ export function TeamWorkspace({
         loadedTeam.default_facility_id ? supabase.from('facilities').select('id, name').eq('id', loadedTeam.default_facility_id).single() : Promise.resolve({ data: null, error: null }),
         supabase.from('team_memberships').select('id, user_id, role, status, coach_role_slot_id').eq('team_id', loadedTeam.id),
         supabase.from('club_memberships').select('role, department_id').eq('club_id', loadedTeam.club_id).eq('user_id', user.id).eq('status', 'active'),
-        supabase.from('sessions').select('id, title, starts_at, ends_at, facility_id').eq('owner_team_id', loadedTeam.id).order('starts_at'),
+        supabase.from('sessions').select('id, title, session_type, starts_at, ends_at, facility_id').eq('owner_team_id', loadedTeam.id).order('starts_at'),
         supabase.from('facilities').select('id, name').eq('club_id', loadedTeam.club_id).order('name'),
         supabase.from('department_facilities').select('facility_id').eq('department_id', loadedTeam.department_id),
         loadedTeam.default_facility_id
-          ? supabase.from('sessions').select('id, title, starts_at, ends_at, facility_id').eq('facility_id', loadedTeam.default_facility_id).neq('owner_team_id', loadedTeam.id).order('starts_at')
+          ? supabase.from('sessions').select('id, title, session_type, starts_at, ends_at, facility_id').eq('facility_id', loadedTeam.default_facility_id).neq('owner_team_id', loadedTeam.id).order('starts_at')
           : Promise.resolve({ data: [], error: null }),
         supabase.from('invites').select('id, token, role, status, coach_role_slot_id').eq('team_id', loadedTeam.id).in('role', ['head_coach', 'assistant_coach']).eq('status', 'pending').order('created_at', { ascending: false }),
         supabase.from('team_coach_role_slots').select('id, label').eq('team_id', loadedTeam.id).order('label'),
@@ -311,6 +319,17 @@ export function TeamWorkspace({
     setSessions((current) => current.map((session) => (session.id === sessionId ? { ...session, facility_id: facilityId } : session)));
   }
 
+  async function handleSessionTypeChange(sessionId: string, sessionType: string) {
+    const title = labelForSessionType(sessionType);
+    const supabase = createBrowserSupabaseClient();
+    const { error: updateError } = await supabase.from('sessions').update({ session_type: sessionType, title }).eq('id', sessionId);
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+    setSessions((current) => current.map((session) => (session.id === sessionId ? { ...session, session_type: sessionType, title } : session)));
+  }
+
   async function handleSessionCreate(startsAt: string, endsAt: string) {
     if (!team) return;
     const facilityId = team.default_facility_id ?? departmentFacilityIds[0] ?? null;
@@ -337,7 +356,7 @@ export function TeamWorkspace({
         facility_id: facilityId,
         status: 'scheduled',
       })
-      .select('id, title, starts_at, ends_at, facility_id')
+      .select('id, title, session_type, starts_at, ends_at, facility_id')
       .single();
     if (insertError) {
       setError(insertError.message);
@@ -604,6 +623,7 @@ export function TeamWorkspace({
       sessions: sessions.map((session) => ({
         id: session.id,
         title: session.title,
+        sessionType: session.session_type,
         startsAt: session.starts_at,
         endsAt: session.ends_at,
         facilityId: session.facility_id,
@@ -613,6 +633,7 @@ export function TeamWorkspace({
       contextSessions: contextSessions.map((session) => ({
         id: session.id,
         title: session.title,
+        sessionType: session.session_type,
         startsAt: session.starts_at,
         endsAt: session.ends_at,
         facilityId: session.facility_id,
@@ -655,6 +676,7 @@ export function TeamWorkspace({
         onSessionCreate={handleSessionCreate}
         onSessionFacilityChange={handleSessionFacilityChange}
         onSessionGroupsChange={handleSessionGroupsChange}
+        onSessionTypeChange={handleSessionTypeChange}
         onSessionDelete={handleSessionDelete}
         onInviteStaff={handleInviteStaff}
         onCopyStaffInvite={handleCopyStaffInvite}

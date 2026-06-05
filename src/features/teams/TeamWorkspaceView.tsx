@@ -12,7 +12,7 @@ import { LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/fea
 import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
 import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { PlayerLoadDetail } from '@/features/players/PlayerLoadDetail';
-import { CoachSessionEditSheet, normalizeCoachSessionType } from '@/features/role-workspaces/CoachSessionEditSheet';
+import { CoachSessionEditSheet, labelForCoachSessionType, normalizeCoachSessionType } from '@/features/role-workspaces/CoachSessionEditSheet';
 import { CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
 import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import type { CoachFacility, CoachGroup, CoachSession, CoachTeam } from '@/features/role-workspaces/CoachTypes';
@@ -395,6 +395,7 @@ function TeamSmartCalendar({
   onSessionCreate,
   onSessionFacilityChange,
   onSessionGroupsChange,
+  onSessionTypeChange,
   onSessionDelete,
 }: {
   data: TeamWorkspaceData;
@@ -402,6 +403,7 @@ function TeamSmartCalendar({
   onSessionCreate?: (startsAt: string, endsAt: string) => void | Promise<void>;
   onSessionFacilityChange?: (sessionId: string, facilityId: string) => void | Promise<void>;
   onSessionGroupsChange?: (sessionId: string, groupIds: string[]) => void | Promise<void>;
+  onSessionTypeChange?: (sessionId: string, sessionType: string) => void | Promise<void>;
   onSessionDelete?: (sessionId: string) => void | Promise<void>;
 }) {
   const [weekOffset, setWeekOffset] = useState(0);
@@ -882,6 +884,9 @@ function TeamSmartCalendar({
       if (onSessionGroupsChange && JSON.stringify(editingSession.groupIds ?? []) !== JSON.stringify(value.groupIds)) {
         await onSessionGroupsChange(editingSession.id, value.groupIds);
       }
+      if (onSessionTypeChange && normalizeCoachSessionType(editingSession.sessionType) !== normalizeCoachSessionType(value.sessionType)) {
+        await onSessionTypeChange(editingSession.id, value.sessionType);
+      }
       const facility = data.availableFacilities?.find((item) => item.id === value.facilityId);
       setLocalSessions((current) => current.map((session) => session.id === editingSession.id ? {
         ...session,
@@ -891,6 +896,7 @@ function TeamSmartCalendar({
         facilityName: facility?.name ?? session.facilityName ?? data.defaultFacilityName ?? null,
         groupIds: value.groupIds,
         sessionType: value.sessionType,
+        title: labelForCoachSessionType(value.sessionType),
       } : session));
       setSelectedSessionId(editingSession.id);
       setEditingSessionId(null);
@@ -916,6 +922,7 @@ function TeamSmartCalendar({
   function openSelectedSessionEditor(sessionId: string) {
     setMode('edit');
     setSelectedSessionEditKey(`${sessionId}-${Date.now()}`);
+    setSelectedSessionId(null);
     setEditingSessionId(sessionId);
   }
 
@@ -1081,7 +1088,7 @@ function TeamSmartCalendar({
           isSaving={isSavingCalendar}
           onSave={handleCoachSessionEditSave}
           onDelete={onSessionDelete ? () => setDeleteTargetId(editingSession.id) : undefined}
-          onClose={() => setEditingSessionId(null)}
+          onClose={() => { setSelectedSessionId(editingSession.id); setEditingSessionId(null); }}
         />
       ) : null}
 
@@ -1118,6 +1125,7 @@ export function TeamWorkspaceView({
   onSessionCreate,
   onSessionFacilityChange,
   onSessionGroupsChange,
+  onSessionTypeChange,
   onSessionDelete,
   onAddDemoPlayers,
   onInviteStaff,
@@ -1136,6 +1144,7 @@ export function TeamWorkspaceView({
   onSessionCreate?: (startsAt: string, endsAt: string) => void | Promise<void>;
   onSessionFacilityChange?: (sessionId: string, facilityId: string) => void | Promise<void>;
   onSessionGroupsChange?: (sessionId: string, groupIds: string[]) => void | Promise<void>;
+  onSessionTypeChange?: (sessionId: string, sessionType: string) => void | Promise<void>;
   onSessionDelete?: (sessionId: string) => void | Promise<void>;
   onAddDemoPlayers?: () => void | Promise<void>;
   onInviteStaff?: (role: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) => void | Promise<void>;
@@ -1405,7 +1414,7 @@ export function TeamWorkspaceView({
               <h2 className="mt-2 text-2xl font-black">Sessions for {data.name}</h2>
             </div>
           </div>
-          <TeamSmartCalendar data={data} onSessionTimeChange={onSessionTimeChange} onSessionCreate={onSessionCreate} onSessionFacilityChange={onSessionFacilityChange} onSessionGroupsChange={onSessionGroupsChange} onSessionDelete={onSessionDelete} />
+          <TeamSmartCalendar data={data} onSessionTimeChange={onSessionTimeChange} onSessionCreate={onSessionCreate} onSessionFacilityChange={onSessionFacilityChange} onSessionGroupsChange={onSessionGroupsChange} onSessionTypeChange={onSessionTypeChange} onSessionDelete={onSessionDelete} />
           {data.sessions.length === 0 ? <div className="mt-5"><EmptyCard title="No team sessions yet" /></div> : null}
         </section>
       ) : null}
