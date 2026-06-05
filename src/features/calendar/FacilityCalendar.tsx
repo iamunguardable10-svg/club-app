@@ -8,7 +8,8 @@ import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDial
 import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictCandidate, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
 import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
 import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
-import { CoachSessionEditSheet, normalizeCoachSessionType } from '@/features/role-workspaces/CoachSessionEditSheet';
+import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
+import { normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
 import type { CoachFacility, CoachGroup, CoachSession, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';

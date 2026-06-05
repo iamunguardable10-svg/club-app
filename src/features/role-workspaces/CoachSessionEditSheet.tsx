@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 import type { CoachFacility, CoachGroup, CoachTeam } from '@/features/role-workspaces/CoachTypes';
+import { coachSessionTypes, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 
 type CoachCalendarDraft = { startsAt: string; endsAt: string; teamId: string | null; facilityId: string | null; groupIds: string[]; sessionType: string };
 
@@ -13,24 +14,6 @@ function addMinutes(date: Date, minutes: number) {
 
 function durationMinutes(start: Date, end: Date) {
   return Math.max(30, Math.round((end.getTime() - start.getTime()) / 60_000));
-}
-
-const coachSessionTypes = [
-  { value: 'training', label: 'Team training' },
-  { value: 'game', label: 'Game' },
-  { value: 's_and_c', label: 'Strength' },
-  { value: 'other', label: 'Individual' },
-  { value: 'recovery', label: 'Recovery' },
-];
-
-export function labelForCoachSessionType(value: string) {
-  return coachSessionTypes.find((type) => type.value === normalizeCoachSessionType(value))?.label ?? 'Training';
-}
-
-export function normalizeCoachSessionType(value?: string | null) {
-  if (value === 'strength') return 's_and_c';
-  if (value === 'individual') return 'other';
-  return value ?? 'training';
 }
 
 export function CoachSessionEditSheet({

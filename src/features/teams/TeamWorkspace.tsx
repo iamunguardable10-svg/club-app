@@ -6,7 +6,7 @@ import { AdminShell } from '@/shared/admin/AdminShell';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 import { sessionTypeToLoadType, type AthleteLoadEntry, type LoadTrainingType } from '@/features/load/loadTypes';
 import { TeamWorkspaceView, type TeamWorkspaceData, type TeamWorkspaceRole, type TeamWorkspaceStaffRole } from './TeamWorkspaceView';
-import { labelForCoachSessionType } from '@/features/role-workspaces/CoachSessionEditSheet';
+import { labelForCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 
 type Team = { id: string; club_id: string; department_id: string; name: string; default_facility_id: string | null };
 type Department = { id: string; club_id: string; name: string };

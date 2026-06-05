@@ -9,7 +9,8 @@ import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
 import { sessionTypeToLoadType, type AthleteLoadEntry, type LoadTrainingType } from '@/features/load/loadTypes';
 import type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 import { CoachHistorySessionCard, CoachSessionDetailOverlay, sortCoachLoadRisks } from '@/features/role-workspaces/CoachSessionSurfaces';
-import { CoachSessionEditSheet, labelForCoachSessionType, normalizeCoachSessionType } from '@/features/role-workspaces/CoachSessionEditSheet';
+import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
+import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
 import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
@@ -17,7 +18,8 @@ import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 export type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
-export { CoachSessionEditSheet, labelForCoachSessionType, normalizeCoachSessionType } from '@/features/role-workspaces/CoachSessionEditSheet';
+export { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
+export { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 
 type SessionRow = {
   id: string;

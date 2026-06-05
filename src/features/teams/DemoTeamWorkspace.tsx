@@ -5,7 +5,7 @@ import { AdminShell } from '@/shared/admin/AdminShell';
 import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoSessions, saveDemoTeams, type DemoClubSetup, type DemoSession, type DemoTeam } from '@/shared/dev/demoStorage';
 import type { AthleteLoadEntry, LoadTrainingType } from '@/features/load/loadTypes';
 import { TeamWorkspaceView, type TeamWorkspaceData, type TeamWorkspacePlayer, type TeamWorkspaceRole, type TeamWorkspaceStaffRole } from './TeamWorkspaceView';
-import { labelForCoachSessionType } from '@/features/role-workspaces/CoachSessionEditSheet';
+import { labelForCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 
 type DemoInvite = {
   id: string;

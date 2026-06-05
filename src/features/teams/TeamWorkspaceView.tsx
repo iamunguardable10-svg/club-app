@@ -12,7 +12,8 @@ import { LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/fea
 import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
 import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { PlayerLoadDetail } from '@/features/players/PlayerLoadDetail';
-import { CoachSessionEditSheet, labelForCoachSessionType, normalizeCoachSessionType } from '@/features/role-workspaces/CoachSessionEditSheet';
+import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
+import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
 import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import type { CoachFacility, CoachGroup, CoachSession, CoachTeam } from '@/features/role-workspaces/CoachTypes';
