@@ -12,7 +12,7 @@ import { CoachHistorySessionCard, CoachSessionDetailOverlay, sortCoachLoadRisks 
 import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { WeeklySeriesBoard } from '@/features/sessions/WeeklySeriesBoard';
-import { SeriesTemplateEditSheet, type SeriesTemplateInput } from '@/features/sessions/SeriesTemplateEditSheet';
+import { SeriesTemplateInlineEditor, type SeriesTemplateInput } from '@/features/sessions/SeriesTemplateEditSheet';
 import { addWeeks as addSeriesWeeks, buildSeriesWeekItems, getIsoWeekStart, type SeriesTemplate, type SeriesWeekItem, type SeriesWeekState } from '@/features/sessions/sessionSeriesPlanner';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
@@ -116,6 +116,19 @@ function buildWeekDays(weekOffset = 0) {
     date.setHours(0, 0, 0, 0);
     return date;
   });
+}
+
+function weekOffsetFromIsoWeekStart(weekStart: string) {
+  const currentWeekStart = new Date(`${getIsoWeekStart()}T00:00:00`);
+  const targetWeekStart = new Date(`${getIsoWeekStart(weekStart)}T00:00:00`);
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  return Math.round((targetWeekStart.getTime() - currentWeekStart.getTime()) / weekMs);
+}
+
+function defaultActiveDayForWeekOffset(weekOffset: number) {
+  const targetDays = buildWeekDays(weekOffset);
+  const todayIndex = targetDays.findIndex((day) => sameDay(day, new Date()));
+  return todayIndex >= 0 ? todayIndex : 0;
 }
 
 function formatWeekLabel(days: Date[]) {
@@ -413,13 +426,19 @@ export function CoachCalendarSurface({
     }
     setIsSavingSeries(true);
     try {
+      const confirmedWeekStart = actionable[0]?.weekStart ?? seriesWeekStart;
       await onConfirmSeriesWeek(actionable);
-      setSeriesWeekStart((current) => addSeriesWeeks(current, 1));
+      const nextWeekOffset = weekOffsetFromIsoWeekStart(confirmedWeekStart);
+      setWeekOffset(nextWeekOffset);
+      setActiveDayIndex(defaultActiveDayForWeekOffset(nextWeekOffset));
+      setMode('view');
+      setSurfaceMode('week');
+      setSeriesWeekStart(addSeriesWeeks(confirmedWeekStart, 1));
     } finally {
       setIsSavingSeries(false);
       setPendingSeriesConflict(null);
     }
-  }, [conflictSessions, onConfirmSeriesWeek]);
+  }, [conflictSessions, onConfirmSeriesWeek, seriesWeekStart]);
 
   function seriesTemplateFromSuggestion(item: SeriesWeekItem, suggestion: ConflictSuggestion): SeriesTemplate {
     const start = new Date(suggestion.startsAt);
@@ -696,6 +715,19 @@ export function CoachCalendarSurface({
         <SmartSessionCalendar mode={mode} canCreateSessions={teams.length > 0 && facilities.length > 0} days={days} hours={calendarHours} firstHour={firstHour} lastHour={lastHour} mobileVisibleHours={mobileVisibleHours} mobileFirstHour={mobileFirstHour} mobileHourHeight={mobileHourHeight} mobileGridHeight={mobileGridHeight} desktopHourHeight={desktopHourHeight} activeDayIndex={activeDayIndex} mobileCalendarView={mobileCalendarView} dayTransitionDirection={dayTransitionDirection} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null} weekLabel={weekLabel} isCurrentWeek={weekOffset === 0} calendarScrollRef={calendarScrollRef} setDayRef={(index, element) => { dayRefs.current[index] = element; }} onSetMode={setMode} onClearDraft={() => setDraft(null)} onPreviousWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onResetWeek={resetWeek} onMobileDaySelect={switchMobileDay} onMobileCalendarViewChange={setMobileCalendarView} onMobileDaySwipeStart={handleMobileDaySwipeStart} onMobileDaySwipeEnd={handleMobileDaySwipeEnd} onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }} onSlotPointerDown={handleSlotPointerDown} onSessionPointerDown={startSessionDrag} onSessionClick={handleSessionClick} onSessionKeyDown={handleSessionKeyDown} onDraftPointerDown={startDraftDrag} onDraftClick={() => setEditor({ kind: 'draft' })} onDraftCancel={() => setDraft(null)} />
       ) : (
         <div className="mt-5">
+          {seriesEditor ? (
+            <SeriesTemplateInlineEditor
+              title={seriesEditor.kind === 'new' ? 'New weekly template' : 'Edit weekly template'}
+              teams={teams}
+              facilities={facilities}
+              groups={groups}
+              initial={seriesEditor.kind === 'edit' ? seriesEditor.template : null}
+              weekday={seriesEditor.kind === 'new' ? seriesEditor.weekday : undefined}
+              isSaving={isSavingSeries}
+              onSave={(value) => requestSeriesSave(seriesEditor.kind === 'new' ? { kind: 'create', input: value } : { kind: 'update', seriesId: seriesEditor.template.id, input: value })}
+              onClose={() => setSeriesEditor(null)}
+            />
+          ) : null}
           <WeeklySeriesBoard
             weekStart={seriesWeekStart}
             templates={seriesWeekItems}
@@ -709,19 +741,7 @@ export function CoachCalendarSurface({
         </div>
       )}
       {editor && editorInitial ? <CoachSessionEditSheet key={editor.kind === 'session' ? `session-${editor.sessionId}` : `draft-${editorInitial.startsAt}`} title={editor.kind === 'draft' ? 'New training' : editingSession?.title ?? 'Training'} teams={teams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { if (editor.kind === 'draft') { await requestCoachCalendarSave({ kind: 'create', input: value }); } else if (editingSession) { await requestCoachCalendarSave({ kind: 'update', input: { sessionId: editingSession.id, ...value } }); } }} onDraftUpdate={editor.kind === 'draft' ? (value) => setDraft((current) => current ? { ...current, ...value } : current) : undefined} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : undefined} onClose={() => setEditor(null)} /> : null}
-      {seriesEditor ? (
-        <SeriesTemplateEditSheet
-          title={seriesEditor.kind === 'new' ? 'New weekly template' : 'Edit weekly template'}
-          teams={teams}
-          facilities={facilities}
-          groups={groups}
-          initial={seriesEditor.kind === 'edit' ? seriesEditor.template : null}
-          weekday={seriesEditor.kind === 'new' ? seriesEditor.weekday : undefined}
-          isSaving={isSavingSeries}
-          onSave={(value) => requestSeriesSave(seriesEditor.kind === 'new' ? { kind: 'create', input: value } : { kind: 'update', seriesId: seriesEditor.template.id, input: value })}
-          onClose={() => setSeriesEditor(null)}
-        />
-      ) : null}
+
       <FacilityConflictDialog
         isOpen={Boolean(pendingConflictSave)}
         description={conflictDescription ?? 'This hall already has another session at this time.'}
@@ -1434,6 +1454,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           .upsert({ series_id: item.id, week_start: item.weekStart, checked: true, committed_session_id: insertedSession.id }, { onConflict: 'series_id,week_start' });
         if (stateError) throw new Error(stateError.message);
       }
+      setReloadKey((current) => current + 1);
     } catch (error) {
       if (createdSessionIds.length > 0) {
         const { error: rollbackError } = await supabase.from('sessions').delete().in('id', createdSessionIds);

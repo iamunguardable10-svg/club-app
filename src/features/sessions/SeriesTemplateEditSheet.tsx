@@ -16,34 +16,7 @@ export type SeriesTemplateInput = {
   groupIds: string[];
 };
 
-const weekdays = [
-  { value: 1, label: 'Monday' },
-  { value: 2, label: 'Tuesday' },
-  { value: 3, label: 'Wednesday' },
-  { value: 4, label: 'Thursday' },
-  { value: 5, label: 'Friday' },
-  { value: 6, label: 'Saturday' },
-  { value: 0, label: 'Sunday' },
-];
-
-function cleanTime(value?: string | null, fallback = '18:00') {
-  if (!value) return fallback;
-  const match = value.match(/^(\d{1,2}):(\d{2})/);
-  if (!match) return fallback;
-  return `${match[1].padStart(2, '0')}:${match[2]}`;
-}
-
-export function SeriesTemplateEditSheet({
-  title,
-  teams,
-  facilities,
-  groups,
-  initial,
-  weekday,
-  isSaving,
-  onSave,
-  onClose,
-}: {
+type SeriesTemplateEditorBaseProps = {
   title: string;
   teams: CoachTeam[];
   facilities: CoachFacility[];
@@ -53,9 +26,36 @@ export function SeriesTemplateEditSheet({
   isSaving?: boolean;
   onSave: (input: SeriesTemplateInput) => void | Promise<void>;
   onClose: () => void;
-}) {
-  useBodyScrollLock(true);
+};
 
+const weekdays = [
+  { value: 1, short: 'Mo', label: 'Monday' },
+  { value: 2, short: 'Tu', label: 'Tuesday' },
+  { value: 3, short: 'We', label: 'Wednesday' },
+  { value: 4, short: 'Th', label: 'Thursday' },
+  { value: 5, short: 'Fr', label: 'Friday' },
+  { value: 6, short: 'Sa', label: 'Saturday' },
+  { value: 0, short: 'Su', label: 'Sunday' },
+];
+
+function cleanTime(value?: string | null, fallback = '18:00') {
+  if (!value) return fallback;
+  const match = value.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return fallback;
+  return `${match[1].padStart(2, '0')}:${match[2]}`;
+}
+
+function SeriesTemplateEditorForm({
+  teams,
+  facilities,
+  groups,
+  initial,
+  weekday,
+  isSaving,
+  onSave,
+  onClose,
+  compact = false,
+}: Omit<SeriesTemplateEditorBaseProps, 'title'> & { compact?: boolean }) {
   const [teamId, setTeamId] = useState(initial?.teamId ?? teams[0]?.id ?? '');
   const selectedTeam = teams.find((team) => team.id === teamId) ?? null;
   const facilityOptions = selectedTeam ? facilities.filter((facility) => facility.departmentIds.includes(selectedTeam.departmentId)) : [];
@@ -104,69 +104,95 @@ export function SeriesTemplateEditSheet({
     await onSave({ teamId, facilityId, sessionType, weekday: selectedWeekday, startTime, endTime, groupIds });
   }
 
+  const inputClass = 'mt-1.5 h-10 w-full rounded-xl border border-slate-700/90 bg-slate-950 px-2.5 text-sm font-black text-slate-100 outline-none transition focus:border-sky-300 [color-scheme:dark]';
+  const labelClass = 'min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500';
+
+  return (
+    <div className={compact ? 'space-y-3' : 'mt-5 space-y-4'}>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <label className={labelClass}>
+          Team
+          <select value={teamId} onChange={(event) => setTeamId(event.target.value)} className={inputClass}>
+            {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+          </select>
+        </label>
+        <label className={labelClass}>
+          Hall
+          <select value={facilityId} onChange={(event) => setFacilityId(event.target.value)} className={inputClass}>
+            {facilityOptions.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
+          </select>
+        </label>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)_7.5rem_7.5rem]">
+        <label className={`${labelClass} col-span-2 sm:col-span-1`}>
+          Type
+          <select value={sessionType} onChange={(event) => setSessionType(event.target.value)} className={inputClass}>
+            {coachSessionTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+          </select>
+        </label>
+        <label className={labelClass}>
+          Day
+          <select value={selectedWeekday} onChange={(event) => setSelectedWeekday(Number(event.target.value))} className={inputClass}>
+            {weekdays.map((day) => <option key={day.value} value={day.value}>{compact ? day.short : day.label}</option>)}
+          </select>
+        </label>
+        <label className={labelClass}>
+          Start
+          <input value={startTime} onChange={(event) => setStartTime(event.target.value)} type="time" className={`${inputClass} text-center text-base`} />
+        </label>
+        <label className={labelClass}>
+          End
+          <input value={endTime} onChange={(event) => setEndTime(event.target.value)} type="time" className={`${inputClass} text-center text-base`} />
+        </label>
+      </div>
+
+      <div className="border-t border-slate-800/80 pt-3">
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Participants</p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          <button type="button" onClick={() => setGroupIds([])} className={`rounded-full border px-2.5 py-1 text-xs font-black ${groupIds.length === 0 ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:text-white'}`}>Whole team</button>
+          {teamGroups.map((group) => (
+            <button key={group.id} type="button" onClick={() => toggleGroup(group.id)} className={`rounded-full border px-2.5 py-1 text-xs font-black ${groupIds.includes(group.id) ? 'border-sky-300 bg-sky-950/50 text-sky-100' : 'border-slate-700 text-slate-300 hover:text-white'}`}>{group.name}{group.playerCount ? ` · ${group.playerCount}` : ''}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-1">
+        <button type="button" onClick={onClose} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Cancel</button>
+        <button type="button" onClick={() => { void submit(); }} disabled={isSaving || !canSave} className="rounded-xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950 disabled:opacity-60">{isSaving ? 'Saving...' : compact ? 'Save' : 'Save template'}</button>
+      </div>
+    </div>
+  );
+}
+
+export function SeriesTemplateInlineEditor(props: SeriesTemplateEditorBaseProps) {
+  return (
+    <section className="mb-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.055] p-3 text-white shadow-[0_18px_60px_rgba(16,185,129,0.08)]">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">Series template</p>
+          <h3 className="mt-1 text-lg font-black">{props.title}</h3>
+        </div>
+      </div>
+      <SeriesTemplateEditorForm {...props} compact />
+    </section>
+  );
+}
+
+export function SeriesTemplateEditSheet(props: SeriesTemplateEditorBaseProps) {
+  useBodyScrollLock(true);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/75 p-3 backdrop-blur-sm sm:items-center">
       <section className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-slate-800 bg-slate-950 p-5 text-white shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Series template</p>
-            <h3 className="mt-2 text-2xl font-black">{title}</h3>
+            <h3 className="mt-2 text-2xl font-black">{props.title}</h3>
           </div>
-          <button type="button" onClick={onClose} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Close</button>
+          <button type="button" onClick={props.onClose} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Close</button>
         </div>
-
-        <div className="mt-5 grid grid-cols-2 gap-2 sm:gap-3">
-          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
-            Team
-            <select value={teamId} onChange={(event) => setTeamId(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-slate-700 bg-slate-950 px-2 text-xs font-black text-slate-100 outline-none focus:border-sky-300 sm:px-3 sm:text-sm">
-              {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
-            </select>
-          </label>
-          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
-            Facility
-            <select value={facilityId} onChange={(event) => setFacilityId(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-slate-700 bg-slate-950 px-2 text-xs font-black text-slate-100 outline-none focus:border-sky-300 sm:px-3 sm:text-sm">
-              {facilityOptions.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
-            </select>
-          </label>
-        </div>
-
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_8rem] sm:gap-3">
-          <label className="col-span-2 min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:col-span-1 sm:text-xs sm:tracking-[0.16em]">
-            Type
-            <select value={sessionType} onChange={(event) => setSessionType(event.target.value)} className="mt-2 h-11 w-full rounded-xl border border-slate-700 bg-slate-950 px-2 text-xs font-black text-slate-100 outline-none focus:border-sky-300 sm:px-3 sm:text-sm">
-              {coachSessionTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
-            </select>
-          </label>
-          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
-            Start
-            <input value={startTime} onChange={(event) => setStartTime(event.target.value)} type="time" className="mt-2 h-11 w-full rounded-xl border border-slate-700 bg-slate-950 px-2 text-center text-base font-black text-slate-100 outline-none focus:border-sky-300 [color-scheme:dark]" />
-          </label>
-          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
-            End
-            <input value={endTime} onChange={(event) => setEndTime(event.target.value)} type="time" className="mt-2 h-11 w-full rounded-xl border border-slate-700 bg-slate-950 px-2 text-center text-base font-black text-slate-100 outline-none focus:border-sky-300 [color-scheme:dark]" />
-          </label>
-        </div>
-
-        <label className="mt-3 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
-          Weekday
-          <select value={selectedWeekday} onChange={(event) => setSelectedWeekday(Number(event.target.value))} className="mt-2 h-11 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm font-black text-slate-100 outline-none focus:border-sky-300">
-            {weekdays.map((day) => <option key={day.value} value={day.value}>{day.label}</option>)}
-          </select>
-        </label>
-
-        <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Participants</p>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <button type="button" onClick={() => setGroupIds([])} className={`rounded-full border px-2.5 py-1 text-xs font-black ${groupIds.length === 0 ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:text-white'}`}>Whole team</button>
-            {teamGroups.map((group) => (
-              <button key={group.id} type="button" onClick={() => toggleGroup(group.id)} className={`rounded-full border px-2.5 py-1 text-xs font-black ${groupIds.includes(group.id) ? 'border-sky-300 bg-sky-950/50 text-sky-100' : 'border-slate-700 text-slate-300 hover:text-white'}`}>{group.name}{group.playerCount ? ` · ${group.playerCount}` : ''}</button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-5 flex justify-end">
-          <button type="button" onClick={() => { void submit(); }} disabled={isSaving || !canSave} className="rounded-xl bg-emerald-300 px-5 py-2 text-sm font-black text-slate-950 disabled:opacity-60">{isSaving ? 'Saving...' : 'Save template'}</button>
-        </div>
+        <SeriesTemplateEditorForm {...props} />
       </section>
     </div>
   );

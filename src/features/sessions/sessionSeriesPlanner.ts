@@ -130,12 +130,16 @@ export function dateForWeekday(weekStart: string, weekday: number): string {
 }
 
 export function combineDateTimeToIso(dateYYYYMMDD: string, timeHHMM: string): string {
-  const date = parseDateOnlyUTC(dateYYYYMMDD);
+  const dateMatch = dateYYYYMMDD.match(/^(\d{4})-(\d{2})-(\d{2})/);
   const minutes = parseTimeToMinutes(timeHHMM);
-  if (!date || minutes === null) return new Date(0).toISOString();
+  if (!dateMatch || minutes === null) return new Date(0).toISOString();
 
-  date.setUTCHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
-  return date.toISOString();
+  const year = Number(dateMatch[1]);
+  const month = Number(dateMatch[2]);
+  const day = Number(dateMatch[3]);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return new Date(0).toISOString();
+
+  return new Date(year, month - 1, day, Math.floor(minutes / 60), minutes % 60, 0, 0).toISOString();
 }
 
 export function durationMinutesFromTimes(startTime: string, endTime: string): number {

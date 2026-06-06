@@ -221,11 +221,11 @@ export function WeeklySeriesBoard({
         </button>
       </div>
 
-      <div className="mt-3 grid gap-3 lg:grid-cols-7">
+      <div className="mt-3 grid gap-0 lg:grid-cols-7 lg:gap-3">
         {weekdayOrder.map((day, dayIndex) => {
           const dayTemplates = groupedTemplates[day.key];
           return (
-            <section key={day.key} className="rounded-2xl border border-slate-800/90 bg-slate-950/45 p-3 ring-1 ring-white/[0.03]">
+            <section key={day.key} className="border-b border-slate-800/80 py-3 last:border-b-0 lg:rounded-2xl lg:border lg:border-slate-800/90 lg:bg-slate-950/45 lg:p-3 lg:ring-1 lg:ring-white/[0.03]">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-black text-white">{day.short}</p>
@@ -236,13 +236,13 @@ export function WeeklySeriesBoard({
                 ) : null}
               </div>
 
-              <div className="mt-3 space-y-2">
+              <div className="mt-2 space-y-2 lg:mt-3">
                 {dayTemplates.length > 0 ? dayTemplates.map((template) => {
                   const id = templateId(template);
                   const hasCreatedSession = templateHasCreatedSession(template);
                   const checked = hasCreatedSession || templateChecked(template, selectedIds, hasControlledSelection);
                   return (
-                    <article key={id || `${day.key}-${templateTime(template, 'start')}`} className={`rounded-2xl border border-slate-800/90 bg-slate-950/70 p-3 ring-1 ring-white/[0.03] transition ${checked ? 'opacity-100' : 'opacity-45'}`}>
+                    <article key={id || `${day.key}-${templateTime(template, 'start')}`} className={`rounded-xl border border-slate-800/90 bg-slate-950/65 p-2.5 transition lg:rounded-2xl lg:p-3 lg:ring-1 lg:ring-white/[0.03] ${checked ? 'opacity-100' : 'opacity-45'}`}>
                       <div className="flex items-start gap-3">
                         <input
                           type="checkbox"
@@ -266,7 +266,7 @@ export function WeeklySeriesBoard({
                     </article>
                   );
                 }) : (
-                  <p className="rounded-2xl border border-dashed border-slate-800 px-3 py-4 text-xs font-bold text-slate-600">No templates</p>
+                  <p className="px-1 py-2 text-xs font-bold text-slate-600 lg:rounded-2xl lg:border lg:border-dashed lg:border-slate-800 lg:px-3 lg:py-4">No templates</p>
                 )}
               </div>
             </section>
