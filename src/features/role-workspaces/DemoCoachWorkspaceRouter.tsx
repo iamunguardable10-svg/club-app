@@ -11,8 +11,10 @@ import { CoachCalendarSurface, CoachSessionEditSheet, normalizeCoachSessionType 
 import type { CoachFacility, CoachGroup, CoachMode, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 import { CoachHistorySessionCard, CoachSessionDetailOverlay, sortCoachLoadRisks } from '@/features/role-workspaces/CoachSessionSurfaces';
 import type { ConflictSession } from '@/features/calendar/sessionConflicts';
+import type { SeriesTemplateInput } from '@/features/sessions/SeriesTemplateEditSheet';
+import type { SeriesTemplate, SeriesWeekItem, SeriesWeekState } from '@/features/sessions/sessionSeriesPlanner';
 import { sessionTypeToLoadType, type AthleteLoadEntry } from '@/features/load/loadTypes';
-import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoSessions, type DemoClubSetup, type DemoSession, type DemoTeam } from '@/shared/dev/demoStorage';
+import { getDemoClubSetup, getDemoSessionSeries, getDemoSessionSeriesWeekStates, getDemoSessions, getDemoTeams, saveDemoSessionSeries, saveDemoSessionSeriesWeekStates, saveDemoSessions, type DemoClubSetup, type DemoSession, type DemoSessionSeries, type DemoSessionSeriesWeekState, type DemoTeam } from '@/shared/dev/demoStorage';
 
 type DemoAvailabilityMark = { status: 'expected' | 'late' | 'out'; reason: string | null; lateMinutes: number | null };
 
@@ -152,6 +154,26 @@ function ensureDemoPlayers(teams: DemoTeam[]) {
   const merged = [...pruned, ...missingTeams.flatMap((team) => buildDemoPlayers(team.id))];
   if (merged.length !== existing.length || missingTeams.length > 0) saveDemoPlayers(merged);
   return merged;
+}
+
+function seriesTemplateToDemo(input: SeriesTemplateInput, teams: DemoTeam[], id = `demo-series-${Date.now()}`): DemoSessionSeries | null {
+  const team = teams.find((item) => item.id === input.teamId);
+  if (!team) return null;
+  return {
+    id,
+    department: team.department,
+    teamId: team.id,
+    team: team.name,
+    sessionType: input.sessionType,
+    weekday: input.weekday,
+    startTime: input.startTime,
+    endTime: input.endTime,
+    facility: input.facilityId,
+    groupIds: input.groupIds,
+    activeFrom: null,
+    activeUntil: null,
+    createdAt: new Date().toISOString(),
+  };
 }
 
 function ensureDemoPlayerGroups(teams: DemoTeam[]) {
@@ -333,6 +355,8 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const [allDemoTeams, setAllDemoTeams] = useState<DemoTeam[]>([]);
   const [demoSessions, setDemoSessions] = useState<DemoCoachSession[]>([]);
   const [rawSessions, setRawSessions] = useState<DemoSession[]>([]);
+  const [demoSeries, setDemoSeries] = useState<DemoSessionSeries[]>([]);
+  const [demoSeriesWeekStates, setDemoSeriesWeekStates] = useState<DemoSessionSeriesWeekState[]>([]);
   const [facilities, setFacilities] = useState<CoachFacility[]>([]);
   const [groups, setGroups] = useState<CoachGroup[]>([]);
   const [activeSession, setActiveSession] = useState<DemoCoachSession | null>(null);
@@ -349,6 +373,8 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     const allTeams = getDemoTeams(currentSetup);
     const currentTeams = allTeams.filter((team) => DEMO_COACH_TEAM_IDS.has(team.id));
     const currentSessions = getDemoSessions();
+    const currentSeries = getDemoSessionSeries(allTeams).filter((series) => DEMO_COACH_TEAM_IDS.has(series.teamId));
+    const currentSeriesWeekStates = getDemoSessionSeriesWeekStates();
     const assignments = getDemoFacilityAssignments();
     const playerGroups = ensureDemoPlayerGroups(currentTeams);
     const demoPlayers = ensureDemoPlayers(allTeams);
@@ -362,6 +388,8 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     setAllDemoTeams(allTeams);
     setTeams(currentTeams);
     setRawSessions(effectiveSessions);
+    setDemoSeries(currentSeries);
+    setDemoSeriesWeekStates(currentSeriesWeekStates);
     setDemoSessions(buildCoachSessions(currentTeams, effectiveSessions, demoPlayers));
     setFacilities(facilityNames.map((name) => ({ id: name, name, departmentIds: effectiveAssignments.filter((item) => item.facility === name).map((item) => item.department) })));
     setGroups(playerGroups.filter((group) => currentTeams.some((team) => team.id === group.teamId)).map((group) => ({
@@ -390,6 +418,29 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   }, [demoSessions]);
 
   const coachTeams = useMemo<CoachTeam[]>(() => teams.map((team) => ({ id: team.id, clubId: 'demo-club', name: team.name, departmentId: team.department, departmentName: team.department, defaultFacilityId: team.defaultFacility, role: 'coach' })), [teams]);
+  const coachSeries = useMemo<SeriesTemplate[]>(() => demoSeries.map((series) => ({
+    id: series.id,
+    department: series.department,
+    teamId: series.teamId,
+    teamName: series.team,
+    team: series.team,
+    sessionType: series.sessionType,
+    weekday: series.weekday,
+    startTime: series.startTime,
+    endTime: series.endTime,
+    facilityId: series.facility,
+    facilityName: series.facility,
+    facility: series.facility,
+    groupIds: series.groupIds ?? [],
+    activeFrom: series.activeFrom,
+    activeUntil: series.activeUntil,
+  })), [demoSeries]);
+  const coachSeriesWeekStates = useMemo<SeriesWeekState[]>(() => demoSeriesWeekStates.map((state) => ({
+    seriesId: state.seriesId,
+    weekStart: state.weekStart,
+    checked: state.checked,
+    committedSessionId: state.committedSessionId,
+  })), [demoSeriesWeekStates]);
   const coachSessions = useMemo<CoachSession[]>(() => demoSessions.map((session) => ({
     ...session,
     sessionType: session.sessionType,
@@ -423,6 +474,16 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     setDemoSessions(buildCoachSessions(teams, nextRaw, ensureDemoPlayers(allDemoTeams.length > 0 ? allDemoTeams : teams)));
   }
 
+  function refreshDemoSeries(nextSeries: DemoSessionSeries[]) {
+    saveDemoSessionSeries(nextSeries);
+    setDemoSeries(nextSeries.filter((series) => DEMO_COACH_TEAM_IDS.has(series.teamId)));
+  }
+
+  function refreshDemoSeriesWeekStates(nextStates: DemoSessionSeriesWeekState[]) {
+    saveDemoSessionSeriesWeekStates(nextStates);
+    setDemoSeriesWeekStates(nextStates);
+  }
+
   async function handleDemoCreateSession(input: CoachSessionCreateInput) {
     const team = teams.find((item) => item.id === input.teamId);
     if (!team) return;
@@ -438,6 +499,59 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     setActiveSession(null);
     setReturnToSessionId(null);
     setDeleteSessionId(null);
+  }
+
+  async function handleDemoCreateSeries(input: SeriesTemplateInput) {
+    const next = seriesTemplateToDemo(input, allDemoTeams.length > 0 ? allDemoTeams : teams);
+    if (!next) return;
+    refreshDemoSeries([...getDemoSessionSeries(allDemoTeams.length > 0 ? allDemoTeams : teams), next]);
+  }
+
+  async function handleDemoUpdateSeries(seriesId: string, input: SeriesTemplateInput) {
+    const sourceTeams = allDemoTeams.length > 0 ? allDemoTeams : teams;
+    const replacement = seriesTemplateToDemo(input, sourceTeams, seriesId);
+    if (!replacement) return;
+    refreshDemoSeries(getDemoSessionSeries(sourceTeams).map((series) => series.id === seriesId ? { ...replacement, createdAt: series.createdAt } : series));
+  }
+
+  async function handleDemoToggleSeriesWeek(seriesId: string, weekStart: string, checked: boolean) {
+    const allStates = getDemoSessionSeriesWeekStates();
+    const nextState = { seriesId, weekStart, checked, committedSessionId: allStates.find((state) => state.seriesId === seriesId && state.weekStart === weekStart)?.committedSessionId ?? null, updatedAt: new Date().toISOString() };
+    refreshDemoSeriesWeekStates([...allStates.filter((state) => !(state.seriesId === seriesId && state.weekStart === weekStart)), nextState]);
+  }
+
+  async function handleDemoConfirmSeriesWeek(items: SeriesWeekItem[]) {
+    const allStates = getDemoSessionSeriesWeekStates();
+    const nextSessions = [...rawSessions];
+    const nextStates = [...allStates];
+    for (const item of items) {
+      if (!item.checked || item.committedSessionId) continue;
+      const team = (allDemoTeams.length > 0 ? allDemoTeams : teams).find((candidate) => candidate.id === item.teamId);
+      if (!team) continue;
+      const sessionId = `demo-session-${item.id}-${item.weekStart}`;
+      if (!nextSessions.some((session) => session.id === sessionId)) {
+        nextSessions.push({
+          id: sessionId,
+          department: team.department,
+          team: team.name,
+          title: labelForDemoSessionType(item.sessionType),
+          sessionType: item.sessionType,
+          startsAt: item.startsAt,
+          endsAt: item.endsAt,
+          facility: item.facilityId ?? item.facility ?? team.defaultFacility,
+          groupIds: item.groupIds ?? [],
+          seriesId: item.id,
+          seriesWeekStart: item.weekStart,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      const stateIndex = nextStates.findIndex((state) => state.seriesId === item.id && state.weekStart === item.weekStart);
+      const nextState = { seriesId: item.id, weekStart: item.weekStart, checked: true, committedSessionId: sessionId, updatedAt: new Date().toISOString() };
+      if (stateIndex >= 0) nextStates[stateIndex] = { ...nextStates[stateIndex], ...nextState };
+      else nextStates.push(nextState);
+    }
+    refreshDemoSessions(nextSessions);
+    refreshDemoSeriesWeekStates(nextStates);
   }
 
   const historySessions = useMemo(() => coachSessions.filter((session) => new Date(session.startsAt).getTime() < Date.now()).sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()), [coachSessions]);
@@ -499,11 +613,17 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             facilities={facilities}
             groups={groups}
             facilityConflictSessions={facilityConflictSessions}
+            seriesTemplates={coachSeries}
+            seriesWeekStates={coachSeriesWeekStates}
             editSessionId={editSessionId}
             onEditSessionHandled={clearEditSessionParam}
             onCreateSession={handleDemoCreateSession}
             onUpdateSession={handleDemoUpdateSession}
             onDeleteSession={handleDemoDeleteSession}
+            onCreateSeries={handleDemoCreateSeries}
+            onUpdateSeries={handleDemoUpdateSeries}
+            onToggleSeriesWeek={handleDemoToggleSeriesWeek}
+            onConfirmSeriesWeek={handleDemoConfirmSeriesWeek}
             onDetails={(session) => setActiveSession(demoSessions.find((item) => item.id === session.id) ?? null)}
           />
         ) : null}

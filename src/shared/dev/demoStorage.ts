@@ -36,7 +36,33 @@ export type DemoSession = {
   endsAt: string;
   facility: string | null;
   groupIds?: string[];
+  seriesId?: string;
+  seriesWeekStart?: string;
   createdAt: string;
+};
+
+export type DemoSessionSeries = {
+  id: string;
+  department: string;
+  teamId: string;
+  team: string;
+  sessionType: string;
+  weekday: number;
+  startTime: string;
+  endTime: string;
+  facility: string | null;
+  groupIds?: string[];
+  activeFrom?: string | null;
+  activeUntil?: string | null;
+  createdAt: string;
+};
+
+export type DemoSessionSeriesWeekState = {
+  seriesId: string;
+  weekStart: string;
+  checked: boolean;
+  committedSessionId?: string | null;
+  updatedAt: string;
 };
 
 type LegacyDemoFacilityMeta = {
@@ -49,10 +75,12 @@ type LegacyDemoFacilityMeta = {
 const DEMO_CLUB_SETUP_KEY = 'club-app.demo.club-setup';
 const DEMO_TEAMS_KEY = 'club-app.demo.teams';
 const DEMO_SESSIONS_KEY = 'club-app.demo.sessions';
+const DEMO_SESSION_SERIES_KEY = 'club-app.demo.session-series';
+const DEMO_SESSION_SERIES_WEEK_STATES_KEY = 'club-app.demo.session-series-week-states';
 const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
 const LEGACY_DEMO_FACILITY_META_KEY = 'club-app.demo.facility-meta';
 const DEMO_DATA_VERSION_KEY = 'club-app.demo.version';
-const CURRENT_DEMO_DATA_VERSION = '2026-06-04-coach-showcase-v3';
+const CURRENT_DEMO_DATA_VERSION = '2026-06-05-weekly-series-v1';
 let demoDataVersionChecked = false;
 
 const DEFAULT_DEMO_FACILITY_ADDRESSES: Record<string, string> = {
@@ -196,10 +224,120 @@ export function clearDemoClubSetup() {
   window.localStorage.removeItem(DEMO_CLUB_SETUP_KEY);
   window.localStorage.removeItem(DEMO_TEAMS_KEY);
   window.localStorage.removeItem(DEMO_SESSIONS_KEY);
+  window.localStorage.removeItem(DEMO_SESSION_SERIES_KEY);
+  window.localStorage.removeItem(DEMO_SESSION_SERIES_WEEK_STATES_KEY);
   window.localStorage.removeItem(DEMO_FACILITY_ASSIGNMENTS_KEY);
   window.localStorage.removeItem(LEGACY_DEMO_FACILITY_META_KEY);
   window.localStorage.removeItem(DEMO_DATA_VERSION_KEY);
   demoDataVersionChecked = false;
+}
+
+function demoSeriesForTeam(
+  teams: DemoTeam[],
+  teamId: string,
+  config: { id: string; sessionType: string; weekday: number; startTime: string; endTime: string; facility?: string | null; groupIds?: string[] },
+) {
+  const team = teams.find((item) => item.id === teamId);
+  if (!team) return null;
+
+  return {
+    id: config.id,
+    department: team.department,
+    teamId: team.id,
+    team: team.name,
+    sessionType: config.sessionType,
+    weekday: config.weekday,
+    startTime: config.startTime,
+    endTime: config.endTime,
+    facility: config.facility ?? team.defaultFacility ?? 'Main Hall',
+    groupIds: config.groupIds ?? [],
+    activeFrom: null,
+    activeUntil: null,
+    createdAt: new Date().toISOString(),
+  } satisfies DemoSessionSeries;
+}
+
+export function createDefaultDemoSessionSeries(teams: DemoTeam[]) {
+  const seeded = [
+    demoSeriesForTeam(teams, 'basketball-u14-boys', { id: 'series-u14-mon-training', sessionType: 'training', weekday: 1, startTime: '18:15', endTime: '19:45', facility: 'Main Hall', groupIds: ['starting-five', 'bench-unit'] }),
+    demoSeriesForTeam(teams, 'basketball-u14-boys', { id: 'series-u14-thu-strength', sessionType: 's_and_c', weekday: 4, startTime: '17:00', endTime: '18:15', facility: 'Weight Room', groupIds: ['starting-five'] }),
+    demoSeriesForTeam(teams, 'basketball-u16-boys', { id: 'series-u16-tue-training', sessionType: 'training', weekday: 2, startTime: '19:45', endTime: '21:15', facility: 'Court 1', groupIds: ['bench-unit'] }),
+    demoSeriesForTeam(teams, 'basketball-u16-boys', { id: 'series-u16-fri-strength', sessionType: 's_and_c', weekday: 5, startTime: '16:30', endTime: '17:40', facility: 'Weight Room', groupIds: ['starting-five'] }),
+    demoSeriesForTeam(teams, 'basketball-u18-boys', { id: 'series-u18-wed-training', sessionType: 'training', weekday: 3, startTime: '18:00', endTime: '19:30', facility: 'Court 1', groupIds: [] }),
+    demoSeriesForTeam(teams, 'basketball-first-team', { id: 'series-first-tue-practice', sessionType: 'training', weekday: 2, startTime: '20:00', endTime: '21:45', facility: 'Main Hall', groupIds: [] }),
+    demoSeriesForTeam(teams, 'basketball-first-team', { id: 'series-first-sat-game', sessionType: 'game', weekday: 6, startTime: '16:00', endTime: '18:00', facility: 'Main Hall', groupIds: [] }),
+  ].filter(Boolean) as DemoSessionSeries[];
+  if (seeded.length > 0) return seeded;
+
+  return teams.slice(0, 4).map((team, index) => ({
+    id: `series-${team.id}-weekly-training`,
+    department: team.department,
+    teamId: team.id,
+    team: team.name,
+    sessionType: 'training',
+    weekday: [1, 2, 3, 4][index] ?? 1,
+    startTime: `${18 + Math.min(index, 2)}:00`,
+    endTime: `${19 + Math.min(index, 2)}:30`,
+    facility: team.defaultFacility ?? 'Main Hall',
+    groupIds: [],
+    activeFrom: null,
+    activeUntil: null,
+    createdAt: new Date().toISOString(),
+  } satisfies DemoSessionSeries));
+}
+
+export function saveDemoSessionSeries(series: DemoSessionSeries[]) {
+  if (typeof window === 'undefined') return;
+  ensureDemoDataVersion();
+  window.localStorage.setItem(DEMO_SESSION_SERIES_KEY, JSON.stringify(series));
+}
+
+export function getDemoSessionSeries(teams?: DemoTeam[]): DemoSessionSeries[] {
+  if (typeof window === 'undefined') return [];
+  ensureDemoDataVersion();
+
+  const raw = window.localStorage.getItem(DEMO_SESSION_SERIES_KEY);
+  if (raw) {
+    try {
+      return JSON.parse(raw) as DemoSessionSeries[];
+    } catch {
+      const setup = teams ? null : getDemoClubSetup();
+      const sourceTeams = teams ?? getDemoTeams(setup);
+      const series = createDefaultDemoSessionSeries(sourceTeams);
+      window.localStorage.setItem(DEMO_SESSION_SERIES_KEY, JSON.stringify(series));
+      return series;
+    }
+  }
+
+  const setup = teams ? null : getDemoClubSetup();
+  const sourceTeams = teams ?? getDemoTeams(setup);
+  const series = createDefaultDemoSessionSeries(sourceTeams);
+  window.localStorage.setItem(DEMO_SESSION_SERIES_KEY, JSON.stringify(series));
+  return series;
+}
+
+export function saveDemoSessionSeriesWeekStates(states: DemoSessionSeriesWeekState[]) {
+  if (typeof window === 'undefined') return;
+  ensureDemoDataVersion();
+  window.localStorage.setItem(DEMO_SESSION_SERIES_WEEK_STATES_KEY, JSON.stringify(states));
+}
+
+export function getDemoSessionSeriesWeekStates(): DemoSessionSeriesWeekState[] {
+  if (typeof window === 'undefined') return [];
+  ensureDemoDataVersion();
+
+  const raw = window.localStorage.getItem(DEMO_SESSION_SERIES_WEEK_STATES_KEY);
+  if (!raw) return [];
+
+  try {
+    return (JSON.parse(raw) as DemoSessionSeriesWeekState[]).map((state) => ({
+      ...state,
+      checked: state.checked ?? true,
+      committedSessionId: state.committedSessionId ?? null,
+    }));
+  } catch {
+    return [];
+  }
 }
 
 function isoDemoSessionAt(offsetDays: number, hour: number, minute = 0) {

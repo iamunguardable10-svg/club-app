@@ -776,3 +776,24 @@ Current behavior / direction:
 - Facility calendars now use the shared coach-style session detail overlay instead of maintaining their own divergent detail screen.
 - Coach-scoped facility calendars now only allow opening/editing/creating sessions for teams the coach actually manages; unmanaged facility bookings stay visible as context but are not editable from the coach surface.
 - Demo and Supabase-backed facility calendars were kept aligned for the same behavior.
+
+## 2026-06-06 — Weekly Series Batch Planner V1
+
+Current behavior / direction:
+
+- [implemented] Coach Calendar now has a `Week | Series` split. `Week` keeps the existing interactive Untis calendar; `Series` is the reusable weekly-template planning board.
+- [implemented] A Series Template is not a session and does not reserve a facility. It stores team, weekday, start time, end time, facility, session type and participant groups.
+- [implemented] Coaches can check/uncheck templates for the selected week. Unchecked means skipped for that week and creates no session.
+- [implemented] `Confirm week` is the only moment that creates concrete sessions. Created sessions then appear in coach/team/facility/athlete calendar flows through the existing session model.
+- [implemented] After successful weekly confirmation, the Series board advances to the next week.
+- [implemented] Demo localStorage and Supabase-backed flows share the same product behavior.
+- [implemented] Supabase schema adds `session_series`, `session_series_groups`, `session_series_week_state`, plus `sessions.series_id` and `sessions.series_week_start`.
+
+Implementation rule:
+
+- Do not generate rolling four-week drafts. Render templates for the active week only.
+- Use `sessionType`, `weekday`, `startTime` and `endTime`; do not ask coaches for custom titles in Series V1.
+- No `planned/confirmed` language in the Series board. Before confirm it is a template; after confirm it is a concrete session.
+- Facility conflicts must be checked before batch creation. If a conflict exists, do not silently create overlapping sessions.
+- Athletes see only concrete sessions created after weekly confirmation, not raw Series templates.
+- Department-lead and Team Workspace integrations should reuse the same Series board instead of creating separate planner UIs.
