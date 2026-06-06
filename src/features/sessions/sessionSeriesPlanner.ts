@@ -1,4 +1,4 @@
-export type SeriesTemplate = {
+﻿export type SeriesTemplate = {
   id: string;
   department: string;
   teamId?: string;
@@ -130,7 +130,7 @@ export function dateForWeekday(weekStart: string, weekday: number): string {
 }
 
 export function combineDateTimeToIso(dateYYYYMMDD: string, timeHHMM: string): string {
-  // Coaches enter series templates in local club time; store the resulting instant as ISO for calendar display/conflict checks.
+  // Coaches enter series templates in browser-local time, which V1 assumes matches the club timezone; store the resulting instant as ISO for calendar display/conflict checks.
   const dateMatch = dateYYYYMMDD.match(/^(\d{4})-(\d{2})-(\d{2})/);
   const minutes = parseTimeToMinutes(timeHHMM);
   if (!dateMatch || minutes === null) return new Date(0).toISOString();
@@ -187,3 +187,4 @@ export function buildSeriesWeekItems(
 
   return items.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime) || a.team.localeCompare(b.team));
 }
+
