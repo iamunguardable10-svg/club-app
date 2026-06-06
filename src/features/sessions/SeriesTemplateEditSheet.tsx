@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 import type { CoachFacility, CoachGroup, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 import type { SeriesTemplate } from '@/features/sessions/sessionSeriesPlanner';
 import { coachSessionTypes, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
@@ -117,7 +116,7 @@ function SeriesTemplateEditorForm({
           </select>
         </label>
         <label className={labelClass}>
-          Hall
+          Facility
           <select value={facilityId} onChange={(event) => setFacilityId(event.target.value)} className={inputClass}>
             {facilityOptions.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
           </select>
@@ -173,27 +172,9 @@ export function SeriesTemplateInlineEditor(props: SeriesTemplateEditorBaseProps)
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">Series template</p>
           <h3 className="mt-1 text-lg font-black">{props.title}</h3>
         </div>
+        <button type="button" onClick={props.onClose} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-200 hover:bg-slate-900">Close</button>
       </div>
       <SeriesTemplateEditorForm {...props} compact />
     </section>
-  );
-}
-
-export function SeriesTemplateEditSheet(props: SeriesTemplateEditorBaseProps) {
-  useBodyScrollLock(true);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/75 p-3 backdrop-blur-sm sm:items-center">
-      <section className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-slate-800 bg-slate-950 p-5 text-white shadow-2xl">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Series template</p>
-            <h3 className="mt-2 text-2xl font-black">{props.title}</h3>
-          </div>
-          <button type="button" onClick={props.onClose} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Close</button>
-        </div>
-        <SeriesTemplateEditorForm {...props} />
-      </section>
-    </div>
   );
 }

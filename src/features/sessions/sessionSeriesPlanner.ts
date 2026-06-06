@@ -130,6 +130,7 @@ export function dateForWeekday(weekStart: string, weekday: number): string {
 }
 
 export function combineDateTimeToIso(dateYYYYMMDD: string, timeHHMM: string): string {
+  // Coaches enter series templates in local club time; store the resulting instant as ISO for calendar display/conflict checks.
   const dateMatch = dateYYYYMMDD.match(/^(\d{4})-(\d{2})-(\d{2})/);
   const minutes = parseTimeToMinutes(timeHHMM);
   if (!dateMatch || minutes === null) return new Date(0).toISOString();
