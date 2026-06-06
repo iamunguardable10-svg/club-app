@@ -1,4 +1,4 @@
-﻿export type SeriesTemplate = {
+export type SeriesTemplate = {
   id: string;
   department: string;
   teamId?: string;
