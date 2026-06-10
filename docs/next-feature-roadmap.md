@@ -117,7 +117,7 @@ clicking, not another form-heavy admin surface.
 Scope:
 
 - recurring Series board polish
-- text-to-schedule parser, e.g. `Do 19:00 2h whole team`
+- proposed text-to-schedule parser, e.g. `Do 19:00 2h whole team`
 - bulk confirm next week
 - conflict suggestions before/after/between sessions
 - coach settings for default session duration and preferred facility behavior
@@ -250,12 +250,5 @@ Recommended `/goal`:
 
 ## Current known bug batch before bigger features
 
-These should be fixed before starting a new feature goal:
-
-- Series / calendar week switching is not trusted yet
-- mobile time fields can still be too large in some edit surfaces
-- some mobile Series fields look nested and visually heavy
-- calendar changes need explicit viewport QA before push
-
-Treat this as Goal 1, not as cleanup.
-
+Treat this as Goal 1, not as cleanup. The canonical bug/process list is the
+2026-06-10 entry in `docs/project-log.md`; do not maintain a second copy here.

@@ -31,7 +31,7 @@ then push
 
 ## Required calendar test matrix
 
-Run this mentally at minimum, and with browser/mobile QA when the change touches layout or pointer interaction.
+Run this mentally at minimum, and with browser/mobile QA when the change touches layout or pointer interaction. The mechanical release gate remains `npm.cmd run check:review`, but that gate does not replace interaction QA.
 
 ### Viewports
 
@@ -47,6 +47,11 @@ Run this mentally at minimum, and with browser/mobile QA when the change touches
 - Coach calendar
 - Facility calendar
 - Department schedule calendar
+
+Note:
+
+- Existing surfaces must be checked directly.
+- Planned surfaces only apply once built. Do not pretend a missing Department schedule or future calendar surface was verified.
 
 If a change only targets one surface, verify it did not fork shared behavior away from the others.
 
@@ -119,4 +124,3 @@ A calendar change must state:
 5. what the user should test after deploy
 
 If this cannot be stated, the change is not ready.
-
