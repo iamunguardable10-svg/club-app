@@ -103,7 +103,7 @@ function SeriesTemplateEditorForm({
     await onSave({ teamId, facilityId, sessionType, weekday: selectedWeekday, startTime, endTime, groupIds });
   }
 
-  const inputClass = 'mt-1.5 h-10 w-full rounded-xl border border-slate-700/90 bg-slate-950 px-2.5 text-sm font-black text-slate-100 outline-none transition focus:border-sky-300 [color-scheme:dark]';
+  const inputClass = 'mt-1.5 h-9 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-black text-slate-100 outline-none transition focus:border-sky-300 sm:h-10 sm:rounded-xl sm:px-2.5 sm:text-sm [color-scheme:dark]';
   const labelClass = 'min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500';
 
   return (
@@ -138,11 +138,11 @@ function SeriesTemplateEditorForm({
         </label>
         <label className={labelClass}>
           Start
-          <input value={startTime} onChange={(event) => setStartTime(event.target.value)} type="time" className={`${inputClass} text-center text-base`} />
+          <input value={startTime} onChange={(event) => setStartTime(event.target.value)} type="time" className={`${inputClass} px-1 text-center text-[15px] tracking-tight sm:px-2 sm:text-base`} />
         </label>
         <label className={labelClass}>
           End
-          <input value={endTime} onChange={(event) => setEndTime(event.target.value)} type="time" className={`${inputClass} text-center text-base`} />
+          <input value={endTime} onChange={(event) => setEndTime(event.target.value)} type="time" className={`${inputClass} px-1 text-center text-[15px] tracking-tight sm:px-2 sm:text-base`} />
         </label>
       </div>
 
@@ -166,7 +166,7 @@ function SeriesTemplateEditorForm({
 
 export function SeriesTemplateInlineEditor(props: SeriesTemplateEditorBaseProps) {
   return (
-    <section className="mb-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.055] p-3 text-white shadow-[0_18px_60px_rgba(16,185,129,0.08)]">
+    <section className="mb-3 rounded-2xl border border-slate-800 border-l-2 border-l-emerald-300/45 bg-slate-950/70 p-3 text-white shadow-[0_18px_60px_rgba(15,23,42,0.22)]">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">Series template</p>

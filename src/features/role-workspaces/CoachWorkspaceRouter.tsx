@@ -13,7 +13,7 @@ import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEd
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { WeeklySeriesBoard } from '@/features/sessions/WeeklySeriesBoard';
 import { SeriesTemplateInlineEditor, type SeriesTemplateInput } from '@/features/sessions/SeriesTemplateEditSheet';
-import { addWeeks as addSeriesWeeks, buildSeriesWeekItems, getIsoWeekStart, type SeriesTemplate, type SeriesWeekItem, type SeriesWeekState } from '@/features/sessions/sessionSeriesPlanner';
+import { buildSeriesWeekItems, getIsoWeekStart, type SeriesTemplate, type SeriesWeekItem, type SeriesWeekState } from '@/features/sessions/sessionSeriesPlanner';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
 import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
@@ -136,6 +136,10 @@ function formatWeekLabel(days: Date[]) {
   const last = days[6];
   if (!first || !last) return '';
   return `${first.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })} - ${last.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}`;
+}
+
+function localDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 function sameDay(a: Date, b: Date) {
@@ -325,6 +329,7 @@ export function CoachCalendarSurface({
   const dayTransitionTimeoutRef = useRef<number | null>(null);
   const mobileDaySwipeRef = useRef<{ startX: number; startY: number } | null>(null);
   const weekLabel = useMemo(() => formatWeekLabel(days), [days]);
+  const visibleWeekStart = useMemo(() => getIsoWeekStart(localDateKey(days[0] ?? new Date())), [days]);
 
   useEffect(() => { if (!drag) setLocalSessions(sessions); }, [drag, sessions]);
   useEffect(() => {
@@ -394,6 +399,30 @@ export function CoachCalendarSurface({
     }
   }, [onCreateSeries, onUpdateSeries]);
 
+  const showWeekSurface = useCallback(() => {
+    const targetWeekStart = surfaceMode === 'series' ? seriesWeekStart : visibleWeekStart;
+    const nextWeekOffset = weekOffsetFromIsoWeekStart(targetWeekStart);
+    setWeekOffset(nextWeekOffset);
+    setActiveDayIndex(defaultActiveDayForWeekOffset(nextWeekOffset));
+    setSeriesEditor(null);
+    setSurfaceMode('week');
+  }, [seriesWeekStart, surfaceMode, visibleWeekStart]);
+
+  const showSeriesSurface = useCallback(() => {
+    setDraft(null);
+    setEditor(null);
+    setDrag(null);
+    setPendingSeriesConflict(null);
+    setSeriesWeekStart(visibleWeekStart);
+    setSurfaceMode('series');
+  }, [visibleWeekStart]);
+
+  const changeSeriesWeek = useCallback((nextWeekStart: Date) => {
+    setSeriesEditor(null);
+    setPendingSeriesConflict(null);
+    setSeriesWeekStart(getIsoWeekStart(localDateKey(nextWeekStart)));
+  }, []);
+
   const confirmSeriesWeek = useCallback(async (items: SeriesWeekItem[], bypassConflict = false) => {
     if (!onConfirmSeriesWeek) return;
     const actionable = items.filter((item) => item.checked && !item.committedSessionId);
@@ -433,7 +462,8 @@ export function CoachCalendarSurface({
       setActiveDayIndex(defaultActiveDayForWeekOffset(nextWeekOffset));
       setMode('view');
       setSurfaceMode('week');
-      setSeriesWeekStart(addSeriesWeeks(confirmedWeekStart, 1));
+      // Stay on the confirmed week so the concrete sessions are visible immediately in the Week calendar.
+      setSeriesWeekStart(confirmedWeekStart);
     } finally {
       setIsSavingSeries(false);
       setPendingSeriesConflict(null);
@@ -707,8 +737,8 @@ export function CoachCalendarSurface({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div><p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Coach calendar</p><h2 className="mt-2 text-2xl font-black">All assigned teams</h2></div>
         <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1">
-          <button type="button" onClick={() => setSurfaceMode('week')} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'week' ? 'bg-sky-300 text-slate-950' : 'text-slate-400'}`}>Week</button>
-          <button type="button" onClick={() => setSurfaceMode('series')} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Series</button>
+          <button type="button" onClick={showWeekSurface} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'week' ? 'bg-sky-300 text-slate-950' : 'text-slate-400'}`}>Week</button>
+          <button type="button" onClick={showSeriesSurface} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Series</button>
         </div>
       </div>
       {surfaceMode === 'week' ? (
@@ -736,7 +766,7 @@ export function CoachCalendarSurface({
             onEditTemplate={onUpdateSeries ? (template) => setSeriesEditor({ kind: 'edit', template: seriesTemplateFromItem(template) }) : undefined}
             onToggleSeriesForWeek={onToggleSeriesWeek ? (seriesId, checked) => { void onToggleSeriesWeek(seriesId, seriesWeekStart, checked); } : undefined}
             onConfirmWeek={onConfirmSeriesWeek ? () => { void confirmSeriesWeek(seriesWeekItems); } : undefined}
-            onWeekChange={(_, nextWeekStart) => setSeriesWeekStart(getIsoWeekStart(nextWeekStart))}
+            onWeekChange={(_, nextWeekStart) => changeSeriesWeek(nextWeekStart)}
           />
         </div>
       )}

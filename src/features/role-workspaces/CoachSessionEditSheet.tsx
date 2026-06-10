@@ -123,7 +123,7 @@ export function CoachSessionEditSheet({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/75 p-3 backdrop-blur-sm sm:items-center">
-      <section className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-slate-800 bg-slate-950 p-5 text-white shadow-2xl">
+      <section className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-slate-800 bg-slate-950 p-4 text-white shadow-2xl sm:p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Edit session</p>
@@ -149,7 +149,7 @@ export function CoachSessionEditSheet({
           </label>
         </div>
 
-        <div className="mt-3 grid grid-cols-[minmax(0,1fr)_7.25rem] gap-2 sm:grid-cols-[minmax(0,1fr)_8rem] sm:gap-3">
+        <div className="mt-3 grid grid-cols-[minmax(0,1fr)_6.35rem] gap-2 sm:grid-cols-[minmax(0,1fr)_7.5rem] sm:gap-3">
           <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
             Type
             <select value={sessionType} onChange={(event) => handleSessionTypeSelect(event.target.value)} className="mt-2 h-11 w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-2 text-xs font-black text-slate-100 outline-none focus:border-sky-300 sm:px-3 sm:text-sm">
@@ -158,7 +158,7 @@ export function CoachSessionEditSheet({
           </label>
           <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
             Start
-            <input value={timeValue} onChange={(event) => setTimeValue(event.target.value)} type="time" className="mt-2 h-11 w-full rounded-xl border border-slate-700 bg-slate-950 px-1.5 text-center text-base font-black tracking-tight text-slate-100 outline-none focus:border-sky-300 [color-scheme:dark] sm:px-2 sm:text-sm" />
+            <input value={timeValue} onChange={(event) => setTimeValue(event.target.value)} type="time" className="mt-2 h-10 w-full min-w-0 rounded-lg border border-slate-700 bg-slate-950 px-1 text-center text-[15px] font-black tracking-tight text-slate-100 outline-none focus:border-sky-300 sm:h-11 sm:rounded-xl sm:px-2 sm:text-sm [color-scheme:dark]" />
           </label>
         </div>
 
