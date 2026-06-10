@@ -810,6 +810,13 @@ Current correction:
 - Series templates and concrete sessions must stay conceptually separate: templates do not reserve facilities; `Confirm week` creates real sessions.
 - After weekly confirmation, coaches should see the created sessions in the calendar week where they landed.
 
+Open bug batch before larger feature work:
+
+- Series / calendar week switching is not trusted yet.
+- Mobile time fields can still be too large in some edit surfaces.
+- Some mobile Series fields look nested and visually heavy.
+- Calendar changes need explicit viewport QA before push.
+
 Next larger feature plan:
 
 - `docs/next-feature-roadmap.md` defines the recommended goal order:
