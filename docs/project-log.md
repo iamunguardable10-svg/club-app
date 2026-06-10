@@ -812,10 +812,10 @@ Current correction:
 
 Open bug batch before larger feature work:
 
-- Series / calendar week switching is not trusted yet.
-- Mobile time fields can still be too large in some edit surfaces.
-- Some mobile Series fields look nested and visually heavy.
-- Calendar changes need explicit viewport QA before push.
+- [blocker] Series / calendar week switching is not trusted yet.
+- [blocker] Mobile time fields can still be too large in some edit surfaces.
+- [polish] Some mobile Series fields look nested and visually heavy.
+- [process] Calendar changes need explicit viewport QA before push.
 
 Next larger feature plan:
 

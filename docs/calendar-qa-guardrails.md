@@ -46,7 +46,7 @@ Run this mentally at minimum, and with browser/mobile QA when the change touches
 - Team calendar
 - Coach calendar
 - Facility calendar
-- Department schedule calendar (planned — skip until built)
+- Department schedule calendar (placeholder routes: navigation/layout only; full calendar QA once the route renders a real calendar)
 
 Note:
 
