@@ -797,3 +797,27 @@ Implementation rule:
 - Facility conflicts must be checked before batch creation. If a conflict exists, do not silently create overlapping sessions.
 - Athletes see only concrete sessions created after weekly confirmation, not raw Series templates.
 - Department-lead and Team Workspace integrations should reuse the same Series board instead of creating separate planner UIs.
+
+## 2026-06-10 — Calendar QA and next-feature planning update
+
+Recent calendar regressions are now documented as process failures, not isolated
+UI bugs. The relevant guardrail lives in `docs/calendar-qa-guardrails.md`.
+
+Current correction:
+
+- Calendar work must define desktop and mobile success criteria before being called done.
+- Week navigation, mobile time fields, draft creation, resize/move behavior and modal scroll locking are required test paths.
+- Series templates and concrete sessions must stay conceptually separate: templates do not reserve facilities; `Confirm week` creates real sessions.
+- After weekly confirmation, coaches should see the created sessions in the calendar week where they landed.
+
+Next larger feature plan:
+
+- `docs/next-feature-roadmap.md` defines the recommended goal order:
+  1. Calendar reliability and shared QA
+  2. Demo dataset reset and synchronized demo world
+  3. Session detail and history V2
+  4. Coach planning center
+  5. Invites and membership hardening
+  6. Bottom-up onboarding
+  7. Notifications and player calendar sync
+  8. Department operations V2
