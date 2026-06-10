@@ -617,17 +617,26 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
   function reviewDemoFacilityConflictSave() {
     if (!pendingConflictSave) return;
     const suggestion = conflictSuggestions[0];
-    if (suggestion) {
-      openDemoFacilityEditorForSave(moveDemoFacilitySave(pendingConflictSave, suggestion));
-      return;
-    }
-    openDemoFacilityEditorForSave(pendingConflictSave);
+    openDemoFacilityEditorForSave(suggestion ? moveDemoFacilitySave(pendingConflictSave, suggestion) : pendingConflictSave);
   }
 
-  function keepDemoFacilityConflictForReview() {
+  function keepDemoFacilityConflictAnyway() {
     if (!pendingConflictSave) return;
-    setAllowedConflictKey(demoFacilitySaveKey(pendingConflictSave));
-    openDemoFacilityEditorForSave(pendingConflictSave);
+    const save = pendingConflictSave;
+    const previousDescription = conflictDescription;
+    const previousSuggestions = conflictSuggestions;
+    setAllowedConflictKey(demoFacilitySaveKey(save));
+    setPendingConflictSave(null);
+    setConflictDescription(null);
+    setConflictSuggestions([]);
+    try {
+      persistDemoFacilityCalendarSave(save);
+    } catch (error) {
+      setAllowedConflictKey(null);
+      setPendingConflictSave(save);
+      setConflictDescription(error instanceof Error ? `Could not save this session: ${error.message}` : previousDescription);
+      setConflictSuggestions(previousSuggestions);
+    }
   }
 
   function applyDemoFacilityConflictSuggestion(suggestion: ConflictSuggestion) {
@@ -882,7 +891,7 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
         suggestions={conflictSuggestions}
         onSuggestion={applyDemoFacilityConflictSuggestion}
         onReviewTime={reviewDemoFacilityConflictSave}
-        onKeepAnyway={keepDemoFacilityConflictForReview}
+        onKeepAnyway={keepDemoFacilityConflictAnyway}
         onCancel={cancelDemoFacilityConflictSave}
       />
     </main>

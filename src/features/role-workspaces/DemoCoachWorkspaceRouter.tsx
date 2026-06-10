@@ -615,6 +615,7 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             facilityConflictSessions={facilityConflictSessions}
             seriesTemplates={coachSeries}
             seriesWeekStates={coachSeriesWeekStates}
+            facilityCalendarHrefForFacility={(facilityId) => `/demo/coach/facilities/${encodeURIComponent(facilityId)}/calendar?from=coachCalendar`}
             editSessionId={editSessionId}
             onEditSessionHandled={clearEditSessionParam}
             onCreateSession={handleDemoCreateSession}

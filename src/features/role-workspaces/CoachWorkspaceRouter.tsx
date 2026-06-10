@@ -273,6 +273,7 @@ export function CoachCalendarSurface({
   facilityConflictSessions = [],
   seriesTemplates = [],
   seriesWeekStates = [],
+  facilityCalendarHrefForFacility,
   onCreateSession,
   onUpdateSession,
   onDeleteSession,
@@ -291,6 +292,7 @@ export function CoachCalendarSurface({
   facilityConflictSessions?: ConflictSession[];
   seriesTemplates?: SeriesTemplate[];
   seriesWeekStates?: SeriesWeekState[];
+  facilityCalendarHrefForFacility?: (facilityId: string) => string;
   onCreateSession: (input: CoachSessionCreateInput) => void | Promise<void>;
   onUpdateSession: (input: CoachSessionMutation) => void | Promise<void>;
   onDeleteSession: (sessionId: string) => void | Promise<void>;
@@ -326,6 +328,7 @@ export function CoachCalendarSurface({
   const didDragRef = useRef(false);
   const calendarScrollRef = useRef<HTMLDivElement | null>(null);
   const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const seriesEditorRef = useRef<HTMLDivElement | null>(null);
   const dayTransitionTimeoutRef = useRef<number | null>(null);
   const mobileDaySwipeRef = useRef<{ startX: number; startY: number } | null>(null);
   const weekLabel = useMemo(() => formatWeekLabel(days), [days]);
@@ -457,6 +460,33 @@ export function CoachCalendarSurface({
     try {
       const confirmedWeekStart = actionable[0]?.weekStart ?? seriesWeekStart;
       await onConfirmSeriesWeek(actionable);
+      setLocalSessions((current) => {
+        const existingIds = new Set(current.map((session) => session.id));
+        const optimisticSessions = actionable
+          .map((item): CoachSession | null => {
+            const team = item.teamId ? teams.find((candidate) => candidate.id === item.teamId) ?? null : null;
+            if (!team) return null;
+            const id = `series-local-${item.id}-${item.weekStart}`;
+            if (existingIds.has(id)) return null;
+            return {
+              id,
+              title: labelForCoachSessionType(item.sessionType),
+              sessionType: item.sessionType,
+              startsAt: item.startsAt,
+              endsAt: item.endsAt,
+              facilityId: item.facilityId ?? null,
+              facilityName: item.facilityName ?? item.facility ?? null,
+              teamId: team.id,
+              teamName: team.name,
+              departmentName: team.departmentName,
+              groupIds: item.groupIds ?? [],
+              availability: [],
+              players: [],
+            };
+          })
+          .filter(Boolean) as CoachSession[];
+        return optimisticSessions.length > 0 ? [...current, ...optimisticSessions] : current;
+      });
       const nextWeekOffset = weekOffsetFromIsoWeekStart(confirmedWeekStart);
       setWeekOffset(nextWeekOffset);
       setActiveDayIndex(defaultActiveDayForWeekOffset(nextWeekOffset));
@@ -468,7 +498,7 @@ export function CoachCalendarSurface({
       setIsSavingSeries(false);
       setPendingSeriesConflict(null);
     }
-  }, [conflictSessions, onConfirmSeriesWeek, seriesWeekStart]);
+  }, [conflictSessions, onConfirmSeriesWeek, seriesWeekStart, teams]);
 
   function seriesTemplateFromSuggestion(item: SeriesWeekItem, suggestion: ConflictSuggestion): SeriesTemplate {
     const start = new Date(suggestion.startsAt);
@@ -568,18 +598,27 @@ export function CoachCalendarSurface({
   const reviewConflictSave = useCallback(() => {
     if (!pendingConflictSave) return;
     const suggestion = conflictSuggestions[0];
-    if (suggestion) {
-      openCoachEditorForSave(moveCoachSave(pendingConflictSave, suggestion));
-      return;
-    }
-    openCoachEditorForSave(pendingConflictSave);
+    openCoachEditorForSave(suggestion ? moveCoachSave(pendingConflictSave, suggestion) : pendingConflictSave);
   }, [conflictSuggestions, moveCoachSave, openCoachEditorForSave, pendingConflictSave]);
 
-  const keepConflictSaveForReview = useCallback(() => {
+  const keepConflictSaveAnyway = useCallback(async () => {
     if (!pendingConflictSave) return;
-    setAllowedConflictKey(coachSaveKey(pendingConflictSave));
-    openCoachEditorForSave(pendingConflictSave);
-  }, [coachSaveKey, openCoachEditorForSave, pendingConflictSave]);
+    const save = pendingConflictSave;
+    const previousDescription = conflictDescription;
+    const previousSuggestions = conflictSuggestions;
+    setAllowedConflictKey(coachSaveKey(save));
+    setPendingConflictSave(null);
+    setConflictDescription(null);
+    setConflictSuggestions([]);
+    try {
+      await persistCoachCalendarSave(save);
+    } catch (error) {
+      setAllowedConflictKey(null);
+      setPendingConflictSave(save);
+      setConflictDescription(error instanceof Error ? `Could not save this session: ${error.message}` : previousDescription);
+      setConflictSuggestions(previousSuggestions);
+    }
+  }, [coachSaveKey, conflictDescription, conflictSuggestions, pendingConflictSave, persistCoachCalendarSave]);
 
   const applyConflictSuggestion = useCallback((suggestion: ConflictSuggestion) => {
     if (!pendingConflictSave) return;
@@ -730,13 +769,24 @@ export function CoachCalendarSurface({
     return () => { window.removeEventListener('pointermove', handlePointerMove); window.removeEventListener('pointerup', handlePointerUp); };
   }, [activeDayIndex, days, desktopHourHeight, drag, mobileCalendarView]);
 
+  useEffect(() => {
+    if (!seriesEditor) return;
+    window.requestAnimationFrame(() => {
+      seriesEditorRef.current?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+    });
+  }, [seriesEditor]);
+
   const editingSession = editor?.kind === 'session' ? localSessions.find((session) => session.id === editor.sessionId) ?? null : null;
   const editorInitial = editingSession ? { startsAt: editingSession.startsAt, endsAt: editingSession.endsAt ?? addMinutes(new Date(editingSession.startsAt), 90).toISOString(), teamId: editingSession.teamId, facilityId: editingSession.facilityId, groupIds: editingSession.groupIds, sessionType: normalizeCoachSessionType(editingSession.sessionType) } : draft;
+  const pendingConflictFacilityId = pendingConflictSave ? coachCandidateForSave(pendingConflictSave).facilityId ?? null : null;
+  const pendingSeriesConflictFacilityId = pendingSeriesConflict?.item.facilityId ?? null;
+  const pendingConflictFacilityHref = pendingConflictFacilityId && facilityCalendarHrefForFacility ? facilityCalendarHrefForFacility(pendingConflictFacilityId) : null;
+  const pendingSeriesConflictFacilityHref = pendingSeriesConflictFacilityId && facilityCalendarHrefForFacility ? facilityCalendarHrefForFacility(pendingSeriesConflictFacilityId) : null;
   return (
     <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div><p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Coach calendar</p><h2 className="mt-2 text-2xl font-black">All assigned teams</h2></div>
-        <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1">
+        <div className="mb-2 flex rounded-full border border-slate-800 bg-slate-950/80 p-1 sm:mb-0">
           <button type="button" onClick={showWeekSurface} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'week' ? 'bg-sky-300 text-slate-950' : 'text-slate-400'}`}>Week</button>
           <button type="button" onClick={showSeriesSurface} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Series</button>
         </div>
@@ -744,19 +794,21 @@ export function CoachCalendarSurface({
       {surfaceMode === 'week' ? (
         <SmartSessionCalendar mode={mode} canCreateSessions={teams.length > 0 && facilities.length > 0} days={days} hours={calendarHours} firstHour={firstHour} lastHour={lastHour} mobileVisibleHours={mobileVisibleHours} mobileFirstHour={mobileFirstHour} mobileHourHeight={mobileHourHeight} mobileGridHeight={mobileGridHeight} desktopHourHeight={desktopHourHeight} activeDayIndex={activeDayIndex} mobileCalendarView={mobileCalendarView} dayTransitionDirection={dayTransitionDirection} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null} weekLabel={weekLabel} isCurrentWeek={weekOffset === 0} calendarScrollRef={calendarScrollRef} setDayRef={(index, element) => { dayRefs.current[index] = element; }} onSetMode={setMode} onClearDraft={() => setDraft(null)} onPreviousWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onResetWeek={resetWeek} onMobileDaySelect={switchMobileDay} onMobileCalendarViewChange={setMobileCalendarView} onMobileDaySwipeStart={handleMobileDaySwipeStart} onMobileDaySwipeEnd={handleMobileDaySwipeEnd} onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }} onSlotPointerDown={handleSlotPointerDown} onSessionPointerDown={startSessionDrag} onSessionClick={handleSessionClick} onSessionKeyDown={handleSessionKeyDown} onDraftPointerDown={startDraftDrag} onDraftClick={() => setEditor({ kind: 'draft' })} onDraftCancel={() => setDraft(null)} />
       ) : (
-        <div className="mt-5">
+        <div className="mt-7 sm:mt-5">
           {seriesEditor ? (
-            <SeriesTemplateInlineEditor
-              title={seriesEditor.kind === 'new' ? 'New weekly template' : 'Edit weekly template'}
-              teams={teams}
-              facilities={facilities}
-              groups={groups}
-              initial={seriesEditor.kind === 'edit' ? seriesEditor.template : null}
-              weekday={seriesEditor.kind === 'new' ? seriesEditor.weekday : undefined}
-              isSaving={isSavingSeries}
-              onSave={(value) => requestSeriesSave(seriesEditor.kind === 'new' ? { kind: 'create', input: value } : { kind: 'update', seriesId: seriesEditor.template.id, input: value })}
-              onClose={() => setSeriesEditor(null)}
-            />
+            <div ref={seriesEditorRef}>
+              <SeriesTemplateInlineEditor
+                title={seriesEditor.kind === 'new' ? 'New weekly template' : 'Edit weekly template'}
+                teams={teams}
+                facilities={facilities}
+                groups={groups}
+                initial={seriesEditor.kind === 'edit' ? seriesEditor.template : null}
+                weekday={seriesEditor.kind === 'new' ? seriesEditor.weekday : undefined}
+                isSaving={isSavingSeries}
+                onSave={(value) => requestSeriesSave(seriesEditor.kind === 'new' ? { kind: 'create', input: value } : { kind: 'update', seriesId: seriesEditor.template.id, input: value })}
+                onClose={() => setSeriesEditor(null)}
+              />
+            </div>
           ) : null}
           <WeeklySeriesBoard
             weekStart={seriesWeekStart}
@@ -776,16 +828,18 @@ export function CoachCalendarSurface({
         isOpen={Boolean(pendingConflictSave)}
         description={conflictDescription ?? 'This hall already has another session at this time.'}
         suggestions={conflictSuggestions}
+        facilityCalendarHref={pendingConflictFacilityHref}
         isWorking={isSaving}
         onSuggestion={applyConflictSuggestion}
         onReviewTime={reviewConflictSave}
-        onKeepAnyway={keepConflictSaveForReview}
+        onKeepAnyway={keepConflictSaveAnyway}
         onCancel={cancelConflictSave}
       />
       <FacilityConflictDialog
         isOpen={Boolean(pendingSeriesConflict)}
         description={pendingSeriesConflict?.description ?? 'This hall already has another session at this time.'}
         suggestions={pendingSeriesConflict?.suggestions ?? []}
+        facilityCalendarHref={pendingSeriesConflictFacilityHref}
         isWorking={isSavingSeries}
         onSuggestion={(suggestion) => {
           if (!pendingSeriesConflict) return;
@@ -1587,6 +1641,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             facilityConflictSessions={facilityConflictSessions}
             seriesTemplates={seriesTemplates}
             seriesWeekStates={seriesWeekStates}
+            facilityCalendarHrefForFacility={(facilityId) => `/coach/facilities/${encodeURIComponent(facilityId)}/calendar?from=coachCalendar`}
             editSessionId={editSessionId}
             onEditSessionHandled={clearEditSessionParam}
             onCreateSession={handleCoachSessionCreate}

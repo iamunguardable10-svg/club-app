@@ -104,6 +104,7 @@ function SeriesTemplateEditorForm({
   }
 
   const inputClass = 'mt-1.5 h-9 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-black text-slate-100 outline-none transition focus:border-sky-300 sm:h-10 sm:rounded-xl sm:px-2.5 sm:text-sm [color-scheme:dark]';
+  const timeInputClass = 'mt-1.5 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-10 sm:rounded-xl sm:px-2 sm:text-base [color-scheme:dark]';
   const labelClass = 'min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500';
 
   return (
@@ -123,8 +124,8 @@ function SeriesTemplateEditorForm({
         </label>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)_7.5rem_7.5rem]">
-        <label className={`${labelClass} col-span-2 sm:col-span-1`}>
+      <div className="grid grid-cols-[minmax(0,1fr)_4.25rem_4.25rem] gap-2 sm:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)_7rem_7rem]">
+        <label className={`${labelClass} col-span-3 sm:col-span-1`}>
           Type
           <select value={sessionType} onChange={(event) => setSessionType(event.target.value)} className={inputClass}>
             {coachSessionTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
@@ -138,11 +139,11 @@ function SeriesTemplateEditorForm({
         </label>
         <label className={labelClass}>
           Start
-          <input value={startTime} onChange={(event) => setStartTime(event.target.value)} type="time" className={`${inputClass} px-1 text-center text-[15px] tracking-tight sm:px-2 sm:text-base`} />
+          <input value={startTime} onChange={(event) => setStartTime(event.target.value)} type="time" className={timeInputClass} />
         </label>
         <label className={labelClass}>
           End
-          <input value={endTime} onChange={(event) => setEndTime(event.target.value)} type="time" className={`${inputClass} px-1 text-center text-[15px] tracking-tight sm:px-2 sm:text-base`} />
+          <input value={endTime} onChange={(event) => setEndTime(event.target.value)} type="time" className={timeInputClass} />
         </label>
       </div>
 
@@ -166,7 +167,7 @@ function SeriesTemplateEditorForm({
 
 export function SeriesTemplateInlineEditor(props: SeriesTemplateEditorBaseProps) {
   return (
-    <section className="mb-3 rounded-2xl border border-slate-800 border-l-2 border-l-emerald-300/45 bg-slate-950/70 p-3 text-white shadow-[0_18px_60px_rgba(15,23,42,0.22)]">
+    <section className="mx-auto mb-4 w-full max-w-2xl rounded-2xl border border-slate-800 border-l-2 border-l-emerald-300/45 bg-slate-950/70 p-3 text-white shadow-[0_18px_60px_rgba(15,23,42,0.22)]">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">Series template</p>
