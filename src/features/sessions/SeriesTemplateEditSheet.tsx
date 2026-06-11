@@ -115,7 +115,7 @@ function SeriesTemplateEditorForm({
 
   return (
     <div className={compact ? 'space-y-2.5' : 'mt-4 space-y-3'}>
-      <div className={shouldShowWeekday ? 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_4.25rem] gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_6rem]' : 'grid grid-cols-2 gap-2'}>
+      <div className={shouldShowWeekday ? 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_5rem] gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem]' : 'grid grid-cols-2 gap-2'}>
         <label className={labelClass}>
           Team
           <select value={teamId} onChange={(event) => setTeamId(event.target.value)} className={inputClass}>
