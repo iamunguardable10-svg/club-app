@@ -9,7 +9,7 @@ import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { CoachCalendarSurface, CoachSessionEditSheet, normalizeCoachSessionType } from '@/features/role-workspaces/CoachWorkspaceRouter';
 import type { CoachFacility, CoachGroup, CoachMode, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
-import { CoachHistorySessionCard, CoachSessionDetailOverlay, sortCoachLoadRisks } from '@/features/role-workspaces/CoachSessionSurfaces';
+import { CoachHistorySessionCard, CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
 import type { ConflictSession } from '@/features/calendar/sessionConflicts';
 import type { SeriesTemplateInput } from '@/features/sessions/SeriesTemplateEditSheet';
 import type { SeriesTemplate, SeriesWeekItem, SeriesWeekState } from '@/features/sessions/sessionSeriesPlanner';
@@ -325,7 +325,6 @@ function buildCoachSessions(teams: DemoTeam[], storedSessions: DemoSession[], de
 function DemoSessionCard({ session, onDetails }: { session: DemoCoachSession; onDetails: () => void }) {
   const out = session.availability.filter((item) => item.status === 'out');
   const late = session.availability.filter((item) => item.status === 'late');
-  const loadFlags = sortCoachLoadRisks(session.players);
   return (
     <button type="button" onClick={onDetails} className="block w-full rounded-3xl border border-slate-800 bg-slate-950/72 p-4 text-left text-white shadow-[0_18px_70px_rgba(0,0,0,0.22)] transition hover:border-emerald-300/45 hover:bg-slate-900/70">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -340,7 +339,6 @@ function DemoSessionCard({ session, onDetails }: { session: DemoCoachSession; on
         <div className={`rounded-2xl border p-3 ${out.length > 0 ? 'border-rose-400/35 bg-rose-400/10' : 'border-slate-800 bg-slate-950/60'}`}><div className="flex items-center justify-between"><p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Out</p><span className="text-lg font-black">{out.length}</span></div>{out.map((item) => <p key={item.id} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.reason ? ` · ${item.reason}` : ''}</p>)}</div>
         <div className={`rounded-2xl border p-3 ${late.length > 0 ? 'border-amber-400/35 bg-amber-400/10' : 'border-slate-800 bg-slate-950/60'}`}><div className="flex items-center justify-between"><p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Late</p><span className="text-lg font-black">{late.length}</span></div>{late.map((item) => <p key={item.id} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${item.lateMinutes}m` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>)}</div>
       </div>
-      {loadFlags.length > 0 ? <div className="mt-3 flex flex-wrap gap-1.5">{loadFlags.map((player) => <span key={player.id} className={`rounded-full border px-2 py-1 text-[11px] font-black ${player.risk === 'high' ? 'border-rose-400/40 text-rose-100' : 'border-sky-400/40 text-sky-100'}`}>{player.name} · {player.acwr.toFixed(2)} ACWR</span>)}</div> : null}
     </button>
   );
 }
@@ -514,6 +512,13 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     refreshDemoSeries(getDemoSessionSeries(sourceTeams).map((series) => series.id === seriesId ? { ...replacement, createdAt: series.createdAt } : series));
   }
 
+  async function handleDemoDeleteSeries(seriesId: string) {
+    const sourceTeams = allDemoTeams.length > 0 ? allDemoTeams : teams;
+    refreshDemoSeries(getDemoSessionSeries(sourceTeams).filter((series) => series.id !== seriesId));
+    refreshDemoSeriesWeekStates(getDemoSessionSeriesWeekStates().filter((state) => state.seriesId !== seriesId));
+    refreshDemoSessions(rawSessions.filter((session) => session.seriesId !== seriesId));
+  }
+
   async function handleDemoToggleSeriesWeek(seriesId: string, weekStart: string, checked: boolean) {
     const allStates = getDemoSessionSeriesWeekStates();
     const nextState = { seriesId, weekStart, checked, committedSessionId: allStates.find((state) => state.seriesId === seriesId && state.weekStart === weekStart)?.committedSessionId ?? null, updatedAt: new Date().toISOString() };
@@ -623,6 +628,7 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             onDeleteSession={handleDemoDeleteSession}
             onCreateSeries={handleDemoCreateSeries}
             onUpdateSeries={handleDemoUpdateSeries}
+            onDeleteSeries={handleDemoDeleteSeries}
             onToggleSeriesWeek={handleDemoToggleSeriesWeek}
             onConfirmSeriesWeek={handleDemoConfirmSeriesWeek}
             onDetails={(session) => setActiveSession(demoSessions.find((item) => item.id === session.id) ?? null)}

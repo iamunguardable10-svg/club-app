@@ -133,32 +133,32 @@ export function CoachSessionEditSheet({
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-2 sm:gap-3">
-          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
             Team
-            <select value={teamId} disabled={!allowTeamChange} onChange={(event) => handleTeamSelect(event.target.value)} className="mt-2 h-11 w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-2 text-xs font-black text-slate-100 outline-none focus:border-sky-300 disabled:opacity-60 sm:px-3 sm:text-sm">
+            <select value={teamId} disabled={!allowTeamChange} onChange={(event) => handleTeamSelect(event.target.value)} className="mt-1.5 h-9 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-black text-slate-100 outline-none transition focus:border-sky-300 disabled:opacity-60 sm:h-10 sm:rounded-xl sm:px-2.5 sm:text-sm">
               {allowTeamChange && teams.length > 1 ? <option value="">Choose team</option> : null}
               {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
             </select>
           </label>
-          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
             Facility
-            <select value={facilityId} disabled={!hasTeam} onChange={(event) => handleFacilitySelect(event.target.value)} className="mt-2 h-11 w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-2 text-xs font-black text-slate-100 outline-none focus:border-sky-300 disabled:opacity-60 sm:px-3 sm:text-sm">
+            <select value={facilityId} disabled={!hasTeam} onChange={(event) => handleFacilitySelect(event.target.value)} className="mt-1.5 h-9 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-black text-slate-100 outline-none transition focus:border-sky-300 disabled:opacity-60 sm:h-10 sm:rounded-xl sm:px-2.5 sm:text-sm">
               {!hasTeam ? <option value="">Choose team first</option> : null}
               {facilityOptions.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
             </select>
           </label>
         </div>
 
-        <div className="mt-3 grid grid-cols-[minmax(0,1fr)_6.35rem] gap-2 sm:grid-cols-[minmax(0,1fr)_7.5rem] sm:gap-3">
-          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+        <div className="mt-3 grid grid-cols-[minmax(0,1fr)_4.35rem] gap-2 sm:grid-cols-[minmax(0,1fr)_7rem] sm:gap-3">
+          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
             Type
-            <select value={sessionType} onChange={(event) => handleSessionTypeSelect(event.target.value)} className="mt-2 h-11 w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-2 text-xs font-black text-slate-100 outline-none focus:border-sky-300 sm:px-3 sm:text-sm">
+            <select value={sessionType} onChange={(event) => handleSessionTypeSelect(event.target.value)} className="mt-1.5 h-9 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-black text-slate-100 outline-none transition focus:border-sky-300 sm:h-10 sm:rounded-xl sm:px-2.5 sm:text-sm">
               {coachSessionTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
             </select>
           </label>
-          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
             Start
-            <input value={timeValue} onChange={(event) => setTimeValue(event.target.value)} type="time" className="mt-2 h-10 w-full min-w-0 rounded-lg border border-slate-700 bg-slate-950 px-1 text-center text-[15px] font-black tracking-tight text-slate-100 outline-none focus:border-sky-300 sm:h-11 sm:rounded-xl sm:px-2 sm:text-sm [color-scheme:dark]" />
+            <input value={timeValue} onChange={(event) => setTimeValue(event.target.value)} type="time" className="mt-1.5 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-10 sm:rounded-xl sm:px-2 sm:text-base [color-scheme:dark]" />
           </label>
         </div>
 

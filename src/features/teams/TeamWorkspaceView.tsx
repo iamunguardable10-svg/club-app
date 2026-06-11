@@ -282,7 +282,6 @@ function TeamDashboardSessionCard({
   );
   const out = notes.filter((event) => event.status === 'out');
   const late = notes.filter((event) => event.status === 'late');
-  const loadFlags = players.map(loadRiskLine).filter(Boolean) as { id: string; name: string; status: 'high' | 'low'; detail: string | null }[];
   const displayFacility = session.facilityName ?? fallbackFacilityName ?? null;
 
   return (
@@ -310,15 +309,6 @@ function TeamDashboardSessionCard({
           {late.slice(0, 3).map((item) => <p key={`${item.sessionId}-${item.playerName}-late`} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${item.lateMinutes}m` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>)}
         </div>
       </div>
-      {loadFlags.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {loadFlags.slice(0, 4).map((risk) => (
-            <span key={risk.id} className={`rounded-full border px-2 py-1 text-[11px] font-black ${risk.status === 'high' ? 'border-rose-400/40 text-rose-100' : 'border-sky-400/40 text-sky-100'}`}>
-              {risk.name}{risk.detail ? ` · ${risk.detail}` : ''}
-            </span>
-          ))}
-        </div>
-      ) : null}
     </button>
   );
 }

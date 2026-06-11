@@ -9,6 +9,7 @@ type FacilityConflictDialogProps = {
   suggestions?: ConflictSuggestion[];
   isWorking?: boolean;
   facilityCalendarHref?: string | null;
+  facilityCalendarLabel?: string | null;
   onSuggestion: (suggestion: ConflictSuggestion) => void;
   onReviewTime: () => void;
   onKeepAnyway: () => void;
@@ -21,6 +22,7 @@ export function FacilityConflictDialog({
   suggestions = [],
   isWorking = false,
   facilityCalendarHref = null,
+  facilityCalendarLabel = null,
   onSuggestion,
   onReviewTime,
   onKeepAnyway,
@@ -72,7 +74,7 @@ export function FacilityConflictDialog({
               rel="noopener noreferrer"
               className="rounded-xl border border-slate-700 px-4 py-3 text-center text-sm font-black text-slate-200 transition hover:bg-slate-900"
             >
-              Open facility calendar
+              {facilityCalendarLabel ?? 'Facility calendar'}
             </a>
           ) : null}
           <button

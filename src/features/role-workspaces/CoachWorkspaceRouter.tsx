@@ -8,11 +8,11 @@ import type { TeamWorkspaceSection } from '@/features/teams/TeamWorkspaceView';
 import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
 import { sessionTypeToLoadType, type AthleteLoadEntry, type LoadTrainingType } from '@/features/load/loadTypes';
 import type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
-import { CoachHistorySessionCard, CoachSessionDetailOverlay, sortCoachLoadRisks } from '@/features/role-workspaces/CoachSessionSurfaces';
+import { CoachHistorySessionCard, CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
 import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { WeeklySeriesBoard } from '@/features/sessions/WeeklySeriesBoard';
-import { SeriesTemplateInlineEditor, type SeriesTemplateInput } from '@/features/sessions/SeriesTemplateEditSheet';
+import { SeriesTemplateEditSheet, type SeriesTemplateInput } from '@/features/sessions/SeriesTemplateEditSheet';
 import { buildSeriesWeekItems, getIsoWeekStart, type SeriesTemplate, type SeriesWeekItem, type SeriesWeekState } from '@/features/sessions/sessionSeriesPlanner';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
@@ -87,6 +87,10 @@ function formatNextSession(session: CoachSession | undefined) {
   if (!session) return 'No planned session yet';
   const date = new Date(session.startsAt).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' });
   return `${date} · ${formatTimeRange(session.startsAt, session.endsAt)}`;
+}
+
+function formatConflictDateLine(startsAt: string) {
+  return new Date(startsAt).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' });
 }
 
 function isSameLocalDay(value: string, day: Date) {
@@ -212,7 +216,6 @@ function CoachTopNav({ mode, singleTeamId }: { mode: CoachMode; singleTeamId?: s
 function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDetails: () => void }) {
   const { out, late } = summarizeAvailability(session);
   const flags = [...out, ...late];
-  const loadFlags = sortCoachLoadRisks(session.players);
   return (
     <button type="button" onClick={onDetails} className="block w-full rounded-3xl border border-slate-800 bg-slate-950/72 p-4 text-left text-white shadow-[0_18px_70px_rgba(0,0,0,0.22)] transition hover:border-emerald-300/45 hover:bg-slate-900/70">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -246,15 +249,6 @@ function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDet
       </div>
 
       {flags.length === 0 ? <p className="mt-3 text-sm font-bold text-slate-500">No late/out marks yet.</p> : null}
-      {loadFlags.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {loadFlags.slice(0, 4).map((player) => (
-            <span key={player.id} className={`rounded-full border px-2 py-1 text-[11px] font-black ${player.risk === 'high' ? 'border-rose-400/40 text-rose-100' : 'border-sky-400/40 text-sky-100'}`}>
-              {player.name} · {player.acwr?.toFixed(2) ?? '?'} ACWR
-            </span>
-          ))}
-        </div>
-      ) : null}
     </button>
   );
 }
@@ -279,6 +273,7 @@ export function CoachCalendarSurface({
   onDeleteSession,
   onCreateSeries,
   onUpdateSeries,
+  onDeleteSeries,
   onToggleSeriesWeek,
   onConfirmSeriesWeek,
   onDetails,
@@ -298,6 +293,7 @@ export function CoachCalendarSurface({
   onDeleteSession: (sessionId: string) => void | Promise<void>;
   onCreateSeries?: (input: SeriesTemplateInput) => void | Promise<void>;
   onUpdateSeries?: (seriesId: string, input: SeriesTemplateInput) => void | Promise<void>;
+  onDeleteSeries?: (seriesId: string) => void | Promise<void>;
   onToggleSeriesWeek?: (seriesId: string, weekStart: string, checked: boolean) => void | Promise<void>;
   onConfirmSeriesWeek?: (items: SeriesWeekItem[]) => void | Promise<void>;
   onDetails: (session: CoachSession) => void;
@@ -328,7 +324,6 @@ export function CoachCalendarSurface({
   const didDragRef = useRef(false);
   const calendarScrollRef = useRef<HTMLDivElement | null>(null);
   const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const seriesEditorRef = useRef<HTMLDivElement | null>(null);
   const dayTransitionTimeoutRef = useRef<number | null>(null);
   const mobileDaySwipeRef = useRef<{ startX: number; startY: number } | null>(null);
   const weekLabel = useMemo(() => formatWeekLabel(days), [days]);
@@ -439,7 +434,7 @@ export function CoachCalendarSurface({
           setPendingSeriesConflict({
             items: actionable,
             item,
-            description: formatConflictDescription(conflicts),
+            description: `${formatConflictDateLine(item.startsAt)} · ${formatConflictDescription(conflicts)}`,
             suggestions: suggestFacilityConflictMoves(candidate, [...conflictSessions, ...checkedCandidates]),
           });
           return;
@@ -769,19 +764,14 @@ export function CoachCalendarSurface({
     return () => { window.removeEventListener('pointermove', handlePointerMove); window.removeEventListener('pointerup', handlePointerUp); };
   }, [activeDayIndex, days, desktopHourHeight, drag, mobileCalendarView]);
 
-  useEffect(() => {
-    if (!seriesEditor) return;
-    window.requestAnimationFrame(() => {
-      seriesEditorRef.current?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
-    });
-  }, [seriesEditor]);
-
   const editingSession = editor?.kind === 'session' ? localSessions.find((session) => session.id === editor.sessionId) ?? null : null;
   const editorInitial = editingSession ? { startsAt: editingSession.startsAt, endsAt: editingSession.endsAt ?? addMinutes(new Date(editingSession.startsAt), 90).toISOString(), teamId: editingSession.teamId, facilityId: editingSession.facilityId, groupIds: editingSession.groupIds, sessionType: normalizeCoachSessionType(editingSession.sessionType) } : draft;
   const pendingConflictFacilityId = pendingConflictSave ? coachCandidateForSave(pendingConflictSave).facilityId ?? null : null;
   const pendingSeriesConflictFacilityId = pendingSeriesConflict?.item.facilityId ?? null;
   const pendingConflictFacilityHref = pendingConflictFacilityId && facilityCalendarHrefForFacility ? facilityCalendarHrefForFacility(pendingConflictFacilityId) : null;
   const pendingSeriesConflictFacilityHref = pendingSeriesConflictFacilityId && facilityCalendarHrefForFacility ? facilityCalendarHrefForFacility(pendingSeriesConflictFacilityId) : null;
+  const pendingConflictFacilityLabel = pendingConflictFacilityId ? facilities.find((facility) => facility.id === pendingConflictFacilityId)?.name ?? null : null;
+  const pendingSeriesConflictFacilityLabel = pendingSeriesConflict?.item.facilityName ?? (pendingSeriesConflictFacilityId ? facilities.find((facility) => facility.id === pendingSeriesConflictFacilityId)?.name ?? null : null);
   return (
     <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -795,21 +785,6 @@ export function CoachCalendarSurface({
         <SmartSessionCalendar mode={mode} canCreateSessions={teams.length > 0 && facilities.length > 0} days={days} hours={calendarHours} firstHour={firstHour} lastHour={lastHour} mobileVisibleHours={mobileVisibleHours} mobileFirstHour={mobileFirstHour} mobileHourHeight={mobileHourHeight} mobileGridHeight={mobileGridHeight} desktopHourHeight={desktopHourHeight} activeDayIndex={activeDayIndex} mobileCalendarView={mobileCalendarView} dayTransitionDirection={dayTransitionDirection} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null} weekLabel={weekLabel} isCurrentWeek={weekOffset === 0} calendarScrollRef={calendarScrollRef} setDayRef={(index, element) => { dayRefs.current[index] = element; }} onSetMode={setMode} onClearDraft={() => setDraft(null)} onPreviousWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onResetWeek={resetWeek} onMobileDaySelect={switchMobileDay} onMobileCalendarViewChange={setMobileCalendarView} onMobileDaySwipeStart={handleMobileDaySwipeStart} onMobileDaySwipeEnd={handleMobileDaySwipeEnd} onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }} onSlotPointerDown={handleSlotPointerDown} onSessionPointerDown={startSessionDrag} onSessionClick={handleSessionClick} onSessionKeyDown={handleSessionKeyDown} onDraftPointerDown={startDraftDrag} onDraftClick={() => setEditor({ kind: 'draft' })} onDraftCancel={() => setDraft(null)} />
       ) : (
         <div className="mt-7 sm:mt-5">
-          {seriesEditor ? (
-            <div ref={seriesEditorRef}>
-              <SeriesTemplateInlineEditor
-                title={seriesEditor.kind === 'new' ? 'New weekly template' : 'Edit weekly template'}
-                teams={teams}
-                facilities={facilities}
-                groups={groups}
-                initial={seriesEditor.kind === 'edit' ? seriesEditor.template : null}
-                weekday={seriesEditor.kind === 'new' ? seriesEditor.weekday : undefined}
-                isSaving={isSavingSeries}
-                onSave={(value) => requestSeriesSave(seriesEditor.kind === 'new' ? { kind: 'create', input: value } : { kind: 'update', seriesId: seriesEditor.template.id, input: value })}
-                onClose={() => setSeriesEditor(null)}
-              />
-            </div>
-          ) : null}
           <WeeklySeriesBoard
             weekStart={seriesWeekStart}
             templates={seriesWeekItems}
@@ -822,6 +797,28 @@ export function CoachCalendarSurface({
           />
         </div>
       )}
+      {seriesEditor ? (
+        <SeriesTemplateEditSheet
+          title={seriesEditor.kind === 'new' ? 'New weekly template' : 'Edit weekly template'}
+          teams={teams}
+          facilities={facilities}
+          groups={groups}
+          initial={seriesEditor.kind === 'edit' ? seriesEditor.template : null}
+          weekday={seriesEditor.kind === 'new' ? seriesEditor.weekday : undefined}
+          isSaving={isSavingSeries}
+          onSave={(value) => requestSeriesSave(seriesEditor.kind === 'new' ? { kind: 'create', input: value } : { kind: 'update', seriesId: seriesEditor.template.id, input: value })}
+          onDelete={seriesEditor.kind === 'edit' && onDeleteSeries ? async () => {
+            setIsSavingSeries(true);
+            try {
+              await onDeleteSeries(seriesEditor.template.id);
+              setSeriesEditor(null);
+            } finally {
+              setIsSavingSeries(false);
+            }
+          } : undefined}
+          onClose={() => setSeriesEditor(null)}
+        />
+      ) : null}
       {editor && editorInitial ? <CoachSessionEditSheet key={editor.kind === 'session' ? `session-${editor.sessionId}` : `draft-${editorInitial.startsAt}`} title={editor.kind === 'draft' ? 'New training' : editingSession?.title ?? 'Training'} teams={teams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { if (editor.kind === 'draft') { await requestCoachCalendarSave({ kind: 'create', input: value }); } else if (editingSession) { await requestCoachCalendarSave({ kind: 'update', input: { sessionId: editingSession.id, ...value } }); } }} onDraftUpdate={editor.kind === 'draft' ? (value) => setDraft((current) => current ? { ...current, ...value } : current) : undefined} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : undefined} onClose={() => setEditor(null)} /> : null}
 
       <FacilityConflictDialog
@@ -829,6 +826,7 @@ export function CoachCalendarSurface({
         description={conflictDescription ?? 'This hall already has another session at this time.'}
         suggestions={conflictSuggestions}
         facilityCalendarHref={pendingConflictFacilityHref}
+        facilityCalendarLabel={pendingConflictFacilityLabel}
         isWorking={isSaving}
         onSuggestion={applyConflictSuggestion}
         onReviewTime={reviewConflictSave}
@@ -840,6 +838,7 @@ export function CoachCalendarSurface({
         description={pendingSeriesConflict?.description ?? 'This hall already has another session at this time.'}
         suggestions={pendingSeriesConflict?.suggestions ?? []}
         facilityCalendarHref={pendingSeriesConflictFacilityHref}
+        facilityCalendarLabel={pendingSeriesConflictFacilityLabel}
         isWorking={isSavingSeries}
         onSuggestion={(suggestion) => {
           if (!pendingSeriesConflict) return;
@@ -1472,6 +1471,21 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     setReloadKey((current) => current + 1);
   }
 
+  async function handleCoachSeriesDelete(seriesId: string) {
+    const series = seriesTemplates.find((item) => item.id === seriesId);
+    if (!series || !series.teamId || !teams.some((team) => team.id === series.teamId)) {
+      setError('You can only delete series templates from your assigned teams.');
+      return;
+    }
+    const supabase = createBrowserSupabaseClient();
+    // Verified in migration 0020: session_series_delete_manager enforces ownership; child rows use FK cascade.
+    const { error: deleteError } = await supabase.from('session_series').delete().eq('id', seriesId);
+    if (deleteError) { setError(deleteError.message); return; }
+    setSeriesTemplates((current) => current.filter((item) => item.id !== seriesId));
+    setSeriesWeekStates((current) => current.filter((state) => state.seriesId !== seriesId));
+    setReloadKey((current) => current + 1);
+  }
+
   async function handleCoachSeriesWeekToggle(seriesId: string, weekStart: string, checked: boolean) {
     const supabase = createBrowserSupabaseClient();
     const { error: upsertError } = await supabase
@@ -1649,6 +1663,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             onDeleteSession={handleCoachSessionDelete}
             onCreateSeries={handleCoachSeriesCreate}
             onUpdateSeries={handleCoachSeriesUpdate}
+            onDeleteSeries={handleCoachSeriesDelete}
             onToggleSeriesWeek={handleCoachSeriesWeekToggle}
             onConfirmSeriesWeek={handleCoachSeriesWeekConfirm}
             onDetails={setActiveSession}

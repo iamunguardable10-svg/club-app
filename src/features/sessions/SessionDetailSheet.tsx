@@ -296,12 +296,12 @@ export function SessionDetailSheet({
             {showEditDetails ? (
               <div className="mt-4 space-y-4">
                 {canEditTime && onTimeChange ? (
-                  <div className="grid min-w-0 gap-4 sm:grid-cols-[8rem_minmax(12rem,1fr)_auto] sm:items-end">
-                    <label className="w-32 max-w-full min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  <div className="grid min-w-0 grid-cols-[4.35rem_minmax(0,1fr)] gap-3 sm:grid-cols-[7rem_minmax(12rem,1fr)_auto] sm:items-end">
+                    <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
                       Start
-                      <input value={timeValue} onChange={(event) => setTimeValue(event.target.value)} type="time" className="mt-2 h-10 w-32 max-w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-2 text-center text-sm font-black text-slate-100 outline-none focus:border-sky-300 [color-scheme:dark]" />
+                      <input value={timeValue} onChange={(event) => setTimeValue(event.target.value)} type="time" className="mt-1.5 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-10 sm:rounded-xl sm:px-2 sm:text-base [color-scheme:dark]" />
                     </label>
-                    <label className="w-full min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
                       <span className="flex items-center justify-between gap-3">
                         <span>Duration</span>
                         <span className="text-slate-200">{durationValue} min</span>

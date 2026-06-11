@@ -83,6 +83,7 @@ If a change only targets one surface, verify it did not fork shared behavior awa
 - duration control fits on mobile
 - facility selector appears once
 - participant/group changes happen only in edit mode
+- player load risks belong in the detail overlay, not noisy preview cards
 - background scrolling is locked while modal/overlay is open
 
 #### Week navigation
@@ -110,6 +111,7 @@ Checks:
 - facility conflicts block or route through the conflict dialog
 - athletes see only concrete sessions, never raw templates
 - demo localStorage and Supabase-backed flows expose the same product behavior
+- deleting a Series template must use server-side ownership/RLS checks and DB-level cascade cleanup, not client-side multi-step child deletes
 
 ## Senior-engineering rule for calendar work
 
