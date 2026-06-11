@@ -8,6 +8,8 @@ type FacilityConflictDialogProps = {
   description: string;
   suggestions?: ConflictSuggestion[];
   isWorking?: boolean;
+  facilityCalendarHref?: string | null;
+  facilityCalendarLabel?: string | null;
   onSuggestion: (suggestion: ConflictSuggestion) => void;
   onReviewTime: () => void;
   onKeepAnyway: () => void;
@@ -19,6 +21,8 @@ export function FacilityConflictDialog({
   description,
   suggestions = [],
   isWorking = false,
+  facilityCalendarHref = null,
+  facilityCalendarLabel = null,
   onSuggestion,
   onReviewTime,
   onKeepAnyway,
@@ -53,7 +57,7 @@ export function FacilityConflictDialog({
           </div>
         ) : null}
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <div className={`mt-5 grid gap-3 ${facilityCalendarHref ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
           <button
             type="button"
             onClick={onCancel}
@@ -63,6 +67,16 @@ export function FacilityConflictDialog({
           >
             Cancel
           </button>
+          {facilityCalendarHref ? (
+            <a
+              href={facilityCalendarHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-xl border border-slate-700 px-4 py-3 text-center text-sm font-black text-slate-200 transition hover:bg-slate-900"
+            >
+              {facilityCalendarLabel ?? 'Facility calendar'}
+            </a>
+          ) : null}
           <button
             type="button"
             onClick={onReviewTime}
@@ -77,7 +91,7 @@ export function FacilityConflictDialog({
             disabled={isWorking}
             className="rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Edit & keep
+            Keep
           </button>
         </div>
       </div>

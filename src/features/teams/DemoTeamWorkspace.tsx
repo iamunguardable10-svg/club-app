@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AdminShell } from '@/shared/admin/AdminShell';
-import { getDemoClubSetup, getDemoSessions, getDemoTeams, saveDemoSessions, saveDemoTeams, type DemoClubSetup, type DemoSession, type DemoTeam } from '@/shared/dev/demoStorage';
+import { getDemoClubSetup, getDemoSessionSeries, getDemoSessionSeriesWeekStates, getDemoSessions, getDemoTeams, saveDemoSessionSeries, saveDemoSessionSeriesWeekStates, saveDemoSessions, saveDemoTeams, type DemoClubSetup, type DemoSession, type DemoSessionSeries, type DemoSessionSeriesWeekState, type DemoTeam } from '@/shared/dev/demoStorage';
 import type { AthleteLoadEntry, LoadTrainingType } from '@/features/load/loadTypes';
 import { TeamWorkspaceView, type TeamWorkspaceData, type TeamWorkspacePlayer, type TeamWorkspaceRole, type TeamWorkspaceStaffRole } from './TeamWorkspaceView';
 import { labelForCoachSessionType } from '@/features/sessions/sessionTypeLabels';
+import type { SeriesTemplateInput } from '@/features/sessions/SeriesTemplateEditSheet';
+import type { SeriesTemplate, SeriesWeekItem, SeriesWeekState } from '@/features/sessions/sessionSeriesPlanner';
 
 type DemoInvite = {
   id: string;
@@ -157,6 +159,26 @@ function saveDemoPlayers(players: DemoPlayer[]) {
   window.localStorage.setItem(DEMO_PLAYERS_KEY, JSON.stringify(players));
 }
 
+function seriesTemplateToDemo(input: SeriesTemplateInput, teams: DemoTeam[], id = `demo-series-${Date.now()}`): DemoSessionSeries | null {
+  const team = teams.find((item) => item.id === input.teamId);
+  if (!team) return null;
+  return {
+    id,
+    department: team.department,
+    teamId: team.id,
+    team: team.name,
+    sessionType: input.sessionType,
+    weekday: input.weekday,
+    startTime: input.startTime,
+    endTime: input.endTime,
+    facility: input.facilityId,
+    groupIds: input.groupIds,
+    activeFrom: null,
+    activeUntil: null,
+    createdAt: new Date().toISOString(),
+  };
+}
+
 function getDemoPlayerGroups(): DemoPlayerGroup[] {
   if (typeof window === 'undefined') return [];
   const raw = window.localStorage.getItem(DEMO_PLAYER_GROUPS_KEY);
@@ -207,6 +229,8 @@ export function DemoTeamWorkspace({
   const [setup, setSetup] = useState<DemoClubSetup | null>(null);
   const [teams, setTeams] = useState<DemoTeam[]>([]);
   const [sessions, setSessions] = useState<DemoSession[]>([]);
+  const [series, setSeries] = useState<DemoSessionSeries[]>([]);
+  const [seriesWeekStates, setSeriesWeekStates] = useState<DemoSessionSeriesWeekState[]>([]);
   const [invites, setInvites] = useState<DemoInvite[]>([]);
   const [players, setPlayers] = useState<DemoPlayer[]>([]);
   const [playerGroups, setPlayerGroups] = useState<DemoPlayerGroup[]>([]);
@@ -233,6 +257,8 @@ export function DemoTeamWorkspace({
     setSetup(currentSetup);
     setTeams(getDemoTeams(currentSetup));
     setSessions(getDemoSessions());
+    setSeries(getDemoSessionSeries(getDemoTeams(currentSetup)).filter((item) => item.teamId === teamId));
+    setSeriesWeekStates(getDemoSessionSeriesWeekStates());
     setInvites(getDemoInvites());
     setPlayers(seededPlayers);
     setPlayerGroups(seededGroups);
@@ -271,6 +297,12 @@ export function DemoTeamWorkspace({
     setSessions(nextSessions);
   }
 
+  function handleSessionDelete(sessionId: string) {
+    const nextSessions = sessions.filter((session) => session.id !== sessionId);
+    saveDemoSessions(nextSessions);
+    setSessions(nextSessions);
+  }
+
   function handleSessionCreate(startsAt: string, endsAt: string) {
     const team = teams.find((item) => item.id === teamId);
     const assignedFacilityNames = new Set(facilityAssignments.filter((assignment) => assignment.department === team?.department).map((assignment) => assignment.facility));
@@ -296,6 +328,81 @@ export function DemoTeamWorkspace({
     const allSessions = [...getDemoSessions(), nextSession].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
     saveDemoSessions(allSessions);
     setSessions(allSessions);
+  }
+
+  function refreshDemoSeries(nextSeries: DemoSessionSeries[]) {
+    saveDemoSessionSeries(nextSeries);
+    setSeries(nextSeries.filter((item) => item.teamId === teamId));
+  }
+
+  function refreshDemoSeriesWeekStates(nextStates: DemoSessionSeriesWeekState[]) {
+    saveDemoSessionSeriesWeekStates(nextStates);
+    setSeriesWeekStates(nextStates);
+  }
+
+  async function handleSeriesCreate(input: SeriesTemplateInput) {
+    const sourceTeams = teams;
+    const next = seriesTemplateToDemo({ ...input, teamId }, sourceTeams);
+    if (!next) return;
+    refreshDemoSeries([...getDemoSessionSeries(sourceTeams), next]);
+  }
+
+  async function handleSeriesUpdate(seriesId: string, input: SeriesTemplateInput) {
+    const sourceTeams = teams;
+    const replacement = seriesTemplateToDemo({ ...input, teamId }, sourceTeams, seriesId);
+    if (!replacement) return;
+    refreshDemoSeries(getDemoSessionSeries(sourceTeams).map((item) => item.id === seriesId && item.teamId === teamId ? { ...replacement, createdAt: item.createdAt } : item));
+  }
+
+  async function handleSeriesDelete(seriesId: string) {
+    const sourceTeams = teams;
+    refreshDemoSeries(getDemoSessionSeries(sourceTeams).filter((item) => !(item.id === seriesId && item.teamId === teamId)));
+    refreshDemoSeriesWeekStates(getDemoSessionSeriesWeekStates().filter((state) => state.seriesId !== seriesId));
+    const nextSessions = sessions.filter((session) => session.seriesId !== seriesId);
+    saveDemoSessions(nextSessions);
+    setSessions(nextSessions);
+  }
+
+  async function handleSeriesWeekToggle(seriesId: string, weekStart: string, checked: boolean) {
+    if (!series.some((item) => item.id === seriesId && item.teamId === teamId)) return;
+    const allStates = getDemoSessionSeriesWeekStates();
+    const nextState = { seriesId, weekStart, checked, committedSessionId: allStates.find((state) => state.seriesId === seriesId && state.weekStart === weekStart)?.committedSessionId ?? null, updatedAt: new Date().toISOString() };
+    refreshDemoSeriesWeekStates([...allStates.filter((state) => !(state.seriesId === seriesId && state.weekStart === weekStart)), nextState]);
+  }
+
+  async function handleSeriesWeekConfirm(items: SeriesWeekItem[]) {
+    const team = teams.find((item) => item.id === teamId);
+    if (!team) return;
+    const allStates = getDemoSessionSeriesWeekStates();
+    const nextSessions = [...sessions];
+    const nextStates = [...allStates];
+    for (const item of items) {
+      if (item.teamId !== teamId || !item.checked || item.committedSessionId) continue;
+      const sessionId = `demo-session-${item.id}-${item.weekStart}`;
+      if (!nextSessions.some((session) => session.id === sessionId)) {
+        nextSessions.push({
+          id: sessionId,
+          department: team.department,
+          team: team.name,
+          title: labelForCoachSessionType(item.sessionType),
+          sessionType: item.sessionType,
+          startsAt: item.startsAt,
+          endsAt: item.endsAt,
+          facility: item.facilityId ?? item.facility ?? team.defaultFacility,
+          groupIds: item.groupIds ?? [],
+          seriesId: item.id,
+          seriesWeekStart: item.weekStart,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      const stateIndex = nextStates.findIndex((state) => state.seriesId === item.id && state.weekStart === item.weekStart);
+      const nextState = { seriesId: item.id, weekStart: item.weekStart, checked: true, committedSessionId: sessionId, updatedAt: new Date().toISOString() };
+      if (stateIndex >= 0) nextStates[stateIndex] = { ...nextStates[stateIndex], ...nextState };
+      else nextStates.push(nextState);
+    }
+    saveDemoSessions(nextSessions);
+    setSessions(nextSessions);
+    refreshDemoSeriesWeekStates(nextStates);
   }
 
   function handleAddDemoPlayers() {
@@ -515,6 +622,36 @@ export function DemoTeamWorkspace({
     };
   }, [backHref, backLabel, extraCoachRoles, facilityAssignments, frame, invites, playerGroups, players, role, sessions, setup?.facilityDetails, teamId, teams]);
 
+  const teamSeriesTemplates = useMemo<SeriesTemplate[]>(() => series.map((item) => ({
+    id: item.id,
+    department: item.department,
+    teamId: item.teamId,
+    teamName: item.team,
+    team: item.team,
+    sessionType: item.sessionType,
+    weekday: item.weekday,
+    startTime: item.startTime,
+    endTime: item.endTime,
+    facilityId: item.facility,
+    facilityName: item.facility,
+    facility: item.facility,
+    groupIds: item.groupIds ?? [],
+    activeFrom: item.activeFrom,
+    activeUntil: item.activeUntil,
+  })), [series]);
+
+  const teamSeriesWeekStates = useMemo<SeriesWeekState[]>(() => {
+    const seriesIds = new Set(teamSeriesTemplates.map((item) => item.id));
+    return seriesWeekStates
+      .filter((state) => seriesIds.has(state.seriesId))
+      .map((state) => ({
+        seriesId: state.seriesId,
+        weekStart: state.weekStart,
+        checked: state.checked,
+        committedSessionId: state.committedSessionId,
+      }));
+  }, [seriesWeekStates, teamSeriesTemplates]);
+
   if (!setup) {
     return (
       <DemoTeamWorkspaceFrame frame={frame}>
@@ -539,12 +676,20 @@ export function DemoTeamWorkspace({
       <TeamWorkspaceView
         data={data}
         initialSection={initialSection}
+        seriesTemplates={teamSeriesTemplates}
+        seriesWeekStates={teamSeriesWeekStates}
         onDefaultFacilityChange={handleDefaultFacilityChange}
         onSessionTimeChange={handleSessionTimeChange}
         onSessionCreate={handleSessionCreate}
         onSessionFacilityChange={handleSessionFacilityChange}
         onSessionGroupsChange={handleSessionGroupsChange}
         onSessionTypeChange={handleSessionTypeChange}
+        onSessionDelete={handleSessionDelete}
+        onCreateSeries={handleSeriesCreate}
+        onUpdateSeries={handleSeriesUpdate}
+        onDeleteSeries={handleSeriesDelete}
+        onToggleSeriesWeek={handleSeriesWeekToggle}
+        onConfirmSeriesWeek={handleSeriesWeekConfirm}
         onAddDemoPlayers={handleAddDemoPlayers}
         onInviteStaff={handleInviteStaff}
         onCopyStaffInvite={handleCopyStaffInvite}

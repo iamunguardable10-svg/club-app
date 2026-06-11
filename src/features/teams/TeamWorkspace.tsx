@@ -7,6 +7,8 @@ import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 import { sessionTypeToLoadType, type AthleteLoadEntry, type LoadTrainingType } from '@/features/load/loadTypes';
 import { TeamWorkspaceView, type TeamWorkspaceData, type TeamWorkspaceRole, type TeamWorkspaceStaffRole } from './TeamWorkspaceView';
 import { labelForCoachSessionType } from '@/features/sessions/sessionTypeLabels';
+import type { SeriesTemplateInput } from '@/features/sessions/SeriesTemplateEditSheet';
+import { type SeriesTemplate, type SeriesWeekItem, type SeriesWeekState } from '@/features/sessions/sessionSeriesPlanner';
 
 type Team = { id: string; club_id: string; department_id: string; name: string; default_facility_id: string | null };
 type Department = { id: string; club_id: string; name: string };
@@ -15,6 +17,9 @@ type Membership = { id: string; user_id: string; role: 'head_coach' | 'assistant
 type ClubMembership = { role: 'club_admin' | 'department_lead'; department_id: string | null };
 type Profile = { id: string; full_name: string; email: string | null };
 type Session = { id: string; title: string; session_type: string; starts_at: string; ends_at: string | null; facility_id: string | null };
+type SessionSeries = { id: string; club_id: string; department_id: string; team_id: string; facility_id: string | null; session_type: string; weekday: number; start_time: string; end_time: string; starts_on: string | null; ends_on: string | null; status: string };
+type SessionSeriesGroup = { series_id: string; group_id: string };
+type SessionSeriesWeekState = { series_id: string; week_start: string; checked: boolean; committed_session_id: string | null };
 type Invite = { id: string; token: string; role: 'head_coach' | 'assistant_coach'; status: 'pending' | 'accepted' | 'revoked' | 'expired'; coach_role_slot_id: string | null };
 type CoachRoleSlot = { id: string; label: string };
 type PlayerGroup = { id: string; name: string };
@@ -91,6 +96,8 @@ export function TeamWorkspace({
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [contextSessions, setContextSessions] = useState<Session[]>([]);
+  const [seriesTemplates, setSeriesTemplates] = useState<SeriesTemplate[]>([]);
+  const [seriesWeekStates, setSeriesWeekStates] = useState<SeriesWeekState[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [coachRoleSlots, setCoachRoleSlots] = useState<CoachRoleSlot[]>([]);
   const [playerGroups, setPlayerGroups] = useState<PlayerGroup[]>([]);
@@ -161,8 +168,11 @@ export function TeamWorkspace({
       const loadedMemberships = (membershipsResult.data ?? []) as Membership[];
       const loadedPlayerGroups = (playerGroupsResult.data ?? []) as PlayerGroup[];
       const loadedSessions = (sessionsResult.data ?? []) as Session[];
+      const loadedFacilities = (facilitiesResult.data ?? []) as Facility[];
       let loadedPlayerGroupMembers: PlayerGroupMember[] = [];
       let loadedSessionGroups: SessionGroup[] = [];
+      let loadedSeriesTemplates: SeriesTemplate[] = [];
+      let loadedSeriesWeekStates: SeriesWeekState[] = [];
       if (loadedPlayerGroups.length > 0) {
         const { data: memberRows, error: memberRowsError } = await supabase
           .from('player_group_members')
@@ -186,6 +196,65 @@ export function TeamWorkspace({
           return;
         }
         loadedSessionGroups = (sessionGroupRows ?? []) as SessionGroup[];
+      }
+      const { data: seriesRowsRaw, error: seriesRowsError } = await supabase
+        .from('session_series')
+        .select('id, club_id, department_id, team_id, facility_id, session_type, weekday, start_time, end_time, starts_on, ends_on, status')
+        .eq('team_id', loadedTeam.id)
+        .neq('status', 'ended')
+        .order('weekday', { ascending: true })
+        .order('start_time', { ascending: true });
+      if (seriesRowsError) {
+        console.warn('Team session series unavailable', seriesRowsError.message);
+      } else {
+        const seriesRows = (seriesRowsRaw ?? []) as SessionSeries[];
+        const seriesIds = seriesRows.map((series) => series.id);
+        const seriesGroupIdsBySeriesId = new Map<string, string[]>();
+        if (seriesIds.length > 0) {
+          const { data: seriesGroupRowsRaw, error: seriesGroupsError } = await supabase
+            .from('session_series_groups')
+            .select('series_id, group_id')
+            .in('series_id', seriesIds);
+          if (seriesGroupsError) {
+            console.warn('Team session series groups unavailable', seriesGroupsError.message);
+          } else {
+            for (const row of (seriesGroupRowsRaw ?? []) as SessionSeriesGroup[]) {
+              seriesGroupIdsBySeriesId.set(row.series_id, [...(seriesGroupIdsBySeriesId.get(row.series_id) ?? []), row.group_id]);
+            }
+          }
+          const { data: seriesStateRowsRaw, error: seriesStateError } = await supabase
+            .from('session_series_week_state')
+            .select('series_id, week_start, checked, committed_session_id')
+            .in('series_id', seriesIds);
+          if (seriesStateError) {
+            console.warn('Team session series week state unavailable', seriesStateError.message);
+          } else {
+            loadedSeriesWeekStates = ((seriesStateRowsRaw ?? []) as SessionSeriesWeekState[]).map((row) => ({
+              seriesId: row.series_id,
+              weekStart: row.week_start,
+              checked: row.checked,
+              committedSessionId: row.committed_session_id,
+            }));
+          }
+        }
+        const facilityNameById = new Map(loadedFacilities.map((item) => [item.id, item.name]));
+        loadedSeriesTemplates = seriesRows.map((series) => ({
+          id: series.id,
+          department: (departmentResult.data as Department).name,
+          teamId: loadedTeam.id,
+          teamName: loadedTeam.name,
+          team: loadedTeam.name,
+          sessionType: series.session_type,
+          weekday: series.weekday,
+          startTime: String(series.start_time).slice(0, 5),
+          endTime: String(series.end_time).slice(0, 5),
+          facilityId: series.facility_id,
+          facilityName: series.facility_id ? facilityNameById.get(series.facility_id) ?? null : null,
+          facility: series.facility_id ? facilityNameById.get(series.facility_id) ?? null : null,
+          groupIds: seriesGroupIdsBySeriesId.get(series.id) ?? [],
+          activeFrom: series.starts_on,
+          activeUntil: series.ends_on,
+        }));
       }
       const profileIds = Array.from(new Set(loadedMemberships.filter((membership) => membership.user_id).map((membership) => membership.user_id)));
       let loadedProfiles: Profile[] = [];
@@ -257,12 +326,14 @@ export function TeamWorkspace({
       setClubMemberships((clubMembershipsResult.data ?? []) as ClubMembership[]);
       setSessions(loadedSessions);
       setContextSessions((contextSessionsResult.data ?? []) as Session[]);
+      setSeriesTemplates(loadedSeriesTemplates);
+      setSeriesWeekStates(loadedSeriesWeekStates);
       setInvites((invitesResult.data ?? []) as Invite[]);
       setCoachRoleSlots((coachRoleSlotsResult.data ?? []) as CoachRoleSlot[]);
       setPlayerGroups(loadedPlayerGroups);
       setPlayerGroupMembers(loadedPlayerGroupMembers);
       setSessionGroups(loadedSessionGroups);
-      setFacilities((facilitiesResult.data ?? []) as Facility[]);
+      setFacilities(loadedFacilities);
       setDepartmentFacilityIds(((departmentFacilitiesResult.data ?? []) as { facility_id: string }[]).map((item) => item.facility_id));
       setProfiles(loadedProfiles);
       setLoadEntries(loadedLoadEntries);
@@ -368,6 +439,232 @@ export function TeamWorkspace({
     }
     setSessions((current) => current.filter((session) => session.id !== sessionId));
     setSessionGroups((current) => current.filter((row) => row.session_id !== sessionId));
+  }
+
+  async function handleSeriesCreate(input: SeriesTemplateInput) {
+    if (!team || input.teamId !== team.id) return;
+    const supabase = createBrowserSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const { data: insertedSeries, error: insertError } = await supabase
+      .from('session_series')
+      .insert({
+        club_id: team.club_id,
+        department_id: team.department_id,
+        team_id: team.id,
+        facility_id: input.facilityId,
+        created_by: user?.id ?? null,
+        session_type: input.sessionType,
+        weekday: input.weekday,
+        start_time: input.startTime,
+        end_time: input.endTime,
+        status: 'active',
+      })
+      .select('id')
+      .single();
+    if (insertError) {
+      setError(insertError.message);
+      return;
+    }
+    if (input.groupIds.length > 0 && insertedSeries?.id) {
+      const { error: groupError } = await supabase.from('session_series_groups').insert(input.groupIds.map((groupId) => ({ series_id: insertedSeries.id, group_id: groupId })));
+      if (groupError) {
+        setError(groupError.message);
+        return;
+      }
+    }
+    const facilityName = input.facilityId ? facilityById.get(input.facilityId)?.name ?? null : null;
+    setSeriesTemplates((current) => [...current, {
+      id: insertedSeries.id,
+      department: department?.name ?? 'Department',
+      teamId: team.id,
+      teamName: team.name,
+      team: team.name,
+      sessionType: input.sessionType,
+      weekday: input.weekday,
+      startTime: input.startTime,
+      endTime: input.endTime,
+      facilityId: input.facilityId,
+      facilityName,
+      facility: facilityName,
+      groupIds: input.groupIds,
+      activeFrom: null,
+      activeUntil: null,
+    }].sort((a, b) => a.weekday - b.weekday || a.startTime.localeCompare(b.startTime)));
+  }
+
+  async function handleSeriesUpdate(seriesId: string, input: SeriesTemplateInput) {
+    if (!team || input.teamId !== team.id || !seriesTemplates.some((series) => series.id === seriesId && series.teamId === team.id)) return;
+    const supabase = createBrowserSupabaseClient();
+    const { error: updateError } = await supabase
+      .from('session_series')
+      .update({
+        team_id: team.id,
+        facility_id: input.facilityId,
+        session_type: input.sessionType,
+        weekday: input.weekday,
+        start_time: input.startTime,
+        end_time: input.endTime,
+      })
+      .eq('id', seriesId)
+      .eq('team_id', team.id);
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+    const { error: deleteGroupsError } = await supabase.from('session_series_groups').delete().eq('series_id', seriesId);
+    if (deleteGroupsError) {
+      setError(deleteGroupsError.message);
+      return;
+    }
+    if (input.groupIds.length > 0) {
+      const { error: insertGroupsError } = await supabase.from('session_series_groups').insert(input.groupIds.map((groupId) => ({ series_id: seriesId, group_id: groupId })));
+      if (insertGroupsError) {
+        setError(insertGroupsError.message);
+        return;
+      }
+    }
+    const facilityName = input.facilityId ? facilityById.get(input.facilityId)?.name ?? null : null;
+    setSeriesTemplates((current) => current.map((series) => series.id === seriesId ? {
+      ...series,
+      teamId: team.id,
+      teamName: team.name,
+      team: team.name,
+      sessionType: input.sessionType,
+      weekday: input.weekday,
+      startTime: input.startTime,
+      endTime: input.endTime,
+      facilityId: input.facilityId,
+      facilityName,
+      facility: facilityName,
+      groupIds: input.groupIds,
+    } : series).sort((a, b) => a.weekday - b.weekday || a.startTime.localeCompare(b.startTime)));
+  }
+
+  async function handleSeriesDelete(seriesId: string) {
+    if (!team || !seriesTemplates.some((series) => series.id === seriesId && series.teamId === team.id)) return;
+    const supabase = createBrowserSupabaseClient();
+    const { error: stateDeleteError } = await supabase.from('session_series_week_state').delete().eq('series_id', seriesId);
+    if (stateDeleteError) {
+      setError(stateDeleteError.message);
+      return;
+    }
+    const { error: groupsDeleteError } = await supabase.from('session_series_groups').delete().eq('series_id', seriesId);
+    if (groupsDeleteError) {
+      setError(groupsDeleteError.message);
+      return;
+    }
+    const { error: deleteError } = await supabase.from('session_series').delete().eq('id', seriesId).eq('team_id', team.id);
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+    setSeriesTemplates((current) => current.filter((series) => series.id !== seriesId));
+    setSeriesWeekStates((current) => current.filter((state) => state.seriesId !== seriesId));
+  }
+
+  async function handleSeriesWeekToggle(seriesId: string, weekStart: string, checked: boolean) {
+    if (!seriesTemplates.some((series) => series.id === seriesId && series.teamId === team?.id)) return;
+    const supabase = createBrowserSupabaseClient();
+    const { error: upsertError } = await supabase
+      .from('session_series_week_state')
+      .upsert({ series_id: seriesId, week_start: weekStart, checked }, { onConflict: 'series_id,week_start' });
+    if (upsertError) {
+      setError(upsertError.message);
+      return;
+    }
+    setSeriesWeekStates((current) => {
+      const existing = current.find((state) => state.seriesId === seriesId && state.weekStart === weekStart);
+      if (existing) return current.map((state) => state === existing ? { ...state, checked } : state);
+      return [...current, { seriesId, weekStart, checked, committedSessionId: null }];
+    });
+  }
+
+  async function handleSeriesWeekConfirm(items: SeriesWeekItem[]) {
+    if (!team) return;
+    const supabase = createBrowserSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const createdSessionIds: string[] = [];
+    const insertedStateKeys: Array<{ seriesId: string; weekStart: string }> = [];
+    try {
+      for (const item of items) {
+        if (item.teamId !== team.id || item.committedSessionId) continue;
+        const { data: existingSession, error: existingError } = await supabase
+          .from('sessions')
+          .select('id')
+          .eq('series_id', item.id)
+          .eq('series_week_start', item.weekStart)
+          .maybeSingle();
+        if (existingError) throw new Error(existingError.message);
+        if (existingSession?.id) {
+          const { error: stateError } = await supabase
+            .from('session_series_week_state')
+            .upsert({ series_id: item.id, week_start: item.weekStart, checked: true, committed_session_id: existingSession.id }, { onConflict: 'series_id,week_start' });
+          if (stateError) throw new Error(stateError.message);
+          continue;
+        }
+        const { data: insertedSession, error: insertError } = await supabase
+          .from('sessions')
+          .insert({
+            club_id: team.club_id,
+            department_id: team.department_id,
+            team_id: team.id,
+            owner_team_id: team.id,
+            created_by: user?.id ?? null,
+            title: labelForCoachSessionType(item.sessionType),
+            session_type: item.sessionType,
+            starts_at: item.startsAt,
+            ends_at: item.endsAt,
+            facility_id: item.facilityId ?? null,
+            status: 'scheduled',
+            series_id: item.id,
+            series_week_start: item.weekStart,
+          })
+          .select('id, title, session_type, starts_at, ends_at, facility_id')
+          .single();
+        if (insertError) throw new Error(insertError.message);
+        const inserted = insertedSession as Session;
+        createdSessionIds.push(inserted.id);
+        if (item.groupIds && item.groupIds.length > 0) {
+          const { error: groupError } = await supabase.from('session_groups').insert(item.groupIds.map((groupId) => ({ session_id: inserted.id, group_id: groupId })));
+          if (groupError) throw new Error(groupError.message);
+        }
+        const { error: stateError } = await supabase
+          .from('session_series_week_state')
+          .upsert({ series_id: item.id, week_start: item.weekStart, checked: true, committed_session_id: inserted.id }, { onConflict: 'series_id,week_start' });
+        if (stateError) throw new Error(stateError.message);
+        insertedStateKeys.push({ seriesId: item.id, weekStart: item.weekStart });
+        setSessions((current) => [...current, inserted].sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()));
+        setSessionGroups((current) => [...current, ...(item.groupIds ?? []).map((groupId) => ({ session_id: inserted.id, group_id: groupId }))]);
+        setSeriesWeekStates((current) => {
+          const existing = current.find((state) => state.seriesId === item.id && state.weekStart === item.weekStart);
+          if (existing) return current.map((state) => state === existing ? { ...state, checked: true, committedSessionId: inserted.id } : state);
+          return [...current, { seriesId: item.id, weekStart: item.weekStart, checked: true, committedSessionId: inserted.id }];
+        });
+      }
+    } catch (error) {
+      if (createdSessionIds.length > 0) {
+        await supabase.from('sessions').delete().in('id', createdSessionIds);
+        setSessions((current) => current.filter((session) => !createdSessionIds.includes(session.id)));
+        setSessionGroups((current) => current.filter((row) => !createdSessionIds.includes(row.session_id)));
+      }
+      for (const state of insertedStateKeys) {
+        await supabase
+          .from('session_series_week_state')
+          .delete()
+          .eq('series_id', state.seriesId)
+          .eq('week_start', state.weekStart);
+      }
+      setSeriesWeekStates((current) =>
+        current.filter((state) => !insertedStateKeys.some((inserted) => inserted.seriesId === state.seriesId && inserted.weekStart === state.weekStart)),
+      );
+      const message = error instanceof Error ? error.message : 'Series confirmation failed.';
+      setError(message);
+      throw error;
+    }
   }
 
   function getInviteUrl(token: string) {
@@ -665,6 +962,8 @@ export function TeamWorkspace({
       <TeamWorkspaceView
         data={data}
         initialSection={initialSection}
+        seriesTemplates={seriesTemplates}
+        seriesWeekStates={seriesWeekStates}
         onDefaultFacilityChange={handleDefaultFacilityChange}
         onSessionTimeChange={handleSessionTimeChange}
         onSessionCreate={handleSessionCreate}
@@ -672,6 +971,11 @@ export function TeamWorkspace({
         onSessionGroupsChange={handleSessionGroupsChange}
         onSessionTypeChange={handleSessionTypeChange}
         onSessionDelete={handleSessionDelete}
+        onCreateSeries={handleSeriesCreate}
+        onUpdateSeries={handleSeriesUpdate}
+        onDeleteSeries={handleSeriesDelete}
+        onToggleSeriesWeek={handleSeriesWeekToggle}
+        onConfirmSeriesWeek={handleSeriesWeekConfirm}
         onInviteStaff={handleInviteStaff}
         onCopyStaffInvite={handleCopyStaffInvite}
         onRevokeStaffInvite={handleRevokeStaffInvite}

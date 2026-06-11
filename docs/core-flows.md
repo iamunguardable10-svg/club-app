@@ -208,3 +208,28 @@ After session:
 Advanced analytics are not required in V1.
 
 The architecture matters more than calculations.
+
+---
+
+# Flow 9 — Weekly Series Batch Planning
+
+## Actor
+
+Coach or Department Lead
+
+## Flow
+
+1. User opens Calendar and switches from `Week` to `Series`.
+2. User creates reusable weekly templates: team, weekday, start time, end time, facility, session type and participant groups.
+3. For a selected week, templates render grouped by weekday.
+4. User unchecks templates that do not happen that week.
+5. User presses `Confirm week`.
+6. The app checks facility conflicts for the whole checked batch.
+7. If there are no conflicts, concrete sessions are created and linked back to their series/week.
+8. The board advances to the next week.
+
+## Key principle
+
+Series are templates. Sessions are calendar reality.
+
+Athletes and facility calendars should only receive concrete sessions after weekly confirmation.

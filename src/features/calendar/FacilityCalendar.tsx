@@ -823,17 +823,32 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   function reviewFacilityConflictSave() {
     if (!pendingConflictSave) return;
     const suggestion = conflictSuggestions[0];
-    if (suggestion) {
-      openFacilityEditorForSave(moveFacilitySave(pendingConflictSave, suggestion));
-      return;
-    }
-    openFacilityEditorForSave(pendingConflictSave);
+    openFacilityEditorForSave(suggestion ? moveFacilitySave(pendingConflictSave, suggestion) : pendingConflictSave);
   }
 
-  function keepFacilityConflictForReview() {
+  async function keepFacilityConflictAnyway() {
     if (!pendingConflictSave) return;
-    setAllowedConflictKey(facilitySaveKey(pendingConflictSave));
-    openFacilityEditorForSave(pendingConflictSave);
+    const save = pendingConflictSave;
+    const previousDescription = conflictDescription;
+    const previousSuggestions = conflictSuggestions;
+    setAllowedConflictKey(facilitySaveKey(save));
+    setPendingConflictSave(null);
+    setConflictDescription(null);
+    setConflictSuggestions([]);
+    try {
+      const saved = await persistFacilityCalendarSave(save);
+      if (saved === false) {
+        setAllowedConflictKey(null);
+        setPendingConflictSave(save);
+        setConflictDescription(previousDescription);
+        setConflictSuggestions(previousSuggestions);
+      }
+    } catch (error) {
+      setAllowedConflictKey(null);
+      setPendingConflictSave(save);
+      setConflictDescription(error instanceof Error ? `Could not save this session: ${error.message}` : previousDescription);
+      setConflictSuggestions(previousSuggestions);
+    }
   }
 
   function applyFacilityConflictSuggestion(suggestion: ConflictSuggestion) {
@@ -1177,7 +1192,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
         suggestions={conflictSuggestions}
         onSuggestion={applyFacilityConflictSuggestion}
         onReviewTime={reviewFacilityConflictSave}
-        onKeepAnyway={keepFacilityConflictForReview}
+        onKeepAnyway={() => { void keepFacilityConflictAnyway(); }}
         onCancel={cancelFacilityConflictSave}
       />
     </main>
