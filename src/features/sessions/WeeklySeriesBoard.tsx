@@ -221,18 +221,18 @@ export function WeeklySeriesBoard({
         </button>
       </div>
 
-      <div className="mt-3 grid gap-0 lg:grid-cols-7 lg:gap-3">
+      <div className="mt-3 grid min-w-0 gap-0 lg:grid-cols-7 lg:gap-2 xl:gap-3">
         {weekdayOrder.map((day, dayIndex) => {
           const dayTemplates = groupedTemplates[day.key];
           return (
-            <section key={day.key} className="border-b border-slate-800/80 py-3 last:border-b-0 lg:rounded-2xl lg:border lg:border-slate-800/90 lg:bg-slate-950/45 lg:p-3 lg:ring-1 lg:ring-white/[0.03]">
+            <section key={day.key} className="min-w-0 border-b border-slate-800/80 py-3 last:border-b-0 lg:rounded-2xl lg:border lg:border-slate-800/90 lg:bg-slate-950/45 lg:p-2.5 lg:ring-1 lg:ring-white/[0.03] xl:p-3">
               <div className="flex items-center justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-black text-white">{day.short}</p>
                   <p className="mt-0.5 text-[11px] font-bold text-slate-500">{formatDayDate(monday, dayIndex)}</p>
                 </div>
                 {onAddTemplate ? (
-                  <button type="button" onClick={() => onAddTemplate(day.index)} className="rounded-full border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-200 transition hover:border-sky-300/70">Add</button>
+                  <button type="button" onClick={() => onAddTemplate(day.index)} className="shrink-0 rounded-full border border-slate-700 px-2 py-1 text-[11px] font-black text-slate-200 transition hover:border-sky-300/70">Add</button>
                 ) : null}
               </div>
 
@@ -242,25 +242,25 @@ export function WeeklySeriesBoard({
                   const hasCreatedSession = templateHasCreatedSession(template);
                   const checked = hasCreatedSession || templateChecked(template, selectedIds, hasControlledSelection);
                   return (
-                    <article key={id || `${day.key}-${templateTime(template, 'start')}`} className={`rounded-xl border border-slate-800/90 bg-slate-950/65 p-2.5 transition lg:rounded-2xl lg:p-3 lg:ring-1 lg:ring-white/[0.03] ${checked ? 'opacity-100' : 'opacity-45'}`}>
-                      <div className="flex items-start gap-3">
+                    <article key={id || `${day.key}-${templateTime(template, 'start')}`} className={`min-w-0 rounded-xl border border-slate-800/90 bg-slate-950/65 p-2.5 transition lg:ring-1 lg:ring-white/[0.03] ${checked ? 'opacity-100' : 'opacity-45'}`}>
+                      <div className="flex min-w-0 items-start gap-2">
                         <input
                           type="checkbox"
                           checked={checked}
                           disabled={hasCreatedSession || !onToggleSeriesForWeek || !id}
                           onChange={(event) => onToggleSeriesForWeek?.(id, event.target.checked)}
-                          className="mt-1 h-4 w-4 rounded border-slate-600 bg-slate-950 text-emerald-300 accent-emerald-300 disabled:cursor-not-allowed"
+                          className="mt-1 h-4 w-4 shrink-0 rounded border-slate-600 bg-slate-950 text-emerald-300 accent-emerald-300 disabled:cursor-not-allowed"
                           aria-label={`Use ${sessionTypeLabel(template)} at ${templateTime(template, 'start')}`}
                         />
                         <button type="button" onClick={() => onEditTemplate?.(template)} disabled={!onEditTemplate} className="min-w-0 flex-1 text-left disabled:cursor-default">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-300">{sessionTypeLabel(template)}</span>
-                            {hasCreatedSession ? <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-[10px] font-black text-emerald-100">Session created</span> : null}
+                          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                            <span className="max-w-full truncate rounded-full border border-slate-700 bg-slate-900/80 px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-slate-300">{sessionTypeLabel(template)}</span>
+                            {hasCreatedSession ? <span className="max-w-full truncate rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-[10px] font-black text-emerald-100">Created</span> : null}
                           </div>
-                          <p className="mt-2 text-sm font-black text-white">{templateTime(template, 'start')} - {templateTime(template, 'end')}</p>
+                          <p className="mt-2 truncate text-sm font-black text-white">{templateTime(template, 'start')} - {templateTime(template, 'end')}</p>
                           <p className="mt-1 truncate text-xs font-bold text-slate-300">{stringFrom(template, ['teamName', 'team'])}</p>
                           <p className="mt-1 truncate text-xs text-slate-500">{stringFrom(template, ['facilityName', 'facility'], 'No facility')}</p>
-                          <p className="mt-2 text-xs font-bold text-slate-400">{participantsSummary(template)}</p>
+                          <p className="mt-2 truncate text-xs font-bold text-slate-400">{participantsSummary(template)}</p>
                         </button>
                       </div>
                     </article>

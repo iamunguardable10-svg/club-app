@@ -73,6 +73,7 @@ function SeriesTemplateEditorForm({
 
   const teamGroups = groups.filter((group) => group.teamId === teamId);
   const canSave = Boolean(teamId && facilityId && startTime && endTime);
+  const shouldShowWeekday = Boolean(initial || weekday === undefined);
 
   useEffect(() => {
     const nextTeam = teams.find((team) => team.id === teamId) ?? null;
@@ -129,19 +130,19 @@ function SeriesTemplateEditorForm({
         </label>
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1fr)_4.25rem_4.25rem] gap-2 sm:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)_7rem_7rem]">
-        <label className={`${labelClass} col-span-3 sm:col-span-1`}>
+      <div className={shouldShowWeekday ? 'grid grid-cols-[minmax(0,1fr)_4.25rem_4.25rem] gap-2 sm:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)_7rem_7rem]' : 'grid grid-cols-[minmax(0,1fr)_4.25rem_4.25rem] gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_7rem]'}>
+        <label className={`${labelClass} ${shouldShowWeekday ? 'col-span-3 sm:col-span-1' : ''}`}>
           Type
           <select value={sessionType} onChange={(event) => setSessionType(event.target.value)} className={inputClass}>
             {coachSessionTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
           </select>
         </label>
-        <label className={labelClass}>
+        {shouldShowWeekday ? <label className={labelClass}>
           Day
           <select value={selectedWeekday} onChange={(event) => setSelectedWeekday(Number(event.target.value))} className={inputClass}>
             {weekdays.map((day) => <option key={day.value} value={day.value}>{compact ? day.short : day.label}</option>)}
           </select>
-        </label>
+        </label> : null}
         <label className={labelClass}>
           Start
           <input value={startTime} onChange={(event) => setStartTime(event.target.value)} type="time" className={timeInputClass} />

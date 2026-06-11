@@ -63,6 +63,11 @@ function statusClass(status?: string) {
   return 'text-emerald-200';
 }
 
+function timeValueFromIso(value: string) {
+  const date = new Date(value);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
 export function SessionDetailSheet({
   title,
   startsAt,
@@ -125,15 +130,8 @@ export function SessionDetailSheet({
   const [showParticipants, setShowParticipants] = useState(false);
   const [isSavingTime, setIsSavingTime] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
-  const [timeValue, setTimeValue] = useState(() => {
-    const start = new Date(startsAt);
-    return `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
-  });
-  const [durationValue, setDurationValue] = useState(() => {
-    const start = new Date(startsAt);
-    const end = endsAt ? new Date(endsAt) : new Date(start.getTime() + 60 * 60_000);
-    return String(Math.max(30, Math.round((end.getTime() - start.getTime()) / 60_000)));
-  });
+  const [timeValue, setTimeValue] = useState(() => timeValueFromIso(startsAt));
+  const [endTimeValue, setEndTimeValue] = useState(() => timeValueFromIso(endsAt ?? new Date(new Date(startsAt).getTime() + 60 * 60_000).toISOString()));
   const expectedParticipants = participants.filter((player) => player.status !== 'out');
   const selectedGroups = selectedGroupIds.length > 0 ? groups.filter((group) => selectedGroupIds.includes(group.id)) : [];
   const contextLine = [teamName, departmentName, facilityName].filter(Boolean).join(' \u00b7 ');
@@ -165,13 +163,15 @@ export function SessionDetailSheet({
     if (!onTimeChange) return;
     const [hours, minutes] = timeValue.split(':').map(Number);
     if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return;
-    const duration = Math.max(30, Number.parseInt(durationValue, 10) || 60);
+    const [endHours, endMinutes] = endTimeValue.split(':').map(Number);
     const start = new Date(startsAt);
     start.setHours(hours, minutes, 0, 0);
-    const end = new Date(start.getTime() + duration * 60_000);
+    const end = new Date(start);
+    end.setHours(Number.isFinite(endHours) ? endHours : start.getHours(), Number.isFinite(endMinutes) ? endMinutes : start.getMinutes() + 60, 0, 0);
+    const normalizedEnd = (end.getTime() - start.getTime()) / 60_000 < 30 ? new Date(start.getTime() + 30 * 60_000) : end;
     setIsSavingTime(true);
     try {
-      await onTimeChange(start.toISOString(), end.toISOString());
+      await onTimeChange(start.toISOString(), normalizedEnd.toISOString());
       setShowEditDetails(false);
     } finally {
       setIsSavingTime(false);
@@ -291,22 +291,19 @@ export function SessionDetailSheet({
               onClick={() => setShowEditDetails((current) => !current)}
               className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/35"
             >
-              {showEditDetails ? 'Hide edit' : 'Edit session'}
+              {showEditDetails ? 'Hide time edit' : editDetails ? 'Edit session' : 'Edit time'}
             </button>
             {showEditDetails ? (
               <div className="mt-4 space-y-4">
                 {canEditTime && onTimeChange ? (
-                  <div className="grid min-w-0 grid-cols-[4.35rem_minmax(0,1fr)] gap-3 sm:grid-cols-[7rem_minmax(12rem,1fr)_auto] sm:items-end">
+                  <div className="grid min-w-0 grid-cols-[4.35rem_4.35rem_auto] gap-3 sm:grid-cols-[7rem_7rem_auto] sm:items-end">
                     <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
                       Start
                       <input value={timeValue} onChange={(event) => setTimeValue(event.target.value)} type="time" className="mt-1.5 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-10 sm:rounded-xl sm:px-2 sm:text-base [color-scheme:dark]" />
                     </label>
                     <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
-                      <span className="flex items-center justify-between gap-3">
-                        <span>Duration</span>
-                        <span className="text-slate-200">{durationValue} min</span>
-                      </span>
-                      <input value={durationValue} onChange={(event) => setDurationValue(event.target.value)} type="range" min={30} max={240} step={15} className="mt-3 w-full accent-sky-300" />
+                      End
+                      <input value={endTimeValue} onChange={(event) => setEndTimeValue(event.target.value)} type="time" className="mt-1.5 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-10 sm:rounded-xl sm:px-2 sm:text-base [color-scheme:dark]" />
                     </label>
                     <button type="button" onClick={() => { void saveTimeChange(); }} disabled={isSavingTime} className="h-10 w-fit rounded-xl border border-emerald-300 bg-emerald-300 px-4 text-xs font-black text-slate-950 disabled:opacity-60">
                       Save

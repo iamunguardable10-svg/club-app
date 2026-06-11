@@ -12,8 +12,9 @@ function addMinutes(date: Date, minutes: number) {
   return new Date(date.getTime() + minutes * 60_000);
 }
 
-function durationMinutes(start: Date, end: Date) {
-  return Math.max(30, Math.round((end.getTime() - start.getTime()) / 60_000));
+function timeValueFromIso(value: string) {
+  const date = new Date(value);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
 export function CoachSessionEditSheet({
@@ -49,11 +50,8 @@ export function CoachSessionEditSheet({
   const [facilityId, setFacilityId] = useState(initial.facilityId ?? selectedTeam?.defaultFacilityId ?? facilityOptions[0]?.id ?? '');
   const previousTeamIdRef = useRef(teamId);
   const [groupIds, setGroupIds] = useState<string[]>(initial.groupIds);
-  const [timeValue, setTimeValue] = useState(() => {
-    const start = new Date(initial.startsAt);
-    return `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
-  });
-  const [durationValue, setDurationValue] = useState(() => String(durationMinutes(new Date(initial.startsAt), new Date(initial.endsAt))));
+  const [timeValue, setTimeValue] = useState(() => timeValueFromIso(initial.startsAt));
+  const [endTimeValue, setEndTimeValue] = useState(() => timeValueFromIso(initial.endsAt));
   const [sessionType, setSessionType] = useState(normalizeCoachSessionType(initial.sessionType));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const teamGroups = groups.filter((group) => group.teamId === teamId);
@@ -112,13 +110,31 @@ export function CoachSessionEditSheet({
     onDraftUpdate?.({ sessionType: nextType });
   }
 
+  function nextTimeRange(startTime: string, endTime: string) {
+    const [startHours, startMinutes] = startTime.split(':').map(Number);
+    const [endHours, endMinutes] = endTime.split(':').map(Number);
+    const start = new Date(initial.startsAt);
+    start.setHours(Number.isFinite(startHours) ? startHours : start.getHours(), Number.isFinite(startMinutes) ? startMinutes : start.getMinutes(), 0, 0);
+    const end = new Date(start);
+    end.setHours(Number.isFinite(endHours) ? endHours : end.getHours(), Number.isFinite(endMinutes) ? endMinutes : end.getMinutes(), 0, 0);
+    if ((end.getTime() - start.getTime()) / 60_000 < 30) return { startsAt: start.toISOString(), endsAt: addMinutes(start, 30).toISOString() };
+    return { startsAt: start.toISOString(), endsAt: end.toISOString() };
+  }
+
+  function handleStartTimeChange(nextTimeValue: string) {
+    setTimeValue(nextTimeValue);
+    onDraftUpdate?.(nextTimeRange(nextTimeValue, endTimeValue));
+  }
+
+  function handleEndTimeChange(nextEndTimeValue: string) {
+    setEndTimeValue(nextEndTimeValue);
+    onDraftUpdate?.(nextTimeRange(timeValue, nextEndTimeValue));
+  }
+
   async function submit() {
     if (!hasTeam || !teamId || !facilityId) return;
-    const [hours, minutes] = timeValue.split(':').map(Number);
-    const start = new Date(initial.startsAt);
-    start.setHours(Number.isFinite(hours) ? hours : start.getHours(), Number.isFinite(minutes) ? minutes : start.getMinutes(), 0, 0);
-    const duration = Math.max(30, Number.parseInt(durationValue, 10) || 90);
-    await onSave({ teamId, facilityId, groupIds, sessionType, startsAt: start.toISOString(), endsAt: addMinutes(start, duration).toISOString() });
+    const next = nextTimeRange(timeValue, endTimeValue);
+    await onSave({ teamId, facilityId, groupIds, sessionType, startsAt: next.startsAt, endsAt: next.endsAt });
   }
 
   return (
@@ -149,23 +165,20 @@ export function CoachSessionEditSheet({
           </label>
         </div>
 
-        <div className="mt-3 grid grid-cols-[minmax(0,1fr)_4.35rem] gap-2 sm:grid-cols-[minmax(0,1fr)_7rem] sm:gap-3">
+        <div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_4.35rem_4.35rem] gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_7rem] sm:gap-3">
           <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
             Type
-            <select value={sessionType} onChange={(event) => handleSessionTypeSelect(event.target.value)} className="mt-1.5 h-9 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-black text-slate-100 outline-none transition focus:border-sky-300 sm:h-10 sm:rounded-xl sm:px-2.5 sm:text-sm">
+            <select value={sessionType} onChange={(event) => handleSessionTypeSelect(event.target.value)} className="mt-1.5 h-9 w-full min-w-0 truncate rounded-lg border border-slate-700/90 bg-slate-950 px-1.5 text-[12px] font-black text-slate-100 outline-none transition focus:border-sky-300 sm:h-10 sm:rounded-xl sm:px-2.5 sm:text-sm">
               {coachSessionTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
             </select>
           </label>
           <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
             Start
-            <input value={timeValue} onChange={(event) => setTimeValue(event.target.value)} type="time" className="mt-1.5 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-10 sm:rounded-xl sm:px-2 sm:text-base [color-scheme:dark]" />
+            <input value={timeValue} onChange={(event) => handleStartTimeChange(event.target.value)} type="time" className="mt-1.5 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-10 sm:rounded-xl sm:px-2 sm:text-base [color-scheme:dark]" />
           </label>
-        </div>
-
-        <div className="mt-4 grid gap-3 sm:items-end">
-          <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-            <span className="flex items-center justify-between gap-3"><span>Duration</span><span className="text-slate-200">{durationValue} min</span></span>
-            <input value={durationValue} onChange={(event) => setDurationValue(event.target.value)} type="range" min={30} max={240} step={15} className="mt-3 w-full accent-sky-300" />
+          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+            End
+            <input value={endTimeValue} onChange={(event) => handleEndTimeChange(event.target.value)} type="time" className="mt-1.5 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-10 sm:rounded-xl sm:px-2 sm:text-base [color-scheme:dark]" />
           </label>
         </div>
 
