@@ -115,7 +115,7 @@ function SeriesTemplateEditorForm({
 
   return (
     <div className={compact ? 'space-y-2.5' : 'mt-4 space-y-3'}>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-2">
         <label className={labelClass}>
           Team
           <select value={teamId} onChange={(event) => setTeamId(event.target.value)} className={inputClass}>
