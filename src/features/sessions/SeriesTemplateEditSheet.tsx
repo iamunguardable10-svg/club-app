@@ -115,7 +115,7 @@ function SeriesTemplateEditorForm({
 
   return (
     <div className={compact ? 'space-y-2.5' : 'mt-4 space-y-3'}>
-      <div className="grid grid-cols-2 gap-2">
+      <div className={shouldShowWeekday ? 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_4.25rem] gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_6rem]' : 'grid grid-cols-2 gap-2'}>
         <label className={labelClass}>
           Team
           <select value={teamId} onChange={(event) => setTeamId(event.target.value)} className={inputClass}>
@@ -128,21 +128,21 @@ function SeriesTemplateEditorForm({
             {facilityOptions.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
           </select>
         </label>
-      </div>
-
-      <div className={shouldShowWeekday ? 'grid grid-cols-[minmax(0,1fr)_4.25rem_4.25rem] gap-2 sm:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)_7rem_7rem]' : 'grid grid-cols-[minmax(0,1fr)_4.25rem_4.25rem] gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_7rem]'}>
-        <label className={`${labelClass} ${shouldShowWeekday ? 'col-span-3 sm:col-span-1' : ''}`}>
-          Type
-          <select value={sessionType} onChange={(event) => setSessionType(event.target.value)} className={inputClass}>
-            {coachSessionTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
-          </select>
-        </label>
         {shouldShowWeekday ? <label className={labelClass}>
           Day
           <select value={selectedWeekday} onChange={(event) => setSelectedWeekday(Number(event.target.value))} className={inputClass}>
             {weekdays.map((day) => <option key={day.value} value={day.value}>{compact ? day.short : day.label}</option>)}
           </select>
         </label> : null}
+      </div>
+
+      <div className="grid grid-cols-[minmax(0,1fr)_4.25rem_4.25rem] gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_7rem]">
+        <label className={labelClass}>
+          Type
+          <select value={sessionType} onChange={(event) => setSessionType(event.target.value)} className={inputClass}>
+            {coachSessionTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+          </select>
+        </label>
         <label className={labelClass}>
           Start
           <input value={startTime} onChange={(event) => setStartTime(event.target.value)} type="time" className={timeInputClass} />
