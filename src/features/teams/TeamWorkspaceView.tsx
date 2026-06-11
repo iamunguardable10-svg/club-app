@@ -1165,11 +1165,11 @@ function TeamSmartCalendar({
   }, [activeDayIndex, days, desktopHourHeight, drag, mobileCalendarView]);
 
   return (
-    <div className="mt-5 space-y-4">
+    <div className="mt-4 space-y-3">
       <div className="flex flex-wrap justify-end">
         <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1">
-          <button type="button" onClick={showWeekSurface} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'week' ? 'bg-sky-300 text-slate-950' : 'text-slate-400'}`}>Week</button>
-          <button type="button" onClick={showSeriesSurface} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Series</button>
+          <button type="button" onClick={showWeekSurface} className={`rounded-full px-2.5 py-1 text-xs font-black ${surfaceMode === 'week' ? 'bg-sky-300 text-slate-950' : 'text-slate-400'}`}>Week</button>
+          <button type="button" onClick={showSeriesSurface} className={`rounded-full px-2.5 py-1 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Series</button>
         </div>
       </div>
 
