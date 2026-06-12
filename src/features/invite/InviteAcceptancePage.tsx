@@ -15,6 +15,24 @@ type InvitePreview = {
   expires_at: string | null;
 };
 
+type AcceptInviteResult = {
+  ok?: boolean;
+  invite_type?: string;
+  role?: string;
+  club_id?: string;
+  department_id?: string | null;
+  team_id?: string | null;
+  membership_id?: string;
+};
+
+function isAcceptInviteResult(value: unknown): value is AcceptInviteResult {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as { role?: unknown; invite_type?: unknown };
+  const hasValidRole = candidate.role === undefined || typeof candidate.role === 'string';
+  const hasValidInviteType = candidate.invite_type === undefined || typeof candidate.invite_type === 'string';
+  return hasValidRole && hasValidInviteType;
+}
+
 function labelRole(preview: InvitePreview) {
   if (preview.coach_role_label) return preview.coach_role_label;
   if (preview.role === 'department_lead') return 'Department Lead';
@@ -55,10 +73,24 @@ export function InviteAcceptancePage({ token }: { token: string }) {
     setIsAccepting(true);
     setError(null);
     const supabase = createBrowserSupabaseClient();
-    const { error: acceptError } = await supabase.rpc('accept_invite', { p_token: token });
+    // RPC contract: accept_invite returns jsonb with invite_type/role; see migrations 0003 and 0012.
+    const { data, error: acceptError } = await supabase.rpc('accept_invite', { p_token: token });
     if (acceptError) {
       setError(acceptError.message);
       setIsAccepting(false);
+      return;
+    }
+    const result = isAcceptInviteResult(data) ? data : null;
+    if (result?.invite_type === 'department_lead_invite' || result?.role === 'department_lead') {
+      router.replace('/department/overview');
+      return;
+    }
+    if (result?.invite_type === 'coach_invite' || result?.role === 'head_coach' || result?.role === 'assistant_coach') {
+      router.replace('/coach/today');
+      return;
+    }
+    if (result?.role === 'athlete') {
+      router.replace('/athlete/home');
       return;
     }
     router.replace('/app');
