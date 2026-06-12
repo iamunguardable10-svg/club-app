@@ -1639,7 +1639,7 @@ export function TeamWorkspaceView({
   }
 
   return (
-    <section className="space-y-5 pb-24 md:pb-0">
+    <section className="space-y-5 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0">
       {data.departmentNav ? (
         <DepartmentLeadDrawer
           mode="teams"
@@ -1648,7 +1648,7 @@ export function TeamWorkspaceView({
           departmentName={data.departmentNav.departmentName}
         />
       ) : null}
-      {data.coachNav ? <CoachDrawer mode="team" basePath={data.coachNav.basePath} teamId={data.id} /> : null}
+      {data.coachNav ? <CoachDrawer mode="team" basePath={data.coachNav.basePath} teamId={data.id} hideMobileNav /> : null}
       <div className="sticky top-0 z-30 rounded-2xl border border-slate-800 bg-slate-950/92 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:static md:p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -2043,7 +2043,7 @@ export function TeamWorkspaceView({
         onCancel={() => setDashboardDeleteTargetId(null)}
       />
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950/95 p-2 backdrop-blur md:hidden" aria-label="Team mobile navigation">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur md:hidden" aria-label="Team mobile navigation">
         <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
           {primarySections.map((section) => (
             <button key={section} type="button" onClick={() => setActiveSection(section)} className={`rounded-xl px-2 py-2 text-[11px] font-black ${activeSection === section ? 'bg-sky-300 text-slate-950' : 'text-slate-300'}`}>

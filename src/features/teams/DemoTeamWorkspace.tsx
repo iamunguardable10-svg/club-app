@@ -32,7 +32,7 @@ const DEMO_PLAYER_GROUPS_KEY = 'club-app.demo.player-groups';
 function DemoTeamWorkspaceFrame({ frame, children }: { frame: 'admin' | 'coach' | 'department'; children: ReactNode }) {
   if (frame === 'coach' || frame === 'department') {
     return (
-      <main className="os-page">
+      <main className={`os-page ${frame === 'coach' ? 'md:pl-64' : ''}`}>
         <div className="os-container">{children}</div>
       </main>
     );

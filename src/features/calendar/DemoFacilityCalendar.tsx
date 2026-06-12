@@ -760,10 +760,12 @@ export function DemoFacilityCalendar({ facilityName, from, departmentName, teamN
       }
     : null;
 
+  const hasCoachNav = from?.startsWith('coach');
+
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-8">
+    <main className={`min-h-screen bg-slate-950 px-4 pt-8 text-white sm:px-8 ${hasCoachNav ? 'pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8 md:pl-64' : 'pb-8'}`}>
       {from === 'department' || from === 'departmentTeam' ? <DepartmentLeadDrawer mode="facilities" basePath="/demo/department" departmentName={departmentName} /> : null}
-      {from?.startsWith('coach') ? <CoachDrawer mode="facilities" basePath="/demo/coach" teamId={contextTeamId} /> : null}
+      {hasCoachNav ? <CoachDrawer mode="facilities" basePath="/demo/coach" teamId={contextTeamId} /> : null}
       <div className="mx-auto max-w-7xl space-y-5">
         <DemoFacilityRoleNav from={from} />
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.22)] ring-1 ring-white/[0.03]">
