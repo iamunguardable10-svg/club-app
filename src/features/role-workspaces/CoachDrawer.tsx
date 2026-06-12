@@ -55,7 +55,7 @@ export function CoachDrawer({
               <Link
                 key={item}
                 href={hrefForItem(item)}
-                className={`min-w-0 rounded-xl px-1.5 py-2 text-center text-[10px] font-black transition ${
+                className={`min-w-0 rounded-xl px-2 py-2 text-center text-[11px] font-black transition ${
                   mode === item ? 'bg-emerald-300 text-slate-950' : 'text-slate-300 hover:bg-slate-900 hover:text-white'
                 }`}
               >

@@ -2043,10 +2043,10 @@ export function TeamWorkspaceView({
         onCancel={() => setDashboardDeleteTargetId(null)}
       />
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur md:hidden" aria-label="Team mobile navigation">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 text-white shadow-[0_-16px_70px_rgba(0,0,0,0.32)] backdrop-blur-xl md:hidden" aria-label="Team mobile navigation">
         <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
           {primarySections.map((section) => (
-            <button key={section} type="button" onClick={() => setActiveSection(section)} className={`rounded-xl px-2 py-2 text-[11px] font-black ${activeSection === section ? 'bg-sky-300 text-slate-950' : 'text-slate-300'}`}>
+            <button key={section} type="button" onClick={() => setActiveSection(section)} className={`rounded-xl px-2 py-2 text-[11px] font-black transition ${activeSection === section ? 'bg-sky-300 text-slate-950' : 'text-slate-300 hover:bg-slate-900 hover:text-white'}`}>
               {sectionLabel(section)}
             </button>
           ))}
