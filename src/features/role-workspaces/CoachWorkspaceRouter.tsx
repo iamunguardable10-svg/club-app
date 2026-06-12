@@ -304,7 +304,7 @@ export function CoachCalendarSurface({
   const days = useMemo(() => buildWeekDays(weekOffset), [weekOffset]);
   const [surfaceMode, setSurfaceMode] = useState<'week' | 'series'>('week');
   const [seriesWeekStart, setSeriesWeekStart] = useState(() => getIsoWeekStart());
-  const [seriesEditor, setSeriesEditor] = useState<{ kind: 'new'; weekday?: number } | { kind: 'edit'; template: SeriesTemplate } | null>(null);
+  const [seriesEditor, setSeriesEditor] = useState<{ kind: 'new'; weekday: number } | { kind: 'edit'; template: SeriesTemplate } | null>(null);
   const [pendingSeriesConflict, setPendingSeriesConflict] = useState<{ items: SeriesWeekItem[]; item: SeriesWeekItem; description: string; suggestions: ConflictSuggestion[] } | null>(null);
   const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, buildWeekDays().findIndex((day) => sameDay(day, new Date()))));
   const [mobileCalendarView, setMobileCalendarView] = useState<'week' | 'day'>('week');
@@ -798,26 +798,41 @@ export function CoachCalendarSurface({
         </div>
       )}
       {seriesEditor ? (
-        <SeriesTemplateEditSheet
-          title={seriesEditor.kind === 'new' ? 'New weekly template' : 'Edit weekly template'}
-          teams={teams}
-          facilities={facilities}
-          groups={groups}
-          initial={seriesEditor.kind === 'edit' ? seriesEditor.template : null}
-          weekday={seriesEditor.kind === 'new' ? seriesEditor.weekday : undefined}
-          isSaving={isSavingSeries}
-          onSave={(value) => requestSeriesSave(seriesEditor.kind === 'new' ? { kind: 'create', input: value } : { kind: 'update', seriesId: seriesEditor.template.id, input: value })}
-          onDelete={seriesEditor.kind === 'edit' && onDeleteSeries ? async () => {
-            setIsSavingSeries(true);
-            try {
-              await onDeleteSeries(seriesEditor.template.id);
-              setSeriesEditor(null);
-            } finally {
-              setIsSavingSeries(false);
-            }
-          } : undefined}
-          onClose={() => setSeriesEditor(null)}
-        />
+        seriesEditor.kind === 'new' ? (
+          <SeriesTemplateEditSheet
+            key={`series-new-${seriesEditor.weekday}`}
+            title="New weekly template"
+            teams={teams}
+            facilities={facilities}
+            groups={groups}
+            initial={null}
+            weekday={seriesEditor.weekday}
+            isSaving={isSavingSeries}
+            onSave={(value) => requestSeriesSave({ kind: 'create', input: value })}
+            onClose={() => setSeriesEditor(null)}
+          />
+        ) : (
+          <SeriesTemplateEditSheet
+            key={`series-edit-${seriesEditor.template.id}`}
+            title="Edit weekly template"
+            teams={teams}
+            facilities={facilities}
+            groups={groups}
+            initial={seriesEditor.template}
+            isSaving={isSavingSeries}
+            onSave={(value) => requestSeriesSave({ kind: 'update', seriesId: seriesEditor.template.id, input: value })}
+            onDelete={onDeleteSeries ? async () => {
+              setIsSavingSeries(true);
+              try {
+                await onDeleteSeries(seriesEditor.template.id);
+                setSeriesEditor(null);
+              } finally {
+                setIsSavingSeries(false);
+              }
+            } : undefined}
+            onClose={() => setSeriesEditor(null)}
+          />
+        )
       ) : null}
       {editor && editorInitial ? <CoachSessionEditSheet key={editor.kind === 'session' ? `session-${editor.sessionId}` : `draft-${editorInitial.startsAt}`} title={editor.kind === 'draft' ? 'New training' : editingSession?.title ?? 'Training'} teams={teams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { if (editor.kind === 'draft') { await requestCoachCalendarSave({ kind: 'create', input: value }); } else if (editingSession) { await requestCoachCalendarSave({ kind: 'update', input: { sessionId: editingSession.id, ...value } }); } }} onDraftUpdate={editor.kind === 'draft' ? (value) => setDraft((current) => current ? { ...current, ...value } : current) : undefined} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : undefined} onClose={() => setEditor(null)} /> : null}
 

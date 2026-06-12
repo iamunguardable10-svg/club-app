@@ -439,7 +439,7 @@ function TeamSmartCalendar({
   const days = useMemo(() => buildWeekDays(weekOffset), [weekOffset]);
   const [surfaceMode, setSurfaceMode] = useState<'week' | 'series'>('week');
   const [seriesWeekStart, setSeriesWeekStart] = useState(() => getIsoWeekStart());
-  const [seriesEditor, setSeriesEditor] = useState<{ kind: 'new'; weekday?: number } | { kind: 'edit'; template: SeriesTemplate } | null>(null);
+  const [seriesEditor, setSeriesEditor] = useState<{ kind: 'new'; weekday: number } | { kind: 'edit'; template: SeriesTemplate } | null>(null);
   const [isSavingSeries, setIsSavingSeries] = useState(false);
   const [pendingSeriesConflict, setPendingSeriesConflict] = useState<{ items: SeriesWeekItem[]; item: SeriesWeekItem; description: string; suggestions: ConflictSuggestion[] } | null>(null);
   const todayIndex = useMemo(() => Math.max(0, days.findIndex((day) => sameDay(day, new Date()))), [days]);
@@ -1266,26 +1266,41 @@ function TeamSmartCalendar({
       ) : null}
 
       {seriesEditor ? (
-        <SeriesTemplateEditSheet
-          title={seriesEditor.kind === 'new' ? 'New weekly template' : 'Edit weekly template'}
-          teams={coachEditorTeams}
-          facilities={coachEditorFacilities}
-          groups={coachEditorGroups}
-          initial={seriesEditor.kind === 'edit' ? seriesEditor.template : null}
-          weekday={seriesEditor.kind === 'new' ? seriesEditor.weekday : undefined}
-          isSaving={isSavingSeries}
-          onSave={(value) => requestSeriesSave(seriesEditor.kind === 'new' ? { kind: 'create', input: value } : { kind: 'update', seriesId: seriesEditor.template.id, input: value })}
-          onDelete={seriesEditor.kind === 'edit' && onDeleteSeries ? async () => {
-            setIsSavingSeries(true);
-            try {
-              await onDeleteSeries(seriesEditor.template.id);
-              setSeriesEditor(null);
-            } finally {
-              setIsSavingSeries(false);
-            }
-          } : undefined}
-          onClose={() => setSeriesEditor(null)}
-        />
+        seriesEditor.kind === 'new' ? (
+          <SeriesTemplateEditSheet
+            key={`series-new-${seriesEditor.weekday}`}
+            title="New weekly template"
+            teams={coachEditorTeams}
+            facilities={coachEditorFacilities}
+            groups={coachEditorGroups}
+            initial={null}
+            weekday={seriesEditor.weekday}
+            isSaving={isSavingSeries}
+            onSave={(value) => requestSeriesSave({ kind: 'create', input: value })}
+            onClose={() => setSeriesEditor(null)}
+          />
+        ) : (
+          <SeriesTemplateEditSheet
+            key={`series-edit-${seriesEditor.template.id}`}
+            title="Edit weekly template"
+            teams={coachEditorTeams}
+            facilities={coachEditorFacilities}
+            groups={coachEditorGroups}
+            initial={seriesEditor.template}
+            isSaving={isSavingSeries}
+            onSave={(value) => requestSeriesSave({ kind: 'update', seriesId: seriesEditor.template.id, input: value })}
+            onDelete={onDeleteSeries ? async () => {
+              setIsSavingSeries(true);
+              try {
+                await onDeleteSeries(seriesEditor.template.id);
+                setSeriesEditor(null);
+              } finally {
+                setIsSavingSeries(false);
+              }
+            } : undefined}
+            onClose={() => setSeriesEditor(null)}
+          />
+        )
       ) : null}
 
       <AppConfirmDialog

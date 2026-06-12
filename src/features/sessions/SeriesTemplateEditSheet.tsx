@@ -17,28 +17,20 @@ export type SeriesTemplateInput = {
   groupIds: string[];
 };
 
-type SeriesTemplateEditorBaseProps = {
+type SeriesTemplateEditorCommonProps = {
   title: string;
   teams: CoachTeam[];
   facilities: CoachFacility[];
   groups: CoachGroup[];
-  initial?: SeriesTemplate | null;
-  weekday?: number;
   isSaving?: boolean;
   onSave: (input: SeriesTemplateInput) => void | Promise<void>;
-  onDelete?: () => void | Promise<void>;
   onClose: () => void;
 };
 
-const weekdays = [
-  { value: 1, short: 'Mo', label: 'Monday' },
-  { value: 2, short: 'Tu', label: 'Tuesday' },
-  { value: 3, short: 'We', label: 'Wednesday' },
-  { value: 4, short: 'Th', label: 'Thursday' },
-  { value: 5, short: 'Fr', label: 'Friday' },
-  { value: 6, short: 'Sa', label: 'Saturday' },
-  { value: 0, short: 'Su', label: 'Sunday' },
-];
+type SeriesTemplateEditorBaseProps = SeriesTemplateEditorCommonProps & (
+  | { initial: SeriesTemplate; weekday?: number; onDelete?: () => void | Promise<void> }
+  | { initial?: null; weekday: number; onDelete?: never }
+);
 
 function cleanTime(value?: string | null, fallback = '18:00') {
   if (!value) return fallback;
@@ -64,7 +56,7 @@ function SeriesTemplateEditorForm({
   const facilityOptions = selectedTeam ? facilities.filter((facility) => facility.departmentIds.includes(selectedTeam.departmentId)) : [];
   const [facilityId, setFacilityId] = useState(initial?.facilityId ?? selectedTeam?.defaultFacilityId ?? facilityOptions[0]?.id ?? '');
   const [sessionType, setSessionType] = useState(normalizeCoachSessionType(initial?.sessionType));
-  const [selectedWeekday, setSelectedWeekday] = useState(initial?.weekday ?? weekday ?? 1);
+  const selectedWeekday = initial?.weekday ?? weekday;
   const [startTime, setStartTime] = useState(cleanTime(initial?.startTime, '18:00'));
   const [endTime, setEndTime] = useState(cleanTime(initial?.endTime, '19:30'));
   const [groupIds, setGroupIds] = useState<string[]>(initial?.groupIds ?? []);
@@ -72,8 +64,7 @@ function SeriesTemplateEditorForm({
   const previousTeamIdRef = useRef(teamId);
 
   const teamGroups = groups.filter((group) => group.teamId === teamId);
-  const canSave = Boolean(teamId && facilityId && startTime && endTime);
-  const shouldShowWeekday = Boolean(initial || weekday === undefined);
+  const canSave = Boolean(teamId && facilityId && startTime && endTime && selectedWeekday !== undefined);
 
   useEffect(() => {
     const nextTeam = teams.find((team) => team.id === teamId) ?? null;
@@ -105,7 +96,7 @@ function SeriesTemplateEditorForm({
   }
 
   async function submit() {
-    if (!canSave) return;
+    if (!canSave || selectedWeekday === undefined) return;
     await onSave({ teamId, facilityId, sessionType, weekday: selectedWeekday, startTime, endTime, groupIds });
   }
 
@@ -115,7 +106,7 @@ function SeriesTemplateEditorForm({
 
   return (
     <div className={compact ? 'space-y-2.5' : 'mt-4 space-y-3'}>
-      <div className={shouldShowWeekday ? 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_5rem] gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem]' : 'grid grid-cols-2 gap-2'}>
+      <div className="grid grid-cols-2 gap-2">
         <label className={labelClass}>
           Team
           <select value={teamId} onChange={(event) => setTeamId(event.target.value)} className={inputClass}>
@@ -128,12 +119,6 @@ function SeriesTemplateEditorForm({
             {facilityOptions.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
           </select>
         </label>
-        {shouldShowWeekday ? <label className={labelClass}>
-          Day
-          <select value={selectedWeekday} onChange={(event) => setSelectedWeekday(Number(event.target.value))} className={inputClass}>
-            {weekdays.map((day) => <option key={day.value} value={day.value}>{compact ? day.short : day.label}</option>)}
-          </select>
-        </label> : null}
       </div>
 
       <div className="grid grid-cols-[minmax(0,1fr)_4.25rem_4.25rem] gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_7rem]">
