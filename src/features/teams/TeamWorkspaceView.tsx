@@ -439,7 +439,7 @@ function TeamSmartCalendar({
   const days = useMemo(() => buildWeekDays(weekOffset), [weekOffset]);
   const [surfaceMode, setSurfaceMode] = useState<'week' | 'series'>('week');
   const [seriesWeekStart, setSeriesWeekStart] = useState(() => getIsoWeekStart());
-  const [seriesEditor, setSeriesEditor] = useState<{ kind: 'new'; weekday?: number } | { kind: 'edit'; template: SeriesTemplate } | null>(null);
+  const [seriesEditor, setSeriesEditor] = useState<{ kind: 'new'; weekday: number } | { kind: 'edit'; template: SeriesTemplate } | null>(null);
   const [isSavingSeries, setIsSavingSeries] = useState(false);
   const [pendingSeriesConflict, setPendingSeriesConflict] = useState<{ items: SeriesWeekItem[]; item: SeriesWeekItem; description: string; suggestions: ConflictSuggestion[] } | null>(null);
   const todayIndex = useMemo(() => Math.max(0, days.findIndex((day) => sameDay(day, new Date()))), [days]);
@@ -1165,11 +1165,11 @@ function TeamSmartCalendar({
   }, [activeDayIndex, days, desktopHourHeight, drag, mobileCalendarView]);
 
   return (
-    <div className="mt-5 space-y-4">
+    <div className="mt-4 space-y-3">
       <div className="flex flex-wrap justify-end">
         <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1">
-          <button type="button" onClick={showWeekSurface} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'week' ? 'bg-sky-300 text-slate-950' : 'text-slate-400'}`}>Week</button>
-          <button type="button" onClick={showSeriesSurface} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Series</button>
+          <button type="button" onClick={showWeekSurface} className={`rounded-full px-2.5 py-1 text-xs font-black ${surfaceMode === 'week' ? 'bg-sky-300 text-slate-950' : 'text-slate-400'}`}>Week</button>
+          <button type="button" onClick={showSeriesSurface} className={`rounded-full px-2.5 py-1 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Series</button>
         </div>
       </div>
 
@@ -1266,26 +1266,41 @@ function TeamSmartCalendar({
       ) : null}
 
       {seriesEditor ? (
-        <SeriesTemplateEditSheet
-          title={seriesEditor.kind === 'new' ? 'New weekly template' : 'Edit weekly template'}
-          teams={coachEditorTeams}
-          facilities={coachEditorFacilities}
-          groups={coachEditorGroups}
-          initial={seriesEditor.kind === 'edit' ? seriesEditor.template : null}
-          weekday={seriesEditor.kind === 'new' ? seriesEditor.weekday : undefined}
-          isSaving={isSavingSeries}
-          onSave={(value) => requestSeriesSave(seriesEditor.kind === 'new' ? { kind: 'create', input: value } : { kind: 'update', seriesId: seriesEditor.template.id, input: value })}
-          onDelete={seriesEditor.kind === 'edit' && onDeleteSeries ? async () => {
-            setIsSavingSeries(true);
-            try {
-              await onDeleteSeries(seriesEditor.template.id);
-              setSeriesEditor(null);
-            } finally {
-              setIsSavingSeries(false);
-            }
-          } : undefined}
-          onClose={() => setSeriesEditor(null)}
-        />
+        seriesEditor.kind === 'new' ? (
+          <SeriesTemplateEditSheet
+            key={`series-new-${seriesEditor.weekday}`}
+            title="New weekly template"
+            teams={coachEditorTeams}
+            facilities={coachEditorFacilities}
+            groups={coachEditorGroups}
+            initial={null}
+            weekday={seriesEditor.weekday}
+            isSaving={isSavingSeries}
+            onSave={(value) => requestSeriesSave({ kind: 'create', input: value })}
+            onClose={() => setSeriesEditor(null)}
+          />
+        ) : (
+          <SeriesTemplateEditSheet
+            key={`series-edit-${seriesEditor.template.id}`}
+            title="Edit weekly template"
+            teams={coachEditorTeams}
+            facilities={coachEditorFacilities}
+            groups={coachEditorGroups}
+            initial={seriesEditor.template}
+            isSaving={isSavingSeries}
+            onSave={(value) => requestSeriesSave({ kind: 'update', seriesId: seriesEditor.template.id, input: value })}
+            onDelete={onDeleteSeries ? async () => {
+              setIsSavingSeries(true);
+              try {
+                await onDeleteSeries(seriesEditor.template.id);
+                setSeriesEditor(null);
+              } finally {
+                setIsSavingSeries(false);
+              }
+            } : undefined}
+            onClose={() => setSeriesEditor(null)}
+          />
+        )
       ) : null}
 
       <AppConfirmDialog
@@ -1624,7 +1639,7 @@ export function TeamWorkspaceView({
   }
 
   return (
-    <section className="space-y-5 pb-24 md:pb-0">
+    <section className="space-y-5 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0">
       {data.departmentNav ? (
         <DepartmentLeadDrawer
           mode="teams"
@@ -1633,7 +1648,7 @@ export function TeamWorkspaceView({
           departmentName={data.departmentNav.departmentName}
         />
       ) : null}
-      {data.coachNav ? <CoachDrawer mode="team" basePath={data.coachNav.basePath} teamId={data.id} /> : null}
+      {data.coachNav ? <CoachDrawer mode="team" basePath={data.coachNav.basePath} teamId={data.id} hideMobileNav /> : null}
       <div className="sticky top-0 z-30 rounded-2xl border border-slate-800 bg-slate-950/92 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:static md:p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -2028,7 +2043,7 @@ export function TeamWorkspaceView({
         onCancel={() => setDashboardDeleteTargetId(null)}
       />
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950/95 p-2 backdrop-blur md:hidden" aria-label="Team mobile navigation">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur md:hidden" aria-label="Team mobile navigation">
         <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
           {primarySections.map((section) => (
             <button key={section} type="button" onClick={() => setActiveSection(section)} className={`rounded-xl px-2 py-2 text-[11px] font-black ${activeSection === section ? 'bg-sky-300 text-slate-950' : 'text-slate-300'}`}>

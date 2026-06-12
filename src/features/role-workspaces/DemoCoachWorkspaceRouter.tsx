@@ -570,15 +570,18 @@ export function DemoCoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   }
 
   const shouldOpenTeamWorkspace = mode === 'team' || mode === 'attendance' || mode === 'load';
+  const teamWorkspaceBackHref = mode === 'team' && selectedTeam && teams.length > 1 ? '/demo/coach/team' : '/demo/coach/today';
+  const teamWorkspaceBackLabel = mode === 'team' && selectedTeam && teams.length > 1 ? 'Back to Teams' : 'Back to Today';
   if (selectedTeam && shouldOpenTeamWorkspace) {
-    return <DemoTeamWorkspace teamId={selectedTeam.id} backHref="/demo/coach/today" backLabel="Back to Today" initialSection={initialSection} frame="coach" role="coach" />;
+    return <DemoTeamWorkspace teamId={selectedTeam.id} backHref={teamWorkspaceBackHref} backLabel={teamWorkspaceBackLabel} initialSection={initialSection} frame="coach" role="coach" />;
   }
   if (singleTeam && shouldOpenTeamWorkspace) {
+    // Single-team coaches have no team-list screen to return to.
     return <DemoTeamWorkspace teamId={singleTeam.id} backHref="/demo/coach/today" backLabel="Back to Today" initialSection={initialSection} frame="coach" role="coach" />;
   }
 
   return (
-    <main className="os-page">
+    <main className="os-page pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0 md:pl-64">
       <CoachDrawer mode={mode === 'attendance' || mode === 'load' ? 'team' : mode} basePath="/demo/coach" teamId={singleTeam?.id ?? selectedTeamId} />
       <div className="os-container space-y-5">
         <section className="sticky top-0 z-30 rounded-2xl border border-slate-800 bg-slate-950/92 p-3 text-white shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:static md:p-4">

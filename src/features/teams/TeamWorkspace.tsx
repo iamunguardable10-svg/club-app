@@ -66,7 +66,7 @@ function profileLabel(profile: Profile | undefined, fallback: string) {
 function TeamWorkspaceFrame({ frame, children }: { frame: 'admin' | 'coach' | 'department'; children: ReactNode }) {
   if (frame === 'coach' || frame === 'department') {
     return (
-      <main className="os-page">
+      <main className={`os-page ${frame === 'coach' ? 'md:pl-64' : ''}`}>
         <div className="os-container">{children}</div>
       </main>
     );

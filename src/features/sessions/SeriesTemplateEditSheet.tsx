@@ -17,28 +17,20 @@ export type SeriesTemplateInput = {
   groupIds: string[];
 };
 
-type SeriesTemplateEditorBaseProps = {
+type SeriesTemplateEditorCommonProps = {
   title: string;
   teams: CoachTeam[];
   facilities: CoachFacility[];
   groups: CoachGroup[];
-  initial?: SeriesTemplate | null;
-  weekday?: number;
   isSaving?: boolean;
   onSave: (input: SeriesTemplateInput) => void | Promise<void>;
-  onDelete?: () => void | Promise<void>;
   onClose: () => void;
 };
 
-const weekdays = [
-  { value: 1, short: 'Mo', label: 'Monday' },
-  { value: 2, short: 'Tu', label: 'Tuesday' },
-  { value: 3, short: 'We', label: 'Wednesday' },
-  { value: 4, short: 'Th', label: 'Thursday' },
-  { value: 5, short: 'Fr', label: 'Friday' },
-  { value: 6, short: 'Sa', label: 'Saturday' },
-  { value: 0, short: 'Su', label: 'Sunday' },
-];
+type SeriesTemplateEditorBaseProps = SeriesTemplateEditorCommonProps & (
+  | { initial: SeriesTemplate; weekday?: number; onDelete?: () => void | Promise<void> }
+  | { initial?: null; weekday: number; onDelete?: never }
+);
 
 function cleanTime(value?: string | null, fallback = '18:00') {
   if (!value) return fallback;
@@ -64,7 +56,7 @@ function SeriesTemplateEditorForm({
   const facilityOptions = selectedTeam ? facilities.filter((facility) => facility.departmentIds.includes(selectedTeam.departmentId)) : [];
   const [facilityId, setFacilityId] = useState(initial?.facilityId ?? selectedTeam?.defaultFacilityId ?? facilityOptions[0]?.id ?? '');
   const [sessionType, setSessionType] = useState(normalizeCoachSessionType(initial?.sessionType));
-  const [selectedWeekday, setSelectedWeekday] = useState(initial?.weekday ?? weekday ?? 1);
+  const selectedWeekday = initial?.weekday ?? weekday;
   const [startTime, setStartTime] = useState(cleanTime(initial?.startTime, '18:00'));
   const [endTime, setEndTime] = useState(cleanTime(initial?.endTime, '19:30'));
   const [groupIds, setGroupIds] = useState<string[]>(initial?.groupIds ?? []);
@@ -72,8 +64,7 @@ function SeriesTemplateEditorForm({
   const previousTeamIdRef = useRef(teamId);
 
   const teamGroups = groups.filter((group) => group.teamId === teamId);
-  const canSave = Boolean(teamId && facilityId && startTime && endTime);
-  const shouldShowWeekday = Boolean(initial || weekday === undefined);
+  const canSave = Boolean(teamId && facilityId && startTime && endTime && selectedWeekday !== undefined);
 
   useEffect(() => {
     const nextTeam = teams.find((team) => team.id === teamId) ?? null;
@@ -105,17 +96,17 @@ function SeriesTemplateEditorForm({
   }
 
   async function submit() {
-    if (!canSave) return;
+    if (!canSave || selectedWeekday === undefined) return;
     await onSave({ teamId, facilityId, sessionType, weekday: selectedWeekday, startTime, endTime, groupIds });
   }
 
-  const inputClass = 'mt-1.5 h-9 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-black text-slate-100 outline-none transition focus:border-sky-300 sm:h-10 sm:rounded-xl sm:px-2.5 sm:text-sm [color-scheme:dark]';
-  const timeInputClass = 'mt-1.5 h-9 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-10 sm:rounded-xl sm:px-2 sm:text-base [color-scheme:dark]';
+  const inputClass = 'mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-black text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm [color-scheme:dark]';
+  const timeInputClass = 'mt-1 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2 sm:text-sm [color-scheme:dark]';
   const labelClass = 'min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500';
 
   return (
-    <div className={compact ? 'space-y-3' : 'mt-5 space-y-4'}>
-      <div className="grid gap-2 sm:grid-cols-2">
+    <div className={compact ? 'space-y-2.5' : 'mt-4 space-y-3'}>
+      <div className="grid grid-cols-2 gap-2">
         <label className={labelClass}>
           Team
           <select value={teamId} onChange={(event) => setTeamId(event.target.value)} className={inputClass}>
@@ -130,19 +121,13 @@ function SeriesTemplateEditorForm({
         </label>
       </div>
 
-      <div className={shouldShowWeekday ? 'grid grid-cols-[minmax(0,1fr)_4.25rem_4.25rem] gap-2 sm:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)_7rem_7rem]' : 'grid grid-cols-[minmax(0,1fr)_4.25rem_4.25rem] gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_7rem]'}>
-        <label className={`${labelClass} ${shouldShowWeekday ? 'col-span-3 sm:col-span-1' : ''}`}>
+      <div className="grid grid-cols-[minmax(0,1fr)_4.25rem_4.25rem] gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_7rem]">
+        <label className={labelClass}>
           Type
           <select value={sessionType} onChange={(event) => setSessionType(event.target.value)} className={inputClass}>
             {coachSessionTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
           </select>
         </label>
-        {shouldShowWeekday ? <label className={labelClass}>
-          Day
-          <select value={selectedWeekday} onChange={(event) => setSelectedWeekday(Number(event.target.value))} className={inputClass}>
-            {weekdays.map((day) => <option key={day.value} value={day.value}>{compact ? day.short : day.label}</option>)}
-          </select>
-        </label> : null}
         <label className={labelClass}>
           Start
           <input value={startTime} onChange={(event) => setStartTime(event.target.value)} type="time" className={timeInputClass} />
@@ -189,9 +174,9 @@ export function SeriesTemplateEditSheet(props: SeriesTemplateEditorBaseProps) {
   useBodyScrollLock(true);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/75 p-3 backdrop-blur-sm sm:items-center">
-      <section className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-slate-800 bg-slate-950 p-4 text-white shadow-2xl sm:p-5">
-        <div className="flex items-start justify-between gap-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/75 p-2.5 backdrop-blur-sm sm:items-center">
+      <section className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950 p-3.5 text-white shadow-2xl sm:p-4">
+        <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Series template</p>
             <h3 className="mt-2 text-2xl font-black">{props.title}</h3>

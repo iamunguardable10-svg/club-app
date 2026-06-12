@@ -304,7 +304,7 @@ export function CoachCalendarSurface({
   const days = useMemo(() => buildWeekDays(weekOffset), [weekOffset]);
   const [surfaceMode, setSurfaceMode] = useState<'week' | 'series'>('week');
   const [seriesWeekStart, setSeriesWeekStart] = useState(() => getIsoWeekStart());
-  const [seriesEditor, setSeriesEditor] = useState<{ kind: 'new'; weekday?: number } | { kind: 'edit'; template: SeriesTemplate } | null>(null);
+  const [seriesEditor, setSeriesEditor] = useState<{ kind: 'new'; weekday: number } | { kind: 'edit'; template: SeriesTemplate } | null>(null);
   const [pendingSeriesConflict, setPendingSeriesConflict] = useState<{ items: SeriesWeekItem[]; item: SeriesWeekItem; description: string; suggestions: ConflictSuggestion[] } | null>(null);
   const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, buildWeekDays().findIndex((day) => sameDay(day, new Date()))));
   const [mobileCalendarView, setMobileCalendarView] = useState<'week' | 'day'>('week');
@@ -798,26 +798,41 @@ export function CoachCalendarSurface({
         </div>
       )}
       {seriesEditor ? (
-        <SeriesTemplateEditSheet
-          title={seriesEditor.kind === 'new' ? 'New weekly template' : 'Edit weekly template'}
-          teams={teams}
-          facilities={facilities}
-          groups={groups}
-          initial={seriesEditor.kind === 'edit' ? seriesEditor.template : null}
-          weekday={seriesEditor.kind === 'new' ? seriesEditor.weekday : undefined}
-          isSaving={isSavingSeries}
-          onSave={(value) => requestSeriesSave(seriesEditor.kind === 'new' ? { kind: 'create', input: value } : { kind: 'update', seriesId: seriesEditor.template.id, input: value })}
-          onDelete={seriesEditor.kind === 'edit' && onDeleteSeries ? async () => {
-            setIsSavingSeries(true);
-            try {
-              await onDeleteSeries(seriesEditor.template.id);
-              setSeriesEditor(null);
-            } finally {
-              setIsSavingSeries(false);
-            }
-          } : undefined}
-          onClose={() => setSeriesEditor(null)}
-        />
+        seriesEditor.kind === 'new' ? (
+          <SeriesTemplateEditSheet
+            key={`series-new-${seriesEditor.weekday}`}
+            title="New weekly template"
+            teams={teams}
+            facilities={facilities}
+            groups={groups}
+            initial={null}
+            weekday={seriesEditor.weekday}
+            isSaving={isSavingSeries}
+            onSave={(value) => requestSeriesSave({ kind: 'create', input: value })}
+            onClose={() => setSeriesEditor(null)}
+          />
+        ) : (
+          <SeriesTemplateEditSheet
+            key={`series-edit-${seriesEditor.template.id}`}
+            title="Edit weekly template"
+            teams={teams}
+            facilities={facilities}
+            groups={groups}
+            initial={seriesEditor.template}
+            isSaving={isSavingSeries}
+            onSave={(value) => requestSeriesSave({ kind: 'update', seriesId: seriesEditor.template.id, input: value })}
+            onDelete={onDeleteSeries ? async () => {
+              setIsSavingSeries(true);
+              try {
+                await onDeleteSeries(seriesEditor.template.id);
+                setSeriesEditor(null);
+              } finally {
+                setIsSavingSeries(false);
+              }
+            } : undefined}
+            onClose={() => setSeriesEditor(null)}
+          />
+        )
       ) : null}
       {editor && editorInitial ? <CoachSessionEditSheet key={editor.kind === 'session' ? `session-${editor.sessionId}` : `draft-${editorInitial.startsAt}`} title={editor.kind === 'draft' ? 'New training' : editingSession?.title ?? 'Training'} teams={teams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { if (editor.kind === 'draft') { await requestCoachCalendarSave({ kind: 'create', input: value }); } else if (editingSession) { await requestCoachCalendarSave({ kind: 'update', input: { sessionId: editingSession.id, ...value } }); } }} onDraftUpdate={editor.kind === 'draft' ? (value) => setDraft((current) => current ? { ...current, ...value } : current) : undefined} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : undefined} onClose={() => setEditor(null)} /> : null}
 
@@ -1587,17 +1602,20 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   }
 
   const shouldOpenTeamWorkspace = mode === 'team' || mode === 'attendance' || mode === 'load';
+  const teamWorkspaceBackHref = mode === 'team' && selectedTeam && teams.length > 1 ? '/coach/team' : '/coach/today';
+  const teamWorkspaceBackLabel = mode === 'team' && selectedTeam && teams.length > 1 ? 'Back to Teams' : 'Back to Today';
 
   if (selectedTeam && shouldOpenTeamWorkspace) {
-    return <TeamWorkspace teamId={selectedTeam.id} backHref="/coach/today" backLabel="Back to Today" initialSection={initialSection} frame="coach" />;
+    return <TeamWorkspace teamId={selectedTeam.id} backHref={teamWorkspaceBackHref} backLabel={teamWorkspaceBackLabel} initialSection={initialSection} frame="coach" />;
   }
 
   if (singleTeam && shouldOpenTeamWorkspace) {
+    // Single-team coaches have no team-list screen to return to.
     return <TeamWorkspace teamId={singleTeam.id} backHref="/coach/today" backLabel="Back to Today" initialSection={initialSection} frame="coach" />;
   }
 
   return (
-    <main className="os-page">
+    <main className="os-page pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0 md:pl-64">
       <CoachDrawer mode={mode === 'attendance' || mode === 'load' ? 'team' : mode} basePath="/coach" teamId={singleTeam?.id ?? selectedTeamId} />
       <div className="os-container space-y-5">
         <section className="sticky top-0 z-30 rounded-2xl border border-slate-800 bg-slate-950/92 p-3 text-white shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:static md:p-4">
