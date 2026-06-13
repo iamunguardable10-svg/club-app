@@ -29,6 +29,7 @@ import {
 } from './loadTypes';
 import { aggregateDailyLoads, baselineAgeDays, calculateEWMA, fillMissingDays, formatLoadDate, getLatestACWR, loadZone, projectFutureACWR, todayISO } from './loadCalculations';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
+import { DEMO_PRIMARY_ATHLETE_TEAM_ID, getDemoClubSetup, getDemoSessions, getDemoTeams, type DemoSession } from '@/shared/dev/demoStorage';
 
 type AthleteView = 'home' | 'load' | 'calendar';
 
@@ -115,6 +116,9 @@ const DEMO_PLANS_KEY = 'club-app.demo.athlete-load-plans';
 const DEMO_CANCELLED_SESSIONS_KEY = 'club-app.demo.athlete-cancelled-sessions';
 const DEMO_AVAILABILITY_KEY = 'club-app.demo.athlete-availability';
 const LOAD_SHARE_ACTIVE_KEY = 'club-app.athlete-load.active-share-link';
+// Session-linked entries cover the recent 28-day story; older manual entries keep the long ACWR baseline.
+const DEMO_SESSION_WINDOW_PAST_DAYS = 28;
+const DEMO_SESSION_WINDOW_FUTURE_DAYS = 21;
 
 const emptyPlanForm: PlanFormState = {
   trainingType: 'team_training',
@@ -152,44 +156,53 @@ function atLocalDate(date: Date, hour: number, minute = 0) {
 }
 
 function demoPendingSessions(): AthletePendingSession[] {
+  const setup = getDemoClubSetup();
+  if (!setup) return fallbackDemoPendingSessions();
+  const teams = getDemoTeams(setup);
+  const teamByName = new Map(teams.map((team) => [`${team.department}:${team.name}`, team]));
+  const windowStart = addDays(new Date(`${todayISO()}T00:00:00`), -DEMO_SESSION_WINDOW_PAST_DAYS).getTime();
+  const windowEnd = addDays(new Date(`${todayISO()}T00:00:00`), DEMO_SESSION_WINDOW_FUTURE_DAYS).getTime();
+  return getDemoSessions()
+    .map((session: DemoSession): AthletePendingSession | null => {
+      const team = teamByName.get(`${session.department}:${session.team}`);
+      if (!team || team.id !== DEMO_PRIMARY_ATHLETE_TEAM_ID) return null;
+      const startsAt = new Date(session.startsAt).getTime();
+      if (startsAt < windowStart || startsAt > windowEnd) return null;
+      const trainingType = normalizeTrainingType(session.sessionType);
+      if (session.sessionType === 's_and_c' && trainingType !== 'strength' && process.env.NODE_ENV !== 'production') console.warn('Club OS demo load mapping drift: s_and_c should map to strength.');
+      return {
+        id: session.id,
+        title: session.title || LOAD_TYPE_LABELS[trainingType],
+        teamId: team.id,
+        teamName: team.name,
+        date: session.startsAt.slice(0, 10),
+        startsAt: session.startsAt,
+        endsAt: session.endsAt,
+        trainingType,
+        source: 'team_session',
+      } satisfies AthletePendingSession;
+    })
+    .filter((session): session is AthletePendingSession => Boolean(session))
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+}
+
+function fallbackDemoPendingSessions(): AthletePendingSession[] {
   const today = new Date(`${todayISO()}T00:00:00`);
   const yesterday = addDays(today, -1);
   const tomorrow = addDays(today, 1);
   return [
-    {
-      id: 'demo-session-yesterday-team',
-      title: 'Team Training',
-      teamId: 'demo-u14-boys',
-      teamName: 'U14 Boys',
-      date: isoDate(yesterday),
-      startsAt: atLocalDate(yesterday, 18, 0),
-      endsAt: atLocalDate(yesterday, 19, 30),
-      trainingType: 'team_training',
-      source: 'team_session',
-    },
-    {
-      id: 'demo-session-today-strength',
-      title: 'Strength',
-      teamId: 'demo-u14-boys',
-      teamName: 'U14 Boys',
-      date: isoDate(today),
-      startsAt: atLocalDate(today, 16, 30),
-      endsAt: atLocalDate(today, 17, 30),
-      trainingType: 'strength',
-      source: 'team_session',
-    },
-    {
-      id: 'demo-session-tomorrow-team',
-      title: 'Team Training',
-      teamId: 'demo-u14-boys',
-      teamName: 'U14 Boys',
-      date: isoDate(tomorrow),
-      startsAt: atLocalDate(tomorrow, 18, 15),
-      endsAt: atLocalDate(tomorrow, 20, 0),
-      trainingType: 'team_training',
-      source: 'team_session',
-    },
+    { id: 'demo-session-yesterday-team', title: 'Team Training', teamId: DEMO_PRIMARY_ATHLETE_TEAM_ID, teamName: 'U14 Boys', date: isoDate(yesterday), startsAt: atLocalDate(yesterday, 18, 0), endsAt: atLocalDate(yesterday, 19, 30), trainingType: 'team_training', source: 'team_session' } satisfies AthletePendingSession,
+    { id: 'demo-session-today-strength', title: 'Strength', teamId: DEMO_PRIMARY_ATHLETE_TEAM_ID, teamName: 'U14 Boys', date: isoDate(today), startsAt: atLocalDate(today, 16, 30), endsAt: atLocalDate(today, 17, 30), trainingType: 'strength', source: 'team_session' } satisfies AthletePendingSession,
+    { id: 'demo-session-tomorrow-team', title: 'Team Training', teamId: DEMO_PRIMARY_ATHLETE_TEAM_ID, teamName: 'U14 Boys', date: isoDate(tomorrow), startsAt: atLocalDate(tomorrow, 18, 15), endsAt: atLocalDate(tomorrow, 20, 0), trainingType: 'team_training', source: 'team_session' } satisfies AthletePendingSession,
   ];
+}
+
+function demoAthleteTeamName() {
+  const setup = getDemoClubSetup();
+  if (!setup) return 'U14 Boys';
+  const team = getDemoTeams(setup).find((candidate) => candidate.id === DEMO_PRIMARY_ATHLETE_TEAM_ID);
+  if (!team && process.env.NODE_ENV !== 'production') console.warn(`Club OS demo athlete team missing: ${DEMO_PRIMARY_ATHLETE_TEAM_ID}`);
+  return team?.name ?? 'U14 Boys';
 }
 
 function demoSeedPlans(): AthleteLoadPlan[] {
@@ -222,8 +235,9 @@ function demoSeedPlans(): AthleteLoadPlan[] {
   ];
 }
 
-function demoSeedEntries(): AthleteLoadEntry[] {
+function demoSeedEntries(teamSessions = demoPendingSessions()): AthleteLoadEntry[] {
   const today = new Date(`${todayISO()}T00:00:00`);
+  const teamName = demoAthleteTeamName();
   const plan: Array<[number, LoadTrainingType, number, number]> = [
     [-55, 'team_training', 5, 90],
     [-53, 'strength', 6, 55],
@@ -257,13 +271,13 @@ function demoSeedEntries(): AthleteLoadEntry[] {
     [-1, 'recovery', 2, 30],
   ];
 
-  return plan.map(([offset, trainingType, rpe, durationMinutes], index) => {
+  const manualEntries = plan.map(([offset, trainingType, rpe, durationMinutes], index) => {
     const date = isoDate(addDays(today, offset));
     return {
       id: `demo-load-v2-${index}`,
       sessionId: null,
-      teamId: 'demo-u14-boys',
-      teamName: 'U14 Boys',
+      teamId: DEMO_PRIMARY_ATHLETE_TEAM_ID,
+      teamName,
       date,
       startsAt: null,
       title: LOAD_TYPE_LABELS[trainingType],
@@ -273,30 +287,59 @@ function demoSeedEntries(): AthleteLoadEntry[] {
       load: rpe * durationMinutes,
       note: null,
       source: 'manual',
-    };
+    } satisfies AthleteLoadEntry;
   });
+  const sessionEntries = teamSessions
+    .filter((session) => session.date < todayISO())
+    .map((session) => {
+      const durationMinutes = durationMinutesFromSession(session);
+      // Deterministic demo jitter keeps the graph readable without changing across resets.
+      const stableDelta = Array.from(session.id).reduce((sum, char) => sum + char.charCodeAt(0), 0) % 2;
+      const rpe = session.trainingType === 'game' ? 10 : session.trainingType === 'strength' ? 7 : 6 + stableDelta;
+      return {
+        id: `demo-session-load-${session.id}`,
+        sessionId: session.id,
+        teamId: session.teamId,
+        teamName: session.teamName,
+        date: session.date,
+        startsAt: session.startsAt,
+        title: session.title,
+        trainingType: session.trainingType,
+        rpe,
+        durationMinutes,
+        load: rpe * durationMinutes,
+        note: null,
+        source: 'planned_session',
+      } satisfies AthleteLoadEntry;
+    });
+
+  const sessionDates = new Set(sessionEntries.map((entry) => entry.date));
+  // Scheduled sessions own their date in the demo seed, so the manual baseline
+  // does not double count a second generic load on the same day.
+  const soloEntries = manualEntries.filter((entry) => !sessionDates.has(entry.date));
+  return [...soloEntries, ...sessionEntries].sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function readDemoEntries() {
-  if (typeof window === 'undefined') return demoSeedEntries();
+function readDemoEntries(teamSessions = demoPendingSessions()) {
+  if (typeof window === 'undefined') return demoSeedEntries(teamSessions);
   const raw = window.localStorage.getItem(DEMO_LOAD_KEY);
   if (!raw) {
-    const seed = demoSeedEntries();
+    const seed = demoSeedEntries(teamSessions);
     window.localStorage.setItem(DEMO_LOAD_KEY, JSON.stringify(seed));
     return seed;
   }
   try {
     const parsed = JSON.parse(raw) as AthleteLoadEntry[];
-    const seed = demoSeedEntries();
+    const seed = demoSeedEntries(teamSessions);
     if (parsed.length < seed.length) {
-      const customEntries = parsed.filter((entry) => !entry.id.startsWith('demo-load-'));
+      const customEntries = parsed.filter((entry) => !entry.id.startsWith('demo-load-') && !entry.id.startsWith('demo-session-load-'));
       const merged = [...seed, ...customEntries].sort((a, b) => a.date.localeCompare(b.date));
       window.localStorage.setItem(DEMO_LOAD_KEY, JSON.stringify(merged));
       return merged;
     }
     return parsed;
   } catch {
-    return demoSeedEntries();
+    return demoSeedEntries(teamSessions);
   }
 }
 
@@ -1650,16 +1693,19 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         setSource('supabase');
       } catch {
         if (!mounted) return;
-        const demoEntries = readDemoEntries();
+        const demoTeamSessions = demoPendingSessions();
+        const demoEntries = readDemoEntries(demoTeamSessions);
         const demoPlans = readDemoPlans();
         const acknowledged = new Set(readAcknowledgedDemoSessions());
         const demoAvailability = readDemoAvailability();
         const cancelledIds = new Set(Array.from(demoAvailability.entries()).filter(([, mark]) => mark.status === 'out').map(([sessionId]) => sessionId));
+        const reportedDemoSessionIds = new Set(demoEntries.map((entry) => entry.sessionId).filter(Boolean));
+        const demoPending = demoTeamSessions.filter((session) => !reportedDemoSessionIds.has(session.id) && !acknowledged.has(session.id));
         setAthleteName('Demo Athlete');
         setEntries(demoEntries);
         setPlans(demoPlans);
-        setCalendarSessions(withAutoWarmups([...demoPendingSessions(), ...demoPlans.map(planToPendingSession)]));
-        setPendingSessions(withAutoWarmups([...demoPendingSessions().filter((session) => !acknowledged.has(session.id)), ...demoPlans.map(planToPendingSession)]));
+        setCalendarSessions(withAutoWarmups([...demoTeamSessions, ...demoPlans.map(planToPendingSession)]));
+        setPendingSessions(withAutoWarmups([...demoPending, ...demoPlans.map(planToPendingSession)]));
         setCancelledSessionIds(cancelledIds);
         setAvailabilityBySessionId(demoAvailability);
         setSource('demo');

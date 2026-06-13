@@ -56,9 +56,6 @@ export function DemoAdminSetupDashboard() {
 
   function handleClear() {
     clearDemoClubSetup();
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(DEMO_FACILITY_ASSIGNMENTS_KEY);
-    }
     setSetup(null);
     setAssignments([]);
   }
@@ -93,7 +90,7 @@ export function DemoAdminSetupDashboard() {
             onClick={handleClear}
             className="rounded-xl border border-amber-400/70 px-4 py-3 text-sm font-black text-amber-100 transition hover:bg-amber-950/50"
           >
-            Clear local demo data
+            Reset full local demo
           </button>
         </div>
       </section>
