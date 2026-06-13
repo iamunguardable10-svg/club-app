@@ -206,7 +206,7 @@ export function SessionComposer({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/75 p-3 py-4 backdrop-blur-sm sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-slate-950/75 p-3 py-4 backdrop-blur-sm sm:items-center sm:p-4">
       <div className="max-h-[calc(100vh-2rem)] w-full max-w-xl overflow-y-auto rounded-3xl border border-slate-800 bg-slate-950 p-4 shadow-2xl sm:p-5">
         <div className="flex items-start justify-between gap-4">
           <div>

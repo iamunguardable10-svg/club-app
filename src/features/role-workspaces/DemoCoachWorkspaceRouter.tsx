@@ -13,6 +13,7 @@ import { CoachHistorySessionCard, CoachSessionDetailOverlay } from '@/features/r
 import type { ConflictSession } from '@/features/calendar/sessionConflicts';
 import type { SeriesTemplateInput } from '@/features/sessions/SeriesTemplateEditSheet';
 import type { SeriesTemplate, SeriesWeekItem, SeriesWeekState } from '@/features/sessions/sessionSeriesPlanner';
+import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
 import { sessionTypeToLoadType, type AthleteLoadEntry } from '@/features/load/loadTypes';
 import { getDemoClubSetup, getDemoSessionSeries, getDemoSessionSeriesWeekStates, getDemoSessions, getDemoTeams, saveDemoSessionSeries, saveDemoSessionSeriesWeekStates, saveDemoSessions, type DemoClubSetup, type DemoSession, type DemoSessionSeries, type DemoSessionSeriesWeekState, type DemoTeam } from '@/shared/dev/demoStorage';
 
@@ -30,7 +31,7 @@ type DemoCoachSession = {
   facilityName: string | null;
   groupIds: string[];
   availability: { id: string; playerId?: string; playerName: string; status: 'late' | 'out'; reason: string | null; lateMinutes: number | null }[];
-  players: { id: string; name: string; risk: 'high' | 'low' | 'ready'; acwr: number; loadEntries?: AthleteLoadEntry[] }[];
+  players: { id: string; name: string; risk: 'high' | 'low' | 'ready'; acwr: number | null; loadEntries?: AthleteLoadEntry[] }[];
 };
 
 const DEMO_AVAILABILITY_KEY = 'club-app.demo.athlete-availability';
@@ -201,6 +202,13 @@ function isoAt(offsetDays: number, hour: number, minute = 0) {
   return date.toISOString();
 }
 
+function isoDateAtOffset(offsetDays: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  date.setHours(0, 0, 0, 0);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 function readDemoAvailability() {
   if (typeof window === 'undefined') return new Map<string, DemoAvailabilityMark>();
   try {
@@ -230,6 +238,53 @@ function demoRiskForPlayer(player: DemoPlayer) {
   if (index === 0 || index === 7) return { risk: 'high' as const, acwr: 1.36 + (index % 2) * 0.08 };
   if (index === 2 || index === 10) return { risk: 'low' as const, acwr: 0.71 + (index % 2) * 0.04 };
   return { risk: 'ready' as const, acwr: 0.92 + (index % 5) * 0.07 };
+}
+
+function demoBaselineEntriesForPlayer(player: Pick<DemoPlayer, 'id'>, teamId: string, teamName: string): AthleteLoadEntry[] {
+  const seed = demoRiskForPlayer({ id: player.id, teamId, name: '', groups: [] });
+  const trainingTypes = ['team_training', 'strength', 'individual', 'recovery'] as const;
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const offset = -42 + index;
+    const recent = offset >= -7;
+    const trainingType = trainingTypes[index % trainingTypes.length];
+    const profile =
+      seed.risk === 'high'
+        ? recent
+          ? { rpe: 8, durationMinutes: 95 }
+          : { rpe: 4, durationMinutes: 75 }
+        : seed.risk === 'low'
+          ? recent
+            ? { rpe: 2, durationMinutes: 50 }
+            : { rpe: 7, durationMinutes: 80 }
+          : recent
+            ? { rpe: 6, durationMinutes: 75 + (index % 2) * 10 }
+            : { rpe: 5 + (index % 2), durationMinutes: 75 };
+    return {
+      id: `demo-player-baseline-${player.id}-${index}`,
+      sessionId: null,
+      teamId,
+      teamName,
+      date: isoDateAtOffset(offset),
+      startsAt: null,
+      title: 'Demo load',
+      trainingType,
+      rpe: profile.rpe,
+      durationMinutes: profile.durationMinutes,
+      load: profile.rpe * profile.durationMinutes,
+      note: null,
+      source: 'manual',
+    } satisfies AthleteLoadEntry;
+  });
+}
+
+function demoLoadSummary(entries: AthleteLoadEntry[]) {
+  const latest = getLatestACWR(entries, 'ewma');
+  const zone = loadZone(latest?.acwr ?? null, latest?.chronicFull ?? false);
+  return {
+    acwr: latest?.acwr ?? null,
+    risk: zone.tone === 'high' ? 'high' as const : zone.tone === 'low' ? 'low' as const : 'ready' as const,
+  };
 }
 
 function automaticAvailabilityForSession(session: DemoSession, participants: DemoPlayer[]) {
@@ -302,10 +357,7 @@ function buildCoachSessions(teams: DemoTeam[], storedSessions: DemoSession[], de
         facilityName: session.facility ?? team.defaultFacility ?? null,
         groupIds: session.groupIds ?? [],
         availability: mark && (mark.status === 'late' || mark.status === 'out') ? [{ id: `${session.id}-demo-athlete`, playerId: 'demo-athlete', playerName: 'Demo Athlete', status: mark.status, reason: mark.reason, lateMinutes: mark.lateMinutes }] : fallbackFlags,
-        players: participants.map((player) => {
-          const risk = demoRiskForPlayer(player);
-          return { id: player.id, name: player.name, risk: risk.risk, acwr: risk.acwr };
-        }),
+        players: participants.map((player) => ({ id: player.id, name: player.name, risk: 'ready' as const, acwr: null })),
       } satisfies DemoCoachSession;
     })
     .filter(Boolean) as DemoCoachSession[];
@@ -313,11 +365,22 @@ function buildCoachSessions(teams: DemoTeam[], storedSessions: DemoSession[], de
     ...session,
     players: session.players.map((player) => ({
       ...player,
-      loadEntries: builtSessions.flatMap((candidate) =>
+      ...demoLoadSummary([
+        ...demoBaselineEntriesForPlayer({ id: player.id }, session.teamId, session.teamName),
+        ...builtSessions.flatMap((candidate) =>
         candidate.players.some((candidatePlayer) => candidatePlayer.id === player.id)
           ? demoLoadEntriesForSession(candidate, player)
           : [],
-      ),
+        ),
+      ]),
+      loadEntries: [
+        ...demoBaselineEntriesForPlayer({ id: player.id }, session.teamId, session.teamName),
+        ...builtSessions.flatMap((candidate) =>
+          candidate.players.some((candidatePlayer) => candidatePlayer.id === player.id)
+            ? demoLoadEntriesForSession(candidate, player)
+            : [],
+        ),
+      ].sort((a, b) => a.date.localeCompare(b.date)),
     })),
   }));
 }
