@@ -80,7 +80,8 @@ const DEMO_SESSION_SERIES_WEEK_STATES_KEY = 'club-app.demo.session-series-week-s
 const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
 const LEGACY_DEMO_FACILITY_META_KEY = 'club-app.demo.facility-meta';
 const DEMO_DATA_VERSION_KEY = 'club-app.demo.version';
-const CURRENT_DEMO_DATA_VERSION = '2026-06-05-weekly-series-v1';
+const CURRENT_DEMO_DATA_VERSION = '2026-06-13-demo-data-sync-v1';
+export const DEMO_PRIMARY_ATHLETE_TEAM_ID = 'basketball-u14-boys';
 let demoDataVersionChecked = false;
 
 const DEFAULT_DEMO_FACILITY_ADDRESSES: Record<string, string> = {
@@ -153,6 +154,8 @@ function ensureDemoDataVersion() {
   demoDataVersionChecked = true;
   if (window.localStorage.getItem(DEMO_DATA_VERSION_KEY) === CURRENT_DEMO_DATA_VERSION) return;
 
+  // Version changes intentionally wipe every local demo key so all role views
+  // reseed from one coherent club/session/load state.
   const keys = Array.from({ length: window.localStorage.length }, (_, index) => window.localStorage.key(index)).filter(Boolean) as string[];
   const resetKeys = keys.filter((key) => key.startsWith('club-app.demo.') && key !== DEMO_DATA_VERSION_KEY);
   for (const key of resetKeys) window.localStorage.removeItem(key);
@@ -221,14 +224,10 @@ export function getDemoClubSetup(): DemoClubSetup | null {
 
 export function clearDemoClubSetup() {
   if (typeof window === 'undefined') return;
-  window.localStorage.removeItem(DEMO_CLUB_SETUP_KEY);
-  window.localStorage.removeItem(DEMO_TEAMS_KEY);
-  window.localStorage.removeItem(DEMO_SESSIONS_KEY);
-  window.localStorage.removeItem(DEMO_SESSION_SERIES_KEY);
-  window.localStorage.removeItem(DEMO_SESSION_SERIES_WEEK_STATES_KEY);
-  window.localStorage.removeItem(DEMO_FACILITY_ASSIGNMENTS_KEY);
-  window.localStorage.removeItem(LEGACY_DEMO_FACILITY_META_KEY);
-  window.localStorage.removeItem(DEMO_DATA_VERSION_KEY);
+  // Intentional full local demo reset: club setup, sessions, athlete load, availability,
+  // invites and future demo-only state must restart from the same canonical seed.
+  const keys = Array.from({ length: window.localStorage.length }, (_, index) => window.localStorage.key(index)).filter(Boolean) as string[];
+  keys.filter((key) => key.startsWith('club-app.demo.')).forEach((key) => window.localStorage.removeItem(key));
   demoDataVersionChecked = false;
 }
 
@@ -372,18 +371,26 @@ function demoSessionForTeam(
 
 export function createDefaultDemoSessions(teams: DemoTeam[]) {
   const seeded = [
-    demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-team-history-1', offsetDays: -18, startHour: 18, startMinute: 15, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Main Hall' }),
-    demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-strength-history', offsetDays: -15, startHour: 17, durationMinutes: 70, title: 'Strength', sessionType: 's_and_c', facility: 'Weight Room', groupIds: ['starting-five'] }),
-    demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-team-history-2', offsetDays: -11, startHour: 18, startMinute: 30, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Main Hall', groupIds: ['bench-unit'] }),
+    demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-team-history-1', offsetDays: -27, startHour: 18, startMinute: 15, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Main Hall' }),
+    demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-strength-history-1', offsetDays: -24, startHour: 17, durationMinutes: 70, title: 'Strength', sessionType: 's_and_c', facility: 'Weight Room', groupIds: ['starting-five'] }),
+    demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-game-history-1', offsetDays: -21, startHour: 15, durationMinutes: 120, title: 'Game', sessionType: 'game', facility: 'Main Hall' }),
+    demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-team-history-2', offsetDays: -18, startHour: 18, startMinute: 30, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Main Hall', groupIds: ['bench-unit'] }),
+    demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-strength-history-2', offsetDays: -15, startHour: 17, durationMinutes: 75, title: 'Strength', sessionType: 's_and_c', facility: 'Weight Room', groupIds: ['starting-five'] }),
+    demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-team-history-3', offsetDays: -11, startHour: 18, startMinute: 15, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Main Hall', groupIds: ['starting-five', 'bench-unit'] }),
     demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-game-past', offsetDays: -5, startHour: 16, durationMinutes: 120, title: 'Game', sessionType: 'game', facility: 'Main Hall' }),
     demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-team-past', offsetDays: -2, startHour: 18, startMinute: 15, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Main Hall', groupIds: ['starting-five', 'bench-unit'] }),
     demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-today', offsetDays: 0, startHour: 18, startMinute: 15, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Main Hall', groupIds: [] }),
     demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-strength-next', offsetDays: 2, startHour: 17, durationMinutes: 75, title: 'Strength', sessionType: 's_and_c', facility: 'Weight Room', groupIds: ['starting-five'] }),
-    demoSessionForTeam(teams, 'basketball-u16-boys', { id: 'demo-u16-team-past', offsetDays: -3, startHour: 19, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Court 1', groupIds: [] }),
+    demoSessionForTeam(teams, 'basketball-u14-boys', { id: 'demo-u14-game-next', offsetDays: 5, startHour: 15, durationMinutes: 120, title: 'Game', sessionType: 'game', facility: 'Main Hall' }),
+    demoSessionForTeam(teams, 'basketball-u16-boys', { id: 'demo-u16-team-history-1', offsetDays: -20, startHour: 19, startMinute: 45, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Court 1', groupIds: [] }),
+    demoSessionForTeam(teams, 'basketball-u16-boys', { id: 'demo-u16-strength-history', offsetDays: -13, startHour: 16, startMinute: 30, durationMinutes: 70, title: 'Strength', sessionType: 's_and_c', facility: 'Weight Room', groupIds: ['starting-five'] }),
+    demoSessionForTeam(teams, 'basketball-u16-boys', { id: 'demo-u16-team-past', offsetDays: -3, startHour: 19, startMinute: 45, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Court 1', groupIds: [] }),
     demoSessionForTeam(teams, 'basketball-u16-boys', { id: 'demo-u16-today', offsetDays: 0, startHour: 19, startMinute: 45, durationMinutes: 90, title: 'Shooting session', sessionType: 'training', facility: 'Court 1', groupIds: ['bench-unit'] }),
     demoSessionForTeam(teams, 'basketball-u16-boys', { id: 'demo-u16-strength-next', offsetDays: 1, startHour: 16, startMinute: 30, durationMinutes: 70, title: 'Strength', sessionType: 's_and_c', facility: 'Weight Room', groupIds: ['starting-five'] }),
     demoSessionForTeam(teams, 'basketball-u18-boys', { id: 'demo-u18-next', offsetDays: 1, startHour: 18, durationMinutes: 90, title: 'Team training', sessionType: 'training', facility: 'Court 1' }),
     demoSessionForTeam(teams, 'basketball-first-team', { id: 'demo-first-game-next', offsetDays: 3, startHour: 16, durationMinutes: 120, title: 'Game', sessionType: 'game', facility: 'Main Hall' }),
+    demoSessionForTeam(teams, 'football-first-team', { id: 'demo-football-team-next', offsetDays: 4, startHour: 19, durationMinutes: 90, title: 'Indoor training', sessionType: 'training', facility: 'Main Hall' }),
+    demoSessionForTeam(teams, 'fencing-first-team', { id: 'demo-fencing-team-next', offsetDays: 2, startHour: 18, durationMinutes: 75, title: 'Technical session', sessionType: 'training', facility: 'Court 1' }),
   ].filter(Boolean) as DemoSession[];
   if (seeded.length > 0) return seeded;
 
