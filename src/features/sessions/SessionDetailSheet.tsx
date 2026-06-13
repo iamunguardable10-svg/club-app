@@ -89,6 +89,7 @@ export function SessionDetailSheet({
   loadRisks = [],
   participants = [],
   onParticipantSelect,
+  insights,
   editDetails,
   editOpenKey,
   canEditTime = false,
@@ -116,6 +117,7 @@ export function SessionDetailSheet({
   loadRisks?: SessionDetailLoadRisk[];
   participants?: SessionDetailParticipant[];
   onParticipantSelect?: (participantId: string) => void;
+  insights?: ReactNode;
   editDetails?: ReactNode;
   editOpenKey?: string | null;
   canEditTime?: boolean;
@@ -244,6 +246,12 @@ export function SessionDetailSheet({
                 </div>
               ))}
             </div>
+          </div>
+        ) : null}
+
+        {insights ? (
+          <div className="mt-2.5 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
+            {insights}
           </div>
         ) : null}
 

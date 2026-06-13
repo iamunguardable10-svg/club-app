@@ -8,7 +8,7 @@ import type { TeamWorkspaceSection } from '@/features/teams/TeamWorkspaceView';
 import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
 import { sessionTypeToLoadType, type AthleteLoadEntry, type LoadTrainingType } from '@/features/load/loadTypes';
 import type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
-import { CoachHistorySessionCard, CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
+import { CoachHistoryInsights, CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
 import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { WeeklySeriesBoard } from '@/features/sessions/WeeklySeriesBoard';
@@ -1706,13 +1706,11 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         ) : null}
 
         {mode === 'history' && teams.length > 0 ? (
-          <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">History</p>
-            <h2 className="mt-2 text-2xl font-black">Recent sessions</h2>
-            <div className="mt-5 grid gap-3 lg:grid-cols-2">
-              {historySessions.length > 0 ? historySessions.slice(0, 12).map((session) => <CoachHistorySessionCard key={session.id} session={session} onDetails={() => setActiveSession(session)} />) : <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No completed sessions yet.</div>}
-            </div>
-          </section>
+          <CoachHistoryInsights
+            sessions={historySessions}
+            teams={teams.map((team) => ({ id: team.id, name: team.name, departmentName: team.departmentName }))}
+            onDetails={setActiveSession}
+          />
         ) : null}
 
         {activeSession ? (

@@ -15,7 +15,6 @@ import { PlayerLoadDetail } from '@/features/players/PlayerLoadDetail';
 import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
-import { SessionDetailSheet } from '@/features/sessions/SessionDetailSheet';
 import { WeeklySeriesBoard } from '@/features/sessions/WeeklySeriesBoard';
 import { SeriesTemplateEditSheet, type SeriesTemplateInput } from '@/features/sessions/SeriesTemplateEditSheet';
 import { buildSeriesWeekItems, getIsoWeekStart, type SeriesTemplate, type SeriesWeekItem, type SeriesWeekState } from '@/features/sessions/sessionSeriesPlanner';
@@ -1407,7 +1406,6 @@ export function TeamWorkspaceView({
   const [isSavingDefault, setIsSavingDefault] = useState(false);
   const [activePlayer, setActivePlayer] = useState<TeamWorkspacePlayer | null>(null);
   const [dashboardSession, setDashboardSession] = useState<TeamWorkspaceSession | null>(null);
-  const [dashboardSessionEditKey, setDashboardSessionEditKey] = useState<string | null>(null);
   const [dashboardEditingSession, setDashboardEditingSession] = useState<TeamWorkspaceSession | null>(null);
   const [dashboardDeleteTargetId, setDashboardDeleteTargetId] = useState<string | null>(null);
   const [isSavingDashboardSessionFacility, setIsSavingDashboardSessionFacility] = useState(false);
@@ -1511,37 +1509,6 @@ export function TeamWorkspaceView({
     return players.filter((player) => ids.has(player.id));
   }
 
-  function attendanceForSession(session: TeamWorkspaceSession, sessionPlayers: TeamWorkspacePlayer[]) {
-    const notes = sessionPlayers.flatMap((player) =>
-      (player.attendanceEvents ?? [])
-        .filter((event) => event.sessionId === session.id)
-        .map((event) => ({
-          id: `${player.id}-${event.sessionId}-${event.status}`,
-          name: player.name,
-          status: event.status,
-          detail: event.status === 'late' && event.lateMinutes ? `${event.lateMinutes} min` : event.reason,
-        })),
-    );
-    return {
-      expected: sessionPlayers.length,
-      late: notes.filter((note) => note.status === 'late').length,
-      out: notes.filter((note) => note.status === 'out').length,
-      notes,
-    };
-  }
-
-  function loadForSession(session: TeamWorkspaceSession, sessionPlayers: TeamWorkspacePlayer[]) {
-    if (sessionPlayers.every((player) => player.loadEntries === undefined)) return undefined;
-    const reported = sessionPlayers.filter((player) => (player.loadEntries ?? []).some((entry) => entry.sessionId === session.id)).length;
-    const missing = Math.max(0, sessionPlayers.length - reported);
-    return {
-      reported,
-      missing,
-      planned: sessionPlayers.length,
-      status: reported > 0 ? `${reported}/${sessionPlayers.length} reported` : 'Pending input',
-    };
-  }
-
   async function handleDashboardSessionFacilityChange(facilityId: string) {
     if (!dashboardSession || !onSessionFacilityChange) return;
     const facility = data.availableFacilities?.find((item) => item.id === facilityId);
@@ -1551,30 +1518,6 @@ export function TeamWorkspaceView({
       setDashboardSession((current) => current?.id === dashboardSession.id ? { ...current, facilityId, facilityName: facility?.name ?? current.facilityName ?? null } : current);
     } finally {
       setIsSavingDashboardSessionFacility(false);
-    }
-  }
-
-  async function handleDashboardSessionGroupsChange(groupIds: string[]) {
-    if (!dashboardSession || !onSessionGroupsChange) return;
-    const previousGroupIds = dashboardSession.groupIds ?? [];
-    setDashboardSession((current) => current?.id === dashboardSession.id ? { ...current, groupIds } : current);
-    try {
-      await onSessionGroupsChange(dashboardSession.id, groupIds);
-    } catch (error) {
-      setDashboardSession((current) => current?.id === dashboardSession.id ? { ...current, groupIds: previousGroupIds } : current);
-      throw error;
-    }
-  }
-
-  async function handleDashboardSessionTimeChange(startsAt: string, endsAt: string) {
-    if (!dashboardSession || !onSessionTimeChange) return;
-    const previousSession = dashboardSession;
-    setDashboardSession((current) => current?.id === dashboardSession.id ? { ...current, startsAt, endsAt } : current);
-    try {
-      await onSessionTimeChange(dashboardSession.id, startsAt, endsAt);
-    } catch (error) {
-      setDashboardSession((current) => current?.id === previousSession.id ? previousSession : current);
-      throw error;
     }
   }
 
@@ -1711,7 +1654,7 @@ export function TeamWorkspaceView({
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Today / next</p>
             {nextSession ? (
-              <TeamDashboardSessionCard session={nextSession} players={playersForSession(nextSession)} fallbackFacilityName={data.defaultFacilityName} onOpen={() => { setDashboardSessionEditKey(null); setDashboardSession(nextSession); }} />
+              <TeamDashboardSessionCard session={nextSession} players={playersForSession(nextSession)} fallbackFacilityName={data.defaultFacilityName} onOpen={() => setDashboardSession(nextSession)} />
             ) : (
               <EmptyCard title="No upcoming session" />
             )}
@@ -1988,48 +1931,21 @@ export function TeamWorkspaceView({
 
       {dashboardSession ? (() => {
         const sessionPlayers = playersForSession(dashboardSession);
-        const attendance = attendanceForSession(dashboardSession, sessionPlayers);
+        const dashboardCoachSession = coachSessionFromTeamWorkspace(dashboardSession, data, sessionPlayers);
         return (
-          <SessionDetailSheet
-            title={dashboardSession.title}
-            startsAt={dashboardSession.startsAt}
-            endsAt={dashboardSession.endsAt}
-            teamName={data.name}
-            departmentName={data.departmentName}
-            facilityName={dashboardSession.facilityName ?? data.defaultFacilityName}
-            facilityId={dashboardSession.facilityId ?? data.defaultFacilityId}
+          <CoachSessionDetailOverlay
+            session={dashboardCoachSession}
+            calendarHref={null}
+            groups={coachEditorGroups.map((group) => ({ id: group.id, name: group.name, playerCount: group.playerCount }))}
+            selectedGroupIds={dashboardSession.groupIds ?? []}
             facilityOptions={data.availableFacilities ?? []}
             canEditFacility={data.role !== 'viewer' && Boolean(onSessionFacilityChange)}
             isSavingFacility={isSavingDashboardSessionFacility}
             onFacilityChange={handleDashboardSessionFacilityChange}
-            groups={coachEditorGroups.map((group) => ({ id: group.id, name: group.name, playerCount: group.playerCount }))}
-            selectedGroupIds={dashboardSession.groupIds ?? []}
-            canEditGroups={false}
-            onGroupsChange={handleDashboardSessionGroupsChange}
-            attendance={attendance}
-            load={loadForSession(dashboardSession, sessionPlayers)}
-            loadRisks={sessionPlayers.map(loadRiskLine).filter(Boolean) as { id: string; name: string; status: 'high' | 'low'; detail: string | null }[]}
-            participants={sessionPlayers.map((player) => {
-              const flag = (player.attendanceEvents ?? []).find((event) => event.sessionId === dashboardSession.id);
-              return {
-                id: player.id,
-                name: player.name,
-                status: flag?.status ?? 'expected',
-                detail: flag?.status === 'late' && flag.lateMinutes ? `${flag.lateMinutes} min` : flag?.reason ?? null,
-              };
-            })}
-            canEditTime={data.role !== 'viewer' && Boolean(onSessionTimeChange)}
-            onTimeChange={handleDashboardSessionTimeChange}
-            editOpenKey={dashboardSessionEditKey}
-            actions={<>
-              {data.role !== 'viewer' && (onSessionTimeChange || onSessionFacilityChange || onSessionGroupsChange || onSessionTypeChange) ? <button type="button" onClick={() => setDashboardEditingSession(dashboardSession)} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit details</button> : null}
-              {data.role !== 'viewer' && onSessionDelete ? <button type="button" onClick={() => setDashboardDeleteTargetId(dashboardSession.id)} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">Delete session</button> : null}
-              <button type="button" onClick={() => { setDashboardSessionEditKey(null); setDashboardSession(null); setActiveSection('calendar'); }} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</button>
-            </>}
-            onClose={() => {
-              setDashboardSessionEditKey(null);
-              setDashboardSession(null);
-            }}
+            onEdit={data.role !== 'viewer' && (onSessionTimeChange || onSessionFacilityChange || onSessionGroupsChange || onSessionTypeChange) ? () => setDashboardEditingSession(dashboardSession) : undefined}
+            onDelete={data.role !== 'viewer' && onSessionDelete ? () => setDashboardDeleteTargetId(dashboardSession.id) : undefined}
+            extraActions={<button type="button" onClick={() => { setDashboardSession(null); setActiveSection('calendar'); }} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</button>}
+            onClose={() => setDashboardSession(null)}
           />
         );
       })() : null}
