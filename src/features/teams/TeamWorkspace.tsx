@@ -22,6 +22,7 @@ type SessionSeriesGroup = { series_id: string; group_id: string };
 type SessionSeriesWeekState = { series_id: string; week_start: string; checked: boolean; committed_session_id: string | null };
 type Invite = { id: string; token: string; role: 'head_coach' | 'assistant_coach'; status: 'pending' | 'accepted' | 'revoked' | 'expired'; coach_role_slot_id: string | null };
 type CoachRoleSlot = { id: string; label: string };
+type TeamJoinCodeResult = { code?: string; ok?: boolean; reused?: boolean };
 type PlayerGroup = { id: string; name: string };
 type PlayerGroupMember = { group_id: string; team_membership_id: string };
 type SessionGroup = { session_id: string; group_id: string };
@@ -672,6 +673,22 @@ export function TeamWorkspace({
     return `${window.location.origin}/invite/${token}`;
   }
 
+  function getJoinUrl(code: string) {
+    if (typeof window === 'undefined') return `/join/${code}`;
+    return `${window.location.origin}/join/${code}`;
+  }
+
+  async function handleCreatePlayerJoinLink() {
+    if (!team) return null;
+    const supabase = createBrowserSupabaseClient();
+    const { data, error: createError } = await supabase.rpc('get_or_create_team_join_code', { p_team_id: team.id });
+    if (createError) {
+      return null;
+    }
+    const result = data as TeamJoinCodeResult | null;
+    return result?.code ? getJoinUrl(result.code) : null;
+  }
+
   async function handleInviteStaff(role: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) {
     if (!team) return;
     const existing = invites.find((invite) => invite.status === 'pending' && invite.role === role && (invite.coach_role_slot_id ?? null) === (coachRoleSlotId ?? null));
@@ -957,6 +974,9 @@ export function TeamWorkspace({
   if (state === 'error') return <TeamWorkspaceFrame frame={frame}><section className="rounded-3xl border border-red-500/40 bg-red-950/20 p-6 text-red-100">{error}</section></TeamWorkspaceFrame>;
   if (!data) return <TeamWorkspaceFrame frame={frame}><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6">Team not found.</section></TeamWorkspaceFrame>;
 
+  // TeamWorkspaceRole normalizes head_coach/assistant_coach memberships to the workspace-level 'coach' role.
+  const canCreatePlayerJoinLink = ['admin', 'department_lead', 'coach'].includes(data.role);
+
   return (
     <TeamWorkspaceFrame frame={frame}>
       <TeamWorkspaceView
@@ -976,6 +996,7 @@ export function TeamWorkspace({
         onDeleteSeries={handleSeriesDelete}
         onToggleSeriesWeek={handleSeriesWeekToggle}
         onConfirmSeriesWeek={handleSeriesWeekConfirm}
+        onCreatePlayerJoinLink={canCreatePlayerJoinLink ? handleCreatePlayerJoinLink : undefined}
         onInviteStaff={handleInviteStaff}
         onCopyStaffInvite={handleCopyStaffInvite}
         onRevokeStaffInvite={handleRevokeStaffInvite}

@@ -66,13 +66,13 @@ const sections = [
   },
   {
     title: 'Auth / Utilities',
-    description: 'Authentication, workspace routing and placeholder invite/join pages.',
+    description: 'Authentication, workspace routing and invite/join flows.',
     links: [
       { href: '/auth/login', label: 'Login' },
       { href: '/auth/signup', label: 'Signup' },
       { href: '/app', label: 'Workspace router' },
-      { href: '/invite/demo-token', label: 'Invite placeholder' },
-      { href: '/join/DEMO01', label: 'Join code placeholder' },
+      { href: '/invite/demo-token', label: 'Invite flow' },
+      { href: '/join/DEMO01', label: 'Join code test (needs code)' },
     ],
   },
 ];

@@ -1366,6 +1366,7 @@ export function TeamWorkspaceView({
   onToggleSeriesWeek,
   onConfirmSeriesWeek,
   onAddDemoPlayers,
+  onCreatePlayerJoinLink,
   onInviteStaff,
   onCopyStaffInvite,
   onRevokeStaffInvite,
@@ -1392,6 +1393,7 @@ export function TeamWorkspaceView({
   onToggleSeriesWeek?: (seriesId: string, weekStart: string, checked: boolean) => void | Promise<void>;
   onConfirmSeriesWeek?: (items: SeriesWeekItem[]) => void | Promise<void>;
   onAddDemoPlayers?: () => void | Promise<void>;
+  onCreatePlayerJoinLink?: () => string | null | Promise<string | null>;
   onInviteStaff?: (role: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) => void | Promise<void>;
   onCopyStaffInvite?: (token: string) => void | Promise<void>;
   onRevokeStaffInvite?: (inviteId: string) => void | Promise<void>;
@@ -1412,6 +1414,7 @@ export function TeamWorkspaceView({
   const [isSavingDashboardEdit, setIsSavingDashboardEdit] = useState(false);
   const [isDeletingDashboardSession, setIsDeletingDashboardSession] = useState(false);
   const [playerSort, setPlayerSort] = useState<'risk' | 'az'>('risk');
+  const [joinLinkState, setJoinLinkState] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle');
   const selectedFacilityTone = facilityTone(data.defaultFacilityName);
   const players = data.players ?? [];
   const sortedPlayers = useMemo(() => [...players].sort((a, b) => {
@@ -1624,6 +1627,25 @@ export function TeamWorkspaceView({
     setActiveSection('players');
   }
 
+  async function handleCreatePlayerJoinLink() {
+    if (!onCreatePlayerJoinLink || joinLinkState === 'copying') return;
+    setJoinLinkState('copying');
+    const url = await onCreatePlayerJoinLink();
+    if (!url) {
+      setJoinLinkState('failed');
+      window.setTimeout(() => setJoinLinkState('idle'), 1400);
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setJoinLinkState('copied');
+      window.setTimeout(() => setJoinLinkState('idle'), 1400);
+    } catch {
+      setJoinLinkState('failed');
+      window.setTimeout(() => setJoinLinkState('idle'), 1400);
+    }
+  }
+
   async function handleAddCoachRole() {
     const label = newCoachRoleLabel.trim();
     if (!label || !onAddCoachRole) return;
@@ -1760,6 +1782,10 @@ export function TeamWorkspaceView({
             {onAddDemoPlayers ? (
               <button type="button" onClick={handleAddDemoPlayers} className="rounded-2xl border border-emerald-500/40 bg-emerald-950/20 p-4 text-left transition hover:border-emerald-300/70">
                 <p className="text-sm font-black text-emerald-100">Add demo players</p>
+              </button>
+            ) : onCreatePlayerJoinLink ? (
+              <button type="button" onClick={handleCreatePlayerJoinLink} disabled={joinLinkState === 'copying'} className="rounded-2xl border border-sky-500/40 bg-sky-950/20 p-4 text-left transition hover:border-sky-300/70 disabled:opacity-60">
+                <span aria-live="polite" className="text-sm font-black text-sky-100">{joinLinkState === 'copied' ? 'Copied' : joinLinkState === 'failed' ? 'Copy failed' : joinLinkState === 'copying' ? 'Creating link...' : 'Copy athlete join link'}</span>
               </button>
             ) : (
               <EmptyCard title="Invite players" />
