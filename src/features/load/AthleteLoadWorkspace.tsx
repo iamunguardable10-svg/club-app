@@ -1161,7 +1161,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
       </div>
       {isFullscreen ? (
         <div
-          className="fixed inset-0 z-50 h-dvh overflow-hidden bg-[#050712]"
+          className="fixed inset-0 z-[100] h-dvh overflow-hidden bg-[#050712]"
           role="dialog"
           aria-modal="true"
           style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
@@ -1794,11 +1794,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     if (sample.length === 0) return 6;
     return Math.max(1, Math.min(10, Math.round(sample.reduce((sum, entry) => sum + entry.rpe, 0) / sample.length)));
   }
+  const activeTeamSessionLocked = Boolean(activeComposerSession?.source === 'team_session' || (activeEntry?.source === 'planned_session' && activeEntry.sessionId));
+  const activeTeamSessionIsFuture = Boolean(activeComposerSession?.source === 'team_session' && new Date(activeComposerSession.startsAt).getTime() > Date.now());
   const sessionMode = planForm.date < todayISO() ? 'report' : planForm.date > todayISO() ? 'plan' : todayAction;
   const effectiveRpe = planForm.trainingType === 'game' ? 10 : planForm.expectedRpe;
   const sessionLoadPreview = effectiveRpe * planForm.expectedDurationMinutes;
 
   function setSessionTrainingType(type: LoadTrainingType) {
+    if (activeTeamSessionLocked) return;
     setPlanForm((current) => ({
       ...current,
       trainingType: type,
@@ -2055,13 +2058,15 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
   async function updateExistingEntry() {
     if (!activeEntry) return;
-    const startsAt = planForm.time ? new Date(`${planForm.date}T${planForm.time}`).toISOString() : activeEntry.startsAt ?? null;
+    const isTeamLinkedEntry = activeEntry.source === 'planned_session' && Boolean(activeEntry.sessionId);
+    const startsAt = isTeamLinkedEntry ? activeEntry.startsAt ?? null : planForm.time ? new Date(`${planForm.date}T${planForm.time}`).toISOString() : activeEntry.startsAt ?? null;
+    const trainingType = isTeamLinkedEntry ? activeEntry.trainingType : planForm.trainingType;
     const updated: AthleteLoadEntry = {
       ...activeEntry,
-      date: planForm.date,
+      date: isTeamLinkedEntry ? activeEntry.date : planForm.date,
       startsAt,
-      title: LOAD_TYPE_LABELS[planForm.trainingType],
-      trainingType: planForm.trainingType,
+      title: isTeamLinkedEntry ? activeEntry.title : LOAD_TYPE_LABELS[trainingType],
+      trainingType,
       rpe: effectiveRpe,
       durationMinutes: planForm.expectedDurationMinutes,
       load: effectiveRpe * planForm.expectedDurationMinutes,
@@ -2265,7 +2270,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   }
 
   const shareActive = Boolean(activeShareUrl);
-  const activeTeamSessionIsFuture = Boolean(activeComposerSession?.source === 'team_session' && new Date(activeComposerSession.startsAt).getTime() > Date.now());
   const composerTitle = activeEntry
     ? 'Edit load'
     : activeComposerSession?.source === 'team_session'
@@ -2409,7 +2413,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         ) : null}
       </div>
       {activeDetailItem ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-[100] flex items-end bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
           <div className="w-full rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-md">
             <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4">
               <div>
@@ -2450,7 +2454,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       ) : null}
 
       {composerOpen ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-[100] flex items-end bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
           <div className="max-h-[88vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-xl">
             <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4">
               <div>
@@ -2461,7 +2465,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               <button type="button" onClick={() => { setComposerOpen(false); setActiveComposerSession(null); setActiveEntry(null); }} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">Close</button>
             </div>
 
-            {activeComposerSession?.source === 'team_session' ? (
+            {activeTeamSessionLocked ? (
               <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm font-black text-slate-200">
                 {LOAD_TYPE_LABELS[planForm.trainingType]} · locked by team session
               </div>
@@ -2475,16 +2479,33 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               </div>
             )}
 
-            <div className="mt-4 flex max-w-full flex-wrap gap-2">
-              <label className="w-[9rem] max-w-[calc(100vw-2rem)] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500 sm:w-[10rem]">
-                Date
-                <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value, expectedRpe: current.trainingType === 'game' ? 10 : averageRpeFor(current.trainingType, event.target.value) }))} className="mt-2 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-0 text-center text-[14px] font-black leading-normal text-white outline-none focus:border-emerald-300 sm:text-[15px] [color-scheme:dark] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:min-h-[2.25rem] [&::-webkit-date-and-time-value]:text-center [&::-webkit-date-and-time-value]:leading-[2.25rem]" />
-              </label>
-              <label className="w-[5.9rem] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500 sm:w-[7rem]">
-                Time
-                <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-0 text-center text-[14px] font-black leading-normal text-white outline-none focus:border-emerald-300 sm:text-[15px] [color-scheme:dark] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:min-h-[2.25rem] [&::-webkit-date-and-time-value]:text-center [&::-webkit-date-and-time-value]:leading-[2.25rem]" />
-              </label>
-            </div>
+            {activeTeamSessionLocked ? (
+              <div className="mt-4 grid max-w-xs grid-cols-[minmax(0,1fr)_6rem] gap-2">
+                <div className="min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  Date
+                  <div className="mt-2 h-10 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-center text-sm font-black normal-case tracking-normal text-white">
+                    {formatLoadDate(planForm.date)}
+                  </div>
+                </div>
+                <div className="min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  Time
+                  <div className="mt-2 h-10 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-center text-sm font-black normal-case tracking-normal text-white">
+                    {planForm.time || '—'}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 flex max-w-full flex-wrap gap-2">
+                <label className="w-[9rem] max-w-[calc(100vw-2rem)] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500 sm:w-[10rem]">
+                  Date
+                  <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value, expectedRpe: current.trainingType === 'game' ? 10 : averageRpeFor(current.trainingType, event.target.value) }))} className="mt-2 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-0 text-center text-[14px] font-black leading-normal text-white outline-none focus:border-emerald-300 sm:text-[15px] [color-scheme:dark] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:min-h-[2.25rem] [&::-webkit-date-and-time-value]:text-center [&::-webkit-date-and-time-value]:leading-[2.25rem]" />
+                </label>
+                <label className="w-[5.9rem] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500 sm:w-[7rem]">
+                  Time
+                  <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-0 text-center text-[14px] font-black leading-normal text-white outline-none focus:border-emerald-300 sm:text-[15px] [color-scheme:dark] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:min-h-[2.25rem] [&::-webkit-date-and-time-value]:text-center [&::-webkit-date-and-time-value]:leading-[2.25rem]" />
+                </label>
+              </div>
+            )}
 
             {!activeComposerSession && planForm.date === todayISO() ? (
               <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-1">

@@ -35,7 +35,7 @@ export function AppConfirmDialog({
       : 'bg-emerald-400 text-slate-950 hover:bg-emerald-300';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm" role="dialog" aria-modal="true">
       <div className="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-950 p-5 shadow-2xl">
         <p className={tone === 'danger' ? 'text-xs font-black uppercase tracking-[0.18em] text-red-300' : 'text-xs font-black uppercase tracking-[0.18em] text-emerald-300'}>
           {tone === 'danger' ? 'Confirm deletion' : 'Confirm action'}

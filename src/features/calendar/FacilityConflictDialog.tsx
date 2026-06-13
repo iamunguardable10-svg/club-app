@@ -32,7 +32,7 @@ export function FacilityConflictDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="facility-conflict-title">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="facility-conflict-title">
       <div className="w-full max-w-lg rounded-3xl border border-slate-700 bg-slate-950 p-5 shadow-2xl">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">Hall conflict</p>
         <h2 id="facility-conflict-title" className="mt-3 text-2xl font-black text-white">This slot overlaps</h2>

@@ -1911,7 +1911,7 @@ export function TeamWorkspaceView({
       ) : null}
 
       {activeGroup ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/75 p-3 backdrop-blur-sm sm:items-center">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/75 p-3 backdrop-blur-sm sm:items-center">
           <section className="w-full max-w-lg rounded-3xl border border-slate-800 bg-slate-950 p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>

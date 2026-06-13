@@ -156,7 +156,7 @@ export function PlayerLoadDetail({
         : { label: 'Stable rhythm', detail: 'Weekly variation looks healthy', tone: 'border-emerald-400/45 bg-emerald-400/10 text-emerald-100' };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end bg-slate-950/80 px-3 pb-3 pt-8 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[110] flex items-end bg-slate-950/80 px-3 pb-3 pt-8 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
       <div className="max-h-[92vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-5xl sm:rounded-[2rem] sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 pb-4">
           <div>
