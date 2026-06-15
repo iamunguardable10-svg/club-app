@@ -8,7 +8,7 @@ import type { TeamWorkspaceSection } from '@/features/teams/TeamWorkspaceView';
 import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
 import { sessionTypeToLoadType, type AthleteLoadEntry, type LoadTrainingType } from '@/features/load/loadTypes';
 import type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
-import { CoachHistoryInsights, CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
+import { CoachHistoryInsights, CoachSessionDetailOverlay, type CoachSessionInsight } from '@/features/role-workspaces/CoachSessionSurfaces';
 import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { WeeklySeriesBoard } from '@/features/sessions/WeeklySeriesBoard';
@@ -888,6 +888,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const [seriesWeekStates, setSeriesWeekStates] = useState<SeriesWeekState[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
   const [activeSession, setActiveSession] = useState<CoachSession | null>(null);
+  const [activeHistoryInsight, setActiveHistoryInsight] = useState<CoachSessionInsight | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [returnToSessionId, setReturnToSessionId] = useState<string | null>(null);
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
@@ -898,6 +899,16 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const clearEditSessionParam = useCallback(() => {
     router.replace('/coach/sessions');
   }, [router]);
+
+  function openSessionDetails(session: CoachSession, insight: CoachSessionInsight | null = null) {
+    setActiveHistoryInsight(insight);
+    setActiveSession(session);
+  }
+
+  function closeSessionDetails() {
+    setActiveHistoryInsight(null);
+    setActiveSession(null);
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -1424,7 +1435,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       const { error: deleteError } = await supabase.from('sessions').delete().eq('id', sessionId);
       if (deleteError) { setError(deleteError.message); return; }
       setSessions((current) => current.filter((session) => session.id !== sessionId));
-      setActiveSession(null);
+      closeSessionDetails();
       setReturnToSessionId(null);
       setDeleteSessionId(null);
     } finally {
@@ -1590,7 +1601,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     const returnSession = returnToSessionId ? sessions.find((session) => session.id === returnToSessionId) ?? null : null;
     setEditingSessionId(null);
     setReturnToSessionId(null);
-    if (returnSession) setActiveSession(returnSession);
+    if (returnSession) openSessionDetails(returnSession);
   }
 
   if (state === 'loading') {
@@ -1643,7 +1654,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
                 {todaySessions.length > 0 ? <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{todaySessions.length} today</span> : null}
               </div>
               <div className="mt-5 grid gap-3 lg:grid-cols-2">
-                {todaySessions.length > 0 ? todaySessions.map((session) => <CoachSessionCard key={session.id} session={session} onDetails={() => setActiveSession(session)} />) : <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions today.</div>}
+                {todaySessions.length > 0 ? todaySessions.map((session) => <CoachSessionCard key={session.id} session={session} onDetails={() => openSessionDetails(session)} />) : <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions today.</div>}
               </div>
             </section>
 
@@ -1652,7 +1663,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Next</p>
                 <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
                   {upcomingSessions.map((session) => (
-                    <button key={session.id} type="button" onClick={() => setActiveSession(session)} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-left transition hover:border-sky-300/50 hover:bg-slate-900/70">
+                    <button key={session.id} type="button" onClick={() => openSessionDetails(session)} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-left transition hover:border-sky-300/50 hover:bg-slate-900/70">
                       <p className="text-sm font-black text-white">{session.teamName}</p>
                       <p className="mt-1 text-xs font-bold text-slate-400">{new Date(session.startsAt).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' })} · {formatTimeRange(session.startsAt, session.endsAt)}</p>
                       <p className="mt-3 text-xs font-black text-slate-500">{session.availability.length} availability flags</p>
@@ -1684,7 +1695,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             onDeleteSeries={handleCoachSeriesDelete}
             onToggleSeriesWeek={handleCoachSeriesWeekToggle}
             onConfirmSeriesWeek={handleCoachSeriesWeekConfirm}
-            onDetails={setActiveSession}
+            onDetails={openSessionDetails}
           />
         ) : null}
 
@@ -1709,7 +1720,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           <CoachHistoryInsights
             sessions={historySessions}
             teams={teams.map((team) => ({ id: team.id, name: team.name, departmentName: team.departmentName }))}
-            onDetails={setActiveSession}
+            onDetails={openSessionDetails}
           />
         ) : null}
 
@@ -1717,9 +1728,10 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           <CoachSessionDetailOverlay
             session={activeSession}
             calendarHref={mode === 'today' ? '/coach/sessions' : null}
-            onEdit={() => { setReturnToSessionId(activeSession.id); setEditingSessionId(activeSession.id); setActiveSession(null); }}
+            initialInsight={activeHistoryInsight}
+            onEdit={() => { setReturnToSessionId(activeSession.id); setEditingSessionId(activeSession.id); closeSessionDetails(); }}
             onDelete={() => setDeleteSessionId(activeSession.id)}
-            onClose={() => setActiveSession(null)}
+            onClose={closeSessionDetails}
           />
         ) : null}
 

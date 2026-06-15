@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { SessionDetailSheet, type SessionDetailFacilityOption, type SessionDetailGroup } from '@/features/sessions/SessionDetailSheet';
 import { LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type LoadTrainingType } from '@/features/load/loadTypes';
 import type { CoachSession } from '@/features/role-workspaces/CoachTypes';
@@ -9,6 +9,8 @@ import { PlayerLoadDetail, type PlayerLoadDetailPlayer } from '@/features/player
 
 type LoadRiskPlayer = { risk: string; acwr: number | null };
 type HistoryTeamOption = { id: string; name: string; departmentName?: string };
+export type CoachSessionInsight = 'expected' | 'rpe' | 'au' | 'completion';
+type HistoryFocus = 'all' | CoachSessionInsight;
 
 export function sortCoachLoadRisks<T extends LoadRiskPlayer>(players: T[]) {
   return [...players]
@@ -41,6 +43,33 @@ function summarizeCoachSession(session: CoachSession) {
   return { late, out, loadReports, reportRate, avgRpe, avgLoad, loadMix, risks };
 }
 
+type CoachSessionLoadReport = ReturnType<typeof summarizeCoachSession>['loadReports'][number];
+
+function sortLoadReportsDescending(a: CoachSessionLoadReport, b: CoachSessionLoadReport) {
+  return b.entry.rpe - a.entry.rpe || b.entry.load - a.entry.load || a.player.name.localeCompare(b.player.name);
+}
+
+function insightTitle(insight: CoachSessionInsight) {
+  if (insight === 'expected') return 'Expected players';
+  if (insight === 'rpe') return 'RPE reports';
+  if (insight === 'au') return 'AU load';
+  return 'Completion';
+}
+
+function availabilityRank(status: 'late' | 'out' | 'expected' | 'present') {
+  if (status === 'out') return 0;
+  if (status === 'late') return 1;
+  if (status === 'expected') return 2;
+  return 3;
+}
+
+function statusClassName(status?: string) {
+  if (status === 'out') return 'text-red-200';
+  if (status === 'late') return 'text-amber-200';
+  if (status === 'expected') return 'text-slate-300';
+  return 'text-emerald-200';
+}
+
 function isPastSession(session: CoachSession) {
   return new Date(session.startsAt).getTime() < Date.now();
 }
@@ -57,13 +86,33 @@ function formatPercent(value: number | null) {
   return `${Math.round(value * 100)}%`;
 }
 
-function MetricCard({ label, value, detail }: { label: string; value: string; detail?: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+function InsightMetricCard({
+  label,
+  value,
+  detail,
+  active = false,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+  active?: boolean;
+  onClick?: () => void;
+}) {
+  const className = `rounded-2xl border p-3 text-left transition ${active ? 'border-violet-300 bg-violet-300/15' : 'border-slate-800 bg-slate-950/70'} ${onClick ? 'hover:border-violet-300/55 hover:bg-slate-900/80' : ''}`;
+  const content = (
+    <>
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
       <p className="mt-1 text-lg font-black text-white">{value}</p>
       {detail ? <p className="mt-0.5 text-[11px] font-bold text-slate-500">{detail}</p> : null}
-    </div>
+    </>
+  );
+  return onClick ? (
+    <button type="button" onClick={onClick} className={className}>
+      {content}
+    </button>
+  ) : (
+    <div className={className}>{content}</div>
   );
 }
 
@@ -101,6 +150,8 @@ export function CoachSessionDetailOverlay({
   onEdit,
   onDelete,
   extraActions,
+  initialInsight = null,
+  hidePastActions = true,
   onClose,
 }: {
   session: CoachSession;
@@ -114,26 +165,71 @@ export function CoachSessionDetailOverlay({
   onEdit?: () => void;
   onDelete?: () => void;
   extraActions?: ReactNode;
+  initialInsight?: CoachSessionInsight | null;
+  hidePastActions?: boolean;
   onClose: () => void;
 }) {
   const summary = useMemo(() => summarizeCoachSession(session), [session]);
   const isPast = isPastSession(session);
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
+  const [activeInsight, setActiveInsight] = useState<CoachSessionInsight | null>(initialInsight);
+  const [showAllHardReports, setShowAllHardReports] = useState(false);
   const activePlayer = session.players.find((player) => player.id === activePlayerId) ?? null;
   const hardReports = useMemo(
     () => [...summary.loadReports]
       .filter((item) => item.entry.rpe >= 8)
-      .sort((a, b) => b.entry.rpe - a.entry.rpe || b.entry.load - a.entry.load)
-      .slice(0, 4),
+      .sort(sortLoadReportsDescending),
     [summary.loadReports],
   );
   const lightReports = useMemo(
     () => [...summary.loadReports]
       .filter((item) => item.entry.rpe <= 3)
-      .sort((a, b) => a.entry.rpe - b.entry.rpe || a.entry.load - b.entry.load)
-      .slice(0, 4),
+      .sort(sortLoadReportsDescending),
     [summary.loadReports],
   );
+  const visibleHardReports = showAllHardReports ? hardReports : hardReports.slice(0, 4);
+  const reportByPlayerId = useMemo(() => new Map(summary.loadReports.map((item) => [item.player.id, item])), [summary.loadReports]);
+  const availabilityByPlayerId = useMemo(() => new Map(session.availability.map((item) => [item.userId, item])), [session.availability]);
+  const expectedInsightRows = useMemo(
+    () => session.players
+      .map((player) => {
+        const flag = availabilityByPlayerId.get(player.id);
+        const status: 'late' | 'out' | 'expected' = flag?.status ?? 'expected';
+        const detail = flag?.status === 'late' && flag.lateMinutes ? `${flag.lateMinutes} min late` : flag?.reason ?? 'Expected';
+        return { id: player.id, name: player.name, status, detail };
+      })
+      .sort((a, b) => availabilityRank(a.status) - availabilityRank(b.status) || a.name.localeCompare(b.name)),
+    [availabilityByPlayerId, session.players],
+  );
+  const rpeInsightRows = useMemo(() => [...summary.loadReports].sort(sortLoadReportsDescending), [summary.loadReports]);
+  const auInsightRows = useMemo(
+    () => session.players
+      .map((player) => ({ player, report: reportByPlayerId.get(player.id) ?? null }))
+      .sort((a, b) => {
+        if (a.report && b.report) return b.report.entry.load - a.report.entry.load || b.report.entry.rpe - a.report.entry.rpe || a.player.name.localeCompare(b.player.name);
+        if (a.report) return -1;
+        if (b.report) return 1;
+        return a.player.name.localeCompare(b.player.name);
+      }),
+    [reportByPlayerId, session.players],
+  );
+  const completionInsightRows = useMemo(
+    () => session.players
+      .map((player) => ({ player, report: reportByPlayerId.get(player.id) ?? null }))
+      .sort((a, b) => {
+        if (!a.report && b.report) return -1;
+        if (a.report && !b.report) return 1;
+        if (a.report && b.report) return b.report.entry.load - a.report.entry.load || b.report.entry.rpe - a.report.entry.rpe || a.player.name.localeCompare(b.player.name);
+        return a.player.name.localeCompare(b.player.name);
+      }),
+    [reportByPlayerId, session.players],
+  );
+  const hideSessionActions = hidePastActions && isPast;
+
+  useEffect(() => {
+    setActiveInsight(initialInsight);
+    setShowAllHardReports(false);
+  }, [initialInsight, session.id]);
   const activePlayerDetail: PlayerLoadDetailPlayer | null = activePlayer
     ? {
         id: activePlayer.id,
@@ -173,13 +269,13 @@ export function CoachSessionDetailOverlay({
           late: summary.late.length,
           out: summary.out.length,
           notes: session.availability.map((item) => ({
-            id: item.id,
+            id: item.userId,
             name: item.playerName,
             status: item.status,
             detail: item.status === 'late' && item.lateMinutes ? `${item.lateMinutes} min` : item.reason,
           })),
         }}
-        loadRisks={summary.risks.map((player) => ({ id: player.id, name: player.name, status: player.risk as 'high' | 'low', detail: player.acwr !== null ? `${player.acwr.toFixed(2)} ACWR` : null }))}
+        loadRisks={isPast ? [] : summary.risks.map((player) => ({ id: player.id, name: player.name, status: player.risk as 'high' | 'low', detail: player.acwr !== null ? `${player.acwr.toFixed(2)} ACWR` : null }))}
         insights={isPast ? (
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -189,19 +285,62 @@ export function CoachSessionDetailOverlay({
               </span>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <MetricCard label="Expected" value={`${Math.max(0, session.players.length - summary.out.length)}`} detail={`${summary.late.length} late · ${summary.out.length} out`} />
-              <MetricCard label="Avg RPE" value={summary.avgRpe !== null ? summary.avgRpe.toFixed(1) : '—'} detail={summary.reportRate >= 0.8 ? 'team signal ready' : 'waiting for inputs'} />
-              <MetricCard label="Avg AU" value={summary.avgLoad !== null ? `${Math.round(summary.avgLoad)}` : '—'} detail="reported players" />
-              <MetricCard label="Completion" value={formatPercent(summary.reportRate)} detail="load feedback" />
+              <InsightMetricCard label="Expected" value={`${Math.max(0, session.players.length - summary.out.length)}/${session.players.length}`} detail={`${summary.late.length} late · ${summary.out.length} out`} active={activeInsight === 'expected'} onClick={() => setActiveInsight((current) => current === 'expected' ? null : 'expected')} />
+              <InsightMetricCard label="Avg RPE" value={summary.avgRpe !== null ? summary.avgRpe.toFixed(1) : '—'} detail={summary.reportRate >= 0.8 ? 'team signal ready' : 'waiting for inputs'} active={activeInsight === 'rpe'} onClick={() => setActiveInsight((current) => current === 'rpe' ? null : 'rpe')} />
+              <InsightMetricCard label="Avg AU" value={summary.avgLoad !== null ? `${Math.round(summary.avgLoad)}` : '—'} detail="RPE x minutes" active={activeInsight === 'au'} onClick={() => setActiveInsight((current) => current === 'au' ? null : 'au')} />
+              <InsightMetricCard label="Completion" value={formatPercent(summary.reportRate)} detail="load feedback" active={activeInsight === 'completion'} onClick={() => setActiveInsight((current) => current === 'completion' ? null : 'completion')} />
             </div>
+            {activeInsight ? (
+              <div className="mt-3 rounded-2xl border border-violet-300/25 bg-violet-300/10 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-violet-200">{insightTitle(activeInsight)}</p>
+                  <button type="button" onClick={() => setActiveInsight(null)} className="rounded-full border border-violet-200/35 px-2 py-1 text-[11px] font-black text-violet-100 hover:bg-violet-200/10">Hide</button>
+                </div>
+                <div className="mt-2 grid gap-1.5">
+                  {activeInsight === 'expected' ? expectedInsightRows.map((row) => (
+                    <button key={row.id} type="button" onClick={() => setActivePlayerId(row.id)} className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-left text-xs font-black text-slate-100 transition hover:border-violet-200/50">
+                      <span>{row.name}</span>
+                      <span className={statusClassName(row.status)}>{row.status}{row.detail ? ` · ${row.detail}` : ''}</span>
+                    </button>
+                  )) : null}
+                  {activeInsight === 'rpe' ? (
+                    rpeInsightRows.length > 0 ? rpeInsightRows.map(({ player, entry }) => (
+                      <button key={`${player.id}-${entry.id}`} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-left text-xs font-black text-slate-100 transition hover:border-violet-200/50">
+                        <span>{player.name}</span>
+                        <span>RPE {entry.rpe} · {entry.load} AU</span>
+                      </button>
+                    )) : <p className="rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-xs font-bold text-slate-500">No RPE reports yet.</p>
+                  ) : null}
+                  {activeInsight === 'au' ? auInsightRows.map(({ player, report }) => (
+                    <button key={player.id} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-left text-xs font-black text-slate-100 transition hover:border-violet-200/50">
+                      <span>{player.name}</span>
+                      <span>{report ? `${report.entry.load} AU · RPE ${report.entry.rpe}` : 'Missing report'}</span>
+                    </button>
+                  )) : null}
+                  {activeInsight === 'completion' ? completionInsightRows.map(({ player, report }) => (
+                    <button key={player.id} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-left text-xs font-black text-slate-100 transition hover:border-violet-200/50">
+                      <span>{player.name}</span>
+                      <span className={report ? 'text-emerald-200' : 'text-amber-200'}>{report ? `Completed · RPE ${report.entry.rpe} · ${report.entry.load} AU` : 'Missing input'}</span>
+                    </button>
+                  )) : null}
+                </div>
+              </div>
+            ) : null}
             <SessionLoadMix mix={summary.loadMix} />
             {hardReports.length > 0 || lightReports.length > 0 ? (
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {hardReports.length > 0 ? (
                   <div className="rounded-2xl border border-rose-400/25 bg-rose-400/10 p-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-rose-200">Felt hardest</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-rose-200">Felt hardest</p>
+                      {hardReports.length > 4 ? (
+                        <button type="button" onClick={() => setShowAllHardReports((current) => !current)} className="rounded-full border border-rose-200/35 px-2 py-1 text-[11px] font-black text-rose-100 hover:bg-rose-200/10">
+                          {showAllHardReports ? 'Show less' : 'Show all'}
+                        </button>
+                      ) : null}
+                    </div>
                     <div className="mt-2 grid gap-1.5">
-                      {hardReports.map(({ player, entry }) => (
+                      {visibleHardReports.map(({ player, entry }) => (
                         <button key={`${player.id}-${entry.id}`} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl border border-rose-300/20 bg-slate-950/45 px-2.5 py-1.5 text-left text-xs font-black text-rose-50">
                           <span>{player.name}</span>
                           <span>RPE {entry.rpe} · {entry.load} AU</span>
@@ -238,8 +377,8 @@ export function CoachSessionDetailOverlay({
         })}
         onParticipantSelect={setActivePlayerId}
         actions={<>
-          {onEdit ? <button type="button" onClick={onEdit} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit session</button> : null}
-          {onDelete ? <button type="button" onClick={onDelete} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">Delete session</button> : null}
+          {onEdit && !hideSessionActions ? <button type="button" onClick={onEdit} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit session</button> : null}
+          {onDelete && !hideSessionActions ? <button type="button" onClick={onDelete} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">Delete session</button> : null}
           {calendarHref ? <Link href={calendarHref} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</Link> : null}
           {extraActions}
         </>}
@@ -266,12 +405,13 @@ export function CoachHistoryInsights({
 }: {
   sessions: CoachSession[];
   teams: HistoryTeamOption[];
-  onDetails: (session: CoachSession) => void;
+  onDetails: (session: CoachSession, initialInsight?: CoachSessionInsight | null) => void;
 }) {
   const [rangeDays, setRangeDays] = useState(30);
   const [teamId, setTeamId] = useState('all');
+  const [focus, setFocus] = useState<HistoryFocus>('all');
   const [visibleCount, setVisibleCount] = useState(16);
-  const filteredSessions = useMemo(() => {
+  const windowSessions = useMemo(() => {
     const since = windowStart(rangeDays);
     return sessions
       .filter((session) => isPastSession(session))
@@ -279,6 +419,16 @@ export function CoachHistoryInsights({
       .filter((session) => teamId === 'all' || session.teamId === teamId)
       .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
   }, [rangeDays, sessions, teamId]);
+  const filteredSessions = useMemo(
+    () => windowSessions.filter((session) => {
+      if (focus === 'all') return true;
+      const summary = summarizeCoachSession(session);
+      if (focus === 'expected') return summary.late.length > 0 || summary.out.length > 0;
+      if (focus === 'rpe' || focus === 'au') return summary.loadReports.length > 0;
+      return summary.reportRate < 1;
+    }),
+    [focus, windowSessions],
+  );
 
   const aggregate = useMemo(() => {
     const summaries = filteredSessions.map(summarizeCoachSession);
@@ -301,6 +451,11 @@ export function CoachHistoryInsights({
     return { sessionCount: filteredSessions.length, lateCount, outCount, avgRpe, avgLoad, attendanceRate, completionRate, loadMix };
   }, [filteredSessions]);
   const visibleSessions = filteredSessions.slice(0, visibleCount);
+
+  function toggleFocus(nextFocus: HistoryFocus) {
+    setFocus((current) => current === nextFocus ? 'all' : nextFocus);
+    setVisibleCount(16);
+  }
 
   return (
     <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-white sm:p-5">
@@ -335,18 +490,16 @@ export function CoachHistoryInsights({
       ) : null}
 
       <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Sessions" value={`${aggregate.sessionCount}`} detail={`${rangeDays} day window`} />
-        <MetricCard label="Attendance" value={formatPercent(aggregate.attendanceRate)} detail={`${aggregate.lateCount} late · ${aggregate.outCount} out`} />
-        <MetricCard label="Avg RPE" value={aggregate.avgRpe !== null ? aggregate.avgRpe.toFixed(1) : '—'} detail={formatPercent(aggregate.completionRate)} />
-        <MetricCard label="Avg AU" value={aggregate.avgLoad !== null ? `${Math.round(aggregate.avgLoad)}` : '—'} detail="reported players" />
+        <InsightMetricCard label="Sessions" value={`${aggregate.sessionCount}`} detail={focus === 'all' ? `${rangeDays} day window` : 'clear KPI filter'} active={focus === 'all'} onClick={() => { setFocus('all'); setVisibleCount(16); }} />
+        <InsightMetricCard label="Attendance" value={formatPercent(aggregate.attendanceRate)} detail={`${aggregate.lateCount} late · ${aggregate.outCount} out`} active={focus === 'expected'} onClick={() => toggleFocus('expected')} />
+        <InsightMetricCard label="Avg RPE" value={aggregate.avgRpe !== null ? aggregate.avgRpe.toFixed(1) : '—'} detail={formatPercent(aggregate.completionRate)} active={focus === 'rpe'} onClick={() => toggleFocus('rpe')} />
+        <InsightMetricCard label="Avg AU" value={aggregate.avgLoad !== null ? `${Math.round(aggregate.avgLoad)}` : '—'} detail="reported players" active={focus === 'au'} onClick={() => toggleFocus('au')} />
       </div>
-
-      <SessionLoadMix mix={aggregate.loadMix} />
 
       <div className="mt-5 grid gap-3 lg:grid-cols-2">
         {filteredSessions.length > 0 ? (
           visibleSessions.map((session) => (
-            <CoachHistorySessionCard key={session.id} session={session} onDetails={() => onDetails(session)} />
+            <CoachHistorySessionCard key={session.id} session={session} onDetails={() => onDetails(session)} onInsight={(selectedSession, insight) => onDetails(selectedSession, insight)} />
           ))
         ) : (
           <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No completed sessions in this window.</div>
@@ -363,63 +516,51 @@ export function CoachHistoryInsights({
   );
 }
 
-export function CoachHistorySessionCard({ session, onDetails }: { session: CoachSession; onDetails: () => void }) {
+export function CoachHistorySessionCard({
+  session,
+  onDetails,
+  onInsight,
+}: {
+  session: CoachSession;
+  onDetails: () => void;
+  onInsight?: (session: CoachSession, insight: CoachSessionInsight) => void;
+}) {
   const summary = summarizeCoachSession(session);
+  const presentCount = Math.max(0, session.players.length - summary.out.length);
+  const completionLabel = formatPercent(summary.reportRate);
   return (
-    <button type="button" onClick={onDetails} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-left transition hover:border-violet-300/45 hover:bg-slate-900/70">
-      <div className="flex items-start justify-between gap-3">
+    <article className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-white transition hover:border-violet-300/35 hover:bg-slate-900/55">
+      <button type="button" onClick={onDetails} className="flex w-full items-start justify-between gap-3 text-left">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{session.teamName} · {new Date(session.startsAt).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' })}</p>
           <h3 className="mt-2 text-xl font-black text-white">{session.title}</h3>
           <p className="mt-1 text-xs font-bold text-slate-500">{formatTimeRange(session.startsAt, session.endsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
         </div>
         <span className="text-lg font-black text-slate-500">›</span>
-      </div>
+      </button>
 
-      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <button type="button" onClick={() => onInsight?.(session, 'expected')} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-left transition hover:border-violet-300/55 hover:bg-slate-900/80">
           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Attendance</p>
-          <p className="mt-1 text-sm font-black text-slate-100">{Math.max(0, session.players.length - summary.out.length)}/{session.players.length}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Flags</p>
-          <p className="mt-1 text-sm font-black text-slate-100">{summary.late.length} late · {summary.out.length} out</p>
-        </div>
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+          <p className="mt-1 text-sm font-black text-slate-100">{presentCount}/{session.players.length}</p>
+          <p className="mt-0.5 text-[11px] font-bold text-slate-500">{summary.late.length} late · {summary.out.length} out</p>
+        </button>
+        <button type="button" onClick={() => onInsight?.(session, 'rpe')} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-left transition hover:border-violet-300/55 hover:bg-slate-900/80">
           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">RPE</p>
-          <p className="mt-1 text-sm font-black text-slate-100">{summary.reportRate >= 0.8 && summary.avgRpe !== null ? summary.avgRpe.toFixed(1) : 'Waiting'}</p>
-        </div>
+          <p className="mt-1 text-sm font-black text-slate-100">{summary.avgRpe !== null ? summary.avgRpe.toFixed(1) : '—'}</p>
+          <p className="mt-0.5 text-[11px] font-bold text-slate-500">{summary.loadReports.length} reports</p>
+        </button>
+        <button type="button" onClick={() => onInsight?.(session, 'au')} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-left transition hover:border-violet-300/55 hover:bg-slate-900/80">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">AU</p>
+          <p className="mt-1 text-sm font-black text-slate-100">{summary.avgLoad !== null ? Math.round(summary.avgLoad) : '—'}</p>
+          <p className="mt-0.5 text-[11px] font-bold text-slate-500">avg load</p>
+        </button>
+        <button type="button" onClick={() => onInsight?.(session, 'completion')} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-left transition hover:border-violet-300/55 hover:bg-slate-900/80">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Completion</p>
+          <p className="mt-1 text-sm font-black text-slate-100">{completionLabel}</p>
+          <p className="mt-0.5 text-[11px] font-bold text-slate-500">{session.players.length - summary.loadReports.length} missing</p>
+        </button>
       </div>
-
-      {summary.loadMix.length > 0 ? (
-        <>
-          <div className="mt-4 overflow-hidden rounded-full border border-slate-800 bg-slate-950">
-            <div className="flex h-2 w-full">
-              {summary.loadMix.slice(0, 3).map((item) => (
-                <span key={item.type} style={{ width: `${item.share * 100}%`, backgroundColor: LOAD_TYPE_COLORS[item.type] }} />
-              ))}
-            </div>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {summary.loadMix.slice(0, 3).map((item) => (
-              <span key={item.type} className="text-[11px] font-black text-slate-500" style={{ color: LOAD_TYPE_COLORS[item.type] }}>{LOAD_TYPE_LABELS[item.type]}</span>
-            ))}
-            {summary.avgLoad !== null ? <span className="text-[11px] font-black text-slate-600">· Ø {Math.round(summary.avgLoad)} AU</span> : null}
-          </div>
-        </>
-      ) : (
-        <p className="mt-3 text-xs font-bold text-slate-600">Load reports not complete yet.</p>
-      )}
-
-      {summary.risks.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {summary.risks.slice(0, 4).map((player) => (
-            <span key={player.id} className={`rounded-full border px-2 py-1 text-[11px] font-black ${player.risk === 'high' ? 'border-rose-400/40 text-rose-100' : 'border-sky-400/40 text-sky-100'}`}>
-              {player.name} · {player.acwr?.toFixed(2) ?? '?'} ACWR
-            </span>
-          ))}
-        </div>
-      ) : null}
-    </button>
+    </article>
   );
 }

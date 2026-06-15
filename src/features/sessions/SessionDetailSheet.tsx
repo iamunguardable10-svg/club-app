@@ -239,12 +239,20 @@ export function SessionDetailSheet({
           <div className="mt-2.5 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Attendance flags</p>
             <div className="mt-2.5 grid gap-2">
-              {attendance.notes.map((note) => (
-                <div key={note.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm font-bold">
-                  <span className="text-slate-100">{note.name}</span>
-                  <span className={statusClass(note.status)}>{note.status}{note.detail ? ` · ${note.detail}` : ''}</span>
-                </div>
-              ))}
+              {attendance.notes.map((note) => {
+                const className = `flex w-full items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-left text-sm font-bold transition ${onParticipantSelect ? 'hover:border-emerald-300/50 hover:bg-slate-900' : ''}`;
+                const content = (
+                  <>
+                    <span className="text-slate-100">{note.name}</span>
+                    <span className={statusClass(note.status)}>{note.status}{note.detail ? ` · ${note.detail}` : ''}</span>
+                  </>
+                );
+                return onParticipantSelect ? (
+                  <button key={note.id} type="button" onClick={() => onParticipantSelect(note.id)} className={className}>{content}</button>
+                ) : (
+                  <div key={note.id} className={className}>{content}</div>
+                );
+              })}
             </div>
           </div>
         ) : null}
