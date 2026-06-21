@@ -2702,6 +2702,7 @@ type WeeklyLoadMetric = 'minutes' | 'rpe' | 'acwr';
 type WeeklyLoadProfilePoint = {
   key: string;
   label: string;
+  dateRange: string;
   minutes: number | null;
   rpe: number | null;
   acwr: number | null;
@@ -2719,9 +2720,22 @@ function loadProfileWeekKey(date: Date) {
   return `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
 }
 
+function loadProfileWeekDateRange(key: string) {
+  const start = new Date(`${key}T00:00:00`);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const short = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: '2-digit' });
+  return `${short.format(start)}-${short.format(end)}`;
+}
+
 function loadProfileWeekLabel(key: string) {
   const start = new Date(`${key}T00:00:00`);
-  return new Intl.DateTimeFormat(undefined, { day: '2-digit', month: '2-digit' }).format(start);
+  const target = new Date(Date.UTC(start.getFullYear(), start.getMonth(), start.getDate()));
+  const day = target.getUTCDay() || 7;
+  target.setUTCDate(target.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((target.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7);
+  return `KW ${week}`;
 }
 
 function buildWeeklyLoadProfile(entries: AthleteLoadEntry[], trailingWeeks = 8): WeeklyLoadProfilePoint[] {
@@ -2752,6 +2766,7 @@ function buildWeeklyLoadProfile(entries: AthleteLoadEntry[], trailingWeeks = 8):
   return Array.from(buckets.entries()).map(([key, bucket]) => ({
     key,
     label: loadProfileWeekLabel(key),
+    dateRange: loadProfileWeekDateRange(key),
     minutes: bucket.sessions > 0 ? bucket.minutes : null,
     rpe: bucket.rpeCount > 0 ? Math.round((bucket.rpeSum / bucket.rpeCount) * 10) / 10 : null,
     acwr: bucket.acwr,
@@ -2782,7 +2797,7 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{title}</p>
-          <p className="mt-1 text-sm font-bold text-slate-300">One point equals one week.</p>
+          <p className="mt-1 text-sm font-bold text-slate-300">One bar equals one calendar week.</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(WEEKLY_LOAD_METRICS) as WeeklyLoadMetric[]).map((item) => (
@@ -2817,19 +2832,20 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
               cursor={{ stroke: 'rgba(148,163,184,0.2)' }}
               contentStyle={{ background: '#020617', border: '1px solid rgba(148,163,184,0.25)', borderRadius: 16 }}
               labelStyle={{ color: '#e2e8f0', fontWeight: 900 }}
+              labelFormatter={(label) => {
+                const point = points.find((candidate) => candidate.label === label);
+                return point ? `${point.label} / ${point.dateRange}` : label;
+              }}
               formatter={(value) => {
                 const numeric = typeof value === 'number' ? value : Number(value);
                 return [Number.isFinite(numeric) ? (metric === 'acwr' || metric === 'rpe' ? numeric.toFixed(1) : Math.round(numeric)) : '-', meta.unit];
               }}
             />
-            <Line
-              type="monotone"
+            <Bar
               dataKey={meta.dataKey}
-              stroke={meta.color}
-              strokeWidth={4}
-              dot={{ r: 4, fill: meta.color, stroke: '#020617', strokeWidth: 2 }}
-              activeDot={{ r: 6, fill: meta.color, stroke: '#020617', strokeWidth: 2 }}
-              connectNulls={false}
+              fill={meta.color}
+              radius={[10, 10, 4, 4]}
+              maxBarSize={44}
             />
           </ComposedChart>
         </ResponsiveContainer>

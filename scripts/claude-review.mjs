@@ -8,13 +8,21 @@ function git(args) {
   }
 }
 
+function gitOptional(args) {
+  try {
+    return execFileSync('git', args, { cwd: process.cwd(), encoding: 'utf8', maxBuffer: 12 * 1024 * 1024 });
+  } catch {
+    return '';
+  }
+}
+
 function truncate(value, max = 180_000) {
   if (value.length <= max) return value;
   return `${value.slice(0, max)}\n\n[TRUNCATED: diff exceeded ${max} characters. Ask for a narrower review or inspect manually.]`;
 }
 
 function criticalHasFindings(output) {
-  const match = output.match(/Critical\s*\n([\s\S]*?)(?:\n\s*(Important|Minor|Good decisions|Concrete next fixes)\s*\n|$)/i);
+  const match = output.match(/(?:^|\n)\s*#{0,6}\s*Critical\s*\n([\s\S]*?)(?=\n\s*#{0,6}\s*(?:Important|Minor|Good decisions|Concrete next fixes)\s*\n|$)/i);
   if (!match) return false;
   const body = match[1].trim().toLowerCase();
   if (!body) return false;
@@ -24,7 +32,7 @@ function criticalHasFindings(output) {
 const status = git(['status', '--short']);
 const staged = git(['diff', '--staged', '--stat']) + '\n' + git(['diff', '--staged']);
 const unstaged = git(['diff', '--stat']) + '\n' + git(['diff']);
-const upstream = git(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']).trim();
+const upstream = gitOptional(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']).trim();
 const headReview = upstream
   ? git(['diff', '--stat', `${upstream}...HEAD`]) + '\n' + git(['diff', `${upstream}...HEAD`])
   : git(['show', '--stat', '--format=fuller', 'HEAD']) + '\n' + git(['show', '--format=', 'HEAD']);

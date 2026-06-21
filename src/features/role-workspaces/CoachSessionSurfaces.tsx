@@ -13,6 +13,7 @@ type CoachHistoryMetric = 'rpe' | 'au' | 'attendance' | 'completion';
 type CoachHistoryGraphPoint = {
   key: string;
   label: string;
+  dateRange: string;
   sessionCount: number;
   expectedPlayers: number;
   lateCount: number;
@@ -112,6 +113,14 @@ function formatHistoryWeekLabel(key: string) {
   return `${short.format(start)}-${short.format(end)}`;
 }
 
+function isoWeekNumber(date: Date) {
+  const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = target.getUTCDay() || 7;
+  target.setUTCDate(target.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+  return Math.ceil((((target.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7);
+}
+
 function buildCoachHistoryGraph(sessions: CoachSession[], rangeDays: number): CoachHistoryGraphPoint[] {
   const rangeStart = new Date(windowStart(rangeDays));
   const firstWeek = weekStartLocal(rangeStart);
@@ -154,7 +163,8 @@ function buildCoachHistoryGraph(sessions: CoachSession[], rangeDays: number): Co
 
   return Array.from(buckets.entries()).map(([key, bucket]) => ({
     key,
-    label: formatHistoryWeekLabel(key),
+    label: `KW ${isoWeekNumber(new Date(`${key}T00:00:00`))}`,
+    dateRange: formatHistoryWeekLabel(key),
     sessionCount: bucket.sessionCount,
     expectedPlayers: bucket.expectedPlayers,
     lateCount: bucket.lateCount,
@@ -234,28 +244,6 @@ function historyMetricMax(points: CoachHistoryGraphPoint[], metric: CoachHistory
   return Math.max(300, Math.ceil(max / 100) * 100);
 }
 
-function historyLinePath(points: CoachHistoryGraphPoint[], metric: CoachHistoryMetric, maxValue: number, width: number, height: number) {
-  const left = 50;
-  const right = 18;
-  const top = 14;
-  const bottom = 34;
-  const usableWidth = width - left - right;
-  const usableHeight = height - top - bottom;
-  const coords = points.map((point, index) => {
-    const value = valueForHistoryMetric(point, metric);
-    if (value === null) return null;
-    const x = left + (index / Math.max(points.length - 1, 1)) * usableWidth;
-    const y = top + usableHeight - (Math.min(value, maxValue) / maxValue) * usableHeight;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  });
-  let path = '';
-  coords.forEach((coord) => {
-    if (!coord) return;
-    path += `${path ? ' L ' : 'M '}${coord}`;
-  });
-  return path;
-}
-
 function CoachHistoryTrendGraph({
   points,
   selectedPeriodKey,
@@ -272,19 +260,22 @@ function CoachHistoryTrendGraph({
   const chartHeight = 250;
   const left = 50;
   const right = 18;
-  const top = 14;
-  const bottom = 34;
+  const top = 16;
+  const bottom = 38;
   const usableWidth = chartWidth - left - right;
   const usableHeight = chartHeight - top - bottom;
   const yTicks = [maxValue, maxValue / 2, 0];
-  const minChartWidth = points.length > 8 ? `${Math.max(44, points.length * 5.2)}rem` : '100%';
+  const minChartWidth = points.length > 8 ? `${Math.max(44, points.length * 4.8)}rem` : '100%';
+  const barGap = Math.min(18, usableWidth / Math.max(points.length, 1) * 0.28);
+  const barWidth = Math.max(18, (usableWidth / Math.max(points.length, 1)) - barGap);
+  const color = HISTORY_METRIC_META[activeMetric].color;
 
   return (
     <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/70 p-3 shadow-[0_18px_70px_rgba(0,0,0,0.18)] sm:p-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-300">Trend</p>
-          <h3 className="mt-1 text-lg font-black text-white">History by week</h3>
+          <h3 className="mt-1 text-lg font-black text-white">History by calendar week</h3>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(HISTORY_METRIC_META) as CoachHistoryMetric[]).map((metric) => {
@@ -317,25 +308,30 @@ function CoachHistoryTrendGraph({
                 </g>
               );
             })}
-            <path
-              d={historyLinePath(points, activeMetric, maxValue, chartWidth, chartHeight)}
-              fill="none"
-              stroke={HISTORY_METRIC_META[activeMetric].color}
-              strokeWidth="4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0.92"
-            />
             {points.map((point, index) => {
-              const x = left + (index / Math.max(points.length - 1, 1)) * usableWidth;
-              const selected = selectedPeriodKey === point.key;
+              const slot = usableWidth / Math.max(points.length, 1);
+              const x = left + index * slot + (slot - barWidth) / 2;
               const value = valueForHistoryMetric(point, activeMetric);
-              const y = value === null ? null : top + usableHeight - (Math.min(value, maxValue) / maxValue) * usableHeight;
+              const safeValue = value ?? 0;
+              const height = value === null ? 0 : Math.max(3, (Math.min(safeValue, maxValue) / maxValue) * usableHeight);
+              const y = top + usableHeight - height;
+              const selected = selectedPeriodKey === point.key;
               return (
                 <g key={point.key}>
-                  <line x1={x} x2={x} y1={top} y2={chartHeight - bottom} stroke={selected ? 'rgba(255,255,255,0.26)' : 'rgba(148,163,184,0.10)'} strokeWidth={selected ? 2 : 1} />
-                  {y !== null ? <circle cx={x} cy={y} r={selected ? 6 : 4} fill={HISTORY_METRIC_META[activeMetric].color} stroke="#020617" strokeWidth="2" /> : null}
-                  <text x={x} y={chartHeight - 8} textAnchor="middle" className="fill-slate-400 text-[11px] font-black">{point.label}</text>
+                  <rect
+                    x={x}
+                    y={y}
+                    width={barWidth}
+                    height={height}
+                    rx="8"
+                    fill={color}
+                    opacity={value === null ? 0.12 : selected ? 1 : 0.72}
+                    stroke={selected ? '#f8fafc' : 'transparent'}
+                    strokeWidth="2"
+                    className="cursor-pointer transition-opacity hover:opacity-100"
+                    onClick={() => onPeriodSelect(selected ? null : point.key)}
+                  />
+                  <text x={x + barWidth / 2} y={chartHeight - 16} textAnchor="middle" className="fill-slate-400 text-[11px] font-black">{point.label}</text>
                 </g>
               );
             })}
@@ -351,7 +347,7 @@ function CoachHistoryTrendGraph({
                   className={`shrink-0 rounded-xl border px-2.5 py-2 text-left transition ${selected ? 'border-violet-300 bg-violet-300/15 text-violet-100' : 'border-slate-800 bg-slate-950/55 text-slate-400 hover:border-slate-600'}`}
                 >
                   <p className="text-[11px] font-black">{point.label}</p>
-                  <p className="mt-0.5 text-[10px] font-bold opacity-70">{point.sessionCount} TE</p>
+                  <p className="mt-0.5 text-[10px] font-bold opacity-70">{point.dateRange} / {point.sessionCount} TE</p>
                 </button>
               );
             })}
@@ -408,7 +404,7 @@ export function CoachSessionDetailOverlay({
   const summary = useMemo(() => summarizeCoachSession(session), [session]);
   const isPast = isPastSession(session);
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
-  const normalizedInitialInsight = initialInsight === 'rpe' ? 'au' : initialInsight === 'expected' ? null : initialInsight;
+  const normalizedInitialInsight = initialInsight === 'rpe' ? 'au' : initialInsight;
   const [activeInsight, setActiveInsight] = useState<CoachSessionInsight | null>(normalizedInitialInsight);
   const [showAllHardReports, setShowAllHardReports] = useState(false);
   const activePlayer = session.players.find((player) => player.id === activePlayerId) ?? null;
@@ -464,7 +460,7 @@ export function CoachSessionDetailOverlay({
   const hideSessionActions = hidePastActions && isPast;
 
   useEffect(() => {
-    setActiveInsight(initialInsight);
+    setActiveInsight(initialInsight === 'rpe' ? 'au' : initialInsight);
     setShowAllHardReports(false);
   }, [initialInsight, session.id]);
   const activePlayerDetail: PlayerLoadDetailPlayer | null = activePlayer
