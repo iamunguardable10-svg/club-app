@@ -48,6 +48,19 @@ function averageMinutes(entries: AthleteLoadEntry[], predicate: (entry: AthleteL
   return Math.round(relevant.reduce((sum, entry) => sum + entry.durationMinutes, 0) / relevant.length);
 }
 
+function weeklyMinutes(entries: AthleteLoadEntry[]) {
+  if (entries.length === 0) return null;
+  const dates = entries.map((entry) => new Date(`${entry.date}T00:00:00`).getTime()).sort((a, b) => a - b);
+  const spanDays = Math.max(7, Math.round((dates[dates.length - 1] - dates[0]) / 86_400_000) + 1);
+  const weeks = Math.max(1, spanDays / 7);
+  return Math.round(entries.reduce((sum, entry) => sum + entry.durationMinutes, 0) / weeks);
+}
+
+function averageRpe(entries: AthleteLoadEntry[]) {
+  if (entries.length === 0) return null;
+  return entries.reduce((sum, entry) => sum + entry.rpe, 0) / entries.length;
+}
+
 function ewmaLoadForTargetRatio(acuteLoad: number, chronicLoad: number, targetRatio: number) {
   const acuteLambda = 2 / (7 + 1);
   const chronicLambda = 2 / (28 + 1);
@@ -145,6 +158,9 @@ export function PlayerLoadDetail({
       : `${filteredAttendance.length} ${filteredAttendance.length === 1 ? 'flag' : 'flags'}`;
   const avgGameMinutes = averageMinutes(recentEntries, (entry) => entry.trainingType === 'game');
   const avgTrainingMinutes = averageMinutes(recentEntries, (entry) => entry.trainingType !== 'game' && entry.trainingType !== 'recovery');
+  const weeklyTrainingMinutes = weeklyMinutes(recentEntries.filter((entry) => entry.trainingType !== 'recovery'));
+  const recentAvgRpe = averageRpe(recentEntries.filter((entry) => entry.trainingType !== 'recovery'));
+  const completedEntries = [...recentEntries].sort((a, b) => b.date.localeCompare(a.date) || (b.startsAt ?? '').localeCompare(a.startsAt ?? '')).slice(0, 8);
   const monotony = summary.latest?.monotony ?? null;
   const strain = summary.latest?.strain ?? null;
   const stabilityState = monotony === null || strain === null
@@ -219,12 +235,14 @@ export function PlayerLoadDetail({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avg game minutes / session</p>
-                <p className="mt-2 text-2xl font-black text-white">{avgGameMinutes === null ? '—' : `${avgGameMinutes} min`}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Training minutes / week</p>
+                <p className="mt-2 text-2xl font-black text-white">{weeklyTrainingMinutes === null ? '—' : `${weeklyTrainingMinutes} min`}</p>
+                <p className="mt-1 text-xs font-bold text-slate-500">Recent 28d rhythm</p>
               </div>
               <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avg training minutes / session</p>
-                <p className="mt-2 text-2xl font-black text-white">{avgTrainingMinutes === null ? '—' : `${avgTrainingMinutes} min`}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avg RPE</p>
+                <p className="mt-2 text-2xl font-black text-white">{recentAvgRpe === null ? '—' : recentAvgRpe.toFixed(1)}</p>
+                <p className="mt-1 text-xs font-bold text-slate-500">{avgTrainingMinutes === null ? 'No training average' : `${avgTrainingMinutes} min / training`}{avgGameMinutes === null ? '' : ` · ${avgGameMinutes} min / game`}</p>
               </div>
             </div>
 
@@ -284,6 +302,33 @@ export function PlayerLoadDetail({
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-white">Completed sessions</p>
+                  <p className="mt-1 text-xs font-bold text-slate-500">Duration and RPE from recent entries.</p>
+                </div>
+                <span className="text-xs font-black text-slate-500">{completedEntries.length}</span>
+              </div>
+              <div className="mt-3 grid gap-2">
+                {completedEntries.length === 0 ? <p className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm font-bold text-slate-500">No completed entries in this range.</p> : null}
+                {completedEntries.map((entry) => (
+                  <div key={entry.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-white">{entry.title}</p>
+                        <p className="mt-1 text-xs font-bold text-slate-500">{new Date(`${entry.date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' })} · {LOAD_TYPE_LABELS[entry.trainingType]}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-black text-slate-100">{entry.durationMinutes} min</p>
+                        <p className="mt-1 text-xs font-black text-slate-500">RPE {entry.rpe} · {entry.load} AU</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
