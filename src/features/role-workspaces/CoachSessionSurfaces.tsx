@@ -11,6 +11,19 @@ type LoadRiskPlayer = { risk: string; acwr: number | null };
 type HistoryTeamOption = { id: string; name: string; departmentName?: string };
 export type CoachSessionInsight = 'expected' | 'rpe' | 'au' | 'completion';
 type HistoryFocus = 'all' | CoachSessionInsight;
+type CoachWeeklyHistoryBucket = {
+  weekStart: string;
+  label: string;
+  sessionCount: number;
+  expectedPlayers: number;
+  lateCount: number;
+  outCount: number;
+  reportCount: number;
+  avgRpe: number | null;
+  avgAu: number | null;
+  attendanceRate: number | null;
+  completionRate: number | null;
+};
 
 export function sortCoachLoadRisks<T extends LoadRiskPlayer>(players: T[]) {
   return [...players]
@@ -81,9 +94,85 @@ function windowStart(days: number) {
   return date.getTime();
 }
 
+function localDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function getWeekStartKey(value: string) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  const day = date.getDay() || 7;
+  date.setDate(date.getDate() - day + 1);
+  return localDateKey(date);
+}
+
+function getIsoWeekNumber(date: Date) {
+  const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNumber = target.getUTCDay() || 7;
+  target.setUTCDate(target.getUTCDate() + 4 - dayNumber);
+  const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+  return Math.ceil((((target.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7);
+}
+
+function labelForWeekStart(weekStart: string) {
+  const [year, month, day] = weekStart.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return `KW ${getIsoWeekNumber(date)}`;
+}
+
 function formatPercent(value: number | null) {
   if (value === null || !Number.isFinite(value)) return '—';
   return `${Math.round(value * 100)}%`;
+}
+
+function buildCoachWeeklyHistory(sessions: CoachSession[]): CoachWeeklyHistoryBucket[] {
+  const buckets = new Map<string, {
+    sessionCount: number;
+    expectedPlayers: number;
+    lateCount: number;
+    outCount: number;
+    reportCount: number;
+    rpeSum: number;
+    auSum: number;
+  }>();
+
+  for (const session of sessions) {
+    const weekStart = getWeekStartKey(session.startsAt);
+    const summary = summarizeCoachSession(session);
+    const current = buckets.get(weekStart) ?? {
+      sessionCount: 0,
+      expectedPlayers: 0,
+      lateCount: 0,
+      outCount: 0,
+      reportCount: 0,
+      rpeSum: 0,
+      auSum: 0,
+    };
+    current.sessionCount += 1;
+    current.expectedPlayers += session.players.length;
+    current.lateCount += summary.late.length;
+    current.outCount += summary.out.length;
+    current.reportCount += summary.loadReports.length;
+    current.rpeSum += summary.loadReports.reduce((sum, item) => sum + item.entry.rpe, 0);
+    current.auSum += summary.loadReports.reduce((sum, item) => sum + item.entry.load, 0);
+    buckets.set(weekStart, current);
+  }
+
+  return Array.from(buckets.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([weekStart, bucket]) => ({
+      weekStart,
+      label: labelForWeekStart(weekStart),
+      sessionCount: bucket.sessionCount,
+      expectedPlayers: bucket.expectedPlayers,
+      lateCount: bucket.lateCount,
+      outCount: bucket.outCount,
+      reportCount: bucket.reportCount,
+      avgRpe: bucket.reportCount > 0 ? bucket.rpeSum / bucket.reportCount : null,
+      avgAu: bucket.reportCount > 0 ? bucket.auSum / bucket.reportCount : null,
+      attendanceRate: bucket.expectedPlayers > 0 ? (bucket.expectedPlayers - bucket.outCount) / bucket.expectedPlayers : null,
+      completionRate: bucket.expectedPlayers > 0 ? bucket.reportCount / bucket.expectedPlayers : null,
+    }));
 }
 
 function InsightMetricCard({
@@ -113,6 +202,98 @@ function InsightMetricCard({
     </button>
   ) : (
     <div className={className}>{content}</div>
+  );
+}
+
+function TrendValue({ label, value, colorClass }: { label: string; value: string; colorClass: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-slate-400">
+      <span className={`h-2 w-2 rounded-full ${colorClass}`} />
+      {label}{value ? ` ${value}` : ''}
+    </span>
+  );
+}
+
+function CoachWeeklyTrendCard({
+  weeks,
+  selectedWeekStart,
+  onWeekSelect,
+}: {
+  weeks: CoachWeeklyHistoryBucket[];
+  selectedWeekStart: string | null;
+  onWeekSelect: (weekStart: string | null) => void;
+}) {
+  if (weeks.length === 0) return null;
+  const visibleWeeks = weeks.slice(-12);
+  const maxAu = Math.max(1, ...visibleWeeks.map((week) => week.avgAu ?? 0));
+  const latest = visibleWeeks[visibleWeeks.length - 1];
+  return (
+    <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/70 p-3 shadow-[0_18px_70px_rgba(0,0,0,0.18)] sm:p-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-300">Weekly trend</p>
+          <h3 className="mt-1 text-lg font-black text-white">Last 12 weeks</h3>
+        </div>
+        {latest ? (
+          <div className="flex flex-wrap gap-x-3 gap-y-1">
+            <TrendValue label="RPE" value={latest.avgRpe !== null ? latest.avgRpe.toFixed(1) : '—'} colorClass="bg-emerald-300" />
+            <TrendValue label="AU" value={latest.avgAu !== null ? `${Math.round(latest.avgAu)}` : '—'} colorClass="bg-violet-300" />
+            <TrendValue label="Att" value={formatPercent(latest.attendanceRate)} colorClass="bg-sky-300" />
+            <TrendValue label="Done" value={formatPercent(latest.completionRate)} colorClass="bg-amber-300" />
+          </div>
+        ) : null}
+      </div>
+
+      <div className="mt-4 overflow-x-auto pb-1">
+        <div className="grid min-w-[34rem] gap-1.5 sm:min-w-0" style={{ gridTemplateColumns: `repeat(${visibleWeeks.length}, minmax(0, 1fr))` }}>
+        {visibleWeeks.map((week) => {
+          const selected = selectedWeekStart === week.weekStart;
+          const auHeight = week.avgAu !== null ? `${Math.max(8, (week.avgAu / maxAu) * 100)}%` : '0%';
+          const rpeHeight = week.avgRpe !== null ? `${Math.max(8, (week.avgRpe / 10) * 100)}%` : '0%';
+          return (
+            <button
+              key={week.weekStart}
+              type="button"
+              onClick={() => onWeekSelect(selected ? null : week.weekStart)}
+              className={`group min-w-0 rounded-2xl border p-1.5 text-left transition ${selected ? 'border-violet-300 bg-violet-300/15' : 'border-slate-800 bg-slate-950/60 hover:border-violet-300/45 hover:bg-slate-900/70'}`}
+              title={`${week.label}: ${week.sessionCount} sessions`}
+            >
+              <div className="flex h-24 items-end justify-center gap-1 rounded-xl border border-slate-900 bg-slate-950/80 p-1.5 sm:h-28">
+                <span className={`w-2 rounded-full transition-[height] duration-200 ${week.avgAu !== null ? 'bg-violet-300/85' : 'bg-slate-800'}`} style={{ height: auHeight }} />
+                <span className={`w-2 rounded-full transition-[height] duration-200 ${week.avgRpe !== null ? 'bg-emerald-300/85' : 'bg-slate-800'}`} style={{ height: rpeHeight }} />
+              </div>
+              <div className="mt-1.5 space-y-1">
+                <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
+                  <span className="block h-full rounded-full bg-sky-300" style={{ width: `${Math.round((week.attendanceRate ?? 0) * 100)}%` }} />
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
+                  <span className="block h-full rounded-full bg-amber-300" style={{ width: `${Math.round((week.completionRate ?? 0) * 100)}%` }} />
+                </div>
+              </div>
+              <div className="mt-1.5 flex min-w-0 items-center justify-between gap-1 text-[10px] font-black">
+                <span className={selected ? 'text-violet-100' : 'text-slate-400'}>{week.label}</span>
+                <span className="text-slate-600">{week.sessionCount}</span>
+              </div>
+            </button>
+          );
+        })}
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          <TrendValue label="AU bars" value="" colorClass="bg-violet-300" />
+          <TrendValue label="RPE bars" value="" colorClass="bg-emerald-300" />
+          <TrendValue label="attendance strip" value="" colorClass="bg-sky-300" />
+          <TrendValue label="completion strip" value="" colorClass="bg-amber-300" />
+        </div>
+        {selectedWeekStart ? (
+          <button type="button" onClick={() => onWeekSelect(null)} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 transition hover:border-violet-300/50 hover:bg-slate-900">
+            Clear week
+          </button>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -410,6 +591,7 @@ export function CoachHistoryInsights({
   const [rangeDays, setRangeDays] = useState(30);
   const [teamId, setTeamId] = useState('all');
   const [focus, setFocus] = useState<HistoryFocus>('all');
+  const [selectedWeekStart, setSelectedWeekStart] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(16);
   const windowSessions = useMemo(() => {
     const since = windowStart(rangeDays);
@@ -419,15 +601,17 @@ export function CoachHistoryInsights({
       .filter((session) => teamId === 'all' || session.teamId === teamId)
       .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
   }, [rangeDays, sessions, teamId]);
+  const weeklyBuckets = useMemo(() => buildCoachWeeklyHistory(windowSessions), [windowSessions]);
   const filteredSessions = useMemo(
     () => windowSessions.filter((session) => {
+      if (selectedWeekStart && getWeekStartKey(session.startsAt) !== selectedWeekStart) return false;
       if (focus === 'all') return true;
       const summary = summarizeCoachSession(session);
       if (focus === 'expected') return summary.late.length > 0 || summary.out.length > 0;
       if (focus === 'rpe' || focus === 'au') return summary.loadReports.length > 0;
       return summary.reportRate < 1;
     }),
-    [focus, windowSessions],
+    [focus, selectedWeekStart, windowSessions],
   );
 
   const aggregate = useMemo(() => {
@@ -452,6 +636,11 @@ export function CoachHistoryInsights({
   }, [filteredSessions]);
   const visibleSessions = filteredSessions.slice(0, visibleCount);
 
+  useEffect(() => {
+    setSelectedWeekStart(null);
+    setVisibleCount(16);
+  }, [rangeDays, teamId]);
+
   function toggleFocus(nextFocus: HistoryFocus) {
     setFocus((current) => current === nextFocus ? 'all' : nextFocus);
     setVisibleCount(16);
@@ -469,7 +658,7 @@ export function CoachHistoryInsights({
             <button
               key={days}
               type="button"
-              onClick={() => { setRangeDays(days); setVisibleCount(16); }}
+              onClick={() => setRangeDays(days)}
               className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${rangeDays === days ? 'border-violet-300 bg-violet-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
             >
               {days}d
@@ -480,17 +669,25 @@ export function CoachHistoryInsights({
 
       {teams.length > 1 ? (
         <div className="mt-4 flex gap-1.5 overflow-x-auto pb-1">
-          <button type="button" onClick={() => { setTeamId('all'); setVisibleCount(16); }} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-black ${teamId === 'all' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>All teams</button>
+          <button type="button" onClick={() => setTeamId('all')} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-black ${teamId === 'all' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>All teams</button>
           {teams.map((team) => (
-            <button key={team.id} type="button" onClick={() => { setTeamId(team.id); setVisibleCount(16); }} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-black ${teamId === team.id ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>
+            <button key={team.id} type="button" onClick={() => setTeamId(team.id)} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-black ${teamId === team.id ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>
               {team.name}
             </button>
           ))}
         </div>
       ) : null}
 
+      <CoachWeeklyTrendCard
+        weeks={weeklyBuckets}
+        selectedWeekStart={selectedWeekStart}
+        onWeekSelect={(weekStart) => { setSelectedWeekStart(weekStart); setVisibleCount(16); }}
+      />
+
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-bold text-slate-500">{aggregate.sessionCount} sessions in view</p>
+        <p className="text-xs font-bold text-slate-500">
+          {aggregate.sessionCount} sessions in view{selectedWeekStart ? ` · ${labelForWeekStart(selectedWeekStart)}` : ''}
+        </p>
         {focus !== 'all' ? (
           <button type="button" onClick={() => { setFocus('all'); setVisibleCount(16); }} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 transition hover:border-violet-300/50 hover:bg-slate-900">
             Clear KPI filter
@@ -500,7 +697,7 @@ export function CoachHistoryInsights({
 
       <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <InsightMetricCard label="Attendance" value={formatPercent(aggregate.attendanceRate)} detail={`${aggregate.lateCount} late · ${aggregate.outCount} out`} active={focus === 'expected'} onClick={() => toggleFocus('expected')} />
-        <InsightMetricCard label="Avg RPE" value={aggregate.avgRpe !== null ? aggregate.avgRpe.toFixed(1) : '—'} detail={formatPercent(aggregate.completionRate)} active={focus === 'rpe'} onClick={() => toggleFocus('rpe')} />
+        <InsightMetricCard label="Avg RPE" value={aggregate.avgRpe !== null ? aggregate.avgRpe.toFixed(1) : '—'} detail="reported average" active={focus === 'rpe'} onClick={() => toggleFocus('rpe')} />
         <InsightMetricCard label="Avg AU" value={aggregate.avgLoad !== null ? `${Math.round(aggregate.avgLoad)}` : '—'} detail="reported players" active={focus === 'au'} onClick={() => toggleFocus('au')} />
         <InsightMetricCard label="Completion" value={formatPercent(aggregate.completionRate)} detail="missing inputs first" active={focus === 'completion'} onClick={() => toggleFocus('completion')} />
       </div>
