@@ -489,11 +489,20 @@ export function CoachHistoryInsights({
         </div>
       ) : null}
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <InsightMetricCard label="Sessions" value={`${aggregate.sessionCount}`} detail={focus === 'all' ? `${rangeDays} day window` : 'clear KPI filter'} active={focus === 'all'} onClick={() => { setFocus('all'); setVisibleCount(16); }} />
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-bold text-slate-500">{aggregate.sessionCount} sessions in view</p>
+        {focus !== 'all' ? (
+          <button type="button" onClick={() => { setFocus('all'); setVisibleCount(16); }} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 transition hover:border-violet-300/50 hover:bg-slate-900">
+            Clear KPI filter
+          </button>
+        ) : null}
+      </div>
+
+      <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <InsightMetricCard label="Attendance" value={formatPercent(aggregate.attendanceRate)} detail={`${aggregate.lateCount} late · ${aggregate.outCount} out`} active={focus === 'expected'} onClick={() => toggleFocus('expected')} />
         <InsightMetricCard label="Avg RPE" value={aggregate.avgRpe !== null ? aggregate.avgRpe.toFixed(1) : '—'} detail={formatPercent(aggregate.completionRate)} active={focus === 'rpe'} onClick={() => toggleFocus('rpe')} />
         <InsightMetricCard label="Avg AU" value={aggregate.avgLoad !== null ? `${Math.round(aggregate.avgLoad)}` : '—'} detail="reported players" active={focus === 'au'} onClick={() => toggleFocus('au')} />
+        <InsightMetricCard label="Completion" value={formatPercent(aggregate.completionRate)} detail="missing inputs first" active={focus === 'completion'} onClick={() => toggleFocus('completion')} />
       </div>
 
       <div className="mt-5 grid gap-3 lg:grid-cols-2">
