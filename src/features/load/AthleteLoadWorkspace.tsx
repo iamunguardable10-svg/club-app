@@ -2697,6 +2697,148 @@ function formatCompactNumber(value: number) {
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
 }
 
+type WeeklyLoadMetric = 'minutes' | 'rpe' | 'acwr';
+
+type WeeklyLoadProfilePoint = {
+  key: string;
+  label: string;
+  minutes: number | null;
+  rpe: number | null;
+  acwr: number | null;
+  sessions: number;
+};
+
+const WEEKLY_LOAD_METRICS: Record<WeeklyLoadMetric, { label: string; dataKey: keyof WeeklyLoadProfilePoint; color: string; unit: string; max?: number }> = {
+  minutes: { label: 'Minutes', dataKey: 'minutes', color: '#a78bfa', unit: 'min' },
+  rpe: { label: 'Avg RPE', dataKey: 'rpe', color: '#fbbf24', unit: 'RPE', max: 10 },
+  acwr: { label: 'ACWR', dataKey: 'acwr', color: '#34d399', unit: 'ACWR', max: 2 },
+};
+
+function loadProfileWeekKey(date: Date) {
+  const start = weekStart(date);
+  return `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+}
+
+function loadProfileWeekLabel(key: string) {
+  const start = new Date(`${key}T00:00:00`);
+  return new Intl.DateTimeFormat(undefined, { day: '2-digit', month: '2-digit' }).format(start);
+}
+
+function buildWeeklyLoadProfile(entries: AthleteLoadEntry[], trailingWeeks = 8): WeeklyLoadProfilePoint[] {
+  const today = new Date(`${todayISO()}T00:00:00`);
+  const firstWeek = weekStart(addDays(today, -(trailingWeeks - 1) * 7));
+  const buckets = new Map<string, { minutes: number; rpeSum: number; rpeCount: number; sessions: number; acwr: number | null }>();
+
+  for (let cursor = new Date(firstWeek); cursor.getTime() <= today.getTime(); cursor.setDate(cursor.getDate() + 7)) {
+    buckets.set(loadProfileWeekKey(cursor), { minutes: 0, rpeSum: 0, rpeCount: 0, sessions: 0, acwr: null });
+  }
+
+  for (const entry of entries) {
+    const key = loadProfileWeekKey(new Date(`${entry.date}T00:00:00`));
+    const bucket = buckets.get(key);
+    if (!bucket || entry.trainingType === 'recovery') continue;
+    bucket.minutes += entry.durationMinutes;
+    bucket.rpeSum += entry.rpe;
+    bucket.rpeCount += 1;
+    bucket.sessions += 1;
+  }
+
+  for (const point of calculateEWMA(entries)) {
+    const key = loadProfileWeekKey(new Date(`${point.date}T00:00:00`));
+    const bucket = buckets.get(key);
+    if (bucket) bucket.acwr = point.acwr;
+  }
+
+  return Array.from(buckets.entries()).map(([key, bucket]) => ({
+    key,
+    label: loadProfileWeekLabel(key),
+    minutes: bucket.sessions > 0 ? bucket.minutes : null,
+    rpe: bucket.rpeCount > 0 ? Math.round((bucket.rpeSum / bucket.rpeCount) * 10) / 10 : null,
+    acwr: bucket.acwr,
+    sessions: bucket.sessions,
+  }));
+}
+
+function weeklyLoadDomain(points: WeeklyLoadProfilePoint[], metric: WeeklyLoadMetric) {
+  const meta = WEEKLY_LOAD_METRICS[metric];
+  if (typeof meta.max === 'number') return [0, meta.max] as [number, number];
+  const max = Math.max(...points.map((point) => Number(point[meta.dataKey]) || 0), 0);
+  return [0, Math.max(60, Math.ceil(max / 60) * 60)] as [number, number];
+}
+
+export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { entries: AthleteLoadEntry[]; title?: string }) {
+  const [metric, setMetric] = useState<WeeklyLoadMetric>('minutes');
+  const [isMounted, setIsMounted] = useState(false);
+  const points = useMemo(() => buildWeeklyLoadProfile(entries), [entries]);
+  const meta = WEEKLY_LOAD_METRICS[metric];
+  const domain = weeklyLoadDomain(points, metric);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{title}</p>
+          <p className="mt-1 text-sm font-bold text-slate-300">One point equals one week.</p>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {(Object.keys(WEEKLY_LOAD_METRICS) as WeeklyLoadMetric[]).map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setMetric(item)}
+              className={`rounded-full border px-2.5 py-1 text-[11px] font-black transition ${metric === item ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
+            >
+              {WEEKLY_LOAD_METRICS[item].label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="mt-3 h-56">
+        {!isMounted ? (
+          <div className="h-full rounded-xl border border-slate-800 bg-slate-950/60" />
+        ) : (
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={points} margin={{ top: 12, right: 8, bottom: 8, left: 0 }}>
+            <CartesianGrid stroke="rgba(148,163,184,0.12)" vertical={false} />
+            <XAxis dataKey="label" tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 800 }} axisLine={false} tickLine={false} />
+            <YAxis
+              domain={domain}
+              tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 800 }}
+              axisLine={false}
+              tickLine={false}
+              width={42}
+              tickFormatter={(value) => metric === 'acwr' ? Number(value).toFixed(1) : `${Math.round(Number(value))}`}
+            />
+            <Tooltip
+              cursor={{ stroke: 'rgba(148,163,184,0.2)' }}
+              contentStyle={{ background: '#020617', border: '1px solid rgba(148,163,184,0.25)', borderRadius: 16 }}
+              labelStyle={{ color: '#e2e8f0', fontWeight: 900 }}
+              formatter={(value) => {
+                const numeric = typeof value === 'number' ? value : Number(value);
+                return [Number.isFinite(numeric) ? (metric === 'acwr' || metric === 'rpe' ? numeric.toFixed(1) : Math.round(numeric)) : '-', meta.unit];
+              }}
+            />
+            <Line
+              type="monotone"
+              dataKey={meta.dataKey}
+              stroke={meta.color}
+              strokeWidth={4}
+              dot={{ r: 4, fill: meta.color, stroke: '#020617', strokeWidth: 2 }}
+              activeDot={{ r: 6, fill: meta.color, stroke: '#020617', strokeWidth: 2 }}
+              connectNulls={false}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function LoadDetailsPanel({
   entries,
   latestEwma,
@@ -2748,12 +2890,6 @@ function LoadDetailsPanel({
     }))
     .filter((item) => item.load > 0)
     .sort((a, b) => b.load - a.load);
-  const activeRecentEntries = recentEntries.filter((entry) => entry.trainingType !== 'recovery');
-  const trainingDates = activeRecentEntries.map((entry) => new Date(`${entry.date}T00:00:00`).getTime()).sort((a, b) => a - b);
-  const trainingSpanDays = trainingDates.length > 0 ? Math.max(7, Math.round((trainingDates[trainingDates.length - 1] - trainingDates[0]) / 86_400_000) + 1) : 0;
-  const trainingWeeks = Math.max(1, trainingSpanDays / 7);
-  const weeklyTrainingMinutes = activeRecentEntries.length > 0 ? Math.round(activeRecentEntries.reduce((sum, entry) => sum + entry.durationMinutes, 0) / trainingWeeks) : null;
-  const avgRecentRpe = activeRecentEntries.length > 0 ? activeRecentEntries.reduce((sum, entry) => sum + entry.rpe, 0) / activeRecentEntries.length : null;
   const completedEntries = [...recentEntries].sort((a, b) => b.date.localeCompare(a.date) || (b.startsAt ?? '').localeCompare(a.startsAt ?? '')).slice(0, 8);
 
   return (
@@ -2839,15 +2975,8 @@ function LoadDetailsPanel({
           )}
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Training minutes / week</p>
-            <p className="mt-2 text-2xl font-black text-white">{weeklyTrainingMinutes === null ? '—' : `${weeklyTrainingMinutes} min`}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avg RPE</p>
-            <p className="mt-2 text-2xl font-black text-white">{avgRecentRpe === null ? '—' : avgRecentRpe.toFixed(1)}</p>
-          </div>
+        <div className="mt-5">
+          <WeeklyLoadProfileGraph entries={entries} title="Weekly load profile" />
         </div>
 
         <div className="mt-5">
