@@ -2697,12 +2697,13 @@ function formatCompactNumber(value: number) {
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
 }
 
-type WeeklyLoadMetric = 'minutes' | 'rpe' | 'acwr';
+type WeeklyLoadMetric = 'au' | 'rpe' | 'acwr' | 'minutes';
 
 type WeeklyLoadProfilePoint = {
   key: string;
   label: string;
   dateRange: string;
+  au: number | null;
   minutes: number | null;
   rpe: number | null;
   acwr: number | null;
@@ -2710,9 +2711,10 @@ type WeeklyLoadProfilePoint = {
 };
 
 const WEEKLY_LOAD_METRICS: Record<WeeklyLoadMetric, { label: string; dataKey: keyof WeeklyLoadProfilePoint; color: string; unit: string; max?: number }> = {
-  minutes: { label: 'Minutes', dataKey: 'minutes', color: '#a78bfa', unit: 'min' },
+  au: { label: 'Avg AU', dataKey: 'au', color: '#c084fc', unit: 'AU' },
   rpe: { label: 'Avg RPE', dataKey: 'rpe', color: '#fbbf24', unit: 'RPE', max: 10 },
   acwr: { label: 'ACWR', dataKey: 'acwr', color: '#34d399', unit: 'ACWR', max: 2 },
+  minutes: { label: 'Minutes', dataKey: 'minutes', color: '#38bdf8', unit: 'min' },
 };
 
 function loadProfileWeekKey(date: Date) {
@@ -2741,16 +2743,17 @@ function loadProfileWeekLabel(key: string) {
 function buildWeeklyLoadProfile(entries: AthleteLoadEntry[], trailingWeeks = 8): WeeklyLoadProfilePoint[] {
   const today = new Date(`${todayISO()}T00:00:00`);
   const firstWeek = weekStart(addDays(today, -(trailingWeeks - 1) * 7));
-  const buckets = new Map<string, { minutes: number; rpeSum: number; rpeCount: number; sessions: number; acwr: number | null }>();
+  const buckets = new Map<string, { auSum: number; minutes: number; rpeSum: number; rpeCount: number; sessions: number; acwr: number | null }>();
 
   for (let cursor = new Date(firstWeek); cursor.getTime() <= today.getTime(); cursor.setDate(cursor.getDate() + 7)) {
-    buckets.set(loadProfileWeekKey(cursor), { minutes: 0, rpeSum: 0, rpeCount: 0, sessions: 0, acwr: null });
+    buckets.set(loadProfileWeekKey(cursor), { auSum: 0, minutes: 0, rpeSum: 0, rpeCount: 0, sessions: 0, acwr: null });
   }
 
   for (const entry of entries) {
     const key = loadProfileWeekKey(new Date(`${entry.date}T00:00:00`));
     const bucket = buckets.get(key);
     if (!bucket || entry.trainingType === 'recovery') continue;
+    bucket.auSum += entry.load;
     bucket.minutes += entry.durationMinutes;
     bucket.rpeSum += entry.rpe;
     bucket.rpeCount += 1;
@@ -2767,7 +2770,56 @@ function buildWeeklyLoadProfile(entries: AthleteLoadEntry[], trailingWeeks = 8):
     key,
     label: loadProfileWeekLabel(key),
     dateRange: loadProfileWeekDateRange(key),
+    au: bucket.sessions > 0 ? Math.round(bucket.auSum / bucket.sessions) : null,
     minutes: bucket.sessions > 0 ? bucket.minutes : null,
+    rpe: bucket.rpeCount > 0 ? Math.round((bucket.rpeSum / bucket.rpeCount) * 10) / 10 : null,
+    acwr: bucket.acwr,
+    sessions: bucket.sessions,
+  }));
+}
+
+function buildWeeklyLoadDayProfile(entries: AthleteLoadEntry[], weekKey: string) {
+  const weekStartDate = new Date(`${weekKey}T00:00:00`);
+  const buckets = Array.from({ length: 7 }, (_, index) => {
+    const date = addDays(weekStartDate, index);
+    return {
+      key: isoDate(date),
+      label: new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(date),
+      au: null as number | null,
+      minutes: null as number | null,
+      rpe: null as number | null,
+      acwr: null as number | null,
+      sessions: 0,
+      auSum: 0,
+      rpeSum: 0,
+      rpeCount: 0,
+      minuteSum: 0,
+    };
+  });
+  const byKey = new Map(buckets.map((bucket) => [bucket.key, bucket]));
+
+  for (const entry of entries) {
+    if (loadProfileWeekKey(new Date(`${entry.date}T00:00:00`)) !== weekKey || entry.trainingType === 'recovery') continue;
+    const bucket = byKey.get(entry.date);
+    if (!bucket) continue;
+    bucket.sessions += 1;
+    bucket.auSum += entry.load;
+    bucket.rpeSum += entry.rpe;
+    bucket.rpeCount += 1;
+    bucket.minuteSum += entry.durationMinutes;
+  }
+
+  for (const point of calculateEWMA(entries)) {
+    const bucket = byKey.get(point.date);
+    if (bucket) bucket.acwr = point.acwr;
+  }
+
+  return buckets.map((bucket) => ({
+    key: bucket.key,
+    label: bucket.label,
+    dateRange: bucket.key,
+    au: bucket.sessions > 0 ? Math.round(bucket.auSum / bucket.sessions) : null,
+    minutes: bucket.sessions > 0 ? bucket.minuteSum : null,
     rpe: bucket.rpeCount > 0 ? Math.round((bucket.rpeSum / bucket.rpeCount) * 10) / 10 : null,
     acwr: bucket.acwr,
     sessions: bucket.sessions,
@@ -2782,11 +2834,15 @@ function weeklyLoadDomain(points: WeeklyLoadProfilePoint[], metric: WeeklyLoadMe
 }
 
 export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { entries: AthleteLoadEntry[]; title?: string }) {
-  const [metric, setMetric] = useState<WeeklyLoadMetric>('minutes');
+  const [metric, setMetric] = useState<WeeklyLoadMetric>('au');
+  const [selectedWeekKey, setSelectedWeekKey] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const points = useMemo(() => buildWeeklyLoadProfile(entries), [entries]);
+  const selectedWeek = selectedWeekKey ? points.find((point) => point.key === selectedWeekKey) ?? null : null;
+  const dayPoints = useMemo(() => selectedWeekKey ? buildWeeklyLoadDayProfile(entries, selectedWeekKey) : [], [entries, selectedWeekKey]);
   const meta = WEEKLY_LOAD_METRICS[metric];
   const domain = weeklyLoadDomain(points, metric);
+  const dayDomain = weeklyLoadDomain(dayPoints, metric);
 
   useEffect(() => {
     setIsMounted(true);
@@ -2797,7 +2853,7 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{title}</p>
-          <p className="mt-1 text-sm font-bold text-slate-300">One bar equals one calendar week.</p>
+          <p className="mt-1 text-sm font-bold text-slate-300">Tap a week for days.</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(WEEKLY_LOAD_METRICS) as WeeklyLoadMetric[]).map((item) => (
@@ -2812,12 +2868,19 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
           ))}
         </div>
       </div>
-      <div className="mt-3 h-56">
+      <div className="mt-3 h-72 sm:h-64">
         {!isMounted ? (
           <div className="h-full rounded-xl border border-slate-800 bg-slate-950/60" />
         ) : (
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={points} margin={{ top: 12, right: 8, bottom: 8, left: 0 }}>
+          <ComposedChart
+            data={points}
+            margin={{ top: 12, right: 8, bottom: 8, left: 0 }}
+            onClick={(state: unknown) => {
+              const payload = (state as { activePayload?: Array<{ payload?: WeeklyLoadProfilePoint }> } | null)?.activePayload?.[0]?.payload;
+              if (payload?.key) setSelectedWeekKey((current) => current === payload.key ? null : payload.key);
+            }}
+          >
             <CartesianGrid stroke="rgba(148,163,184,0.12)" vertical={false} />
             <XAxis dataKey="label" tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 800 }} axisLine={false} tickLine={false} />
             <YAxis
@@ -2845,12 +2908,42 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
               dataKey={meta.dataKey}
               fill={meta.color}
               radius={[10, 10, 4, 4]}
-              maxBarSize={44}
+              maxBarSize={30}
             />
           </ComposedChart>
         </ResponsiveContainer>
         )}
       </div>
+      {selectedWeek ? (
+        <div className="mt-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">Week detail</p>
+              <p className="mt-0.5 text-xs font-black text-slate-300">{selectedWeek.label} · {selectedWeek.dateRange}</p>
+            </div>
+            <button type="button" onClick={() => setSelectedWeekKey(null)} className="rounded-full border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-300">
+              Clear
+            </button>
+          </div>
+          <div className="mt-3 grid grid-cols-7 items-end gap-1.5">
+            {dayPoints.map((day) => {
+              const rawValue = day[meta.dataKey];
+              const value = typeof rawValue === 'number' && Number.isFinite(rawValue) ? rawValue : null;
+              const max = dayDomain[1] || 1;
+              const height = value === null ? 4 : Math.max(8, Math.round((Math.min(value, max) / max) * 116));
+              return (
+                <div key={day.key} className="min-w-0 text-center">
+                  <div className="flex h-32 items-end justify-center rounded-xl border border-slate-800 bg-slate-950/65 px-1 py-1.5">
+                    <div className="w-full max-w-6 rounded-t-lg" style={{ height, backgroundColor: meta.color, opacity: value === null ? 0.16 : 0.82 }} />
+                  </div>
+                  <p className="mt-1 truncate text-[10px] font-black text-slate-400">{day.label}</p>
+                  <p className="text-[9px] font-bold text-slate-600">{day.sessions} TE</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

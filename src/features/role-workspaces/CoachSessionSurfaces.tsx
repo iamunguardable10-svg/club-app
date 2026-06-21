@@ -9,7 +9,24 @@ import { PlayerLoadDetail, type PlayerLoadDetailPlayer } from '@/features/player
 type LoadRiskPlayer = { risk: string; acwr: number | null };
 type HistoryTeamOption = { id: string; name: string; departmentName?: string };
 export type CoachSessionInsight = 'expected' | 'rpe' | 'au' | 'completion';
-type CoachHistoryMetric = 'rpe' | 'au' | 'attendance' | 'completion';
+type CoachHistoryMetric = 'au' | 'rpe' | 'attendance' | 'completion';
+type CoachHistoryBucket = {
+  sessionCount: number;
+  expectedPlayers: number;
+  lateCount: number;
+  outCount: number;
+  reportCount: number;
+  rpeSum: number;
+  auSum: number;
+};
+type CoachHistoryDayPoint = CoachHistoryBucket & {
+  key: string;
+  label: string;
+  avgRpe: number | null;
+  avgAu: number | null;
+  attendanceRate: number | null;
+  completionRate: number | null;
+};
 type CoachHistoryGraphPoint = {
   key: string;
   label: string;
@@ -23,6 +40,7 @@ type CoachHistoryGraphPoint = {
   avgAu: number | null;
   attendanceRate: number | null;
   completionRate: number | null;
+  days: CoachHistoryDayPoint[];
 };
 
 export function sortCoachLoadRisks<T extends LoadRiskPlayer>(players: T[]) {
@@ -79,11 +97,10 @@ function isPastSession(session: CoachSession) {
   return new Date(session.startsAt).getTime() < Date.now();
 }
 
-function windowStart(days: number) {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() - days + 1);
-  return date.getTime();
+function weekWindowStart(weeks: number) {
+  const currentWeek = weekStartLocal(new Date());
+  currentWeek.setDate(currentWeek.getDate() - (weeks - 1) * 7);
+  return currentWeek.getTime();
 }
 
 function formatPercent(value: number | null) {
@@ -105,12 +122,20 @@ function historyWeekKey(date: Date) {
   return `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
 }
 
+function historyDayKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 function formatHistoryWeekLabel(key: string) {
   const start = new Date(`${key}T00:00:00`);
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
   const short = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: '2-digit' });
   return `${short.format(start)}-${short.format(end)}`;
+}
+
+function formatHistoryDayLabel(date: Date) {
+  return new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(date);
 }
 
 function isoWeekNumber(date: Date) {
@@ -121,44 +146,67 @@ function isoWeekNumber(date: Date) {
   return Math.ceil((((target.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7);
 }
 
-function buildCoachHistoryGraph(sessions: CoachSession[], rangeDays: number): CoachHistoryGraphPoint[] {
-  const rangeStart = new Date(windowStart(rangeDays));
-  const firstWeek = weekStartLocal(rangeStart);
+function createCoachHistoryBucket(): CoachHistoryBucket {
+  return {
+    sessionCount: 0,
+    expectedPlayers: 0,
+    lateCount: 0,
+    outCount: 0,
+    reportCount: 0,
+    rpeSum: 0,
+    auSum: 0,
+  };
+}
+
+function applySessionToHistoryBucket(bucket: CoachHistoryBucket, session: CoachSession) {
+  const summary = summarizeCoachSession(session);
+  bucket.sessionCount += 1;
+  bucket.expectedPlayers += session.players.length;
+  bucket.lateCount += summary.late.length;
+  bucket.outCount += summary.out.length;
+  bucket.reportCount += summary.loadReports.length;
+  bucket.rpeSum += summary.loadReports.reduce((sum, item) => sum + item.entry.rpe, 0);
+  bucket.auSum += summary.loadReports.reduce((sum, item) => sum + item.entry.load, 0);
+}
+
+function finalizeCoachHistoryDayPoint(key: string, label: string, bucket: CoachHistoryBucket): CoachHistoryDayPoint {
+  return {
+    key,
+    label,
+    ...bucket,
+    avgRpe: bucket.reportCount > 0 ? bucket.rpeSum / bucket.reportCount : null,
+    avgAu: bucket.reportCount > 0 ? bucket.auSum / bucket.reportCount : null,
+    attendanceRate: bucket.expectedPlayers > 0 ? (bucket.expectedPlayers - bucket.outCount) / bucket.expectedPlayers : null,
+    completionRate: bucket.expectedPlayers > 0 ? bucket.reportCount / bucket.expectedPlayers : null,
+  };
+}
+
+function buildCoachHistoryGraph(sessions: CoachSession[], rangeWeeks: number): CoachHistoryGraphPoint[] {
+  const firstWeek = new Date(weekWindowStart(rangeWeeks));
   const currentWeek = weekStartLocal(new Date());
-  const buckets = new Map<string, {
-    sessionCount: number;
-    expectedPlayers: number;
-    lateCount: number;
-    outCount: number;
-    reportCount: number;
-    rpeSum: number;
-    auSum: number;
-  }>();
+  const buckets = new Map<string, CoachHistoryBucket>();
+  const dayBuckets = new Map<string, Map<string, CoachHistoryBucket>>();
 
   for (let cursor = new Date(firstWeek); cursor.getTime() <= currentWeek.getTime(); cursor.setDate(cursor.getDate() + 7)) {
-    buckets.set(historyWeekKey(cursor), {
-      sessionCount: 0,
-      expectedPlayers: 0,
-      lateCount: 0,
-      outCount: 0,
-      reportCount: 0,
-      rpeSum: 0,
-      auSum: 0,
-    });
+    const weekKey = historyWeekKey(cursor);
+    const days = new Map<string, CoachHistoryBucket>();
+    buckets.set(weekKey, createCoachHistoryBucket());
+    for (let dayOffset = 0; dayOffset < 7; dayOffset += 1) {
+      const day = new Date(cursor);
+      day.setDate(cursor.getDate() + dayOffset);
+      days.set(historyDayKey(day), createCoachHistoryBucket());
+    }
+    dayBuckets.set(weekKey, days);
   }
 
   for (const session of sessions) {
-    const key = historyWeekKey(new Date(session.startsAt));
+    const startsAt = new Date(session.startsAt);
+    const key = historyWeekKey(startsAt);
     if (!buckets.has(key)) continue;
-    const summary = summarizeCoachSession(session);
-    const current = buckets.get(key)!;
-    current.sessionCount += 1;
-    current.expectedPlayers += session.players.length;
-    current.lateCount += summary.late.length;
-    current.outCount += summary.out.length;
-    current.reportCount += summary.loadReports.length;
-    current.rpeSum += summary.loadReports.reduce((sum, item) => sum + item.entry.rpe, 0);
-    current.auSum += summary.loadReports.reduce((sum, item) => sum + item.entry.load, 0);
+    applySessionToHistoryBucket(buckets.get(key)!, session);
+    const dayKey = historyDayKey(startsAt);
+    const dayBucket = dayBuckets.get(key)?.get(dayKey);
+    if (dayBucket) applySessionToHistoryBucket(dayBucket, session);
   }
 
   return Array.from(buckets.entries()).map(([key, bucket]) => ({
@@ -174,6 +222,9 @@ function buildCoachHistoryGraph(sessions: CoachSession[], rangeDays: number): Co
     avgAu: bucket.reportCount > 0 ? bucket.auSum / bucket.reportCount : null,
     attendanceRate: bucket.expectedPlayers > 0 ? (bucket.expectedPlayers - bucket.outCount) / bucket.expectedPlayers : null,
     completionRate: bucket.expectedPlayers > 0 ? bucket.reportCount / bucket.expectedPlayers : null,
+    days: Array.from(dayBuckets.get(key)?.entries() ?? []).map(([dayKey, dayBucket]) => (
+      finalizeCoachHistoryDayPoint(dayKey, formatHistoryDayLabel(new Date(`${dayKey}T00:00:00`)), dayBucket)
+    )),
   }));
 }
 
@@ -223,7 +274,7 @@ const HISTORY_METRIC_META: Record<CoachHistoryMetric, { label: string; color: st
   completion: { label: 'Completion', color: '#fbbf24', tone: 'border-amber-300 bg-amber-300 text-slate-950', dot: 'bg-amber-300' },
 };
 
-function valueForHistoryMetric(point: CoachHistoryGraphPoint, metric: CoachHistoryMetric) {
+function valueForHistoryMetric(point: Pick<CoachHistoryGraphPoint, 'avgRpe' | 'avgAu' | 'attendanceRate' | 'completionRate'>, metric: CoachHistoryMetric) {
   if (metric === 'rpe') return point.avgRpe;
   if (metric === 'au') return point.avgAu;
   if (metric === 'attendance') return point.attendanceRate === null ? null : point.attendanceRate * 100;
@@ -237,7 +288,7 @@ function formatHistoryMetricValue(metric: CoachHistoryMetric, value: number | nu
   return `${Math.round(value)}%`;
 }
 
-function historyMetricMax(points: CoachHistoryGraphPoint[], metric: CoachHistoryMetric) {
+function historyMetricMax(points: Array<Pick<CoachHistoryGraphPoint, 'avgRpe' | 'avgAu' | 'attendanceRate' | 'completionRate'>>, metric: CoachHistoryMetric) {
   if (metric === 'rpe') return 10;
   if (metric === 'attendance' || metric === 'completion') return 100;
   const max = Math.max(...points.map((point) => valueForHistoryMetric(point, metric) ?? 0), 0);
@@ -253,22 +304,23 @@ function CoachHistoryTrendGraph({
   selectedPeriodKey: string | null;
   onPeriodSelect: (periodKey: string | null) => void;
 }) {
-  const [activeMetric, setActiveMetric] = useState<CoachHistoryMetric>('rpe');
+  const [activeMetric, setActiveMetric] = useState<CoachHistoryMetric>('au');
   const activePoint = selectedPeriodKey === null ? null : points.find((point) => point.key === selectedPeriodKey) ?? null;
   const maxValue = historyMetricMax(points, activeMetric);
   const chartWidth = 760;
-  const chartHeight = 250;
-  const left = 50;
+  const chartHeight = 310;
+  const left = 52;
   const right = 18;
   const top = 16;
-  const bottom = 38;
+  const bottom = 42;
   const usableWidth = chartWidth - left - right;
   const usableHeight = chartHeight - top - bottom;
   const yTicks = [maxValue, maxValue / 2, 0];
-  const minChartWidth = points.length > 8 ? `${Math.max(44, points.length * 4.8)}rem` : '100%';
-  const barGap = Math.min(18, usableWidth / Math.max(points.length, 1) * 0.28);
-  const barWidth = Math.max(18, (usableWidth / Math.max(points.length, 1)) - barGap);
+  const minChartWidth = '100%';
+  const slotWidth = usableWidth / Math.max(points.length, 1);
+  const barWidth = Math.min(46, Math.max(14, slotWidth * 0.46));
   const color = HISTORY_METRIC_META[activeMetric].color;
+  const activeDayMax = activePoint ? historyMetricMax(activePoint.days, activeMetric) : maxValue;
 
   return (
     <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/70 p-3 shadow-[0_18px_70px_rgba(0,0,0,0.18)] sm:p-4">
@@ -294,9 +346,9 @@ function CoachHistoryTrendGraph({
         </div>
       </div>
 
-      <div className="mt-4 overflow-x-auto pb-1">
+      <div className="mt-4 pb-1">
         <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3" style={{ minWidth: minChartWidth }}>
-          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-64 w-full overflow-visible">
+          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-80 w-full overflow-visible">
             {yTicks.map((tick) => {
               const y = top + usableHeight - (tick / maxValue) * usableHeight;
               return (
@@ -309,8 +361,7 @@ function CoachHistoryTrendGraph({
               );
             })}
             {points.map((point, index) => {
-              const slot = usableWidth / Math.max(points.length, 1);
-              const x = left + index * slot + (slot - barWidth) / 2;
+              const x = left + index * slotWidth + (slotWidth - barWidth) / 2;
               const value = valueForHistoryMetric(point, activeMetric);
               const safeValue = value ?? 0;
               const height = value === null ? 0 : Math.max(3, (Math.min(safeValue, maxValue) / maxValue) * usableHeight);
@@ -331,7 +382,7 @@ function CoachHistoryTrendGraph({
                     className="cursor-pointer transition-opacity hover:opacity-100"
                     onClick={() => onPeriodSelect(selected ? null : point.key)}
                   />
-                  <text x={x + barWidth / 2} y={chartHeight - 16} textAnchor="middle" className="fill-slate-400 text-[11px] font-black">{point.label}</text>
+                  <text x={x + barWidth / 2} y={chartHeight - 18} textAnchor="middle" className="fill-slate-400 text-[11px] font-black">{point.label}</text>
                 </g>
               );
             })}
@@ -354,6 +405,37 @@ function CoachHistoryTrendGraph({
           </div>
         </div>
       </div>
+
+      {activePoint ? (
+        <div className="mt-3 rounded-2xl border border-violet-300/20 bg-violet-300/10 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-200">Week detail</p>
+              <p className="mt-0.5 text-xs font-black text-slate-300">{activePoint.label} · {activePoint.dateRange}</p>
+            </div>
+            <p className="text-xs font-black text-slate-400">{activePoint.sessionCount} TE</p>
+          </div>
+          <div className="mt-3 grid grid-cols-7 items-end gap-1.5">
+            {activePoint.days.map((day) => {
+              const value = valueForHistoryMetric(day, activeMetric);
+              const height = value === null ? 4 : Math.max(8, Math.round((Math.min(value, activeDayMax) / activeDayMax) * 120));
+              return (
+                <div key={day.key} className="min-w-0 text-center">
+                  <div className="flex h-32 items-end justify-center rounded-xl border border-slate-800 bg-slate-950/65 px-1 py-1.5">
+                    <div
+                      className="w-full max-w-7 rounded-t-lg"
+                      style={{ height, backgroundColor: color, opacity: value === null ? 0.16 : 0.82 }}
+                      title={`${day.label}: ${formatHistoryMetricValue(activeMetric, value)}`}
+                    />
+                  </div>
+                  <p className="mt-1 truncate text-[10px] font-black text-slate-400">{day.label}</p>
+                  <p className="text-[9px] font-bold text-slate-600">{day.sessionCount} TE</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -638,19 +720,19 @@ export function CoachHistoryInsights({
   teams: HistoryTeamOption[];
   onDetails: (session: CoachSession, initialInsight?: CoachSessionInsight | null) => void;
 }) {
-  const [rangeDays, setRangeDays] = useState(30);
+  const [rangeWeeks, setRangeWeeks] = useState(8);
   const [teamId, setTeamId] = useState('all');
   const [selectedPeriodKey, setSelectedPeriodKey] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(16);
   const windowSessions = useMemo(() => {
-    const since = windowStart(rangeDays);
+    const since = weekWindowStart(rangeWeeks);
     return sessions
       .filter((session) => isPastSession(session))
       .filter((session) => new Date(session.startsAt).getTime() >= since)
       .filter((session) => teamId === 'all' || session.teamId === teamId)
       .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
-  }, [rangeDays, sessions, teamId]);
-  const graphPoints = useMemo(() => buildCoachHistoryGraph(windowSessions, rangeDays), [rangeDays, windowSessions]);
+  }, [rangeWeeks, sessions, teamId]);
+  const graphPoints = useMemo(() => buildCoachHistoryGraph(windowSessions, rangeWeeks), [rangeWeeks, windowSessions]);
   const filteredSessions = useMemo(
     () => windowSessions.filter((session) => selectedPeriodKey === null || historyWeekKey(new Date(session.startsAt)) === selectedPeriodKey),
     [selectedPeriodKey, windowSessions],
@@ -660,7 +742,7 @@ export function CoachHistoryInsights({
   useEffect(() => {
     setSelectedPeriodKey(null);
     setVisibleCount(16);
-  }, [rangeDays, teamId]);
+  }, [rangeWeeks, teamId]);
 
   return (
     <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-white sm:p-5">
@@ -670,14 +752,14 @@ export function CoachHistoryInsights({
           <h2 className="mt-1.5 text-2xl font-black">Session insights</h2>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {[30, 60, 90].map((days) => (
+          {[4, 8, 12].map((weeks) => (
             <button
-              key={days}
+              key={weeks}
               type="button"
-              onClick={() => setRangeDays(days)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${rangeDays === days ? 'border-violet-300 bg-violet-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
+              onClick={() => setRangeWeeks(weeks)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${rangeWeeks === weeks ? 'border-violet-300 bg-violet-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
             >
-              {days}d
+              {weeks}W
             </button>
           ))}
         </div>
