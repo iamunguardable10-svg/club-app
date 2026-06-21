@@ -11,8 +11,9 @@ type LoadRiskPlayer = { risk: string; acwr: number | null };
 type HistoryTeamOption = { id: string; name: string; departmentName?: string };
 export type CoachSessionInsight = 'expected' | 'rpe' | 'au' | 'completion';
 type HistoryFocus = 'all' | CoachSessionInsight;
-type CoachWeeklyHistoryBucket = {
-  weekStart: string;
+type CoachHistoryMetric = 'rpe' | 'au' | 'attendance' | 'completion';
+type CoachWeekdayHistoryPoint = {
+  weekdayIndex: number;
   label: string;
   sessionCount: number;
   expectedPlayers: number;
@@ -94,39 +95,20 @@ function windowStart(days: number) {
   return date.getTime();
 }
 
-function localDateKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function getWeekStartKey(value: string) {
-  const date = new Date(value);
-  date.setHours(0, 0, 0, 0);
-  const day = date.getDay() || 7;
-  date.setDate(date.getDate() - day + 1);
-  return localDateKey(date);
-}
-
-function getIsoWeekNumber(date: Date) {
-  const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNumber = target.getUTCDay() || 7;
-  target.setUTCDate(target.getUTCDate() + 4 - dayNumber);
-  const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
-  return Math.ceil((((target.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7);
-}
-
-function labelForWeekStart(weekStart: string) {
-  const [year, month, day] = weekStart.split('-').map(Number);
-  const date = new Date(year, month - 1, day);
-  return `KW ${getIsoWeekNumber(date)}`;
-}
-
 function formatPercent(value: number | null) {
   if (value === null || !Number.isFinite(value)) return '—';
   return `${Math.round(value * 100)}%`;
 }
 
-function buildCoachWeeklyHistory(sessions: CoachSession[]): CoachWeeklyHistoryBucket[] {
-  const buckets = new Map<string, {
+const WEEKDAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+
+function coachWeekdayIndex(value: string) {
+  const day = new Date(value).getDay();
+  return day === 0 ? 6 : day - 1;
+}
+
+function buildCoachWeekdayHistory(sessions: CoachSession[]): CoachWeekdayHistoryPoint[] {
+  const buckets = new Map<number, {
     sessionCount: number;
     expectedPlayers: number;
     lateCount: number;
@@ -136,10 +118,8 @@ function buildCoachWeeklyHistory(sessions: CoachSession[]): CoachWeeklyHistoryBu
     auSum: number;
   }>();
 
-  for (const session of sessions) {
-    const weekStart = getWeekStartKey(session.startsAt);
-    const summary = summarizeCoachSession(session);
-    const current = buckets.get(weekStart) ?? {
+  for (let index = 0; index < 7; index += 1) {
+    buckets.set(index, {
       sessionCount: 0,
       expectedPlayers: 0,
       lateCount: 0,
@@ -147,7 +127,13 @@ function buildCoachWeeklyHistory(sessions: CoachSession[]): CoachWeeklyHistoryBu
       reportCount: 0,
       rpeSum: 0,
       auSum: 0,
-    };
+    });
+  }
+
+  for (const session of sessions) {
+    const weekdayIndex = coachWeekdayIndex(session.startsAt);
+    const summary = summarizeCoachSession(session);
+    const current = buckets.get(weekdayIndex)!;
     current.sessionCount += 1;
     current.expectedPlayers += session.players.length;
     current.lateCount += summary.late.length;
@@ -155,14 +141,13 @@ function buildCoachWeeklyHistory(sessions: CoachSession[]): CoachWeeklyHistoryBu
     current.reportCount += summary.loadReports.length;
     current.rpeSum += summary.loadReports.reduce((sum, item) => sum + item.entry.rpe, 0);
     current.auSum += summary.loadReports.reduce((sum, item) => sum + item.entry.load, 0);
-    buckets.set(weekStart, current);
   }
 
   return Array.from(buckets.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([weekStart, bucket]) => ({
-      weekStart,
-      label: labelForWeekStart(weekStart),
+    .sort(([a], [b]) => a - b)
+    .map(([weekdayIndex, bucket]) => ({
+      weekdayIndex,
+      label: WEEKDAY_LABELS[weekdayIndex],
       sessionCount: bucket.sessionCount,
       expectedPlayers: bucket.expectedPlayers,
       lateCount: bucket.lateCount,
@@ -214,82 +199,151 @@ function TrendValue({ label, value, colorClass }: { label: string; value: string
   );
 }
 
-function CoachWeeklyTrendCard({
-  weeks,
-  selectedWeekStart,
-  onWeekSelect,
+const HISTORY_METRIC_META: Record<CoachHistoryMetric, { label: string; color: string; tone: string; dot: string }> = {
+  rpe: { label: 'RPE', color: '#34d399', tone: 'border-emerald-300 bg-emerald-300 text-slate-950', dot: 'bg-emerald-300' },
+  au: { label: 'AU', color: '#a78bfa', tone: 'border-violet-300 bg-violet-300 text-slate-950', dot: 'bg-violet-300' },
+  attendance: { label: 'Attendance', color: '#38bdf8', tone: 'border-sky-300 bg-sky-300 text-slate-950', dot: 'bg-sky-300' },
+  completion: { label: 'Completion', color: '#fbbf24', tone: 'border-amber-300 bg-amber-300 text-slate-950', dot: 'bg-amber-300' },
+};
+
+function valueForHistoryMetric(point: CoachWeekdayHistoryPoint, metric: CoachHistoryMetric) {
+  if (metric === 'rpe') return point.avgRpe;
+  if (metric === 'au') return point.avgAu;
+  if (metric === 'attendance') return point.attendanceRate === null ? null : point.attendanceRate * 100;
+  return point.completionRate === null ? null : point.completionRate * 100;
+}
+
+function formatHistoryMetricValue(metric: CoachHistoryMetric, value: number | null) {
+  if (value === null || !Number.isFinite(value)) return '-';
+  if (metric === 'rpe') return value.toFixed(1);
+  if (metric === 'au') return `${Math.round(value)} AU`;
+  return `${Math.round(value)}%`;
+}
+
+function linePath(points: CoachWeekdayHistoryPoint[], metric: CoachHistoryMetric, maxValue: number, width: number, height: number) {
+  const usableWidth = width - 32;
+  const usableHeight = height - 24;
+  const coords = points.map((point, index) => {
+    const value = valueForHistoryMetric(point, metric);
+    if (value === null) return null;
+    const x = 16 + (index / Math.max(points.length - 1, 1)) * usableWidth;
+    const y = 10 + usableHeight - (Math.min(value, maxValue) / maxValue) * usableHeight;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  let path = '';
+  coords.forEach((coord) => {
+    if (!coord) return;
+    path += `${path ? ' L ' : 'M '}${coord}`;
+  });
+  return path;
+}
+
+function CoachHistoryTrendGraph({
+  points,
+  selectedWeekday,
+  onWeekdaySelect,
 }: {
-  weeks: CoachWeeklyHistoryBucket[];
-  selectedWeekStart: string | null;
-  onWeekSelect: (weekStart: string | null) => void;
+  points: CoachWeekdayHistoryPoint[];
+  selectedWeekday: number | null;
+  onWeekdaySelect: (weekdayIndex: number | null) => void;
 }) {
-  if (weeks.length === 0) return null;
-  const visibleWeeks = weeks.slice(-12);
-  const maxAu = Math.max(1, ...visibleWeeks.map((week) => week.avgAu ?? 0));
-  const latest = visibleWeeks[visibleWeeks.length - 1];
+  const [activeMetrics, setActiveMetrics] = useState<CoachHistoryMetric[]>(['rpe', 'au']);
+  const activePoint = selectedWeekday === null ? null : points.find((point) => point.weekdayIndex === selectedWeekday) ?? null;
+  const maxAu = Math.max(600, ...points.map((point) => point.avgAu ?? 0));
+  const maxByMetric: Record<CoachHistoryMetric, number> = { rpe: 10, au: maxAu, attendance: 100, completion: 100 };
+  const chartWidth = 720;
+  const chartHeight = 220;
+  function toggleMetric(metric: CoachHistoryMetric) {
+    setActiveMetrics((current) => current.includes(metric) ? current.filter((item) => item !== metric) : [...current, metric]);
+  }
+
   return (
     <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/70 p-3 shadow-[0_18px_70px_rgba(0,0,0,0.18)] sm:p-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-300">Weekly trend</p>
-          <h3 className="mt-1 text-lg font-black text-white">Last 12 weeks</h3>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-300">Trend</p>
+          <h3 className="mt-1 text-lg font-black text-white">Training week by weekday</h3>
         </div>
-        {latest ? (
-          <div className="flex flex-wrap gap-x-3 gap-y-1">
-            <TrendValue label="RPE" value={latest.avgRpe !== null ? latest.avgRpe.toFixed(1) : '—'} colorClass="bg-emerald-300" />
-            <TrendValue label="AU" value={latest.avgAu !== null ? `${Math.round(latest.avgAu)}` : '—'} colorClass="bg-violet-300" />
-            <TrendValue label="Att" value={formatPercent(latest.attendanceRate)} colorClass="bg-sky-300" />
-            <TrendValue label="Done" value={formatPercent(latest.completionRate)} colorClass="bg-amber-300" />
-          </div>
-        ) : null}
+        <div className="flex flex-wrap gap-1.5">
+          {(Object.keys(HISTORY_METRIC_META) as CoachHistoryMetric[]).map((metric) => {
+            const active = activeMetrics.includes(metric);
+            return (
+              <button
+                key={metric}
+                type="button"
+                onClick={() => toggleMetric(metric)}
+                className={`rounded-full border px-3 py-1.5 text-[11px] font-black transition ${active ? HISTORY_METRIC_META[metric].tone : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
+              >
+                {HISTORY_METRIC_META[metric].label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="mt-4 overflow-x-auto pb-1">
-        <div className="grid min-w-[34rem] gap-1.5 sm:min-w-0" style={{ gridTemplateColumns: `repeat(${visibleWeeks.length}, minmax(0, 1fr))` }}>
-        {visibleWeeks.map((week) => {
-          const selected = selectedWeekStart === week.weekStart;
-          const auHeight = week.avgAu !== null ? `${Math.max(8, (week.avgAu / maxAu) * 100)}%` : '0%';
-          const rpeHeight = week.avgRpe !== null ? `${Math.max(8, (week.avgRpe / 10) * 100)}%` : '0%';
-          return (
-            <button
-              key={week.weekStart}
-              type="button"
-              onClick={() => onWeekSelect(selected ? null : week.weekStart)}
-              className={`group min-w-0 rounded-2xl border p-1.5 text-left transition ${selected ? 'border-violet-300 bg-violet-300/15' : 'border-slate-800 bg-slate-950/60 hover:border-violet-300/45 hover:bg-slate-900/70'}`}
-              title={`${week.label}: ${week.sessionCount} sessions`}
-            >
-              <div className="flex h-24 items-end justify-center gap-1 rounded-xl border border-slate-900 bg-slate-950/80 p-1.5 sm:h-28">
-                <span className={`w-2 rounded-full transition-[height] duration-200 ${week.avgAu !== null ? 'bg-violet-300/85' : 'bg-slate-800'}`} style={{ height: auHeight }} />
-                <span className={`w-2 rounded-full transition-[height] duration-200 ${week.avgRpe !== null ? 'bg-emerald-300/85' : 'bg-slate-800'}`} style={{ height: rpeHeight }} />
-              </div>
-              <div className="mt-1.5 space-y-1">
-                <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
-                  <span className="block h-full rounded-full bg-sky-300" style={{ width: `${Math.round((week.attendanceRate ?? 0) * 100)}%` }} />
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
-                  <span className="block h-full rounded-full bg-amber-300" style={{ width: `${Math.round((week.completionRate ?? 0) * 100)}%` }} />
-                </div>
-              </div>
-              <div className="mt-1.5 flex min-w-0 items-center justify-between gap-1 text-[10px] font-black">
-                <span className={selected ? 'text-violet-100' : 'text-slate-400'}>{week.label}</span>
-                <span className="text-slate-600">{week.sessionCount}</span>
-              </div>
-            </button>
-          );
-        })}
+        <div className="min-w-[39rem] rounded-2xl border border-slate-800 bg-slate-950/75 p-3 sm:min-w-0">
+          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-56 w-full overflow-visible">
+            {[0, 1, 2, 3].map((line) => (
+              <line key={line} x1="16" x2={chartWidth - 16} y1={16 + line * 48} y2={16 + line * 48} stroke="rgba(148,163,184,0.12)" strokeWidth="1" />
+            ))}
+            {activeMetrics.map((metric) => (
+              <path
+                key={metric}
+                d={linePath(points, metric, maxByMetric[metric], chartWidth, chartHeight)}
+                fill="none"
+                stroke={HISTORY_METRIC_META[metric].color}
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.9"
+              />
+            ))}
+            {points.map((point, index) => {
+              const x = 16 + (index / Math.max(points.length - 1, 1)) * (chartWidth - 32);
+              const selected = selectedWeekday === point.weekdayIndex;
+              return (
+                <g key={point.weekdayIndex}>
+                  <line x1={x} x2={x} y1="8" y2={chartHeight - 20} stroke={selected ? 'rgba(255,255,255,0.26)' : 'rgba(148,163,184,0.10)'} strokeWidth={selected ? 2 : 1} />
+                  {activeMetrics.map((metric) => {
+                    const value = valueForHistoryMetric(point, metric);
+                    if (value === null) return null;
+                    const y = 10 + (chartHeight - 24) - (Math.min(value, maxByMetric[metric]) / maxByMetric[metric]) * (chartHeight - 24);
+                    return <circle key={metric} cx={x} cy={y} r={selected ? 6 : 4} fill={HISTORY_METRIC_META[metric].color} stroke="#020617" strokeWidth="2" />;
+                  })}
+                  <text x={x} y={chartHeight - 2} textAnchor="middle" className="fill-slate-400 text-[13px] font-black">{point.label}</text>
+                </g>
+              );
+            })}
+          </svg>
+          <div className="grid grid-cols-7 gap-1.5">
+            {points.map((point) => {
+              const selected = selectedWeekday === point.weekdayIndex;
+              return (
+                <button
+                  key={point.weekdayIndex}
+                  type="button"
+                  onClick={() => onWeekdaySelect(selected ? null : point.weekdayIndex)}
+                  className={`rounded-xl border px-1.5 py-2 text-center transition ${selected ? 'border-violet-300 bg-violet-300/15 text-violet-100' : 'border-slate-800 bg-slate-950/55 text-slate-400 hover:border-slate-600'}`}
+                >
+                  <p className="text-xs font-black">{point.label}</p>
+                  <p className="mt-0.5 text-[10px] font-bold opacity-70">{point.sessionCount} TE</p>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-x-3 gap-y-1">
-          <TrendValue label="AU bars" value="" colorClass="bg-violet-300" />
-          <TrendValue label="RPE bars" value="" colorClass="bg-emerald-300" />
-          <TrendValue label="attendance strip" value="" colorClass="bg-sky-300" />
-          <TrendValue label="completion strip" value="" colorClass="bg-amber-300" />
+          {activeMetrics.map((metric) => (
+            <TrendValue key={metric} label={HISTORY_METRIC_META[metric].label} value={activePoint ? formatHistoryMetricValue(metric, valueForHistoryMetric(activePoint, metric)) : ''} colorClass={HISTORY_METRIC_META[metric].dot} />
+          ))}
         </div>
-        {selectedWeekStart ? (
-          <button type="button" onClick={() => onWeekSelect(null)} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 transition hover:border-violet-300/50 hover:bg-slate-900">
-            Clear week
+        {selectedWeekday !== null ? (
+          <button type="button" onClick={() => onWeekdaySelect(null)} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 transition hover:border-violet-300/50 hover:bg-slate-900">
+            Clear day
           </button>
         ) : null}
       </div>
@@ -556,6 +610,7 @@ export function CoachSessionDetailOverlay({
             detail: flag?.status === 'late' && flag.lateMinutes ? `${flag.lateMinutes} min` : flag?.reason ?? null,
           };
         })}
+        showExpectedParticipants={!isPast}
         onParticipantSelect={setActivePlayerId}
         actions={<>
           {onEdit && !hideSessionActions ? <button type="button" onClick={onEdit} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit session</button> : null}
@@ -591,7 +646,7 @@ export function CoachHistoryInsights({
   const [rangeDays, setRangeDays] = useState(30);
   const [teamId, setTeamId] = useState('all');
   const [focus, setFocus] = useState<HistoryFocus>('all');
-  const [selectedWeekStart, setSelectedWeekStart] = useState<string | null>(null);
+  const [selectedWeekday, setSelectedWeekday] = useState<number | null>(null);
   const [visibleCount, setVisibleCount] = useState(16);
   const windowSessions = useMemo(() => {
     const since = windowStart(rangeDays);
@@ -601,17 +656,17 @@ export function CoachHistoryInsights({
       .filter((session) => teamId === 'all' || session.teamId === teamId)
       .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
   }, [rangeDays, sessions, teamId]);
-  const weeklyBuckets = useMemo(() => buildCoachWeeklyHistory(windowSessions), [windowSessions]);
+  const weekdayPoints = useMemo(() => buildCoachWeekdayHistory(windowSessions), [windowSessions]);
   const filteredSessions = useMemo(
     () => windowSessions.filter((session) => {
-      if (selectedWeekStart && getWeekStartKey(session.startsAt) !== selectedWeekStart) return false;
+      if (selectedWeekday !== null && coachWeekdayIndex(session.startsAt) !== selectedWeekday) return false;
       if (focus === 'all') return true;
       const summary = summarizeCoachSession(session);
       if (focus === 'expected') return summary.late.length > 0 || summary.out.length > 0;
       if (focus === 'rpe' || focus === 'au') return summary.loadReports.length > 0;
       return summary.reportRate < 1;
     }),
-    [focus, selectedWeekStart, windowSessions],
+    [focus, selectedWeekday, windowSessions],
   );
 
   const aggregate = useMemo(() => {
@@ -637,7 +692,7 @@ export function CoachHistoryInsights({
   const visibleSessions = filteredSessions.slice(0, visibleCount);
 
   useEffect(() => {
-    setSelectedWeekStart(null);
+    setSelectedWeekday(null);
     setVisibleCount(16);
   }, [rangeDays, teamId]);
 
@@ -678,15 +733,15 @@ export function CoachHistoryInsights({
         </div>
       ) : null}
 
-      <CoachWeeklyTrendCard
-        weeks={weeklyBuckets}
-        selectedWeekStart={selectedWeekStart}
-        onWeekSelect={(weekStart) => { setSelectedWeekStart(weekStart); setVisibleCount(16); }}
+      <CoachHistoryTrendGraph
+        points={weekdayPoints}
+        selectedWeekday={selectedWeekday}
+        onWeekdaySelect={(weekdayIndex) => { setSelectedWeekday(weekdayIndex); setVisibleCount(16); }}
       />
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-bold text-slate-500">
-          {aggregate.sessionCount} sessions in view{selectedWeekStart ? ` · ${labelForWeekStart(selectedWeekStart)}` : ''}
+          {aggregate.sessionCount} sessions in view{selectedWeekday !== null ? ` · ${WEEKDAY_LABELS[selectedWeekday]}` : ''}
         </p>
         {focus !== 'all' ? (
           <button type="button" onClick={() => { setFocus('all'); setVisibleCount(16); }} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 transition hover:border-violet-300/50 hover:bg-slate-900">

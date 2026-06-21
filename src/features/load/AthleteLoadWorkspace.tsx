@@ -2748,6 +2748,13 @@ function LoadDetailsPanel({
     }))
     .filter((item) => item.load > 0)
     .sort((a, b) => b.load - a.load);
+  const activeRecentEntries = recentEntries.filter((entry) => entry.trainingType !== 'recovery');
+  const trainingDates = activeRecentEntries.map((entry) => new Date(`${entry.date}T00:00:00`).getTime()).sort((a, b) => a - b);
+  const trainingSpanDays = trainingDates.length > 0 ? Math.max(7, Math.round((trainingDates[trainingDates.length - 1] - trainingDates[0]) / 86_400_000) + 1) : 0;
+  const trainingWeeks = Math.max(1, trainingSpanDays / 7);
+  const weeklyTrainingMinutes = activeRecentEntries.length > 0 ? Math.round(activeRecentEntries.reduce((sum, entry) => sum + entry.durationMinutes, 0) / trainingWeeks) : null;
+  const avgRecentRpe = activeRecentEntries.length > 0 ? activeRecentEntries.reduce((sum, entry) => sum + entry.rpe, 0) / activeRecentEntries.length : null;
+  const completedEntries = [...recentEntries].sort((a, b) => b.date.localeCompare(a.date) || (b.startsAt ?? '').localeCompare(a.startsAt ?? '')).slice(0, 8);
 
   return (
     <section className="grid gap-5 xl:grid-cols-[1fr_0.75fr]">
@@ -2830,6 +2837,41 @@ function LoadDetailsPanel({
           }) : (
             <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4 text-sm font-bold text-slate-500">No recent load.</div>
           )}
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Training minutes / week</p>
+            <p className="mt-2 text-2xl font-black text-white">{weeklyTrainingMinutes === null ? '—' : `${weeklyTrainingMinutes} min`}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avg RPE</p>
+            <p className="mt-2 text-2xl font-black text-white">{avgRecentRpe === null ? '—' : avgRecentRpe.toFixed(1)}</p>
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-black text-white">Completed sessions</p>
+            <span className="text-xs font-black text-slate-500">{completedEntries.length}</span>
+          </div>
+          <div className="mt-3 grid gap-2">
+            {completedEntries.length === 0 ? <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4 text-sm font-bold text-slate-500">No completed entries.</div> : null}
+            {completedEntries.map((entry) => (
+              <div key={entry.id} className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black text-white">{entry.title}</p>
+                    <p className="mt-1 text-xs font-bold text-slate-500">{formatLoadDate(entry.date)} · {LOAD_TYPE_LABELS[entry.trainingType]}</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-black text-slate-100">{entry.durationMinutes} min</p>
+                    <p className="mt-1 text-xs font-black text-slate-500">RPE {entry.rpe} · {entry.load} AU</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>

@@ -88,6 +88,7 @@ export function SessionDetailSheet({
   load,
   loadRisks = [],
   participants = [],
+  showExpectedParticipants = true,
   onParticipantSelect,
   insights,
   editDetails,
@@ -116,6 +117,7 @@ export function SessionDetailSheet({
   load?: SessionDetailLoad;
   loadRisks?: SessionDetailLoadRisk[];
   participants?: SessionDetailParticipant[];
+  showExpectedParticipants?: boolean;
   onParticipantSelect?: (participantId: string) => void;
   insights?: ReactNode;
   editDetails?: ReactNode;
@@ -332,7 +334,7 @@ export function SessionDetailSheet({
           </div>
         ) : null}
 
-        {expectedParticipants.length > 0 ? (
+        {showExpectedParticipants && expectedParticipants.length > 0 ? (
           <div className="mt-2.5 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
             <button type="button" onClick={() => setShowParticipants((current) => !current)} className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200 hover:bg-slate-900">
               {showParticipants ? 'Hide expected players' : `Expected players (${expectedParticipants.length})`}
