@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LoadChart } from '@/features/load/AthleteLoadWorkspace';
+import { LoadChart, WeeklyLoadProfileGraph } from '@/features/load/AthleteLoadWorkspace';
 import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
 import { ACWR_ZONES, LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/features/load/loadTypes';
 
@@ -46,19 +46,6 @@ function averageMinutes(entries: AthleteLoadEntry[], predicate: (entry: AthleteL
   const relevant = entries.filter(predicate);
   if (relevant.length === 0) return null;
   return Math.round(relevant.reduce((sum, entry) => sum + entry.durationMinutes, 0) / relevant.length);
-}
-
-function weeklyMinutes(entries: AthleteLoadEntry[]) {
-  if (entries.length === 0) return null;
-  const dates = entries.map((entry) => new Date(`${entry.date}T00:00:00`).getTime()).sort((a, b) => a - b);
-  const spanDays = Math.max(7, Math.round((dates[dates.length - 1] - dates[0]) / 86_400_000) + 1);
-  const weeks = Math.max(1, spanDays / 7);
-  return Math.round(entries.reduce((sum, entry) => sum + entry.durationMinutes, 0) / weeks);
-}
-
-function averageRpe(entries: AthleteLoadEntry[]) {
-  if (entries.length === 0) return null;
-  return entries.reduce((sum, entry) => sum + entry.rpe, 0) / entries.length;
 }
 
 function ewmaLoadForTargetRatio(acuteLoad: number, chronicLoad: number, targetRatio: number) {
@@ -158,8 +145,6 @@ export function PlayerLoadDetail({
       : `${filteredAttendance.length} ${filteredAttendance.length === 1 ? 'flag' : 'flags'}`;
   const avgGameMinutes = averageMinutes(recentEntries, (entry) => entry.trainingType === 'game');
   const avgTrainingMinutes = averageMinutes(recentEntries, (entry) => entry.trainingType !== 'game' && entry.trainingType !== 'recovery');
-  const weeklyTrainingMinutes = weeklyMinutes(recentEntries.filter((entry) => entry.trainingType !== 'recovery'));
-  const recentAvgRpe = averageRpe(recentEntries.filter((entry) => entry.trainingType !== 'recovery'));
   const completedEntries = [...recentEntries].sort((a, b) => b.date.localeCompare(a.date) || (b.startsAt ?? '').localeCompare(a.startsAt ?? '')).slice(0, 8);
   const monotony = summary.latest?.monotony ?? null;
   const strain = summary.latest?.strain ?? null;
@@ -233,17 +218,11 @@ export function PlayerLoadDetail({
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Training minutes / week</p>
-                <p className="mt-2 text-2xl font-black text-white">{weeklyTrainingMinutes === null ? '—' : `${weeklyTrainingMinutes} min`}</p>
-                <p className="mt-1 text-xs font-bold text-slate-500">Recent 28d rhythm</p>
-              </div>
-              <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Avg RPE</p>
-                <p className="mt-2 text-2xl font-black text-white">{recentAvgRpe === null ? '—' : recentAvgRpe.toFixed(1)}</p>
-                <p className="mt-1 text-xs font-bold text-slate-500">{avgTrainingMinutes === null ? 'No training average' : `${avgTrainingMinutes} min / training`}{avgGameMinutes === null ? '' : ` · ${avgGameMinutes} min / game`}</p>
-              </div>
+            <div>
+              <WeeklyLoadProfileGraph entries={entries} title="Weekly load profile" />
+              <p className="mt-2 text-xs font-bold text-slate-500">
+                {avgTrainingMinutes === null ? 'No training average' : `${avgTrainingMinutes} min / training`}{avgGameMinutes === null ? '' : ` - ${avgGameMinutes} min / game`}
+              </p>
             </div>
 
             <div className={`rounded-3xl border p-4 ${stabilityState.tone}`}>

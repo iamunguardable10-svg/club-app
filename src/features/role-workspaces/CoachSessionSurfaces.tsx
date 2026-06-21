@@ -3,17 +3,15 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { SessionDetailSheet, type SessionDetailFacilityOption, type SessionDetailGroup } from '@/features/sessions/SessionDetailSheet';
-import { LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type LoadTrainingType } from '@/features/load/loadTypes';
 import type { CoachSession } from '@/features/role-workspaces/CoachTypes';
 import { PlayerLoadDetail, type PlayerLoadDetailPlayer } from '@/features/players/PlayerLoadDetail';
 
 type LoadRiskPlayer = { risk: string; acwr: number | null };
 type HistoryTeamOption = { id: string; name: string; departmentName?: string };
 export type CoachSessionInsight = 'expected' | 'rpe' | 'au' | 'completion';
-type HistoryFocus = 'all' | CoachSessionInsight;
 type CoachHistoryMetric = 'rpe' | 'au' | 'attendance' | 'completion';
-type CoachWeekdayHistoryPoint = {
-  weekdayIndex: number;
+type CoachHistoryGraphPoint = {
+  key: string;
   label: string;
   sessionCount: number;
   expectedPlayers: number;
@@ -45,16 +43,8 @@ function summarizeCoachSession(session: CoachSession) {
   const reportRate = session.players.length > 0 ? loadReports.length / session.players.length : 0;
   const avgRpe = loadReports.length > 0 ? loadReports.reduce((sum, item) => sum + item.entry.rpe, 0) / loadReports.length : null;
   const avgLoad = loadReports.length > 0 ? loadReports.reduce((sum, item) => sum + item.entry.load, 0) / loadReports.length : null;
-  const mix = new Map<LoadTrainingType, number>();
-  for (const item of loadReports) {
-    mix.set(item.entry.trainingType, (mix.get(item.entry.trainingType) ?? 0) + item.entry.load);
-  }
-  const totalMixLoad = Array.from(mix.values()).reduce((sum, value) => sum + value, 0) || 1;
-  const loadMix = Array.from(mix.entries())
-    .map(([type, load]) => ({ type, load, share: load / totalMixLoad }))
-    .sort((a, b) => b.load - a.load);
   const risks = sortCoachLoadRisks(session.players);
-  return { late, out, loadReports, reportRate, avgRpe, avgLoad, loadMix, risks };
+  return { late, out, loadReports, reportRate, avgRpe, avgLoad, risks };
 }
 
 type CoachSessionLoadReport = ReturnType<typeof summarizeCoachSession>['loadReports'][number];
@@ -100,15 +90,33 @@ function formatPercent(value: number | null) {
   return `${Math.round(value * 100)}%`;
 }
 
-const WEEKDAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-
-function coachWeekdayIndex(value: string) {
-  const day = new Date(value).getDay();
-  return day === 0 ? 6 : day - 1;
+function weekStartLocal(date: Date) {
+  const start = new Date(date);
+  const day = start.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  start.setDate(start.getDate() + diff);
+  start.setHours(0, 0, 0, 0);
+  return start;
 }
 
-function buildCoachWeekdayHistory(sessions: CoachSession[]): CoachWeekdayHistoryPoint[] {
-  const buckets = new Map<number, {
+function historyWeekKey(date: Date) {
+  const start = weekStartLocal(date);
+  return `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+}
+
+function formatHistoryWeekLabel(key: string) {
+  const start = new Date(`${key}T00:00:00`);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const short = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: '2-digit' });
+  return `${short.format(start)}-${short.format(end)}`;
+}
+
+function buildCoachHistoryGraph(sessions: CoachSession[], rangeDays: number): CoachHistoryGraphPoint[] {
+  const rangeStart = new Date(windowStart(rangeDays));
+  const firstWeek = weekStartLocal(rangeStart);
+  const currentWeek = weekStartLocal(new Date());
+  const buckets = new Map<string, {
     sessionCount: number;
     expectedPlayers: number;
     lateCount: number;
@@ -118,8 +126,8 @@ function buildCoachWeekdayHistory(sessions: CoachSession[]): CoachWeekdayHistory
     auSum: number;
   }>();
 
-  for (let index = 0; index < 7; index += 1) {
-    buckets.set(index, {
+  for (let cursor = new Date(firstWeek); cursor.getTime() <= currentWeek.getTime(); cursor.setDate(cursor.getDate() + 7)) {
+    buckets.set(historyWeekKey(cursor), {
       sessionCount: 0,
       expectedPlayers: 0,
       lateCount: 0,
@@ -131,9 +139,10 @@ function buildCoachWeekdayHistory(sessions: CoachSession[]): CoachWeekdayHistory
   }
 
   for (const session of sessions) {
-    const weekdayIndex = coachWeekdayIndex(session.startsAt);
+    const key = historyWeekKey(new Date(session.startsAt));
+    if (!buckets.has(key)) continue;
     const summary = summarizeCoachSession(session);
-    const current = buckets.get(weekdayIndex)!;
+    const current = buckets.get(key)!;
     current.sessionCount += 1;
     current.expectedPlayers += session.players.length;
     current.lateCount += summary.late.length;
@@ -143,21 +152,19 @@ function buildCoachWeekdayHistory(sessions: CoachSession[]): CoachWeekdayHistory
     current.auSum += summary.loadReports.reduce((sum, item) => sum + item.entry.load, 0);
   }
 
-  return Array.from(buckets.entries())
-    .sort(([a], [b]) => a - b)
-    .map(([weekdayIndex, bucket]) => ({
-      weekdayIndex,
-      label: WEEKDAY_LABELS[weekdayIndex],
-      sessionCount: bucket.sessionCount,
-      expectedPlayers: bucket.expectedPlayers,
-      lateCount: bucket.lateCount,
-      outCount: bucket.outCount,
-      reportCount: bucket.reportCount,
-      avgRpe: bucket.reportCount > 0 ? bucket.rpeSum / bucket.reportCount : null,
-      avgAu: bucket.reportCount > 0 ? bucket.auSum / bucket.reportCount : null,
-      attendanceRate: bucket.expectedPlayers > 0 ? (bucket.expectedPlayers - bucket.outCount) / bucket.expectedPlayers : null,
-      completionRate: bucket.expectedPlayers > 0 ? bucket.reportCount / bucket.expectedPlayers : null,
-    }));
+  return Array.from(buckets.entries()).map(([key, bucket]) => ({
+    key,
+    label: formatHistoryWeekLabel(key),
+    sessionCount: bucket.sessionCount,
+    expectedPlayers: bucket.expectedPlayers,
+    lateCount: bucket.lateCount,
+    outCount: bucket.outCount,
+    reportCount: bucket.reportCount,
+    avgRpe: bucket.reportCount > 0 ? bucket.rpeSum / bucket.reportCount : null,
+    avgAu: bucket.reportCount > 0 ? bucket.auSum / bucket.reportCount : null,
+    attendanceRate: bucket.expectedPlayers > 0 ? (bucket.expectedPlayers - bucket.outCount) / bucket.expectedPlayers : null,
+    completionRate: bucket.expectedPlayers > 0 ? bucket.reportCount / bucket.expectedPlayers : null,
+  }));
 }
 
 function InsightMetricCard({
@@ -206,7 +213,7 @@ const HISTORY_METRIC_META: Record<CoachHistoryMetric, { label: string; color: st
   completion: { label: 'Completion', color: '#fbbf24', tone: 'border-amber-300 bg-amber-300 text-slate-950', dot: 'bg-amber-300' },
 };
 
-function valueForHistoryMetric(point: CoachWeekdayHistoryPoint, metric: CoachHistoryMetric) {
+function valueForHistoryMetric(point: CoachHistoryGraphPoint, metric: CoachHistoryMetric) {
   if (metric === 'rpe') return point.avgRpe;
   if (metric === 'au') return point.avgAu;
   if (metric === 'attendance') return point.attendanceRate === null ? null : point.attendanceRate * 100;
@@ -220,14 +227,25 @@ function formatHistoryMetricValue(metric: CoachHistoryMetric, value: number | nu
   return `${Math.round(value)}%`;
 }
 
-function linePath(points: CoachWeekdayHistoryPoint[], metric: CoachHistoryMetric, maxValue: number, width: number, height: number) {
-  const usableWidth = width - 32;
-  const usableHeight = height - 24;
+function historyMetricMax(points: CoachHistoryGraphPoint[], metric: CoachHistoryMetric) {
+  if (metric === 'rpe') return 10;
+  if (metric === 'attendance' || metric === 'completion') return 100;
+  const max = Math.max(...points.map((point) => valueForHistoryMetric(point, metric) ?? 0), 0);
+  return Math.max(300, Math.ceil(max / 100) * 100);
+}
+
+function historyLinePath(points: CoachHistoryGraphPoint[], metric: CoachHistoryMetric, maxValue: number, width: number, height: number) {
+  const left = 50;
+  const right = 18;
+  const top = 14;
+  const bottom = 34;
+  const usableWidth = width - left - right;
+  const usableHeight = height - top - bottom;
   const coords = points.map((point, index) => {
     const value = valueForHistoryMetric(point, metric);
     if (value === null) return null;
-    const x = 16 + (index / Math.max(points.length - 1, 1)) * usableWidth;
-    const y = 10 + usableHeight - (Math.min(value, maxValue) / maxValue) * usableHeight;
+    const x = left + (index / Math.max(points.length - 1, 1)) * usableWidth;
+    const y = top + usableHeight - (Math.min(value, maxValue) / maxValue) * usableHeight;
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   });
   let path = '';
@@ -240,38 +258,42 @@ function linePath(points: CoachWeekdayHistoryPoint[], metric: CoachHistoryMetric
 
 function CoachHistoryTrendGraph({
   points,
-  selectedWeekday,
-  onWeekdaySelect,
+  selectedPeriodKey,
+  onPeriodSelect,
 }: {
-  points: CoachWeekdayHistoryPoint[];
-  selectedWeekday: number | null;
-  onWeekdaySelect: (weekdayIndex: number | null) => void;
+  points: CoachHistoryGraphPoint[];
+  selectedPeriodKey: string | null;
+  onPeriodSelect: (periodKey: string | null) => void;
 }) {
-  const [activeMetrics, setActiveMetrics] = useState<CoachHistoryMetric[]>(['rpe', 'au']);
-  const activePoint = selectedWeekday === null ? null : points.find((point) => point.weekdayIndex === selectedWeekday) ?? null;
-  const maxAu = Math.max(600, ...points.map((point) => point.avgAu ?? 0));
-  const maxByMetric: Record<CoachHistoryMetric, number> = { rpe: 10, au: maxAu, attendance: 100, completion: 100 };
-  const chartWidth = 720;
-  const chartHeight = 220;
-  function toggleMetric(metric: CoachHistoryMetric) {
-    setActiveMetrics((current) => current.includes(metric) ? current.filter((item) => item !== metric) : [...current, metric]);
-  }
+  const [activeMetric, setActiveMetric] = useState<CoachHistoryMetric>('rpe');
+  const activePoint = selectedPeriodKey === null ? null : points.find((point) => point.key === selectedPeriodKey) ?? null;
+  const maxValue = historyMetricMax(points, activeMetric);
+  const chartWidth = 760;
+  const chartHeight = 250;
+  const left = 50;
+  const right = 18;
+  const top = 14;
+  const bottom = 34;
+  const usableWidth = chartWidth - left - right;
+  const usableHeight = chartHeight - top - bottom;
+  const yTicks = [maxValue, maxValue / 2, 0];
+  const minChartWidth = points.length > 8 ? `${Math.max(44, points.length * 5.2)}rem` : '100%';
 
   return (
     <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/70 p-3 shadow-[0_18px_70px_rgba(0,0,0,0.18)] sm:p-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-300">Trend</p>
-          <h3 className="mt-1 text-lg font-black text-white">Training week by weekday</h3>
+          <h3 className="mt-1 text-lg font-black text-white">History by week</h3>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(HISTORY_METRIC_META) as CoachHistoryMetric[]).map((metric) => {
-            const active = activeMetrics.includes(metric);
+            const active = activeMetric === metric;
             return (
               <button
                 key={metric}
                 type="button"
-                onClick={() => toggleMetric(metric)}
+                onClick={() => setActiveMetric(metric)}
                 className={`rounded-full border px-3 py-1.5 text-[11px] font-black transition ${active ? HISTORY_METRIC_META[metric].tone : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
               >
                 {HISTORY_METRIC_META[metric].label}
@@ -282,51 +304,53 @@ function CoachHistoryTrendGraph({
       </div>
 
       <div className="mt-4 overflow-x-auto pb-1">
-        <div className="min-w-[39rem] rounded-2xl border border-slate-800 bg-slate-950/75 p-3 sm:min-w-0">
-          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-56 w-full overflow-visible">
-            {[0, 1, 2, 3].map((line) => (
-              <line key={line} x1="16" x2={chartWidth - 16} y1={16 + line * 48} y2={16 + line * 48} stroke="rgba(148,163,184,0.12)" strokeWidth="1" />
-            ))}
-            {activeMetrics.map((metric) => (
-              <path
-                key={metric}
-                d={linePath(points, metric, maxByMetric[metric], chartWidth, chartHeight)}
-                fill="none"
-                stroke={HISTORY_METRIC_META[metric].color}
-                strokeWidth="4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity="0.9"
-              />
-            ))}
-            {points.map((point, index) => {
-              const x = 16 + (index / Math.max(points.length - 1, 1)) * (chartWidth - 32);
-              const selected = selectedWeekday === point.weekdayIndex;
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3" style={{ minWidth: minChartWidth }}>
+          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-64 w-full overflow-visible">
+            {yTicks.map((tick) => {
+              const y = top + usableHeight - (tick / maxValue) * usableHeight;
               return (
-                <g key={point.weekdayIndex}>
-                  <line x1={x} x2={x} y1="8" y2={chartHeight - 20} stroke={selected ? 'rgba(255,255,255,0.26)' : 'rgba(148,163,184,0.10)'} strokeWidth={selected ? 2 : 1} />
-                  {activeMetrics.map((metric) => {
-                    const value = valueForHistoryMetric(point, metric);
-                    if (value === null) return null;
-                    const y = 10 + (chartHeight - 24) - (Math.min(value, maxByMetric[metric]) / maxByMetric[metric]) * (chartHeight - 24);
-                    return <circle key={metric} cx={x} cy={y} r={selected ? 6 : 4} fill={HISTORY_METRIC_META[metric].color} stroke="#020617" strokeWidth="2" />;
-                  })}
-                  <text x={x} y={chartHeight - 2} textAnchor="middle" className="fill-slate-400 text-[13px] font-black">{point.label}</text>
+                <g key={tick.toFixed(2)}>
+                  <line x1={left} x2={chartWidth - right} y1={y} y2={y} stroke="rgba(148,163,184,0.14)" strokeWidth="1" />
+                  <text x={left - 10} y={y + 4} textAnchor="end" className="fill-slate-500 text-[11px] font-black">
+                    {formatHistoryMetricValue(activeMetric, tick)}
+                  </text>
+                </g>
+              );
+            })}
+            <path
+              d={historyLinePath(points, activeMetric, maxValue, chartWidth, chartHeight)}
+              fill="none"
+              stroke={HISTORY_METRIC_META[activeMetric].color}
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.92"
+            />
+            {points.map((point, index) => {
+              const x = left + (index / Math.max(points.length - 1, 1)) * usableWidth;
+              const selected = selectedPeriodKey === point.key;
+              const value = valueForHistoryMetric(point, activeMetric);
+              const y = value === null ? null : top + usableHeight - (Math.min(value, maxValue) / maxValue) * usableHeight;
+              return (
+                <g key={point.key}>
+                  <line x1={x} x2={x} y1={top} y2={chartHeight - bottom} stroke={selected ? 'rgba(255,255,255,0.26)' : 'rgba(148,163,184,0.10)'} strokeWidth={selected ? 2 : 1} />
+                  {y !== null ? <circle cx={x} cy={y} r={selected ? 6 : 4} fill={HISTORY_METRIC_META[activeMetric].color} stroke="#020617" strokeWidth="2" /> : null}
+                  <text x={x} y={chartHeight - 8} textAnchor="middle" className="fill-slate-400 text-[11px] font-black">{point.label}</text>
                 </g>
               );
             })}
           </svg>
-          <div className="grid grid-cols-7 gap-1.5">
+          <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
             {points.map((point) => {
-              const selected = selectedWeekday === point.weekdayIndex;
+              const selected = selectedPeriodKey === point.key;
               return (
                 <button
-                  key={point.weekdayIndex}
+                  key={point.key}
                   type="button"
-                  onClick={() => onWeekdaySelect(selected ? null : point.weekdayIndex)}
-                  className={`rounded-xl border px-1.5 py-2 text-center transition ${selected ? 'border-violet-300 bg-violet-300/15 text-violet-100' : 'border-slate-800 bg-slate-950/55 text-slate-400 hover:border-slate-600'}`}
+                  onClick={() => onPeriodSelect(selected ? null : point.key)}
+                  className={`shrink-0 rounded-xl border px-2.5 py-2 text-left transition ${selected ? 'border-violet-300 bg-violet-300/15 text-violet-100' : 'border-slate-800 bg-slate-950/55 text-slate-400 hover:border-slate-600'}`}
                 >
-                  <p className="text-xs font-black">{point.label}</p>
+                  <p className="text-[11px] font-black">{point.label}</p>
                   <p className="mt-0.5 text-[10px] font-bold opacity-70">{point.sessionCount} TE</p>
                 </button>
               );
@@ -336,40 +360,17 @@ function CoachHistoryTrendGraph({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-x-3 gap-y-1">
-          {activeMetrics.map((metric) => (
-            <TrendValue key={metric} label={HISTORY_METRIC_META[metric].label} value={activePoint ? formatHistoryMetricValue(metric, valueForHistoryMetric(activePoint, metric)) : ''} colorClass={HISTORY_METRIC_META[metric].dot} />
-          ))}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <TrendValue label={HISTORY_METRIC_META[activeMetric].label} value={activePoint ? formatHistoryMetricValue(activeMetric, valueForHistoryMetric(activePoint, activeMetric)) : ''} colorClass={HISTORY_METRIC_META[activeMetric].dot} />
+          {activePoint ? <span className="text-[11px] font-black text-slate-500">{activePoint.lateCount} late / {activePoint.outCount} out</span> : null}
         </div>
-        {selectedWeekday !== null ? (
-          <button type="button" onClick={() => onWeekdaySelect(null)} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 transition hover:border-violet-300/50 hover:bg-slate-900">
-            Clear day
+        {selectedPeriodKey !== null ? (
+          <button type="button" onClick={() => onPeriodSelect(null)} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 transition hover:border-violet-300/50 hover:bg-slate-900">
+            Clear week
           </button>
         ) : null}
       </div>
     </div>
-  );
-}
-
-function SessionLoadMix({ mix }: { mix: ReturnType<typeof summarizeCoachSession>['loadMix'] }) {
-  if (mix.length === 0) return null;
-  return (
-    <>
-      <div className="mt-3 overflow-hidden rounded-full border border-slate-800 bg-slate-950">
-        <div className="flex h-2 w-full">
-          {mix.slice(0, 4).map((item) => (
-            <span key={item.type} style={{ width: `${item.share * 100}%`, backgroundColor: LOAD_TYPE_COLORS[item.type] }} />
-          ))}
-        </div>
-      </div>
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {mix.slice(0, 4).map((item) => (
-          <span key={item.type} className="text-[11px] font-black" style={{ color: LOAD_TYPE_COLORS[item.type] }}>
-            {LOAD_TYPE_LABELS[item.type]}
-          </span>
-        ))}
-      </div>
-    </>
   );
 }
 
@@ -407,7 +408,8 @@ export function CoachSessionDetailOverlay({
   const summary = useMemo(() => summarizeCoachSession(session), [session]);
   const isPast = isPastSession(session);
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
-  const [activeInsight, setActiveInsight] = useState<CoachSessionInsight | null>(initialInsight);
+  const normalizedInitialInsight = initialInsight === 'rpe' ? 'au' : initialInsight === 'expected' ? null : initialInsight;
+  const [activeInsight, setActiveInsight] = useState<CoachSessionInsight | null>(normalizedInitialInsight);
   const [showAllHardReports, setShowAllHardReports] = useState(false);
   const activePlayer = session.players.find((player) => player.id === activePlayerId) ?? null;
   const hardReports = useMemo(
@@ -519,11 +521,9 @@ export function CoachSessionDetailOverlay({
                 {summary.loadReports.length}/{session.players.length} load reports
               </span>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <InsightMetricCard label="Expected" value={`${Math.max(0, session.players.length - summary.out.length)}/${session.players.length}`} detail={`${summary.late.length} late · ${summary.out.length} out`} active={activeInsight === 'expected'} onClick={() => setActiveInsight((current) => current === 'expected' ? null : 'expected')} />
-              <InsightMetricCard label="Avg RPE" value={summary.avgRpe !== null ? summary.avgRpe.toFixed(1) : '—'} detail={summary.reportRate >= 0.8 ? 'team signal ready' : 'waiting for inputs'} active={activeInsight === 'rpe'} onClick={() => setActiveInsight((current) => current === 'rpe' ? null : 'rpe')} />
-              <InsightMetricCard label="Avg AU" value={summary.avgLoad !== null ? `${Math.round(summary.avgLoad)}` : '—'} detail="RPE x minutes" active={activeInsight === 'au'} onClick={() => setActiveInsight((current) => current === 'au' ? null : 'au')} />
-              <InsightMetricCard label="Completion" value={formatPercent(summary.reportRate)} detail="load feedback" active={activeInsight === 'completion'} onClick={() => setActiveInsight((current) => current === 'completion' ? null : 'completion')} />
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <InsightMetricCard label="Load signal" value={summary.avgRpe !== null && summary.avgLoad !== null ? `${summary.avgRpe.toFixed(1)} / ${Math.round(summary.avgLoad)} AU` : '-'} detail={summary.reportRate >= 0.8 ? 'team signal ready' : 'waiting for inputs'} active={activeInsight === 'au'} onClick={() => setActiveInsight((current) => current === 'au' ? null : 'au')} />
+              <InsightMetricCard label="Completion" value={formatPercent(summary.reportRate)} detail={`${summary.loadReports.length}/${session.players.length} reports`} active={activeInsight === 'completion'} onClick={() => setActiveInsight((current) => current === 'completion' ? null : 'completion')} />
             </div>
             {activeInsight ? (
               <div className="mt-3 rounded-2xl border border-violet-300/25 bg-violet-300/10 p-3">
@@ -561,7 +561,6 @@ export function CoachSessionDetailOverlay({
                 </div>
               </div>
             ) : null}
-            <SessionLoadMix mix={summary.loadMix} />
             {hardReports.length > 0 || lightReports.length > 0 ? (
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {hardReports.length > 0 ? (
@@ -645,8 +644,7 @@ export function CoachHistoryInsights({
 }) {
   const [rangeDays, setRangeDays] = useState(30);
   const [teamId, setTeamId] = useState('all');
-  const [focus, setFocus] = useState<HistoryFocus>('all');
-  const [selectedWeekday, setSelectedWeekday] = useState<number | null>(null);
+  const [selectedPeriodKey, setSelectedPeriodKey] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(16);
   const windowSessions = useMemo(() => {
     const since = windowStart(rangeDays);
@@ -656,50 +654,17 @@ export function CoachHistoryInsights({
       .filter((session) => teamId === 'all' || session.teamId === teamId)
       .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
   }, [rangeDays, sessions, teamId]);
-  const weekdayPoints = useMemo(() => buildCoachWeekdayHistory(windowSessions), [windowSessions]);
+  const graphPoints = useMemo(() => buildCoachHistoryGraph(windowSessions, rangeDays), [rangeDays, windowSessions]);
   const filteredSessions = useMemo(
-    () => windowSessions.filter((session) => {
-      if (selectedWeekday !== null && coachWeekdayIndex(session.startsAt) !== selectedWeekday) return false;
-      if (focus === 'all') return true;
-      const summary = summarizeCoachSession(session);
-      if (focus === 'expected') return summary.late.length > 0 || summary.out.length > 0;
-      if (focus === 'rpe' || focus === 'au') return summary.loadReports.length > 0;
-      return summary.reportRate < 1;
-    }),
-    [focus, selectedWeekday, windowSessions],
+    () => windowSessions.filter((session) => selectedPeriodKey === null || historyWeekKey(new Date(session.startsAt)) === selectedPeriodKey),
+    [selectedPeriodKey, windowSessions],
   );
-
-  const aggregate = useMemo(() => {
-    const summaries = filteredSessions.map(summarizeCoachSession);
-    const playerCount = filteredSessions.reduce((sum, session) => sum + session.players.length, 0);
-    const outCount = summaries.reduce((sum, summary) => sum + summary.out.length, 0);
-    const lateCount = summaries.reduce((sum, summary) => sum + summary.late.length, 0);
-    const reports = summaries.flatMap((summary) => summary.loadReports);
-    const avgRpe = reports.length > 0 ? reports.reduce((sum, item) => sum + item.entry.rpe, 0) / reports.length : null;
-    const avgLoad = reports.length > 0 ? reports.reduce((sum, item) => sum + item.entry.load, 0) / reports.length : null;
-    const attendanceRate = playerCount > 0 ? (playerCount - outCount) / playerCount : null;
-    const completionRate = playerCount > 0 ? reports.length / playerCount : null;
-    const mix = new Map<LoadTrainingType, number>();
-    for (const item of reports) {
-      mix.set(item.entry.trainingType, (mix.get(item.entry.trainingType) ?? 0) + item.entry.load);
-    }
-    const totalMix = Array.from(mix.values()).reduce((sum, value) => sum + value, 0) || 1;
-    const loadMix = Array.from(mix.entries())
-      .map(([type, load]) => ({ type, load, share: load / totalMix }))
-      .sort((a, b) => b.load - a.load);
-    return { sessionCount: filteredSessions.length, lateCount, outCount, avgRpe, avgLoad, attendanceRate, completionRate, loadMix };
-  }, [filteredSessions]);
   const visibleSessions = filteredSessions.slice(0, visibleCount);
 
   useEffect(() => {
-    setSelectedWeekday(null);
+    setSelectedPeriodKey(null);
     setVisibleCount(16);
   }, [rangeDays, teamId]);
-
-  function toggleFocus(nextFocus: HistoryFocus) {
-    setFocus((current) => current === nextFocus ? 'all' : nextFocus);
-    setVisibleCount(16);
-  }
 
   return (
     <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-white sm:p-5">
@@ -734,27 +699,15 @@ export function CoachHistoryInsights({
       ) : null}
 
       <CoachHistoryTrendGraph
-        points={weekdayPoints}
-        selectedWeekday={selectedWeekday}
-        onWeekdaySelect={(weekdayIndex) => { setSelectedWeekday(weekdayIndex); setVisibleCount(16); }}
+        points={graphPoints}
+        selectedPeriodKey={selectedPeriodKey}
+        onPeriodSelect={(periodKey) => { setSelectedPeriodKey(periodKey); setVisibleCount(16); }}
       />
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-bold text-slate-500">
-          {aggregate.sessionCount} sessions in view{selectedWeekday !== null ? ` · ${WEEKDAY_LABELS[selectedWeekday]}` : ''}
+          {filteredSessions.length} sessions in view{selectedPeriodKey !== null ? ` - ${formatHistoryWeekLabel(selectedPeriodKey)}` : ''}
         </p>
-        {focus !== 'all' ? (
-          <button type="button" onClick={() => { setFocus('all'); setVisibleCount(16); }} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 transition hover:border-violet-300/50 hover:bg-slate-900">
-            Clear KPI filter
-          </button>
-        ) : null}
-      </div>
-
-      <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <InsightMetricCard label="Attendance" value={formatPercent(aggregate.attendanceRate)} detail={`${aggregate.lateCount} late · ${aggregate.outCount} out`} active={focus === 'expected'} onClick={() => toggleFocus('expected')} />
-        <InsightMetricCard label="Avg RPE" value={aggregate.avgRpe !== null ? aggregate.avgRpe.toFixed(1) : '—'} detail="reported average" active={focus === 'rpe'} onClick={() => toggleFocus('rpe')} />
-        <InsightMetricCard label="Avg AU" value={aggregate.avgLoad !== null ? `${Math.round(aggregate.avgLoad)}` : '—'} detail="reported players" active={focus === 'au'} onClick={() => toggleFocus('au')} />
-        <InsightMetricCard label="Completion" value={formatPercent(aggregate.completionRate)} detail="missing inputs first" active={focus === 'completion'} onClick={() => toggleFocus('completion')} />
       </div>
 
       <div className="mt-5 grid gap-3 lg:grid-cols-2">

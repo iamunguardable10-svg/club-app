@@ -139,6 +139,10 @@ export function SessionDetailSheet({
   const expectedParticipants = participants.filter((player) => player.status !== 'out');
   const selectedGroups = selectedGroupIds.length > 0 ? groups.filter((group) => selectedGroupIds.includes(group.id)) : [];
   const contextLine = [teamName, departmentName, facilityName].filter(Boolean).join(' \u00b7 ');
+  const attendanceExpected = attendance?.expected ?? participants.length;
+  const attendanceOut = attendance?.out ?? participants.filter((player) => player.status === 'out').length;
+  const attendanceLate = attendance?.late ?? participants.filter((player) => player.status === 'late').length;
+  const expectedLabel = attendanceExpected > 0 ? `${Math.max(0, attendanceExpected - attendanceOut)}/${attendanceExpected} expected` : null;
 
   useEffect(() => {
     if (editOpenKey) setShowEditDetails(true);
@@ -198,7 +202,14 @@ export function SessionDetailSheet({
         </div>
 
         <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Participants</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Participants</p>
+            {expectedLabel ? (
+              <span className="rounded-full border border-slate-700 bg-slate-950/60 px-2.5 py-1 text-[11px] font-black text-slate-300">
+                {expectedLabel}{attendanceLate > 0 ? ` / ${attendanceLate} late` : ''}
+              </span>
+            ) : null}
+          </div>
           {canEditGroups && groups.length > 0 ? (
             <div className="mt-2.5 flex flex-wrap gap-1.5">
               <button
