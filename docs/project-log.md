@@ -828,3 +828,12 @@ Next larger feature plan:
   6. Bottom-up onboarding
   7. Notifications and player calendar sync
   8. Department operations V2
+
+## 2026-06-21 — Coach history and athlete load graph correction
+
+Current behavior / direction:
+
+- Coach History trends use calendar-week windows (`4W`, `8W`, `12W`) instead of rolling day labels (`30d`, `60d`, `90d`), because the graph is bucketed by week.
+- Coach History and Athlete/Player weekly load graphs use bar charts as the primary visualization.
+- `Avg AU` is the default weekly load signal for these compact graphs; minutes remain available as context, but are not the primary load metric.
+- Tapping a week opens a day-level bar breakdown so the weekly value can be inspected without turning the main graph into a dense daily chart.
