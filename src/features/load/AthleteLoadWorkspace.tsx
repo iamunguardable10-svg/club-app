@@ -2849,7 +2849,7 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
   }, []);
 
   useEffect(() => {
-    if (!selectedWeek) return;
+    if (!selectedWeekKey) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKeyDown = (event: KeyboardEvent) => {
@@ -2860,7 +2860,7 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
       window.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = previous;
     };
-  }, [selectedWeek]);
+  }, [selectedWeekKey]);
 
   function selectWeek(payload?: WeeklyLoadProfilePoint) {
     if (!payload?.key) return;
@@ -2901,6 +2901,9 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
           <ComposedChart
             data={points}
             margin={{ top: 14, right: 8, bottom: 8, left: 0 }}
+            onClick={(state: unknown) => {
+              selectWeekFromRechartsPayload((state as { activePayload?: Array<{ payload?: WeeklyLoadProfilePoint }> } | null)?.activePayload?.[0]?.payload);
+            }}
             barCategoryGap="18%"
           >
             <CartesianGrid stroke="rgba(148,163,184,0.12)" vertical={false} />
@@ -2937,7 +2940,6 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
               fill={meta.color}
               radius={[10, 10, 4, 4]}
               maxBarSize={42}
-              onClick={(payload) => selectWeekFromRechartsPayload(payload)}
               className="cursor-pointer"
             />
             <Line
@@ -2954,12 +2956,12 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
         )}
       </div>
       {selectedWeek ? (
-        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/82 p-3 backdrop-blur-xl sm:items-center sm:p-6" role="dialog" aria-modal="true" onClick={() => setSelectedWeekKey(null)}>
+        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/82 p-3 backdrop-blur-xl sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="weekly-load-detail-title" onClick={() => setSelectedWeekKey(null)}>
           <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-950 p-4 text-white shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:rounded-[2rem] sm:p-5" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Week detail</p>
-                <h3 className="mt-1 text-2xl font-black">{selectedWeek.label}</h3>
+                <h3 id="weekly-load-detail-title" className="mt-1 text-2xl font-black">{selectedWeek.label}</h3>
                 <p className="mt-1 text-sm font-bold text-slate-500">{selectedWeek.dateRange} · {selectedWeek.sessions} TE</p>
               </div>
               <button type="button" onClick={() => setSelectedWeekKey(null)} className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200 transition hover:border-emerald-300/50">

@@ -339,7 +339,7 @@ function CoachHistoryTrendGraph({
     .join(' ');
 
   useEffect(() => {
-    if (!activePoint) return;
+    if (!selectedPeriodKey) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKeyDown = (event: KeyboardEvent) => {
@@ -350,7 +350,7 @@ function CoachHistoryTrendGraph({
       window.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = previous;
     };
-  }, [activePoint, onPeriodSelect]);
+  }, [selectedPeriodKey, onPeriodSelect]);
 
   return (
     <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/70 p-3 shadow-[0_18px_70px_rgba(0,0,0,0.18)] sm:p-4">
@@ -449,12 +449,12 @@ function CoachHistoryTrendGraph({
       </div>
 
       {activePoint ? (
-        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/82 p-3 backdrop-blur-xl sm:items-center sm:p-6" role="dialog" aria-modal="true" onClick={() => onPeriodSelect(null)}>
+        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/82 p-3 backdrop-blur-xl sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="coach-history-week-detail-title" onClick={() => onPeriodSelect(null)}>
           <section className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-950 p-4 text-white shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:rounded-[2rem] sm:p-5" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">Week detail</p>
-                <h3 className="mt-1 text-2xl font-black">{activePoint.label}</h3>
+                <h3 id="coach-history-week-detail-title" className="mt-1 text-2xl font-black">{activePoint.label}</h3>
                 <p className="mt-1 text-sm font-bold text-slate-500">{activePoint.dateRange} · {activePoint.sessionCount} TE</p>
               </div>
               <button type="button" onClick={() => onPeriodSelect(null)} className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200 transition hover:border-violet-300/50">
