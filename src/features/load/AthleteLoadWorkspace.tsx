@@ -2829,7 +2829,7 @@ function buildWeeklyLoadDayProfile(entries: AthleteLoadEntry[], weekKey: string)
 function weeklyLoadDomain(points: WeeklyLoadProfilePoint[], metric: WeeklyLoadMetric) {
   const meta = WEEKLY_LOAD_METRICS[metric];
   if (typeof meta.max === 'number') return [0, meta.max] as [number, number];
-  const max = Math.max(...points.map((point) => Number(point[meta.dataKey]) || 0), 0);
+  const max = Math.max(0, ...points.map((point) => Number(point[meta.dataKey]) || 0));
   return [0, Math.max(60, Math.ceil(max / 60) * 60)] as [number, number];
 }
 
@@ -2847,6 +2847,31 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!selectedWeek) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelectedWeekKey(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previous;
+    };
+  }, [selectedWeek]);
+
+  function selectWeek(payload?: WeeklyLoadProfilePoint) {
+    if (!payload?.key) return;
+    setSelectedWeekKey((current) => current === payload.key ? null : payload.key);
+  }
+
+  function selectWeekFromRechartsPayload(payload: unknown) {
+    const direct = payload as WeeklyLoadProfilePoint | undefined;
+    const nested = (payload as { payload?: WeeklyLoadProfilePoint } | undefined)?.payload;
+    selectWeek(nested ?? direct);
+  }
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
@@ -2868,18 +2893,15 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
           ))}
         </div>
       </div>
-      <div className="mt-3 h-72 sm:h-64">
+      <div className="mt-3 h-72 sm:h-72">
         {!isMounted ? (
           <div className="h-full rounded-xl border border-slate-800 bg-slate-950/60" />
         ) : (
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={points}
-            margin={{ top: 12, right: 8, bottom: 8, left: 0 }}
-            onClick={(state: unknown) => {
-              const payload = (state as { activePayload?: Array<{ payload?: WeeklyLoadProfilePoint }> } | null)?.activePayload?.[0]?.payload;
-              if (payload?.key) setSelectedWeekKey((current) => current === payload.key ? null : payload.key);
-            }}
+            margin={{ top: 14, right: 8, bottom: 8, left: 0 }}
+            barCategoryGap="18%"
           >
             <CartesianGrid stroke="rgba(148,163,184,0.12)" vertical={false} />
             <XAxis dataKey="label" tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 800 }} axisLine={false} tickLine={false} />
@@ -2904,43 +2926,83 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
                 return [Number.isFinite(numeric) ? (metric === 'acwr' || metric === 'rpe' ? numeric.toFixed(1) : Math.round(numeric)) : '-', meta.unit];
               }}
             />
+            {metric === 'acwr' ? (
+              <>
+                <ReferenceLine y={ACWR_ZONES.low} stroke="#38bdf8" strokeDasharray="5 6" strokeOpacity={0.62} />
+                <ReferenceLine y={ACWR_ZONES.high} stroke="#fb7185" strokeDasharray="5 6" strokeOpacity={0.62} />
+              </>
+            ) : null}
             <Bar
               dataKey={meta.dataKey}
               fill={meta.color}
               radius={[10, 10, 4, 4]}
-              maxBarSize={30}
+              maxBarSize={42}
+              onClick={(payload) => selectWeekFromRechartsPayload(payload)}
+              className="cursor-pointer"
+            />
+            <Line
+              type="monotone"
+              dataKey={meta.dataKey}
+              stroke={meta.color}
+              strokeWidth={2}
+              strokeOpacity={0.58}
+              dot={{ r: 3, fill: '#020617', stroke: meta.color, strokeWidth: 2 }}
+              activeDot={{ r: 5, fill: '#f8fafc', stroke: meta.color, strokeWidth: 2 }}
             />
           </ComposedChart>
         </ResponsiveContainer>
         )}
       </div>
       {selectedWeek ? (
-        <div className="mt-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">Week detail</p>
-              <p className="mt-0.5 text-xs font-black text-slate-300">{selectedWeek.label} · {selectedWeek.dateRange}</p>
+        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/82 p-3 backdrop-blur-xl sm:items-center sm:p-6" role="dialog" aria-modal="true" onClick={() => setSelectedWeekKey(null)}>
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-950 p-4 text-white shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:rounded-[2rem] sm:p-5" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Week detail</p>
+                <h3 className="mt-1 text-2xl font-black">{selectedWeek.label}</h3>
+                <p className="mt-1 text-sm font-bold text-slate-500">{selectedWeek.dateRange} · {selectedWeek.sessions} TE</p>
+              </div>
+              <button type="button" onClick={() => setSelectedWeekKey(null)} className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200 transition hover:border-emerald-300/50">
+                Close
+              </button>
             </div>
-            <button type="button" onClick={() => setSelectedWeekKey(null)} className="rounded-full border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-300">
-              Clear
-            </button>
-          </div>
-          <div className="mt-3 grid grid-cols-7 items-end gap-1.5">
-            {dayPoints.map((day) => {
-              const rawValue = day[meta.dataKey];
-              const value = typeof rawValue === 'number' && Number.isFinite(rawValue) ? rawValue : null;
-              const max = dayDomain[1] || 1;
-              const height = value === null ? 4 : Math.max(8, Math.round((Math.min(value, max) / max) * 116));
-              return (
-                <div key={day.key} className="min-w-0 text-center">
-                  <div className="flex h-32 items-end justify-center rounded-xl border border-slate-800 bg-slate-950/65 px-1 py-1.5">
-                    <div className="w-full max-w-6 rounded-t-lg" style={{ height, backgroundColor: meta.color, opacity: value === null ? 0.16 : 0.82 }} />
-                  </div>
-                  <p className="mt-1 truncate text-[10px] font-black text-slate-400">{day.label}</p>
-                  <p className="text-[9px] font-bold text-slate-600">{day.sessions} TE</p>
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {(Object.keys(WEEKLY_LOAD_METRICS) as WeeklyLoadMetric[]).map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setMetric(item)}
+                  className={`rounded-full border px-3 py-1.5 text-[11px] font-black transition ${metric === item ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
+                >
+                  {WEEKLY_LOAD_METRICS[item].label}
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
+              <div className="grid grid-cols-7 items-end gap-1.5 sm:gap-2">
+                {dayPoints.map((day) => {
+                  const rawValue = day[meta.dataKey];
+                  const value = typeof rawValue === 'number' && Number.isFinite(rawValue) ? rawValue : null;
+                  const max = dayDomain[1] || 1;
+                  const height = value === null ? 4 : Math.max(10, Math.round((Math.min(value, max) / max) * 170));
+                  return (
+                    <div key={day.key} className="min-w-0 text-center" title={`${day.label}: ${value === null ? '-' : metric === 'acwr' || metric === 'rpe' ? value.toFixed(1) : Math.round(value)}`}>
+                      <div className="flex h-44 items-end justify-center rounded-xl border border-slate-800 bg-slate-900/55 px-1 py-1.5">
+                        <div className="w-full max-w-9 rounded-t-lg" style={{ height, backgroundColor: meta.color, opacity: value === null ? 0.16 : 0.86 }} />
+                      </div>
+                      <p className="mt-1 truncate text-[10px] font-black text-slate-300">{day.label}</p>
+                      <p className="text-[9px] font-bold text-slate-600">{value === null ? '-' : metric === 'acwr' || metric === 'rpe' ? value.toFixed(1) : Math.round(value)}</p>
+                    </div>
+                  );
+                })}
+              </div>
+              {metric === 'acwr' ? (
+                <div className="mt-3 flex items-center gap-3 text-[10px] font-black text-slate-500">
+                  <span className="inline-flex items-center gap-1"><span className="h-px w-5 border-t border-dashed border-sky-300" />{ACWR_ZONES.low} low</span>
+                  <span className="inline-flex items-center gap-1"><span className="h-px w-5 border-t border-dashed border-rose-300" />{ACWR_ZONES.high} high</span>
                 </div>
-              );
-            })}
+              ) : null}
+            </div>
           </div>
         </div>
       ) : null}

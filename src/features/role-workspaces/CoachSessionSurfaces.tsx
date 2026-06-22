@@ -295,6 +295,12 @@ function historyMetricMax(points: Array<Pick<CoachHistoryGraphPoint, 'avgRpe' | 
   return Math.max(300, Math.ceil(max / 100) * 100);
 }
 
+function historyMetricButtonClass(metric: CoachHistoryMetric, activeMetric: CoachHistoryMetric) {
+  return activeMetric === metric
+    ? HISTORY_METRIC_META[metric].tone
+    : 'border-slate-700 text-slate-300 hover:border-slate-500';
+}
+
 function CoachHistoryTrendGraph({
   points,
   selectedPeriodKey,
@@ -318,9 +324,33 @@ function CoachHistoryTrendGraph({
   const yTicks = [maxValue, maxValue / 2, 0];
   const minChartWidth = '100%';
   const slotWidth = usableWidth / Math.max(points.length, 1);
-  const barWidth = Math.min(46, Math.max(14, slotWidth * 0.46));
+  const barWidth = Math.min(54, Math.max(18, slotWidth * 0.62));
   const color = HISTORY_METRIC_META[activeMetric].color;
   const activeDayMax = activePoint ? historyMetricMax(activePoint.days, activeMetric) : maxValue;
+  const linePoints = points
+    .map((point, index) => {
+      const value = valueForHistoryMetric(point, activeMetric);
+      if (value === null) return null;
+      const x = left + index * slotWidth + slotWidth / 2;
+      const y = top + usableHeight - (Math.min(value, maxValue) / maxValue) * usableHeight;
+      return `${x},${y}`;
+    })
+    .filter(Boolean)
+    .join(' ');
+
+  useEffect(() => {
+    if (!activePoint) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onPeriodSelect(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previous;
+    };
+  }, [activePoint, onPeriodSelect]);
 
   return (
     <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/70 p-3 shadow-[0_18px_70px_rgba(0,0,0,0.18)] sm:p-4">
@@ -370,6 +400,15 @@ function CoachHistoryTrendGraph({
               return (
                 <g key={point.key}>
                   <rect
+                    x={left + index * slotWidth}
+                    y={top}
+                    width={slotWidth}
+                    height={usableHeight}
+                    fill="transparent"
+                    className="cursor-pointer"
+                    onClick={() => onPeriodSelect(selected ? null : point.key)}
+                  />
+                  <rect
                     x={x}
                     y={y}
                     width={barWidth}
@@ -386,6 +425,9 @@ function CoachHistoryTrendGraph({
                 </g>
               );
             })}
+            {linePoints ? (
+              <polyline points={linePoints} fill="none" stroke={color} strokeOpacity="0.58" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            ) : null}
           </svg>
           <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
             {points.map((point) => {
@@ -407,33 +449,48 @@ function CoachHistoryTrendGraph({
       </div>
 
       {activePoint ? (
-        <div className="mt-3 rounded-2xl border border-violet-300/20 bg-violet-300/10 p-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-200">Week detail</p>
-              <p className="mt-0.5 text-xs font-black text-slate-300">{activePoint.label} · {activePoint.dateRange}</p>
+        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/82 p-3 backdrop-blur-xl sm:items-center sm:p-6" role="dialog" aria-modal="true" onClick={() => onPeriodSelect(null)}>
+          <section className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-950 p-4 text-white shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:rounded-[2rem] sm:p-5" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">Week detail</p>
+                <h3 className="mt-1 text-2xl font-black">{activePoint.label}</h3>
+                <p className="mt-1 text-sm font-bold text-slate-500">{activePoint.dateRange} · {activePoint.sessionCount} TE</p>
+              </div>
+              <button type="button" onClick={() => onPeriodSelect(null)} className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200 transition hover:border-violet-300/50">
+                Close
+              </button>
             </div>
-            <p className="text-xs font-black text-slate-400">{activePoint.sessionCount} TE</p>
-          </div>
-          <div className="mt-3 grid grid-cols-7 items-end gap-1.5">
-            {activePoint.days.map((day) => {
-              const value = valueForHistoryMetric(day, activeMetric);
-              const height = value === null ? 4 : Math.max(8, Math.round((Math.min(value, activeDayMax) / activeDayMax) * 120));
-              return (
-                <div key={day.key} className="min-w-0 text-center">
-                  <div className="flex h-32 items-end justify-center rounded-xl border border-slate-800 bg-slate-950/65 px-1 py-1.5">
-                    <div
-                      className="w-full max-w-7 rounded-t-lg"
-                      style={{ height, backgroundColor: color, opacity: value === null ? 0.16 : 0.82 }}
-                      title={`${day.label}: ${formatHistoryMetricValue(activeMetric, value)}`}
-                    />
-                  </div>
-                  <p className="mt-1 truncate text-[10px] font-black text-slate-400">{day.label}</p>
-                  <p className="text-[9px] font-bold text-slate-600">{day.sessionCount} TE</p>
-                </div>
-              );
-            })}
-          </div>
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {(Object.keys(HISTORY_METRIC_META) as CoachHistoryMetric[]).map((metric) => (
+                <button
+                  key={metric}
+                  type="button"
+                  onClick={() => setActiveMetric(metric)}
+                  className={`rounded-full border px-3 py-1.5 text-[11px] font-black transition ${historyMetricButtonClass(metric, activeMetric)}`}
+                >
+                  {HISTORY_METRIC_META[metric].label}
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
+              <div className="grid grid-cols-7 items-end gap-1.5 sm:gap-2">
+                {activePoint.days.map((day) => {
+                  const value = valueForHistoryMetric(day, activeMetric);
+                  const height = value === null ? 4 : Math.max(10, Math.round((Math.min(value, activeDayMax) / activeDayMax) * 170));
+                  return (
+                    <div key={day.key} className="min-w-0 text-center" title={`${day.label}: ${formatHistoryMetricValue(activeMetric, value)}`}>
+                      <div className="flex h-44 items-end justify-center rounded-xl border border-slate-800 bg-slate-900/55 px-1 py-1.5">
+                        <div className="w-full max-w-9 rounded-t-lg" style={{ height, backgroundColor: color, opacity: value === null ? 0.16 : 0.86 }} />
+                      </div>
+                      <p className="mt-1 truncate text-[10px] font-black text-slate-300">{day.label}</p>
+                      <p className="text-[9px] font-bold text-slate-600">{formatHistoryMetricValue(activeMetric, value)}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
         </div>
       ) : null}
 
