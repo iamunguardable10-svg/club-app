@@ -80,7 +80,7 @@ const DEMO_SESSION_SERIES_WEEK_STATES_KEY = 'club-app.demo.session-series-week-s
 const DEMO_FACILITY_ASSIGNMENTS_KEY = 'club-app.demo.facility-assignments';
 const LEGACY_DEMO_FACILITY_META_KEY = 'club-app.demo.facility-meta';
 const DEMO_DATA_VERSION_KEY = 'club-app.demo.version';
-const CURRENT_DEMO_DATA_VERSION = '2026-06-13-demo-data-sync-v1';
+const CURRENT_DEMO_DATA_VERSION = '2026-07-06-showcase-demo-v1';
 export const DEMO_PRIMARY_ATHLETE_TEAM_ID = 'basketball-u14-boys';
 let demoDataVersionChecked = false;
 
