@@ -1,3 +1,22 @@
+/**
+ * Legacy local storage for the demo areas. Superseded by `@/shared/data`.
+ *
+ * The simplification work (run 1) built a single local data layer under
+ * `src/shared/data/`, which owns the `club-app.local.*` namespace and is the
+ * only place new code may read or write. This file keeps the older
+ * `club-app.demo.*` namespace alive for `/demo/admin/*` and
+ * `/demo/department/*`, whose fate is an open decision resolved in run 5
+ * (docs/simplify-decisions.md, point 4).
+ *
+ * The two namespaces do not overlap, so both can coexist. What they do not do
+ * is stay in sync: anything a coach or athlete creates through the new layer
+ * will not appear in the demo administration views, and vice versa. That is
+ * the accepted cost of keeping those views for now.
+ *
+ * Do not add new callers. If the demo administration areas are dropped in
+ * run 5, this file goes with them.
+ */
+
 export type DemoFacilityDetails = {
   name: string;
   address: string;
