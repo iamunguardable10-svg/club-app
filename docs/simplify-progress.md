@@ -166,3 +166,141 @@ berechnen. Run 2 entscheidet das.
 | `npm run typecheck` | grün |
 | `npm run build` | grün |
 | Seed-Prüfung (42 Tage Historie, 24/24 gültiger ACWR, deterministisch) | bestanden |
+
+---
+
+## Run 2 — Trainerbereich auf die Datenschicht (erledigt)
+
+### Was passiert ist
+
+Alle drei datenholenden Container laufen jetzt auf `@/shared/data` und rufen keinen
+Supabase-Client mehr auf.
+
+| Datei | vorher | nachher | Vorgehen |
+|---|---|---|---|
+| `CoachWorkspaceRouter.tsx` | 1820 | 1327 | Ladeblock und Mutationen ersetzt, Oberfläche unberührt |
+| `TeamWorkspace.tsx` | 1011 | 392 | neu geschrieben als dünner Container um `TeamWorkspaceView` |
+| `FacilityCalendar.tsx` | 1201 | 1095 | nur Datenzugriff ersetzt, snake_case-Formen bewusst behalten |
+| `coachData.ts` | — | 301 | neu: reiner Mapper von `LocalDatabase` auf die `Coach*`-Typen |
+
+Die geteilte Oberflächenschicht (`TeamWorkspaceView`, `CoachSessionSurfaces`,
+`CoachCalendarSurface`, `CoachSessionEditSheet`, `SmartSessionCalendar`,
+`WeeklySeriesBoard` und die übrigen) wurde **nicht angefasst**. Das war der Punkt der
+Kartierung in `docs/coach-zwillinge.md`: Die Doppelpflege saß nur in den Containern.
+
+Netto: rund 1100 Zeilen weniger in den Containern, bei gleichem Funktionsumfang — die
+301 neuen Zeilen im Mapper eingerechnet.
+
+### Wichtig: der Trainerpfad erreicht Supabase weiterhin, über einen Umweg
+
+Ein Import-Durchlauf über alle acht `/coach/*`-Einstiegspunkte erreicht 44 Dateien.
+Zwei davon führen noch zu Supabase:
+
+- `src/features/load/AthleteLoadWorkspace.tsx`
+- `src/shared/lib/supabase/client.ts` (von ersterer importiert)
+
+Ursache ist die `LoadChart`-Falle, die schon für `/share/load` dokumentiert war — sie
+ist größer als gedacht. **Drei** Dateien importieren Diagrammkomponenten aus dem
+3216 Zeilen langen Athleten-Workspace:
+
+| Importeur | holt sich |
+|---|---|
+| `TeamWorkspaceView.tsx` | `LoadChart` |
+| `features/players/PlayerLoadDetail.tsx` | `LoadChart`, `WeeklyLoadProfileGraph` |
+| `features/load/AthleteLoadShareView.tsx` | `LoadChart` |
+
+**Zur Laufzeit ist das folgenlos.** Alle `createBrowserSupabaseClient()`-Aufrufe liegen
+in Funktionsrümpfen von `AthleteLoadWorkspace`, die der Trainerbereich nie rendert. Im
+Browser ohne Umgebungsvariablen läuft der gesamte Trainerbereich fehlerfrei — das wurde
+geprüft. Es ist ein Architektur- und Bündelungsproblem, kein Defekt.
+
+**Nicht in Run 2 behoben, bewusst.** `LoadChart` hängt an Helfern, die in derselben
+Datei stehen (`chartMargin`, `projectionSegments`, `plannedProjectionLoad`, der Typ
+`LoadChartRange`). Ein sauberes Herauslösen ist ein eigener Durchgang durch eine sehr
+große Datei und gehört dorthin, wo diese Datei ohnehin zerlegt wird: **Run 4**. Es an
+das Ende eines bereits großen Runs zu hängen, ohne es danach vollständig nachzuprüfen,
+wäre genau die Art Übergriff, die diese Reihenfolge verhindern soll.
+
+**Für Run 4 heißt das:** Die Diagramme gehören in eine eigene Datei, etwa
+`src/features/load/LoadCharts.tsx`, mit allen Helfern, die nur sie brauchen. Danach
+ziehen die drei Importeure nach, und erst dann ist `grep` im Trainerpfad wirklich
+leer. `/share/load` muss nach dieser Änderung mit einem echten Link geprüft werden.
+
+### Entscheidungen
+
+**`attendanceRate` wird jetzt echt berechnet.** Die Supabase-Variante setzte das Feld
+auf `null`, die Demo-Variante erfand `82 + (index % 4) * 3`. Mit `availability` in der
+Datenschicht ist die Quote ableitbar: vergangene Einheiten des Teams minus die, für die
+sich die Person abgemeldet hat. Gemessene Werte im Seed: 96 %, 92 %, 88 %, 96 %, 79 %.
+`missedSessions` und `attendanceEvents` kommen aus derselben Quelle. Bei null
+vergangenen Einheiten liefert die Funktion `null`, damit die Oberfläche „keine Daten"
+zeigen kann statt eines selbstbewussten 100 %.
+
+**`/coach/calendar` wurde nicht eingeführt.** Die Kalenderfunktion bleibt unter
+`/coach/sessions`. Grund: `/coach/sessions` ist an fünf Stellen verlinkt,
+`/coach/calendar` an keiner. Eine Umbenennung hätte Verweise angefasst, ohne dass ein
+Mensch etwas davon hat. Die Routenliste in `docs/simplify-decisions.md` war an dieser
+Stelle illustrativ, nicht bindend.
+
+**Die Rechteprüfung in `FacilityCalendar` ist erhalten und wurde härter.** Sie leitet
+sich weiter aus Mitgliedschaften ab, jetzt aus den lokalen. Es gibt ohne Accounts keine
+Clubadmins, also stammen Rechte ausschließlich aus Trainer-Mitgliedschaften: Man
+verwaltet die eigenen Teams. Die URL-Heuristik der Demo-Variante
+(`from?.startsWith('coach')`) wurde nicht übernommen — mit ihr konnte man sich durch
+Ändern der Adresszeile Schreibrechte geben.
+
+**Der Rollback bei der Serienbestätigung bleibt.** Ein lokaler Schreibvorgang schlägt
+selten fehl, aber eine halb bestätigte Woche ist genau der Zustand, den ein Trainer
+nicht von Hand reparieren kann.
+
+**Invites, Join-Codes und getrennte Head-/Assistant-Rollen sind entfallen.** Sie setzen
+Accounts voraus. Die zugehörigen Handler werden nicht mehr übergeben; die Ansicht
+blendet ihre Bedienelemente selbst aus.
+
+### Eine Korrektur an Run 1
+
+Der Seed setzte `activeIdentity: null` — in der Annahme, die Auswahlseite aus Run 3
+würde die Identität setzen. Damit wäre der Trainerbereich bis Run 3 leer und Run 2
+nicht prüfbar gewesen. Der Seed setzt jetzt `{ role: 'coach', personId: 'coach-1' }`
+als Startwert. `SCHEMA_VERSION` wurde entsprechend auf `-v2` angehoben.
+
+Run 3 ersetzt diesen Startwert durch die Auswahlseite, behält ihn aber sinnvollerweise
+als Rückfall, wenn noch nichts gewählt wurde.
+
+### Muster für Run 3 und 4
+
+Der Spielerbereich soll dieselbe Form benutzen, keine zweite erfinden:
+
+1. `useLocalDatabase()` im Container, nicht `readDatabase()`.
+2. Einen reinen Mapper danebenlegen (`coachData.ts` als Vorbild), der aus
+   `LocalDatabase` die Typen baut, die die Ansicht schon erwartet. Der Mapper enthält
+   keine Effekte und ist damit auch ohne Browser prüfbar.
+3. Ableitungen in `useMemo` über `database`, kein `useEffect` mit `setState` für Daten.
+4. Mutationen direkt über die Repository-Funktionen. Kein eigener Reload-Key — das
+   Abonnement löst das Neuzeichnen aus.
+5. Die Sichtbarkeit über Mitgliedschaften einschränken, so wie `buildCoachData` es tut.
+   Ohne Accounts erzwingt das niemand mehr für uns.
+
+### Offene Punkte
+
+1. **Der Kader zeigt weiter eine Schaltfläche „Invite players".** Sie stammt aus
+   `TeamWorkspaceView`, die laut Auftrag nicht angefasst wird, und läuft jetzt ins
+   Leere. Run 5 räumt sie beim Entfernen der Einladungslogik mit weg.
+2. **Der Hallenkalender wurde nur als Übersicht geöffnet**, nicht als Wochenansicht.
+   Drag-and-drop, Konfliktprüfung und Serienbestätigung sind umgestellt, aber nicht
+   von Hand durchgespielt. Run 3 sollte das mitnehmen, wenn es ohnehin im Kalender ist.
+3. **Mobile Darstellung ungeprüft.** Die Prüfung lief in Desktop-Breite.
+4. **`/admin/teams/[teamId]` rendert jetzt ebenfalls lokale Daten**, weil es dieselbe
+   `TeamWorkspace` benutzt. Das ist unschädlich und eher eine Verbesserung; die Route
+   entfällt ohnehin in Run 5.
+
+### Validierung
+
+| Prüfung | Ergebnis |
+|---|---|
+| `npm run typecheck` | grün |
+| `npm run build` | grün |
+| Prüfkette, Schritte 1, 7, 11 | bestanden, siehe `docs/local-mode-testplan.md` |
+| Supabase-Aufrufe in den drei Trainer-Containern | keine mehr |
+| Supabase über Importkette erreichbar | ja, 2 Dateien über `LoadChart` (siehe oben) |
+| Trainerbereich ohne Umgebungsvariablen im Browser | läuft fehlerfrei |

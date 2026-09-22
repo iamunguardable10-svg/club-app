@@ -1,30 +1,11 @@
-import { DemoFacilityCalendar } from '@/features/calendar/DemoFacilityCalendar';
+import { redirect } from 'next/navigation';
 
-export default async function DemoCoachFacilityCalendarPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ facilityName: string }>;
-  searchParams?: Promise<{
-    from?: string;
-    departmentName?: string;
-    teamName?: string;
-    departmentNames?: string;
-    teamNames?: string;
-  }>;
-}) {
-  const { facilityName } = await params;
-  const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const decodedFacilityName = decodeURIComponent(facilityName);
-
-  return (
-    <DemoFacilityCalendar
-      facilityName={decodedFacilityName}
-      from={resolvedSearchParams?.from}
-      departmentName={resolvedSearchParams?.departmentName}
-      teamName={resolvedSearchParams?.teamName}
-      departmentNames={resolvedSearchParams?.departmentNames}
-      teamNames={resolvedSearchParams?.teamNames}
-    />
-  );
+/**
+ * The demo hall calendar addressed facilities by name, the canonical one by id.
+ * A name cannot be resolved to an id here without reading local storage, which
+ * is not available on the server, so this lands on the facility list instead of
+ * guessing. Run 5 removes the route.
+ */
+export default function DemoCoachFacilityCalendarRedirect() {
+  redirect('/coach/facilities');
 }

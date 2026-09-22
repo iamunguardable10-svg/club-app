@@ -382,7 +382,10 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     sessionSeriesWeekStates: [],
     availability,
     loadEntries,
-    // Start without an identity so the entry page asks which role to test as.
-    activeIdentity: null,
+    // Start as the first coach so the app is usable immediately. Run 3 adds
+    // the entry page that asks which role to test as and lets the person
+    // switch; until then an unset identity would leave every screen empty
+    // with no way to fix it.
+    activeIdentity: { role: 'coach', personId: 'coach-1' },
   };
 }

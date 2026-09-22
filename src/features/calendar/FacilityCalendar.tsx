@@ -12,7 +12,14 @@ import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEd
 import { normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
 import type { CoachFacility, CoachGroup, CoachSession, CoachTeam } from '@/features/role-workspaces/CoachTypes';
-import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
+import {
+  createSession,
+  deleteSession,
+  getActivePerson,
+  updateSession,
+  useLocalDatabase,
+  type SessionType,
+} from '@/shared/data';
 
 type Facility = { id: string; club_id: string; name: string; address: string | null };
 type Department = { id: string; name: string };
@@ -237,151 +244,94 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     setActiveDayIndex(Math.max(0, buildWeekDays().findIndex((day) => sameDay(day, new Date()))));
   }
 
+  const { database, error: dataError, ready } = useLocalDatabase();
+
+  // Everything the calendar renders comes out of the one local document. The
+  // snake_case row shapes above are kept deliberately: the whole presentation
+  // below expects them, and rewriting it would have meant redoing a calendar
+  // that already works.
   useEffect(() => {
-    let isMounted = true;
-    async function loadCalendar() {
-      const supabase = createBrowserSupabaseClient();
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+    if (!ready) return;
+    if (dataError) {
+      setState('error');
+      setError(dataError.message);
+      return;
+    }
+    if (!database) return;
 
-      if (!isMounted) return;
-      if (userError && !isMissingAuthSessionError(userError.message)) {
-        setState('error');
-        setError(userError.message);
-        return;
-      }
-  if (!user) {
-        router.replace(`/auth/login?next=${from?.startsWith('coach') ? `/coach/facilities/${facilityId}/calendar` : `/admin/facilities/${facilityId}/calendar`}`);
-        return;
-      }
-
-      setUserId(user.id);
-      const facilityResult = await supabase.from('facilities').select('id, club_id, name, address').eq('id', facilityId).single();
-      if (!isMounted) return;
-      if (facilityResult.error) {
-        setState('error');
-        setError(facilityResult.error.message);
-        return;
-      }
-
-      const loadedFacility = facilityResult.data as Facility;
-      const rangeStart = days[0].toISOString();
-      const rangeEnd = new Date(days[6].getTime() + 24 * 60 * 60 * 1000).toISOString();
-      const [sessionsResult, departmentsResult, teamsResult, facilitiesResult, departmentFacilitiesResult, clubMembershipsResult, teamMembershipsResult] = await Promise.all([
-        supabase
-          .from('sessions')
-          .select('id, title, starts_at, ends_at, session_type, department_id, owner_team_id, facility_id, created_by')
-          .eq('facility_id', facilityId)
-          .gte('starts_at', rangeStart)
-          .lt('starts_at', rangeEnd)
-          .order('starts_at'),
-        supabase.from('departments').select('id, name').eq('club_id', loadedFacility.club_id).order('name'),
-        supabase.from('teams').select('id, name, department_id, default_facility_id').eq('club_id', loadedFacility.club_id).order('name'),
-        supabase.from('facilities').select('id, club_id, name, address').eq('club_id', loadedFacility.club_id).order('name'),
-        supabase.from('department_facilities').select('department_id, facility_id').eq('facility_id', facilityId),
-        supabase.from('club_memberships').select('role, department_id').eq('club_id', loadedFacility.club_id).eq('user_id', user.id).eq('status', 'active'),
-        supabase.from('team_memberships').select('role, department_id, team_id').eq('club_id', loadedFacility.club_id).eq('user_id', user.id).eq('status', 'active'),
-      ]);
-
-      if (!isMounted) return;
-      if (sessionsResult.error ?? departmentsResult.error ?? teamsResult.error ?? facilitiesResult.error ?? departmentFacilitiesResult.error ?? clubMembershipsResult.error ?? teamMembershipsResult.error) {
-        setState('error');
-        setError((sessionsResult.error ?? departmentsResult.error ?? teamsResult.error ?? facilitiesResult.error ?? departmentFacilitiesResult.error ?? clubMembershipsResult.error ?? teamMembershipsResult.error)?.message ?? 'Could not load calendar context.');
-        return;
-      }
-
-      const loadedSessions = (sessionsResult.data ?? []) as Session[];
-      const loadedTeams = (teamsResult.data ?? []) as Team[];
-      let loadedDepartmentFacilityLinks = (departmentFacilitiesResult.data ?? []) as DepartmentFacility[];
-      const loadedTeamDepartmentIds = Array.from(new Set(loadedTeams.map((team) => team.department_id)));
-      if (loadedTeamDepartmentIds.length > 0) {
-        const { data: allDepartmentFacilityRowsRaw, error: allDepartmentFacilityRowsError } = await supabase
-          .from('department_facilities')
-          .select('department_id, facility_id')
-          .in('department_id', loadedTeamDepartmentIds);
-        if (!isMounted) return;
-        if (allDepartmentFacilityRowsError) {
-          setState('error');
-          setError(allDepartmentFacilityRowsError.message);
-          return;
-        }
-        loadedDepartmentFacilityLinks = (allDepartmentFacilityRowsRaw ?? loadedDepartmentFacilityLinks) as DepartmentFacility[];
-      }
-      let loadedGroups: CoachGroup[] = [];
-      let sessionGroupRows: SessionGroupRow[] = [];
-      if (loadedTeams.length > 0) {
-        const { data: groupRowsRaw, error: groupRowsError } = await supabase
-          .from('player_groups')
-          .select('id, team_id, name')
-          .in('team_id', loadedTeams.map((team) => team.id))
-          .order('name');
-        if (!isMounted) return;
-        if (groupRowsError) {
-          setState('error');
-          setError(groupRowsError.message);
-          return;
-        }
-        const groupRows = (groupRowsRaw ?? []) as PlayerGroupRow[];
-        let memberRowsRaw: { group_id: string; team_membership_id: string }[] = [];
-        if (groupRows.length > 0) {
-          const { data: scopedMemberRowsRaw, error: memberRowsError } = await supabase
-            .from('player_group_members')
-            .select('group_id, team_membership_id')
-            .in('group_id', groupRows.map((group) => group.id));
-          if (!isMounted) return;
-          if (memberRowsError) {
-            setState('error');
-            setError(memberRowsError.message);
-            return;
-          }
-          memberRowsRaw = (scopedMemberRowsRaw ?? []) as { group_id: string; team_membership_id: string }[];
-        }
-        const memberRows = (memberRowsRaw ?? []) as { group_id: string; team_membership_id: string }[];
-        loadedGroups = groupRows.map((group) => ({
-          id: group.id,
-          teamId: group.team_id,
-          name: group.name,
-          playerCount: memberRows.filter((member) => member.group_id === group.id).length,
-        }));
-      }
-      if (loadedSessions.length > 0) {
-        const { data: sessionGroupRowsRaw, error: sessionGroupError } = await supabase
-          .from('session_groups')
-          .select('session_id, group_id')
-          .in('session_id', loadedSessions.map((session) => session.id));
-        if (!isMounted) return;
-        if (sessionGroupError) {
-          setState('error');
-          setError(sessionGroupError.message);
-          return;
-        }
-        sessionGroupRows = (sessionGroupRowsRaw ?? []) as SessionGroupRow[];
-      }
-      const groupIdsBySessionId = new Map<string, string[]>();
-      for (const row of sessionGroupRows) {
-        groupIdsBySessionId.set(row.session_id, [...(groupIdsBySessionId.get(row.session_id) ?? []), row.group_id]);
-      }
-
-      setFacility(loadedFacility);
-      setSessions(loadedSessions.map((session) => ({ ...session, group_ids: groupIdsBySessionId.get(session.id) ?? [] })));
-      setDepartments((departmentsResult.data ?? []) as Department[]);
-      setTeams(loadedTeams);
-      setFacilities((facilitiesResult.data ?? [loadedFacility]) as Facility[]);
-      setGroups(loadedGroups);
-      setDepartmentFacilityLinks(loadedDepartmentFacilityLinks);
-      setAssignedDepartmentIds(new Set(loadedDepartmentFacilityLinks.filter((item) => item.facility_id === facilityId).map((item) => item.department_id)));
-      setClubMemberships((clubMembershipsResult.data ?? []) as ClubMembership[]);
-      setTeamMemberships((teamMembershipsResult.data ?? []) as TeamMembership[]);
-      setState('ready');
+    const loadedFacility = database.facilities.find((candidate) => candidate.id === facilityId);
+    if (!loadedFacility) {
+      setState('error');
+      setError('Diese Halle gibt es nicht.');
+      return;
     }
 
-    loadCalendar();
-    return () => {
-      isMounted = false;
-    };
-  }, [facilityId, router]);
+    const activePerson = getActivePerson(database);
+    setUserId(activePerson?.id ?? null);
+
+    setFacility({ id: loadedFacility.id, club_id: loadedFacility.clubId, name: loadedFacility.name, address: loadedFacility.address });
+    setFacilities(database.facilities.map((item) => ({ id: item.id, club_id: item.clubId, name: item.name, address: item.address })));
+    setDepartments(database.departments.map((department) => ({ id: department.id, name: department.name })));
+    setTeams(database.teams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      department_id: team.departmentId,
+      default_facility_id: team.defaultFacilityId,
+    })));
+    setDepartmentFacilityLinks(database.departmentFacilities.map((link) => ({
+      department_id: link.departmentId,
+      facility_id: link.facilityId,
+    })));
+    setAssignedDepartmentIds(new Set(
+      database.departmentFacilities.filter((link) => link.facilityId === facilityId).map((link) => link.departmentId),
+    ));
+
+    setSessions(database.sessions
+      .filter((session) => session.facilityId === facilityId)
+      .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+      .map((session) => ({
+        id: session.id,
+        title: session.title,
+        starts_at: session.startsAt,
+        ends_at: session.endsAt,
+        session_type: session.sessionType,
+        department_id: session.departmentId,
+        owner_team_id: session.teamId,
+        facility_id: session.facilityId,
+        created_by: null,
+        group_ids: session.groupIds,
+      })));
+
+    const groupMemberCount = new Map<string, number>();
+    for (const member of database.playerGroupMembers) {
+      groupMemberCount.set(member.groupId, (groupMemberCount.get(member.groupId) ?? 0) + 1);
+    }
+    setGroups(database.playerGroups.map((group) => ({
+      id: group.id,
+      teamId: group.teamId,
+      name: group.name,
+      playerCount: groupMemberCount.get(group.id) ?? 0,
+    })));
+
+    // The permission model is kept, only its source changed. There are no club
+    // admins without accounts, so rights come purely from coach memberships —
+    // a coach manages their own teams and nothing else. The demo build derived
+    // this from the `from` query parameter instead, which meant anyone could
+    // grant themselves edit rights by editing the URL.
+    setClubMemberships([]);
+    setTeamMemberships(activePerson
+      ? database.memberships
+          .filter((membership) => membership.personId === activePerson.id && membership.role === 'coach')
+          .map((membership) => ({
+            role: 'head_coach' as const,
+            department_id: database.teams.find((team) => team.id === membership.teamId)?.departmentId ?? '',
+            team_id: membership.teamId,
+          }))
+      : []);
+
+    setState('ready');
+    setError(null);
+  }, [database, dataError, ready, facilityId]);
 
   const departmentById = useMemo(() => new Map(departments.map((department) => [department.id, department])), [departments]);
   const teamById = useMemo(() => new Map(teams.map((team) => [team.id, team])), [teams]);
@@ -792,14 +742,14 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   async function persistFacilityCalendarSave(save: FacilityCalendarSave) {
     if (save.kind === 'create') return persistCreateSession(save.payload);
     if (save.kind === 'update') return persistUpdateSession(save.sessionId, save.payload, save.originalSession);
-    const supabase = createBrowserSupabaseClient();
-    const { error: updateError } = await supabase.from('sessions').update({ starts_at: save.startsAt, ends_at: save.endsAt }).eq('id', save.sessionId);
-    if (updateError) {
-      setError(updateError.message);
+    try {
+      updateSession(save.sessionId, { startsAt: save.startsAt, endsAt: save.endsAt });
+      return true;
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Die Einheit konnte nicht verschoben werden.');
       rollbackFacilitySave(save);
       return false;
     }
-    return true;
   }
 
   async function requestFacilityCalendarSave(save: FacilityCalendarSave, bypassConflict = false) {
@@ -870,44 +820,22 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   }
 
   async function persistCreateSession(value: FacilitySessionEditValue) {
-    if (!facility) throw new Error('Facility is missing.');
-    const team = assertWritableSessionValue(value);
-    const supabase = createBrowserSupabaseClient();
+    if (!facility) throw new Error('Die Halle fehlt.');
+    assertWritableSessionValue(value);
     setIsSavingSession(true);
     try {
-    const { data, error: insertError } = await supabase
-      .from('sessions')
-      .insert({
-        club_id: facility.club_id,
-        department_id: team.department_id,
-        team_id: value.teamId,
-        owner_team_id: value.teamId,
-        created_by: userId,
+      createSession({
+        teamId: value.teamId,
         title: labelForFacilitySessionType(value.sessionType),
-        session_type: value.sessionType,
-        starts_at: value.startsAt,
-        ends_at: value.endsAt,
-        facility_id: value.facilityId,
-        status: 'scheduled',
-      })
-      .select('id, title, starts_at, ends_at, session_type, department_id, owner_team_id, facility_id, created_by')
-      .single();
-
-    if (insertError) throw insertError;
-    const createdSession = { ...(data as Session), group_ids: value.groupIds };
-    if (value.groupIds.length > 0) {
-      const { error: groupsError } = await supabase
-        .from('session_groups')
-        .insert(value.groupIds.map((groupId) => ({ session_id: createdSession.id, group_id: groupId })));
-      if (groupsError) throw groupsError;
-    }
-    setSessions((current) =>
-      (createdSession.facility_id === facilityId ? [...current, createdSession] : current)
-        .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()),
-    );
-    setDraft(null);
-    setComposerOpen(false);
-    return true;
+        sessionType: normalizeCoachSessionType(value.sessionType) as SessionType,
+        startsAt: value.startsAt,
+        endsAt: value.endsAt,
+        facilityId: value.facilityId,
+        groupIds: value.groupIds,
+      });
+      setDraft(null);
+      setComposerOpen(false);
+      return true;
     } finally {
       setIsSavingSession(false);
     }
@@ -922,46 +850,23 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   async function persistUpdateSession(sessionId: string, value: FacilitySessionEditValue, originalSession?: Session) {
     const currentSession = originalSession ?? sessions.find((session) => session.id === sessionId);
     if (!currentSession) return;
-    if (!canManageSession(currentSession)) throw new Error('You do not have permission to edit this session.');
-    const team = assertWritableSessionValue(value);
-    const supabase = createBrowserSupabaseClient();
+    // The real permission check, kept from the Supabase version.
+    if (!canManageSession(currentSession)) throw new Error('Du darfst diese Einheit nicht bearbeiten.');
+    assertWritableSessionValue(value);
     setIsSavingSession(true);
     try {
-    const { data, error: updateError } = await supabase
-      .from('sessions')
-      .update({
-        department_id: team.department_id,
-        team_id: value.teamId,
-        owner_team_id: value.teamId,
+      updateSession(sessionId, {
+        teamId: value.teamId,
         title: titleForFacilitySessionUpdate(currentSession.title, currentSession.session_type, value.sessionType),
-        session_type: value.sessionType,
-        starts_at: value.startsAt,
-        ends_at: value.endsAt,
-        facility_id: value.facilityId,
-      })
-      .eq('id', sessionId)
-      .select('id, title, starts_at, ends_at, session_type, department_id, owner_team_id, facility_id, created_by')
-      .single();
-
-    if (updateError) throw updateError;
-    const { error: deleteGroupsError } = await supabase.from('session_groups').delete().eq('session_id', sessionId);
-    if (deleteGroupsError) throw deleteGroupsError;
-    if (value.groupIds.length > 0) {
-      const { error: groupsError } = await supabase
-        .from('session_groups')
-        .insert(value.groupIds.map((groupId) => ({ session_id: sessionId, group_id: groupId })));
-      if (groupsError) throw groupsError;
-    }
-    const updatedSession = { ...(data as Session), group_ids: value.groupIds };
-    setSessions((current) =>
-      current
-        .map((session) => (session.id === sessionId ? updatedSession : session))
-        .filter((session) => session.facility_id === facilityId)
-        .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()),
-    );
-    setEditingSession(null);
-    setSelectedSession(null);
-    return true;
+        sessionType: normalizeCoachSessionType(value.sessionType) as SessionType,
+        startsAt: value.startsAt,
+        endsAt: value.endsAt,
+        facilityId: value.facilityId,
+        groupIds: value.groupIds,
+      });
+      setEditingSession(null);
+      setSelectedSession(null);
+      return true;
     } finally {
       setIsSavingSession(false);
     }
@@ -970,33 +875,22 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   async function handleSessionGroupsChange(sessionId: string, groupIds: string[]) {
     const session = sessions.find((item) => item.id === sessionId);
     if (!session || !canManageSession(session)) return;
-    const supabase = createBrowserSupabaseClient();
     try {
-      const { error: deleteError } = await supabase.from('session_groups').delete().eq('session_id', sessionId);
-      if (deleteError) throw deleteError;
-      if (groupIds.length > 0) {
-        const { error: insertError } = await supabase
-          .from('session_groups')
-          .insert(groupIds.map((groupId) => ({ session_id: sessionId, group_id: groupId })));
-        if (insertError) throw insertError;
-      }
-      setSessions((current) => current.map((item) => (item.id === sessionId ? { ...item, group_ids: groupIds } : item)));
+      updateSession(sessionId, { groupIds });
     } catch (changeError) {
-      setError(changeError instanceof Error ? changeError.message : 'Could not update session groups.');
+      setError(changeError instanceof Error ? changeError.message : 'Die Gruppen konnten nicht gespeichert werden.');
       throw changeError;
     }
   }
 
   async function handleDeleteSession(session: Session) {
     if (!canManageSession(session)) return;
-    const supabase = createBrowserSupabaseClient();
-    const { error: deleteError } = await supabase.from('sessions').delete().eq('id', session.id);
-    if (deleteError) {
-      setError(deleteError.message);
-      return;
+    try {
+      deleteSession(session.id);
+      setSelectedSession(null);
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Die Einheit konnte nicht gelöscht werden.');
     }
-    setSessions((current) => current.filter((item) => item.id !== session.id));
-    setSelectedSession(null);
   }
 
   function resolveSession(calendarSession: SmartCalendarSession) {

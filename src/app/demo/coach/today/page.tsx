@@ -1,10 +1,12 @@
-import { Suspense } from 'react';
-import { DemoCoachWorkspaceRouter } from '@/features/role-workspaces/DemoCoachWorkspaceRouter';
+import { redirect } from 'next/navigation';
 
-export default function DemoCoachTodayPage() {
-  return (
-    <Suspense fallback={<main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">Loading coach workspace...</section></div></main>}>
-      <DemoCoachWorkspaceRouter mode="today" />
-    </Suspense>
-  );
+/**
+ * The demo coach area was merged into /coach during the simplification.
+ *
+ * Since run 2 the canonical route runs on the local data layer, so there is no
+ * second mode left to keep separate. This redirect keeps existing links and
+ * bookmarks working; run 5 removes the route entirely.
+ */
+export default function DemoCoachTodayRedirect() {
+  redirect('/coach/today');
 }
