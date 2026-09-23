@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 
+import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
+
 export type CoachDrawerMode = 'today' | 'sessions' | 'team' | 'facilities' | 'history';
 
 function titleForMode(mode: CoachDrawerMode) {
@@ -47,9 +49,17 @@ export function CoachDrawer({
             );
           })}
         </div>
+        {/* Without a login, switching identity has to be reachable from every
+            screen; the sidebar foot is the one place always in view. */}
+        <div className="mt-auto px-1 pb-1 pt-3">
+          <IdentitySwitcher className="w-full justify-center" />
+        </div>
       </aside>
       {!hideMobileNav ? (
         <nav className="fixed inset-x-0 bottom-0 z-[70] border-t border-slate-800 bg-slate-950/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 text-white shadow-[0_-16px_70px_rgba(0,0,0,0.32)] backdrop-blur-xl md:hidden" aria-label="Coach mobile navigation">
+          <div className="mx-auto mb-1 flex max-w-lg justify-center">
+            <IdentitySwitcher />
+          </div>
           <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
             {items.map((item) => (
               <Link

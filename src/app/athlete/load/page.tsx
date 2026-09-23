@@ -1,5 +1,5 @@
-import { AthleteLoadWorkspace } from '@/features/load/AthleteLoadWorkspace';
+import { AthleteLoadFrame } from '@/features/athlete/AthleteLoadFrame';
 
-export default function AthleteLoadPage() {
-  return <AthleteLoadWorkspace initialView="load" />;
+export default function AthleteLoadFramePage() {
+  return <AthleteLoadFrame />;
 }

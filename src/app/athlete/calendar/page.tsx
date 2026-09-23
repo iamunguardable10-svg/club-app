@@ -1,5 +1,5 @@
-import { AthleteLoadWorkspace } from '@/features/load/AthleteLoadWorkspace';
+import { AthleteCalendar } from '@/features/athlete/AthleteCalendar';
 
 export default function AthleteCalendarPage() {
-  return <AthleteLoadWorkspace initialView="calendar" />;
+  return <AthleteCalendar />;
 }

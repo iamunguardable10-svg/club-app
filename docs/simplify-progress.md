@@ -304,3 +304,101 @@ Der Spielerbereich soll dieselbe Form benutzen, keine zweite erfinden:
 | Supabase-Aufrufe in den drei Trainer-Containern | keine mehr |
 | Supabase über Importkette erreichbar | ja, 2 Dateien über `LoadChart` (siehe oben) |
 | Trainerbereich ohne Umgebungsvariablen im Browser | läuft fehlerfrei |
+
+---
+
+## Run 3 — Einstieg, Identität, Verfügbarkeit (erledigt)
+
+### Was entstanden ist
+
+| Datei | Zeilen | Inhalt |
+|---|---|---|
+| `src/app/page.tsx` | 137 | Einstiegsseite, ersetzt die 370-zeilige Marketingseite |
+| `features/identity/IdentitySwitcher.tsx` | 165 | Rollen- und Personenwechsel, überall erreichbar |
+| `features/athlete/AthleteShell.tsx` | 122 | Hülle: Navigation, Identität, die drei geteilten Zustände |
+| `features/athlete/AthleteHome.tsx` | 138 | heute und als Nächstes |
+| `features/athlete/AthleteCalendar.tsx` | 106 | eigener Kalender, vergangen und kommend |
+| `features/athlete/AthleteAvailability.tsx` | 196 | **Neubau**: melden, absagen, verspäten |
+| `features/athlete/AthleteLoadFrame.tsx` | 116 | Rahmen mit den vorhandenen Werten, Eingabe folgt in Run 4 |
+
+Der Spielerbereich und die Startseite erreichen über die gesamte Importkette
+**19 Dateien und keinen Supabase-Client**. `AthleteLoadWorkspace` wird von keiner
+Route mehr gerendert.
+
+Drei Routen zeigten vorher dieselbe Komponente, die vierte war ein Platzhalter. Jetzt
+hat jede ihre eigene Aufgabe.
+
+### Ein Fehler, der ohne Prüfung bei Telefonbreite durchgerutscht wäre
+
+Der Rollenwechsel war auf dem Telefon **nicht bedienbar**: Das Auswahlfenster lag
+454 Pixel oberhalb des Bildschirms.
+
+`os-panel` setzt `backdrop-filter: blur(24px)`. Ein backdrop-filter macht das Element
+zum Bezugsrahmen für `position: fixed` seiner Nachkommen — das Fenster verankerte sich
+am umgebenden Panel statt am Sichtfenster. Die Trainer-Seitenleiste trägt dieselbe
+Klasse, wäre also genauso betroffen gewesen.
+
+Behoben über ein Portal nach `document.body`. Ab 640 Pixel zentriert sich das Fenster
+und lag zufällig im sichtbaren Bereich — eine reine Desktop-Prüfung hätte nichts
+gemerkt. **Für Run 4: bei Telefonbreite prüfen, nicht am Desktop.** Und wer ein
+Overlay in einen `os-panel` hängt, braucht ein Portal.
+
+### Entscheidungen
+
+**Die Verfügbarkeit ist auf Tempo gebaut.** Der alte Platzhalter nannte als Ziel
+„unter 10 Sekunden, mobil einwandfrei" — das ist übernommen. Dabei und Absage sind ein
+Tipp, nur die zwei Fälle, die für den Trainer sonst nutzlos wären, fragen nach:
+wie viel später, warum nicht. Große Schaltflächen, weil das im Hallenausgang einhändig
+benutzt wird.
+
+**Keine Meldung heißt „dabei".** Es wird nur eine Zeile gespeichert, wenn jemand
+später kommt oder absagt. Damit bedeutet „kein Eintrag" immer „wird erwartet", und der
+Trainer sieht ausschließlich Abweichungen.
+
+**Der Seed markiert seine Meldungen.** `Availability.seeded` trennt Testdaten von dem,
+was jemand wirklich eingetippt hat. Die Spieleransicht zeigt „Gemeldet: …" nur für
+echte Eingaben, sonst wäre nie erkennbar, ob eine Meldung angekommen ist.
+
+**`/athlete/load` bekommt nur den Rahmen.** Die Werte stehen schon da, weil die
+Datenschicht sie liefert; RPE-Eingabe, Diagramme und die ausführliche ACWR-Erklärung
+sind Run 4. Der Rahmen sagt das ausdrücklich, statt Vollständigkeit vorzutäuschen.
+
+**Keine Trainings- oder Gesundheitsempfehlung.** Der ACWR-Text ordnet ein („um 1 herum
+heißt ähnlich viel wie zuletzt") und sagt ausdrücklich, dass es keine Empfehlung ist.
+
+### Was Run 4 wissen muss
+
+1. **Die `LoadChart`-Verflechtung ist jetzt der letzte Supabase-Rest im aktiven Pfad.**
+   Der Trainerbereich erreicht über `TeamWorkspaceView` → `LoadChart` weiterhin
+   `AthleteLoadWorkspace` und damit den Client. Run 4 zerlegt diese Datei ohnehin:
+   Diagramme samt ihrer Helfer (`chartMargin`, `projectionSegments`,
+   `plannedProjectionLoad`, Typ `LoadChartRange`) in eine eigene Datei, dann ziehen die
+   drei Importeure nach. Danach ist `/share/load` mit einem echten Link zu prüfen.
+2. **In `AthleteLoadWorkspace` steckt Brauchbares.** Fünf eigene Demo-Schlüssel und ein
+   funktionierender lokaler Pfad für Last und Pläne — fest auf ein Team verdrahtet, aber
+   die Logik ist da. Vor dem Neubau dort nachsehen.
+3. **Der Rahmen in `AthleteLoadFrame` ist der Andockpunkt.** Werte und Erklärung stehen,
+   es fehlen Eingabe, Diagramm und das Nachtragen ungeplanter Einheiten.
+4. **Die Reset-Schaltfläche fehlt noch.** `resetDatabase()` liegt bereit; sie gehört
+   sinnvollerweise in die Hülle, damit sie aus beiden Perspektiven erreichbar ist.
+
+### Offene Punkte
+
+1. `CoachTopNav` in `CoachWorkspaceRouter.tsx` ist toter Code — wird nirgends
+   gerendert, die Navigation macht `CoachDrawer`. Run 5 räumt es weg.
+2. Der Hallenkalender ist weiterhin nur als Übersicht geprüft, nicht als Wochenansicht.
+   Steht seit Run 2 offen.
+3. Die Trainersicht unterscheidet Seed-Meldungen nicht von echten. Für den Test war das
+   kein Problem, könnte aber irritieren.
+4. `/athlete/load` verweist auf „kommt im nächsten Schritt". Wenn Run 4 ausfällt, steht
+   dieser Hinweis in der App.
+
+### Validierung
+
+| Prüfung | Ergebnis |
+|---|---|
+| `npm run typecheck` | grün |
+| `npm run build` | grün |
+| Prüfkette, Schritte 1–4 und 7–9, 11 | bestanden bei Telefonbreite |
+| Supabase im Spieler- und Startseitenpfad | keine Treffer |
+| Laufzeitfehler im Browser | keine |
