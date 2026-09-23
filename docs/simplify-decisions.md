@@ -34,10 +34,9 @@ Daraus folgt für alle Runs:
 - Bei Zweifeln zwischen „sauberer Neuaufbau" und „Altbestand schonen" gewinnt immer
   der saubere Neuaufbau.
 
-**Eine einzige Ausnahme:** Die alten `club-app.demo.*`-Schlüssel werden nicht aktiv
-gelöscht, solange die Entscheidung zu den Demo-Verwaltungsbereichen offen ist
-(siehe Punkt 4). Sie werden nur ignoriert — nicht gelesen, nicht geschrieben, nicht
-entfernt. Das kostet nichts und hält die Option offen.
+Die alten `club-app.demo.*`-Schlüssel wurden bis Run 5 geschont, solange die
+Demo-Verwaltungsbereiche sie noch lasen. Seit Punkt 4 entschieden ist, dürfen sie
+aufgeräumt werden.
 
 ## 3. Das Datenbankschema ist Referenz, nicht Vorgabe
 
@@ -58,23 +57,29 @@ nachvollziehbar ist, was bewusst anders gelöst wurde.
 Was bleibt: der Laufzeitcode unter `src/shared/lib/supabase/` verschwindet. Schema
 bleibt, Client geht.
 
-## 4. Offen: die Demo-Verwaltungsbereiche
+## 4. Entschieden: die Demo-Verwaltungsbereiche entfallen
 
-Ob `/demo/admin/*` und `/demo/department/*` (19 Routen) erhalten bleiben, ist noch
-nicht entschieden. Tendenz: vorerst behalten, um die Verwaltungsansichten beim Testen
-noch anschauen zu können. Run 5 fragt ausdrücklich nach und löscht sie nicht ohne
-Bestätigung.
+Stand 2026-09-23. `/demo/admin/*`, `/demo/department/*` und `/demo/create-club` werden
+in Run 5 gelöscht, zusammen mit `/admin/*` und `/department/*`.
 
-Anders als ihre Live-Gegenstücke nutzen sie kein Supabase und laufen rein lokal aus den
-alten `club-app.demo.*`-Schlüsseln.
+Gründe, nachgeprüft vor der Entscheidung:
 
-`/admin/*` und `/department/*` entfallen dagegen in jedem Fall: Zehn ihrer Komponenten
-hängen am Supabase-Client und würden beim ersten Klick an
-`Missing NEXT_PUBLIC_SUPABASE_URL` sterben.
+- **Sie zeigten einen anderen Verein.** Sie lasen die alten `club-app.demo.*`-Schlüssel
+  und legten dort einen eigenen Seed an („Demo Club", München, U14 Boys bis First
+  Team), während Trainer und Spieler mit dem SV Ruhrtal arbeiten. Nichts aus der App
+  erschien dort. Zum Testen taugten sie deshalb nicht.
+- **Sie waren verwaist.** Weder Startseite noch Trainer- oder Spielernavigation
+  verlinkten darauf.
+- **Sie kosteten, was der Umbau beseitigen soll:** rund 5.200 Zeilen, 17 Routen,
+  11 der 12 verbliebenen Dateien mit eigenem `localStorage`-Zugriff und einen zweiten
+  Datenpfad.
 
-Preis des Behaltens: Die Verwaltungsansichten lesen die alten Schlüssel, nicht die neue
-Datenschicht. Was ein Trainer anlegt, erscheint dort nicht — die Stände driften
-auseinander. Zum Anschauen taugen sie, zum Prüfen von Abläufen nicht.
+Die Verwaltungsoberflächen kommen später wieder, dann auf der Datenschicht. Vorlage
+sind dafür die **Supabase-Originale**, nicht die Demo-Versionen: Beim Trainer trugen
+die Live-Varianten die echte Produktlogik (siehe `docs/coach-zwillinge.md`). Das
+Datenmodell dafür — Club → Abteilung → Team, Hallen, Hallenzuordnungen — ist schon da.
+
+Alles Gelöschte liegt in Commit `543775f` auf `origin/main`.
 
 ## 5. Funktionierendes wird nicht aus Prinzip neu geschrieben
 
@@ -110,7 +115,4 @@ wiederherstellbar, was das Löschen in Run 5 unkritisch macht.
 | Dateien mit Supabase-Bezug | 26 | 0 |
 | Dateien mit `localStorage`-Zugriff | 13 | 1 |
 
-Bleiben die Demo-Verwaltungsbereiche erhalten, sind die Werte für Routen, Zeilen und
-Speicherzugriff planmäßig nicht erreichbar — rechne dann mit etwa 39 Routen und zwei
-Dateien mit Speicherzugriff. Das ist dann Folge einer bewussten Entscheidung, kein
-Fehlschlag.
+

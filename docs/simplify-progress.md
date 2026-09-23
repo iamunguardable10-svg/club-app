@@ -537,3 +537,158 @@ gewünscht ist, gehört sie in den Workspace, nicht daneben.
 | Prüfkette | Schritte 1–11 bestanden, Details in `docs/local-mode-testplan.md` |
 | Supabase im aktiven Pfad | 0 Dateien |
 | Laufzeitfehler im Browser | keine |
+
+
+---
+
+## Run 5 — Löschen (erledigt)
+
+### Zielwerte
+
+| Kennzahl | Start | Ziel | nach Run 5 |
+|---|---|---|---|
+| Aktive Routen | 67 | etwa 20 | **14** |
+| Zeilen unter `src` | 28.244 | etwa 12.000 | **13.612** |
+| Dateien unter `src` | — | — | 50 |
+| Dateien mit Supabase-Code | 26 | 0 | **0** |
+| Dateien mit `localStorage`-Zugriff | 13 | 1 | **1** (`repository.ts`) |
+| Laufzeitabhängigkeiten | 9 | — | 4 (`next`, `react`, `react-dom`, `recharts`) |
+
+Die Zeilenzahl liegt rund 1.600 über dem Ziel. Das verbliebene Volumen steckt fast
+vollständig in wenigen großen Oberflächendateien, die funktionieren und genutzt werden:
+`AthleteLoadWorkspace` (2691), `TeamWorkspaceView` (1994), `CoachWorkspaceRouter`
+(1312), `FacilityCalendar` (1062), `CoachSessionSurfaces` (915). Weiteres Löschen wäre
+dort Funktionsverlust. Der nächste sinnvolle Schritt wäre, diese Dateien zu zerlegen —
+das macht sie wartbarer, aber kaum kürzer, und es ist ein eigener Auftrag.
+
+### Was entfernt wurde
+
+**Routen (53):** `/admin/*` (12), `/department/*` (6), `/demo/*` (26, darunter die
+Weiterleitungen aus Run 2), `/auth/*` (3), `/onboarding/*` (3), `/invite/[token]`,
+`/join/[code]`, `/app`.
+
+**Dateien (53, rund 13.900 Zeilen):** per Importanalyse aller verbliebenen Seiten
+bestimmt, nicht nach Liste. Darunter der gesamte Admin-Baum (live und demo), Auth,
+Onboarding, Einladungen, die drei Demo-Zwillinge des Trainerbereichs,
+`DepartmentLeadWorkspaceRouter`, `DepartmentLeadDrawer`, `SessionComposer` (beide
+Varianten), `demoStorage.ts`, `DemoAreaNav`, der Supabase-Client
+(`src/shared/lib/supabase/`), die Hallen-Enhancer aus dem Admin-Bereich,
+`AdminShell`, `Card`, `PlaceholderPage`, `src/entities/`, der
+`GeoapifyAddressEnhancer` samt Geoapify-Anbindung.
+
+**Pakete (5):** `@supabase/supabase-js`, `framer-motion`, `lucide-react`, `clsx`,
+`tailwind-merge`. Keine Nutzung mehr, auch nicht in Konfigurationsdateien.
+
+**Innerhalb verbliebener Dateien:** Admin- und Department-Navigation in
+`FacilityCalendar`, der `departmentNav`-Zweig in `TeamWorkspaceView`, `CoachTopNav`
+(toter Code), die Karte „Invite players", die Pfadvariante `/demo/coach` in den Typen.
+
+**Bleibt:** `supabase/` mit SQL und Migrationen, `docs/database-schema.md`,
+`docs/rls-access-model.md` — Referenz für ein späteres Backend. `/share/load` und
+`AthleteLoadShareView`.
+
+### Wiederherstellen
+
+Alles Entfernte liegt in Commit **`543775f`** auf `origin/main`. Der Tag
+`pre-simplify-2026-09` existiert nur lokal (Tag-Pushes brachen in dieser Umgebung ab,
+siehe Run 1).
+
+```bash
+git checkout 543775f -- src/features/admin      # Beispiel: Admin-Bereich zurückholen
+```
+
+### Weitere Änderungen
+
+**`GeoapifyAddressEnhancer` entfernt.** Er hing global im Layout und beobachtete jede
+Seite, um Adressfelder mit Autovervollständigung über eine externe API zu versehen. Es
+gibt kein einziges Adressfeld mehr; alle lagen in den Admin-Formularen. Die App braucht
+damit keine Umgebungsvariable mehr, auch keine optionale.
+
+**Verwaiste Speicherschlüssel werden beim Start entfernt.** `club-app.demo.*`,
+`club-app.admin.*`, `club-app.athlete-load.*` — ihre Leser sind gelöscht. Das
+Repository räumt sie einmal pro Seitenaufruf weg (`LEGACY_KEY_PREFIXES` in
+`migrations.ts`).
+
+**Hallenkalender: Rückweg und Rechte.**
+- Fehlte `?from=` in der Adresse, führte „Back" nach `/app` — gerade gelöscht. Jetzt
+  immer zurück zur Hallenübersicht oder zum Team.
+- Ob man eine Einheit öffnen durfte, hing an `from?.startsWith('coach')`. Ohne den
+  Parameter ließ sich die Detailansicht fremder Einheiten öffnen. Jetzt entscheidet
+  ausschließlich `canManageSession()`, und die Schreibstelle für Verschiebungen prüft
+  zusätzlich selbst.
+- **Korrektur einer Einschätzung im Gespräch:** Ich hatte zunächst gesagt, man hätte
+  ohne `from` fremde Einheiten verschieben können. Das stimmt nicht — `startSessionDrag`
+  prüfte schon vorher selbst, und Bearbeiten und Löschen prüften beim Schreiben. Es war
+  eine Ungereimtheit mit Lesezugriff, kein Schreibloch. Im Browser belegt: Eine fremde
+  U18-Einheit bleibt beim Ziehen unverändert, eine eigene U16-Einheit verschiebt sich.
+- Die Trainer-Navigation erscheint jetzt immer; die Route liegt ausschließlich unter
+  `/coach`.
+
+**Identitätswechsel in der Team-Ansicht auf dem Telefon.** Fehlte seit Run 3, siehe
+`docs/local-mode-testplan.md`.
+
+**„Invite players"** war entgegen meiner Notiz aus Run 2 keine Schaltfläche ins Leere,
+sondern eine statische Karte. Sie versprach eine Funktion, die es ohne Konten nicht
+gibt, und ist entfernt.
+
+### Projektregeln nachgezogen
+
+`AGENTS.md`, `CLAUDE.md`, `.agents/skills/club-os/SKILL.md`, `README.md`,
+`docs/v1-decisions.md`, `docs/core-flows.md`. Ausgesetzte Regeln sind markiert, mit
+Datum und Grund, nicht gelöscht:
+
+- „Keep demo flows and Supabase-backed flows aligned" — ausgesetzt, es gibt nur noch
+  einen Modus; ersetzt durch „keine parallele Implementierung wieder einführen".
+- Auth, Einladungen, Join-Codes, Admin- und Department-Rollen — ausgesetzt bis ein
+  Backend zurückkommt.
+- **Weiter gültig:** Rollen aus Mitgliedschaften, `Club → Department → Team`, keine
+  sensiblen Belastungsdaten an Unbefugte, mobil und Desktop in einem Durchgang.
+- **Neu:** Daten nur über `@/shared/data`; Rechte nie aus URL-Parametern ableiten.
+- `README.md` beschreibt jetzt, wie man die App ohne `.env` startet, welche Routen
+  aktiv sind und wo die entfernten liegen.
+
+### Was Run 6 vorfindet
+
+Deutlich weniger als ursprünglich geplant. Die Datenschicht trägt seit Run 1 den
+Namensraum `club-app.local.*`, `demoStorage.ts` ist gelöscht, die alten Schlüssel
+werden automatisch entfernt. Nachgezählt bleiben 25 Vorkommen von `demo`/`Demo` in
+`src`:
+
+- **Gewollt:** Kommentare, die erklären, woher etwas kommt, und der Präfix
+  `club-app.demo.` in `LEGACY_KEY_PREFIXES`, den die Bereinigung braucht.
+- **Toter Code:** In `TeamWorkspaceView` die optionale Eigenschaft `onAddDemoPlayers`
+  samt Handler, Aktionstyp `demoPlayers` und Knopf „Add demo players". Übergeben hat sie
+  nur die gelöschte `DemoTeamWorkspace`; der Knopf rendert nie.
+
+Diese Eigenschaft gehört zu einer größeren Gruppe toter optionaler Eigenschaften in
+`TeamWorkspaceView`, die an entfernten Funktionen hingen: `onCreatePlayerJoinLink`,
+`onInviteStaff`, `onCopyStaffInvite`, `onRevokeStaffInvite`, `onAddCoachRole`,
+`onRemoveCoachRole`. Keiner übergibt sie mehr. Sie wurden in Run 5 bewusst nicht
+entfernt: Das betrifft den Staff- und Settings-Bereich einer 2000-Zeilen-Datei, und
+das ans Ende eines großen Löschlaufs zu hängen, ohne den Bereich danach neu zu prüfen,
+wäre genau der Übergriff, den die Reihenfolge verhindern soll.
+
+**Empfehlung für Run 6:** statt einer reinen Umbenennung diese toten Eigenschaften
+entfernen und den Staff-/Settings-Tab danach bei Telefonbreite prüfen. Die eigentliche
+Umbenennung `demo` → `local` hat sich weitgehend erledigt.
+
+### Offene Punkte
+
+1. **Sprache ist gemischt:** Startseite und Identitätswechsel deutsch, der Rest
+   englisch.
+2. **Die Trainerseite unterscheidet Seed-Meldungen nicht von echten** (seit Run 3).
+3. **Eigene Trainingspläne** der Spieler sind portiert, aber nicht von Hand
+   durchgespielt.
+4. **Serienplanung und Wochenbestätigung** beim Trainer nicht von Hand durchgespielt.
+5. **Die großen Oberflächendateien** (siehe Zielwerte) sind der nächste Hebel für
+   Wartbarkeit.
+
+### Validierung
+
+| Prüfung | Ergebnis |
+|---|---|
+| `npm run typecheck` | grün |
+| `npm run build` | grün, 14 Routen |
+| Prüfkette 1–11 plus Hallenkalender-Rechte | bestanden, Telefonbreite |
+| Importanalyse: unerreichbare Dateien | 0 |
+| Laufzeitfehler | keine |

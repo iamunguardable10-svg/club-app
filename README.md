@@ -2,6 +2,24 @@
 
 Club App is the foundation for a club operating system for teams, coaches, athletes and club admins.
 
+> **Current state (since 2026-09): local test mode.** The app runs without
+> accounts, login, database or environment variables. Open it, pick
+> *Trainer* or *Spieler*, and you are in a seeded club. Both perspectives
+> share the same data, stored in the browser. See `docs/simplify-decisions.md`
+> for why, and `docs/simplify-progress.md` for how it got here. The sections
+> below on admins, invites and Supabase describe the target product and the
+> previous setup; they are kept as reference.
+
+## Running it
+
+```bash
+npm install
+npm run dev
+```
+
+No `.env` file is needed. Test data is created on first start and can be reset
+from the identity switcher ("Testdaten zurücksetzen").
+
 ## Product direction
 
 The app is not just an attendance app. It is designed as a structured operating system for clubs:
@@ -30,18 +48,28 @@ V1 is a clean product and code foundation with placeholder screens. The priority
 
 ## Main app areas
 
+Active routes in the local test mode:
+
 ```txt
-/admin   - club setup, departments, teams, coaches, facilities, roles
-/coach   - today cockpit, teams, coach calendar, facilities, history
-/athlete - home, calendar, availability, load
-/invite  - coach and athlete invite acceptance
-/auth    - login, signup, session handling
+/            - pick a role to test as
+/coach       - today, sessions (calendar), team, facilities, history, attendance, load
+/athlete     - home, calendar (incl. availability), load
+/share/load  - read-only load view an athlete shares with a coach
+```
+
+Removed for the local test mode, recoverable from commit `543775f` on `main`:
+
+```txt
+/admin, /department   - club and department administration
+/invite, /join        - invites and join codes (need accounts)
+/auth, /onboarding    - login, signup, club creation
+/demo                 - the former second, demo-only app
 ```
 
 Role-shell rule:
 
 - Coach and department-lead shells are scoped operational surfaces, not alternate admin dashboards.
-- Department-lead routes live under `/department/...` and are documented in `docs/role-workspaces-v1.md`.
+- Department-lead routes lived under `/department/...` (documented in `docs/role-workspaces-v1.md`); removed for the local test mode.
 - Team Workspace keeps its own Home / Calendar / Players / Groups / Staff-Settings navigation after a concrete team is opened.
 - Calendars share one Untis-style engine and become smarter through context rather than separate per-role implementations.
 
@@ -52,18 +80,15 @@ Preferred stack:
 - Next.js
 - TypeScript
 - Tailwind CSS
-- Supabase Auth + Postgres + RLS
+- Supabase Auth + Postgres + RLS — target backend; not wired up in the local test mode. Schema and migrations stay under `supabase/`.
 - Feature-based architecture
 
 ## Environment variables
 
-```bash
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-NEXT_PUBLIC_GEOAPIFY_API_KEY=
-```
-
-`NEXT_PUBLIC_GEOAPIFY_API_KEY` enables Geoapify address autocomplete on facility address fields. If it is missing or Geoapify cannot be reached, facility address fields keep working as normal manual inputs.
+None are needed in the local test mode. The previous setup used
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
+`NEXT_PUBLIC_GEOAPIFY_API_KEY` (address autocomplete on facility forms); all
+three are unused now.
 
 ## Facility address input principle
 
@@ -72,7 +97,7 @@ Facility names and facility addresses are intentionally separate:
 - The facility name is the internal club or department name, for example `Main Hall` or `U18 Gym`.
 - The address field can search by official venue name, school name, hall name or street address.
 - Geoapify may fill the address, but it must not automatically overwrite the internal facility name.
-- Demo flows and real Supabase-backed flows should use the same input behavior whenever possible.
+- (Superseded: there is only one local mode now, and the address autocomplete was removed with the admin facility forms.)
 
 ## Key principle
 

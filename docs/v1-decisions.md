@@ -2,6 +2,17 @@
 
 This document records the confirmed V1 product decisions.
 
+> **Status 2026-09: partly suspended for the local test mode.** Until there are
+> real users, the app runs without accounts, login or database
+> (`docs/simplify-decisions.md`, which takes precedence while this lasts).
+> Suspended for now: **2. Auth** (no login), the **invite and join-code
+> sections** (they need accounts), and the admin and department-lead parts of
+> **3. Active V1 roles** (only coach and athlete surfaces are active). Still
+> valid: the **Club → Department → Team** hierarchy and **roles from
+> memberships** — the local data model keeps both. Nothing below was deleted;
+> it describes the target product and becomes current again when a backend
+> returns.
+
 ---
 
 ## 1. Platform

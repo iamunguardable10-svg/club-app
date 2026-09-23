@@ -13,7 +13,7 @@ Umgebungsvariablen gesetzt.
 | 1 | Trainer erstellt eine Einheit | 2 | bestanden |
 | 2 | Spieler sieht die Einheit in seinem Kalender | 3 | bestanden |
 | 3 | Spieler meldet sich verspätet oder ab | 3 | bestanden |
-| 4 | Trainer sieht die Meldung | 3 | bestanden |
+| 4 | Trainer sieht die Meldung | 3 | bestanden (Name und Grund in der Detailansicht, Run 5) |
 | 5 | Spieler trägt RPE und Dauer ein | 4 | bestanden |
 | 6 | Trainer sieht die neue Belastung beim richtigen Spieler | 4 | bestanden |
 | 7 | Reload: Daten und Identität bleiben erhalten | 2 | bestanden |
@@ -151,3 +151,41 @@ Proxy-Logs. Alte `?data=`-Links werden weiterhin gelesen.
 - Eigene Trainingspläne anlegen, verschieben und löschen. Die Seed-Pläne erscheinen im
   Kalender, die Bearbeitung ist nicht durchgespielt.
 - Hallenkalender als Wochenansicht samt Konfliktprüfung (seit Run 2 offen).
+
+
+## Run 5 — nach dem Löschen (2026-09-23)
+
+Regressionslauf der ganzen Kette nach dem Entfernen von 53 Routen und 53 Dateien,
+Telefonbreite 390 × 844, ohne Umgebungsvariablen, eine zusammenhängende Sitzung.
+
+| Prüfung | Ergebnis |
+|---|---|
+| Verwaiste Schlüssel `club-app.demo.*`, `.admin.*`, `.athlete-load.*` beim Start entfernt | bestanden |
+| 1 Startseite ohne Anmeldung | bestanden |
+| 2 Spieler-Cockpit | bestanden |
+| 3 Absage mit Grund aus dem Kalender | bestanden |
+| 4 Trainer sieht **genau diese** Absage: „Jonas Kern out · Knöchel verdreht" in der Detailansicht | bestanden — war seit Run 4 nur auf Datenebene belegt |
+| 5 RPE 8, 75 Min → 600 AU | bestanden |
+| 6 ACWR Spieler = Trainer (1,07 / 1,07) | bestanden |
+| 7 Reload | bestanden |
+| 8 Rollenwechsel ohne Reload | bestanden |
+| 9 Personenwechsel zu Lena Sturm | bestanden |
+| 10 Reset | bestanden |
+| 11 Teilen-Link (Fragment) | bestanden |
+| Hallenkalender ohne `from`: lädt, Rückweg nach `/coach/facilities` | bestanden |
+| Hallenkalender, Ziehen einer **fremden** Einheit (U18) | bestanden: unverändert |
+| Hallenkalender, Ziehen einer **eigenen** Einheit (U16) | bestanden: verschoben |
+| Laufzeitfehler | keine |
+| `npm run typecheck`, `npm run build` (14 Routen) | grün |
+
+### Gefundener und behobener Fehler: kein Rollenwechsel in der Team-Ansicht auf dem Telefon
+
+`TeamWorkspaceView` blendet die mobile Trainer-Navigation aus, weil es eigene Tabs hat
+— und der Identitätswechsel saß in genau dieser Navigation. Auf `/coach/team`,
+`/coach/attendance` und `/coach/load` kam man auf dem Telefon nicht mehr aus der
+Trainerrolle heraus. Seit Run 3 so, aufgefallen erst jetzt, weil der Regressionslauf
+den Wechsel erstmals aus der Team-Ansicht heraus versucht hat.
+
+Ein erster Fix mit schwebendem Knopf unten rechts hat die Tab-Leiste der Team-Ansicht
+verdeckt; der Test hat es sofort gezeigt. Jetzt sitzt der Wechsel als eigene Zeile in
+der festen Kopfzeile der Team-Ansicht, nur auf dem Telefon.
