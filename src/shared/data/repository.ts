@@ -19,7 +19,7 @@
  *    quietly replaced with fresh test data.
  */
 
-import { calculateACWR, getLatestACWR, loadZone, sevenDayLoad } from './loadCalculations';
+import { calculateEWMA, getLatestACWR, loadZone, sevenDayLoad } from './loadCalculations';
 import { DATABASE_KEY, SCHEMA_VERSION, isCurrent } from './migrations';
 import { createSeedDatabase } from './seed';
 import {
@@ -445,13 +445,17 @@ export function deleteLoadEntry(entryId: Id): void {
  * The maths lives in `loadCalculations.ts` and is not reimplemented here; this
  * only selects the right entries and hands them over. Views must not compute
  * ACWR themselves.
+ *
+ * Uses EWMA, like the athlete cockpit and the coach roster. An earlier version
+ * used the rolling average, so the same athlete would have shown two different
+ * ratios depending on which screen read the number.
  */
 export function loadSummaryForPerson(database: LocalDatabase, personId: Id) {
   const entries = loadEntriesForPerson(database, personId);
-  const latest = getLatestACWR(entries);
+  const latest = getLatestACWR(entries, 'ewma');
   return {
     entries,
-    series: calculateACWR(entries),
+    series: calculateEWMA(entries),
     acwr: latest?.acwr ?? null,
     acuteLoad: latest?.acuteLoad ?? 0,
     chronicLoad: latest?.chronicLoad ?? 0,

@@ -11,7 +11,7 @@
  * schema is a reference rather than a contract. Deviations are noted inline.
  */
 
-import type { AthleteLoadEntry, LoadTrainingType } from './loadTypes';
+import type { AthleteLoadEntry, AthleteLoadPlan, LoadTrainingType } from './loadTypes';
 
 export type Id = string;
 
@@ -189,6 +189,28 @@ export type LoadEntry = AthleteLoadEntry & {
 export type { AthleteLoadEntry, LoadTrainingType };
 
 /**
+ * A session an athlete plans for themselves — gym, a run, extra shooting.
+ *
+ * Existed in the athlete workspace under its own demo key and the Supabase
+ * table `athlete_load_plans`; the load forecast uses it to project ACWR ahead.
+ * Structurally `AthleteLoadPlan`, so the workspace keeps working unchanged.
+ */
+export type AthletePlan = AthleteLoadPlan & {
+  personId: Id;
+  createdAt: Timestamp;
+};
+
+/**
+ * A pending session the athlete dismissed without logging load, so it stops
+ * asking. Kept separate from availability: dismissing is not the same as
+ * reporting absence to the coach.
+ */
+export type AcknowledgedSession = {
+  personId: Id;
+  sessionId: Id;
+};
+
+/**
  * Who the app is currently acting as. Replaces the login session.
  *
  * Role alone is not enough: "the athlete sees their sessions" is undefined
@@ -218,6 +240,10 @@ export type LocalDatabase = {
   sessionSeriesWeekStates: SessionSeriesWeekState[];
   availability: Availability[];
   loadEntries: LoadEntry[];
+  athletePlans: AthletePlan[];
+  acknowledgedSessions: AcknowledgedSession[];
+  /** The last load link an athlete shared with a coach, per person. */
+  shareLinks: Record<Id, string>;
   activeIdentity: ActiveIdentity | null;
 };
 

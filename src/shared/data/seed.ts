@@ -14,6 +14,7 @@
 
 import { SCHEMA_VERSION } from './migrations';
 import type {
+  AthletePlan,
   Availability,
   Club,
   Department,
@@ -365,6 +366,44 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
 
   loadEntries.sort((a, b) => a.date.localeCompare(b.date));
 
+  // Two self-planned sessions per athlete, as the old demo workspace seeded
+  // them, so the planning feature and the load forecast have something to
+  // show from the first start.
+  const athletePlans: AthletePlan[] = athleteMemberships.flatMap((membership) => {
+    const strengthDay = addDays(today, 2);
+    const recoveryDay = addDays(today, 4);
+    return [
+      {
+        id: `plan-${membership.personId}-strength`,
+        personId: membership.personId,
+        teamId: null,
+        teamName: null,
+        title: 'Kraft',
+        date: dateOnly(strengthDay),
+        startsAt: at(strengthDay, '17:00').toISOString(),
+        trainingType: 'strength' as const,
+        expectedRpe: 7,
+        expectedDurationMinutes: 60,
+        note: null,
+        createdAt,
+      },
+      {
+        id: `plan-${membership.personId}-recovery`,
+        personId: membership.personId,
+        teamId: null,
+        teamName: null,
+        title: 'Regeneration',
+        date: dateOnly(recoveryDay),
+        startsAt: at(recoveryDay, '10:00').toISOString(),
+        trainingType: 'recovery' as const,
+        expectedRpe: 3,
+        expectedDurationMinutes: 35,
+        note: null,
+        createdAt,
+      },
+    ];
+  });
+
   return {
     version: SCHEMA_VERSION,
     seededAt: now.toISOString(),
@@ -382,6 +421,9 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     sessionSeriesWeekStates: [],
     availability,
     loadEntries,
+    athletePlans,
+    acknowledgedSessions: [],
+    shareLinks: {},
     // Start as the first coach so the app is usable immediately. Run 3 adds
     // the entry page that asks which role to test as and lets the person
     // switch; until then an unset identity would leave every screen empty

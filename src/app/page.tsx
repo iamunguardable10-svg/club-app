@@ -12,7 +12,6 @@
  * you straight into a working club.
  */
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import {
@@ -127,9 +126,6 @@ export default function EntryPage() {
           </section>
         ) : null}
 
-        <p className="text-center text-xs text-slate-600">
-          <Link href="/athlete/availability" className="underline">Direkt zur Verfügbarkeit</Link>
-        </p>
       </div>
     </main>
   );

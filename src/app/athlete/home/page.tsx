@@ -1,5 +1,5 @@
-import { AthleteHome } from '@/features/athlete/AthleteHome';
+import { AthleteLoadWorkspace } from '@/features/load/AthleteLoadWorkspace';
 
 export default function AthleteHomePage() {
-  return <AthleteHome />;
+  return <AthleteLoadWorkspace initialView="home" />;
 }

@@ -22,6 +22,7 @@ import { createPortal } from 'react-dom';
 import {
   displayName,
   peopleWithRole,
+  resetDatabase,
   setActiveIdentity,
   teamsForPerson,
   useLocalDatabase,
@@ -45,6 +46,7 @@ export function IdentitySwitcher({ className = '' }: { className?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   // The sheet is rendered into document.body rather than in place.
   //
@@ -71,6 +73,14 @@ export function IdentitySwitcher({ className = '' }: { className?: string }) {
 
   const identity = database.activeIdentity;
   const current = identity ? database.people.find((person) => person.id === identity.personId) ?? null : null;
+
+  function reset() {
+    resetDatabase();
+    setConfirmReset(false);
+    setOpen(false);
+    // Back to the start so the tester picks a role against the fresh club.
+    router.push('/');
+  }
 
   function choose(role: MembershipRole, person: Person) {
     setActiveIdentity({ role, personId: person.id });
@@ -147,6 +157,32 @@ export function IdentitySwitcher({ className = '' }: { className?: string }) {
             <div className="space-y-5">
               {renderGroup('coach')}
               {renderGroup('athlete')}
+            </div>
+
+            {/* Reset lives here because this sheet is reachable from both the
+                coach and the athlete side. Two steps, in place: a browser
+                confirm() is easy to dismiss by accident on a phone. */}
+            <div className="mt-6 border-t border-slate-800 pt-4">
+              {confirmReset ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-slate-300">
+                    Alle lokalen Daten werden gelöscht und der Testverein neu angelegt — auch alles,
+                    was du selbst eingetragen hast.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={reset} className="rounded-2xl border border-red-400/60 bg-red-500/20 px-4 py-3 text-xs font-black text-red-100">
+                      Ja, zurücksetzen
+                    </button>
+                    <button type="button" onClick={() => setConfirmReset(false)} className="rounded-2xl border border-slate-700 px-4 py-3 text-xs font-black text-slate-300">
+                      Abbrechen
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setConfirmReset(true)} className="text-xs font-bold text-slate-400 underline">
+                  Testdaten zurücksetzen
+                </button>
+              )}
             </div>
           </div>
         </div>,

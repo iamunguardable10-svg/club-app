@@ -307,7 +307,13 @@ Der Spielerbereich soll dieselbe Form benutzen, keine zweite erfinden:
 
 ---
 
-## Run 3 — Einstieg, Identität, Verfügbarkeit (erledigt)
+## Run 3 — Einstieg, Identität, Verfügbarkeit (erledigt, teilweise zurückgenommen)
+
+> **Überholt durch Run 4.** Die Spielerseiten aus diesem Run (`AthleteHome`,
+> `AthleteCalendar`, `AthleteAvailability`, `AthleteLoadFrame`, `AthleteShell`) waren
+> Doppelungen von Funktionen, die `AthleteLoadWorkspace` längst hatte, und wurden in
+> Run 4 wieder entfernt. Bestand haben aus Run 3 nur die Startseite, der
+> Identitätswechsel und der Portal-Fix. Siehe Run 4.
 
 ### Was entstanden ist
 
@@ -401,4 +407,133 @@ heißt ähnlich viel wie zuletzt") und sagt ausdrücklich, dass es keine Empfehl
 | `npm run build` | grün |
 | Prüfkette, Schritte 1–4 und 7–9, 11 | bestanden bei Telefonbreite |
 | Supabase im Spieler- und Startseitenpfad | keine Treffer |
+| Laufzeitfehler im Browser | keine |
+
+
+---
+
+## Run 4 — Spieler-Workspace portiert statt neu gebaut (erledigt)
+
+### Eine Korrektur vorweg
+
+Run 3 hat behauptet, die Verfügbarkeitsmeldung habe es „nirgends gegeben, weder demo
+noch live", und die Spielerseite sei Neubau. **Das war falsch.** `AthleteLoadWorkspace`
+enthielt die ganze Zeit:
+
+- Verfügbarkeit mit Available / Late / Out, Pflichtgrund und Verspätungsminuten
+- einen eigenen Wochenkalender (`AthleteCalendar`, rund 370 Zeilen), der auf dem
+  Telefon sauber funktioniert
+- ein RPE-Eingabeformular mit Lastvorschau (`PendingInlineForm`)
+- ACWR-Anzeige mit Zoneneinordnung, Belastungsdiagramm, Wochenprofil, Prognose
+- eigene Trainingspläne und automatische Aufwärmeinheiten vor Spielen
+
+Die drei Routen `/athlete/home`, `/calendar`, `/load` zeigten nicht „dreimal dasselbe",
+wie Run 3 schrieb, sondern übergaben `initialView` — eine Komponente mit drei Ansichten.
+
+Der Fehler war methodisch: Run 3 hat sich auf den Platzhalter unter
+`/athlete/availability` verlassen und nicht in die Datei geschaut, obwohl Run 1 den
+Schlüssel `athlete-availability` genau dort gefunden hatte. Der Auftraggeber hat es
+bemerkt, nicht der Run.
+
+### Was stattdessen passiert ist
+
+Derselbe Weg wie beim Trainer in Run 2: Datenzugriff austauschen, Oberfläche und
+Produktlogik unverändert lassen.
+
+1. **Neuer Adapter `src/features/load/athleteLocalStore.ts`.** Er bietet dieselben Lese-
+   und Speicherformen, die der Workspace für seinen Demo-Modus schon benutzte, legt aber
+   die gemeinsame Datenschicht darunter — pro aktiver Person statt fest auf ein Team.
+2. **`AthleteLoadWorkspace` umgestellt.** Ladeeffekt aus der Datenschicht, sechs
+   Supabase-Zweige entfernt, alle Demo-Helfer mit eigenen Schlüsseln entfernt. 3216 →
+   2691 Zeilen. An der Oberfläche wurde nichts geändert außer dem Identitätswechsel im
+   Kopf und einer Schutzabfrage, wenn kein Spieler gewählt ist.
+3. **Run-3-Doppelungen entfernt.** Fünf Dateien unter `src/features/athlete/` sind weg.
+   Die drei Routen zeigen wieder auf den Workspace, `/athlete/availability` leitet auf
+   den Kalender um, wo die Verfügbarkeit gemeldet wird.
+4. **Schema ergänzt:** `athletePlans` (eigene Trainingspläne), `acknowledgedSessions`
+   (weggeklickte offene Einheiten), `shareLinks` (letzter Trainer-Link je Person).
+   Version auf `2026-09-23-athlete-plans-v3` angehoben.
+5. **Reset-Schaltfläche** im Identitätswechsel, aus beiden Perspektiven erreichbar,
+   mit Bestätigung im selben Fenster statt Browser-Dialog.
+
+### Die `LoadChart`-Verflechtung hat sich von selbst erledigt
+
+Run 2 und 3 hatten dokumentiert, dass der Trainerpfad über `LoadChart` weiterhin den
+Supabase-Client erreicht, und für Run 4 empfohlen, die Diagramme in eine eigene Datei
+herauszulösen. **Das war nicht nötig.** Nachdem `AthleteLoadWorkspace` selbst kein
+Supabase mehr importiert, ist der Import von `LoadChart` daraus unproblematisch. Die
+Diagramme wurden nicht angefasst.
+
+Nachgemessen über die gesamte Importkette:
+
+| Pfad | Dateien | Supabase | eigene `localStorage`-Zugriffe |
+|---|---|---|---|
+| Startseite | 10 | 0 | 0 |
+| Trainer (8 Routen) | 43 | 0 | 0 |
+| Spieler (4 Routen) | 20 | 0 | 0 |
+| Teilen | 18 | 0 | 0 |
+| **alle zusammen** | | **0** | **nur `repository.ts`** |
+
+Die aktive App erfüllt damit zwei Zielwerte der Definition of Done bereits: kein
+Supabase, genau eine Datei mit Speicherzugriff. Die übrigen elf Dateien mit
+`localStorage` sind ausschließlich Admin-, Department- und Demo-Zwillingsdateien.
+
+### Entscheidungen
+
+**Speichern aus State-Updatern, zeitversetzt.** Der Workspace speichert an sieben
+Stellen *innerhalb* von React-State-Updatern (`setEntries((current) => { …; save(next);
+return next; })`). Solange das nur localStorage schrieb, war es harmlos. Ein Schreiben
+über das Repository benachrichtigt Abonnenten und setzt State — mitten in einem Render
+ist das ein React-Fehler. Der Adapter verschiebt Schreibvorgänge per `queueMicrotask`
+hinter den Render. Jeder Speichervorgang ersetzt die Sammlung der Person vollständig,
+ein doppelter Aufruf im StrictMode schreibt also zweimal dasselbe. Die sieben Stellen
+selbst wurden nicht umgebaut — das hätte Produktlogik berührt.
+
+**Verfügbarkeit liest die ganze Menge, nicht das sichtbare Fenster.** Der Speicher-
+vorgang ersetzt alle Meldungen der Person. Läse der Adapter nur die Einheiten im
+Kalenderfenster, würde jeder Speichervorgang alle älteren Meldungen löschen.
+
+**Seed-Markierung bleibt erhalten.** Eine unveränderte Meldung behält ihr
+`seeded`-Flag. Sonst würde das Speichern einer einzigen Absage alle Seed-Meldungen als
+„vom Tester eingetragen" umetikettieren.
+
+**`loadSummaryForPerson` rechnet jetzt EWMA.** Vorher gleitendes Mittel, während
+Spieler-Cockpit und Trainerkader EWMA zeigen. Nachdem die Run-3-Seiten weg sind, nutzt
+die Funktion niemand — aber ein späterer Run hätte sich darauf verlassen und für
+denselben Spieler eine andere Zahl bekommen als auf dem Bildschirm.
+
+**Keine separate Verfügbarkeitsseite.** Der alte Platzhalter hatte eine eigene
+Schnellmelde-Seite vorgesehen („unter 10 Sekunden"). Die bestehende Meldung im Kalender
+braucht zwei Taps plus einen kurzen Grund. Zwei Oberflächen für dieselbe Sache wären
+genau die Doppelpflege, die der Umbau beseitigen soll. Wenn eine Schnellliste später
+gewünscht ist, gehört sie in den Workspace, nicht daneben.
+
+### Offene Punkte
+
+1. **Sprache ist gemischt.** Startseite und Identitätswechsel sind deutsch, der
+   Spieler-Workspace und der Trainerbereich englisch. Das war schon vorher uneinheitlich
+   und ist kein Teil dieses Umbaus, fällt aber jetzt stärker auf.
+2. **Die Trainerseite unterscheidet Seed-Meldungen nicht von echten** (seit Run 3).
+3. **Eigene Trainingspläne** sind portiert, aber nicht von Hand durchgespielt.
+4. **Hallenkalender** als Wochenansicht nicht von Hand geprüft (seit Run 2).
+5. `CoachTopNav` ist toter Code (seit Run 3), die Schaltfläche „Invite players" läuft
+   ins Leere (seit Run 2). Beides für Run 5.
+
+### Was Run 5 wissen muss
+
+- Die aktive App ist Supabase-frei. Was Run 5 löscht, ist ausschließlich Code, den
+  keine aktive Route mehr erreicht. Die Tabelle oben ist der Beleg.
+- `src/features/load/AthleteLoadShareView.tsx` bleibt, `/share/load` bleibt. Die
+  `LoadChart`-Warnung aus Run 2 ist gegenstandslos.
+- Die Frage nach `/demo/admin/*` und `/demo/department/*` ist weiter offen. Diese
+  Bereiche lesen die alten `club-app.demo.*`-Schlüssel, die weiter unangetastet liegen.
+
+### Validierung
+
+| Prüfung | Ergebnis |
+|---|---|
+| `npm run typecheck` | grün |
+| `npm run build` | grün |
+| Prüfkette | Schritte 1–11 bestanden, Details in `docs/local-mode-testplan.md` |
+| Supabase im aktiven Pfad | 0 Dateien |
 | Laufzeitfehler im Browser | keine |

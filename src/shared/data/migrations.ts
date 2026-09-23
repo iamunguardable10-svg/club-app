@@ -23,7 +23,7 @@ import type { LocalDatabase } from './schema';
  *
  * Format: date plus a short reason, so the history stays readable.
  */
-export const SCHEMA_VERSION = '2026-09-22-local-data-layer-v2';
+export const SCHEMA_VERSION = '2026-09-23-athlete-plans-v3';
 
 /** Storage key of the database document. */
 export const DATABASE_KEY = 'club-app.local.db';
@@ -64,6 +64,9 @@ export function isCurrent(value: unknown): value is LocalDatabase {
     Array.isArray(candidate.memberships) &&
     Array.isArray(candidate.sessions) &&
     Array.isArray(candidate.availability) &&
-    Array.isArray(candidate.loadEntries)
+    Array.isArray(candidate.loadEntries) &&
+    Array.isArray(candidate.athletePlans) &&
+    Array.isArray(candidate.acknowledgedSessions) &&
+    typeof candidate.shareLinks === 'object'
   );
 }

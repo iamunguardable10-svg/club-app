@@ -13,7 +13,6 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import {
   ACWR_ZONES,
@@ -29,7 +28,22 @@ import {
 } from './loadTypes';
 import { aggregateDailyLoads, baselineAgeDays, calculateEWMA, fillMissingDays, formatLoadDate, getLatestACWR, loadZone, projectFutureACWR, todayISO } from './loadCalculations';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
-import { DEMO_PRIMARY_ATHLETE_TEAM_ID, getDemoClubSetup, getDemoSessions, getDemoTeams, type DemoSession } from '@/shared/dev/demoStorage';
+import { displayName, getActivePerson, useLocalDatabase } from '@/shared/data';
+import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
+import {
+  readAcknowledged,
+  readAvailability,
+  readEntries,
+  readPlans,
+  readShareLink,
+  readTeamSessions,
+  saveAcknowledged,
+  saveAvailability,
+  saveEntries,
+  savePlans,
+  saveShareLink,
+  type AthleteAvailabilityMark,
+} from './athleteLocalStore';
 
 type AthleteView = 'home' | 'load' | 'calendar';
 
@@ -59,66 +73,7 @@ type AthleteCalendarItem = {
   entry?: AthleteLoadEntry;
 };
 
-type AthleteAvailabilityMark = {
-  status: 'expected' | 'late' | 'out';
-  reason: string | null;
-  lateMinutes: number | null;
-};
-
 type AvailabilityDraft = 'expected' | 'late' | 'out';
-
-type RawLoadEntry = {
-  id: string;
-  session_id: string | null;
-  team_id?: string | null;
-  entry_date?: string | null;
-  training_type?: string | null;
-  rpe: number;
-  duration_minutes: number;
-  session_load?: number | null;
-  note: string | null;
-  submitted_at: string;
-  sessions?: {
-    title: string;
-    starts_at: string;
-    session_type: string;
-    team_id: string;
-    teams?: { name: string } | null;
-  } | null;
-};
-
-type RawSession = {
-  id: string;
-  title: string;
-  session_type: string;
-  starts_at: string;
-  ends_at: string | null;
-  team_id: string | null;
-  teams?: { name: string } | null;
-};
-
-type RawLoadPlan = {
-  id: string;
-  team_id: string | null;
-  plan_date: string;
-  planned_time: string | null;
-  training_type: string;
-  expected_rpe: number;
-  expected_duration_minutes: number;
-  title: string | null;
-  note: string | null;
-  teams?: { name: string } | null;
-};
-
-const DEMO_LOAD_KEY = 'club-app.demo.athlete-load-entries';
-const DEMO_ACK_KEY = 'club-app.demo.athlete-pending-ack';
-const DEMO_PLANS_KEY = 'club-app.demo.athlete-load-plans';
-const DEMO_CANCELLED_SESSIONS_KEY = 'club-app.demo.athlete-cancelled-sessions';
-const DEMO_AVAILABILITY_KEY = 'club-app.demo.athlete-availability';
-const LOAD_SHARE_ACTIVE_KEY = 'club-app.athlete-load.active-share-link';
-// Session-linked entries cover the recent 28-day story; older manual entries keep the long ACWR baseline.
-const DEMO_SESSION_WINDOW_PAST_DAYS = 28;
-const DEMO_SESSION_WINDOW_FUTURE_DAYS = 21;
 
 const emptyPlanForm: PlanFormState = {
   trainingType: 'team_training',
@@ -149,340 +104,7 @@ function isoDate(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-function atLocalDate(date: Date, hour: number, minute = 0) {
-  const next = new Date(date);
-  next.setHours(hour, minute, 0, 0);
-  return next.toISOString();
-}
 
-function demoPendingSessions(): AthletePendingSession[] {
-  const setup = getDemoClubSetup();
-  if (!setup) return fallbackDemoPendingSessions();
-  const teams = getDemoTeams(setup);
-  const teamByName = new Map(teams.map((team) => [`${team.department}:${team.name}`, team]));
-  const windowStart = addDays(new Date(`${todayISO()}T00:00:00`), -DEMO_SESSION_WINDOW_PAST_DAYS).getTime();
-  const windowEnd = addDays(new Date(`${todayISO()}T00:00:00`), DEMO_SESSION_WINDOW_FUTURE_DAYS).getTime();
-  return getDemoSessions()
-    .map((session: DemoSession): AthletePendingSession | null => {
-      const team = teamByName.get(`${session.department}:${session.team}`);
-      if (!team || team.id !== DEMO_PRIMARY_ATHLETE_TEAM_ID) return null;
-      const startsAt = new Date(session.startsAt).getTime();
-      if (startsAt < windowStart || startsAt > windowEnd) return null;
-      const trainingType = normalizeTrainingType(session.sessionType);
-      if (session.sessionType === 's_and_c' && trainingType !== 'strength' && process.env.NODE_ENV !== 'production') console.warn('Club OS demo load mapping drift: s_and_c should map to strength.');
-      return {
-        id: session.id,
-        title: session.title || LOAD_TYPE_LABELS[trainingType],
-        teamId: team.id,
-        teamName: team.name,
-        date: session.startsAt.slice(0, 10),
-        startsAt: session.startsAt,
-        endsAt: session.endsAt,
-        trainingType,
-        source: 'team_session',
-      } satisfies AthletePendingSession;
-    })
-    .filter((session): session is AthletePendingSession => Boolean(session))
-    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-}
-
-function fallbackDemoPendingSessions(): AthletePendingSession[] {
-  const today = new Date(`${todayISO()}T00:00:00`);
-  const yesterday = addDays(today, -1);
-  const tomorrow = addDays(today, 1);
-  return [
-    { id: 'demo-session-yesterday-team', title: 'Team Training', teamId: DEMO_PRIMARY_ATHLETE_TEAM_ID, teamName: 'U14 Boys', date: isoDate(yesterday), startsAt: atLocalDate(yesterday, 18, 0), endsAt: atLocalDate(yesterday, 19, 30), trainingType: 'team_training', source: 'team_session' } satisfies AthletePendingSession,
-    { id: 'demo-session-today-strength', title: 'Strength', teamId: DEMO_PRIMARY_ATHLETE_TEAM_ID, teamName: 'U14 Boys', date: isoDate(today), startsAt: atLocalDate(today, 16, 30), endsAt: atLocalDate(today, 17, 30), trainingType: 'strength', source: 'team_session' } satisfies AthletePendingSession,
-    { id: 'demo-session-tomorrow-team', title: 'Team Training', teamId: DEMO_PRIMARY_ATHLETE_TEAM_ID, teamName: 'U14 Boys', date: isoDate(tomorrow), startsAt: atLocalDate(tomorrow, 18, 15), endsAt: atLocalDate(tomorrow, 20, 0), trainingType: 'team_training', source: 'team_session' } satisfies AthletePendingSession,
-  ];
-}
-
-function demoAthleteTeamName() {
-  const setup = getDemoClubSetup();
-  if (!setup) return 'U14 Boys';
-  const team = getDemoTeams(setup).find((candidate) => candidate.id === DEMO_PRIMARY_ATHLETE_TEAM_ID);
-  if (!team && process.env.NODE_ENV !== 'production') console.warn(`Club OS demo athlete team missing: ${DEMO_PRIMARY_ATHLETE_TEAM_ID}`);
-  return team?.name ?? 'U14 Boys';
-}
-
-function demoSeedPlans(): AthleteLoadPlan[] {
-  const today = new Date(`${todayISO()}T00:00:00`);
-  return [
-    {
-      id: 'demo-plan-strength',
-      teamId: null,
-      teamName: null,
-      title: 'Strength',
-      date: isoDate(addDays(today, 2)),
-      startsAt: atLocalDate(addDays(today, 2), 17, 0),
-      trainingType: 'strength',
-      expectedRpe: 7,
-      expectedDurationMinutes: 60,
-      note: null,
-    },
-    {
-      id: 'demo-plan-recovery',
-      teamId: null,
-      teamName: null,
-      title: 'Recovery',
-      date: isoDate(addDays(today, 4)),
-      startsAt: atLocalDate(addDays(today, 4), 10, 0),
-      trainingType: 'recovery',
-      expectedRpe: 3,
-      expectedDurationMinutes: 35,
-      note: null,
-    },
-  ];
-}
-
-function demoSeedEntries(teamSessions = demoPendingSessions()): AthleteLoadEntry[] {
-  const today = new Date(`${todayISO()}T00:00:00`);
-  const teamName = demoAthleteTeamName();
-  const plan: Array<[number, LoadTrainingType, number, number]> = [
-    [-55, 'team_training', 5, 90],
-    [-53, 'strength', 6, 55],
-    [-51, 'individual', 5, 45],
-    [-49, 'game', 8, 75],
-    [-46, 'team_training', 6, 95],
-    [-44, 'recovery', 3, 35],
-    [-42, 'strength', 7, 60],
-    [-40, 'team_training', 6, 90],
-    [-38, 'individual', 6, 50],
-    [-36, 'game', 9, 80],
-    [-34, 'team_training', 5, 85],
-    [-32, 'strength', 6, 55],
-    [-30, 'recovery', 2, 35],
-    [-28, 'team_training', 6, 95],
-    [-26, 'individual', 5, 40],
-    [-24, 'strength', 7, 60],
-    [-22, 'game', 8, 80],
-    [-20, 'team_training', 6, 95],
-    [-18, 'strength', 7, 55],
-    [-16, 'team_training', 5, 90],
-    [-15, 'individual', 6, 45],
-    [-13, 'game', 9, 80],
-    [-11, 'team_training', 6, 90],
-    [-9, 'recovery', 3, 35],
-    [-8, 'strength', 6, 60],
-    [-6, 'team_training', 7, 95],
-    [-5, 'individual', 5, 40],
-    [-3, 'strength', 6, 60],
-    [-2, 'team_training', 7, 90],
-    [-1, 'recovery', 2, 30],
-  ];
-
-  const manualEntries = plan.map(([offset, trainingType, rpe, durationMinutes], index) => {
-    const date = isoDate(addDays(today, offset));
-    return {
-      id: `demo-load-v2-${index}`,
-      sessionId: null,
-      teamId: DEMO_PRIMARY_ATHLETE_TEAM_ID,
-      teamName,
-      date,
-      startsAt: null,
-      title: LOAD_TYPE_LABELS[trainingType],
-      trainingType,
-      rpe,
-      durationMinutes,
-      load: rpe * durationMinutes,
-      note: null,
-      source: 'manual',
-    } satisfies AthleteLoadEntry;
-  });
-  const sessionEntries = teamSessions
-    .filter((session) => session.date < todayISO())
-    .map((session) => {
-      const durationMinutes = durationMinutesFromSession(session);
-      // Deterministic demo jitter keeps the graph readable without changing across resets.
-      const stableDelta = Array.from(session.id).reduce((sum, char) => sum + char.charCodeAt(0), 0) % 2;
-      const rpe = session.trainingType === 'game' ? 10 : session.trainingType === 'strength' ? 7 : 6 + stableDelta;
-      return {
-        id: `demo-session-load-${session.id}`,
-        sessionId: session.id,
-        teamId: session.teamId,
-        teamName: session.teamName,
-        date: session.date,
-        startsAt: session.startsAt,
-        title: session.title,
-        trainingType: session.trainingType,
-        rpe,
-        durationMinutes,
-        load: rpe * durationMinutes,
-        note: null,
-        source: 'planned_session',
-      } satisfies AthleteLoadEntry;
-    });
-
-  const sessionDates = new Set(sessionEntries.map((entry) => entry.date));
-  // Scheduled sessions own their date in the demo seed, so the manual baseline
-  // does not double count a second generic load on the same day.
-  const soloEntries = manualEntries.filter((entry) => !sessionDates.has(entry.date));
-  return [...soloEntries, ...sessionEntries].sort((a, b) => a.date.localeCompare(b.date));
-}
-
-function readDemoEntries(teamSessions = demoPendingSessions()) {
-  if (typeof window === 'undefined') return demoSeedEntries(teamSessions);
-  const raw = window.localStorage.getItem(DEMO_LOAD_KEY);
-  if (!raw) {
-    const seed = demoSeedEntries(teamSessions);
-    window.localStorage.setItem(DEMO_LOAD_KEY, JSON.stringify(seed));
-    return seed;
-  }
-  try {
-    const parsed = JSON.parse(raw) as AthleteLoadEntry[];
-    const seed = demoSeedEntries(teamSessions);
-    if (parsed.length < seed.length) {
-      const customEntries = parsed.filter((entry) => !entry.id.startsWith('demo-load-') && !entry.id.startsWith('demo-session-load-'));
-      const merged = [...seed, ...customEntries].sort((a, b) => a.date.localeCompare(b.date));
-      window.localStorage.setItem(DEMO_LOAD_KEY, JSON.stringify(merged));
-      return merged;
-    }
-    return parsed;
-  } catch {
-    return demoSeedEntries(teamSessions);
-  }
-}
-
-function saveDemoEntries(entries: AthleteLoadEntry[]) {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(DEMO_LOAD_KEY, JSON.stringify(entries));
-}
-
-function readAcknowledgedDemoSessions() {
-  if (typeof window === 'undefined') return [] as string[];
-  const raw = window.localStorage.getItem(DEMO_ACK_KEY);
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw) as string[];
-  } catch {
-    return [];
-  }
-}
-
-function saveAcknowledgedDemoSessions(ids: string[]) {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(DEMO_ACK_KEY, JSON.stringify(ids));
-}
-
-function readDemoPlans() {
-  if (typeof window === 'undefined') return demoSeedPlans();
-  const raw = window.localStorage.getItem(DEMO_PLANS_KEY);
-  if (!raw) {
-    const seed = demoSeedPlans();
-    window.localStorage.setItem(DEMO_PLANS_KEY, JSON.stringify(seed));
-    return seed;
-  }
-  try {
-    return JSON.parse(raw) as AthleteLoadPlan[];
-  } catch {
-    return demoSeedPlans();
-  }
-}
-
-function saveDemoPlans(plans: AthleteLoadPlan[]) {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(DEMO_PLANS_KEY, JSON.stringify(plans));
-}
-
-function readCancelledDemoSessions() {
-  if (typeof window === 'undefined') return [];
-  const raw = window.localStorage.getItem(DEMO_CANCELLED_SESSIONS_KEY);
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw) as string[];
-  } catch {
-    return [];
-  }
-}
-
-function saveCancelledDemoSessions(ids: string[]) {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(DEMO_CANCELLED_SESSIONS_KEY, JSON.stringify(Array.from(new Set(ids))));
-}
-
-function readDemoAvailability() {
-  if (typeof window === 'undefined') return new Map<string, AthleteAvailabilityMark>();
-  const map = new Map<string, AthleteAvailabilityMark>();
-  try {
-    const raw = window.localStorage.getItem(DEMO_AVAILABILITY_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Record<string, AthleteAvailabilityMark>;
-      Object.entries(parsed).forEach(([sessionId, mark]) => {
-        if (mark.status === 'late' || mark.status === 'out') map.set(sessionId, mark);
-      });
-    }
-  } catch {
-    // ignore broken demo data
-  }
-  for (const sessionId of readCancelledDemoSessions()) {
-    if (!map.has(sessionId)) map.set(sessionId, { status: 'out', reason: 'Cancelled in demo', lateMinutes: null });
-  }
-  return map;
-}
-
-function saveDemoAvailability(map: Map<string, AthleteAvailabilityMark>) {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(DEMO_AVAILABILITY_KEY, JSON.stringify(Object.fromEntries(map.entries())));
-  saveCancelledDemoSessions(Array.from(map.entries()).filter(([, mark]) => mark.status === 'out').map(([sessionId]) => sessionId));
-}
-
-function normalizeTrainingType(value?: string | null): LoadTrainingType {
-  if (value && LOAD_TRAINING_TYPES.includes(value as LoadTrainingType)) return value as LoadTrainingType;
-  return sessionTypeToLoadType(value);
-}
-
-function mapRawEntry(row: RawLoadEntry): AthleteLoadEntry {
-  const session = row.sessions;
-  const date = row.entry_date ?? (session?.starts_at ? session.starts_at.slice(0, 10) : row.submitted_at.slice(0, 10));
-  const trainingType = normalizeTrainingType(row.training_type ?? session?.session_type ?? null);
-  return {
-    id: row.id,
-    sessionId: row.session_id,
-    teamId: row.team_id ?? session?.team_id ?? null,
-    teamName: session?.teams?.name ?? null,
-    date,
-    startsAt: session?.starts_at ?? null,
-    title: session?.title || LOAD_TYPE_LABELS[trainingType],
-    trainingType,
-    rpe: row.rpe,
-    durationMinutes: row.duration_minutes,
-    load: row.session_load ?? row.rpe * row.duration_minutes,
-    note: row.note,
-    source: row.session_id ? 'planned_session' : 'solo',
-  };
-}
-
-function mapRawSession(row: RawSession): AthletePendingSession {
-  const trainingType = normalizeTrainingType(row.session_type);
-  return {
-    id: row.id,
-    title: row.title || LOAD_TYPE_LABELS[trainingType],
-    teamId: row.team_id,
-    teamName: row.teams?.name ?? null,
-    date: row.starts_at.slice(0, 10),
-    startsAt: row.starts_at,
-    endsAt: row.ends_at,
-    trainingType,
-    source: 'team_session',
-  };
-}
-
-function mapRawPlan(row: RawLoadPlan): AthleteLoadPlan {
-  const trainingType = normalizeTrainingType(row.training_type);
-  const startsAt = row.planned_time ? new Date(`${row.plan_date}T${row.planned_time}`).toISOString() : null;
-  return {
-    id: row.id,
-    teamId: row.team_id,
-    teamName: row.teams?.name ?? null,
-    title: row.title || LOAD_TYPE_LABELS[trainingType],
-    date: row.plan_date,
-    startsAt,
-    trainingType,
-    expectedRpe: row.expected_rpe,
-    expectedDurationMinutes: row.expected_duration_minutes,
-    note: row.note,
-  };
-}
 
 function planToPendingSession(plan: AthleteLoadPlan): AthletePendingSession {
   const startsAt = plan.startsAt ?? new Date(`${plan.date}T12:00:00`).toISOString();
@@ -1601,7 +1223,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [pendingSessions, setPendingSessions] = useState<AthletePendingSession[]>([]);
   const [calendarSessions, setCalendarSessions] = useState<AthletePendingSession[]>([]);
   const [planForm, setPlanForm] = useState<PlanFormState>(emptyPlanForm);
-  const [source, setSource] = useState<'loading' | 'demo' | 'supabase'>('loading');
+  const [source, setSource] = useState<'loading' | 'local'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [activePendingId, setActivePendingId] = useState<string | null>(null);
   const [todayAction, setTodayAction] = useState<'plan' | 'report'>('plan');
@@ -1620,108 +1242,47 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [availabilityReason, setAvailabilityReason] = useState('');
   const [lateMinutes, setLateMinutes] = useState(10);
 
+  const { database, error: dataError, ready } = useLocalDatabase();
+  const activePerson = database ? getActivePerson(database) : null;
+  const activePersonId = activePerson?.id ?? null;
+  const isActiveAthlete = Boolean(
+    database && activePersonId && database.memberships.some((membership) => membership.personId === activePersonId && membership.role === 'athlete'),
+  );
+
+  // Everything below is fed from the shared local document, scoped to the
+  // active athlete. This used to be a Supabase load with a demo fallback that
+  // was hard-wired to one team; the workspace logic that consumes these states
+  // is unchanged. The effect re-runs on every write, so a coach's change and
+  // an athlete's report show up without a reload.
   useEffect(() => {
-    let mounted = true;
-
-    async function load() {
-      try {
-        const supabase = createBrowserSupabaseClient();
-        const { data: authData, error: authError } = await supabase.auth.getUser();
-        if (authError || !authData.user) throw authError ?? new Error('No athlete session');
-
-        setAthleteName(authData.user.user_metadata?.full_name || authData.user.email || 'Athlete');
-
-        const now = new Date();
-        const windowStart = addDays(now, -14).toISOString();
-        const windowEnd = addDays(now, 14).toISOString();
-        const [loadResult, sessionResult, planResult] = await Promise.all([
-          supabase
-            .from('load_entries')
-            .select('id, session_id, team_id, entry_date, training_type, rpe, duration_minutes, session_load, note, submitted_at, sessions(title, starts_at, session_type, team_id, teams(name))')
-            .eq('user_id', authData.user.id)
-            .order('submitted_at', { ascending: true }),
-          supabase
-            .from('sessions')
-            .select('id, title, session_type, starts_at, ends_at, team_id, teams(name)')
-            .gte('starts_at', windowStart)
-            .lte('starts_at', windowEnd)
-            .order('starts_at', { ascending: true }),
-          supabase
-            .from('athlete_load_plans')
-            .select('id, team_id, plan_date, planned_time, training_type, expected_rpe, expected_duration_minutes, title, note, teams(name)')
-            .eq('user_id', authData.user.id)
-            .eq('status', 'planned')
-            .gte('plan_date', addDays(now, -14).toISOString().slice(0, 10))
-            .lte('plan_date', addDays(now, 21).toISOString().slice(0, 10))
-            .order('plan_date', { ascending: true }),
-        ]);
-
-        if (loadResult.error) throw loadResult.error;
-        if (sessionResult.error) throw sessionResult.error;
-        if (planResult.error) throw planResult.error;
-
-        const mappedEntries = ((loadResult.data ?? []) as unknown as RawLoadEntry[]).map(mapRawEntry);
-        const reportedSessionIds = new Set(mappedEntries.map((entry) => entry.sessionId).filter(Boolean));
-        const mappedPlans = ((planResult.data ?? []) as unknown as RawLoadPlan[]).map(mapRawPlan);
-        const mappedSessions = ((sessionResult.data ?? []) as unknown as RawSession[]).map(mapRawSession);
-        const sessionIds = mappedSessions.map((session) => session.id);
-        let cancelledIds = new Set<string>();
-        let availabilityMarks = new Map<string, AthleteAvailabilityMark>();
-        if (sessionIds.length > 0) {
-          const { data: availabilityRows, error: availabilityError } = await supabase
-            .from('availability')
-            .select('session_id, status, reason, late_minutes')
-            .eq('user_id', authData.user.id)
-            .in('session_id', sessionIds)
-            .in('status', ['late', 'out']);
-          if (availabilityError) throw availabilityError;
-          availabilityMarks = new Map(((availabilityRows ?? []) as { session_id: string; status: 'late' | 'out'; reason: string | null; late_minutes: number | null }[]).map((row) => [
-            row.session_id,
-            { status: row.status, reason: row.reason, lateMinutes: row.late_minutes },
-          ]));
-          cancelledIds = new Set(Array.from(availabilityMarks.entries()).filter(([, mark]) => mark.status === 'out').map(([sessionId]) => sessionId));
-        }
-        const mappedPending = mappedSessions.filter((session) => !reportedSessionIds.has(session.id));
-
-        if (!mounted) return;
-        setEntries(mappedEntries);
-        setPlans(mappedPlans);
-        setCalendarSessions(withAutoWarmups([...mappedSessions, ...mappedPlans.map(planToPendingSession)]));
-        setPendingSessions(withAutoWarmups([...mappedPending, ...mappedPlans.map(planToPendingSession)]));
-        setCancelledSessionIds(cancelledIds);
-        setAvailabilityBySessionId(availabilityMarks);
-        setSource('supabase');
-      } catch {
-        if (!mounted) return;
-        const demoTeamSessions = demoPendingSessions();
-        const demoEntries = readDemoEntries(demoTeamSessions);
-        const demoPlans = readDemoPlans();
-        const acknowledged = new Set(readAcknowledgedDemoSessions());
-        const demoAvailability = readDemoAvailability();
-        const cancelledIds = new Set(Array.from(demoAvailability.entries()).filter(([, mark]) => mark.status === 'out').map(([sessionId]) => sessionId));
-        const reportedDemoSessionIds = new Set(demoEntries.map((entry) => entry.sessionId).filter(Boolean));
-        const demoPending = demoTeamSessions.filter((session) => !reportedDemoSessionIds.has(session.id) && !acknowledged.has(session.id));
-        setAthleteName('Demo Athlete');
-        setEntries(demoEntries);
-        setPlans(demoPlans);
-        setCalendarSessions(withAutoWarmups([...demoTeamSessions, ...demoPlans.map(planToPendingSession)]));
-        setPendingSessions(withAutoWarmups([...demoPending, ...demoPlans.map(planToPendingSession)]));
-        setCancelledSessionIds(cancelledIds);
-        setAvailabilityBySessionId(demoAvailability);
-        setSource('demo');
-      }
+    if (!ready) return;
+    if (dataError) {
+      setError(dataError.message);
+      setSource('local');
+      return;
     }
+    if (!database || !activePerson || !isActiveAthlete) return;
 
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    const personId = activePerson.id;
+    const teamSessions = readTeamSessions(database, personId);
+    const storedEntries = readEntries(database, personId);
+    const storedPlans = readPlans(database, personId);
+    const acknowledged = new Set(readAcknowledged(database, personId));
+    const marks = readAvailability(database, personId);
+    const cancelledIds = new Set(Array.from(marks.entries()).filter(([, mark]) => mark.status === 'out').map(([sessionId]) => sessionId));
+    const reportedSessionIds = new Set(storedEntries.map((entry) => entry.sessionId).filter(Boolean));
+    const pending = teamSessions.filter((session) => !reportedSessionIds.has(session.id) && !acknowledged.has(session.id));
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    setActiveShareUrl(window.localStorage.getItem(LOAD_SHARE_ACTIVE_KEY));
-  }, []);
+    setAthleteName(displayName(activePerson));
+    setEntries(storedEntries);
+    setPlans(storedPlans);
+    setCalendarSessions(withAutoWarmups([...teamSessions, ...storedPlans.map(planToPendingSession)]));
+    setPendingSessions(withAutoWarmups([...pending, ...storedPlans.map(planToPendingSession)]));
+    setCancelledSessionIds(cancelledIds);
+    setAvailabilityBySessionId(marks);
+    setActiveShareUrl(readShareLink(database, personId));
+    setSource('local');
+  }, [database, dataError, ready, activePerson, isActiveAthlete]);
 
   const sortedEntries = useMemo(() => [...entries].sort((a, b) => a.date.localeCompare(b.date)), [entries]);
   const latest = useMemo(() => getLatestACWR(sortedEntries, 'ewma'), [sortedEntries]);
@@ -1819,9 +1380,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         entries: sortedEntries.slice(-90),
         pendingSessions: pendingSessions.slice(0, 30),
       });
-      const url = `${window.location.origin}/share/load?data=${token}`;
+      // The payload travels in the fragment, not the query string. A fragment is
+      // never sent to the server: realistic history made the query-string link
+      // ~19,500 characters, which Node rejected with 431 before the page even
+      // loaded, and it kept athlete load data out of server and proxy logs.
+      const url = `${window.location.origin}/share/load#data=${token}`;
       await navigator.clipboard.writeText(url);
-      window.localStorage.setItem(LOAD_SHARE_ACTIVE_KEY, url);
+      if (activePersonId) saveShareLink(activePersonId, url);
       setActiveShareUrl(url);
       setShareStatus('copied');
       window.setTimeout(() => setShareStatus('idle'), 1400);
@@ -1834,32 +1399,10 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   async function persistEntry(entry: AthleteLoadEntry) {
     setEntries((current) => {
       const next = [...current, entry].sort((a, b) => a.date.localeCompare(b.date));
-      if (source === 'demo') saveDemoEntries(next);
+      if (activePersonId) saveEntries(activePersonId, next);
       return next;
     });
 
-    if (source !== 'supabase') return;
-
-    try {
-      const supabase = createBrowserSupabaseClient();
-      const { data: authData } = await supabase.auth.getUser();
-      const userId = authData.user?.id;
-      if (!userId) throw new Error('No athlete session');
-      const { error: insertError } = await supabase.from('load_entries').insert({
-        session_id: entry.sessionId,
-        user_id: userId,
-        team_id: entry.teamId,
-        entry_date: entry.date,
-        training_type: entry.trainingType,
-        rpe: entry.rpe,
-        duration_minutes: entry.durationMinutes,
-        note: entry.note || null,
-        source: entry.source,
-      });
-      if (insertError) throw insertError;
-    } catch (insertError) {
-      setError(insertError instanceof Error ? insertError.message : 'Could not save load entry.');
-    }
   }
 
   async function submitPending(session: AthletePendingSession, rpe: number, durationMinutes: number) {
@@ -1885,15 +1428,15 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       setCalendarSessions((current) => current.filter((item) => item.id !== session.id));
     }
     setPendingSessions((current) => current.filter((item) => item.id !== session.id));
-    if (source === 'demo') {
-      saveAcknowledgedDemoSessions([...new Set([...readAcknowledgedDemoSessions(), session.id])]);
+    if (activePersonId && database) {
+      saveAcknowledged(activePersonId, [...readAcknowledged(database, activePersonId), session.id]);
     }
     setActivePendingId(null);
   }
 
   async function createPlan() {
     const startsAt = planForm.time ? new Date(`${planForm.date}T${planForm.time}`).toISOString() : null;
-    let plan: AthleteLoadPlan = {
+    const plan: AthleteLoadPlan = {
       id: `plan-${Date.now()}`,
       teamId: null,
       teamName: null,
@@ -1906,39 +1449,10 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       note: null,
     };
 
-    if (source === 'supabase') {
-      try {
-        const supabase = createBrowserSupabaseClient();
-        const { data: authData } = await supabase.auth.getUser();
-        const userId = authData.user?.id;
-        if (!userId) throw new Error('No athlete session');
-        const { data: insertedPlan, error: insertError } = await supabase
-          .from('athlete_load_plans')
-          .insert({
-            user_id: userId,
-            team_id: null,
-            plan_date: plan.date,
-            planned_time: planForm.time || null,
-            training_type: plan.trainingType,
-            expected_rpe: plan.expectedRpe,
-            expected_duration_minutes: plan.expectedDurationMinutes,
-            title: plan.title,
-            note: null,
-            status: 'planned',
-          })
-          .select('id, team_id, plan_date, planned_time, training_type, expected_rpe, expected_duration_minutes, title, note, teams(name)')
-          .single();
-        if (insertError) throw insertError;
-        plan = mapRawPlan(insertedPlan as unknown as RawLoadPlan);
-      } catch (insertError) {
-        setError(insertError instanceof Error ? insertError.message : 'Could not save expected load.');
-        return;
-      }
-    }
 
     setPlans((current) => {
       const next = [...current, plan].sort((a, b) => a.date.localeCompare(b.date));
-      if (source === 'demo') saveDemoPlans(next);
+      if (activePersonId) savePlans(activePersonId, next);
       return next;
     });
     setCalendarSessions((current) => withAutoWarmups([...current, planToPendingSession(plan)]));
@@ -1950,31 +1464,21 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     const warmupId = `${planId}-warmup`;
     setPlans((current) => {
       const next = current.filter((plan) => plan.id !== planId);
-      if (source === 'demo') saveDemoPlans(next);
+      if (activePersonId) savePlans(activePersonId, next);
       return next;
     });
     setCalendarSessions((current) => current.filter((session) => session.id !== planId && session.id !== warmupId));
     setPendingSessions((current) => current.filter((session) => session.id !== planId && session.id !== warmupId));
-    if (source === 'supabase') {
-      const supabase = createBrowserSupabaseClient();
-      const { error: deleteError } = await supabase.from('athlete_load_plans').delete().eq('id', planId);
-      if (deleteError) setError(deleteError.message);
-    }
   }
 
   async function deleteEntry(entryId: string) {
     const deletedEntry = entries.find((entry) => entry.id === entryId) ?? null;
     setEntries((current) => {
       const next = current.filter((entry) => entry.id !== entryId);
-      if (source === 'demo') saveDemoEntries(next);
+      if (activePersonId) saveEntries(activePersonId, next);
       return next;
     });
 
-    if (source === 'supabase') {
-      const supabase = createBrowserSupabaseClient();
-      const { error: deleteError } = await supabase.from('load_entries').delete().eq('id', entryId);
-      if (deleteError) setError(deleteError.message);
-    }
 
     if (deletedEntry?.sessionId) {
       const matchingSession = calendarSessions.find((session) => session.id === deletedEntry.sessionId);
@@ -1983,8 +1487,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           ? current
           : [...current, matchingSession].sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
       }
-      if (source === 'demo') {
-        saveAcknowledgedDemoSessions(readAcknowledgedDemoSessions().filter((id) => id !== deletedEntry.sessionId));
+      if (activePersonId && database) {
+        saveAcknowledged(activePersonId, readAcknowledged(database, activePersonId).filter((id) => id !== deletedEntry.sessionId));
       }
     }
 
@@ -2015,7 +1519,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   async function updatePlanTimeFromCalendar(session: AthletePendingSession, startsAt: string, durationMinutes: number) {
     if (session.source !== 'athlete_plan') return;
     const nextDate = isoDate(new Date(startsAt));
-    const nextTime = timeInputFromISO(startsAt);
     const warmupId = `${session.id}-warmup`;
     const applySessionUpdate = (current: AthletePendingSession[]) => withAutoWarmups(current
       .filter((item) => item.id !== warmupId)
@@ -2036,24 +1539,12 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           ? { ...plan, date: nextDate, startsAt, expectedDurationMinutes: durationMinutes }
           : plan)
         .sort((a, b) => a.date.localeCompare(b.date));
-      if (source === 'demo') saveDemoPlans(next);
+      if (activePersonId) savePlans(activePersonId, next);
       return next;
     });
     setCalendarSessions(applySessionUpdate);
     setPendingSessions(applySessionUpdate);
 
-    if (source === 'supabase') {
-      const supabase = createBrowserSupabaseClient();
-      const { error: updateError } = await supabase
-        .from('athlete_load_plans')
-        .update({
-          plan_date: nextDate,
-          planned_time: nextTime,
-          expected_duration_minutes: durationMinutes,
-        })
-        .eq('id', session.id);
-      if (updateError) setError(updateError.message);
-    }
   }
 
   async function updateExistingEntry() {
@@ -2074,24 +1565,10 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
     setEntries((current) => {
       const next = current.map((entry) => entry.id === activeEntry.id ? updated : entry).sort((a, b) => a.date.localeCompare(b.date));
-      if (source === 'demo') saveDemoEntries(next);
+      if (activePersonId) saveEntries(activePersonId, next);
       return next;
     });
 
-    if (source === 'supabase') {
-      const supabase = createBrowserSupabaseClient();
-      const { error: updateError } = await supabase
-        .from('load_entries')
-        .update({
-          entry_date: updated.date,
-          training_type: updated.trainingType,
-          rpe: updated.rpe,
-          duration_minutes: updated.durationMinutes,
-          note: updated.note || null,
-        })
-        .eq('id', updated.id);
-      if (updateError) setError(updateError.message);
-    }
 
     setActiveEntry(null);
     setComposerOpen(false);
@@ -2110,7 +1587,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       const next = new Map(current);
       if (status === 'expected') next.delete(session.id);
       else next.set(session.id, { status, reason: trimmedReason, lateMinutes: status === 'late' ? minutes : null });
-      if (source === 'demo') saveDemoAvailability(next);
+      if (activePersonId) saveAvailability(activePersonId, next);
       return next;
     });
     setCancelledSessionIds((current) => {
@@ -2120,27 +1597,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       return next;
     });
 
-    if (source === 'supabase') {
-      const supabase = createBrowserSupabaseClient();
-      const { data: authData } = await supabase.auth.getUser();
-      const userId = authData.user?.id;
-      if (!userId) return false;
-
-      const { error: upsertError } = await supabase
-        .from('availability')
-        .upsert({
-          session_id: session.id,
-          user_id: userId,
-          status,
-          reason: status === 'expected' ? null : trimmedReason,
-          late_minutes: status === 'late' ? minutes : null,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'session_id,user_id' });
-      if (upsertError) {
-        setError(upsertError.message);
-        return false;
-      }
-    }
     return true;
   }
 
@@ -2288,6 +1744,24 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     }, 80);
   }, [activeView]);
 
+  // Placed after every hook, so the hook order stays stable across renders.
+  if (ready && database && !isActiveAthlete) {
+    return (
+      <main className="os-page">
+        <div className="os-container max-w-xl space-y-4">
+          <section className="os-panel p-6 text-white">
+            <p className="font-bold">No athlete selected.</p>
+            <p className="mt-2 text-sm text-slate-400">Switch to an athlete to see this view.</p>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <IdentitySwitcher />
+              <Link href="/" className="text-sm underline">Start page</Link>
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#050712] text-white">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(56,189,248,0.16),transparent_28rem),radial-gradient(circle_at_92%_8%,rgba(52,211,153,0.12),transparent_30rem)]" />
@@ -2298,6 +1772,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300">Athlete OS</p>
               <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-6xl">Load cockpit</h1>
               <div className="mt-5 flex flex-wrap gap-2">
+                <IdentitySwitcher />
                 <button type="button" onClick={copyTrainerShareLink} className={`rounded-full border px-4 py-2 text-xs font-black transition ${shareStatus === 'copied' ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100' : shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
                   {shareStatus === 'copied' ? 'Copied' : shareStatus === 'error' ? 'Error' : shareActive ? 'Trainer link active' : 'Trainer link'}
                 </button>
@@ -2328,7 +1803,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-300">Trend</p>
                   <h2 className="mt-1 text-2xl font-black tracking-tight">Load trend</h2>
                 </div>
-                <span className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-black text-slate-300">{source === 'loading' ? 'Loading' : source === 'demo' ? 'Demo data' : 'Live data'}</span>
+                <span className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-black text-slate-300">{source === 'loading' ? 'Loading' : 'Local data'}</span>
               </div>
               <LoadChart entries={sortedEntries} pendingSessions={pendingSessions} />
             </div>
