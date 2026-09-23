@@ -21,7 +21,7 @@ export function CoachDrawer({
   hideMobileNav = false,
 }: {
   mode: CoachDrawerMode;
-  basePath: '/coach' | '/demo/coach';
+  basePath: '/coach';
   teamId?: string | null;
   hideMobileNav?: boolean;
 }) {

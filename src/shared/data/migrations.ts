@@ -29,18 +29,16 @@ export const SCHEMA_VERSION = '2026-09-23-athlete-plans-v3';
 export const DATABASE_KEY = 'club-app.local.db';
 
 /**
- * Legacy keys from the demo/live era, all under `club-app.demo.*`.
+ * Key prefixes left behind by code that no longer exists: the demo areas
+ * (`club-app.demo.*`), the Supabase admin overview (`club-app.admin.*`) and
+ * the athlete workspace's own share-link key (`club-app.athlete-load.*`).
  *
- * They are deliberately NOT touched: not read, not written, not deleted.
- * `/demo/admin/*` and `/demo/department/*` still read them, and whether those
- * areas survive is an open decision resolved in run 5
- * (docs/simplify-decisions.md, point 4). Leaving them costs nothing; cleaning
- * them up would decide the question in passing.
- *
- * The new layer uses its own `club-app.local.*` namespace, so the two cannot
- * collide.
+ * They were kept untouched while `/demo/admin/*` and `/demo/department/*`
+ * still read them. Run 5 removed those areas, so nothing reads these keys any
+ * more and the repository clears them once on start. No data is lost that
+ * anyone needs (docs/simplify-decisions.md, point 2).
  */
-export const LEGACY_KEY_PREFIX = 'club-app.demo.';
+export const LEGACY_KEY_PREFIXES = ['club-app.demo.', 'club-app.admin.', 'club-app.athlete-load.'];
 
 /**
  * Decides whether a stored document can be used as-is.

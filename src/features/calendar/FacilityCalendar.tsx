@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
 import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictCandidate, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
-import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
 import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
 import { normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
@@ -156,34 +155,6 @@ function sessionTone(session: Session, departmentId?: string, teamId?: string, d
   if ((teamId && session.owner_team_id === teamId) || teamIds.has(session.owner_team_id)) return 'primary';
   if ((departmentId && session.department_id === departmentId) || departmentIds.has(session.department_id)) return 'secondary';
   return 'muted';
-}
-
-function FacilityRoleNav({ from }: { from?: string }) {
-  // Team-scoped facility calendar entries use the explicit back target only.
-  if (from === 'team' || from === 'coachTeam' || from === 'departmentTeam') return null;
-
-  if (from === 'department') return null;
-  // Fail closed for unknown contexts: new facility-calendar entry points must opt into the correct role nav here.
-  if (from !== 'overview' && from !== 'departments' && from !== 'facilities') return null;
-
-  const links = [
-    { href: '/admin/overview', label: 'Overview' },
-    { href: '/admin/departments', label: 'Departments' },
-    { href: '/admin/teams', label: 'Teams' },
-    { href: '/admin/facilities', label: 'Facilities' },
-    { href: '/admin/people', label: 'Staff' },
-  ];
-  return (
-    <nav className="sticky top-3 z-30 rounded-3xl border border-white/10 bg-slate-950/72 p-2 shadow-[0_18px_80px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.04] backdrop-blur-xl" aria-label="Admin navigation">
-      <div className="flex flex-wrap gap-1.5">
-        {links.map((link) => (
-          <Link key={link.href} href={link.href} className={`rounded-2xl border px-3 py-2 text-xs font-black transition ${link.label === 'Facilities' ? 'border-sky-300/40 bg-sky-300/10 text-white' : 'border-white/10 bg-white/[0.03] text-slate-200 hover:border-sky-300/40 hover:bg-sky-300/10 hover:text-white'}`}>
-            {link.label}
-          </Link>
-        ))}
-      </div>
-    </nav>
-  );
 }
 
 export function FacilityCalendar({ facilityId, from, departmentId, teamId, departmentIds, teamIds }: FacilityCalendarProps) {
@@ -615,24 +586,13 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     };
   }, [draft, drag]);
 
+  // The calendar only exists under /coach now. The admin and department back
+  // targets went with those areas, and the old fallback pointed at /app, which
+  // no longer exists — a missing `from` would have led nowhere.
   const backTarget =
-    from === 'coachFacilities'
-      ? { href: '/coach/facilities', label: 'Back to facilities' }
-      : from === 'coachTeam' && teamId
+    from === 'coachTeam' && teamId
       ? { href: `/coach/team?teamId=${teamId}`, label: 'Back to team' }
-      : from === 'departmentTeam' && teamId && departmentId
-      ? { href: `/admin/teams/${teamId}?from=department&departmentId=${departmentId}`, label: 'Back to team' }
-      : from === 'team' && teamId
-      ? { href: `/admin/teams/${teamId}${departmentId ? `?from=adminDepartment&departmentId=${departmentId}` : ''}`, label: 'Back to team' }
-      : from === 'department'
-      ? { href: `/department/facilities${departmentId ? `?departmentId=${departmentId}` : ''}`, label: 'Back to facilities' }
-      : from === 'departments'
-      ? { href: '/admin/departments', label: 'Back to departments' }
-      : from === 'overview'
-        ? { href: '/admin/overview', label: 'Back to overview' }
-        : from === 'facilities'
-          ? { href: '/admin/facilities', label: 'Back to facilities' }
-          : { href: '/app', label: 'Back' };
+      : { href: '/coach/facilities', label: 'Back to facilities' };
 
   function handleSlotPointerDown(day: Date, event: PointerEvent<HTMLDivElement>) {
     if (mode !== 'edit' || !canCreateSessions) return;
@@ -742,6 +702,16 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   async function persistFacilityCalendarSave(save: FacilityCalendarSave) {
     if (save.kind === 'create') return persistCreateSession(save.payload);
     if (save.kind === 'update') return persistUpdateSession(save.sessionId, save.payload, save.originalSession);
+    // Checked where the write happens, not only where the drag starts. Rights
+    // used to depend on the `from` query parameter: without it, any session
+    // could be dragged, and Supabase row-level security was what stopped the
+    // write. Locally nothing else would stop it.
+    const target = sessions.find((session) => session.id === save.sessionId);
+    if (!target || !canManageSession(target)) {
+      setError('You can only move sessions of your own teams.');
+      rollbackFacilitySave(save);
+      return false;
+    }
     try {
       updateSession(save.sessionId, { startsAt: save.startsAt, endsAt: save.endsAt });
       return true;
@@ -899,13 +869,13 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
 
   function handleCalendarSessionPointerDown(calendarSession: SmartCalendarSession, kind: DragState['kind'], event: PointerEvent<HTMLElement>) {
     const session = resolveSession(calendarSession);
-    if (session && (!from?.startsWith('coach') || canManageSession(session))) startSessionDrag(session, kind, event);
+    if (session && canManageSession(session)) startSessionDrag(session, kind, event);
   }
 
   function handleCalendarSessionClick(calendarSession: SmartCalendarSession, event: MouseEvent<HTMLElement>) {
     const session = resolveSession(calendarSession);
     if (!session) return;
-    if (from?.startsWith('coach') && !canManageSession(session)) return;
+    if (!canManageSession(session)) return;
     if (didDragRef.current) {
       event.preventDefault();
       didDragRef.current = false;
@@ -916,7 +886,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
 
   function handleCalendarSessionKeyDown(calendarSession: SmartCalendarSession, event: KeyboardEvent<HTMLElement>) {
     const session = resolveSession(calendarSession);
-    if (session && (event.key === 'Enter' || event.key === ' ') && (!from?.startsWith('coach') || canManageSession(session))) setSelectedSession(session);
+    if (session && (event.key === 'Enter' || event.key === ' ') && canManageSession(session)) setSelectedSession(session);
   }
 
   function coachSessionForFacility(session: Session): CoachSession {
@@ -952,14 +922,11 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
 
   if (state === 'loading') return <main className="min-h-screen bg-slate-950 p-8 text-white">Loading calendar...</main>;
   if (state === 'error') return <main className="min-h-screen bg-slate-950 p-8 text-white">{error}</main>;
-  const hasCoachNav = from?.startsWith('coach');
 
   return (
-    <main className={`min-h-screen bg-slate-950 px-4 pt-8 text-white sm:px-8 ${hasCoachNav ? 'pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8 md:pl-64' : 'pb-8'}`}>
-      {from === 'department' || from === 'departmentTeam' ? <DepartmentLeadDrawer mode="facilities" basePath="/department" departmentId={departmentId} departmentName={highlightedDepartment?.name} /> : null}
-      {hasCoachNav ? <CoachDrawer mode="facilities" basePath="/coach" teamId={teamId} /> : null}
+    <main className="min-h-screen bg-slate-950 px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-8 text-white sm:px-8 md:pb-8 md:pl-64">
+      <CoachDrawer mode="facilities" basePath="/coach" teamId={teamId} />
       <div className="mx-auto max-w-7xl space-y-5">
-        <FacilityRoleNav from={from} />
         <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.22)] ring-1 ring-white/[0.03]">
           <Link href={backTarget.href} className="text-sm font-black text-slate-300 hover:text-white">{backTarget.label}</Link>
           <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-slate-500">Facility calendar</p>

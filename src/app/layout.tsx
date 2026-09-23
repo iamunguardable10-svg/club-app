@@ -1,10 +1,9 @@
 import type { Metadata, Viewport } from 'next';
-import { GeoapifyAddressEnhancer } from '@/shared/components/places/GeoapifyAddressEnhancer';
 import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Club App / TeamLoad OS',
-  description: 'A club operating system for admins, coaches and athletes.',
+  description: 'A club operating system for coaches and athletes. Local test mode, no account needed.',
 };
 
 
@@ -18,7 +17,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
-        <GeoapifyAddressEnhancer />
         {children}
       </body>
     </html>

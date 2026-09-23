@@ -9,8 +9,8 @@ import { findFacilityConflicts, formatConflictDescription, suggestFacilityConfli
 import { LoadChart } from '@/features/load/AthleteLoadWorkspace';
 import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
 import { LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/features/load/loadTypes';
-import { DepartmentLeadDrawer } from '@/features/role-workspaces/DepartmentLeadDrawer';
 import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
+import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { PlayerLoadDetail } from '@/features/players/PlayerLoadDetail';
 import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
@@ -88,13 +88,8 @@ export type TeamWorkspaceData = {
   backLabel?: string;
   calendarHref?: string | null;
   staffHref?: string | null;
-  departmentNav?: {
-    basePath: '/department' | '/demo/department';
-    departmentId?: string | null;
-    departmentName?: string | null;
-  } | null;
   coachNav?: {
-    basePath: '/coach' | '/demo/coach';
+    basePath: '/coach';
   } | null;
 };
 
@@ -1605,14 +1600,6 @@ export function TeamWorkspaceView({
 
   return (
     <section className="space-y-5 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0">
-      {data.departmentNav ? (
-        <DepartmentLeadDrawer
-          mode="teams"
-          basePath={data.departmentNav.basePath}
-          departmentId={data.departmentNav.departmentId}
-          departmentName={data.departmentNav.departmentName}
-        />
-      ) : null}
       {data.coachNav ? <CoachDrawer mode="team" basePath={data.coachNav.basePath} teamId={data.id} hideMobileNav /> : null}
       <div className="sticky top-0 z-30 rounded-2xl border border-slate-800 bg-slate-950/92 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:static md:p-4">
         <div className="flex items-center justify-between gap-3">
@@ -1647,6 +1634,15 @@ export function TeamWorkspaceView({
             </button>
           ))}
         </div>
+        {/* This view hides the coach mobile nav because it has its own tabs,
+            and the identity switcher lived in that nav. On a phone there was
+            no way out of the coach role from here. A row in the sticky header
+            keeps it reachable without covering the tab bar at the bottom. */}
+        {data.coachNav ? (
+          <div className="mt-2 md:hidden">
+            <IdentitySwitcher />
+          </div>
+        ) : null}
       </div>
 
       {activeSection === 'dashboard' ? (
@@ -1730,9 +1726,7 @@ export function TeamWorkspaceView({
               <button type="button" onClick={handleCreatePlayerJoinLink} disabled={joinLinkState === 'copying'} className="rounded-2xl border border-sky-500/40 bg-sky-950/20 p-4 text-left transition hover:border-sky-300/70 disabled:opacity-60">
                 <span aria-live="polite" className="text-sm font-black text-sky-100">{joinLinkState === 'copied' ? 'Copied' : joinLinkState === 'failed' ? 'Copy failed' : joinLinkState === 'copying' ? 'Creating link...' : 'Copy athlete join link'}</span>
               </button>
-            ) : (
-              <EmptyCard title="Invite players" />
-            )}
+            ) : null /* No invites without accounts; the card only promised a missing feature. */}
           </div>
           {players.length > 0 ? (
             <div className="mt-5 grid gap-2 md:grid-cols-2 lg:grid-cols-3">

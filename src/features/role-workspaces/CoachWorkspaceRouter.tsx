@@ -154,21 +154,6 @@ function summarizeAvailability(session: CoachSession) {
   return { out, late };
 }
 
-function CoachTopNav({ mode, singleTeamId }: { mode: CoachMode; singleTeamId?: string | null }) {
-  const modes: CoachMode[] = ['today', 'sessions', 'team', 'facilities', 'history'];
-  return (
-    <nav className="mt-5 flex flex-wrap gap-2">
-      {modes.map((item) => {
-        const href = item === 'team' && singleTeamId ? `/coach/team?teamId=${singleTeamId}` : `/coach/${item}`;
-        return (
-          <Link key={item} href={href} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === item ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950 text-slate-200'}`}>
-            {titleForMode(item)}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
 
 function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDetails: () => void }) {
   const { out, late } = summarizeAvailability(session);

@@ -20,7 +20,7 @@
  */
 
 import { calculateEWMA, getLatestACWR, loadZone, sevenDayLoad } from './loadCalculations';
-import { DATABASE_KEY, SCHEMA_VERSION, isCurrent } from './migrations';
+import { DATABASE_KEY, LEGACY_KEY_PREFIXES, SCHEMA_VERSION, isCurrent } from './migrations';
 import { createSeedDatabase } from './seed';
 import {
   LocalDataError,
@@ -50,6 +50,20 @@ function isBrowser() {
   return typeof window !== 'undefined';
 }
 
+let legacyKeysPurged = false;
+
+/** Removes keys written by code that no longer exists; once per page load. */
+function purgeLegacyKeys() {
+  if (legacyKeysPurged || !isBrowser()) return;
+  legacyKeysPurged = true;
+  const stale: string[] = [];
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index);
+    if (key && LEGACY_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))) stale.push(key);
+  }
+  for (const key of stale) window.localStorage.removeItem(key);
+}
+
 function notify() {
   for (const listener of listeners) listener();
 }
@@ -77,6 +91,7 @@ function persist(database: LocalDatabase) {
 export function readDatabase(): LocalDatabase | null {
   if (!isBrowser()) return null;
   if (cache) return cache;
+  purgeLegacyKeys();
 
   const raw = window.localStorage.getItem(DATABASE_KEY);
 
