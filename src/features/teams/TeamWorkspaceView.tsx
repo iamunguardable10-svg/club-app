@@ -60,13 +60,8 @@ export type TeamWorkspacePlayer = {
 export type TeamWorkspaceStaffRole = {
   id: string;
   label: string;
-  role: 'head_coach' | 'assistant_coach';
-  coachRoleSlotId?: string | null;
-  status: 'missing' | 'pending' | 'accepted';
+  status: 'missing' | 'accepted';
   value?: string | null;
-  inviteToken?: string | null;
-  inviteId?: string | null;
-  removable?: boolean;
 };
 
 export type TeamWorkspaceData = {
@@ -80,14 +75,12 @@ export type TeamWorkspaceData = {
   players?: TeamWorkspacePlayer[];
   role: TeamWorkspaceRole;
   staff: TeamWorkspaceStaff;
-  staffRoles?: TeamWorkspaceStaffRole[];
   sessions: TeamWorkspaceSession[];
   contextSessions?: TeamWorkspaceSession[];
   groups: { id: string; name: string; description: string; playerCount: number; playerIds?: string[] }[];
   backHref: string;
   backLabel?: string;
   calendarHref?: string | null;
-  staffHref?: string | null;
   coachNav?: {
     basePath: '/coach';
   } | null;
@@ -331,53 +324,18 @@ function TeamDashboardSessionCard({
   );
 }
 
-function StaffRoleGrid({
-  roles,
-  onInvite,
-  onCopy,
-  onRevoke,
-  onRemoveRole,
-}: {
-  roles: TeamWorkspaceStaffRole[];
-  onInvite?: (role: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) => void | Promise<void>;
-  onCopy?: (token: string) => void | Promise<void>;
-  onRevoke?: (inviteId: string) => void | Promise<void>;
-  onRemoveRole?: (coachRoleSlotId: string) => void | Promise<void>;
-}) {
-  const [copiedToken, setCopiedToken] = useState<string | null>(null);
-
-  async function handleCopy(token: string) {
-    await onCopy?.(token);
-    setCopiedToken(token);
-    window.setTimeout(() => setCopiedToken((current) => (current === token ? null : current)), 1400);
-  }
-
-  function copyClass(token: string) {
-    const copied = copiedToken === token;
-    return `rounded-lg border px-2.5 py-1 text-xs font-black transition ${
-      copied
-        ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100'
-        : 'border-slate-700 text-slate-200 hover:bg-slate-800'
-    }`;
-  }
-
+/**
+ * Read-only staff overview. Inviting, copying invite links, revoking and
+ * adding or removing coach-role slots all needed accounts and went with them;
+ * their buttons had become controls that did nothing.
+ */
+function StaffRoleGrid({ roles }: { roles: TeamWorkspaceStaffRole[] }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       {roles.map((role) => (
         <div key={role.id} className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{role.label}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-200">
-            {role.status === 'accepted' ? <span>{role.value ?? 'Assigned'}</span> : null}
-            {role.status === 'pending' ? (
-              <>
-                <span>Invite pending</span>
-                {role.inviteToken ? <button type="button" onClick={() => { void handleCopy(role.inviteToken!); }} className={copyClass(role.inviteToken)}>{copiedToken === role.inviteToken ? 'Copied' : 'Copy'}</button> : null}
-                {role.inviteId ? <button type="button" onClick={() => onRevoke?.(role.inviteId!)} className="rounded-lg border border-red-500/60 px-2.5 py-1 text-xs font-black text-red-200 hover:bg-red-950/40">Revoke</button> : null}
-              </>
-            ) : null}
-            {role.status === 'missing' ? <button type="button" onClick={() => onInvite?.(role.role, role.coachRoleSlotId ?? null)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200 hover:bg-slate-800">Invite</button> : null}
-            {role.removable && role.coachRoleSlotId ? <button type="button" onClick={() => onRemoveRole?.(role.coachRoleSlotId!)} className="rounded-lg border border-red-500/60 px-2.5 py-1 text-xs font-black text-red-200 hover:bg-red-950/40">Remove</button> : null}
-          </div>
+          <p className="mt-2 text-sm text-slate-200">{role.status === 'accepted' ? role.value ?? 'Assigned' : <span className="text-slate-500">Not assigned</span>}</p>
         </div>
       ))}
     </div>
@@ -1359,13 +1317,6 @@ export function TeamWorkspaceView({
   onDeleteSeries,
   onToggleSeriesWeek,
   onConfirmSeriesWeek,
-  onAddDemoPlayers,
-  onCreatePlayerJoinLink,
-  onInviteStaff,
-  onCopyStaffInvite,
-  onRevokeStaffInvite,
-  onAddCoachRole,
-  onRemoveCoachRole,
   onAddGroup,
   onRemoveGroup,
   onTogglePlayerGroup,
@@ -1386,13 +1337,6 @@ export function TeamWorkspaceView({
   onDeleteSeries?: (seriesId: string) => void | Promise<void>;
   onToggleSeriesWeek?: (seriesId: string, weekStart: string, checked: boolean) => void | Promise<void>;
   onConfirmSeriesWeek?: (items: SeriesWeekItem[]) => void | Promise<void>;
-  onAddDemoPlayers?: () => void | Promise<void>;
-  onCreatePlayerJoinLink?: () => string | null | Promise<string | null>;
-  onInviteStaff?: (role: 'head_coach' | 'assistant_coach', coachRoleSlotId?: string | null) => void | Promise<void>;
-  onCopyStaffInvite?: (token: string) => void | Promise<void>;
-  onRevokeStaffInvite?: (inviteId: string) => void | Promise<void>;
-  onAddCoachRole?: (label: string) => void | Promise<void>;
-  onRemoveCoachRole?: (coachRoleSlotId: string) => void | Promise<void>;
   onAddGroup?: (name: string) => void | Promise<void>;
   onRemoveGroup?: (groupId: string) => void | Promise<void>;
   onTogglePlayerGroup?: (groupId: string, playerId: string) => void | Promise<void>;
@@ -1407,7 +1351,6 @@ export function TeamWorkspaceView({
   const [isSavingDashboardEdit, setIsSavingDashboardEdit] = useState(false);
   const [isDeletingDashboardSession, setIsDeletingDashboardSession] = useState(false);
   const [playerSort, setPlayerSort] = useState<'risk' | 'az'>('risk');
-  const [joinLinkState, setJoinLinkState] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle');
   const selectedFacilityTone = facilityTone(data.defaultFacilityName);
   const players = data.players ?? [];
   const sortedPlayers = useMemo(() => [...players].sort((a, b) => {
@@ -1434,11 +1377,13 @@ export function TeamWorkspaceView({
     () => data.groups.map((group) => ({ id: group.id, teamId: data.id, name: group.name, playerCount: group.playerCount })),
     [data.groups, data.id],
   );
-  const staffRoles = data.staffRoles ?? [
-    { id: 'head-coach', label: 'Head Coach', role: 'head_coach', status: data.staff.headCoaches.length > 0 ? 'accepted' : 'missing', value: data.staff.headCoaches.join(', ') || null },
-    { id: 'assistant-coach', label: 'Assistant Coach', role: 'assistant_coach', status: data.staff.assistantCoaches.length > 0 ? 'accepted' : 'missing', value: data.staff.assistantCoaches.join(', ') || null },
+  // Memberships carry "coach" without seniority, so head and assistant cannot
+  // be told apart. Two rows would show "Assistant Coach: missing" for every
+  // team, next to an invite button that could not do anything.
+  const allCoaches = [...data.staff.headCoaches, ...data.staff.assistantCoaches];
+  const staffRoles = [
+    { id: 'coaches', label: 'Coaches', status: allCoaches.length > 0 ? 'accepted' : 'missing', value: allCoaches.join(', ') || null },
   ] satisfies TeamWorkspaceStaffRole[];
-  const [newCoachRoleLabel, setNewCoachRoleLabel] = useState('');
   const [newGroupName, setNewGroupName] = useState('');
   const [isGroupEditMode, setIsGroupEditMode] = useState(false);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
@@ -1458,15 +1403,15 @@ export function TeamWorkspaceView({
 
   const setupActions = [
     data.staff.headCoaches.length === 0
-      ? { id: 'head-coach', label: 'Invite head coach', action: onInviteStaff ? 'headStaff' as const : data.staffHref ? 'staff' as const : 'none' as const }
+      ? { id: 'head-coach', label: 'No coach assigned', action: 'none' as const }
       : null,
     !data.defaultFacilityName
       ? { id: 'default-facility', label: 'Set default facility', action: 'settings' as const }
       : null,
     data.playerCount === 0
-      ? { id: 'players', label: onAddDemoPlayers ? 'Add demo players' : 'Add players', action: onAddDemoPlayers ? 'demoPlayers' as const : 'players' as const }
+      ? { id: 'players', label: 'No players yet', action: 'players' as const }
       : null,
-  ].filter(Boolean) as { id: string; label: string; action: 'staff' | 'headStaff' | 'settings' | 'players' | 'demoPlayers' | 'none' }[];
+  ].filter(Boolean) as { id: string; label: string; action: 'settings' | 'players' | 'none' }[];
 
   const primarySections: TeamWorkspaceSection[] = ['dashboard', 'calendar', 'players', 'groups', 'settings'];
   const desktopSections: TeamWorkspaceSection[] = primarySections;
@@ -1559,38 +1504,6 @@ export function TeamWorkspaceView({
     }
   }
 
-  async function handleAddDemoPlayers() {
-    if (!onAddDemoPlayers) return;
-    await onAddDemoPlayers();
-    setActiveSection('players');
-  }
-
-  async function handleCreatePlayerJoinLink() {
-    if (!onCreatePlayerJoinLink || joinLinkState === 'copying') return;
-    setJoinLinkState('copying');
-    const url = await onCreatePlayerJoinLink();
-    if (!url) {
-      setJoinLinkState('failed');
-      window.setTimeout(() => setJoinLinkState('idle'), 1400);
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      setJoinLinkState('copied');
-      window.setTimeout(() => setJoinLinkState('idle'), 1400);
-    } catch {
-      setJoinLinkState('failed');
-      window.setTimeout(() => setJoinLinkState('idle'), 1400);
-    }
-  }
-
-  async function handleAddCoachRole() {
-    const label = newCoachRoleLabel.trim();
-    if (!label || !onAddCoachRole) return;
-    await onAddCoachRole(label);
-    setNewCoachRoleLabel('');
-  }
-
   async function handleAddGroup() {
     const name = newGroupName.trim();
     if (!name || !onAddGroup) return;
@@ -1662,10 +1575,7 @@ export function TeamWorkspaceView({
               <div className="mt-4 grid gap-2">
                 {setupActions.map((item) => {
                   const className = 'rounded-xl border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-left text-sm font-bold text-amber-100 transition hover:border-amber-300/60';
-                  if (item.action === 'headStaff') return <button key={item.id} type="button" onClick={() => onInviteStaff?.('head_coach')} className={className}>{item.label}</button>;
-                  if (item.action === 'staff' && data.staffHref) return <Link key={item.id} href={data.staffHref} className={className}>{item.label}</Link>;
                   if (item.action === 'settings') return <button key={item.id} type="button" onClick={() => setActiveSection('settings')} className={className}>{item.label}</button>;
-                  if (item.action === 'demoPlayers') return <button key={item.id} type="button" onClick={handleAddDemoPlayers} className={className}>{item.label}</button>;
                   if (item.action === 'players') return <button key={item.id} type="button" onClick={() => setActiveSection('players')} className={className}>{item.label}</button>;
                   return <div key={item.id} className={className}>{item.label}</div>;
                 })}
@@ -1718,15 +1628,6 @@ export function TeamWorkspaceView({
           </div>
           <div className="mt-5 grid gap-3 md:grid-cols-2">
             <EmptyCard title={`${data.playerCount} players`} />
-            {onAddDemoPlayers ? (
-              <button type="button" onClick={handleAddDemoPlayers} className="rounded-2xl border border-emerald-500/40 bg-emerald-950/20 p-4 text-left transition hover:border-emerald-300/70">
-                <p className="text-sm font-black text-emerald-100">Add demo players</p>
-              </button>
-            ) : onCreatePlayerJoinLink ? (
-              <button type="button" onClick={handleCreatePlayerJoinLink} disabled={joinLinkState === 'copying'} className="rounded-2xl border border-sky-500/40 bg-sky-950/20 p-4 text-left transition hover:border-sky-300/70 disabled:opacity-60">
-                <span aria-live="polite" className="text-sm font-black text-sky-100">{joinLinkState === 'copied' ? 'Copied' : joinLinkState === 'failed' ? 'Copy failed' : joinLinkState === 'copying' ? 'Creating link...' : 'Copy athlete join link'}</span>
-              </button>
-            ) : null /* No invites without accounts; the card only promised a missing feature. */}
           </div>
           {players.length > 0 ? (
             <div className="mt-5 grid gap-2 md:grid-cols-2 lg:grid-cols-3">
@@ -1906,18 +1807,8 @@ export function TeamWorkspaceView({
             <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
               <p className="text-sm font-black text-slate-100">Staff roles</p>
               <div className="mt-4">
-                <StaffRoleGrid roles={staffRoles} onInvite={onInviteStaff} onCopy={onCopyStaffInvite} onRevoke={onRevokeStaffInvite} onRemoveRole={onRemoveCoachRole} />
+                <StaffRoleGrid roles={staffRoles} />
               </div>
-              {onAddCoachRole ? (
-                <div className="mt-4 rounded-xl border border-dashed border-slate-700 p-3">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Add coach role</p>
-                  <div className="mt-2 flex max-w-md flex-col gap-2 sm:flex-row">
-                    <input value={newCoachRoleLabel} onChange={(event) => setNewCoachRoleLabel(event.target.value)} placeholder="e.g. Strength Coach" className="flex-1 rounded-lg border border-slate-700/90 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-sky-300 focus:ring-2 focus:ring-sky-400/10" />
-                    <button type="button" onClick={handleAddCoachRole} className="rounded-lg border border-sky-500/50 bg-sky-950/15 px-3 py-2 text-xs font-black text-sky-200 transition hover:bg-sky-950/35">Add role</button>
-                  </div>
-                </div>
-              ) : null}
-              {data.staffHref && data.role !== 'coach' ? <Link href={data.staffHref} className="mt-3 inline-flex rounded-xl border border-sky-500/60 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-950/40">Open central Staff</Link> : null}
             </div>
           </div>
         </section>

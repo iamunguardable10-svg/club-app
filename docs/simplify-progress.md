@@ -548,13 +548,14 @@ gewünscht ist, gehört sie in den Workspace, nicht daneben.
 | Kennzahl | Start | Ziel | nach Run 5 |
 |---|---|---|---|
 | Aktive Routen | 67 | etwa 20 | **14** |
-| Zeilen unter `src` | 28.244 | etwa 12.000 | **13.612** |
+| Zeilen unter `src` | 28.244 | ~~etwa 12.000~~ verworfen | 13.612 |
 | Dateien unter `src` | — | — | 50 |
 | Dateien mit Supabase-Code | 26 | 0 | **0** |
 | Dateien mit `localStorage`-Zugriff | 13 | 1 | **1** (`repository.ts`) |
 | Laufzeitabhängigkeiten | 9 | — | 4 (`next`, `react`, `react-dom`, `recharts`) |
 
-Die Zeilenzahl liegt rund 1.600 über dem Ziel. Das verbliebene Volumen steckt fast
+Das Zeilenziel wurde nach Run 5 verworfen (siehe `docs/simplify-decisions.md`, Punkt 7).
+Zur Einordnung: Das verbliebene Volumen steckt fast
 vollständig in wenigen großen Oberflächendateien, die funktionieren und genutzt werden:
 `AthleteLoadWorkspace` (2691), `TeamWorkspaceView` (1994), `CoachWorkspaceRouter`
 (1312), `FacilityCalendar` (1062), `CoachSessionSurfaces` (915). Weiteres Löschen wäre
@@ -692,3 +693,86 @@ Umbenennung `demo` → `local` hat sich weitgehend erledigt.
 | Prüfkette 1–11 plus Hallenkalender-Rechte | bestanden, Telefonbreite |
 | Importanalyse: unerreichbare Dateien | 0 |
 | Laufzeitfehler | keine |
+
+
+---
+
+## Run 6 — tote Einladungs- und Rollenlogik entfernt (erledigt)
+
+Ursprünglich als Umbenennung `demo` → `local` geplant. Die hatte sich weitgehend
+erledigt (Datenschicht seit Run 1 richtig benannt, `demoStorage` in Run 5 gelöscht).
+Stattdessen hat Run 6 entfernt, was an den gelöschten Funktionen hing.
+
+### Geändert
+
+`src/features/teams/TeamWorkspaceView.tsx`, 1994 → 1885 Zeilen:
+
+- Sieben optionale Eigenschaften, die niemand mehr übergab: `onAddDemoPlayers`,
+  `onCreatePlayerJoinLink`, `onInviteStaff`, `onCopyStaffInvite`,
+  `onRevokeStaffInvite`, `onAddCoachRole`, `onRemoveCoachRole` — samt Handlern,
+  Zuständen und Bedienelementen.
+- `staffRoles` und `staffHref` aus `TeamWorkspaceData`. Nur der Admin-Bereich hatte
+  sie gesetzt; `staffHref` zeigte auf die gelöschte Admin-Personalseite.
+- `StaffRoleGrid` ist jetzt eine reine Anzeige.
+
+### Ein sichtbarer Fehler, der dabei verschwunden ist
+
+Die Staff-Ansicht zeigte zwei Zeilen: „Head Coach" und „Assistant Coach". Der lokale
+Workspace übergibt alle Trainer als Head Coaches, weil Mitgliedschaften keine
+Hierarchie kennen. Folge: Bei **jedem** Team stand „Assistant Coach" auf „fehlt",
+daneben ein **Einladen-Knopf, der nichts tat**. Jetzt steht dort eine Zeile „Coaches"
+mit allen Trainern des Teams.
+
+### Geprüft bei Telefonbreite
+
+| Prüfung | Ergebnis |
+|---|---|
+| Staff-Ansicht: „Coaches: Martin Weber, Tobias Neumann" | bestanden |
+| Sichtbare Knöpfe für Einladen, Kopieren, Widerrufen, Rolle hinzufügen | 0 |
+| Standardhalle ändern → gespeichert | bestanden |
+| Gruppe anlegen (Edit groups → Add) | bestanden |
+| Spieler-Tab zeigt den Kader, keine Demo- oder Einladungskarte | bestanden |
+| Alle 14 Routen, beide Rollen, plus Team-Detail und Hallenkalender | 16 von 16 |
+| Laufzeitfehler | keine |
+| `npm run typecheck`, `npm run build` | grün |
+
+### Stand danach
+
+`demo`/`Demo` kommt in `src` nur noch in Kommentaren vor, die erklären, woher etwas
+stammt, und im Präfix `club-app.demo.` für die Bereinigung alter Schlüssel. Beides
+gewollt.
+
+---
+
+## Abschluss der Vereinfachung
+
+Die sechs Runs sind durch.
+
+| Kennzahl | vorher | nachher |
+|---|---|---|
+| Routen | 67 | 14 |
+| Zeilen unter `src` | 28.244 | 13.503 |
+| Dateien mit Supabase-Code | 26 | 0 |
+| Dateien mit `localStorage`-Zugriff | 13 | 1 |
+| Laufzeitpakete | 9 | 4 |
+| benötigte Umgebungsvariablen | 3 | 0 |
+
+**Bewusst entfernt, per Produktentscheidung:** Vereins- und Abteilungsverwaltung,
+Anmeldung, Registrierung, Vereinsgründung, Einladungen, Beitrittscodes, der Demo-Modus
+als zweite App. Alles liegt in `543775f` auf `origin/main`. Die dazugehörige
+Supabase-Logik (Abfragen, Rechteprüfung über RLS, Rollback über die Datenbank) ist
+damit ebenfalls nicht mehr im Baum; das Schema unter `supabase/` bleibt.
+
+**Nicht verloren:** Alles, was Trainer und Spieler tun konnten. Der Beleg ist die
+Prüfkette in `docs/local-mode-testplan.md` und der Routen-Durchlauf aus Run 6.
+
+**Offene Punkte, die bleiben:**
+
+1. Sprache gemischt: Startseite und Identitätswechsel deutsch, der Rest englisch.
+2. Die Trainerseite unterscheidet Seed-Meldungen nicht von echten.
+3. Eigene Trainingspläne der Spieler sowie Serienplanung und Wochenbestätigung beim
+   Trainer sind portiert, aber nicht von Hand durchgespielt.
+4. Die großen Oberflächendateien (`AthleteLoadWorkspace` 2691 Zeilen,
+   `TeamWorkspaceView` 1885, `CoachWorkspaceRouter` 1312) sind der nächste Hebel für
+   Wartbarkeit, nicht für Kürze.
+5. Das Favicon fehlt — schon im Ausgangsstand.

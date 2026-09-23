@@ -108,10 +108,14 @@ wiederherstellbar, was das Löschen in Run 5 unkritisch macht.
 
 ## 7. Zielwerte
 
+Das ursprüngliche Ziel „etwa 12.000 Zeilen unter `src`" ist am 2026-09-23 **verworfen**
+worden. Zeilenzahl ist kein Qualitätsmaß: Nach Run 5 steckte der Rest fast vollständig
+in genutzten, funktionierenden Oberflächendateien, und weiter zu kürzen hätte
+Funktionsverlust bedeutet. Gezählt wird weiterhin, aber nicht mehr als Ziel.
+
 | Kennzahl | Start | Ziel |
 |---|---|---|
 | Aktive Routen | 67 | etwa 20 |
-| Zeilen unter `src` | 28.244 | etwa 12.000 |
 | Dateien mit Supabase-Bezug | 26 | 0 |
 | Dateien mit `localStorage`-Zugriff | 13 | 1 |
 
