@@ -26,6 +26,58 @@ export type TimeOfDay = string;
 
 export type MembershipRole = 'coach' | 'athlete';
 
+/**
+ * What a coach role may see of athletes and do in the team.
+ *
+ * The list is the contract for role-based access: views read it today, and the
+ * database's row-level security will enforce the same keys once the app has a
+ * server again (docs/simplify-decisions.md, point 8). New rights are added by
+ * extending this list, not by reshaping roles.
+ */
+export const COACH_PERMISSIONS = [
+  'viewRoster',
+  'viewAttendance',
+  'viewAbsenceReasons',
+  'viewLoadSummary',
+  'viewLoadDetails',
+  'viewAthletePlans',
+  'editSessions',
+  'planSeries',
+  'manageGroups',
+  'manageFacilities',
+  'manageStaff',
+] as const;
+
+export type CoachPermission = (typeof COACH_PERMISSIONS)[number];
+
+/**
+ * Rights that only make sense together with another one: absence reasons
+ * without the attendance list, or load details without the traffic light.
+ * Granting a right grants what it needs; the data layer applies this on every
+ * write, so no stored role can hold one without the other.
+ */
+export const COACH_PERMISSION_REQUIRES: Partial<Record<CoachPermission, CoachPermission[]>> = {
+  viewAbsenceReasons: ['viewAttendance'],
+  viewLoadDetails: ['viewLoadSummary'],
+};
+
+/**
+ * A coach role within one team, for example Head Coach, Co-Trainer or
+ * Athletiktrainer, with the rights it carries.
+ *
+ * `locked` marks the Head Coach role: it always holds every right and can be
+ * neither edited nor deleted, so a team can never lock itself out of managing
+ * its own staff.
+ */
+export type CoachRole = {
+  id: Id;
+  teamId: Id;
+  name: string;
+  permissions: CoachPermission[];
+  locked: boolean;
+  createdAt: Timestamp;
+};
+
 export type SessionType = 'training' | 's_and_c' | 'game' | 'recovery' | 'other';
 
 export const SESSION_TYPES: SessionType[] = ['training', 's_and_c', 'game', 'recovery', 'other'];
@@ -95,6 +147,8 @@ export type Membership = {
   personId: Id;
   teamId: Id;
   role: MembershipRole;
+  /** Only for coach memberships: which coach role, and thus which rights. */
+  coachRoleId: Id | null;
   createdAt: Timestamp;
 };
 
@@ -233,6 +287,7 @@ export type LocalDatabase = {
   departmentFacilities: DepartmentFacility[];
   people: Person[];
   memberships: Membership[];
+  coachRoles: CoachRole[];
   playerGroups: PlayerGroup[];
   playerGroupMembers: PlayerGroupMember[];
   sessions: Session[];

@@ -9,14 +9,14 @@
  * eighteen tables; against one local document most of that plumbing
  * disappears, and what is left is the mapping itself.
  *
- * Two things went away with accounts rather than being ported: invites and
- * join codes (there is nobody to invite) and the separate head/assistant coach
- * role slots (without memberships carrying seniority, a coach is a coach). The
- * corresponding handlers are simply not passed, and the view hides those
- * controls on its own.
+ * Invites and join codes went away with accounts (there is nobody to invite
+ * yet). Coach roles came back without them: what the active coach may see and
+ * change here follows the rights of their role on this team. Player data a role
+ * may not see is left out of the props, and handlers it may not use are not
+ * passed — the view hides those controls on its own.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type ReactNode } from 'react';
 
 import {
   TeamWorkspaceView,
@@ -29,8 +29,11 @@ import type { SeriesTemplateInput } from '@/features/sessions/SeriesTemplateEdit
 import type { SeriesWeekItem } from '@/features/sessions/sessionSeriesPlanner';
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { buildCoachData } from '@/features/role-workspaces/coachData';
+import { loadAccessFor, summarizeLoadEntries } from '@/features/load/loadAccess';
+import { TeamStaffPanel } from '@/features/teams/TeamStaffPanel';
 import {
   athletesForTeam,
+  coachPermissions,
   coachesForTeam,
   createSession,
   deleteSession,
@@ -40,6 +43,7 @@ import {
   updateSession,
   useLocalDatabase,
   type AthleteLoadEntry,
+  type CoachPermission,
   type Id,
   type LocalDatabase,
   type SessionType,
@@ -124,10 +128,20 @@ export function TeamWorkspace({
 }) {
   const { database, error, ready } = useLocalDatabase();
 
+  const activePersonId = database?.activeIdentity?.role === 'coach' ? database.activeIdentity.personId : null;
+  const permissions = useMemo<ReadonlySet<CoachPermission>>(
+    () => (database ? coachPermissions(database, activePersonId, teamId) : new Set()),
+    [database, activePersonId, teamId],
+  );
+
   const data = useMemo<TeamWorkspaceData | null>(() => {
     if (!database) return null;
     const team = database.teams.find((candidate) => candidate.id === teamId);
     if (!team) return null;
+
+    const loadAccess = loadAccessFor(permissions);
+    const attendanceShared = permissions.has('viewAttendance');
+    const reasonsShared = permissions.has('viewAbsenceReasons');
 
     const departmentName = database.departments.find((department) => department.id === team.departmentId)?.name ?? 'Abteilung';
     const facilityNameById = new Map(database.facilities.map((facility) => [facility.id, facility.name]));
@@ -147,7 +161,8 @@ export function TeamWorkspace({
       groupIdsByPerson.set(member.personId, [...(groupIdsByPerson.get(member.personId) ?? []), member.groupId]);
     }
 
-    const players: TeamWorkspacePlayer[] = athletesForTeam(database, team.id).map((person) => {
+    const roster = permissions.has('viewRoster') ? athletesForTeam(database, team.id) : [];
+    const players: TeamWorkspacePlayer[] = roster.map((person) => {
       const loadEntries: AthleteLoadEntry[] = database.loadEntries
         .filter((entry) => entry.personId === person.id)
         .map(({ personId: _personId, createdAt: _createdAt, ...entry }) => entry);
@@ -156,8 +171,20 @@ export function TeamWorkspace({
         id: person.id,
         name: displayName(person),
         groups: groupIdsByPerson.get(person.id) ?? [],
-        loadEntries,
-        ...attendance,
+        // Entries only for full access; the summary is computed here so the
+        // raw RPE values never reach a summary-only role's view.
+        loadEntries: loadAccess === 'full' ? loadEntries : undefined,
+        loadAccess,
+        loadSummary: loadAccess === 'summary' ? summarizeLoadEntries(loadEntries) : null,
+        attendanceShared,
+        ...(attendanceShared
+          ? {
+              ...attendance,
+              attendanceEvents: reasonsShared
+                ? attendance.attendanceEvents
+                : attendance.attendanceEvents.map((event) => ({ ...event, reason: null })),
+            }
+          : { attendanceRate: null, missedSessions: null, attendanceEvents: [] }),
       };
     });
 
@@ -181,11 +208,12 @@ export function TeamWorkspace({
       defaultFacilityId: team.defaultFacilityId,
       defaultFacilityName: team.defaultFacilityId ? facilityNameById.get(team.defaultFacilityId) ?? null : null,
       availableFacilities,
-      playerCount: players.length,
+      playerCount: roster.length,
       players,
+      attendanceShared,
       role: 'coach',
-      // Without accounts there is no seniority to distinguish; everyone with a
-      // coach membership on this team is listed as staff.
+      // Only the read-only fallback uses this; staff with a role on this team
+      // see roles and rights in the staff panel instead.
       staff: { headCoaches: coaches, assistantCoaches: [] },
       sessions,
       contextSessions,
@@ -199,7 +227,7 @@ export function TeamWorkspace({
       backLabel,
       coachNav: frame === 'coach' ? { basePath: '/coach' } : null,
     };
-  }, [database, teamId, backHref, backLabel, frame]);
+  }, [database, permissions, teamId, backHref, backLabel, frame]);
 
   const { seriesTemplates, seriesWeekStates } = useMemo(() => {
     if (!database) return { seriesTemplates: [], seriesWeekStates: [] };
@@ -366,27 +394,35 @@ export function TeamWorkspace({
     return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">Dieses Team gibt es nicht.</section></div></main>;
   }
 
+  const canEditSessions = permissions.has('editSessions');
+  const canPlanSeries = permissions.has('planSeries');
+  const canManageGroups = permissions.has('manageGroups');
+  const staffPanel: ReactNode = database && permissions.size > 0
+    ? <TeamStaffPanel database={database} teamId={teamId} canManage={permissions.has('manageStaff')} />
+    : null;
+
   return (
     <TeamWorkspaceView
       data={data}
       initialSection={initialSection}
       seriesTemplates={seriesTemplates}
       seriesWeekStates={seriesWeekStates}
-      onDefaultFacilityChange={handleDefaultFacilityChange}
-      onSessionTimeChange={handleSessionTimeChange}
-      onSessionCreate={handleSessionCreate}
-      onSessionFacilityChange={handleSessionFacilityChange}
-      onSessionGroupsChange={handleSessionGroupsChange}
-      onSessionTypeChange={handleSessionTypeChange}
-      onSessionDelete={handleSessionDelete}
-      onCreateSeries={handleCreateSeries}
-      onUpdateSeries={handleUpdateSeries}
-      onDeleteSeries={handleDeleteSeries}
-      onToggleSeriesWeek={handleToggleSeriesWeek}
-      onConfirmSeriesWeek={handleConfirmSeriesWeek}
-      onAddGroup={handleAddGroup}
-      onRemoveGroup={handleRemoveGroup}
-      onTogglePlayerGroup={handleTogglePlayerGroup}
+      onDefaultFacilityChange={permissions.has('manageFacilities') ? handleDefaultFacilityChange : undefined}
+      onSessionTimeChange={canEditSessions ? handleSessionTimeChange : undefined}
+      onSessionCreate={canEditSessions ? handleSessionCreate : undefined}
+      onSessionFacilityChange={canEditSessions ? handleSessionFacilityChange : undefined}
+      onSessionGroupsChange={canEditSessions ? handleSessionGroupsChange : undefined}
+      onSessionTypeChange={canEditSessions ? handleSessionTypeChange : undefined}
+      onSessionDelete={canEditSessions ? handleSessionDelete : undefined}
+      onCreateSeries={canPlanSeries ? handleCreateSeries : undefined}
+      onUpdateSeries={canPlanSeries ? handleUpdateSeries : undefined}
+      onDeleteSeries={canPlanSeries ? handleDeleteSeries : undefined}
+      onToggleSeriesWeek={canPlanSeries ? handleToggleSeriesWeek : undefined}
+      onConfirmSeriesWeek={canPlanSeries ? handleConfirmSeriesWeek : undefined}
+      onAddGroup={canManageGroups ? handleAddGroup : undefined}
+      onRemoveGroup={canManageGroups ? handleRemoveGroup : undefined}
+      onTogglePlayerGroup={canManageGroups ? handleTogglePlayerGroup : undefined}
+      staffPanel={staffPanel}
     />
   );
 }

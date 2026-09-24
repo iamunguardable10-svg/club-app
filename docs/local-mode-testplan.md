@@ -189,3 +189,37 @@ den Wechsel erstmals aus der Team-Ansicht heraus versucht hat.
 Ein erster Fix mit schwebendem Knopf unten rechts hat die Tab-Leiste der Team-Ansicht
 verdeckt; der Test hat es sofort gezeigt. Jetzt sitzt der Wechsel als eigene Zeile in
 der festen Kopfzeile der Team-Ansicht, nur auf dem Telefon.
+
+## Run 7 — Trainerrollen (2026-09-24)
+
+Telefonbreite 390 × 844, Produktions-Build, frische Testdaten. U16 Jungen:
+Martin Weber (Head Coach), Tobias Neumann (Co-Trainer), Jana Vogt (Athletiktrainer),
+Uwe Heller (Betreuer).
+
+| Prüfung | Ergebnis |
+|---|---|
+| Head Coach: 12 Spieler mit ACWR, Detail mit Diagrammen und Trainingsmix | bestanden |
+| Head Coach: Gruppen bearbeitbar, Standardhalle wählbar, 4 Rollen-Auswahlen im Trainerteam | bestanden |
+| Betreuer: 12 Spieler, keine ACWR, „Load not shared" in Liste und Detail | bestanden |
+| Betreuer: keine Gruppenbearbeitung, Standardhalle gesperrt, Trainerteam nur lesend (11/11 Häkchen gesperrt) | bestanden |
+| Betreuer: Bearbeiten-Modus im Trainerkalender und im Hallenkalender nicht schaltbar, Ziehen ändert nichts | bestanden |
+| Betreuer: künftige Einheit ohne „Edit session"/„Delete session"; Head Coach hat beide | bestanden |
+| Head gibt Betreuer die Ampel → Betreuer sieht ACWR, im Detail nur die Ampel und den Hinweis, keine Diagramme | bestanden |
+| Anwesenheit abgewählt → Absagegründe mit abgewählt | bestanden |
+| Co-Trainer und Athletiktrainer ohne `manageStaff`, dann Head auf Betreuer setzen → abgelehnt mit Meldung, bleibt Head Coach | bestanden |
+| Vergebene Rolle „Betreuer" löschen → abgelehnt mit Meldung | bestanden |
+| Rolle „Physio" anlegen, Lea Sommer als Physio hinzufügen | bestanden |
+| Identitätswechsel zeigt „U16 Jungen · Head Coach", Tobias mit beiden Teams und Rollen | bestanden |
+| Laufzeitfehler | keine |
+
+Datenschicht zusätzlich per Skript: Rechteanzahl je Rolle (11/11/11/2, Nichtmitglied 0),
+Head-Coach-Rolle unveränderbar und unlöschbar, letzter Verwalter nicht entfernbar,
+ungültige Rechte gefiltert, doppelte Rollennamen abgelehnt.
+
+### Nicht geprüft
+
+- Hallenkalender: Verschieben einer eigenen Einheit als Head Coach wurde in diesem Lauf
+  nicht erneut belegt (Bearbeiten-Modus schaltbar; der Ziehtest traf keine eigene,
+  künftige Einheit). Belegt zuletzt in Run 5; der Pfad wurde nur um den Rechtefilter
+  ergänzt.
+- Rechte ohne `viewRoster` oder ohne `viewAttendance` in allen Trainerseiten von Hand.

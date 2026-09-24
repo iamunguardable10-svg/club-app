@@ -15,6 +15,7 @@ import {
   createSession,
   deleteSession,
   getActivePerson,
+  hasCoachPermission,
   updateSession,
   useLocalDatabase,
   type SessionType,
@@ -293,6 +294,9 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     setTeamMemberships(activePerson
       ? database.memberships
           .filter((membership) => membership.personId === activePerson.id && membership.role === 'coach')
+          // Being on the staff is not enough: the role has to allow editing
+          // sessions. A Betreuer sees the hall's week but cannot move anything.
+          .filter((membership) => hasCoachPermission(database, activePerson.id, membership.teamId, 'editSessions'))
           .map((membership) => ({
             role: 'head_coach' as const,
             department_id: database.teams.find((team) => team.id === membership.teamId)?.departmentId ?? '',

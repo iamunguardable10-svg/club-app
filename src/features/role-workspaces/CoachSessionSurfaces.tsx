@@ -55,6 +55,15 @@ function formatTimeRange(startsAt: string, endsAt: string | null) {
   return `${new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(start)} - ${new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(end)}`;
 }
 
+/**
+ * Session insights are built from every player's RPE entries. A role that may
+ * only see the traffic light gets no entries, so the insights would read as
+ * "nobody reported" rather than "not shared with you".
+ */
+function sessionLoadDetailsShared(session: CoachSession) {
+  return session.players.length > 0 && session.players.every((player) => (player.loadAccess ?? 'full') === 'full');
+}
+
 function summarizeCoachSession(session: CoachSession) {
   const late = session.availability.filter((item) => item.status === 'late');
   const out = session.availability.filter((item) => item.status === 'out');
@@ -607,6 +616,9 @@ export function CoachSessionDetailOverlay({
         id: activePlayer.id,
         name: activePlayer.name,
         loadEntries: activePlayer.loadEntries,
+        loadAccess: activePlayer.loadAccess,
+        loadSummary: activePlayer.loadSummary,
+        attendanceShared: session.attendanceShared,
         attendanceEvents: session.availability
           .filter((item) => item.userId === activePlayer.id)
           .map((item) => ({
@@ -636,7 +648,7 @@ export function CoachSessionDetailOverlay({
         groups={groups}
         selectedGroupIds={selectedGroupIds ?? session.groupIds}
         canEditGroups={false}
-        attendance={{
+        attendance={session.attendanceShared === false ? undefined : {
           expected: session.players.length,
           late: summary.late.length,
           out: summary.out.length,
@@ -648,7 +660,9 @@ export function CoachSessionDetailOverlay({
           })),
         }}
         loadRisks={isPast ? [] : summary.risks.map((player) => ({ id: player.id, name: player.name, status: player.risk as 'high' | 'low', detail: player.acwr !== null ? `${player.acwr.toFixed(2)} ACWR` : null }))}
-        insights={isPast ? (
+        insights={isPast && !sessionLoadDetailsShared(session) ? (
+          <p className="rounded-2xl border border-slate-800 bg-slate-950/55 p-3 text-xs font-bold text-slate-400">Load reports for this session are not shared with your role.</p>
+        ) : isPast ? (
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-300">Session insights</p>
@@ -877,6 +891,7 @@ export function CoachHistorySessionCard({
   const summary = summarizeCoachSession(session);
   const presentCount = Math.max(0, session.players.length - summary.out.length);
   const completionLabel = formatPercent(summary.reportRate);
+  const loadShared = sessionLoadDetailsShared(session);
   return (
     <article className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-white transition hover:border-violet-300/35 hover:bg-slate-900/55">
       <button type="button" onClick={onDetails} className="flex w-full items-start justify-between gap-3 text-left">
@@ -894,21 +909,25 @@ export function CoachHistorySessionCard({
           <p className="mt-1 text-sm font-black text-slate-100">{presentCount}/{session.players.length}</p>
           <p className="mt-0.5 text-[11px] font-bold text-slate-500">{summary.late.length} late · {summary.out.length} out</p>
         </button>
-        <button type="button" onClick={() => onInsight?.(session, 'rpe')} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-left transition hover:border-violet-300/55 hover:bg-slate-900/80">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">RPE</p>
-          <p className="mt-1 text-sm font-black text-slate-100">{summary.avgRpe !== null ? summary.avgRpe.toFixed(1) : '—'}</p>
-          <p className="mt-0.5 text-[11px] font-bold text-slate-500">{summary.loadReports.length} reports</p>
-        </button>
-        <button type="button" onClick={() => onInsight?.(session, 'au')} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-left transition hover:border-violet-300/55 hover:bg-slate-900/80">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">AU</p>
-          <p className="mt-1 text-sm font-black text-slate-100">{summary.avgLoad !== null ? Math.round(summary.avgLoad) : '—'}</p>
-          <p className="mt-0.5 text-[11px] font-bold text-slate-500">avg load</p>
-        </button>
-        <button type="button" onClick={() => onInsight?.(session, 'completion')} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-left transition hover:border-violet-300/55 hover:bg-slate-900/80">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Completion</p>
-          <p className="mt-1 text-sm font-black text-slate-100">{completionLabel}</p>
-          <p className="mt-0.5 text-[11px] font-bold text-slate-500">{session.players.length - summary.loadReports.length} missing</p>
-        </button>
+        {loadShared ? (
+          <>
+            <button type="button" onClick={() => onInsight?.(session, 'rpe')} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-left transition hover:border-violet-300/55 hover:bg-slate-900/80">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">RPE</p>
+              <p className="mt-1 text-sm font-black text-slate-100">{summary.avgRpe !== null ? summary.avgRpe.toFixed(1) : '—'}</p>
+              <p className="mt-0.5 text-[11px] font-bold text-slate-500">{summary.loadReports.length} reports</p>
+            </button>
+            <button type="button" onClick={() => onInsight?.(session, 'au')} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-left transition hover:border-violet-300/55 hover:bg-slate-900/80">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">AU</p>
+              <p className="mt-1 text-sm font-black text-slate-100">{summary.avgLoad !== null ? Math.round(summary.avgLoad) : '—'}</p>
+              <p className="mt-0.5 text-[11px] font-bold text-slate-500">avg load</p>
+            </button>
+            <button type="button" onClick={() => onInsight?.(session, 'completion')} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-left transition hover:border-violet-300/55 hover:bg-slate-900/80">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Completion</p>
+              <p className="mt-1 text-sm font-black text-slate-100">{completionLabel}</p>
+              <p className="mt-0.5 text-[11px] font-bold text-slate-500">{session.players.length - summary.loadReports.length} missing</p>
+            </button>
+          </>
+        ) : null}
       </div>
     </article>
   );

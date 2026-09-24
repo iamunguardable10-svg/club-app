@@ -221,6 +221,8 @@ export function CoachCalendarSurface({
   onDetails,
   editSessionId = null,
   onEditSessionHandled,
+  editableTeamIds,
+  seriesTeamIds,
 }: {
   teams: CoachTeam[];
   sessions: CoachSession[];
@@ -241,7 +243,14 @@ export function CoachCalendarSurface({
   onDetails: (session: CoachSession) => void;
   editSessionId?: string | null;
   onEditSessionHandled?: () => void;
+  /** Teams whose sessions the active coach may create, move and edit. All when omitted. */
+  editableTeamIds?: ReadonlySet<string>;
+  /** Teams whose weekly series the active coach may plan. All when omitted. */
+  seriesTeamIds?: ReadonlySet<string>;
 }) {
+  const canEditTeam = (teamId: string) => !editableTeamIds || editableTeamIds.has(teamId);
+  const editableTeams = teams.filter((team) => canEditTeam(team.id));
+  const seriesTeams = teams.filter((team) => !seriesTeamIds || seriesTeamIds.has(team.id));
   const [weekOffset, setWeekOffset] = useState(0);
   const days = useMemo(() => buildWeekDays(weekOffset), [weekOffset]);
   const [surfaceMode, setSurfaceMode] = useState<'week' | 'series'>('week');
@@ -302,9 +311,10 @@ export function CoachCalendarSurface({
       teamName: session.teamName,
       departmentName: session.departmentName,
       tone: toneByTeamId.get(session.teamId) ?? 'primary',
-      canManage: true,
+      // Was `true` for every session: any coach could drag any team's session.
+      canManage: !editableTeamIds || editableTeamIds.has(session.teamId),
     }));
-  }, [localSessions, teams]);
+  }, [localSessions, teams, editableTeamIds]);
 
   const conflictSessions = useMemo<ConflictSession[]>(() => {
     const byId = new Map<string, ConflictSession>();
@@ -617,7 +627,7 @@ export function CoachCalendarSurface({
     function createDraftAt(clientY: number) {
       const clickedMinutes = clamp(roundToSlot(((clientY - rect.top) / Math.max(rect.height, 1)) * visibleMinutes), 0, visibleMinutes - 30);
       const start = createDateForCalendarMinute(day, (baseHour - firstHour) * 60 + clickedMinutes);
-      const team = teams.length === 1 ? defaultTeamForDay(day) : null;
+      const team = editableTeams.length === 1 ? editableTeams[0] : null;
       setDraft({ startsAt: start.toISOString(), endsAt: addMinutes(start, 90).toISOString(), teamId: team?.id ?? null, facilityId: defaultFacilityForTeam(team), groupIds: [], sessionType: 'training' });
       setEditor(null);
     }
@@ -724,7 +734,7 @@ export function CoachCalendarSurface({
         </div>
       </div>
       {surfaceMode === 'week' ? (
-        <SmartSessionCalendar mode={mode} canCreateSessions={teams.length > 0 && facilities.length > 0} days={days} hours={calendarHours} firstHour={firstHour} lastHour={lastHour} mobileVisibleHours={mobileVisibleHours} mobileFirstHour={mobileFirstHour} mobileHourHeight={mobileHourHeight} mobileGridHeight={mobileGridHeight} desktopHourHeight={desktopHourHeight} activeDayIndex={activeDayIndex} mobileCalendarView={mobileCalendarView} dayTransitionDirection={dayTransitionDirection} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null} weekLabel={weekLabel} isCurrentWeek={weekOffset === 0} calendarScrollRef={calendarScrollRef} setDayRef={(index, element) => { dayRefs.current[index] = element; }} onSetMode={setMode} onClearDraft={() => setDraft(null)} onPreviousWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onResetWeek={resetWeek} onMobileDaySelect={switchMobileDay} onMobileCalendarViewChange={setMobileCalendarView} onMobileDaySwipeStart={handleMobileDaySwipeStart} onMobileDaySwipeEnd={handleMobileDaySwipeEnd} onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }} onSlotPointerDown={handleSlotPointerDown} onSessionPointerDown={startSessionDrag} onSessionClick={handleSessionClick} onSessionKeyDown={handleSessionKeyDown} onDraftPointerDown={startDraftDrag} onDraftClick={() => setEditor({ kind: 'draft' })} onDraftCancel={() => setDraft(null)} />
+        <SmartSessionCalendar mode={mode} canCreateSessions={editableTeams.length > 0 && facilities.length > 0} days={days} hours={calendarHours} firstHour={firstHour} lastHour={lastHour} mobileVisibleHours={mobileVisibleHours} mobileFirstHour={mobileFirstHour} mobileHourHeight={mobileHourHeight} mobileGridHeight={mobileGridHeight} desktopHourHeight={desktopHourHeight} activeDayIndex={activeDayIndex} mobileCalendarView={mobileCalendarView} dayTransitionDirection={dayTransitionDirection} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null} weekLabel={weekLabel} isCurrentWeek={weekOffset === 0} calendarScrollRef={calendarScrollRef} setDayRef={(index, element) => { dayRefs.current[index] = element; }} onSetMode={setMode} onClearDraft={() => setDraft(null)} onPreviousWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onResetWeek={resetWeek} onMobileDaySelect={switchMobileDay} onMobileCalendarViewChange={setMobileCalendarView} onMobileDaySwipeStart={handleMobileDaySwipeStart} onMobileDaySwipeEnd={handleMobileDaySwipeEnd} onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }} onSlotPointerDown={handleSlotPointerDown} onSessionPointerDown={startSessionDrag} onSessionClick={handleSessionClick} onSessionKeyDown={handleSessionKeyDown} onDraftPointerDown={startDraftDrag} onDraftClick={() => setEditor({ kind: 'draft' })} onDraftCancel={() => setDraft(null)} />
       ) : (
         <div className="mt-7 sm:mt-5">
           <WeeklySeriesBoard
@@ -744,7 +754,7 @@ export function CoachCalendarSurface({
           <SeriesTemplateEditSheet
             key={`series-new-${seriesEditor.weekday}`}
             title="New weekly template"
-            teams={teams}
+            teams={seriesTeams}
             facilities={facilities}
             groups={groups}
             initial={null}
@@ -757,7 +767,7 @@ export function CoachCalendarSurface({
           <SeriesTemplateEditSheet
             key={`series-edit-${seriesEditor.template.id}`}
             title="Edit weekly template"
-            teams={teams}
+            teams={seriesTeams}
             facilities={facilities}
             groups={groups}
             initial={seriesEditor.template}
@@ -776,7 +786,7 @@ export function CoachCalendarSurface({
           />
         )
       ) : null}
-      {editor && editorInitial ? <CoachSessionEditSheet key={editor.kind === 'session' ? `session-${editor.sessionId}` : `draft-${editorInitial.startsAt}`} title={editor.kind === 'draft' ? 'New training' : editingSession?.title ?? 'Training'} teams={teams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { if (editor.kind === 'draft') { await requestCoachCalendarSave({ kind: 'create', input: value }); } else if (editingSession) { await requestCoachCalendarSave({ kind: 'update', input: { sessionId: editingSession.id, ...value } }); } }} onDraftUpdate={editor.kind === 'draft' ? (value) => setDraft((current) => current ? { ...current, ...value } : current) : undefined} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : undefined} onClose={() => setEditor(null)} /> : null}
+      {editor && editorInitial ? <CoachSessionEditSheet key={editor.kind === 'session' ? `session-${editor.sessionId}` : `draft-${editorInitial.startsAt}`} title={editor.kind === 'draft' ? 'New training' : editingSession?.title ?? 'Training'} teams={editableTeams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { if (editor.kind === 'draft') { await requestCoachCalendarSave({ kind: 'create', input: value }); } else if (editingSession) { await requestCoachCalendarSave({ kind: 'update', input: { sessionId: editingSession.id, ...value } }); } }} onDraftUpdate={editor.kind === 'draft' ? (value) => setDraft((current) => current ? { ...current, ...value } : current) : undefined} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : undefined} onClose={() => setEditor(null)} /> : null}
 
       <FacilityConflictDialog
         isOpen={Boolean(pendingConflictSave)}
@@ -832,6 +842,17 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     [database, activePerson?.id],
   );
 
+  const editableTeamIds = useMemo(
+    () => new Set(teams.filter((team) => team.permissions?.includes('editSessions')).map((team) => team.id)),
+    [teams],
+  );
+  const seriesTeamIds = useMemo(
+    () => new Set(teams.filter((team) => team.permissions?.includes('planSeries')).map((team) => team.id)),
+    [teams],
+  );
+  const teamOfSession = (sessionId: string) => sessions.find((session) => session.id === sessionId)?.teamId ?? null;
+  const teamOfSeries = (seriesId: string) => seriesTemplates.find((series) => series.id === seriesId)?.teamId ?? null;
+
   const [activeSession, setActiveSession] = useState<CoachSession | null>(null);
   const [activeHistoryInsight, setActiveHistoryInsight] = useState<CoachSessionInsight | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
@@ -885,6 +906,10 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   function handleCoachSessionCreate(input: CoachSessionCreateInput) {
     const team = teams.find((item) => item.id === input.teamId);
     if (!team) return;
+    if (!editableTeamIds.has(team.id)) {
+      setError('Deine Rolle darf in diesem Team keine Einheiten anlegen.');
+      return;
+    }
     try {
       createSession({
         teamId: team.id,
@@ -908,6 +933,11 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       setError('Du kannst nur Einheiten deiner eigenen Teams bearbeiten.');
       return;
     }
+    const sessionTeamId = teamOfSession(input.sessionId);
+    if (!sessionTeamId || !editableTeamIds.has(sessionTeamId)) {
+      setError('Deine Rolle darf diese Einheit nicht bearbeiten.');
+      return;
+    }
     try {
       updateSession(input.sessionId, {
         title: labelForCoachSessionType(input.sessionType),
@@ -928,6 +958,11 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       setError('Du kannst nur Einheiten deiner eigenen Teams löschen.');
       return;
     }
+    const sessionTeamId = teamOfSession(sessionId);
+    if (!sessionTeamId || !editableTeamIds.has(sessionTeamId)) {
+      setError('Deine Rolle darf diese Einheit nicht löschen.');
+      return;
+    }
     setIsDeletingSession(true);
     try {
       deleteSession(sessionId);
@@ -945,6 +980,10 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   function handleCoachSeriesCreate(input: SeriesTemplateInput) {
     const team = teams.find((item) => item.id === input.teamId);
     if (!team) return;
+    if (!seriesTeamIds.has(team.id)) {
+      setError('Deine Rolle darf für dieses Team keine Serien planen.');
+      return;
+    }
     try {
       mutate((draft) => {
         draft.sessionSeries.push({
@@ -973,6 +1012,11 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   function handleCoachSeriesUpdate(seriesId: string, input: SeriesTemplateInput) {
     const team = teams.find((item) => item.id === input.teamId);
     if (!team) return;
+    const currentTeamId = teamOfSeries(seriesId);
+    if (!seriesTeamIds.has(team.id) || !currentTeamId || !seriesTeamIds.has(currentTeamId)) {
+      setError('Deine Rolle darf diese Serie nicht ändern.');
+      return;
+    }
     try {
       mutate((draft) => {
         const series = draft.sessionSeries.find((candidate) => candidate.id === seriesId);
@@ -994,8 +1038,8 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
 
   function handleCoachSeriesDelete(seriesId: string) {
     const series = seriesTemplates.find((item) => item.id === seriesId);
-    if (!series || !series.teamId || !teams.some((team) => team.id === series.teamId)) {
-      setError('Du kannst nur Serien deiner eigenen Teams löschen.');
+    if (!series || !series.teamId || !seriesTeamIds.has(series.teamId)) {
+      setError('Deine Rolle darf diese Serie nicht löschen.');
       return;
     }
     try {
@@ -1010,6 +1054,11 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   }
 
   function handleCoachSeriesWeekToggle(seriesId: string, weekStart: string, checked: boolean) {
+    const seriesTeamId = teamOfSeries(seriesId);
+    if (!seriesTeamId || !seriesTeamIds.has(seriesTeamId)) {
+      setError('Deine Rolle darf diese Serie nicht planen.');
+      return;
+    }
     try {
       const existing = seriesWeekStates.find(
         (state) => state.seriesId === seriesId && getIsoWeekStart(state.weekStart) === getIsoWeekStart(weekStart),
@@ -1030,6 +1079,10 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
    * exactly the kind of state a coach cannot repair by hand.
    */
   function handleCoachSeriesWeekConfirm(items: SeriesWeekItem[]) {
+    if (items.some((item) => !item.teamId || !seriesTeamIds.has(item.teamId))) {
+      setError('Deine Rolle darf diese Serie nicht planen.');
+      return;
+    }
     const createdSessionIds: string[] = [];
     try {
       for (const item of items) {
@@ -1182,11 +1235,15 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             onCreateSession={handleCoachSessionCreate}
             onUpdateSession={handleCoachSessionUpdate}
             onDeleteSession={handleCoachSessionDelete}
-            onCreateSeries={handleCoachSeriesCreate}
-            onUpdateSeries={handleCoachSeriesUpdate}
-            onDeleteSeries={handleCoachSeriesDelete}
-            onToggleSeriesWeek={handleCoachSeriesWeekToggle}
-            onConfirmSeriesWeek={handleCoachSeriesWeekConfirm}
+            editableTeamIds={editableTeamIds}
+            seriesTeamIds={seriesTeamIds}
+            // Without a team to plan for, the series controls disappear rather
+            // than offering buttons that end in an error.
+            onCreateSeries={seriesTeamIds.size > 0 ? handleCoachSeriesCreate : undefined}
+            onUpdateSeries={seriesTeamIds.size > 0 ? handleCoachSeriesUpdate : undefined}
+            onDeleteSeries={seriesTeamIds.size > 0 ? handleCoachSeriesDelete : undefined}
+            onToggleSeriesWeek={seriesTeamIds.size > 0 ? handleCoachSeriesWeekToggle : undefined}
+            onConfirmSeriesWeek={seriesTeamIds.size > 0 ? handleCoachSeriesWeekConfirm : undefined}
             onDetails={openSessionDetails}
           />
         ) : null}
@@ -1221,8 +1278,8 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             session={activeSession}
             calendarHref={mode === 'today' ? '/coach/sessions' : null}
             initialInsight={activeHistoryInsight}
-            onEdit={() => { setReturnToSessionId(activeSession.id); setEditingSessionId(activeSession.id); closeSessionDetails(); }}
-            onDelete={() => setDeleteSessionId(activeSession.id)}
+            onEdit={editableTeamIds.has(activeSession.teamId) ? () => { setReturnToSessionId(activeSession.id); setEditingSessionId(activeSession.id); closeSessionDetails(); } : undefined}
+            onDelete={editableTeamIds.has(activeSession.teamId) ? () => setDeleteSessionId(activeSession.id) : undefined}
             onClose={closeSessionDetails}
           />
         ) : null}

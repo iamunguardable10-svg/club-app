@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
 import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
 import { LoadChart } from '@/features/load/AthleteLoadWorkspace';
-import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
+import { acwrDisplayLabel, playerLoadSummary, type PlayerLoadInput } from '@/features/load/loadAccess';
+import { loadZone } from '@/features/load/loadCalculations';
 import { LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/features/load/loadTypes';
 import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
@@ -41,11 +42,12 @@ export type TeamWorkspaceStaff = {
 };
 
 export type TeamWorkspaceFacilityOption = { id: string; name: string };
-export type TeamWorkspacePlayer = {
+export type TeamWorkspacePlayer = PlayerLoadInput & {
   id: string;
   name: string;
   groups?: string[];
-  loadEntries?: AthleteLoadEntry[];
+  /** Missing means shared; `false` for roles without `viewAttendance`. */
+  attendanceShared?: boolean;
   attendanceRate?: number | null;
   missedSessions?: number | null;
   attendanceEvents?: {
@@ -78,6 +80,8 @@ export type TeamWorkspaceData = {
   sessions: TeamWorkspaceSession[];
   contextSessions?: TeamWorkspaceSession[];
   groups: { id: string; name: string; description: string; playerCount: number; playerIds?: string[] }[];
+  /** Missing means shared; `false` for roles without `viewAttendance`. */
+  attendanceShared?: boolean;
   backHref: string;
   backLabel?: string;
   calendarHref?: string | null;
@@ -205,25 +209,11 @@ function EmptyCard({ title, description }: { title: string; description?: string
   );
 }
 
-function playerLoadSummary(player: TeamWorkspacePlayer) {
-  const entries = player.loadEntries ?? [];
-  const latest = getLatestACWR(entries, 'ewma');
-  const zone = loadZone(latest?.acwr ?? null, latest?.chronicFull ?? false);
-  const acwr = latest?.acwr ?? null;
-  const riskRank = zone.tone === 'high' ? 0 : zone.tone === 'low' ? 1 : zone.tone === 'ready' ? 2 : 3;
-  return { entries, latest, zone, acwr, riskRank };
-}
-
 function acwrToneClass(tone: ReturnType<typeof loadZone>['tone']) {
   if (tone === 'high') return 'border-rose-400/45 bg-rose-400/10 text-rose-100';
   if (tone === 'low') return 'border-sky-400/45 bg-sky-400/10 text-sky-100';
   if (tone === 'ready') return 'border-emerald-400/45 bg-emerald-400/10 text-emerald-100';
   return 'border-slate-700 bg-slate-950/55 text-slate-300';
-}
-
-function acwrDisplayLabel(summary: ReturnType<typeof playerLoadSummary>) {
-  if (summary.acwr === null) return 'No ACWR yet';
-  return summary.zone.tone === 'neutral' ? 'Building trend' : summary.zone.label;
 }
 
 function loadRiskLine(player: TeamWorkspacePlayer) {
@@ -250,6 +240,7 @@ function coachSessionFromTeamWorkspace(session: TeamWorkspaceSession, data: Team
     facilityId: session.facilityId ?? data.defaultFacilityId ?? null,
     facilityName: session.facilityName ?? data.defaultFacilityName ?? null,
     groupIds: session.groupIds ?? [],
+    attendanceShared: data.attendanceShared,
     availability: players.flatMap((player) =>
       (player.attendanceEvents ?? [])
         .filter((event) => event.sessionId === session.id)
@@ -267,7 +258,9 @@ function coachSessionFromTeamWorkspace(session: TeamWorkspaceSession, data: Team
       return {
         id: player.id,
         name: player.name,
-        loadEntries: player.loadEntries ?? [],
+        loadEntries: summary.entries,
+        loadAccess: summary.access,
+        loadSummary: player.loadSummary ?? null,
         acwr: summary.acwr,
         risk: summary.zone.tone === 'high' || summary.zone.tone === 'low' || summary.zone.tone === 'ready' ? summary.zone.tone : 'baseline',
       };
@@ -279,11 +272,13 @@ function TeamDashboardSessionCard({
   session,
   players,
   fallbackFacilityName,
+  attendanceShared = true,
   onOpen,
 }: {
   session: TeamWorkspaceSession;
   players: TeamWorkspacePlayer[];
   fallbackFacilityName?: string | null;
+  attendanceShared?: boolean;
   onOpen: () => void;
 }) {
   const notes = players.flatMap((player) =>
@@ -304,7 +299,7 @@ function TeamDashboardSessionCard({
         </div>
         <span className="text-lg font-black text-slate-500">›</span>
       </div>
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+      {attendanceShared ? <div className="mt-4 grid gap-2 sm:grid-cols-2">
         <div className={`rounded-2xl border p-3 ${out.length > 0 ? 'border-rose-400/35 bg-rose-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Out</p>
@@ -319,7 +314,7 @@ function TeamDashboardSessionCard({
           </div>
           {late.slice(0, 3).map((item) => <p key={`${item.sessionId}-${item.playerName}-late`} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${item.lateMinutes}m` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>)}
         </div>
-      </div>
+      </div> : null}
     </button>
   );
 }
@@ -1320,6 +1315,7 @@ export function TeamWorkspaceView({
   onAddGroup,
   onRemoveGroup,
   onTogglePlayerGroup,
+  staffPanel,
 }: {
   data: TeamWorkspaceData;
   initialSection?: TeamWorkspaceSection;
@@ -1340,6 +1336,8 @@ export function TeamWorkspaceView({
   onAddGroup?: (name: string) => void | Promise<void>;
   onRemoveGroup?: (groupId: string) => void | Promise<void>;
   onTogglePlayerGroup?: (groupId: string, playerId: string) => void | Promise<void>;
+  /** Replaces the read-only staff overview in settings, e.g. with role management. */
+  staffPanel?: ReactNode;
 }) {
   const [activeSection, setActiveSection] = useState<TeamWorkspaceSection>(initialSection);
   const [isSavingDefault, setIsSavingDefault] = useState(false);
@@ -1563,7 +1561,7 @@ export function TeamWorkspaceView({
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Today / next</p>
             {nextSession ? (
-              <TeamDashboardSessionCard session={nextSession} players={playersForSession(nextSession)} fallbackFacilityName={data.defaultFacilityName} onOpen={() => setDashboardSession(nextSession)} />
+              <TeamDashboardSessionCard session={nextSession} players={playersForSession(nextSession)} fallbackFacilityName={data.defaultFacilityName} attendanceShared={data.attendanceShared !== false} onOpen={() => setDashboardSession(nextSession)} />
             ) : (
               <EmptyCard title="No upcoming session" />
             )}
@@ -1638,12 +1636,12 @@ export function TeamWorkspaceView({
                   <button key={player.id} type="button" onClick={() => setActivePlayer(player)} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 text-left transition hover:border-emerald-300/55 hover:bg-slate-900">
                     <div className="flex items-center justify-between gap-3">
                       <p className="font-black text-white">{player.name}</p>
-                      <span className={`rounded-full border px-2 py-1 text-[10px] font-black ${acwrToneClass(summary.zone.tone)}`}>{summary.acwr !== null ? summary.acwr.toFixed(2) : '?'} ACWR</span>
+                      {summary.access !== 'none' ? <span className={`rounded-full border px-2 py-1 text-[10px] font-black ${acwrToneClass(summary.zone.tone)}`}>{summary.acwr !== null ? summary.acwr.toFixed(2) : '?'} ACWR</span> : null}
                     </div>
                     {player.groups && player.groups.length > 0 ? <p className="mt-2 text-xs font-bold text-slate-500">{player.groups.join(' · ')}</p> : null}
                     <div className="mt-3 flex items-center justify-between gap-2 text-xs font-bold text-slate-400">
                       <span>{acwrDisplayLabel(summary)}</span>
-                      <span>{attendanceFlags > 0 ? `${attendanceFlags} attendance flags` : 'No attendance flags'}</span>
+                      {player.attendanceShared !== false ? <span>{attendanceFlags > 0 ? `${attendanceFlags} attendance flags` : 'No attendance flags'}</span> : null}
                     </div>
                   </button>
                 );
@@ -1807,7 +1805,7 @@ export function TeamWorkspaceView({
             <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
               <p className="text-sm font-black text-slate-100">Staff roles</p>
               <div className="mt-4">
-                <StaffRoleGrid roles={staffRoles} />
+                {staffPanel ?? <StaffRoleGrid roles={staffRoles} />}
               </div>
             </div>
           </div>

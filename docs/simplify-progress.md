@@ -776,3 +776,70 @@ Prüfkette in `docs/local-mode-testplan.md` und der Routen-Durchlauf aus Run 6.
    `TeamWorkspaceView` 1885, `CoachWorkspaceRouter` 1312) sind der nächste Hebel für
    Wartbarkeit, nicht für Kürze.
 5. Das Favicon fehlt — schon im Ausgangsstand.
+
+## Run 7 — Trainerrollen und Sichtbarkeit (erledigt)
+
+Schritt 1 aus Entscheidung 8. Jede Trainerrolle gehört zu einem Team und trägt Rechte
+aus einer festen Liste (`COACH_PERMISSIONS` in `src/shared/data/schema.ts`). Welche
+Rolle jemand hat, steht an der Mitgliedschaft (`membership.coachRoleId`); daraus
+berechnet `coachPermissions(database, personId, teamId)` die Rechte.
+
+### Rechte
+
+| Recht | wirkt auf |
+|---|---|
+| `viewRoster` | Spielerliste, Spieler in Einheiten |
+| `viewAttendance` | Zu- und Absagen, Anwesenheitsquote |
+| `viewAbsenceReasons` | Absagegründe (braucht `viewAttendance`) |
+| `viewLoadSummary` | ACWR-Ampel ohne Rohdaten |
+| `viewLoadDetails` | RPE, Einträge, Diagramme, Monotonie (braucht `viewLoadSummary`) |
+| `viewAthletePlans` | vorgesehen; Spielerpläne haben beim Trainer noch keine Ansicht |
+| `editSessions` | Einheiten anlegen, verschieben, bearbeiten, löschen — Trainer- und Hallenkalender |
+| `planSeries` | Wochenserien |
+| `manageGroups` | Gruppen |
+| `manageFacilities` | Standardhalle des Teams |
+| `manageStaff` | Trainerteam und Rollen |
+
+Vorlagen pro Team: **Head Coach** (alle, gesperrt), **Co-Trainer** und
+**Athletiktrainer** (alle, änderbar), **Betreuer** (`viewRoster`, `viewAttendance`).
+
+### Regeln in der Datenschicht
+
+- Head Coach hat immer alle Rechte, lässt sich weder ändern noch löschen.
+- Ein Team behält immer mindestens eine Person mit `manageStaff`; Umbesetzen,
+  Entfernen und Rechte-Entzug, die das verletzen würden, werden abgelehnt.
+- Vergebene Rollen lassen sich nicht löschen; Rollennamen sind pro Team eindeutig.
+- Abhängige Rechte werden beim Speichern ergänzt (`COACH_PERMISSION_REQUIRES`);
+  die Oberfläche nimmt beim Abwählen die abhängigen mit.
+
+### Geändert
+
+- `src/features/load/loadAccess.ts` (neu): Zugriffsgrad `full | summary | none` und
+  die eine Ampel-Berechnung, die Teamansicht, Spielerdetail und Einheitendetail teilen
+  (vorher zwei Kopien). Bei `summary` wird die Ampel dort berechnet, wo die Einträge
+  liegen; die Rohwerte erreichen die Ansicht nicht.
+- `coachData.ts`, `TeamWorkspace.tsx`: Spielerdaten werden nach Rechten weggelassen,
+  Handler ohne Recht nicht übergeben — die Ansichten blenden die Bedienelemente dann
+  selbst aus.
+- `CoachWorkspaceRouter.tsx`, `FacilityCalendar.tsx`: Bearbeiten, Ziehen und Serien nur
+  für Teams mit dem jeweiligen Recht, zusätzlich in den Schreibpfaden geprüft.
+- `PlayerLoadDetail.tsx`, `CoachSessionSurfaces.tsx`, `TeamWorkspaceView.tsx`: Hinweise
+  „nicht für deine Rolle freigegeben" statt leerer Werte, die wie „niemand hat
+  gemeldet" aussehen würden.
+- `src/features/teams/TeamStaffPanel.tsx` (neu): Trainerteam und Rollen unter
+  „Staff / Settings". Alle im Trainerteam sehen es, nur `manageStaff` kann ändern.
+- Identitätswechsel zeigt bei Trainern die Rolle pro Team.
+- Schema-Version `2026-09-24-coach-roles-v4`: vorhandene lokale Daten werden neu
+  aufgesetzt (Entscheidung 2).
+
+### Grenze bis Run 9/10
+
+Im lokalen Modus kann jeder die Identität wechseln, und die Schreibfunktionen der
+Datenschicht kennen keinen handelnden Nutzer. Die Rechte formen also die Oberfläche,
+schützen aber keine Daten. Durchgesetzt werden sie erst mit Supabase-RLS; die
+Rechte-Schlüssel sind dafür der Vertrag.
+
+### Validierung
+
+`npm run typecheck`, `npm run build` grün; Browserlauf siehe
+`docs/local-mode-testplan.md`, Abschnitt Run 7.

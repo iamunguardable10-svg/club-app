@@ -23,8 +23,13 @@ import { calculateEWMA, getLatestACWR, loadZone, sevenDayLoad } from './loadCalc
 import { DATABASE_KEY, LEGACY_KEY_PREFIXES, SCHEMA_VERSION, isCurrent } from './migrations';
 import { createSeedDatabase } from './seed';
 import {
+  COACH_PERMISSIONS,
+  COACH_PERMISSION_REQUIRES,
   LocalDataError,
   type ActiveIdentity,
+  type CoachPermission,
+  type CoachRole,
+  type Membership,
   type Availability,
   type AvailabilityStatus,
   type Facility,
@@ -234,6 +239,212 @@ export function coachesForTeam(database: LocalDatabase, teamId: Id): Person[] {
 export function facilityById(database: LocalDatabase, facilityId: Id | null): Facility | null {
   if (!facilityId) return null;
   return database.facilities.find((facility) => facility.id === facilityId) ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Coach roles and permissions
+// ---------------------------------------------------------------------------
+
+const ALL_PERMISSIONS: ReadonlySet<CoachPermission> = new Set(COACH_PERMISSIONS);
+const NO_PERMISSIONS: ReadonlySet<CoachPermission> = new Set();
+
+function roleById(database: LocalDatabase, roleId: Id | null): CoachRole | null {
+  if (!roleId) return null;
+  return database.coachRoles.find((role) => role.id === roleId) ?? null;
+}
+
+function permissionsOfRole(role: CoachRole | null): ReadonlySet<CoachPermission> {
+  if (!role) return NO_PERMISSIONS;
+  // The locked Head Coach role always carries everything, whatever is stored.
+  return role.locked ? ALL_PERMISSIONS : new Set(role.permissions);
+}
+
+/**
+ * What this person may see and do in this team as a coach.
+ *
+ * Empty when they have no coach membership there. Views use this to decide
+ * what to render; once there is a server, row-level security enforces the same
+ * rules — until then the local test mode lets anyone switch identity, so this
+ * shapes the interface rather than protecting data.
+ */
+export function coachPermissions(database: LocalDatabase, personId: Id | null, teamId: Id): ReadonlySet<CoachPermission> {
+  if (!personId) return NO_PERMISSIONS;
+  const membership = database.memberships.find(
+    (candidate) => candidate.personId === personId && candidate.teamId === teamId && candidate.role === 'coach',
+  );
+  return membership ? permissionsOfRole(roleById(database, membership.coachRoleId)) : NO_PERMISSIONS;
+}
+
+export function hasCoachPermission(database: LocalDatabase, personId: Id | null, teamId: Id, permission: CoachPermission): boolean {
+  return coachPermissions(database, personId, teamId).has(permission);
+}
+
+export function coachRolesForTeam(database: LocalDatabase, teamId: Id): CoachRole[] {
+  return database.coachRoles
+    .filter((role) => role.teamId === teamId)
+    .sort((a, b) => Number(b.locked) - Number(a.locked) || a.createdAt.localeCompare(b.createdAt) || a.name.localeCompare(b.name));
+}
+
+export type StaffMember = {
+  membershipId: Id;
+  personId: Id;
+  name: string;
+  roleId: Id | null;
+  roleName: string | null;
+};
+
+export function staffForTeam(database: LocalDatabase, teamId: Id): StaffMember[] {
+  const roles = coachRolesForTeam(database, teamId);
+  return database.memberships
+    .filter((membership) => membership.teamId === teamId && membership.role === 'coach')
+    .map((membership) => {
+      const person = database.people.find((candidate) => candidate.id === membership.personId);
+      const role = roleById(database, membership.coachRoleId);
+      return {
+        membershipId: membership.id,
+        personId: membership.personId,
+        name: person ? displayName(person) : 'Unbekannt',
+        roleId: role?.id ?? null,
+        roleName: role?.name ?? null,
+      };
+    })
+    .sort((a, b) => roleOrder(a.roleId) - roleOrder(b.roleId) || a.name.localeCompare(b.name));
+
+  function roleOrder(roleId: Id | null) {
+    const index = roles.findIndex((role) => role.id === roleId);
+    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+  }
+}
+
+/**
+ * Throws when a change would leave the team with nobody who may manage staff.
+ * Called on the draft, after the change is applied, so every path that could
+ * lock a team out — reassigning, removing, editing a role — goes through it.
+ */
+function assertTeamKeepsStaffManager(database: LocalDatabase, teamId: Id) {
+  const stillManaged = database.memberships.some(
+    (membership) =>
+      membership.teamId === teamId &&
+      membership.role === 'coach' &&
+      permissionsOfRole(roleById(database, membership.coachRoleId)).has('manageStaff'),
+  );
+  if (!stillManaged) {
+    throw new LocalDataError('Das Team braucht mindestens eine Person, die Trainerrollen verwalten darf.');
+  }
+}
+
+function sanitizePermissions(permissions: readonly string[]): CoachPermission[] {
+  const granted = new Set(COACH_PERMISSIONS.filter((permission) => permissions.includes(permission)));
+  for (const permission of [...granted]) {
+    for (const required of COACH_PERMISSION_REQUIRES[permission] ?? []) granted.add(required);
+  }
+  return COACH_PERMISSIONS.filter((permission) => granted.has(permission));
+}
+
+function assertRoleNameFree(database: LocalDatabase, teamId: Id, name: string, exceptRoleId: Id | null) {
+  const taken = database.coachRoles.some(
+    (role) => role.teamId === teamId && role.id !== exceptRoleId && role.name.toLowerCase() === name.toLowerCase(),
+  );
+  if (taken) throw new LocalDataError(`Die Rolle „${name}" gibt es in diesem Team schon.`);
+}
+
+export function createCoachRole(teamId: Id, name: string, permissions: readonly string[]): Id {
+  const trimmed = name.trim();
+  if (!trimmed) throw new LocalDataError('Die Rolle braucht einen Namen.');
+  const id = `role-${teamId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  mutate((database) => {
+    assertRoleNameFree(database, teamId, trimmed, null);
+    database.coachRoles.push({
+      id,
+      teamId,
+      name: trimmed,
+      permissions: sanitizePermissions(permissions),
+      locked: false,
+      createdAt: new Date().toISOString(),
+    });
+  });
+  return id;
+}
+
+export function updateCoachRole(roleId: Id, changes: { name?: string; permissions?: readonly string[] }): void {
+  mutate((database) => {
+    const role = database.coachRoles.find((candidate) => candidate.id === roleId);
+    if (!role) throw new LocalDataError(`Unknown role: ${roleId}`);
+    if (role.locked) throw new LocalDataError('Die Rolle Head Coach hat immer alle Rechte und lässt sich nicht ändern.');
+    if (changes.name !== undefined) {
+      const trimmed = changes.name.trim();
+      if (!trimmed) throw new LocalDataError('Die Rolle braucht einen Namen.');
+      assertRoleNameFree(database, role.teamId, trimmed, role.id);
+      role.name = trimmed;
+    }
+    if (changes.permissions !== undefined) role.permissions = sanitizePermissions(changes.permissions);
+    assertTeamKeepsStaffManager(database, role.teamId);
+  });
+}
+
+export function deleteCoachRole(roleId: Id): void {
+  mutate((database) => {
+    const role = database.coachRoles.find((candidate) => candidate.id === roleId);
+    if (!role) return;
+    if (role.locked) throw new LocalDataError('Die Rolle Head Coach lässt sich nicht löschen.');
+    if (database.memberships.some((membership) => membership.coachRoleId === roleId)) {
+      throw new LocalDataError(`„${role.name}" ist noch vergeben. Weise den Personen zuerst eine andere Rolle zu.`);
+    }
+    database.coachRoles = database.coachRoles.filter((candidate) => candidate.id !== roleId);
+  });
+}
+
+export function assignCoachRole(membershipId: Id, roleId: Id): void {
+  mutate((database) => {
+    const membership = database.memberships.find((candidate) => candidate.id === membershipId);
+    const role = database.coachRoles.find((candidate) => candidate.id === roleId);
+    if (!membership || membership.role !== 'coach') throw new LocalDataError(`Unknown staff membership: ${membershipId}`);
+    if (!role || role.teamId !== membership.teamId) throw new LocalDataError('Diese Rolle gehört zu einem anderen Team.');
+    membership.coachRoleId = roleId;
+    assertTeamKeepsStaffManager(database, membership.teamId);
+  });
+}
+
+/**
+ * Adds a coach to the team by name.
+ *
+ * Without accounts there is nobody to invite, so staff are entered directly.
+ * Once access exists (docs/simplify-decisions.md, point 8, step 4) this is
+ * where an invitation will come in; the membership and role model stays.
+ */
+export function addStaffMember(teamId: Id, firstName: string, lastName: string, roleId: Id): Id {
+  const first = firstName.trim();
+  const last = lastName.trim();
+  if (!first || !last) throw new LocalDataError('Vor- und Nachname werden gebraucht.');
+  const personId = `coach-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  mutate((database) => {
+    const team = database.teams.find((candidate) => candidate.id === teamId);
+    const role = database.coachRoles.find((candidate) => candidate.id === roleId);
+    if (!team) throw new LocalDataError(`Unknown team: ${teamId}`);
+    if (!role || role.teamId !== teamId) throw new LocalDataError('Diese Rolle gehört zu einem anderen Team.');
+    const now = new Date().toISOString();
+    database.people.push({ id: personId, clubId: team.clubId, firstName: first, lastName: last, createdAt: now });
+    const membership: Membership = { id: `m-${personId}-${teamId}`, personId, teamId, role: 'coach', coachRoleId: roleId, createdAt: now };
+    database.memberships.push(membership);
+  });
+  return personId;
+}
+
+export function removeStaffMember(membershipId: Id): void {
+  mutate((database) => {
+    const membership = database.memberships.find((candidate) => candidate.id === membershipId);
+    if (!membership || membership.role !== 'coach') return;
+    database.memberships = database.memberships.filter((candidate) => candidate.id !== membershipId);
+    assertTeamKeepsStaffManager(database, membership.teamId);
+    // Someone acting as this coach for this team would otherwise keep rights
+    // they no longer have; fall back to the start page.
+    if (
+      database.activeIdentity?.personId === membership.personId &&
+      !database.memberships.some((candidate) => candidate.personId === membership.personId && candidate.role === 'coach')
+    ) {
+      database.activeIdentity = null;
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------

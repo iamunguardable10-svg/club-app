@@ -96,7 +96,15 @@ export function IdentitySwitcher({ className = '' }: { className?: string }) {
         <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{ROLE_LABEL[role]}</p>
         <ul className="space-y-1.5">
           {people.map((person) => {
-            const teams = teamsForPerson(database!, person.id).map((team) => team.name).join(', ');
+            // Coaches see their role per team, since that decides what they may see.
+            const teams = teamsForPerson(database!, person.id)
+              .map((team) => {
+                if (role !== 'coach') return team.name;
+                const membership = database!.memberships.find((m) => m.personId === person.id && m.teamId === team.id && m.role === 'coach');
+                const roleName = database!.coachRoles.find((candidate) => candidate.id === membership?.coachRoleId)?.name;
+                return roleName ? `${team.name} · ${roleName}` : team.name;
+              })
+              .join(', ');
             const isCurrent = identity?.personId === person.id && identity.role === role;
             return (
               <li key={`${role}-${person.id}`}>

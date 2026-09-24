@@ -169,3 +169,9 @@ Abwesenheitsdaten, darunter Gesundheitsgründe von Jugendlichen, ungeschützt au
 **Was aus Run 5 zurückkommt,** wird aus den Live-Versionen in `543775f` gezielt
 portiert, nicht pauschal zurückgespielt — sonst kämen die Demo-Zwillinge und die
 Doppelpflege mit.
+
+**Stand 2026-09-24:** Schritt 1 (Trainerrollen) ist erledigt, siehe
+`docs/simplify-progress.md`, Run 7. Bis Schritt 3 und 4 formen die Rechte nur die
+Oberfläche: im lokalen Modus kann jeder die Identität wechseln. Wer eine Ansicht
+ändert, prüft Rechte über `coachPermissions`/`hasCoachPermission` aus `@/shared/data`,
+nie über URL-Parameter.

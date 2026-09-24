@@ -13,14 +13,16 @@
 
 import {
   athletesForTeam,
+  coachPermissions,
   displayName,
-  getLatestACWR,
   loadZone,
   sessionTypeToLoadType,
   type AthleteLoadEntry,
+  type CoachPermission,
   type Id,
   type LocalDatabase,
 } from '@/shared/data';
+import { loadAccessFor, summarizeLoadEntries, type LoadAccess } from '@/features/load/loadAccess';
 import type { ConflictSession } from '@/features/calendar/sessionConflicts';
 import type { SeriesTemplate, SeriesWeekState } from '@/features/sessions/sessionSeriesPlanner';
 import type {
@@ -55,21 +57,24 @@ export const EMPTY_COACH_DATA: CoachData = {
 /** Same window the Supabase version used: 90 days either side of today. */
 const WINDOW_DAYS = 90;
 
-function toCoachPlayer(database: LocalDatabase, personId: Id, teamId: Id): CoachPlayer {
+function toCoachPlayer(database: LocalDatabase, personId: Id, teamId: Id, access: LoadAccess): CoachPlayer {
   const person = database.people.find((candidate) => candidate.id === personId);
   const entries: AthleteLoadEntry[] = database.loadEntries
     .filter((entry) => entry.personId === personId && (!entry.teamId || entry.teamId === teamId))
     .map(({ personId: _personId, createdAt: _createdAt, ...entry }) => entry);
 
-  // EWMA, matching what the coach view showed before.
-  const latest = getLatestACWR(entries, 'ewma');
-  const zone = loadZone(latest?.acwr ?? null, latest?.chronicFull ?? false);
+  // The ratio is computed from the entries here, then the entries are dropped
+  // for roles that may only see the summary; `none` gets neither.
+  const loadSummary = access === 'none' ? null : summarizeLoadEntries(entries);
+  const zone = loadZone(loadSummary?.acwr ?? null, loadSummary?.chronicFull ?? false);
 
   return {
     id: personId,
     name: person ? displayName(person) : 'Spieler',
-    loadEntries: entries,
-    acwr: latest?.acwr ?? null,
+    loadEntries: access === 'full' ? entries : [],
+    loadAccess: access,
+    loadSummary,
+    acwr: loadSummary?.acwr ?? null,
     risk: zone.tone === 'high' ? 'high' : zone.tone === 'low' ? 'low' : zone.tone === 'ready' ? 'ready' : 'baseline',
   };
 }
@@ -94,6 +99,11 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
   const departmentNameById = new Map(database.departments.map((department) => [department.id, department.name]));
   const facilityNameById = new Map(database.facilities.map((facility) => [facility.id, facility.name]));
 
+  const permissionsByTeam = new Map(
+    [...teamIds].map((teamId) => [teamId, coachPermissions(database, coachPersonId, teamId)] as const),
+  );
+  const permissionsFor = (teamId: Id) => permissionsByTeam.get(teamId) ?? new Set<CoachPermission>();
+
   const teams: CoachTeam[] = database.teams
     .filter((team) => teamIds.has(team.id))
     .map((team) => ({
@@ -104,6 +114,7 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
       departmentName: departmentNameById.get(team.departmentId) ?? 'Abteilung',
       defaultFacilityId: team.defaultFacilityId,
       role: 'coach',
+      permissions: [...permissionsFor(team.id)],
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -159,9 +170,12 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
 
   const playersByTeamId = new Map<Id, CoachPlayer[]>();
   for (const team of teams) {
+    const permissions = permissionsFor(team.id);
     playersByTeamId.set(
       team.id,
-      athletesForTeam(database, team.id).map((person) => toCoachPlayer(database, person.id, team.id)),
+      permissions.has('viewRoster')
+        ? athletesForTeam(database, team.id).map((person) => toCoachPlayer(database, person.id, team.id, loadAccessFor(permissions)))
+        : [],
     );
   }
 
@@ -196,7 +210,14 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
             return playerGroups ? session.groupIds.some((groupId) => playerGroups.has(groupId)) : false;
           });
       const scopedPlayerIds = new Set(scopedPlayers.map((player) => player.id));
-      const sessionAvailability = availabilityBySessionId.get(session.id) ?? [];
+      const permissions = permissionsFor(team.id);
+      // Who is coming is one right, why someone is not is another: absence
+      // reasons are often about health.
+      const sessionAvailability = !permissions.has('viewAttendance')
+        ? []
+        : (availabilityBySessionId.get(session.id) ?? []).map((entry) =>
+            permissions.has('viewAbsenceReasons') ? entry : { ...entry, reason: null },
+          );
 
       return {
         id: session.id,
@@ -214,6 +235,7 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
           ? sessionAvailability
           : sessionAvailability.filter((entry) => scopedPlayerIds.has(entry.userId)),
         players: scopedPlayers,
+        attendanceShared: permissions.has('viewAttendance'),
       } satisfies CoachSession;
     });
 

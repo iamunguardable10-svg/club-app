@@ -13,8 +13,11 @@
  */
 
 import { SCHEMA_VERSION } from './migrations';
+import { COACH_PERMISSIONS } from './schema';
 import type {
   AthletePlan,
+  CoachPermission,
+  CoachRole,
   Availability,
   Club,
   Department,
@@ -120,8 +123,27 @@ const U18_NAMES: [string, string][] = [
   ['Emma', 'Winkler'], ['Nele', 'Bergmann'], ['Ida', 'Schuster'], ['Frieda', 'Walther'],
 ];
 
-const COACH_NAMES: [string, string][] = [
-  ['Martin', 'Weber'], ['Sabine', 'Köhler'], ['Tobias', 'Neumann'],
+/**
+ * Default coach roles every team starts with. Agreed with the club: head
+ * coach, co-trainer and athletic coach see and may do everything; the
+ * Betreuer (team manager) sees who is in the squad and who is coming, nothing
+ * about load or the reasons someone is out. Head coaches can change any of this
+ * per team except their own role, which is locked.
+ */
+export const COACH_ROLE_TEMPLATES: { key: string; name: string; permissions: CoachPermission[]; locked: boolean }[] = [
+  { key: 'head', name: 'Head Coach', permissions: [...COACH_PERMISSIONS], locked: true },
+  { key: 'assistant', name: 'Co-Trainer', permissions: [...COACH_PERMISSIONS], locked: false },
+  { key: 'athletic', name: 'Athletiktrainer', permissions: [...COACH_PERMISSIONS], locked: false },
+  { key: 'manager', name: 'Betreuer', permissions: ['viewRoster', 'viewAttendance'], locked: false },
+];
+
+/** Staff of the test club, with the role each holds per team. */
+const STAFF: { firstName: string; lastName: string; roles: { teamId: Id; role: string }[] }[] = [
+  { firstName: 'Martin', lastName: 'Weber', roles: [{ teamId: 'team-u16', role: 'head' }] },
+  { firstName: 'Sabine', lastName: 'Köhler', roles: [{ teamId: 'team-u18', role: 'head' }] },
+  { firstName: 'Tobias', lastName: 'Neumann', roles: [{ teamId: 'team-u16', role: 'assistant' }, { teamId: 'team-u18', role: 'assistant' }] },
+  { firstName: 'Jana', lastName: 'Vogt', roles: [{ teamId: 'team-u16', role: 'athletic' }] },
+  { firstName: 'Uwe', lastName: 'Heller', roles: [{ teamId: 'team-u16', role: 'manager' }] },
 ];
 
 type SeriesTemplate = {
@@ -190,13 +212,31 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
   const people: Person[] = [];
   const memberships: Membership[] = [];
 
-  COACH_NAMES.forEach(([firstName, lastName], index) => {
+  const coachRoles: CoachRole[] = [TEAM_U16, TEAM_U18].flatMap((teamId) =>
+    COACH_ROLE_TEMPLATES.map((template, index) => ({
+      id: `role-${teamId}-${template.key}`,
+      teamId,
+      name: template.name,
+      permissions: [...template.permissions],
+      locked: template.locked,
+      // One millisecond apart, so the roles keep their template order
+      // (head, co, athletic, manager) wherever they are sorted by age.
+      createdAt: new Date(Date.parse(createdAt) + index).toISOString(),
+    })),
+  );
+
+  STAFF.forEach((member, index) => {
     const id = `coach-${index + 1}`;
-    people.push({ id, clubId: CLUB_ID, firstName, lastName, createdAt });
-    // Coach 1 leads U16, coach 2 leads U18, coach 3 assists both.
-    const teamIds = index === 0 ? [TEAM_U16] : index === 1 ? [TEAM_U18] : [TEAM_U16, TEAM_U18];
-    teamIds.forEach((teamId) => {
-      memberships.push({ id: `m-${id}-${teamId}`, personId: id, teamId, role: 'coach', createdAt });
+    people.push({ id, clubId: CLUB_ID, firstName: member.firstName, lastName: member.lastName, createdAt });
+    member.roles.forEach(({ teamId, role }) => {
+      memberships.push({
+        id: `m-${id}-${teamId}`,
+        personId: id,
+        teamId,
+        role: 'coach',
+        coachRoleId: `role-${teamId}-${role}`,
+        createdAt,
+      });
     });
   });
 
@@ -204,7 +244,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     names.forEach(([firstName, lastName], index) => {
       const id = `${prefix}-${index + 1}`;
       people.push({ id, clubId: CLUB_ID, firstName, lastName, createdAt });
-      memberships.push({ id: `m-${id}`, personId: id, teamId, role: 'athlete', createdAt });
+      memberships.push({ id: `m-${id}`, personId: id, teamId, role: 'athlete', coachRoleId: null, createdAt });
     });
   };
 
@@ -414,6 +454,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     departmentFacilities,
     people,
     memberships,
+    coachRoles,
     playerGroups,
     playerGroupMembers,
     sessions,
