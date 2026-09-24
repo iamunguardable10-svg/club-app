@@ -20,6 +20,7 @@ migrations below are applied there (2026-09-24).
 | `migrations/0009_pilot_team_features.sql` | Team features (`teams.features`, for now `load`): without load, the team's load rights have no effect and its players cannot record load |
 | `migrations/0010_pilot_missed_sessions.sql` | Availability status `missed` ("I didn't take part", said after the session), only once the session has started |
 | `migrations/0011_pilot_club_admin.sql` | Club administration: club admin and department leads (`club_roles`), their invitations, one-time founding codes and `found_club`, management rights in managed teams without player data, archiving teams |
+| `migrations/0012_pilot_onboarding.sql` | Onboarding: `join_code_preview` (club and team behind a join code) and `founding_code_usable`, both callable before signing in; `join_team` refuses archived teams; clear message when an account already belongs to another club; `invite_preview` returns the kind (`staff` or `club`) |
 | `tests/00_supabase_shim.sql` | Stand-in for Supabase's `auth` schema and roles, **local tests only** |
 | `tests/01_rls_test.sql` | 105 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
 | `tests/02_access_test.sql` | 35 checks for join codes, invitations and club setup |
@@ -121,7 +122,9 @@ data again. The app cannot change this.
   given, and `invite_preview` only answers for an unguessable token.
   `found_club` (0011) is listed the same way: it only acts with an unused
   founding code. `founding_codes` has no read policy on purpose: codes are
-  never readable from the app.
+  never readable from the app. `join_code_preview` and `founding_code_usable`
+  (0012) are callable without signing in on purpose: they only answer club
+  and team name for an exact join code, or yes/no for a founding code.
   `rls_auto_enable` comes with the Supabase project.
 
 ## Changing the schema

@@ -12,6 +12,8 @@
 
 import { useMemo, useState } from 'react';
 
+import { ShareLink } from '@/features/onboarding/ShareLink';
+
 import {
   COACH_PERMISSIONS,
   LOAD_PERMISSIONS,
@@ -71,31 +73,13 @@ function togglePermission(current: readonly CoachPermission[], permission: Coach
   return current.filter((candidate) => candidate !== permission && !dependents.includes(candidate));
 }
 
-/** Copies text; on plain http (no clipboard API) the link stays visible to copy by hand. */
-function CopyLink({ label, url }: { label: string; url: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <div className="grid gap-1">
-      <div className="flex items-center gap-2">
-        <input readOnly value={url} aria-label={label} onFocus={(event) => event.currentTarget.select()} className="min-w-0 flex-1 rounded-lg border border-slate-800 bg-slate-950 px-2 py-1.5 font-mono text-[11px] text-slate-300" />
-        <button
-          type="button"
-          onClick={() => navigator.clipboard?.writeText(url).then(() => setCopied(true)).catch(() => undefined)}
-          className="shrink-0 rounded-lg border border-sky-500/50 px-2 py-1.5 text-[11px] font-black text-sky-100"
-        >
-          {copied ? 'Copied' : 'Copy'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 /**
  * How people get into the team on the server: the athletes' join code and a
  * personal link per staff member without an account.
  */
 function JoinCodeSection({ database, teamId, onRun }: { database: LocalDatabase; teamId: Id; onRun: (action: () => void) => boolean }) {
   const code = joinCodeFor(database, teamId);
+  const teamName = database.teams.find((team) => team.id === teamId)?.name ?? 'the team';
   const [confirmRotate, setConfirmRotate] = useState(false);
   if (!code) return null;
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
@@ -103,8 +87,8 @@ function JoinCodeSection({ database, teamId, onRun }: { database: LocalDatabase;
     <div className="grid gap-2 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
       <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Invite players</p>
       <p className="font-mono text-2xl font-black tracking-[0.25em] text-white">{code.slice(0, 4)}-{code.slice(4)}</p>
-      <p className="text-xs font-bold text-slate-400">Players create an account and enter this code, or open the link directly.</p>
-      <CopyLink label="Join link for players" url={`${origin}/join?code=${code}`} />
+      <p className="text-xs font-bold text-slate-400">Send players the link or let them scan the QR code; they can also enter the code after tapping “Player” on the start page.</p>
+      <ShareLink label="Join link for players" url={`${origin}/join?code=${code}`} shareText={`Join ${teamName} on Club OS`} qr />
       {confirmRotate ? (
         <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-300">
           The old code stops working.
@@ -133,7 +117,7 @@ function StaffAccess({ database, teamId, personId, name, onRun }: { database: Lo
   return (
     <div className="grid gap-1">
       <p className="text-[11px] font-bold text-amber-200">Invited, not accepted yet · valid until {new Date(invite.expiresAt).toLocaleDateString('en-GB')}</p>
-      <CopyLink label={`Invitation link for ${name}`} url={`${origin}/join?invite=${invite.token}`} />
+      <ShareLink label={`Invitation link for ${name}`} url={`${origin}/join?invite=${invite.token}`} shareText={`${name}, your invitation to Club OS`} />
       <button type="button" onClick={() => onRun(() => revokeStaffInvite(invite.token))} className="justify-self-start text-[11px] font-bold text-slate-400 underline">Revoke link</button>
     </div>
   );

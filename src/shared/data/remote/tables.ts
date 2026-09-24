@@ -293,7 +293,8 @@ export function fromServerRows(
 
 /**
  * Who the app acts as: always the signed-in person. Coach if they coach a
- * team, athlete otherwise; a previous choice between their own roles is kept.
+ * team, athlete otherwise, club admin or department lead (`club`) without a
+ * team; a previous choice between their own roles is kept.
  */
 export function identityFor(
   database: LocalDatabase,
@@ -302,10 +303,16 @@ export function identityFor(
 ): LocalDatabase['activeIdentity'] {
   const mine = database.people.filter((person) => person.userId === userId).map((person) => person.id);
   const roles = database.memberships.filter((m) => mine.includes(m.personId));
-  if (previous && roles.some((m) => m.personId === previous.personId && m.role === previous.role)) return previous;
+  const clubRole = database.clubRoles.find((candidate) => mine.includes(candidate.personId));
+  if (previous && mine.includes(previous.personId)) {
+    if (previous.role === 'club' ? clubRole?.personId === previous.personId : roles.some((m) => m.personId === previous.personId && m.role === previous.role)) {
+      return previous;
+    }
+  }
   const coach = roles.find((m) => m.role === 'coach');
   if (coach) return { role: 'coach', personId: coach.personId };
   const athlete = roles.find((m) => m.role === 'athlete');
   if (athlete) return { role: 'athlete', personId: athlete.personId };
+  if (clubRole) return { role: 'club', personId: clubRole.personId };
   return null;
 }

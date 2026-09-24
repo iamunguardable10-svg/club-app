@@ -24,6 +24,7 @@ import Link from 'next/link';
 import { LocalModeLink } from '@/features/access/LocalModeLink';
 
 import {
+  clubRoleLabel,
   displayName,
   peopleWithRole,
   renameOwnPerson,
@@ -35,19 +36,21 @@ import {
   setActiveIdentity,
   teamsForPerson,
   useLocalDatabase,
-  type MembershipRole,
+  type IdentityRole,
   type Person,
 } from '@/shared/data';
 
-const ROLE_LABEL: Record<MembershipRole, string> = {
+const ROLE_LABEL: Record<IdentityRole, string> = {
   coach: 'Coach',
   athlete: 'Player',
+  club: 'Club',
 };
 
 /** Where each role lands when it is picked. */
-export const HOME_FOR_ROLE: Record<MembershipRole, string> = {
+export const HOME_FOR_ROLE: Record<IdentityRole, string> = {
   coach: '/coach/today',
   athlete: '/athlete/home',
+  club: '/club',
 };
 
 export function IdentitySwitcher({ className = '', variant = 'card' }: { className?: string; variant?: 'card' | 'avatar' }) {
@@ -91,7 +94,7 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
     router.push('/');
   }
 
-  function choose(role: MembershipRole, person: Person) {
+  function choose(role: IdentityRole, person: Person) {
     setActiveIdentity({ role, personId: person.id });
     setOpen(false);
     router.push(HOME_FOR_ROLE[role]);
@@ -102,7 +105,7 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
   const remoteMode = isRemoteMode();
   const own = ownPersonIds(database);
 
-  function renderGroup(role: MembershipRole) {
+  function renderGroup(role: IdentityRole) {
     const people = peopleWithRole(database!, role).filter((person) => !remoteMode || own.includes(person.id));
     if (people.length === 0) return null;
     return (
@@ -111,7 +114,7 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
         <ul className="space-y-1.5">
           {people.map((person) => {
             // Coaches see their role per team, since that decides what they may see.
-            const teams = teamsForPerson(database!, person.id)
+            const teams = role === 'club' ? clubRoleLabel(database!, person.id) : teamsForPerson(database!, person.id)
               .map((team) => {
                 if (role !== 'coach') return team.name;
                 const membership = database!.memberships.find((m) => m.personId === person.id && m.teamId === team.id && m.role === 'coach');
@@ -196,6 +199,7 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
             <div className="space-y-5">
               {renderGroup('coach')}
               {renderGroup('athlete')}
+              {renderGroup('club')}
             </div>
 
             {/* Reset lives here because this sheet is reachable from both the

@@ -50,6 +50,7 @@ import {
   type Id,
   type LoadEntry,
   type LocalDatabase,
+  type IdentityRole,
   type MembershipRole,
   type Person,
   type Session,
@@ -470,6 +471,8 @@ export async function currentAccount(): Promise<{ email: string } | null> {
 }
 
 export type InvitePreview = {
+  /** `staff` for a team's staff, `club` for a club admin or department lead. */
+  kind: 'staff' | 'club';
   clubName: string;
   teamName: string;
   firstName: string;
@@ -486,9 +489,30 @@ export async function previewInvite(token: string): Promise<InvitePreview | null
   const row = (data as Record<string, unknown>[] | null)?.[0];
   if (!row) return null;
   return {
+    kind: row.kind === 'club' ? 'club' : 'staff',
     clubName: String(row.club_name), teamName: String(row.team_name), firstName: String(row.first_name),
     lastName: String(row.last_name), roleName: row.role_name ? String(row.role_name) : null, usable: Boolean(row.usable),
   };
+}
+
+export type JoinCodePreview = { clubName: string; teamName: string; usable: boolean };
+
+/** Which club and team a join code belongs to; works before signing in. Null for an unknown code. */
+export async function previewJoinCode(code: string): Promise<JoinCodePreview | null> {
+  const supabase = await authClient();
+  const { data, error } = await supabase.rpc('join_code_preview', { p_code: code });
+  if (error) throw new LocalDataError(error.message);
+  const row = (data as Record<string, unknown>[] | null)?.[0];
+  if (!row) return null;
+  return { clubName: String(row.club_name), teamName: String(row.team_name), usable: Boolean(row.usable) };
+}
+
+/** Whether a founding code can still be used; works before signing in. */
+export async function isFoundingCodeUsable(code: string): Promise<boolean> {
+  const supabase = await authClient();
+  const { data, error } = await supabase.rpc('founding_code_usable', { p_code: code });
+  if (error) throw new LocalDataError(error.message);
+  return Boolean(data);
 }
 
 function requireRemote(): RemoteStore {
@@ -661,11 +685,30 @@ export function displayName(person: Person): string {
 // People, teams, memberships
 // ---------------------------------------------------------------------------
 
-export function peopleWithRole(database: LocalDatabase, role: MembershipRole): Person[] {
+export function peopleWithRole(database: LocalDatabase, role: IdentityRole): Person[] {
   const ids = new Set(
-    database.memberships.filter((membership) => membership.role === role).map((membership) => membership.personId),
+    role === 'club'
+      ? database.clubRoles.map((clubRole) => clubRole.personId)
+      : database.memberships.filter((membership) => membership.role === role).map((membership) => membership.personId),
   );
   return database.people.filter((person) => ids.has(person.id));
+}
+
+/** Whether this person can act in this role: a team membership, or a club role for `club`. */
+export function hasIdentityRole(database: LocalDatabase, personId: Id, role: IdentityRole): boolean {
+  if (role === 'club') return database.clubRoles.some((clubRole) => clubRole.personId === personId);
+  return database.memberships.some((membership) => membership.personId === personId && membership.role === role);
+}
+
+/** "Club admin", or "Department lead · Handball" (several joined with commas). */
+export function clubRoleLabel(database: LocalDatabase, personId: Id): string {
+  return clubRolesOf(database, personId)
+    .map((clubRole) => {
+      if (clubRole.role === 'admin') return 'Club admin';
+      const department = database.departments.find((candidate) => candidate.id === clubRole.departmentId);
+      return department ? `Department lead · ${department.name}` : 'Department lead';
+    })
+    .join(', ');
 }
 
 export function teamsForPerson(database: LocalDatabase, personId: Id): Team[] {

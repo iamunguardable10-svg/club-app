@@ -27,6 +27,12 @@ export type TimeOfDay = string;
 export type MembershipRole = 'coach' | 'athlete';
 
 /**
+ * What the app can act as: a team role, or `club` for a club admin or
+ * department lead (piece 8), whose home is the club area.
+ */
+export type IdentityRole = MembershipRole | 'club';
+
+/**
  * What a coach role may see of athletes and do in the team.
  *
  * The list is the contract for role-based access: views read it today, and the
@@ -367,7 +373,7 @@ export type AcknowledgedSession = {
  * without naming which athlete. Role and person are always set together.
  */
 export type ActiveIdentity = {
-  role: MembershipRole;
+  role: IdentityRole;
   personId: Id;
 };
 

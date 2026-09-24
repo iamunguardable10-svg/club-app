@@ -1339,3 +1339,52 @@ Admin bleibt, Team ohne Trainer unter Vereinsverwaltung), 89 Ende-zu-Ende-Prüfu
 archivieren, Leitung einladen und annehmen), Typecheck, Build, Browser-Rauchtest im
 Demo-Modus. Supabase-Sicherheitsprüfung: nur die beabsichtigten Hinweise
 (`found_club` als Einstieg, `founding_codes` absichtlich ohne Leseregel).
+
+## Run 12b — Stück 8b: Onboarding für alle (erledigt)
+
+Auf Wunsch „Onboarding für Spieler, andere Trainer etc., über Einladungslinks, Codes und
+eine Auswahl, wer man ist“. Plan in `docs/plan-next-runs.md` (Tabelle: wer bekommt was
+von wem).
+
+- **„New here? Who are you?“** auf der Startseite (abgemeldet, und angemeldet ohne
+  Verein): *Player* (Code oder Link eintippen/einfügen), *Coach or staff* und
+  *Department lead* (persönlicher Link, erklärt von wem er kommt, nimmt einen
+  eingefügten Link an), *Starting a club* (Gründungs-Code). Ein direkt geöffneter Link
+  überspringt die Auswahl. „Create account“ ohne Weg in den Verein gibt es nicht mehr
+  auf der Startseite; jeder Weg legt das Konto an der passenden Stelle an.
+- **Spieler:** `/join?code=…` zeigt Verein und Team **vor** dem Konto, dann Konto, Name,
+  fertig. Unbekannter Code und archiviertes Team werden klar gesagt. Wer schon im
+  Verein ist (z. B. Trainer, der selbst spielt), braucht keinen Namen mehr; Link
+  „Join another team with a code“ auf der Startseite.
+- **Einladungen:** dieselbe Seite für Staff und Vereinsrollen, zeigt Name, Rolle, Team
+  bzw. Abteilung; nach dem Annehmen geht es als Trainer bzw. in den Vereinsbereich.
+- **Gründen:** `/found` prüft den Code vor dem Konto, dann Konto, Verein, Ort, Name,
+  erste Abteilung, erstes Team, „I coach this team myself“ → Vereinsbereich.
+- **Teilen:** Join-Link und Einladungslinks mit „Copy“, „Share“ (Teilen-Menü des Handys)
+  und für den Join-Link ein QR-Code zum Zeigen in der Halle (Bibliothek `qrcode`, wird
+  erst beim Öffnen geladen).
+- **Rolle „Club“:** `ActiveIdentity.role` kann jetzt `club` sein (Vereinsadmin oder
+  Abteilungsleitung). Wer nur eine Vereinsrolle hat, gilt nicht mehr als „ohne
+  Verein“. Startseite „Continue as club admin / department lead“, Konto-Menü mit Gruppe
+  „Club“, Demo-Einstieg „As club admin“. Neuer Bereich `/club` (Übersicht: Kennzahlen,
+  Admins, Abteilungen mit Leitung, Teams mit Trainerteam und Status „invited“, Load-
+  Kennzeichen; keine Spielerdaten). Anlegen und Einladen folgt in 8c.
+- **Migration 0012 (angewendet):** `join_code_preview`, `founding_code_usable` (ohne
+  Anmeldung, nur Namen bzw. ja/nein), `join_team` lehnt archivierte Teams ab,
+  `join_team`/`accept_staff_invite` sagen „Your account already belongs to another
+  club.“ statt eines Datenbankfehlers, `invite_preview` liefert die Art (`staff`/`club`).
+- Nicht angemeldet und ohne Verein leitet die Zugangsprüfung jetzt auf die Startseite
+  (dort steht die Auswahl) statt auf `/join`.
+
+Geprüft: 105 + 35 + 50 + 19 Zugriffsprüfungen (neu `04_onboarding_test.sql`: Vorschau ohne
+Anmeldung, archiviertes Team, fremder Verein bei Beitritt, Gründung und Einladung, Art der
+Einladung), 93 Ende-zu-Ende-Prüfungen (neu: Leitung ohne Team lädt als „club“, Gründerin
+wechselt zwischen Trainer- und Vereinsrolle), Typecheck, Build, 32 Browser-Prüfungen auf
+Handy und Desktop (Auswahl, falsche Eingaben, unbekannter Code/Link gegen den echten
+Server, Gründungs-Code, Vereinsbereich als Admin und als Leitung, kein Überlauf, keine
+Fehler) und der QR-Code in einem echten Build.
+
+Offen: Ein echter Durchlauf mit Konto (Gründen mit echtem Code, Spieler per Link) geht erst
+nach Stück 5 (Adresse in Supabase eintragen, E-Mail-Bestätigung). `npm audit` meldet
+bekannte Lücken in `next` 15 (kritisch) und Werkzeugen, unabhängig von diesem Stück — vor
+dem Livegang aktualisieren.

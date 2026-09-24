@@ -19,7 +19,8 @@ import { getActivePerson, useLocalDatabase } from '@/shared/data';
 
 export type CoachNavItem = 'today' | 'calendar' | 'team' | 'halls' | 'history';
 export type AthleteNavItem = 'today' | 'calendar' | 'load';
-type NavItem = CoachNavItem | AthleteNavItem;
+export type ClubNavItem = 'club';
+type NavItem = CoachNavItem | AthleteNavItem | ClubNavItem;
 type NavEntry = { item: NavItem; label: string; href: string };
 
 const ATHLETE_NAV: NavEntry[] = [
@@ -36,6 +37,11 @@ const COACH_NAV: NavEntry[] = [
   { item: 'history', label: 'History', href: '/coach/history' },
 ];
 
+// Piece 8c adds the club's teams, people and halls here.
+const CLUB_NAV: NavEntry[] = [
+  { item: 'club', label: 'Club', href: '/club' },
+];
+
 function NavIcon({ item }: { item: NavItem }) {
   const common = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
   return (
@@ -45,6 +51,7 @@ function NavIcon({ item }: { item: NavItem }) {
       {item === 'team' ? <><circle cx="9" cy="8" r="3.5" {...common} /><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5" {...common} /><path d="M16 4.8a3.3 3.3 0 0 1 0 6.4M18 14.8c1.8.7 3 2.4 3.5 5.2" {...common} /></> : null}
       {item === 'halls' ? <><path d="M3 21V9l9-6 9 6v12" {...common} /><path d="M9 21v-6h6v6" {...common} /></> : null}
       {item === 'history' ? <><circle cx="12" cy="12" r="9" {...common} /><path d="M12 7v5l3 2" {...common} /></> : null}
+      {item === 'club' ? <><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6l8-3z" {...common} /><path d="M9 12l2 2 4-4" {...common} /></> : null}
       {item === 'load' ? <path d="M3 12h4l3-7 4 14 3-7h4" {...common} /> : null}
     </svg>
   );
@@ -68,6 +75,11 @@ export function AthleteShell({ active, showLoad = true, ...props }: ShellProps &
   return <RoleShell nav={showLoad ? ATHLETE_NAV : ATHLETE_NAV.filter((entry) => entry.item !== 'load')} active={active} {...props} />;
 }
 
+/** Club admins and department leads (piece 8). */
+export function ClubShell({ active, ...props }: ShellProps & { active: ClubNavItem }) {
+  return <RoleShell nav={CLUB_NAV} active={active} {...props} />;
+}
+
 function RoleShell({ nav, active, title, subtitle, back, actions, children }: ShellProps & { nav: NavEntry[]; active: NavItem }) {
   const { database } = useLocalDatabase();
   const person = database ? getActivePerson(database) : null;
@@ -77,9 +89,11 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
     : 1;
   const labelFor = (item: NavItem, label: string) => (item === 'team' && teamCount > 1 ? 'Teams' : label);
   const columns = nav.length === 2 ? 'grid-cols-2' : nav.length === 3 ? 'grid-cols-3' : 'grid-cols-5';
+  // A single destination needs no tab bar on phones.
+  const tabBar = nav.length > 1;
 
   return (
-    <main className="os-page pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-10 md:pl-64">
+    <main className={`os-page md:pb-10 md:pl-64 ${tabBar ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))]' : 'pb-10'}`}>
       <aside className="fixed bottom-3 left-3 top-3 z-[70] hidden w-56 flex-col rounded-3xl border border-white/10 bg-slate-950/85 p-2 text-white shadow-[0_24px_100px_rgba(0,0,0,0.34)] backdrop-blur-xl md:flex" aria-label="Main navigation">
         <div className="px-3 pb-3 pt-2">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Club OS</p>
@@ -122,7 +136,7 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
 
       <div className="mx-auto w-full max-w-6xl space-y-5 px-4 pt-4 sm:px-8 md:pt-6">{children}</div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-[70] border-t border-slate-800 bg-slate-950/95 px-2 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 text-white backdrop-blur-xl md:hidden" aria-label="Main navigation">
+      {tabBar ? <nav className="fixed inset-x-0 bottom-0 z-[70] border-t border-slate-800 bg-slate-950/95 px-2 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 text-white backdrop-blur-xl md:hidden" aria-label="Main navigation">
         <div className={`mx-auto grid max-w-lg ${columns} gap-1`}>
           {nav.map(({ item, label, href }) => (
             <Link
@@ -138,7 +152,7 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
             </Link>
           ))}
         </div>
-      </nav>
+      </nav> : null}
     </main>
   );
 }

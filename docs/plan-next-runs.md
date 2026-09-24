@@ -181,12 +181,46 @@ In drei Teilen, jeder einzeln gebaut, geprüft, committet:
 - Tests: Zugriffsprüfungen (wer darf was, Codes nur einmal, fremder Verein tabu),
   Ende-zu-Ende über die Datenschicht.
 
-**8b — Onboarding**
-- Startseite, angemeldet ohne Verein: „Join with a code“ (Spieler) und „Found a club“
-  (Gründungs-Code). Gründen: Code → Vereinsname und Ort → erste Abteilung → erstes Team
-  → „Coach this team yourself?“ → fertig im Vereinsbereich.
-- Demo-Modus: ein Vereinsadmin und eine Abteilungsleitung im Demo-Verein, dritter
-  Einstieg „As club admin“.
+**8b — Onboarding (erledigt, Run 12b; Plan 2026-09-24, auf Wunsch „für alle, mit Links, Codes und einer
+Auswahl wer man ist“)**
+
+Wer kommt wie rein — jede Person hat genau einen Weg, und ein Link führt immer direkt
+dorthin (die Auswahl wird dann übersprungen):
+
+| Wer | Bekommt von | Weg | Was vor dem Konto sichtbar ist |
+|---|---|---|---|
+| Spieler | Trainer | Team-Link `/join?code=…`, QR-Code in der Halle oder der Code zum Eintippen | Verein und Team |
+| Trainer / Staff | Head Coach | persönlicher Einladungslink (einmalig, 30 Tage) | Name, Rolle, Team, Verein |
+| Head Coach eines neuen Teams | Abteilungsleitung / Vereinsadmin | persönlicher Einladungslink (8c legt Team + Person an) | Name, Rolle, Team, Verein |
+| Abteilungsleitung | Vereinsadmin | persönlicher Einladungslink | Name, Abteilung, Verein |
+| Vereinsgründer | Plattformbetreiber (du) | Gründungs-Code, Seite `/found` | ob der Code gültig ist |
+
+- **„Who are you?“** auf der Startseite für Neue (abgemeldet oder angemeldet ohne
+  Verein): *Player* · *Coach or staff* · *Department lead* · *Starting a club*.
+  - Player: Code eintippen (oder Link öffnen) → Team-Vorschau → Konto → Name → fertig.
+  - Coach/Staff und Abteilungsleitung: bekommen immer einen persönlichen Link, weil der
+    an Name und Rolle hängt (ein offener Code würde jedem Trainerrechte geben). Die
+    Karte erklärt, von wem der Link kommt, und nimmt einen eingefügten Link an.
+  - Verein gründen: Gründungs-Code → Prüfung → Konto → Verein, Ort, erste Abteilung,
+    erstes Team, „Coach this team yourself?“ → fertig. Ohne Code: Hinweis, wo man einen
+    bekommt.
+  - „I already have an account → Sign in“ bleibt oben.
+- **Teilen:** In *Staff & settings* bekommt der Team-Code einen Link zum Teilen
+  (Teilen-Menü des Handys, sonst Kopieren) und einen QR-Code zum Zeigen in der Halle.
+  Einladungslinks für Staff ebenso teilbar.
+- **Server (Migration 0012):** `join_code_preview(code)` und
+  `founding_code_usable(code)` ohne Anmeldung aufrufbar, geben nur Vereins-/Teamnamen
+  bzw. gültig ja/nein zurück. `join_team` lehnt archivierte Teams ab und sagt klar,
+  wenn das Konto schon zu einem anderen Verein gehört (bisher Datenbankfehler).
+- **E-Mail-Bestätigung:** jeder Weg merkt sich sein Ziel (`returnTo`), der Link aus der
+  Bestätigungsmail führt zurück in denselben Schritt.
+- **Rolle „Club“ im Konto-Menü:** Vereinsadmin und Abteilungsleitung ohne Team gelten
+  nicht mehr als „ohne Verein“. Startseite und Konto-Menü bieten „Continue as club
+  admin / department lead“ an, Ziel `/club`. In 8b ist `/club` eine Übersicht
+  (Abteilungen, Teams, Leitungen, offene Einladungen); Anlegen und Einladen folgt in 8c.
+- **Demo:** dritter Einstieg „As club admin“ (Claudia Brandt im Demo-Verein).
+- **Bewusst nicht jetzt:** Eltern-Zugänge, ein Konto in mehreren Vereinen, Anfragen
+  „Ich möchte Trainer werden“ ohne Link, Login per Magic Link.
 
 **8c — Vereinsbereich**
 - Neue Rolle im Konto-Menü „Club admin“ bzw. „Department lead“, eigener Bereich

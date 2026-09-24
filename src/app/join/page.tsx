@@ -1,89 +1,55 @@
 'use client';
 
 /**
- * Joining the club on the pilot server.
+ * Joining the club on the pilot server (piece 8b).
  *
- * - `/join?invite=<token>`: a staff member's personal invitation link. Shows
- *   what it is for, then (after signing in or creating an account) links the
- *   account to that staff member.
- * - `/join` or `/join?code=<code>`: an athlete enters the team's join code and
- *   their name.
+ * - `/join?invite=<token>`: a personal invitation link, for staff (from the
+ *   Head Coach) and for club roles (department lead, from the club admin).
+ *   Shows who it is for, then (after signing in or creating an account)
+ *   links the account to that person.
+ * - `/join?code=<code>` or `/join`: a player's way in. The code (or the
+ *   link, or the QR code that carries it) shows club and team before any
+ *   account exists, then account, name, done.
  *
- * Both need an account first; the form for that appears in place, and the
- * mail confirmation (if the project asks for one) leads back here.
+ * The form for the account appears in place, and the mail confirmation (if
+ * the project asks for one) leads back to the same step.
  */
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 import { AuthForm } from '@/features/access/AuthForm';
-import { LocalModeLink } from '@/features/access/LocalModeLink';
+import { AccountLine, ErrorLine, OnboardingShell as Shell, continueAs } from '@/features/onboarding/OnboardingShell';
+import { useAccount, type Account } from '@/features/onboarding/useAccount';
+import { joinCodeFrom } from '@/features/onboarding/WhoAreYou';
 import {
   acceptStaffInvite,
-  currentAccount,
-  getBackendChoice,
   joinTeamWithCode,
   ownPersonIds,
   previewInvite,
+  previewJoinCode,
   readDatabase,
-  setActiveIdentity,
-  setBackendChoice,
-  signOut,
   useBackendStatus,
   useLocalDatabase,
   type InvitePreview,
+  type JoinCodePreview,
 } from '@/shared/data';
 
-type Account = { email: string } | null | undefined;
-
-function Shell({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <main className="os-page">
-      <div className="os-container max-w-md space-y-5">
-        <header className="os-hero p-6">
-          <p className="os-kicker">Club OS</p>
-          <h1 className="os-title mt-2">{title}</h1>
-        </header>
-        {children}
-        <LocalModeLink />
-      </div>
-    </main>
-  );
-}
-
-function ErrorLine({ message }: { message: string | null }) {
-  return message ? <p role="alert" className="rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-bold text-red-100">{message}</p> : null;
-}
-
-function AccountLine({ account }: { account: { email: string } }) {
-  return (
-    <p className="text-xs text-slate-400">
-      Signed in as {account.email} ·{' '}
-      <button type="button" className="underline" onClick={async () => { await signOut(); window.location.reload(); }}>use another account</button>
-    </p>
-  );
-}
-
-/** After joining: act as the new role and go to its start page. */
-function continueAs(role: 'coach' | 'athlete', teamId: string) {
-  const database = readDatabase();
-  const own = database ? ownPersonIds(database) : [];
-  const membership = database?.memberships.find((m) => m.teamId === teamId && m.role === role && own.includes(m.personId));
-  if (membership) setActiveIdentity({ role, personId: membership.personId });
-  window.location.assign(role === 'coach' ? '/coach/today' : '/athlete/home');
+function errorText(caught: unknown) {
+  return caught instanceof Error ? caught.message : String(caught);
 }
 
 function InviteFlow({ token, account }: { token: string; account: Account }) {
   const status = useBackendStatus();
   // Asking for the data starts the connection to the server store, which
-  // joining and accepting go through.
+  // accepting goes through.
   useLocalDatabase();
   const [preview, setPreview] = useState<InvitePreview | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    previewInvite(token).then(setPreview).catch((caught) => setError(caught instanceof Error ? caught.message : String(caught)));
+    previewInvite(token).then(setPreview).catch((caught) => setError(errorText(caught)));
   }, [token]);
 
   if (preview === undefined && !error) return <Shell title="Invitation"><p className="text-sm text-slate-400">Loading invitation …</p></Shell>;
@@ -97,11 +63,21 @@ function InviteFlow({ token, account }: { token: string; account: Account }) {
     );
   }
 
+  // Club roles carry their department (or the club) where staff carry their team.
+  const clubRole = preview.kind === 'club';
+  const place = preview.teamName === preview.clubName ? preview.clubName : `${preview.teamName} · ${preview.clubName}`;
+
   return (
-    <Shell title="Join the staff">
+    <Shell title="Your invitation">
       <section className="os-panel p-5 text-sm text-slate-300">
-        <p className="text-lg font-black text-white">{preview.firstName} {preview.lastName}</p>
-        <p className="mt-1">{preview.roleName ?? 'Staff'} · {preview.teamName} · {preview.clubName}</p>
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Invitation for</p>
+        <p className="mt-1 text-lg font-black text-white">{preview.firstName} {preview.lastName}</p>
+        <p className="mt-1">{preview.roleName ?? 'Staff'} · {place}</p>
+        <p className="mt-3 text-xs text-slate-400">
+          {clubRole
+            ? 'You will manage the teams and invitations here. Player data stays with the coaches.'
+            : 'You join the staff of this team with the rights of this role.'}
+        </p>
       </section>
       {account ? (
         <section className="os-panel grid gap-3 p-5">
@@ -114,10 +90,10 @@ function InviteFlow({ token, account }: { token: string; account: Account }) {
               setBusy(true);
               setError(null);
               try {
-                const teamId = await acceptStaffInvite(token);
-                continueAs('coach', teamId);
+                const id = await acceptStaffInvite(token);
+                continueAs(clubRole ? 'club' : 'coach', clubRole ? null : id);
               } catch (caught) {
-                setError(caught instanceof Error ? caught.message : String(caught));
+                setError(errorText(caught));
                 setBusy(false);
               }
             }}
@@ -130,99 +106,124 @@ function InviteFlow({ token, account }: { token: string; account: Account }) {
         <AuthForm
           initialMode="signUp"
           returnTo={`/join?invite=${encodeURIComponent(token)}`}
-          intro="Create an account (or sign in), then accept the invitation."
+          intro={`Not ${preview.firstName}? Ask for your own link. Otherwise create an account (or sign in), then accept.`}
         />
       )}
     </Shell>
   );
 }
 
-function CodeFlow({ initialCode, account }: { initialCode: string; account: Account }) {
+/** Step 1 for players without a link: type the code. */
+function EnterCode({ initial, message }: { initial: string; message?: string }) {
+  const [value, setValue] = useState(initial);
+  return (
+    <form
+      className="os-panel grid gap-3 p-5"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const code = joinCodeFrom(value);
+        if (code) window.location.assign(`/join?code=${encodeURIComponent(code)}`);
+      }}
+    >
+      {message ? <ErrorLine message={message} /> : null}
+      <p className="text-sm text-slate-400">Your coach gives you the code, a join link or a QR code.</p>
+      <label className="grid gap-1 text-sm font-bold text-slate-200">
+        Join code
+        <input required value={value} onChange={(event) => setValue(event.target.value.toUpperCase())} placeholder="ABCD-EFGH" autoCapitalize="characters" autoComplete="off" spellCheck={false} className="os-field font-mono tracking-[0.2em]" />
+      </label>
+      <button type="submit" className="os-success justify-center">Continue</button>
+    </form>
+  );
+}
+
+function CodeFlow({ code, account }: { code: string; account: Account }) {
   const status = useBackendStatus();
   // Asking for the data starts the connection to the server store, which
-  // joining and accepting go through.
+  // joining goes through.
   useLocalDatabase();
-  const [code, setCode] = useState(initialCode);
+  const [preview, setPreview] = useState<JoinCodePreview | null | undefined>(undefined);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  if (!account) {
-    return (
-      <Shell title="Join your team">
-        <AuthForm
-          initialMode="signUp"
-          returnTo={`/join${initialCode ? `?code=${encodeURIComponent(initialCode)}` : ''}`}
-          intro="Create an account (or sign in), then join with your team's code."
-        />
-      </Shell>
-    );
-  }
+  useEffect(() => {
+    if (!code) return;
+    previewJoinCode(code).then(setPreview).catch((caught) => { setPreview(null); setError(errorText(caught)); });
+  }, [code]);
+
+  if (!code) return <Shell title="Join your team"><EnterCode initial="" /></Shell>;
+  if (preview === undefined) return <Shell title="Join your team"><p className="text-sm text-slate-400">Checking the code …</p></Shell>;
+  if (!preview) return <Shell title="Join your team"><EnterCode initial={code} message={error ?? 'This join code does not exist. Check it with your coach.'} /></Shell>;
+  if (!preview.usable) return <Shell title="Join your team"><EnterCode initial="" message="This team is no longer active. Ask your coach for the current code." /></Shell>;
+
+  // Already someone in this club (e.g. a coach who also plays): no name needed.
+  const database = status.phase === 'ready' ? readDatabase() : null;
+  const me = database ? database.people.find((person) => ownPersonIds(database).includes(person.id)) ?? null : null;
 
   return (
     <Shell title="Join your team">
-      <form
-        className="os-panel grid gap-3 p-5"
-        onSubmit={async (event) => {
-          event.preventDefault();
-          setBusy(true);
-          setError(null);
-          try {
-            const teamId = await joinTeamWithCode(code, firstName, lastName);
-            continueAs('athlete', teamId);
-          } catch (caught) {
-            setError(caught instanceof Error ? caught.message : String(caught));
-            setBusy(false);
-          }
-        }}
-      >
-        <AccountLine account={account} />
-        <p className="text-sm text-slate-400">Your coach gives you the code.</p>
-        <label className="grid gap-1 text-sm font-bold text-slate-200">
-          Join code
-          <input required value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} autoCapitalize="characters" autoComplete="off" className="os-field font-mono tracking-[0.2em]" />
-        </label>
-        <label className="grid gap-1 text-sm font-bold text-slate-200">
-          First name
-          <input required value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" className="os-field" />
-        </label>
-        <label className="grid gap-1 text-sm font-bold text-slate-200">
-          Last name
-          <input required value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" className="os-field" />
-        </label>
-        <ErrorLine message={error} />
-        <button type="submit" disabled={busy || status.phase === 'loading'} className="os-success justify-center disabled:opacity-60">
-          {busy ? 'One moment …' : 'Join team'}
-        </button>
-      </form>
+      <section className="os-panel p-5">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">{preview.clubName}</p>
+        <p className="mt-1 text-2xl font-black text-white">{preview.teamName}</p>
+        <p className="mt-1 text-sm text-slate-400">You join this team as a player.</p>
+      </section>
+      {!account ? (
+        <AuthForm
+          initialMode="signUp"
+          returnTo={`/join?code=${encodeURIComponent(code)}`}
+          intro="Create an account (or sign in), then you are in."
+        />
+      ) : (
+        <form
+          className="os-panel grid gap-3 p-5"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            setBusy(true);
+            setError(null);
+            try {
+              const teamId = await joinTeamWithCode(code, me ? me.firstName : firstName, me ? me.lastName : lastName);
+              continueAs('athlete', teamId);
+            } catch (caught) {
+              setError(errorText(caught));
+              setBusy(false);
+            }
+          }}
+        >
+          <AccountLine account={account} />
+          {me ? (
+            <p className="text-sm text-slate-300">Joining as <span className="font-black text-white">{me.firstName} {me.lastName}</span>.</p>
+          ) : (
+            <>
+              <p className="text-sm text-slate-400">Your name, as your team will see it.</p>
+              <label className="grid gap-1 text-sm font-bold text-slate-200">
+                First name
+                <input required value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" className="os-field" />
+              </label>
+              <label className="grid gap-1 text-sm font-bold text-slate-200">
+                Last name
+                <input required value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" className="os-field" />
+              </label>
+            </>
+          )}
+          <ErrorLine message={error} />
+          <button type="submit" disabled={busy || status.phase === 'loading'} className="os-success justify-center disabled:opacity-60">
+            {busy ? 'One moment …' : 'Join team'}
+          </button>
+        </form>
+      )}
     </Shell>
   );
 }
 
 function JoinContent() {
   const params = useSearchParams();
-  const [account, setAccount] = useState<Account>(undefined);
-
-  useEffect(() => {
-    currentAccount()
-      .then((found) => {
-        // Signed in but this device is in the local test mode: joining only
-        // exists on the server, so switch and load the page fresh.
-        if (found && getBackendChoice() !== 'server') {
-          setBackendChoice('server');
-          window.location.reload();
-          return;
-        }
-        setAccount(found);
-      })
-      .catch(() => setAccount(null));
-  }, []);
+  const account = useAccount();
 
   if (account === undefined) return <Shell title="Club OS"><p className="text-sm text-slate-400">One moment …</p></Shell>;
   const invite = params.get('invite');
   if (invite) return <InviteFlow token={invite} account={account} />;
-  return <CodeFlow initialCode={(params.get('code') ?? '').toUpperCase()} account={account} />;
+  return <CodeFlow code={joinCodeFrom(params.get('code') ?? '')} account={account} />;
 }
 
 export default function JoinPage() {
