@@ -1108,3 +1108,28 @@ Anmeldung mit „Forgot password?“, Beitreten, Reset-Seite mit ungültigem Lin
 Identitätsmenü, Trainerteam: keine deutschen Texte mehr außer Personennamen, keine
 Laufzeitfehler. Der Versand der Reset-Mail selbst ist nicht geprüft (Mailversand, siehe
 offene Punkte aus Run 10).
+
+## Run 11b — Stück 1: Startseite neu (erledigt)
+
+Plan in `docs/plan-next-runs.md`. Eine Startseite für jeden Zustand eines Geräts:
+
+- **Nicht angemeldet:** „Sign in to your club“ als Hauptweg mit „Sign in“ und „Create
+  account“ (führt nach der Registrierung zu `/join`), dazu je ein Satz, woher Spieler
+  (Beitrittscode) und Staff (Einladungslink) ihren Zugang bekommen. Darunter klein
+  „Try the demo club“ als Coach oder Player.
+- **Angemeldet:** Vereinsname, „Welcome back, Vorname“, je eigener Rolle ein Knopf
+  „Continue as coach/player“ mit Team und Rollenname, Abmelden.
+- **Angemeldet ohne Team:** „Join with a code“.
+- **Ohne Server (Build ohne Supabase-Variablen):** nur der Demo-Verein, groß.
+- Der Demo-Verein berührt den Server nie: Aus dem Servermodus schaltet der Knopf das
+  Gerät auf lokal und startet die gewählte Rolle direkt (`/?demo=coach|athlete`); die
+  Rechte kommen wie immer aus den Mitgliedschaften, nicht aus dem Parameter.
+- Mitgenommen: Wer Trainer und Spieler zugleich ist, behält im Servermodus die zuletzt
+  gewählte Rolle über das Neuladen hinweg (`club-app.identity`, nur über
+  `repository.ts`; der Server-Speicher nimmt sie beim ersten Laden als Vorgabe, gilt
+  aber nur, wenn die Mitgliedschaft noch besteht).
+
+Geprüft: Typecheck, Build; im Browser gegen Supabase (Handybreite und Desktop) frisches
+Gerät, abgemeldet mit Demo als Trainer, angemeldet mit Doppelrolle (Rolle bleibt nach
+Neuladen, Wechsel zu Trainer), angemeldet ohne Team. Keine Laufzeitfehler. Testverein
+und Testkonten danach gelöscht (0 Vereine, 0 Konten).

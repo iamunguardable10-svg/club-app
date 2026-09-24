@@ -40,7 +40,7 @@ export function getSupabase(storage?: KeyValueStorage): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) {
-    throw new LocalDataError('Servermodus ohne NEXT_PUBLIC_SUPABASE_URL und NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.');
+    throw new LocalDataError('Server mode needs NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.');
   }
   client = createClient(url, key, {
     auth: { storage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
@@ -92,9 +92,13 @@ export function supabaseRemoteClient(supabase: SupabaseClient): RemoteClient {
   };
 }
 
-export function createSupabaseStore(version: string, storage: KeyValueStorage): RemoteStore {
+export function createSupabaseStore(
+  version: string,
+  storage: KeyValueStorage,
+  rememberedIdentity: ConstructorParameters<typeof RemoteStore>[2] = null,
+): RemoteStore {
   const supabase = getSupabase(storage);
-  const store = new RemoteStore(supabaseRemoteClient(supabase), version);
+  const store = new RemoteStore(supabaseRemoteClient(supabase), version, rememberedIdentity);
 
   // Signing in or out elsewhere (another tab, token expiry) reloads.
   supabase.auth.onAuthStateChange((event) => {

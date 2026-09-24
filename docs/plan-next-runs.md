@@ -1,6 +1,6 @@
 # Plan: die nächsten Stücke bis zum Pilotbetrieb
 
-Stand 2026-09-24, nach Run 11a (Oberfläche durchgehend englisch). Auf Wunsch des
+Stand 2026-09-24, nach Run 11b (Stück 1, Startseite). Auf Wunsch des
 Auftraggebers geht es Stück für Stück: Jedes Stück wird einzeln gebaut, geprüft,
 committet und kurz berichtet, bevor das nächste beginnt. Entscheidungen, die ein Stück
 braucht, stehen jeweils dabei und werden vorher geklärt.
@@ -25,7 +25,7 @@ RPE-Abfrage, keine Benachrichtigungen und keine Installation als App.
 
 | # | Stück | Warum an dieser Stelle | Größe |
 |---|---|---|---|
-| 1 | Startseite neu | erster Eindruck für echte Nutzer | klein |
+| 1 | Startseite neu (erledigt, Run 11b) | erster Eindruck für echte Nutzer | klein |
 | 2 | UI-Fehler und Layout | echte Fehler und Handy-Probleme aus der Durchsicht | mittel |
 | 3 | Spieler aus dem Team entfernen | Sicherheitslücke im Ablauf (falscher Beitritt) | klein |
 | 4 | Automatische RPE-Abfrage | Kernfunktion für die Belastungssteuerung | mittel |
@@ -73,9 +73,10 @@ Aus der Durchsicht vom 2026-09-24:
   sofort die Abfrage „How hard was it?“ (RPE und Dauer, vorbelegt aus der Einheit).
 - Auswahl: eintragen / „I didn't take part“ / „Later“. Mehrere offene Einheiten
   nacheinander, älteste zuerst.
-- **Entscheidung nötig:** Wie weit zurück wird gefragt (Vorschlag: 3 Tage)? Soll „I
-  didn't take part“ nachträglich als Absage beim Trainer erscheinen (Vorschlag: ja,
-  ohne Grund)?
+- **Entschieden (2026-09-24):** Gefragt wird ohne Zeitgrenze nach jeder vergangenen,
+  angesetzten Team-Einheit ohne Eintrag (ab dem Beitritt ins Team). „I didn't take
+  part“ erscheint beim Trainer als „nicht teilgenommen“ (eigener Status, nicht als
+  vorherige Absage).
 
 ### 5 Veröffentlichen
 

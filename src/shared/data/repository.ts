@@ -61,6 +61,17 @@ let remote: RemoteStore | null = null;
 let remoteStarting = false;
 
 const BACKEND_CHOICE_KEY = 'club-app.backend';
+/** Server mode: which of your own roles this device last acted as. */
+const IDENTITY_KEY = 'club-app.identity';
+
+function readRememberedIdentity(): ActiveIdentity | null {
+  try {
+    const raw = window.localStorage.getItem(IDENTITY_KEY);
+    return raw ? (JSON.parse(raw) as ActiveIdentity) : null;
+  } catch {
+    return null;
+  }
+}
 
 export type BackendChoice = 'local' | 'server';
 
@@ -276,7 +287,7 @@ function startRemote() {
   // Loaded on demand, so the local test mode never ships the server client.
   import('./remote/supabaseBackend')
     .then(async ({ createSupabaseStore, authStorage }) => {
-      const store = createSupabaseStore(SCHEMA_VERSION, authStorage(window.localStorage));
+      const store = createSupabaseStore(SCHEMA_VERSION, authStorage(window.localStorage), readRememberedIdentity());
       connectRemoteStore(store);
       await store.load();
       ensureFreshLoadSummary();
@@ -586,6 +597,14 @@ export function setActiveIdentity(identity: ActiveIdentity | null): void {
       throw new LocalDataError('Signed in, you can only switch between your own roles.');
     }
     database.activeIdentity = identity;
+    // The server document is rebuilt on every load; remember the choice here.
+    if (remote && isBrowser()) {
+      try {
+        window.localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity));
+      } catch {
+        // Not being able to remember a role is no reason to fail the switch.
+      }
+    }
   });
 }
 

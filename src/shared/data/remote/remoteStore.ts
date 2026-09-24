@@ -136,6 +136,8 @@ export class RemoteStore {
   constructor(
     private readonly client: RemoteClient,
     private readonly version: string,
+    /** The role this device last acted as, kept across reloads (people with two roles). */
+    private readonly rememberedIdentity: LocalDatabase['activeIdentity'] = null,
   ) {}
 
   subscribe(listener: () => void): () => void {
@@ -181,7 +183,8 @@ export class RemoteStore {
       }
       const tables = await Promise.all(TABLES.map((table) => this.client.selectAll(table.name)));
       const rows = Object.fromEntries(TABLES.map((table, index) => [table.name, tables[index]])) as ServerRows;
-      const document = fromServerRows(rows, { userId, version: this.version, previous: this.document });
+      const previous = this.document ?? (this.rememberedIdentity ? ({ activeIdentity: this.rememberedIdentity } as LocalDatabase) : null);
+      const document = fromServerRows(rows, { userId, version: this.version, previous });
       this.document = document;
       // Signed in, but not (or no longer) anyone in a team: the account needs
       // a join code or an invitation first.

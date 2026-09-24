@@ -1,217 +1,293 @@
 'use client';
 
 /**
- * Entry page.
+ * Start page.
  *
- * Two ways in, side by side:
- * - With the club (pilot server): sign in, or create an account and join.
- * - Without an account (local test mode): pick a role and start in a test
- *   club that lives in this browser — no sign-up, no intermediate step.
+ * One page for every situation a phone can be in:
+ * - Not signed in: signing in to the club is the main path; new people are
+ *   told where their way in comes from (players: the team's join code,
+ *   staff: their invitation link). The demo club sits below, small.
+ * - Signed in: welcome back, one card per own role to continue with.
+ * - Signed in without a team: join with a code.
+ * - A build without the club server: the demo club is all there is.
  *
- * Which one a device uses is remembered (`getBackendChoice`); the other one
- * is always one tap away here and in the identity menu.
+ * The demo club never touches the server. Picking it from server mode
+ * switches this device to the local mode and starts the chosen role there
+ * (`?demo=coach|athlete`), so it is one tap either way.
  */
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
 
 import {
-  athletesForTeam,
+  coachRolesForTeam,
   displayName,
-  getActivePerson,
   isRemoteMode,
   isServerAvailable,
+  ownPersonIds,
   peopleWithRole,
   readDatabase,
   setActiveIdentity,
+  setBackendChoice,
   signOut,
-  teamsForPerson,
   useBackendStatus,
   useLocalDatabase,
+  type LocalDatabase,
   type MembershipRole,
 } from '@/shared/data';
 import { HOME_FOR_ROLE } from '@/features/identity/IdentitySwitcher';
-import { LocalModeLink } from '@/features/access/LocalModeLink';
 
-export default function EntryPage() {
+type DemoRole = 'coach' | 'athlete';
+
+export default function StartPage() {
+  return (
+    <Suspense fallback={null}>
+      <StartContent />
+    </Suspense>
+  );
+}
+
+function StartContent() {
   // Decided after mounting: the choice lives in this browser, so the server
   // render cannot know it.
   const [mode, setMode] = useState<'local' | 'server' | null>(null);
   useEffect(() => setMode(isRemoteMode() ? 'server' : 'local'), []);
   if (mode === null) return null;
-  return mode === 'server' ? <ServerEntry /> : <LocalEntry />;
+  return mode === 'server' ? <ServerStart /> : <LocalStart />;
 }
 
-function ClubCard() {
+function Page({ children }: { children: React.ReactNode }) {
   return (
-    <section className="os-panel grid gap-3 p-5">
-      <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Your club</p>
-      <p className="text-sm text-slate-300">With an account: your real sessions and your team, on all your devices.</p>
-      <div className="flex flex-wrap gap-2">
-        <Link href="/login" className="os-success justify-center">Sign in</Link>
-        <Link href="/login?mode=signUp&next=%2Fjoin" className="rounded-2xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-200">Create account</Link>
+    <main className="os-page">
+      <div className="os-container max-w-xl space-y-4 pb-12 pt-8 sm:pt-14">
+        <header className="px-1">
+          <p className="os-kicker">Club OS</p>
+          <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">Your team, in one place.</h1>
+          <p className="os-copy mt-2 max-w-md">Sessions, availability and training load for coaches and players.</p>
+        </header>
+        {children}
+      </div>
+    </main>
+  );
+}
+
+function Card({ children, tone = 'default' }: { children: React.ReactNode; tone?: 'default' | 'primary' }) {
+  return (
+    <section className={`os-panel grid gap-4 p-5 sm:p-6 ${tone === 'primary' ? 'border-emerald-300/30' : ''}`}>
+      {children}
+    </section>
+  );
+}
+
+function SignInCard() {
+  return (
+    <Card tone="primary">
+      <div>
+        <p className="text-lg font-black text-white">Sign in to your club</p>
+        <p className="mt-1 text-sm text-slate-400">Your real sessions and your team, on all your devices.</p>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Link href="/login" className="os-success text-center">Sign in</Link>
+        <Link href="/login?mode=signUp&next=%2Fjoin" className="os-secondary text-center">Create account</Link>
+      </div>
+      <ul className="grid gap-1.5 text-xs text-slate-400">
+        <li><span className="font-bold text-slate-300">Players:</span> create an account and enter the join code from your coach.</li>
+        <li><span className="font-bold text-slate-300">Coaches and staff:</span> open the invitation link you were sent.</li>
+      </ul>
+    </Card>
+  );
+}
+
+/** The demo club, as the secondary way in (or the only one without a server). */
+function DemoCard({ prominent, onStart }: { prominent: boolean; onStart: (role: DemoRole) => void }) {
+  return (
+    <section className={prominent ? 'os-panel grid gap-4 p-5 sm:p-6' : 'os-panel-soft grid gap-3 p-4'}>
+      <div>
+        <p className={prominent ? 'text-lg font-black text-white' : 'text-sm font-black text-slate-200'}>Try the demo club</p>
+        <p className="mt-1 text-xs text-slate-400">No account needed. A made-up club with test data that lives only in this browser.</p>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => onStart('coach')} className={prominent ? 'os-success' : 'os-secondary px-3 py-2 text-xs'}>
+          As a coach
+        </button>
+        <button type="button" onClick={() => onStart('athlete')} className={prominent ? 'os-primary' : 'os-secondary px-3 py-2 text-xs'}>
+          As a player
+        </button>
       </div>
     </section>
   );
 }
 
-function ServerEntry() {
+/** Leaves server mode for the demo club and starts the chosen role there. */
+function startDemoFromServer(role: DemoRole) {
+  setBackendChoice('local');
+  window.location.assign(`/?demo=${role}`);
+}
+
+// ---------------------------------------------------------------------------
+// Signed in to the club (or trying to be)
+// ---------------------------------------------------------------------------
+
+function roleLabel(database: LocalDatabase, personId: string, role: MembershipRole) {
+  const memberships = database.memberships.filter((m) => m.personId === personId && m.role === role);
+  return memberships
+    .map((membership) => {
+      const team = database.teams.find((candidate) => candidate.id === membership.teamId);
+      if (!team) return null;
+      if (role === 'athlete') return team.name;
+      const roleName = coachRolesForTeam(database, team.id).find((candidate) => candidate.id === membership.coachRoleId)?.name;
+      return roleName ? `${team.name} · ${roleName}` : team.name;
+    })
+    .filter(Boolean)
+    .join(', ');
+}
+
+function ServerStart() {
+  const router = useRouter();
   const status = useBackendStatus();
   // Reading starts the connection to the server.
   useLocalDatabase();
   const database = status.phase === 'ready' ? readDatabase() : null;
-  const person = database ? getActivePerson(database) : null;
-  const identity = database?.activeIdentity ?? null;
+
+  if (status.phase === 'loading') {
+    return <Page><Card><p className="text-sm text-slate-400">Connecting to your club …</p></Card></Page>;
+  }
+
+  if (status.phase === 'signedOut') {
+    return (
+      <Page>
+        <SignInCard />
+        <DemoCard prominent={false} onStart={startDemoFromServer} />
+      </Page>
+    );
+  }
+
+  const signOutButton = (
+    <button type="button" onClick={async () => { await signOut(); window.location.assign('/'); }} className="justify-self-start text-xs font-bold text-slate-400 underline">
+      Sign out
+    </button>
+  );
+
+  if (status.phase === 'unlinked') {
+    return (
+      <Page>
+        <Card tone="primary">
+          <div>
+            <p className="text-lg font-black text-white">You are signed in</p>
+            <p className="mt-1 text-sm text-slate-400">Your account is not part of a team yet. Players join with the code from their coach; staff open their invitation link.</p>
+          </div>
+          <Link href="/join" className="os-success text-center">Join with a code</Link>
+          {signOutButton}
+        </Card>
+        <DemoCard prominent={false} onStart={startDemoFromServer} />
+      </Page>
+    );
+  }
+
+  if (status.phase === 'error' || !database) {
+    return (
+      <Page>
+        <section className="rounded-3xl border border-red-500/40 bg-red-950/30 p-5 text-sm text-red-100">
+          Could not load the data from the server. {status.error}
+        </section>
+        <DemoCard prominent={false} onStart={startDemoFromServer} />
+      </Page>
+    );
+  }
+
+  const own = ownPersonIds(database);
+  const me = database.people.find((person) => own.includes(person.id)) ?? null;
+  const choices = (['coach', 'athlete'] as const).flatMap((role) =>
+    own
+      .filter((personId) => database.memberships.some((m) => m.personId === personId && m.role === role))
+      .map((personId) => ({ role, personId, detail: roleLabel(database, personId, role) })),
+  );
 
   return (
-    <main className="os-page">
-      <div className="os-container max-w-2xl space-y-5">
-        <header className="os-hero p-6">
-          <p className="os-kicker">Club OS</p>
-          <h1 className="os-title mt-2">{database ? database.club.name : 'Welcome'}</h1>
-        </header>
-        {status.phase === 'loading' ? <section className="os-panel p-5 text-sm text-slate-400">Connecting to your club …</section> : null}
-        {status.phase === 'signedOut' ? <ClubCard /> : null}
-        {status.phase === 'unlinked' ? (
-          <section className="os-panel grid gap-3 p-5 text-sm text-slate-300">
-            <p>Your account is not part of a team yet.</p>
-            <Link href="/join" className="os-success justify-center">Join with a code</Link>
-          </section>
-        ) : null}
-        {status.phase === 'error' ? (
-          <section className="rounded-3xl border border-red-500/40 bg-red-950/30 p-5 text-sm text-red-100">
-            Could not load the data from the server. {status.error}
-          </section>
-        ) : null}
-        {person && identity ? (
-          <section className="os-panel grid gap-3 p-5">
-            <p className="text-sm text-slate-300">Signed in as <span className="font-bold text-white">{displayName(person)}</span></p>
-            <Link href={HOME_FOR_ROLE[identity.role]} className="os-success justify-center">Continue</Link>
-          </section>
-        ) : null}
-        <div className="flex flex-wrap items-center gap-4">
-          {status.phase === 'ready' || status.phase === 'unlinked' ? (
-            <button type="button" onClick={async () => { await signOut(); window.location.assign('/'); }} className="text-xs font-bold text-slate-400 underline">
-              Sign out
-            </button>
-          ) : null}
-          <LocalModeLink />
+    <Page>
+      <Card tone="primary">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">{database.club.name}</p>
+          <p className="mt-2 text-2xl font-black text-white">Welcome back{me ? `, ${me.firstName}` : ''}</p>
         </div>
-      </div>
-    </main>
+        <div className="grid gap-2">
+          {choices.map((choice) => (
+            <button
+              key={`${choice.role}-${choice.personId}`}
+              type="button"
+              onClick={() => {
+                setActiveIdentity({ role: choice.role, personId: choice.personId });
+                router.push(HOME_FOR_ROLE[choice.role]);
+              }}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-left transition hover:border-emerald-300/60"
+            >
+              <span className="min-w-0">
+                <span className="block text-sm font-black text-white">Continue as {choice.role === 'coach' ? 'coach' : 'player'}</span>
+                <span className="block truncate text-xs text-slate-400">{choice.detail}</span>
+              </span>
+              <span aria-hidden className="text-lg font-black text-emerald-300">›</span>
+            </button>
+          ))}
+        </div>
+        {signOutButton}
+      </Card>
+      <DemoCard prominent={false} onStart={startDemoFromServer} />
+    </Page>
   );
 }
 
-function LocalEntry() {
+// ---------------------------------------------------------------------------
+// Local mode: the demo club (and the way to the club server, if there is one)
+// ---------------------------------------------------------------------------
+
+function LocalStart() {
   const { database, error, ready } = useLocalDatabase();
   const router = useRouter();
+  const params = useSearchParams();
+  const requestedDemo = params.get('demo');
+  const serverAvailable = isServerAvailable();
 
-  function start(role: MembershipRole) {
+  function start(role: DemoRole) {
     if (!database) return;
-    const people = peopleWithRole(database, role);
-    const person = people[0];
+    const person = peopleWithRole(database, role)[0];
     if (!person) return;
     setActiveIdentity({ role, personId: person.id });
     router.push(HOME_FOR_ROLE[role]);
   }
 
-  if (!ready) {
-    return (
-      <main className="os-page">
-        <div className="os-container">
-          <section className="os-panel p-6 text-white">Preparing the demo club …</section>
-        </div>
-      </main>
-    );
-  }
+  // Arriving from server mode with a role already picked: start it.
+  useEffect(() => {
+    if (database && (requestedDemo === 'coach' || requestedDemo === 'athlete')) start(requestedDemo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [database, requestedDemo]);
 
   if (error) {
     return (
-      <main className="os-page">
-        <div className="os-container">
-          <section className="rounded-3xl border border-red-500/40 bg-red-950/30 p-6 text-red-100">
-            <p className="font-bold">The test data in this browser could not be read.</p>
-            <p className="mt-2 text-sm">{error.message}</p>
-          </section>
-        </div>
-      </main>
+      <Page>
+        <section className="rounded-3xl border border-red-500/40 bg-red-950/30 p-5 text-sm text-red-100">
+          <p className="font-bold">The demo data in this browser could not be read.</p>
+          <p className="mt-2">{error.message}</p>
+        </section>
+      </Page>
     );
   }
 
-  const club = database?.club;
-  const coaches = database ? peopleWithRole(database, 'coach') : [];
-  const athletes = database ? peopleWithRole(database, 'athlete') : [];
-  const firstCoach = coaches[0];
-  const firstAthlete = athletes[0];
-  const athleteTeam = database && firstAthlete ? teamsForPerson(database, firstAthlete.id)[0] : null;
-  const teamSize = database && athleteTeam ? athletesForTeam(database, athleteTeam.id).length : 0;
+  if (!ready || !database || requestedDemo) {
+    return <Page><Card><p className="text-sm text-slate-400">Preparing the demo club …</p></Card></Page>;
+  }
+
+  const coach = peopleWithRole(database, 'coach')[0];
+  const athlete = peopleWithRole(database, 'athlete')[0];
 
   return (
-    <main className="os-page">
-      <div className="os-container max-w-2xl space-y-5">
-        <header className="os-hero p-6">
-          <p className="os-kicker">Club OS · Demo</p>
-          <h1 className="os-title mt-2">How do you want to start?</h1>
-          <p className="os-copy mt-3">
-            No account, no sign-in. The demo club lives only in this browser, and the coach and
-            player views share the same test data.
-          </p>
-        </header>
-
-        {isServerAvailable() ? (
-          <>
-            <ClubCard />
-            <p className="px-1 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Or try the demo club without an account, stored only in this browser</p>
-          </>
-        ) : null}
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => start('coach')}
-            className="os-panel flex flex-col gap-2 p-6 text-left transition hover:border-emerald-300"
-          >
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Coach</span>
-            <span className="text-xl font-black text-white">Plan sessions</span>
-            <span className="text-sm text-slate-400">
-              Calendar, teams, attendance, halls and your players' load.
-            </span>
-            {firstCoach ? (
-              <span className="mt-2 text-xs text-slate-500">Starts as {displayName(firstCoach)}</span>
-            ) : null}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => start('athlete')}
-            className="os-panel flex flex-col gap-2 p-6 text-left transition hover:border-violet-300"
-          >
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">Player</span>
-            <span className="text-xl font-black text-white">Log training</span>
-            <span className="text-sm text-slate-400">
-              Your sessions, availability, absences and your own load.
-            </span>
-            {firstAthlete ? (
-              <span className="mt-2 text-xs text-slate-500">Starts as {displayName(firstAthlete)}</span>
-            ) : null}
-          </button>
-        </div>
-
-        {club ? (
-          <section className="os-panel-soft p-5 text-sm text-slate-400">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Demo club</p>
-            <p className="mt-2 text-slate-300">
-              {club.name}, {club.city} · {database?.teams.length} Teams · {athletes.length} players
-              {athleteTeam ? ` · ${athleteTeam.name} with ${teamSize} on the roster` : ''}
-            </p>
-            <p className="mt-2">
-              You can switch role or person at any time from the menu at the top.
-            </p>
-          </section>
-        ) : null}
-
-      </div>
-    </main>
+    <Page>
+      {serverAvailable ? <SignInCard /> : null}
+      <DemoCard prominent={!serverAvailable} onStart={start} />
+      <p className="px-1 text-xs text-slate-500">
+        Demo: {database.club.name}, {database.teams.length} teams, {peopleWithRole(database, 'athlete').length} players.
+        {coach && athlete ? ` Starts as ${displayName(coach)} or ${displayName(athlete)}; switch any time from the menu at the top.` : ''}
+      </p>
+    </Page>
   );
 }
