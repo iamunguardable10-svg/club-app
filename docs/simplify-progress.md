@@ -911,3 +911,48 @@ keine Umgebungsvariable.
 
 `npm run typecheck`, `npm run build` grün; Browserlauf siehe
 `docs/local-mode-testplan.md`, Abschnitt Run 8.
+
+## Run 9a — Pilot-Datenbank (erledigt)
+
+Schritt 3 aus Entscheidung 8, erster Teil: das neue Supabase-Schema mit Zugriffsregeln.
+Projekt `CLUB_ProjectV2` (`tszxeainmwowmixqmphn`, EU/Paris), leer angelegt am
+2026-09-24; die alten Projekte „Club-app“ und „Health APP ACWR“ sind unberührt.
+
+Alles liegt unter `supabase/pilot/` (siehe dortige README): drei Migrationen, eine
+lokale Stellvertretung für Supabases `auth`-Schema und 75 Prüfungen, die jeweils als
+eine Person laufen. Die Prüfungen liefen gegen ein lokales Postgres 16, danach wurden
+die Migrationen unverändert eingespielt.
+
+### Entscheidungen im Schema
+
+- **Aus dem lokalen Modell abgeleitet**, nicht aus dem alten Schema. Tabellen und
+  Felder entsprechen `src/shared/data/schema.ts` in `snake_case`.
+- **Absagegründe in eigener Tabelle** (`availability_reasons`): Zeilenregeln kennen
+  keine Spaltenrechte, und „wer kommt“ (`viewAttendance`) ist ein anderes Recht als
+  „warum nicht“ (`viewAbsenceReasons`).
+- **Belastungsampel als eigene Tabelle** (`load_summaries`): Rollen mit nur
+  `viewLoadSummary` bekommen den ACWR-Wert, aber nie die RPE-Einträge. Die App des
+  Spielers schreibt ihn, wenn sich Einträge ändern oder die App öffnet; er kann also
+  altern, wenn ein Spieler die App tagelang nicht öffnet.
+- **Regeln, die unabhängig vom Schreibenden gelten**, sind Trigger in der Datenbank:
+  Halle muss für die Abteilung freigegeben sein, Head Coach gesperrt, ein Team behält
+  immer einen Staff-Verwalter, jedes neue Team bekommt die vier Rollenvorlagen,
+  abhängige Rechte werden ergänzt, Verein und Abteilung einer Einheit kommen immer vom
+  Team.
+- **Verein, Abteilungen und Teams** sind für die App nur lesbar (außer der
+  Standardhalle). Angelegt werden sie beim Einrichten des Pilots (Run 10).
+- `anon` hat auf keine Tabelle Zugriff.
+
+### Supabase-Prüfungen nach dem Einspielen
+
+- Sicherheit: keine Befunde zu den eigenen Objekten. Gemeldet wird nur
+  `public.rls_auto_enable()`, eine Funktion, die Supabase beim Anlegen des Projekts
+  selbst mitbringt; nicht angefasst.
+- Performance: nach Migration 0003 nur „Index noch nie benutzt“, bei leerer Datenbank
+  erwartet.
+
+### Noch nicht verbunden
+
+Die App liest die Datenbank noch nicht. Das kommt in 9b (Supabase-Speicher hinter der
+Datenschicht) und wird erst mit Run 10 (Anmeldung) für echte Nutzer eingeschaltet.
+`.env.example` nennt die beiden Variablen; die Werte liegen nicht im Repository.
