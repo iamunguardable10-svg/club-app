@@ -30,10 +30,13 @@ RPE-Abfrage, keine Benachrichtigungen und keine Installation als App.
 | 3 | Spieler aus dem Team entfernen (erledigt, Run 11d) | Sicherheitslücke im Ablauf (falscher Beitritt) | klein |
 | 3.5 | Belastung (Load) je Team an/aus, vorbereitet für Abos (erledigt, Run 11e) | nicht jedes Team braucht Load; Stück 4 muss es schon beachten | mittel |
 | 4 | Automatische RPE-Abfrage (erledigt, Run 11f) | Kernfunktion für die Belastungssteuerung | mittel |
-| 5 | Veröffentlichen (Vercel) | Voraussetzung für Handy-Tests, App-Installation und Push | klein, braucht dich |
+| 5 | Veröffentlichen (Vercel) (Grundlagen erledigt 2026-09-24, Livegang nach 8) | Voraussetzung für Handy-Tests, App-Installation und Push | klein, braucht dich |
+| 8 | Vereinsverwaltung und Onboarding (vorgezogen) | ohne Onboarding kann kein echter Verein starten | groß, in Teilen |
 | 6 | Als App installierbar (PWA) | Voraussetzung für Push auf dem iPhone | klein |
 | 7 | Benachrichtigungen (Push) | braucht 5 und 6 | groß |
-| 8 | Vereinsverwaltung und Onboarding | größter Umbau, erst wenn der Teambetrieb läuft | groß |
+
+Stück 8 wurde am 2026-09-24 vor 6 und 7 gezogen: Verein, Abteilungen und Teams sollen
+in der App entstehen, nicht per SQL.
 
 ## Die Stücke im Einzelnen
 
@@ -109,8 +112,15 @@ Wunsch vom 2026-09-24: Nicht alle Teams haben oder brauchen Load, je nach künft
 - Supabase: Site URL und Redirect-URLs auf die Vercel-Adresse; E-Mail-Bestätigung aus
   oder eigenes SMTP (sonst hängen Registrierungen).
 - Verein einrichten mit `app.setup_club` und deinen Angaben.
-- **Braucht dich:** Einverständnis für das Vercel-Projekt (ich kann es über die
-  Verbindung anlegen), die Supabase-Einstellungen, die Vereinsdaten.
+- **Stand 2026-09-24:** Das Vercel-Projekt `club-app` ist mit dem Repo verbunden; jeder
+  Push auf den Arbeitszweig baut eine Vorschau (hinter Vercel-Login), `main` baut die
+  öffentliche Adresse `club-app-five-rho.vercel.app`. Die Variablen
+  `NEXT_PUBLIC_SUPABASE_URL` (auf `tszxeainmwowmixqmphn`) und
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` sind gesetzt (vorher hieß der Schlüssel
+  `…_ANON_KEY`, den die App nicht liest, deshalb lief bisher nur die Demo).
+- Offen für den Livegang: Arbeitszweig nach `main` übernehmen (Pull Request, du gibst
+  frei); Supabase Site URL und Redirect-URLs auf die öffentliche Adresse; E-Mail-
+  Bestätigung aus oder eigenes SMTP. Vereinsdaten entfallen: das macht das Onboarding.
 
 ### 6 Als App installierbar
 
@@ -141,19 +151,26 @@ Wunsch vom 2026-09-24: Nicht alle Teams haben oder brauchen Load, je nach künft
 
 ### 8 Vereinsverwaltung und Onboarding
 
-- Neue Rolle **Vereinsadmin** (vereinsweit, unabhängig von Teams).
-- Admin-Bereich: Abteilungen und Teams anlegen, umbenennen, archivieren; je Team den
-  Head Coach einladen; Hallen vereinsweit; Übersicht über Teams und Personen.
-- Optional später: Abteilungsleitung mit Rechten nur für ihre Abteilung, Hallenanträge.
-- Onboarding: Wer legt den Verein an? Vorschlag für den Pilot: keine offene
-  Vereinsgründung im Internet; den ersten Verein richte ich per `setup_club` ein, der
-  Vereinsadmin (du) macht alles Weitere in der App. Offene Vereinsgründung erst, wenn
-  mehr als ein Verein dazukommt.
-- **Entscheidung nötig:** Wer ist Vereinsadmin, braucht ihr Abteilungsleitungen im
-  Pilot, soll ein Vereinsadmin auch Trainer sein können (ja, als zweite Rolle)?
+**Entschieden (2026-09-24):**
+- **Verein anlegen nur mit Gründungs-Code:** Der Plattformbetreiber (du) erzeugt einen
+  einmaligen Code; wer ihn hat, legt nach der Registrierung den Verein an und wird
+  Vereinsadmin. Später lässt sich der Code an ein Abo koppeln.
+- **Vereinsadmin + Abteilungsleitung:** Der Vereinsadmin legt Abteilungen an und lädt je
+  Abteilung eine Leitung ein; die Abteilungsleitung legt ihre Teams an und lädt die
+  Head Coaches ein (der Vereinsadmin darf das auch).
+- **Doppelrollen erlaubt:** Vereinsadmin und Abteilungsleitung können zugleich Trainer
+  oder Spieler sein; gewechselt wird wie heute über das Konto-Menü.
+
+Umfang (wird vor dem Bau im Detail geplant, voraussichtlich in Teilen):
+- Datenmodell: Vereinsrollen (Vereinsadmin, Abteilungsleitung) als eigene
+  Mitgliedschaften auf Vereins- bzw. Abteilungsebene; Gründungs-Codes.
+- Onboarding: registrieren → Code eingeben → Verein, erste Abteilung, erstes Team.
+- Admin-Bereich: Abteilungen, Teams (anlegen, umbenennen, archivieren), Einladungen für
+  Abteilungsleitung und Head Coach, Hallen vereinsweit, Übersicht.
+- Load je Team bleibt per Datenbank geschaltet (Abo), nicht im Admin-Bereich.
 
 ## Was außerhalb des Codes offen ist
 
 - Supabase: E-Mail-Bestätigung / SMTP, Site URL und Redirect-URLs.
 - Vercel-Projekt und Adresse.
-- Vereinsdaten für `setup_club`.
+- Gründungs-Code für den eigenen Verein (kommt mit Stück 8).
