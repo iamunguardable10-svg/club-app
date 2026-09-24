@@ -4,6 +4,10 @@ Stand: 2026-09-22. Diese Datei gilt für alle sechs Runs des Umbaus und hat Vorr
 älteren Festlegungen in `AGENTS.md` und `docs/v1-decisions.md`, solange der Umbau läuft.
 Run 5 zieht die beiden Dateien nach.
 
+> **Stand 2026-09-24: Die Vereinfachung ist abgeschlossen, das nächste Ziel ist ein
+> Pilot im eigenen Verein.** Punkt 8 ändert die Grundlage von Punkt 1 und 2: Es wird
+> echte Nutzer geben. Punkt 8 hat Vorrang, wo er den älteren Punkten widerspricht.
+
 ## 1. Ein einziger lokaler Modus
 
 Für die aktuelle Testphase gibt es keine Registrierung, keine Anmeldung, keine
@@ -120,3 +124,48 @@ Funktionsverlust bedeutet. Gezählt wird weiterhin, aber nicht mehr als Ziel.
 | Dateien mit `localStorage`-Zugriff | 13 | 1 |
 
 
+
+
+## 8. Nächstes Ziel: Pilot im eigenen Verein, zuerst auf Teamebene
+
+Entschieden am 2026-09-24.
+
+**Es wird echte Nutzer geben.** Spieler nutzen ihre eigenen Handys, der Trainer sein
+eigenes Gerät. Damit gilt die Annahme aus Punkt 1 und 2 („keine echten Nutzer, alles im
+Browser") nicht mehr für den Pilotbetrieb. Alle müssen denselben Datenstand sehen; dafür
+braucht es wieder einen Server.
+
+**Umfang:** zuerst ein Team, nicht der ganze Verein. Hallen gehören trotzdem dazu.
+
+**Reihenfolge, verbindlich:**
+
+1. **Trainerrollen** mit einstellbaren Rechten, insbesondere was eine Rolle von den
+   Spielern sehen darf. Das ist dem Auftraggeber am wichtigsten.
+2. **Hallen:** anlegen, bearbeiten, Adresse, Zuordnung zu Teams.
+3. **Server:** Supabase hinter der Datenschicht.
+4. **Zugang ganz am Ende:** Anmeldung mit E-Mail und Passwort, Beitrittscode für
+   Spieler, Einladung für Trainer.
+
+Punkt 1 und 2 entstehen im lokalen Modus, weil sich dort ohne Server am schnellsten
+entwickeln und prüfen lässt.
+
+**Supabase wird neu aufgesetzt, nicht das alte Schema wiederbelebt.** Es gibt keine
+Daten zu übernehmen (Punkt 2). Das alte Schema kennt nur feste Rollen und kein
+Rechtemodell dafür, was eine Trainerrolle von Spielern sehen darf; das nachträglich in
+über acht Monate gewachsene RLS-Regeln einzubauen, ist schwerer, als es von Anfang an
+mitzudenken. Das neue Schema wird aus dem lokalen Datenmodell (`src/shared/data/schema.ts`)
+abgeleitet, das die Oberflächen heute sprechen. Das alte Schema unter `supabase/` und
+`docs/rls-access-model.md` bleiben Referenz, gute Teile werden übernommen.
+
+Die App selbst wird **nicht** neu gebaut: Kalender, Hallenkalender, Serienplanung,
+Spieler-Workspace und die Datenschicht bleiben. Supabase kommt als zweiter Speicher
+hinter dieselbe Schnittstelle; der lokale Modus bleibt als Entwicklungs- und Testmodus.
+Eine Oberfläche, zwei austauschbare Speicher — keine zweite App.
+
+**Kein Echtbetrieb vor dem Zugang.** Server (Schritt 3) und Zugang (Schritt 4) gehen
+nur gemeinsam an echte Nutzer. Ein Server ohne Anmeldung würde Belastungs- und
+Abwesenheitsdaten, darunter Gesundheitsgründe von Jugendlichen, ungeschützt ausliefern.
+
+**Was aus Run 5 zurückkommt,** wird aus den Live-Versionen in `543775f` gezielt
+portiert, nicht pauschal zurückgespielt — sonst kämen die Demo-Zwillinge und die
+Doppelpflege mit.
