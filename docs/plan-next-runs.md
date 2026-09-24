@@ -161,13 +161,40 @@ Wunsch vom 2026-09-24: Nicht alle Teams haben oder brauchen Load, je nach künft
 - **Doppelrollen erlaubt:** Vereinsadmin und Abteilungsleitung können zugleich Trainer
   oder Spieler sein; gewechselt wird wie heute über das Konto-Menü.
 
-Umfang (wird vor dem Bau im Detail geplant, voraussichtlich in Teilen):
-- Datenmodell: Vereinsrollen (Vereinsadmin, Abteilungsleitung) als eigene
-  Mitgliedschaften auf Vereins- bzw. Abteilungsebene; Gründungs-Codes.
-- Onboarding: registrieren → Code eingeben → Verein, erste Abteilung, erstes Team.
-- Admin-Bereich: Abteilungen, Teams (anlegen, umbenennen, archivieren), Einladungen für
-  Abteilungsleitung und Head Coach, Hallen vereinsweit, Übersicht.
-- Load je Team bleibt per Datenbank geschaltet (Abo), nicht im Admin-Bereich.
+In drei Teilen, jeder einzeln gebaut, geprüft, committet:
+
+**8a — Datenbank und Datenschicht**
+- Neue Tabelle `club_roles` (Person, Verein, Rolle `admin` oder `department_lead`, bei
+  Abteilungsleitung die Abteilung). Eine Person kann zusätzlich Trainer oder Spieler
+  sein.
+- Gründungs-Codes (`founding_codes`, einmalig): erzeugt nur der Betreiber per SQL
+  (`app.create_founding_code()`); die App löst sie über `found_club(...)` ein. Das legt
+  Verein, erste Abteilung, erstes Team (mit den vier Rollenvorlagen) und den Gründer als
+  Vereinsadmin an, auf Wunsch zugleich als Head Coach des ersten Teams.
+- Rechte: Vereinsadmin verwaltet Abteilungen, Teams, Hallen und alle Einladungen im
+  Verein; Abteilungsleitung Teams und Einladungen ihrer Abteilung. Für ihre Teams
+  bekommen sie die **Verwaltungsrechte** (Trainerteam, Hallen, Einheiten, Serien,
+  Gruppen), aber **keine Spielerdaten** (Kader, Anwesenheit, Gründe, Belastung, Pläne),
+  außer sie haben im Team selbst eine Trainerrolle. (Vorschlag, siehe Frage unten.)
+- Einladungen für Abteilungsleitungen (wie die für Staff: per Link, einmalig).
+- Teams archivieren statt löschen (Daten bleiben, Team verschwindet aus den Listen).
+- Tests: Zugriffsprüfungen (wer darf was, Codes nur einmal, fremder Verein tabu),
+  Ende-zu-Ende über die Datenschicht.
+
+**8b — Onboarding**
+- Startseite, angemeldet ohne Verein: „Join with a code“ (Spieler) und „Found a club“
+  (Gründungs-Code). Gründen: Code → Vereinsname und Ort → erste Abteilung → erstes Team
+  → „Coach this team yourself?“ → fertig im Vereinsbereich.
+- Demo-Modus: ein Vereinsadmin und eine Abteilungsleitung im Demo-Verein, dritter
+  Einstieg „As club admin“.
+
+**8c — Vereinsbereich**
+- Neue Rolle im Konto-Menü „Club admin“ bzw. „Department lead“, eigener Bereich
+  `/club` im gemeinsamen Rahmen: Übersicht (Abteilungen, Teams, Personen, offene
+  Einladungen), Abteilungen anlegen/umbenennen und Leitung einladen, Teams
+  anlegen/umbenennen/archivieren und Head Coach einladen, Hallen vereinsweit (die
+  bestehende Hallenverwaltung).
+- Load je Team bleibt per Datenbank geschaltet (Abo), nicht im Vereinsbereich.
 
 ## Was außerhalb des Codes offen ist
 
