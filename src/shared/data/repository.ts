@@ -34,6 +34,7 @@ import type { RemoteStore } from './remote/remoteStore';
 import {
   COACH_PERMISSIONS,
   COACH_PERMISSION_REQUIRES,
+  LOAD_PERMISSIONS,
   LocalDataError,
   type ActiveIdentity,
   type CoachPermission,
@@ -52,6 +53,7 @@ import {
   type StaffInvite,
   type SessionType,
   type Team,
+  type TeamFeature,
 } from './schema';
 
 type Listener = () => void;
@@ -340,7 +342,7 @@ export function flushRemote(): Promise<void> {
 export function ensureFreshLoadSummary(): void {
   const database = readDatabase();
   const identity = database?.activeIdentity;
-  if (!database || identity?.role !== 'athlete') return;
+  if (!database || identity?.role !== 'athlete' || !athleteHasLoad(database, identity.personId)) return;
   const today = new Date().toISOString().slice(0, 10);
   const row = database.loadSummaries.find((candidate) => candidate.personId === identity.personId);
   const entries = database.loadEntries.filter((entry) => entry.personId === identity.personId);
@@ -691,7 +693,28 @@ export function coachPermissions(database: LocalDatabase, personId: Id | null, t
   const membership = database.memberships.find(
     (candidate) => candidate.personId === personId && candidate.teamId === teamId && candidate.role === 'coach',
   );
-  return membership ? permissionsOfRole(roleById(database, membership.coachRoleId)) : NO_PERMISSIONS;
+  if (!membership) return NO_PERMISSIONS;
+  const granted = permissionsOfRole(roleById(database, membership.coachRoleId));
+  // Load rights only take effect in teams that track load, as on the server.
+  if (teamHasFeature(database, teamId, 'load')) return granted;
+  return new Set([...granted].filter((permission) => !LOAD_PERMISSIONS.includes(permission)));
+}
+
+/** Whether a team has a feature switched on (`TEAM_FEATURES`). */
+export function teamHasFeature(database: LocalDatabase, teamId: Id | null, feature: TeamFeature): boolean {
+  if (!teamId) return false;
+  return database.teams.find((team) => team.id === teamId)?.features.includes(feature) ?? false;
+}
+
+/**
+ * Whether a player tracks training load: when at least one of their teams
+ * does. RPE is asked only for sessions of such teams.
+ */
+export function athleteHasLoad(database: LocalDatabase, personId: Id | null): boolean {
+  if (!personId) return false;
+  return database.memberships.some(
+    (membership) => membership.personId === personId && membership.role === 'athlete' && teamHasFeature(database, membership.teamId, 'load'),
+  );
 }
 
 export function hasCoachPermission(database: LocalDatabase, personId: Id | null, teamId: Id, permission: CoachPermission): boolean {
@@ -1220,6 +1243,8 @@ export type LoadEntryInput = {
 export function recordLoadEntry(input: LoadEntryInput): Id {
   const id = newId();
   mutate((database) => {
+    if (!athleteHasLoad(database, input.personId)) throw new LocalDataError('Your team does not track training load.');
+    if (input.teamId && !teamHasFeature(database, input.teamId, 'load')) throw new LocalDataError('This team does not track training load.');
     if (input.rpe < 1 || input.rpe > 10) throw new LocalDataError(`RPE out of range: ${input.rpe}`);
     if (input.durationMinutes <= 0) throw new LocalDataError(`Duration must be positive: ${input.durationMinutes}`);
 

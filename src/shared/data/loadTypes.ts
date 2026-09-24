@@ -69,6 +69,8 @@ export type AthletePendingSession = {
   expectedRpe?: number | null;
   expectedDurationMinutes?: number | null;
   source?: 'team_session' | 'athlete_plan';
+  /** `false` for sessions of a team without load tracking: no RPE is asked. */
+  loadTracked?: boolean;
 };
 
 export type AthleteLoadPlan = {

@@ -287,6 +287,32 @@ async function main() {
   check('… session kept without hall', (await count('select 1 from sessions where id = $1 and facility_id is null', [newSession])) === 1);
   check('… not reported as refused', store.getStatus().rejected === null, store.getStatus().rejected);
 
+  // --- Team without load (piece 3.5) ---------------------------------------
+  await pool.query(`update public.teams set features = '{}' where id = $1`, [TEAM]);
+  store = await actAs(U.martin);
+  check('no load: the app knows the team has no load', !data.teamHasFeature(db(), TEAM, 'load'));
+  check('… Martin keeps his other rights but no load rights',
+    data.coachPermissions(db(), P.martin, TEAM).has('manageStaff') && !data.coachPermissions(db(), P.martin, TEAM).has('viewLoadSummary'));
+  check('… and receives no traffic lights or entries', db().loadSummaries.length === 0 && db().loadEntries.length === 0, db().loadSummaries);
+  store = await actAs(U.jonas);
+  check('no load: Jonas does not track load', !data.athleteHasLoad(db(), P.jonas));
+  let loadRefused = '';
+  try {
+    data.recordLoadEntry({ personId: P.jonas, sessionId: null, teamId: null, date: new Date().toISOString().slice(0, 10), title: 'Laufen', trainingType: 'team_training', rpe: 5, durationMinutes: 30 });
+  } catch (error) {
+    loadRefused = error instanceof Error ? error.message : String(error);
+  }
+  check('… recording load is refused in the app', loadRefused.includes('does not track'), loadRefused);
+  const entriesBefore = await count('select 1 from load_entries where person_id = $1', [P.jonas]);
+  data.mutate((draft) => {
+    draft.loadEntries.push({ ...draft.loadEntries.find((entry) => entry.personId === P.jonas)!, id: data.newId(), date: new Date().toISOString().slice(0, 10) });
+  });
+  await data.flushRemote();
+  check('… and by the server, with a message', (await count('select 1 from load_entries where person_id = $1', [P.jonas])) === entriesBefore && store.getStatus().rejected !== null, store.getStatus());
+  await pool.query(`update public.teams set features = array['load'] where id = $1`, [TEAM]);
+  store = await actAs(U.martin);
+  check('load back on: Martin sees the traffic lights again', db().loadSummaries.length > 0);
+
   // --- Access: join code and invitation -----------------------------------
   store = await actAs(U.martin);
   const code = data.rotateJoinCode(TEAM);

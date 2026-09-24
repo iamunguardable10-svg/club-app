@@ -14,10 +14,12 @@ import { useMemo, useState } from 'react';
 
 import {
   COACH_PERMISSIONS,
+  LOAD_PERMISSIONS,
   COACH_PERMISSION_REQUIRES,
   addStaffMember,
   assignCoachRole,
   coachRolesForTeam,
+  teamHasFeature,
   createCoachRole,
   createStaffInvite,
   isRemoteMode,
@@ -143,6 +145,7 @@ const smallButtonClass = 'rounded-xl border px-3 py-2 text-xs font-black transit
 export function TeamStaffPanel({ database, teamId, canManage }: { database: LocalDatabase; teamId: Id; canManage: boolean }) {
   const roles = useMemo(() => coachRolesForTeam(database, teamId), [database, teamId]);
   const staff = useMemo(() => staffForTeam(database, teamId), [database, teamId]);
+  const loadTracked = teamHasFeature(database, teamId, 'load');
   const [error, setError] = useState<string | null>(null);
   const [openRoleId, setOpenRoleId] = useState<Id | null>(null);
   const [confirmRemoveId, setConfirmRemoveId] = useState<Id | null>(null);
@@ -172,7 +175,7 @@ export function TeamStaffPanel({ database, teamId, canManage }: { database: Loca
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
       {error ? (
         <p role="alert" className="rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-bold text-red-100">{error}</p>
       ) : null}
@@ -235,7 +238,7 @@ export function TeamStaffPanel({ database, teamId, canManage }: { database: Loca
 
       <div>
         <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Roles and rights</p>
-        <div className="mt-2 grid gap-2">
+        <div className="mt-2 grid grid-cols-[minmax(0,1fr)] gap-2">
           {roles.map((role) => (
             <RoleCard
               key={role.id}
@@ -243,6 +246,7 @@ export function TeamStaffPanel({ database, teamId, canManage }: { database: Loca
               memberCount={membersByRole.get(role.id) ?? 0}
               open={openRoleId === role.id}
               canManage={canManage}
+              loadTracked={loadTracked}
               onToggleOpen={() => setOpenRoleId((current) => (current === role.id ? null : role.id))}
               onRun={run}
             />
@@ -273,6 +277,7 @@ function RoleCard({
   memberCount,
   open,
   canManage,
+  loadTracked,
   onToggleOpen,
   onRun,
 }: {
@@ -280,6 +285,8 @@ function RoleCard({
   memberCount: number;
   open: boolean;
   canManage: boolean;
+  /** Without load tracking the load rights stay stored but have no effect. */
+  loadTracked: boolean;
   onToggleOpen: () => void;
   onRun: (action: () => void) => boolean;
 }) {
@@ -308,7 +315,7 @@ function RoleCard({
               className="mb-3 flex gap-2"
               onSubmit={(event) => { event.preventDefault(); onRun(() => updateCoachRole(role.id, { name })); }}
             >
-              <input value={name} onChange={(event) => setName(event.target.value)} aria-label={`Name of role ${role.name}`} className={`${inputClass} flex-1`} />
+              <input value={name} onChange={(event) => setName(event.target.value)} aria-label={`Name of role ${role.name}`} className={`${inputClass} min-w-0 flex-1`} />
               <button type="submit" disabled={name.trim() === role.name} className={`${smallButtonClass} border-slate-700 text-slate-200`}>Rename</button>
             </form>
           ) : null}
@@ -317,19 +324,26 @@ function RoleCard({
               <fieldset key={group.label}>
                 <legend className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{group.label}</legend>
                 <div className="mt-1 grid gap-1 sm:grid-cols-2">
-                  {group.permissions.map((permission) => (
-                    <label key={permission.key} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-bold ${editable ? 'cursor-pointer text-slate-200 hover:bg-slate-900' : 'text-slate-400'}`}>
-                      <input
-                        type="checkbox"
-                        checked={granted.includes(permission.key)}
-                        disabled={!editable}
-                        onChange={() => onRun(() => updateCoachRole(role.id, { permissions: togglePermission(role.permissions, permission.key) }))}
-                        className="h-4 w-4 accent-emerald-300"
-                      />
-                      {permission.label}
-                    </label>
-                  ))}
+                  {group.permissions.map((permission) => {
+                    const inactive = !loadTracked && LOAD_PERMISSIONS.includes(permission.key);
+                    const canToggle = editable && !inactive;
+                    return (
+                      <label key={permission.key} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-bold ${canToggle ? 'cursor-pointer text-slate-200 hover:bg-slate-900' : 'text-slate-500'}`}>
+                        <input
+                          type="checkbox"
+                          checked={granted.includes(permission.key)}
+                          disabled={!canToggle}
+                          onChange={() => onRun(() => updateCoachRole(role.id, { permissions: togglePermission(role.permissions, permission.key) }))}
+                          className="h-4 w-4 accent-emerald-300"
+                        />
+                        {permission.label}
+                      </label>
+                    );
+                  })}
                 </div>
+                {group.label === 'Players' && !loadTracked ? (
+                  <p className="mt-1 px-2 text-xs font-bold text-slate-500">This team does not track training load, so the load rights have no effect.</p>
+                ) : null}
               </fieldset>
             ))}
           </div>

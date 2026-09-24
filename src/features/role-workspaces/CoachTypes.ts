@@ -16,6 +16,8 @@ export type CoachTeam = {
   roleName?: string | null;
   /** What the active coach may see and do in this team. */
   permissions?: CoachPermission[];
+  /** `false` when the team does not track training load. */
+  loadTracked?: boolean;
 };
 
 export type CoachAvailability = {
@@ -54,6 +56,8 @@ export type CoachSession = {
   players: CoachPlayer[];
   /** Missing means shared; `false` for roles without `viewAttendance`. */
   attendanceShared?: boolean;
+  /** `false` when the session's team does not track training load. */
+  loadTracked?: boolean;
 };
 
 export type CoachFacility = { id: string; name: string; departmentIds: string[] };

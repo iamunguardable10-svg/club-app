@@ -28,7 +28,7 @@ import {
 } from './loadTypes';
 import { aggregateDailyLoads, baselineAgeDays, calculateEWMA, fillMissingDays, formatLoadDate, getLatestACWR, loadZone, projectFutureACWR, todayISO } from './loadCalculations';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
-import { displayName, getActivePerson, newId, useLocalDatabase } from '@/shared/data';
+import { athleteHasLoad, displayName, getActivePerson, newId, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
 import { formatDateRange, formatDay, formatLongDay } from '@/shared/format';
@@ -142,6 +142,7 @@ function warmupForSession(session: AthletePendingSession): AthletePendingSession
     expectedRpe: 3,
     expectedDurationMinutes: 20,
     source: session.source,
+    loadTracked: session.loadTracked,
   };
 }
 
@@ -855,7 +856,8 @@ function AthleteCalendar({
   onPlanTimeChange,
 }: {
   items: AthleteCalendarItem[];
-  onEmptySlot: (date: string, time: string) => void;
+  /** Missing for players without load tracking: own plans are part of load. */
+  onEmptySlot?: (date: string, time: string) => void;
   onItemSelect: (item: AthleteCalendarItem, intent: 'view' | 'edit') => void;
   onPlanTimeChange: (session: AthletePendingSession, startsAt: string, durationMinutes: number) => void;
 }) {
@@ -907,6 +909,7 @@ function AthleteCalendar({
 
   function pickSlot(day: Date, event: MouseEvent<HTMLDivElement>, hourHeight: number) {
     if ((event.target as HTMLElement).closest('[data-athlete-calendar-item="true"]')) return;
+    if (!onEmptySlot) return;
     const minutes = minutesFromPointer(event.currentTarget, event.clientY, hourHeight);
     onEmptySlot(isoDate(day), minutesToTime(minutes));
   }
@@ -1127,9 +1130,11 @@ function AthleteCalendar({
         </div>
         <div className="flex items-center gap-2">
           {weekOffset !== 0 ? <button type="button" onClick={() => setWeekOffset(0)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">↺ Week</button> : null}
-          <button type="button" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'}`}>
-            {mode === 'edit' ? 'Done' : 'Add own session'}
-          </button>
+          {onEmptySlot ? (
+            <button type="button" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'}`}>
+              {mode === 'edit' ? 'Done' : 'Add own session'}
+            </button>
+          ) : null}
         </div>
       </div>
       {dragPreview ? (
@@ -1260,6 +1265,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const isActiveAthlete = Boolean(
     database && activePersonId && database.memberships.some((membership) => membership.personId === activePersonId && membership.role === 'athlete'),
   );
+  // Load (RPE, ACWR, own plans, sharing) only for players of a team that
+  // tracks it; everyone else gets sessions and availability.
+  const hasLoad = database ? athleteHasLoad(database, activePersonId) : false;
 
   // Everything below is fed from the shared local document, scoped to the
   // active athlete. This used to be a Supabase load with a demo fallback that
@@ -1309,7 +1317,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     return availabilityBySessionId.get(sessionId) ?? (sessionId.endsWith('-warmup') ? availabilityBySessionId.get(sessionId.replace(/-warmup$/, '')) : undefined);
   }
   const activePendingSessions = pendingSessions.filter((session) => !isSessionCancelled(session.id));
-  const todayPending = activePendingSessions.filter((session) => session.date <= todayISO()).slice(0, 3);
+  const todayPending = activePendingSessions.filter((session) => session.date <= todayISO() && session.loadTracked !== false).slice(0, 3);
+  // Forecasts and planned load only count sessions that are rated afterwards.
+  const loadPendingSessions = activePendingSessions.filter((session) => session.loadTracked !== false);
   // A warmup belongs to its game; the game is what comes next.
   const nextSession = activePendingSessions.find((session) => session.date >= todayISO() && session.trainingType !== 'warmup') ?? activePendingSessions[0] ?? null;
   /** What the player told the coach about a session, in one line. */
@@ -1334,7 +1344,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         endsAt: session.endsAt,
         trainingType: session.trainingType,
         teamName: session.teamName,
-        status: isSessionCancelled(session.id) ? 'cancelled' : availabilityForSession(session.id)?.status === 'late' ? 'late' : reported ? 'reported' : session.date < todayISO() ? 'missing' : 'planned',
+        status: isSessionCancelled(session.id) ? 'cancelled' : availabilityForSession(session.id)?.status === 'late' ? 'late' : reported ? 'reported' : session.date < todayISO() && session.loadTracked !== false ? 'missing' : 'planned',
         source: session.source ?? 'team_session',
         session,
         entry: entryBySessionId.get(session.id),
@@ -1779,17 +1789,26 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   return (
     <AthleteShell
       active={activeView === 'home' ? 'today' : activeView}
+      showLoad={hasLoad}
       title={activeView === 'home' ? 'Today' : activeView === 'calendar' ? 'Calendar' : 'Your load'}
-      subtitle={activeView === 'home' ? formatLongDay(new Date()) : activeView === 'calendar' ? 'Team sessions and your own plans' : 'Training load and ACWR, from your RPE entries'}
-      actions={
+      subtitle={activeView === 'home' ? formatLongDay(new Date()) : activeView === 'calendar' ? (hasLoad ? 'Team sessions and your own plans' : 'Your team sessions') : 'Training load and ACWR, from your RPE entries'}
+      actions={hasLoad ? (
         <button type="button" onClick={copyTrainerShareLink} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${shareStatus === 'copied' ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100' : shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
           {shareStatus === 'copied' ? 'Link copied' : shareStatus === 'error' ? 'Could not copy' : shareActive ? 'Share with coach: on' : 'Share with coach'}
         </button>
-      }
+      ) : undefined}
     >
         {error ? <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 px-4 py-3 text-sm font-bold text-rose-100">{error}</div> : null}
 
-        {activeView !== 'calendar' ? (
+        {activeView === 'load' && !hasLoad ? (
+          <section className="rounded-3xl border border-slate-800 bg-slate-950/65 p-5">
+            <h2 className="text-lg font-black">No load tracking</h2>
+            <p className="mt-1 text-sm text-slate-400">Your team plans sessions and attendance here, without training load.</p>
+            <Link href="/athlete/home" className="mt-4 inline-block text-sm font-black text-sky-300">Back to Today ›</Link>
+          </section>
+        ) : null}
+
+        {activeView !== 'calendar' && hasLoad ? (
           <div className="grid w-full min-w-0 grid-cols-3 gap-2 [&>*]:min-h-[92px]">
             <LoadRoomMetric latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} />
             <AcwrMetric latest={latest} baselineReady={isBaselineReady} tone={zone.tone} />
@@ -1797,20 +1816,20 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           </div>
         ) : null}
 
-        {activeView === 'load' && !isBaselineReady ? (
+        {activeView === 'load' && hasLoad && !isBaselineReady ? (
           <section className="rounded-2xl border border-amber-300/25 bg-amber-300/[0.08] p-4 text-sm font-bold text-amber-100">
             Load guidance gets reliable after about 30 recorded days.
           </section>
         ) : null}
 
-        {activeView === 'load' ? (
+        {activeView === 'load' && hasLoad ? (
           <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/65 p-4 sm:p-5">
             <h2 className="mb-3 text-lg font-black">Trend</h2>
-            <LoadChart entries={sortedEntries} pendingSessions={pendingSessions} />
+            <LoadChart entries={sortedEntries} pendingSessions={loadPendingSessions} />
           </section>
         ) : null}
 
-        {activeView === 'load' ? (
+        {activeView === 'load' && hasLoad ? (
           <LoadDetailsPanel
             entries={sortedEntries}
             latestEwma={latest}
@@ -1820,7 +1839,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
         {activeView === 'calendar' ? (
           <div id="athlete-calendar" className="scroll-mt-24">
-            <AthleteCalendar items={calendarItems} onEmptySlot={openComposer} onItemSelect={openCalendarItem} onPlanTimeChange={updatePlanTimeFromCalendar} />
+            <AthleteCalendar items={calendarItems} onEmptySlot={hasLoad ? openComposer : undefined} onItemSelect={openCalendarItem} onPlanTimeChange={updatePlanTimeFromCalendar} />
           </div>
         ) : activeView === 'home' ? (
           <section className={`grid min-w-0 items-stretch gap-5 ${todayPending.length > 0 ? 'lg:grid-cols-[0.9fr_1.1fr]' : ''}`}>
@@ -1866,7 +1885,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   <p className="mt-3 text-xs font-bold text-emerald-200">{availabilityLabelFor(nextSession)}</p>
                 </button>
               ) : <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions planned</div>}
-              {plans.length > 0 ? (
+              {hasLoad && plans.length > 0 ? (
                 <div className="mt-4 space-y-2">
                   {plans.slice(0, 4).map((plan) => (
                     <div key={plan.id} className="flex items-center justify-between gap-3 rounded-2xl border border-violet-300/20 bg-violet-300/[0.06] px-3 py-2">
@@ -1986,7 +2005,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               </div>
             ) : null}
 
-            {activeTeamSessionIsFuture ? (
+            {activeComposerSession?.loadTracked === false && !activeTeamSessionIsFuture ? (
+              <p className="mt-5 rounded-2xl border border-slate-700 bg-slate-950/70 p-4 text-sm font-bold text-slate-300">
+                {activeComposerSession.teamName ?? 'This team'} does not track training load, so there is nothing to rate for this session.
+              </p>
+            ) : activeTeamSessionIsFuture ? (
               <div className="mt-5 space-y-3 rounded-2xl border border-slate-700 bg-slate-950/70 p-4 text-sm font-bold text-slate-300">
                 {(() => {
                   const mark = activeComposerSession ? availabilityForSession(activeComposerSession.id) : undefined;

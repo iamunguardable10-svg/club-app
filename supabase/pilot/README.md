@@ -4,7 +4,7 @@ The Supabase schema for the club pilot (docs/simplify-decisions.md, point 8).
 Derived from the local data model in `src/shared/data/schema.ts`; the older
 schema in `supabase/migrations` is the pre-pilot one and only a reference.
 
-Project: `CLUB_ProjectV2` (`tszxeainmwowmixqmphn`, eu-west-3). All eight
+Project: `CLUB_ProjectV2` (`tszxeainmwowmixqmphn`, eu-west-3). All nine
 migrations below are applied there (2026-09-24).
 
 | File | What it does |
@@ -17,11 +17,12 @@ migrations below are applied there (2026-09-24).
 | `migrations/0006_pilot_english_messages.sql` | The same functions with English messages (the interface is English) |
 | `migrations/0007_pilot_english_role_templates.sql` | English role templates: Head Coach, Assistant Coach, Athletic Coach, Team Manager |
 | `migrations/0008_pilot_remove_athletes.sql` | Staff with `manageStaff` may remove players from their team; the player also leaves the team's groups, person and history stay |
+| `migrations/0009_pilot_team_features.sql` | Team features (`teams.features`, for now `load`): without load, the team's load rights have no effect and its players cannot record load |
 | `tests/00_supabase_shim.sql` | Stand-in for Supabase's `auth` schema and roles, **local tests only** |
-| `tests/01_rls_test.sql` | 86 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
+| `tests/01_rls_test.sql` | 101 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
 | `tests/02_access_test.sql` | 35 checks for join codes, invitations and club setup |
 | `tests/run-local.sh` | Recreates a local test database, applies shim and migrations, runs the checks above |
-| `tests/remote-store.test.ts` | 61 end-to-end checks: the app's real data-layer functions through the server store against the local database, as Head Coach, Betreuer, athlete and two new accounts joining |
+| `tests/remote-store.test.ts` | 68 end-to-end checks: the app's real data-layer functions through the server store against the local database, as Head Coach, Betreuer, athlete and two new accounts joining |
 
 ## What the rules guarantee
 
@@ -73,9 +74,22 @@ select app.setup_club(
 
 It returns a token. `<app-url>/join?invite=<token>` is the Head Coach's link:
 create an account there (or sign in) and accept. From then on everything
-happens in the app: staff are added by name in Staff / Settings and get their
+happens in the app: staff are added by name in Staff & settings and get their
 own invitation link; athletes create an account and enter the join code shown
 there.
+
+### Training load per team
+
+New teams track training load. For a team that does not need it (later decided
+by the club's subscription):
+
+```sql
+update public.teams set features = '{}' where name = 'Teamname';          -- load off
+update public.teams set features = array['load'] where name = 'Teamname'; -- load on
+```
+
+Nothing is deleted when load is switched off; switching it back on shows the
+data again. The app cannot change this.
 
 ## Accounts
 

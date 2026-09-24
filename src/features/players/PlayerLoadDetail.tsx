@@ -102,6 +102,7 @@ export function PlayerLoadDetail({
   attendanceContextLabel = 'Default range: one month',
   emptyAttendanceLabel = 'No late/out sessions in this range.',
   showAttendanceRange = true,
+  loadTracked = true,
   footer,
   onClose,
 }: {
@@ -110,6 +111,8 @@ export function PlayerLoadDetail({
   attendanceContextLabel?: string;
   emptyAttendanceLabel?: string;
   showAttendanceRange?: boolean;
+  /** `false` when the team does not track training load. */
+  loadTracked?: boolean;
   /** Actions below the details, e.g. removing the player from the team. */
   footer?: ReactNode;
   onClose: () => void;
@@ -155,7 +158,7 @@ export function PlayerLoadDetail({
       <div className="max-h-[92vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-5xl sm:rounded-[2rem] sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 pb-4">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">Player load</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">{loadTracked ? 'Player load' : 'Player'}</p>
             <h2 className="mt-1 text-3xl font-black tracking-tight text-white">{player.name}</h2>
             <p className="mt-1 text-sm font-bold text-slate-400">{teamName}</p>
           </div>
@@ -166,8 +169,8 @@ export function PlayerLoadDetail({
           <div className="space-y-4">
             {summary.access === 'none' ? (
               <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
-                <p className="text-sm font-black text-white">Load not shared</p>
-                <p className="mt-1 text-sm font-bold text-slate-400">Your role on this team does not include player load.</p>
+                <p className="text-sm font-black text-white">{loadTracked ? 'Load not shared' : 'No load tracking'}</p>
+                <p className="mt-1 text-sm font-bold text-slate-400">{loadTracked ? 'Your role on this team does not include player load.' : `${teamName} does not track training load.`}</p>
               </div>
             ) : (
               <div className={`rounded-3xl border p-4 ${acwrToneClass(zone.tone)}`}>
@@ -325,7 +328,7 @@ export function PlayerLoadDetail({
               <div className="rounded-3xl border border-dashed border-slate-700 bg-slate-950/50 p-6 text-sm font-bold text-slate-400">
                 {summary.access === 'summary'
                   ? 'Your role sees the load traffic light only. Charts, RPE and session entries stay with roles that have load details.'
-                  : 'Charts, RPE and session entries are not shared with your role.'}
+                  : loadTracked ? 'Charts, RPE and session entries are not shared with your role.' : `${teamName} tracks sessions and attendance only.`}
               </div>
             </div>
           )}

@@ -62,6 +62,22 @@ export const COACH_PERMISSION_REQUIRES: Partial<Record<CoachPermission, CoachPer
 };
 
 /**
+ * Features a team can have switched on. Not every team needs training load;
+ * later the club's subscription decides which teams have which features, and
+ * this list is what it sets. For now they are switched in the database only
+ * (docs/plan-next-runs.md, piece 3.5); new teams start with load.
+ */
+export const TEAM_FEATURES = ['load'] as const;
+export type TeamFeature = (typeof TEAM_FEATURES)[number];
+
+/**
+ * Coach rights that only exist in teams with load tracking. A role may keep
+ * them ticked; they take effect only while the team has `load` (the server's
+ * `app.team_permissions` drops them the same way).
+ */
+export const LOAD_PERMISSIONS: readonly CoachPermission[] = ['viewLoadSummary', 'viewLoadDetails', 'viewAthletePlans'];
+
+/**
  * A coach role within one team, for example Head Coach, Assistant Coach or
  * Athletic Coach, with the rights it carries.
  *
@@ -105,6 +121,8 @@ export type Team = {
   departmentId: Id;
   name: string;
   defaultFacilityId: Id | null;
+  /** Switched-on features, see `TEAM_FEATURES`. */
+  features: TeamFeature[];
   createdAt: Timestamp;
 };
 

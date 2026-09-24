@@ -70,6 +70,7 @@ export function readTeamSessions(database: LocalDatabase, personId: Id): Athlete
         endsAt: session.endsAt,
         trainingType: sessionTypeToLoadType(session.sessionType),
         source: 'team_session' as const,
+        loadTracked: teamById.get(session.teamId)?.features.includes('load') ?? false,
       };
     });
 }

@@ -1,6 +1,6 @@
 # Plan: die nächsten Stücke bis zum Pilotbetrieb
 
-Stand 2026-09-24, nach Run 11d (Stück 3, Spieler entfernen). Auf Wunsch des
+Stand 2026-09-24, nach Run 11e (Stück 3.5, Load je Team). Auf Wunsch des
 Auftraggebers geht es Stück für Stück: Jedes Stück wird einzeln gebaut, geprüft,
 committet und kurz berichtet, bevor das nächste beginnt. Entscheidungen, die ein Stück
 braucht, stehen jeweils dabei und werden vorher geklärt.
@@ -28,6 +28,7 @@ RPE-Abfrage, keine Benachrichtigungen und keine Installation als App.
 | 1 | Startseite neu (erledigt, Run 11b) | erster Eindruck für echte Nutzer | klein |
 | 2 | UI-Fehler und Layout (erledigt, Run 11c) | echte Fehler und Handy-Probleme aus der Durchsicht | mittel |
 | 3 | Spieler aus dem Team entfernen (erledigt, Run 11d) | Sicherheitslücke im Ablauf (falscher Beitritt) | klein |
+| 3.5 | Belastung (Load) je Team an/aus, vorbereitet für Abos (erledigt, Run 11e) | nicht jedes Team braucht Load; Stück 4 muss es schon beachten | mittel |
 | 4 | Automatische RPE-Abfrage | Kernfunktion für die Belastungssteuerung | mittel |
 | 5 | Veröffentlichen (Vercel) | Voraussetzung für Handy-Tests, App-Installation und Push | klein, braucht dich |
 | 6 | Als App installierbar (PWA) | Voraussetzung für Push auf dem iPhone | klein |
@@ -65,6 +66,30 @@ Aus der Durchsicht vom 2026-09-24:
 - Oberfläche: im Spielerdetail „Remove from team“ mit Rückfrage.
 - Fertig, wenn: Zugriffsprüfungen (Team Manager darf nicht, Head Coach darf),
   Ende-zu-Ende-Test, Browser-Check.
+
+### 3.5 Belastung je Team an/aus (vorbereitet für Abos)
+
+Wunsch vom 2026-09-24: Nicht alle Teams haben oder brauchen Load, je nach künftigem Abo.
+
+- **Entschieden (2026-09-24):** Schalten nur per Datenbank, neue Teams mit Load,
+  bestehende behalten Load.
+- **Modell:** Funktionen je Team als Schalter (`teams.features`, zuerst nur `load`), nicht
+  als Abo-Namen. Ein späteres Abo (Stück 8 oder später) setzt nur diese Schalter; welche
+  Abos es gibt, muss dafür jetzt noch nicht feststehen.
+- **Team ohne Load, Trainerseite:** keine Ampel, kein ACWR, keine RPE-/Load-Spalten in
+  History und Einheitsdetails, Spielerdetail nur Anwesenheit; die Load-Rechte
+  (`viewLoadSummary`, `viewLoadDetails`) erscheinen in den Rollen ausgegraut mit Hinweis.
+- **Team ohne Load, Spielerseite:** kein Load-Tab, keine Kennzahlen, keine RPE-Eingabe
+  für Einheiten dieses Teams; Today zeigt nächste Einheit und An-/Abmeldung.
+- **Spieler in zwei Teams:** Load gibt es, wenn mindestens eines seiner Teams Load hat;
+  RPE wird nur für Einheiten von Teams mit Load gefragt (gilt dann auch für Stück 4).
+- **Server (echte Sperre, nicht nur ausgeblendet):** `app.team_permissions` gibt ohne
+  Load keine Load-Rechte mehr zurück; Belastungseinträge nur für Personen, die in einem
+  Team mit Load spielen.
+- **Daten beim Abschalten:** bleiben erhalten, nur unsichtbar; beim Einschalten ist alles
+  wieder da.
+- Fertig, wenn: Zugriffsprüfungen (Team ohne Load: Trainer sieht keine Belastung,
+  Spieler kann keine eintragen), Ende-zu-Ende-Test, Browser-Check beider Rollen.
 
 ### 4 Automatische RPE-Abfrage
 

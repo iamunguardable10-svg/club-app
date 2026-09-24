@@ -219,6 +219,7 @@ export function TeamWorkspace({
         return { id: group.id, name: group.name, description: '', playerCount: playerIds.length, playerIds };
       }),
       calendarHref: `/coach/sessions?teamId=${encodeURIComponent(team.id)}`,
+      loadTracked: team.features.includes('load'),
     };
   }, [database, permissions, teamId]);
 

@@ -1219,3 +1219,40 @@ verlassen; Person und Belastung bleiben; der Spieler sieht die Einheiten nicht m
 abgelehnt, Head Coach entfernt sie, Mia ist danach ohne Team), Browser (Demo-Modus,
 Handybreite): entfernen mit Rückfrage, Liste zeigt 11 Spieler, Team Manager sieht den
 Knopf nicht; keine Laufzeitfehler. Supabase-Sicherheitsprüfung: keine neuen Befunde.
+
+## Run 11e — Stück 3.5: Belastung (Load) je Team an/aus (erledigt)
+
+Wunsch: Nicht alle Teams haben oder brauchen Load, je nach künftigem Abo.
+Entscheidungen vom 2026-09-24: Schalten nur per Datenbank (kein Schalter in der App,
+Load wird eine Bezahlfunktion); neue Teams mit Load; bestehende behalten Load. Im
+Demo-Verein hat U18 Mädchen zum Zeigen kein Load, U16 Jungen schon.
+
+- **Modell:** `teams.features` (Liste, zuerst nur `load`), lokal `Team.features`
+  (`TEAM_FEATURES`). Ein späteres Abo setzt nur diese Liste.
+- **Server (Migration 0009, angewendet):** `app.team_permissions` lässt die Load-Rechte
+  (`viewLoadSummary`, `viewLoadDetails`, `viewAthletePlans`) in Teams ohne Load weg;
+  damit sehen Trainer dort weder Ampel noch Einträge noch Pläne. Belastung, Ampel und
+  eigene Pläne schreiben nur Spieler, die in einem Team mit Load spielen; Einträge mit
+  Team nur für Teams mit Load. Eigene Zeilen löschen geht weiter. Die App kann die Liste
+  nicht ändern.
+- **Datenschicht:** `coachPermissions` filtert genauso; `teamHasFeature`,
+  `athleteHasLoad`; `recordLoadEntry` lehnt ohne Load mit klarer Meldung ab; die tägliche
+  Ampel wird ohne Load nicht geschrieben.
+- **Trainer ohne Load:** Spielerliste ohne ACWR und ohne „Needs attention“-Sortierung,
+  Spielerdetail „No load tracking“, Einheitsdetail „… does not track training load“,
+  Rollen: Load-Rechte ausgegraut mit Hinweis (die Haken bleiben gespeichert).
+- **Spieler ohne Load:** Navigation Today · Calendar, keine Kennzahlen, kein „Share with
+  coach“, keine eigenen Pläne, `/athlete/load` erklärt es. Spieler in zwei Teams: Load,
+  sobald ein Team Load hat; RPE wird nur für Einheiten von Teams mit Load gefragt, nur
+  diese zählen für die Prognose, vergangene Einheiten ohne Load gelten nicht als
+  „missing“.
+- Nebenbei: In „Staff & settings“ war die Seite auf dem Handy mit geöffneter Rolle
+  breiter als der Bildschirm (Grid-Spalten), behoben.
+
+Geprüft: 101 + 35 Zugriffsprüfungen (neu 15: Ampel und Einträge unsichtbar, nur die
+Load-Rechte fallen weg, Trainer beider Teams sieht U16 weiter, Spieler kann ohne Load
+weder eintragen noch Ampel ändern noch planen, eigene Historie bleibt lesbar, kein
+Eintrag auf ein Team ohne Load, App kann die Liste nicht ändern, wieder einschalten zeigt
+alles), 68 Ende-zu-Ende-Prüfungen (neu 7), Browser im Demo-Modus (Handybreite, 10
+Prüfungen: U18-Trainerin, U18-Spielerin, U16-Spieler), keine Laufzeitfehler, keine
+Überbreite. Supabase-Prüfungen: keine neuen Befunde.

@@ -14,6 +14,7 @@
 import {
   athletesForTeam,
   coachPermissions,
+  teamHasFeature,
   displayName,
   loadZone,
   sessionTypeToLoadType,
@@ -119,6 +120,7 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
       departmentName: departmentNameById.get(team.departmentId) ?? 'Department',
       defaultFacilityId: team.defaultFacilityId,
       role: 'coach',
+      loadTracked: teamHasFeature(database, team.id, 'load'),
       roleName: database.coachRoles.find((role) => role.id === coachMemberships.find((m) => m.teamId === team.id)?.coachRoleId)?.name ?? null,
       permissions: [...permissionsFor(team.id)],
     }))
@@ -242,6 +244,7 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
           : sessionAvailability.filter((entry) => scopedPlayerIds.has(entry.userId)),
         players: scopedPlayers,
         attendanceShared: permissions.has('viewAttendance'),
+        loadTracked: team.loadTracked,
       } satisfies CoachSession;
     });
 

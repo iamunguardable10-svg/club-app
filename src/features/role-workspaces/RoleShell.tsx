@@ -63,8 +63,9 @@ export function CoachShell({ active, ...props }: ShellProps & { active: CoachNav
   return <RoleShell nav={COACH_NAV} active={active} {...props} />;
 }
 
-export function AthleteShell({ active, ...props }: ShellProps & { active: AthleteNavItem }) {
-  return <RoleShell nav={ATHLETE_NAV} active={active} {...props} />;
+/** `showLoad` is false for players whose teams do not track training load. */
+export function AthleteShell({ active, showLoad = true, ...props }: ShellProps & { active: AthleteNavItem; showLoad?: boolean }) {
+  return <RoleShell nav={showLoad ? ATHLETE_NAV : ATHLETE_NAV.filter((entry) => entry.item !== 'load')} active={active} {...props} />;
 }
 
 function RoleShell({ nav, active, title, subtitle, back, actions, children }: ShellProps & { nav: NavEntry[]; active: NavItem }) {
@@ -75,7 +76,7 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
     ? new Set(database.memberships.filter((m) => m.personId === person.id && m.role === 'coach').map((m) => m.teamId)).size
     : 1;
   const labelFor = (item: NavItem, label: string) => (item === 'team' && teamCount > 1 ? 'Teams' : label);
-  const columns = nav.length === 3 ? 'grid-cols-3' : 'grid-cols-5';
+  const columns = nav.length === 2 ? 'grid-cols-2' : nav.length === 3 ? 'grid-cols-3' : 'grid-cols-5';
 
   return (
     <main className="os-page pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-10 md:pl-64">

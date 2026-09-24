@@ -10,11 +10,13 @@
  * Everything is pure: no network, no storage.
  */
 
+import { TEAM_FEATURES } from '../schema';
 import type {
   Availability,
   LoadSummaryRow,
   LocalDatabase,
   SessionType,
+  TeamFeature,
 } from '../schema';
 import type { LoadTrainingType } from '../loadTypes';
 
@@ -110,7 +112,7 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     departments: database.departments.map((d) => ({ id: d.id, club_id: d.clubId, name: d.name })),
     facilities: database.facilities.map((f) => ({ id: f.id, club_id: f.clubId, name: f.name, address: f.address })),
     teams: database.teams.map((t) => ({
-      id: t.id, club_id: t.clubId, department_id: t.departmentId, name: t.name, default_facility_id: t.defaultFacilityId, created_at: t.createdAt,
+      id: t.id, club_id: t.clubId, department_id: t.departmentId, name: t.name, default_facility_id: t.defaultFacilityId, features: t.features, created_at: t.createdAt,
     })),
     team_join_codes: database.joinCodes.map((c) => ({ team_id: c.teamId, code: c.code, created_at: c.createdAt })),
     staff_invites: database.staffInvites.map((i) => ({
@@ -201,7 +203,8 @@ export function fromServerRows(
     departments: rows.departments.map((d) => ({ id: s(d.id), clubId: s(d.club_id), name: s(d.name) })),
     teams: rows.teams.map((t) => ({
       id: s(t.id), clubId: s(t.club_id), departmentId: s(t.department_id), name: s(t.name),
-      defaultFacilityId: sn(t.default_facility_id), createdAt: s(t.created_at),
+      defaultFacilityId: sn(t.default_facility_id), features: ((t.features as string[] | null) ?? []).filter((f): f is TeamFeature => (TEAM_FEATURES as readonly string[]).includes(f)),
+      createdAt: s(t.created_at),
     })),
     facilities: rows.facilities.map((f) => ({ id: s(f.id), clubId: s(f.club_id), name: s(f.name), address: s(f.address) })),
     departmentFacilities: rows.department_facilities.map((l) => ({ departmentId: s(l.department_id), facilityId: s(l.facility_id) })),

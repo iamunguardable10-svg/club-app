@@ -439,4 +439,58 @@ select test.expect_count('… Ben no longer sees U16 sessions',
   $q$select 1 from public.sessions where team_id = '70000000-0000-0000-0000-000000000016'$q$, 0);
 reset role;
 
+-- ---------------------------------------------------------------------------
+-- Team features: U18 without load (piece 3.5)
+-- ---------------------------------------------------------------------------
+
+select test.expect_count('new teams start with load',
+  $q$select 1 from public.teams where 'load' = any (features)$q$, 3);
+
+set role authenticated;
+select test.act_as('10000000-0000-0000-0000-000000000002');
+select test.expect_count('Sabine sees Lena''s traffic light while U18 tracks load',
+  $q$select 1 from public.load_summaries where person_id = 'a0000000-0000-0000-0000-000000000013'$q$, 1);
+select test.expect_error('Sabine cannot switch features from the app',
+  $q$update public.teams set features = '{}' where id = '70000000-0000-0000-0000-000000000018'$q$, 'permission denied');
+reset role;
+
+update public.teams set features = '{}' where id = '70000000-0000-0000-0000-000000000018';
+
+set role authenticated;
+select test.act_as('10000000-0000-0000-0000-000000000002');
+select test.expect_count('U18 without load: Sabine (Head Coach) no longer sees Lena''s traffic light',
+  $q$select 1 from public.load_summaries where person_id = 'a0000000-0000-0000-0000-000000000013'$q$, 0);
+select test.expect_count('… nor her entries',
+  $q$select 1 from public.load_entries where person_id = 'a0000000-0000-0000-0000-000000000013'$q$, 0);
+select test.expect_count('… and her Head Coach role lost only the load rights',
+  $q$select 1 from unnest(app.team_permissions('70000000-0000-0000-0000-000000000018')) p where p in ('viewLoadSummary', 'viewLoadDetails', 'viewAthletePlans')$q$, 0);
+select test.expect_count('… while keeping the others',
+  $q$select 1 from unnest(app.team_permissions('70000000-0000-0000-0000-000000000018')) p where p in ('viewRoster', 'manageStaff')$q$, 2);
+select test.act_as('10000000-0000-0000-0000-000000000003');
+select test.expect_count('Tobias (both teams) still sees Jonas'' traffic light from U16',
+  $q$select 1 from public.load_summaries where person_id = 'a0000000-0000-0000-0000-000000000011'$q$, 1);
+select test.act_as('10000000-0000-0000-0000-000000000013');
+select test.expect_error('Lena (U18 only) cannot record load',
+  $q$insert into public.load_entries (person_id, date, title, training_type, rpe, duration_minutes, load, source) values ('a0000000-0000-0000-0000-000000000013', current_date, 'Laufen', 'team_training', 5, 30, 150, 'solo')$q$, 'row-level security');
+select test.expect_error('… nor update her traffic light',
+  $q$update public.load_summaries set acwr = 1.1 where person_id = 'a0000000-0000-0000-0000-000000000013'$q$, 'row-level security');
+select test.expect_error('… nor plan own sessions',
+  $q$insert into public.athlete_plans (person_id, title, date, training_type, expected_rpe, expected_duration_minutes) values ('a0000000-0000-0000-0000-000000000013', 'Laufen', current_date + 1, 'team_training', 5, 30)$q$, 'row-level security');
+select test.expect_count('… but still sees her own history',
+  $q$select 1 from public.load_entries where person_id = 'a0000000-0000-0000-0000-000000000013'$q$, 1);
+select test.act_as('10000000-0000-0000-0000-000000000011');
+select test.expect_error('Jonas cannot tie an entry to U18',
+  $q$insert into public.load_entries (person_id, team_id, date, title, training_type, rpe, duration_minutes, load, source) values ('a0000000-0000-0000-0000-000000000011', '70000000-0000-0000-0000-000000000018', current_date, 'x', 'team_training', 5, 30, 150, 'solo')$q$, 'row-level security');
+select test.expect_rows('… but records his own load (U16 tracks it)',
+  $q$insert into public.load_entries (person_id, date, title, training_type, rpe, duration_minutes, load, source) values ('a0000000-0000-0000-0000-000000000011', current_date, 'Laufen', 'team_training', 5, 30, 150, 'solo')$q$, 1);
+reset role;
+
+update public.teams set features = array['load'] where id = '70000000-0000-0000-0000-000000000018';
+
+set role authenticated;
+select test.act_as('10000000-0000-0000-0000-000000000002');
+select test.expect_count('load back on: Sabine sees Lena''s traffic light again',
+  $q$select 1 from public.load_summaries where person_id = 'a0000000-0000-0000-0000-000000000013'$q$, 1);
+reset role;
+
 \echo 'all access-rule checks passed'

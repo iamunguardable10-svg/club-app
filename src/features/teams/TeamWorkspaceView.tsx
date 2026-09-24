@@ -75,6 +75,8 @@ export type TeamWorkspaceData = {
   attendanceShared?: boolean;
   /** The coach calendar filtered to this team. */
   calendarHref: string;
+  /** `false` when the team does not track training load (no traffic lights, no RPE). */
+  loadTracked?: boolean;
 };
 
 function addMinutes(date: Date, minutes: number) {
@@ -269,12 +271,12 @@ export function TeamWorkspaceView({
   const selectedFacilityAccent = data.defaultFacilityId ? getFacilityAccent(data.defaultFacilityId) : null;
   const players = data.players ?? [];
   const sortedPlayers = useMemo(() => [...players].sort((a, b) => {
-    if (playerSort === 'az') return a.name.localeCompare(b.name);
+    if (playerSort === 'az' || data.loadTracked === false) return a.name.localeCompare(b.name);
     const aSummary = playerLoadSummary(a);
     const bSummary = playerLoadSummary(b);
     if (aSummary.riskRank !== bSummary.riskRank) return aSummary.riskRank - bSummary.riskRank;
     return (bSummary.acwr ?? 0) - (aSummary.acwr ?? 0);
-  }), [playerSort, players]);
+  }), [playerSort, players, data.loadTracked]);
   const coachEditorTeams = useMemo<CoachTeam[]>(() => [{
     id: data.id,
     clubId: 'team-workspace',
@@ -509,7 +511,7 @@ export function TeamWorkspaceView({
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-black">{plural(data.playerCount, 'player')}</h2>
-            {players.length > 1 ? (
+            {players.length > 1 && data.loadTracked !== false ? (
               <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1">
                 <button type="button" onClick={() => setPlayerSort('risk')} className={`rounded-full px-3 py-1.5 text-xs font-black ${playerSort === 'risk' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Needs attention</button>
                 <button type="button" onClick={() => setPlayerSort('az')} className={`rounded-full px-3 py-1.5 text-xs font-black ${playerSort === 'az' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>A–Z</button>
@@ -528,11 +530,11 @@ export function TeamWorkspaceView({
                   <button key={player.id} type="button" onClick={() => setActivePlayer(player)} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 text-left transition hover:border-emerald-300/55 hover:bg-slate-900">
                     <div className="flex items-center justify-between gap-3">
                       <p className="truncate font-black text-white">{player.name}</p>
-                      {summary.access !== 'none' && summary.acwr !== null ? <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-black ${acwrToneClass(summary.zone.tone)}`}>ACWR {summary.acwr.toFixed(2)}</span> : null}
+                      {data.loadTracked !== false && summary.access !== 'none' && summary.acwr !== null ? <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-black ${acwrToneClass(summary.zone.tone)}`}>ACWR {summary.acwr.toFixed(2)}</span> : null}
                     </div>
                     {groupNames.length > 0 ? <p className="mt-1 truncate text-xs font-bold text-slate-500">{groupNames.join(' · ')}</p> : null}
                     <div className="mt-3 flex items-center justify-between gap-2 text-xs font-bold text-slate-400">
-                      <span>{acwrDisplayLabel(summary)}</span>
+                      <span>{data.loadTracked === false ? '' : acwrDisplayLabel(summary)}</span>
                       {player.attendanceShared !== false ? <span>{attendanceFlags > 0 ? `${attendanceFlags}× out or late` : 'Always there'}</span> : null}
                     </div>
                   </button>
@@ -676,7 +678,7 @@ export function TeamWorkspaceView({
       {activeSection === 'settings' ? (
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
           <h2 className="text-lg font-black">Staff & settings</h2>
-          <div className="mt-5 grid gap-3">
+          <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-3">
             <div
               className="max-w-sm rounded-2xl border border-slate-800 bg-slate-950/70 p-3"
               style={selectedFacilityAccent ? { borderColor: selectedFacilityAccent.hex, backgroundColor: selectedFacilityAccent.softHex } : undefined}
@@ -766,6 +768,7 @@ export function TeamWorkspaceView({
         <PlayerLoadDetail
           player={activePlayer}
           teamName={data.name}
+          loadTracked={data.loadTracked !== false}
           onClose={() => setActivePlayer(null)}
           footer={onRemovePlayer ? (
             <div className="flex flex-wrap items-center justify-between gap-3">

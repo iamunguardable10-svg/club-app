@@ -660,7 +660,7 @@ export function CoachSessionDetailOverlay({
         }}
         loadRisks={isPast ? [] : summary.risks.map((player) => ({ id: player.id, name: player.name, status: player.risk as 'high' | 'low', detail: player.acwr !== null ? `${player.acwr.toFixed(2)} ACWR` : null }))}
         insights={isPast && !sessionLoadDetailsShared(session) ? (
-          <p className="rounded-2xl border border-slate-800 bg-slate-950/55 p-3 text-xs font-bold text-slate-400">Load reports for this session are not shared with your role.</p>
+          <p className="rounded-2xl border border-slate-800 bg-slate-950/55 p-3 text-xs font-bold text-slate-400">{session.loadTracked === false ? `${session.teamName} does not track training load.` : 'Load reports for this session are not shared with your role.'}</p>
         ) : isPast ? (
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2">

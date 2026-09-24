@@ -217,9 +217,11 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     facilityId: facility.id,
   }));
 
-  const teams = [
-    { id: TEAM_U16, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: 'U16 Jungen', defaultFacilityId: FACILITY_MAIN, createdAt },
-    { id: TEAM_U18, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: 'U18 Mädchen', defaultFacilityId: FACILITY_MAIN, createdAt },
+  const teams: LocalDatabase['teams'] = [
+    { id: TEAM_U16, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: 'U16 Jungen', defaultFacilityId: FACILITY_MAIN, features: ['load'], createdAt },
+    // Without load tracking, to show a team that only plans sessions and
+    // attendance (piece 3.5). Its players' load history stays, unseen.
+    { id: TEAM_U18, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: 'U18 Mädchen', defaultFacilityId: FACILITY_MAIN, features: [], createdAt },
   ];
 
   const people: Person[] = [];
