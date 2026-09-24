@@ -448,6 +448,144 @@ export function removeStaffMember(membershipId: Id): void {
 }
 
 // ---------------------------------------------------------------------------
+// Facilities
+// ---------------------------------------------------------------------------
+
+/**
+ * Departments in which this person may manage halls: those where they coach
+ * at least one team with `manageFacilities`.
+ *
+ * Halls belong to the club and are shared through departments, so the right
+ * is held per team but applies per department.
+ */
+export function facilityManagerDepartmentIds(database: LocalDatabase, personId: Id | null): ReadonlySet<Id> {
+  const departmentIds = new Set<Id>();
+  if (!personId) return departmentIds;
+  for (const membership of database.memberships) {
+    if (membership.personId !== personId || membership.role !== 'coach') continue;
+    if (!coachPermissions(database, personId, membership.teamId).has('manageFacilities')) continue;
+    const team = database.teams.find((candidate) => candidate.id === membership.teamId);
+    if (team) departmentIds.add(team.departmentId);
+  }
+  return departmentIds;
+}
+
+/**
+ * Whether this person may edit or delete a hall: every department that uses
+ * it must be one they manage halls in. A hall shared with another department
+ * stays read-only for them, so nobody changes a hall under someone else's
+ * feet. A hall no department uses yet is open to anyone who manages halls.
+ */
+export function canManageFacility(database: LocalDatabase, personId: Id | null, facilityId: Id): boolean {
+  const managed = facilityManagerDepartmentIds(database, personId);
+  if (managed.size === 0) return false;
+  return database.departmentFacilities
+    .filter((link) => link.facilityId === facilityId)
+    .every((link) => managed.has(link.departmentId));
+}
+
+export function facilityDepartmentIds(database: LocalDatabase, facilityId: Id): Id[] {
+  return database.departmentFacilities.filter((link) => link.facilityId === facilityId).map((link) => link.departmentId);
+}
+
+/** What deleting a hall would touch, for the confirmation. */
+export function facilityUsage(database: LocalDatabase, facilityId: Id) {
+  const now = Date.now();
+  return {
+    upcomingSessions: database.sessions.filter((session) => session.facilityId === facilityId && new Date(session.startsAt).getTime() >= now).length,
+    pastSessions: database.sessions.filter((session) => session.facilityId === facilityId && new Date(session.startsAt).getTime() < now).length,
+    series: database.sessionSeries.filter((series) => series.facilityId === facilityId).length,
+    defaultForTeams: database.teams.filter((team) => team.defaultFacilityId === facilityId),
+  };
+}
+
+function requireFacility(database: LocalDatabase, facilityId: Id): Facility {
+  const facility = database.facilities.find((candidate) => candidate.id === facilityId);
+  if (!facility) throw new LocalDataError(`Unknown facility: ${facilityId}`);
+  return facility;
+}
+
+export function createFacility(input: { name: string; address: string; departmentIds: readonly Id[] }): Id {
+  const name = input.name.trim();
+  if (!name) throw new LocalDataError('Die Halle braucht einen Namen.');
+  const id = `facility-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  mutate((database) => {
+    const departments = database.departments.filter((department) => input.departmentIds.includes(department.id));
+    database.facilities.push({ id, clubId: database.club.id, name, address: input.address.trim(), scope: 'club_shared', ownerDepartmentId: null });
+    for (const department of departments) {
+      database.departmentFacilities.push({ departmentId: department.id, facilityId: id });
+    }
+  });
+  return id;
+}
+
+export function updateFacility(facilityId: Id, changes: { name?: string; address?: string }): void {
+  mutate((database) => {
+    const facility = requireFacility(database, facilityId);
+    if (changes.name !== undefined) {
+      const name = changes.name.trim();
+      if (!name) throw new LocalDataError('Die Halle braucht einen Namen.');
+      facility.name = name;
+    }
+    if (changes.address !== undefined) facility.address = changes.address.trim();
+  });
+}
+
+/**
+ * Makes a hall bookable for a department or takes it away. Taking it away
+ * also clears it as default for that department's teams, since a team may
+ * only default to a hall it can book. Existing sessions keep their hall.
+ */
+export function setFacilityDepartment(facilityId: Id, departmentId: Id, available: boolean): void {
+  mutate((database) => {
+    requireFacility(database, facilityId);
+    if (!database.departments.some((department) => department.id === departmentId)) {
+      throw new LocalDataError(`Unknown department: ${departmentId}`);
+    }
+    const linked = database.departmentFacilities.some((link) => link.facilityId === facilityId && link.departmentId === departmentId);
+    if (available && !linked) database.departmentFacilities.push({ departmentId, facilityId });
+    if (!available && linked) {
+      database.departmentFacilities = database.departmentFacilities.filter(
+        (link) => !(link.facilityId === facilityId && link.departmentId === departmentId),
+      );
+      for (const team of database.teams) {
+        if (team.departmentId === departmentId && team.defaultFacilityId === facilityId) team.defaultFacilityId = null;
+      }
+    }
+  });
+}
+
+/**
+ * Deletes a hall. Sessions, series and team defaults that pointed to it keep
+ * existing without a hall rather than disappearing with it; the confirmation
+ * shows how many that are (`facilityUsage`).
+ */
+export function deleteFacility(facilityId: Id): void {
+  mutate((database) => {
+    requireFacility(database, facilityId);
+    database.facilities = database.facilities.filter((facility) => facility.id !== facilityId);
+    database.departmentFacilities = database.departmentFacilities.filter((link) => link.facilityId !== facilityId);
+    for (const team of database.teams) if (team.defaultFacilityId === facilityId) team.defaultFacilityId = null;
+    for (const session of database.sessions) if (session.facilityId === facilityId) session.facilityId = null;
+    for (const series of database.sessionSeries) if (series.facilityId === facilityId) series.facilityId = null;
+  });
+}
+
+/** `null` clears the default. The hall must be bookable for the team's department. */
+export function setTeamDefaultFacility(teamId: Id, facilityId: Id | null): void {
+  mutate((database) => {
+    const team = database.teams.find((candidate) => candidate.id === teamId);
+    if (!team) throw new LocalDataError(`Unknown team: ${teamId}`);
+    if (facilityId !== null) {
+      requireFacility(database, facilityId);
+      const bookable = database.departmentFacilities.some((link) => link.facilityId === facilityId && link.departmentId === team.departmentId);
+      if (!bookable) throw new LocalDataError('Diese Halle ist für die Abteilung des Teams nicht freigegeben.');
+    }
+    team.defaultFacilityId = facilityId;
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Sessions
 // ---------------------------------------------------------------------------
 

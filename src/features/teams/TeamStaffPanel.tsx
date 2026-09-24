@@ -47,7 +47,7 @@ const PERMISSION_GROUPS: { label: string; permissions: { key: CoachPermission; l
       { key: 'editSessions', label: 'Create and edit sessions' },
       { key: 'planSeries', label: 'Weekly series' },
       { key: 'manageGroups', label: 'Groups' },
-      { key: 'manageFacilities', label: 'Default facility' },
+      { key: 'manageFacilities', label: 'Halls and default hall' },
     ],
   },
   {

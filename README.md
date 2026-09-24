@@ -85,10 +85,12 @@ Preferred stack:
 
 ## Environment variables
 
-None are needed in the local test mode. The previous setup used
-`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
-`NEXT_PUBLIC_GEOAPIFY_API_KEY` (address autocomplete on facility forms); all
-three are unused now.
+None are needed in the local test mode.
+
+Optional: `NEXT_PUBLIC_GEOAPIFY_API_KEY` turns on address suggestions in the hall
+form (`/coach/facilities`, “Edit halls”). Without it the address is a plain text
+field. The previous `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+are unused until the server step (`docs/simplify-decisions.md`, point 8).
 
 ## Facility address input principle
 
@@ -97,7 +99,7 @@ Facility names and facility addresses are intentionally separate:
 - The facility name is the internal club or department name, for example `Main Hall` or `U18 Gym`.
 - The address field can search by official venue name, school name, hall name or street address.
 - Geoapify may fill the address, but it must not automatically overwrite the internal facility name.
-- (Superseded: there is only one local mode now, and the address autocomplete was removed with the admin facility forms.)
+- The hall form on `/coach/facilities` follows this: suggestions only fill the address (`src/features/facilities/AddressField.tsx`).
 
 ## Key principle
 

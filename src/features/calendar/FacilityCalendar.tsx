@@ -935,7 +935,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
           <Link href={backTarget.href} className="text-sm font-black text-slate-300 hover:text-white">{backTarget.label}</Link>
           <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-slate-500">Facility calendar</p>
           <h1 className="mt-3 text-3xl font-black sm:text-5xl">{facility?.name}</h1>
-          <p className="mt-2 text-sm text-slate-400">{facility?.address ?? 'No address set'}</p>
+          <p className="mt-2 text-sm text-slate-400">{facility?.address || 'No address set'}</p>
           <div className="mt-4 flex flex-wrap gap-2 text-xs font-black">
             {highlightedTeam ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-200">Team: {highlightedTeam.name}</span> : null}
             {highlightedDepartment ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-200">Department: {highlightedDepartment.name}</span> : null}

@@ -40,6 +40,7 @@ import {
   displayName,
   mutate,
   setSeriesWeekState,
+  setTeamDefaultFacility,
   updateSession,
   useLocalDatabase,
   type AthleteLoadEntry,
@@ -274,10 +275,7 @@ export function TeamWorkspace({
   }, []);
 
   const handleDefaultFacilityChange = useCallback((facilityId: string) => {
-    mutate((draft) => {
-      const team = draft.teams.find((candidate) => candidate.id === teamId);
-      if (team) team.defaultFacilityId = facilityId || null;
-    });
+    setTeamDefaultFacility(teamId, facilityId || null);
   }, [teamId]);
 
   const handleAddGroup = useCallback((name: string) => {

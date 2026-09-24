@@ -797,7 +797,7 @@ berechnet `coachPermissions(database, personId, teamId)` die Rechte.
 | `editSessions` | Einheiten anlegen, verschieben, bearbeiten, löschen — Trainer- und Hallenkalender |
 | `planSeries` | Wochenserien |
 | `manageGroups` | Gruppen |
-| `manageFacilities` | Standardhalle des Teams |
+| `manageFacilities` | Standardhalle des Teams; seit Run 8 auch Hallen anlegen, bearbeiten, freigeben, löschen |
 | `manageStaff` | Trainerteam und Rollen |
 
 Vorlagen pro Team: **Head Coach** (alle, gesperrt), **Co-Trainer** und
@@ -843,3 +843,71 @@ Rechte-Schlüssel sind dafür der Vertrag.
 
 `npm run typecheck`, `npm run build` grün; Browserlauf siehe
 `docs/local-mode-testplan.md`, Abschnitt Run 7.
+
+## Run 8 — Hallen (erledigt)
+
+Schritt 2 aus Entscheidung 8. Unter „Facilities“ (`/coach/facilities`) sieht jeder
+Trainer die Hallen, die seine Teams buchen können: Name, Adresse mit Link in die
+Karte, welches Team dort standardmäßig trainiert, anstehende Einheiten, Hallenkalender.
+Wer `manageFacilities` hat, schaltet mit „Edit halls“ in den Bearbeiten-Modus.
+
+### Was man dort tun kann
+
+- **Halle anlegen** mit Name, Adresse und Freigabe für die eigene Abteilung in einem
+  Schritt. Liegt an der Adresse schon eine Halle, erscheint vorher eine Warnung.
+- **Bearbeiten:** Name und Adresse.
+- **Freigeben:** für welche Abteilungen die Halle buchbar ist. Wird eine Freigabe
+  entzogen, verlieren die Teams dieser Abteilung sie als Standardhalle; bestehende
+  Einheiten behalten ihre Halle.
+- **Standardhalle** der eigenen Teams direkt an der Halle setzen (wie bisher auch in
+  den Teameinstellungen).
+- **Löschen** mit Rückfrage, die nennt, wie viele Einheiten und Serien danach ohne
+  Halle weiterbestehen und welche Teams ihre Standardhalle verlieren.
+
+### Rechteregel
+
+`manageFacilities` gilt pro Team, Hallen gehören dem Verein und werden über
+Abteilungen geteilt. Deshalb: Man verwaltet Hallen in den Abteilungen, in denen man
+ein Team mit diesem Recht hat (`facilityManagerDepartmentIds`). Ändern oder löschen
+darf man eine Halle nur, wenn **jede** Abteilung, die sie nutzt, eine solche ist
+(`canManageFacility`) — eine mit einer fremden Abteilung geteilte Halle bleibt lesend.
+Im Pilot mit einer Abteilung ist das gleichbedeutend mit „hat das Recht“.
+
+### Aus `543775f` übernommen
+
+| alt | jetzt |
+|---|---|
+| `shared/lib/facilities/accent.ts` | `features/facilities/facilityAccent.ts`, unverändert; Seed ist die Hallen-ID |
+| `shared/lib/facilities/matching.ts` | `features/facilities/facilityMatching.ts`, ohne die ungenutzten Scope-Felder |
+| `shared/lib/geoapify/addressAutocomplete.ts` | `features/facilities/addressAutocomplete.ts`, unverändert |
+| `GeoapifyAddressEnhancer` (suchte Eingabefelder über den Platzhaltertext und änderte das DOM) | `AddressField`, ein normales Eingabefeld mit Vorschlagsliste |
+| `AdminFacilitiesManager` (Vereinsadmin, Supabase) | `FacilitiesManager` für die Trainerseite, Datenschicht |
+
+Nicht übernommen: die vereinsweite Abteilungsübersicht, die Aufteilung „vereinsweit /
+nur Abteilung“ (liest im Code niemand), `FacilityAccentEnhancer` und
+`FacilityRowsEditor` (DOM-Nachrüstungen für Oberflächen, die es nicht mehr gibt).
+
+**Adressvorschläge sind optional.** Ohne `NEXT_PUBLIC_GEOAPIFY_API_KEY` bleibt das
+Adressfeld ein Textfeld und es gehen keine Anfragen raus; die App braucht weiterhin
+keine Umgebungsvariable.
+
+### Weitere Änderungen
+
+- Neue Repository-Funktionen: `createFacility`, `updateFacility`,
+  `setFacilityDepartment`, `deleteFacility`, `setTeamDefaultFacility`,
+  `facilityUsage`, `facilityDepartmentIds`, `canManageFacility`,
+  `facilityManagerDepartmentIds`. Die Teameinstellungen setzen die Standardhalle jetzt
+  auch über `setTeamDefaultFacility` (prüft, ob die Halle für die Abteilung frei ist).
+- Die Standardhalle in den Teameinstellungen trägt denselben Farbakzent wie in der
+  Hallenliste (vorher eigene Farbberechnung über den Namen).
+- Hallenkalender: leere Adresse zeigt „No address set“ statt einer Leerzeile.
+
+### Offen
+
+- Spieler sehen die Adresse ihrer Halle noch nicht (nur den Namen).
+- Mehrere Abteilungen sind in der Oberfläche vorgesehen, aber nur mit einer geprüft.
+
+### Validierung
+
+`npm run typecheck`, `npm run build` grün; Browserlauf siehe
+`docs/local-mode-testplan.md`, Abschnitt Run 8.

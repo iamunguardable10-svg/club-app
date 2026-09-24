@@ -7,6 +7,7 @@ import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/cale
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
 import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
 import { LoadChart } from '@/features/load/AthleteLoadWorkspace';
+import { getFacilityAccent } from '@/features/facilities/facilityAccent';
 import { acwrDisplayLabel, playerLoadSummary, type PlayerLoadInput } from '@/features/load/loadAccess';
 import { loadZone } from '@/features/load/loadCalculations';
 import { LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/features/load/loadTypes';
@@ -335,20 +336,6 @@ function StaffRoleGrid({ roles }: { roles: TeamWorkspaceStaffRole[] }) {
       ))}
     </div>
   );
-}
-
-const facilityToneClasses = [
-  { border: 'border-emerald-400/70', bg: 'bg-emerald-950/20', text: 'text-emerald-100', focus: 'focus:border-emerald-300' },
-  { border: 'border-sky-400/70', bg: 'bg-sky-950/20', text: 'text-sky-100', focus: 'focus:border-sky-300' },
-  { border: 'border-fuchsia-400/70', bg: 'bg-fuchsia-950/20', text: 'text-fuchsia-100', focus: 'focus:border-fuchsia-300' },
-  { border: 'border-amber-400/70', bg: 'bg-amber-950/20', text: 'text-amber-100', focus: 'focus:border-amber-300' },
-  { border: 'border-rose-400/70', bg: 'bg-rose-950/20', text: 'text-rose-100', focus: 'focus:border-rose-300' },
-];
-
-function facilityTone(name?: string | null) {
-  if (!name) return { border: 'border-slate-800', bg: 'bg-slate-950/70', text: 'text-slate-100', focus: 'focus:border-sky-300' };
-  const hash = Array.from(name).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  return facilityToneClasses[hash % facilityToneClasses.length] ?? facilityToneClasses[0];
 }
 
 function TeamSmartCalendar({
@@ -1349,7 +1336,8 @@ export function TeamWorkspaceView({
   const [isSavingDashboardEdit, setIsSavingDashboardEdit] = useState(false);
   const [isDeletingDashboardSession, setIsDeletingDashboardSession] = useState(false);
   const [playerSort, setPlayerSort] = useState<'risk' | 'az'>('risk');
-  const selectedFacilityTone = facilityTone(data.defaultFacilityName);
+  // Same accent as the hall list, seeded by the hall id.
+  const selectedFacilityAccent = data.defaultFacilityId ? getFacilityAccent(data.defaultFacilityId) : null;
   const players = data.players ?? [];
   const sortedPlayers = useMemo(() => [...players].sort((a, b) => {
     if (playerSort === 'az') return a.name.localeCompare(b.name);
@@ -1786,14 +1774,18 @@ export function TeamWorkspaceView({
           <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Secondary</p>
           <h2 className="mt-2 text-2xl font-black">Staff / Settings</h2>
           <div className="mt-5 grid gap-3">
-            <div className={`max-w-sm rounded-2xl border ${selectedFacilityTone.border} ${selectedFacilityTone.bg} p-3`}>
+            <div
+              className="max-w-sm rounded-2xl border border-slate-800 bg-slate-950/70 p-3"
+              style={selectedFacilityAccent ? { borderColor: selectedFacilityAccent.hex, backgroundColor: selectedFacilityAccent.softHex } : undefined}
+            >
               <p className="text-sm font-black text-slate-100">Default facility</p>
               {data.availableFacilities && data.availableFacilities.length > 0 ? (
                 <select
                   value={data.defaultFacilityId ?? ''}
                   onChange={(event) => handleDefaultFacilityChange(event.target.value)}
                   disabled={!onDefaultFacilityChange || isSavingDefault}
-                  className={`mt-3 w-full rounded-lg border ${selectedFacilityTone.border} bg-slate-950/90 px-3 py-2 text-xs font-black ${selectedFacilityTone.text} outline-none ${selectedFacilityTone.focus} disabled:opacity-60`}
+                  className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-950/90 px-3 py-2 text-xs font-black text-slate-100 outline-none focus:border-sky-300 disabled:opacity-60"
+                  style={selectedFacilityAccent ? { borderColor: selectedFacilityAccent.hex, color: selectedFacilityAccent.textHex } : undefined}
                 >
                   <option value="">No default facility</option>
                   {data.availableFacilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}

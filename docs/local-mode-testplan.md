@@ -223,3 +223,27 @@ ungültige Rechte gefiltert, doppelte Rollennamen abgelehnt.
   künftige Einheit). Belegt zuletzt in Run 5; der Pfad wurde nur um den Rechtefilter
   ergänzt.
 - Rechte ohne `viewRoster` oder ohne `viewAttendance` in allen Trainerseiten von Hand.
+
+## Run 8 — Hallen (2026-09-24)
+
+Telefonbreite 390 × 844, Produktions-Build, frische Testdaten, ohne Geoapify-Schlüssel.
+
+| Prüfung | Ergebnis |
+|---|---|
+| Head Coach: drei Hallen mit Adresse, „Edit halls“ sichtbar | bestanden |
+| Neue Halle an „Nordring 12“ → Warnung „Possible same facility: Sporthalle Nord …“; nach Adresswechsel keine Warnung | bestanden |
+| „Sporthalle Süd“ angelegt, für die Abteilung freigegeben | bestanden |
+| Als Standardhalle von U16 gesetzt, umbenannt | bestanden |
+| Freigabe entzogen → U16 verliert sie als Standard, Halle bleibt für den Verwalter sichtbar | bestanden |
+| Kraftraum löschen → Rückfrage „6 upcoming and 12 past sessions and 2 weekly series stay, without a hall“; danach Halle weg, 18 Einheiten bestehen ohne Halle, keine Serie verweist mehr darauf | bestanden |
+| Hallenkalender der neuen Halle zeigt neuen Namen und Adresse | bestanden |
+| Betreuer: Hallenliste sichtbar, kein „Edit halls“ | bestanden |
+| Einheiten ohne Halle: Trainerseiten (Today, Sessions, Series, History, Team) und Spielerseiten (Home, Calendar, Load) ohne Laufzeitfehler | bestanden |
+| Ohne Schlüssel keine Anfrage an Geoapify | bestanden (0) |
+| Laufzeitfehler | keine |
+
+### Nicht geprüft
+
+- Adressvorschläge mit echtem Geoapify-Schlüssel (in dieser Umgebung kein Schlüssel und
+  kein Zugang zu `api.geoapify.com`).
+- Hallen, die mit einer zweiten Abteilung geteilt sind (die Testdaten haben eine).

@@ -170,8 +170,8 @@ Abwesenheitsdaten, darunter Gesundheitsgründe von Jugendlichen, ungeschützt au
 portiert, nicht pauschal zurückgespielt — sonst kämen die Demo-Zwillinge und die
 Doppelpflege mit.
 
-**Stand 2026-09-24:** Schritt 1 (Trainerrollen) ist erledigt, siehe
-`docs/simplify-progress.md`, Run 7. Bis Schritt 3 und 4 formen die Rechte nur die
+**Stand 2026-09-24:** Schritt 1 (Trainerrollen) und Schritt 2 (Hallen) sind erledigt,
+siehe `docs/simplify-progress.md`, Run 7 und Run 8. Bis Schritt 3 und 4 formen die Rechte nur die
 Oberfläche: im lokalen Modus kann jeder die Identität wechseln. Wer eine Ansicht
 ändert, prüft Rechte über `coachPermissions`/`hasCoachPermission` aus `@/shared/data`,
 nie über URL-Parameter.

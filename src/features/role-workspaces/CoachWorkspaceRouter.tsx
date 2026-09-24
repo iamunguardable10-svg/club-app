@@ -17,6 +17,7 @@ import {
 } from '@/shared/data';
 import { buildCoachData, EMPTY_COACH_DATA } from '@/features/role-workspaces/coachData';
 import type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
+import { FacilitiesManager } from '@/features/facilities/FacilitiesManager';
 import { CoachHistoryInsights, CoachSessionDetailOverlay, type CoachSessionInsight } from '@/features/role-workspaces/CoachSessionSurfaces';
 import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
@@ -1248,21 +1249,20 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           />
         ) : null}
 
-        {mode === 'facilities' && teams.length > 0 ? (
-          <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Facilities</p>
-            <h2 className="mt-2 text-2xl font-black">Department halls</h2>
-            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {facilities.map((facility) => {
-                const facilityTeams = teams.filter((team) => facility.departmentIds.includes(team.departmentId));
-                const teamIds = facilityTeams.map((team) => team.id).join(',');
-                const departmentIds = Array.from(new Set(facilityTeams.map((team) => team.departmentId))).join(',');
-                const contextTeam = facilityTeams.length === 1 ? facilityTeams[0] : null;
-                const href = contextTeam ? `/coach/facilities/${facility.id}/calendar?from=coachFacilities&teamId=${contextTeam.id}&departmentId=${contextTeam.departmentId}&teamIds=${encodeURIComponent(teamIds)}&departmentIds=${encodeURIComponent(departmentIds)}` : `/coach/facilities/${facility.id}/calendar?from=coachFacilities&teamIds=${encodeURIComponent(teamIds)}&departmentIds=${encodeURIComponent(departmentIds)}`;
-                return <Link key={facility.id} href={href} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 transition hover:border-sky-300/45 hover:bg-slate-900/70"><p className="text-lg font-black text-white">{facility.name}</p><p className="mt-2 text-xs font-bold text-slate-500">{facility.departmentIds.length} department context{facility.departmentIds.length === 1 ? '' : 's'}</p></Link>;
-              })}
-            </div>
-          </section>
+        {mode === 'facilities' && teams.length > 0 && database && activePerson ? (
+          <FacilitiesManager
+            database={database}
+            personId={activePerson.id}
+            calendarHref={(facilityId) => {
+              const facilityDepartmentIds = facilities.find((facility) => facility.id === facilityId)?.departmentIds ?? [];
+              const facilityTeams = teams.filter((team) => facilityDepartmentIds.includes(team.departmentId));
+              const teamIds = facilityTeams.map((team) => team.id).join(',');
+              const departmentIds = Array.from(new Set(facilityTeams.map((team) => team.departmentId))).join(',');
+              const contextTeam = facilityTeams.length === 1 ? facilityTeams[0] : null;
+              const teamContext = contextTeam ? `&teamId=${contextTeam.id}&departmentId=${contextTeam.departmentId}` : '';
+              return `/coach/facilities/${facilityId}/calendar?from=coachFacilities${teamContext}&teamIds=${encodeURIComponent(teamIds)}&departmentIds=${encodeURIComponent(departmentIds)}`;
+            }}
+          />
         ) : null}
 
         {mode === 'history' && teams.length > 0 ? (
