@@ -4,7 +4,7 @@ import { SyncStatusBanner } from '@/shared/components/SyncStatusBanner';
 import { AccessGate } from '@/features/access/AccessGate';
 
 export const metadata: Metadata = {
-  title: 'Club App / TeamLoad OS',
+  title: 'Club OS',
   description: 'A club operating system for coaches and athletes. Sign in with your club, or test locally without an account.',
 };
 

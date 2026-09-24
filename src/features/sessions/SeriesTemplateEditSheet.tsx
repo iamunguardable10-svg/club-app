@@ -114,7 +114,7 @@ function SeriesTemplateEditorForm({
           </select>
         </label>
         <label className={labelClass}>
-          Facility
+          Hall
           <select value={facilityId} onChange={(event) => setFacilityId(event.target.value)} className={inputClass}>
             {facilityOptions.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
           </select>

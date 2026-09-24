@@ -92,12 +92,9 @@ export function FacilitiesManager({
   const deletingUsage = deleting ? facilityUsage(database, deleting.id) : null;
 
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Facilities</p>
-          <h2 className="mt-2 text-2xl font-black">Halls</h2>
-        </div>
+    <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-white sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-black">{facilities.length === 1 ? '1 hall' : `${facilities.length} halls`}</h2>
         {isManager ? (
           <button
             type="button"

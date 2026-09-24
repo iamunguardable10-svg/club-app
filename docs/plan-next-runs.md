@@ -1,6 +1,6 @@
 # Plan: die nächsten Stücke bis zum Pilotbetrieb
 
-Stand 2026-09-24, nach Run 11b (Stück 1, Startseite). Auf Wunsch des
+Stand 2026-09-24, nach Run 11c (Stück 2, Oberfläche). Auf Wunsch des
 Auftraggebers geht es Stück für Stück: Jedes Stück wird einzeln gebaut, geprüft,
 committet und kurz berichtet, bevor das nächste beginnt. Entscheidungen, die ein Stück
 braucht, stehen jeweils dabei und werden vorher geklärt.
@@ -26,7 +26,7 @@ RPE-Abfrage, keine Benachrichtigungen und keine Installation als App.
 | # | Stück | Warum an dieser Stelle | Größe |
 |---|---|---|---|
 | 1 | Startseite neu (erledigt, Run 11b) | erster Eindruck für echte Nutzer | klein |
-| 2 | UI-Fehler und Layout | echte Fehler und Handy-Probleme aus der Durchsicht | mittel |
+| 2 | UI-Fehler und Layout (erledigt, Run 11c) | echte Fehler und Handy-Probleme aus der Durchsicht | mittel |
 | 3 | Spieler aus dem Team entfernen | Sicherheitslücke im Ablauf (falscher Beitritt) | klein |
 | 4 | Automatische RPE-Abfrage | Kernfunktion für die Belastungssteuerung | mittel |
 | 5 | Veröffentlichen (Vercel) | Voraussetzung für Handy-Tests, App-Installation und Push | klein, braucht dich |

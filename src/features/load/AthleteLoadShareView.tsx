@@ -58,7 +58,7 @@ export function AthleteLoadShareView() {
           <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h1 className="text-4xl font-black tracking-tight sm:text-6xl">{payload.athleteName}</h1>
-              <p className="mt-2 text-sm font-bold text-slate-500">Generated {new Date(payload.generatedAt).toLocaleString()}</p>
+              <p className="mt-2 text-sm font-bold text-slate-500">Generated {new Date(payload.generatedAt).toLocaleString('en-GB')}</p>
             </div>
             <div className="grid grid-cols-3 gap-2 sm:min-w-[420px]">
               <div className="rounded-2xl border border-slate-800/80 bg-slate-950/55 p-3">

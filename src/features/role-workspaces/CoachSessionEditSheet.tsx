@@ -142,7 +142,7 @@ export function CoachSessionEditSheet({
       <section className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950 p-3.5 text-white shadow-2xl sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-300">Edit session</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-300">Session</p>
             <h3 className="mt-1.5 text-xl font-black sm:text-2xl">{title}</h3>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200 hover:bg-slate-900 sm:text-sm">Close</button>
@@ -157,7 +157,7 @@ export function CoachSessionEditSheet({
             </select>
           </label>
           <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-            Facility
+            Hall
             <select value={facilityId} disabled={!hasTeam} onChange={(event) => handleFacilitySelect(event.target.value)} className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-black text-slate-100 outline-none transition focus:border-sky-300 disabled:opacity-60 sm:h-9 sm:px-2.5 sm:text-sm">
               {!hasTeam ? <option value="">Choose team first</option> : null}
               {facilityOptions.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}

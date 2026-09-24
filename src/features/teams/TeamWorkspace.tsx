@@ -3,8 +3,10 @@
 /**
  * Team workspace on local data.
  *
- * The presentation layer is `TeamWorkspaceView` (2000 lines, shared and
- * untouched). This container only builds the props it expects. The Supabase
+ * The presentation layer is `TeamWorkspaceView`; this container builds the
+ * props it expects and puts it into the coach frame (`CoachShell`). The team's
+ * sessions are planned in the coach calendar, filtered to this team, so there
+ * is one calendar implementation rather than two. The Supabase
  * version needed roughly a thousand lines to assemble the same object from
  * eighteen tables; against one local document most of that plumbing
  * disappears, and what is left is the mapping itself.
@@ -25,9 +27,8 @@ import {
   type TeamWorkspaceSection,
   type TeamWorkspaceSession,
 } from '@/features/teams/TeamWorkspaceView';
-import type { SeriesTemplateInput } from '@/features/sessions/SeriesTemplateEditSheet';
-import type { SeriesWeekItem } from '@/features/sessions/sessionSeriesPlanner';
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
+import { CoachShell } from '@/features/role-workspaces/RoleShell';
 import { buildCoachData } from '@/features/role-workspaces/coachData';
 import { loadAccessFor } from '@/features/load/loadAccess';
 import { TeamStaffPanel } from '@/features/teams/TeamStaffPanel';
@@ -35,12 +36,10 @@ import {
   athletesForTeam,
   coachPermissions,
   coachesForTeam,
-  createSession,
   deleteSession,
   displayName,
   mutate,
   newId,
-  setSeriesWeekState,
   setTeamDefaultFacility,
   updateSession,
   useLocalDatabase,
@@ -117,16 +116,12 @@ function attendanceForPlayer(database: LocalDatabase, personId: Id, teamId: Id) 
 
 export function TeamWorkspace({
   teamId,
-  backHref = '/coach/team',
-  backLabel = 'Back to teams',
+  back,
   initialSection = 'dashboard',
-  frame = 'coach',
 }: {
   teamId: string;
-  backHref?: string;
-  backLabel?: string;
+  back?: { href: string; label: string };
   initialSection?: TeamWorkspaceSection;
-  frame?: 'admin' | 'coach' | 'department';
 }) {
   const { database, error, ready } = useLocalDatabase();
 
@@ -149,7 +144,7 @@ export function TeamWorkspace({
     const attendanceShared = permissions.has('viewAttendance');
     const reasonsShared = permissions.has('viewAbsenceReasons');
 
-    const departmentName = database.departments.find((department) => department.id === team.departmentId)?.name ?? 'Abteilung';
+    const departmentName = database.departments.find((department) => department.id === team.departmentId)?.name ?? 'Department';
     const facilityNameById = new Map(database.facilities.map((facility) => [facility.id, facility.name]));
 
     const availableFacilityIds = new Set(
@@ -201,12 +196,6 @@ export function TeamWorkspace({
       .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
       .map((session) => toWorkspaceSession(session, facilityNameById));
 
-    // Other teams' bookings in the same facilities, so the calendar can show
-    // what a slot would collide with.
-    const contextSessions = database.sessions
-      .filter((session) => session.teamId !== team.id && session.facilityId !== null && availableFacilityIds.has(session.facilityId))
-      .map((session) => toWorkspaceSession(session, facilityNameById));
-
     return {
       id: team.id,
       name: team.name,
@@ -222,45 +211,24 @@ export function TeamWorkspace({
       // see roles and rights in the staff panel instead.
       staff: { headCoaches: coaches, assistantCoaches: [] },
       sessions,
-      contextSessions,
       groups: groupsOfTeam.map((group) => {
         const playerIds = database.playerGroupMembers
           .filter((member) => member.groupId === group.id)
           .map((member) => member.personId);
         return { id: group.id, name: group.name, description: '', playerCount: playerIds.length, playerIds };
       }),
-      backHref,
-      backLabel,
-      coachNav: frame === 'coach' ? { basePath: '/coach' } : null,
+      calendarHref: `/coach/sessions?teamId=${encodeURIComponent(team.id)}`,
     };
-  }, [database, permissions, teamId, backHref, backLabel, frame]);
+  }, [database, permissions, teamId]);
 
-  const { seriesTemplates, seriesWeekStates } = useMemo(() => {
-    if (!database) return { seriesTemplates: [], seriesWeekStates: [] };
-    // Series belong to the team, not to whoever is looking at it, so this is
-    // scoped by team rather than by the active coach.
-    const coachId = database.memberships.find((m) => m.teamId === teamId && m.role === 'coach')?.personId ?? null;
-    const built = buildCoachData(database, coachId);
-    return {
-      seriesTemplates: built.seriesTemplates.filter((series) => series.teamId === teamId),
-      seriesWeekStates: built.seriesWeekStates,
-    };
-  }, [database, teamId]);
+  const coachSessions = useMemo(
+    () => (database ? buildCoachData(database, activePersonId).sessions.filter((session) => session.teamId === teamId) : []),
+    [database, activePersonId, teamId],
+  );
 
   const handleSessionTimeChange = useCallback((sessionId: string, startsAt: string, endsAt: string) => {
     updateSession(sessionId, { startsAt, endsAt });
   }, []);
-
-  const handleSessionCreate = useCallback((startsAt: string, endsAt: string) => {
-    createSession({
-      teamId,
-      title: labelForCoachSessionType('training'),
-      sessionType: 'training',
-      startsAt,
-      endsAt,
-      facilityId: data?.defaultFacilityId ?? null,
-    });
-  }, [teamId, data?.defaultFacilityId]);
 
   const handleSessionFacilityChange = useCallback((sessionId: string, facilityId: string) => {
     updateSession(sessionId, { facilityId: facilityId || null });
@@ -312,79 +280,6 @@ export function TeamWorkspace({
     });
   }, []);
 
-  const handleCreateSeries = useCallback((input: SeriesTemplateInput) => {
-    mutate((draft) => {
-      const team = draft.teams.find((candidate) => candidate.id === (input.teamId || teamId));
-      if (!team) return;
-      draft.sessionSeries.push({
-        id: newId(),
-        clubId: team.clubId,
-        departmentId: team.departmentId,
-        teamId: team.id,
-        title: labelForCoachSessionType(input.sessionType),
-        sessionType: normalizeCoachSessionType(input.sessionType) as SessionType,
-        weekday: input.weekday,
-        startTime: input.startTime,
-        endTime: input.endTime,
-        facilityId: input.facilityId || null,
-        groupIds: input.groupIds ?? [],
-        activeFrom: null,
-        activeUntil: null,
-        createdAt: new Date().toISOString(),
-      });
-    });
-  }, [teamId]);
-
-  const handleUpdateSeries = useCallback((seriesId: string, input: SeriesTemplateInput) => {
-    mutate((draft) => {
-      const series = draft.sessionSeries.find((candidate) => candidate.id === seriesId);
-      if (!series) return;
-      series.sessionType = normalizeCoachSessionType(input.sessionType) as SessionType;
-      series.weekday = input.weekday;
-      series.startTime = input.startTime;
-      series.endTime = input.endTime;
-      series.facilityId = input.facilityId || null;
-      series.groupIds = input.groupIds ?? [];
-    });
-  }, []);
-
-  const handleDeleteSeries = useCallback((seriesId: string) => {
-    mutate((draft) => {
-      draft.sessionSeries = draft.sessionSeries.filter((series) => series.id !== seriesId);
-      draft.sessionSeriesWeekStates = draft.sessionSeriesWeekStates.filter((state) => state.seriesId !== seriesId);
-    });
-  }, []);
-
-  const handleToggleSeriesWeek = useCallback((seriesId: string, weekStart: string, checked: boolean) => {
-    const existing = seriesWeekStates.find((state) => state.seriesId === seriesId && state.weekStart === weekStart);
-    setSeriesWeekState(seriesId, weekStart, checked, existing?.committedSessionId ?? null);
-  }, [seriesWeekStates]);
-
-  const handleConfirmSeriesWeek = useCallback((items: SeriesWeekItem[]) => {
-    const created: string[] = [];
-    try {
-      for (const item of items) {
-        if (item.committedSessionId) continue;
-        const sessionId = createSession({
-          teamId: item.teamId ?? teamId,
-          title: labelForCoachSessionType(item.sessionType),
-          sessionType: normalizeCoachSessionType(item.sessionType) as SessionType,
-          startsAt: item.startsAt,
-          endsAt: item.endsAt,
-          facilityId: item.facilityId ?? null,
-          groupIds: item.groupIds ?? [],
-        });
-        created.push(sessionId);
-        setSeriesWeekState(item.id, item.weekStart, true, sessionId);
-      }
-    } catch (confirmError) {
-      // Same rollback the Supabase version had: a half-confirmed week is worse
-      // than none, because a coach cannot see which half went through.
-      for (const sessionId of created) deleteSession(sessionId);
-      throw confirmError;
-    }
-  }, [teamId]);
-
   if (!ready) {
     return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">Loading team …</section></div></main>;
   }
@@ -398,34 +293,33 @@ export function TeamWorkspace({
   }
 
   const canEditSessions = permissions.has('editSessions');
-  const canPlanSeries = permissions.has('planSeries');
   const canManageGroups = permissions.has('manageGroups');
   const staffPanel: ReactNode = database && permissions.size > 0
     ? <TeamStaffPanel database={database} teamId={teamId} canManage={permissions.has('manageStaff')} />
     : null;
 
   return (
+    <CoachShell
+      active="team"
+      title={data.name}
+      subtitle={`${data.departmentName}${data.defaultFacilityName ? ` · ${data.defaultFacilityName}` : ''}`}
+      back={back}
+    >
     <TeamWorkspaceView
       data={data}
       initialSection={initialSection}
-      seriesTemplates={seriesTemplates}
-      seriesWeekStates={seriesWeekStates}
+      coachSessions={coachSessions}
       onDefaultFacilityChange={permissions.has('manageFacilities') ? handleDefaultFacilityChange : undefined}
       onSessionTimeChange={canEditSessions ? handleSessionTimeChange : undefined}
-      onSessionCreate={canEditSessions ? handleSessionCreate : undefined}
       onSessionFacilityChange={canEditSessions ? handleSessionFacilityChange : undefined}
       onSessionGroupsChange={canEditSessions ? handleSessionGroupsChange : undefined}
       onSessionTypeChange={canEditSessions ? handleSessionTypeChange : undefined}
       onSessionDelete={canEditSessions ? handleSessionDelete : undefined}
-      onCreateSeries={canPlanSeries ? handleCreateSeries : undefined}
-      onUpdateSeries={canPlanSeries ? handleUpdateSeries : undefined}
-      onDeleteSeries={canPlanSeries ? handleDeleteSeries : undefined}
-      onToggleSeriesWeek={canPlanSeries ? handleToggleSeriesWeek : undefined}
-      onConfirmSeriesWeek={canPlanSeries ? handleConfirmSeriesWeek : undefined}
       onAddGroup={canManageGroups ? handleAddGroup : undefined}
       onRemoveGroup={canManageGroups ? handleRemoveGroup : undefined}
       onTogglePlayerGroup={canManageGroups ? handleTogglePlayerGroup : undefined}
       staffPanel={staffPanel}
     />
+    </CoachShell>
   );
 }

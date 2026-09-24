@@ -28,43 +28,30 @@ import { buildSeriesWeekItems, getIsoWeekStart, type SeriesTemplate, type Series
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
 import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
-import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
+import { CoachSection, CoachShell, type CoachNavItem } from '@/features/role-workspaces/RoleShell';
+import { formatDateRange, formatDay, formatLongDay, formatSessionTime, formatTimeRange, plural } from '@/shared/format';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 export type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 export { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
 export { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 
 function sectionForMode(mode: CoachMode): TeamWorkspaceSection {
-  if (mode === 'sessions') return 'calendar';
   if (mode === 'load' || mode === 'attendance') return 'players';
   return 'dashboard';
 }
 
-function titleForMode(mode: CoachMode) {
-  if (mode === 'sessions') return 'Calendar';
-  if (mode === 'facilities') return 'Facilities';
-  if (mode === 'history') return 'History';
-  if (mode === 'attendance') return 'Attendance';
-  if (mode === 'load') return 'Player load';
-  if (mode === 'team') return 'Teams';
-  return 'Today';
-}
-
-
-function formatTimeRange(startsAt: string, endsAt: string | null) {
-  const start = new Date(startsAt);
-  const end = endsAt ? new Date(endsAt) : new Date(start.getTime() + 60 * 60_000);
-  return `${new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(start)} - ${new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(end)}`;
-}
-
-function formatNextSession(session: CoachSession | undefined) {
-  if (!session) return 'No planned session yet';
-  const date = new Date(session.startsAt).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' });
-  return `${date} · ${formatTimeRange(session.startsAt, session.endsAt)}`;
-}
+const NAV_FOR_MODE: Record<CoachMode, CoachNavItem> = {
+  today: 'today',
+  sessions: 'calendar',
+  team: 'team',
+  attendance: 'team',
+  load: 'team',
+  facilities: 'halls',
+  history: 'history',
+};
 
 function formatConflictDateLine(startsAt: string) {
-  return new Date(startsAt).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' });
+  return formatDay(startsAt);
 }
 
 function isSameLocalDay(value: string, day: Date) {
@@ -113,7 +100,7 @@ function formatWeekLabel(days: Date[]) {
   const first = days[0];
   const last = days[6];
   if (!first || !last) return '';
-  return `${first.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })} - ${last.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}`;
+  return formatDateRange(first, last);
 }
 
 function localDateKey(date: Date) {
@@ -159,40 +146,59 @@ function summarizeAvailability(session: CoachSession) {
 
 function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDetails: () => void }) {
   const { out, late } = summarizeAvailability(session);
-  const flags = [...out, ...late];
   return (
-    <button type="button" onClick={onDetails} className="block w-full rounded-3xl border border-slate-800 bg-slate-950/72 p-4 text-left text-white shadow-[0_18px_70px_rgba(0,0,0,0.22)] transition hover:border-emerald-300/45 hover:bg-slate-900/70">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">{session.departmentName} · {session.teamName}</p>
-          <h3 className="mt-2 text-xl font-black">{session.title}</h3>
-          <p className="mt-1 text-sm font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+    <button type="button" onClick={onDetails} className="block w-full rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-left text-white transition hover:border-emerald-300/45 hover:bg-slate-900/70">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-2xl font-black tabular-nums">{formatTimeRange(session.startsAt, session.endsAt)}</p>
+          <h3 className="mt-1 text-base font-black">{session.title}</h3>
+          <p className="mt-0.5 text-sm font-bold text-slate-400">{session.teamName}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
         </div>
-        <span className="text-lg font-black text-slate-500">›</span>
+        <span aria-hidden className="text-lg font-black text-slate-500">›</span>
       </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        <div className={`rounded-2xl border p-3 ${out.length > 0 ? 'border-rose-400/35 bg-rose-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className={`rounded-xl border p-3 ${out.length > 0 ? 'border-rose-400/35 bg-rose-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Out</p>
+            <p className="text-xs font-black text-slate-400">Out</p>
             <span className="text-lg font-black text-white">{out.length}</span>
           </div>
           {out.slice(0, 3).map((item) => (
-            <p key={item.id} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.reason ? ` · ${item.reason}` : ''}</p>
+            <p key={item.id} className="mt-1.5 text-xs font-bold text-slate-300">{item.playerName}{item.reason ? ` · ${item.reason}` : ''}</p>
           ))}
         </div>
-        <div className={`rounded-2xl border p-3 ${late.length > 0 ? 'border-amber-400/35 bg-amber-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
+        <div className={`rounded-xl border p-3 ${late.length > 0 ? 'border-amber-400/35 bg-amber-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Late</p>
+            <p className="text-xs font-black text-slate-400">Late</p>
             <span className="text-lg font-black text-white">{late.length}</span>
           </div>
           {late.slice(0, 3).map((item) => (
-            <p key={item.id} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${item.lateMinutes}m` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>
+            <p key={item.id} className="mt-1.5 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${item.lateMinutes} min` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>
           ))}
         </div>
       </div>
+    </button>
+  );
+}
 
-      {flags.length === 0 ? <p className="mt-3 text-sm font-bold text-slate-500">No late/out marks yet.</p> : null}
+/** One line per upcoming session: when, what, who is missing. */
+function UpcomingSessionRow({ session, showTeam, onOpen }: { session: CoachSession; showTeam: boolean; onOpen: () => void }) {
+  const { out, late } = summarizeAvailability(session);
+  const start = new Date(session.startsAt);
+  return (
+    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 px-3 py-3 text-left transition hover:border-sky-300/50 hover:bg-slate-900/70">
+      <div className="w-12 shrink-0 text-center">
+        <p className="text-[11px] font-black uppercase text-slate-400">{formatDay(start).split(' ')[0]}</p>
+        <p className="text-lg font-black leading-tight text-white">{start.getDate()}</p>
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-black text-white">{session.title}</p>
+        <p className="truncate text-xs font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt)}{showTeam ? ` · ${session.teamName}` : ''}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1 text-[11px] font-black">
+        {out.length > 0 ? <span className="rounded-full bg-rose-400/15 px-2 py-0.5 text-rose-200">{out.length} out</span> : null}
+        {late.length > 0 ? <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-amber-200">{late.length} late</span> : null}
+      </div>
     </button>
   );
 }
@@ -225,6 +231,7 @@ export function CoachCalendarSurface({
   onEditSessionHandled,
   editableTeamIds,
   seriesTeamIds,
+  initialTeamId = null,
 }: {
   teams: CoachTeam[];
   sessions: CoachSession[];
@@ -249,6 +256,8 @@ export function CoachCalendarSurface({
   editableTeamIds?: ReadonlySet<string>;
   /** Teams whose weekly series the active coach may plan. All when omitted. */
   seriesTeamIds?: ReadonlySet<string>;
+  /** Show only this team at first (coming from a team's page). */
+  initialTeamId?: string | null;
 }) {
   const canEditTeam = (teamId: string) => !editableTeamIds || editableTeamIds.has(teamId);
   const editableTeams = teams.filter((team) => canEditTeam(team.id));
@@ -260,10 +269,12 @@ export function CoachCalendarSurface({
   const [seriesEditor, setSeriesEditor] = useState<{ kind: 'new'; weekday: number } | { kind: 'edit'; template: SeriesTemplate } | null>(null);
   const [pendingSeriesConflict, setPendingSeriesConflict] = useState<{ items: SeriesWeekItem[]; item: SeriesWeekItem; description: string; suggestions: ConflictSuggestion[] } | null>(null);
   const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, buildWeekDays().findIndex((day) => sameDay(day, new Date()))));
-  const [mobileCalendarView, setMobileCalendarView] = useState<'week' | 'day'>('week');
+  // Seven columns do not fit a phone; one day at a time does.
+  const [mobileCalendarView, setMobileCalendarView] = useState<'week' | 'day'>('day');
   const [dayTransitionDirection, setDayTransitionDirection] = useState<'next' | 'previous' | null>(null);
   const [desktopHourHeight, setDesktopHourHeight] = useState(baseDesktopHourHeight);
   const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const [teamFilter, setTeamFilter] = useState<string | null>(initialTeamId && teams.some((team) => team.id === initialTeamId) ? initialTeamId : null);
   const [drag, setDrag] = useState<CoachCalendarDrag | null>(null);
   const [draft, setDraft] = useState<CoachCalendarDraft | null>(null);
   const [localSessions, setLocalSessions] = useState<CoachSession[]>(sessions);
@@ -305,7 +316,8 @@ export function CoachCalendarSurface({
   const smartSessions = useMemo<SmartCalendarSession[]>(() => {
     const tones = ['accent1', 'accent2', 'accent3', 'accent4'] as const;
     const toneByTeamId = new Map(teams.map((team, index) => [team.id, tones[index % tones.length]]));
-    return localSessions.map((session) => ({
+    // The team filter only hides; conflicts are still checked against everything.
+    return localSessions.filter((session) => !teamFilter || session.teamId === teamFilter).map((session) => ({
       id: session.id,
       title: session.title,
       startsAt: session.startsAt,
@@ -316,7 +328,7 @@ export function CoachCalendarSurface({
       // Was `true` for every session: any coach could drag any team's session.
       canManage: !editableTeamIds || editableTeamIds.has(session.teamId),
     }));
-  }, [localSessions, teams, editableTeamIds]);
+  }, [localSessions, teams, editableTeamIds, teamFilter]);
 
   const conflictSessions = useMemo<ConflictSession[]>(() => {
     const byId = new Map<string, ConflictSession>();
@@ -336,7 +348,10 @@ export function CoachCalendarSurface({
     return Array.from(byId.values());
   }, [facilityConflictSessions, localSessions]);
 
-  const seriesWeekItems = useMemo(() => buildSeriesWeekItems(seriesTemplates, seriesWeekStates, seriesWeekStart), [seriesTemplates, seriesWeekStates, seriesWeekStart]);
+  const seriesWeekItems = useMemo(
+    () => buildSeriesWeekItems(seriesTemplates.filter((template) => !teamFilter || template.teamId === teamFilter), seriesWeekStates, seriesWeekStart),
+    [seriesTemplates, seriesWeekStates, seriesWeekStart, teamFilter],
+  );
 
   const requestSeriesSave = useCallback(async (save: CoachSeriesSave) => {
     if (save.kind === 'create' && !onCreateSeries) return;
@@ -629,7 +644,7 @@ export function CoachCalendarSurface({
     function createDraftAt(clientY: number) {
       const clickedMinutes = clamp(roundToSlot(((clientY - rect.top) / Math.max(rect.height, 1)) * visibleMinutes), 0, visibleMinutes - 30);
       const start = createDateForCalendarMinute(day, (baseHour - firstHour) * 60 + clickedMinutes);
-      const team = editableTeams.length === 1 ? editableTeams[0] : null;
+      const team = editableTeams.length === 1 ? editableTeams[0] : editableTeams.find((candidate) => candidate.id === teamFilter) ?? null;
       setDraft({ startsAt: start.toISOString(), endsAt: addMinutes(start, 90).toISOString(), teamId: team?.id ?? null, facilityId: defaultFacilityForTeam(team), groupIds: [], sessionType: 'training' });
       setEditor(null);
     }
@@ -727,12 +742,26 @@ export function CoachCalendarSurface({
   const pendingConflictFacilityLabel = pendingConflictFacilityId ? facilities.find((facility) => facility.id === pendingConflictFacilityId)?.name ?? null : null;
   const pendingSeriesConflictFacilityLabel = pendingSeriesConflict?.item.facilityName ?? (pendingSeriesConflictFacilityId ? facilities.find((facility) => facility.id === pendingSeriesConflictFacilityId)?.name ?? null : null);
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Coach calendar</p><h2 className="mt-2 text-2xl font-black">All assigned teams</h2></div>
-        <div className="mb-2 flex rounded-full border border-slate-800 bg-slate-950/80 p-1 sm:mb-0">
-          <button type="button" onClick={showWeekSurface} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'week' ? 'bg-sky-300 text-slate-950' : 'text-slate-400'}`}>Week</button>
-          <button type="button" onClick={showSeriesSurface} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Series</button>
+    <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-white sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {teams.length > 1 ? (
+          <div className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1" role="group" aria-label="Show team">
+            {[{ id: null as string | null, name: 'All teams' }, ...teams].map((team) => (
+              <button
+                key={team.id ?? 'all'}
+                type="button"
+                onClick={() => setTeamFilter(team.id)}
+                aria-pressed={teamFilter === team.id}
+                className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-black transition ${teamFilter === team.id ? 'border-sky-300 bg-sky-300/15 text-sky-100' : 'border-slate-800 text-slate-400 hover:text-white'}`}
+              >
+                {team.name}
+              </button>
+            ))}
+          </div>
+        ) : <span />}
+        <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1" role="group" aria-label="Calendar view">
+          <button type="button" onClick={showWeekSurface} aria-pressed={surfaceMode === 'week'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'week' ? 'bg-sky-300 text-slate-950' : 'text-slate-400'}`}>Sessions</button>
+          <button type="button" onClick={showSeriesSurface} aria-pressed={surfaceMode === 'series'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Weekly plan</button>
         </div>
       </div>
       {surfaceMode === 'week' ? (
@@ -1139,7 +1168,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   }
 
   if (!ready) {
-    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">Loading coach workspace …</section></div></main>;
+    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">Loading …</section></div></main>;
   }
 
   // A broken document is shown as such rather than silently replaced with
@@ -1162,64 +1191,62 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   }
 
   const shouldOpenTeamWorkspace = mode === 'team' || mode === 'attendance' || mode === 'load';
-  const teamWorkspaceBackHref = mode === 'team' && selectedTeam && teams.length > 1 ? '/coach/team' : '/coach/today';
-  const teamWorkspaceBackLabel = mode === 'team' && selectedTeam && teams.length > 1 ? 'Back to Teams' : 'Back to Today';
+  const workspaceTeam = shouldOpenTeamWorkspace ? selectedTeam ?? singleTeam : null;
 
-  if (selectedTeam && shouldOpenTeamWorkspace) {
-    return <TeamWorkspace teamId={selectedTeam.id} backHref={teamWorkspaceBackHref} backLabel={teamWorkspaceBackLabel} initialSection={initialSection} frame="coach" />;
+  if (workspaceTeam) {
+    // Several teams: back to the list. One team: the tab itself is the team.
+    return <TeamWorkspace teamId={workspaceTeam.id} back={teams.length > 1 ? { href: '/coach/team', label: 'All teams' } : undefined} initialSection={initialSection} />;
   }
 
-  if (singleTeam && shouldOpenTeamWorkspace) {
-    // Single-team coaches have no team-list screen to return to.
-    return <TeamWorkspace teamId={singleTeam.id} backHref="/coach/today" backLabel="Back to Today" initialSection={initialSection} frame="coach" />;
-  }
+  const calendarTeam = mode === 'sessions' && selectedTeam ? selectedTeam : null;
+  const header = {
+    today: { title: 'Today', subtitle: formatLongDay(today) },
+    sessions: { title: 'Calendar', subtitle: teams.length === 1 ? teams[0]?.name : calendarTeam ? calendarTeam.name : 'All your teams' },
+    team: { title: 'Teams', subtitle: plural(teams.length, 'team') },
+    attendance: { title: 'Teams', subtitle: plural(teams.length, 'team') },
+    load: { title: 'Teams', subtitle: plural(teams.length, 'team') },
+    facilities: { title: 'Halls', subtitle: 'Where your teams train' },
+    history: { title: 'History', subtitle: 'Past sessions, attendance and load' },
+  }[mode];
 
   return (
-    <main className="os-page pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0 md:pl-64">
-      <CoachDrawer mode={mode === 'attendance' || mode === 'load' ? 'team' : mode} basePath="/coach" teamId={singleTeam?.id ?? selectedTeamId} />
-      <div className="os-container space-y-5">
-        <section className="sticky top-0 z-30 rounded-2xl border border-slate-800 bg-slate-950/92 p-3 text-white shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:static md:p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Coach OS</p>
-          <div className="mt-1 flex items-center justify-between gap-3">
-            <h1 className="text-2xl font-black tracking-tight">{titleForMode(mode)}</h1>
+    <CoachShell active={NAV_FOR_MODE[mode]} title={header.title} subtitle={header.subtitle}>
+        {error ? (
+          <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-500/40 bg-red-950/30 p-4 text-sm text-red-100">
+            <span>{error}</span>
+            <button type="button" onClick={() => setError(null)} className="text-xs font-black underline">Dismiss</button>
           </div>
-        </section>
+        ) : null}
 
         {teams.length === 0 ? (
           <section className="rounded-3xl border border-amber-500/35 bg-amber-950/20 p-5 text-amber-100">
-            <h2 className="text-xl font-black">No assigned teams yet</h2>
-            <p className="mt-2 text-sm font-bold text-amber-100/80">A club admin or department lead must assign you as coach first.</p>
+            <h2 className="text-xl font-black">No team yet</h2>
+            <p className="mt-2 text-sm font-bold text-amber-100/80">You are not part of a team's staff yet. Open the invitation link your Head Coach sent you.</p>
           </section>
         ) : null}
 
         {mode === 'today' && teams.length > 0 ? (
           <>
-            <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
-              <div className="flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Today</p>
-                  <h2 className="mt-2 text-2xl font-black">Sessions and availability</h2>
+            <CoachSection title={todaySessions.length > 0 ? plural(todaySessions.length, 'session') + ' today' : 'No sessions today'}>
+              {todaySessions.length > 0 ? (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {todaySessions.map((session) => <CoachSessionCard key={session.id} session={session} onDetails={() => openSessionDetails(session)} />)}
                 </div>
-                {todaySessions.length > 0 ? <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{todaySessions.length} today</span> : null}
-              </div>
-              <div className="mt-5 grid gap-3 lg:grid-cols-2">
-                {todaySessions.length > 0 ? todaySessions.map((session) => <CoachSessionCard key={session.id} session={session} onDetails={() => openSessionDetails(session)} />) : <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions today.</div>}
-              </div>
-            </section>
+              ) : (
+                <p className="text-sm text-slate-400">{upcomingSessions[0] ? `Next up: ${upcomingSessions[0].title}, ${formatSessionTime(upcomingSessions[0].startsAt, upcomingSessions[0].endsAt)}.` : 'Nothing planned yet. Plan sessions in the calendar.'}</p>
+              )}
+            </CoachSection>
 
             {upcomingSessions.length > 0 ? (
-              <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Next</p>
-                <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+              <CoachSection title="Coming up" actions={<Link href="/coach/sessions" className="text-xs font-black text-sky-300 hover:text-sky-200">Calendar ›</Link>}>
+                <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
                   {upcomingSessions.map((session) => (
-                    <button key={session.id} type="button" onClick={() => openSessionDetails(session)} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-left transition hover:border-sky-300/50 hover:bg-slate-900/70">
-                      <p className="text-sm font-black text-white">{session.teamName}</p>
-                      <p className="mt-1 text-xs font-bold text-slate-400">{new Date(session.startsAt).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' })} · {formatTimeRange(session.startsAt, session.endsAt)}</p>
-                      <p className="mt-3 text-xs font-black text-slate-500">{session.availability.length} availability flags</p>
-                    </button>
+                    <li key={session.id}>
+                      <UpcomingSessionRow session={session} showTeam={teams.length > 1} onOpen={() => openSessionDetails(session)} />
+                    </li>
                   ))}
-                </div>
-              </section>
+                </ul>
+              </CoachSection>
             ) : null}
           </>
         ) : null}
@@ -1249,6 +1276,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             onToggleSeriesWeek={seriesTeamIds.size > 0 ? handleCoachSeriesWeekToggle : undefined}
             onConfirmSeriesWeek={seriesTeamIds.size > 0 ? handleCoachSeriesWeekConfirm : undefined}
             onDetails={openSessionDetails}
+            initialTeamId={selectedTeamId}
           />
         ) : null}
 
@@ -1340,33 +1368,23 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         />
 
         {mode === 'team' && teams.length > 0 ? (
-          <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Teams</p>
-                <h2 className="mt-2 text-2xl font-black">Select team</h2>
-              </div>
-            </div>
-            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {teams.map((team) => {
-                const nextSession = nextSessionByTeamId.get(team.id);
-                return (
-                  <Link key={team.id} href={`/coach/team?teamId=${team.id}`} className="block rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white transition hover:border-emerald-300/50 hover:bg-slate-900/70">
-                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">{team.departmentName}</p>
-                    <h3 className="mt-2 text-2xl font-black">{team.name}</h3>
-                    <p className="mt-2 text-sm font-bold text-slate-400">{team.role.replace('_', ' ')}</p>
-                    <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Next session</p>
-                      <p className="mt-1 text-sm font-black text-slate-200">{nextSession ? nextSession.title : 'None planned'}</p>
-                      <p className="mt-1 text-xs font-bold text-slate-500">{formatNextSession(nextSession)}</p>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {teams.map((team) => {
+              const nextSession = nextSessionByTeamId.get(team.id);
+              return (
+                <Link key={team.id} href={`/coach/team?teamId=${team.id}`} className="block rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white transition hover:border-emerald-300/50 hover:bg-slate-900/70">
+                  <p className="text-xs font-bold text-slate-400">{team.departmentName}{team.roleName ? ` · ${team.roleName}` : ''}</p>
+                  <h3 className="mt-1 text-xl font-black">{team.name}</h3>
+                  <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
+                    <p className="text-xs font-bold text-slate-500">Next session</p>
+                    <p className="mt-1 text-sm font-black text-slate-200">{nextSession ? nextSession.title : 'None planned'}</p>
+                    {nextSession ? <p className="mt-0.5 text-xs font-bold text-slate-400">{formatSessionTime(nextSession.startsAt, nextSession.endsAt)}</p> : null}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         ) : null}
-      </div>
-    </main>
+    </CoachShell>
   );
 }

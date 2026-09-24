@@ -285,7 +285,7 @@ export function sevenDayLoad(entries: AthleteLoadEntry[]) {
 }
 
 export function formatLoadDate(date: string) {
-  return new Intl.DateTimeFormat(undefined, { weekday: 'short', day: '2-digit', month: 'short' }).format(new Date(`${date}T00:00:00`));
+  return new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).format(new Date(`${date}T00:00:00`));
 }
 
 /**

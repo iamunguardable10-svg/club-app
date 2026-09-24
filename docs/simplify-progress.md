@@ -1133,3 +1133,62 @@ Geprüft: Typecheck, Build; im Browser gegen Supabase (Handybreite und Desktop) 
 Gerät, abgemeldet mit Demo als Trainer, angemeldet mit Doppelrolle (Rolle bleibt nach
 Neuladen, Wechsel zu Trainer), angemeldet ohne Team. Keine Laufzeitfehler. Testverein
 und Testkonten danach gelöscht (0 Vereine, 0 Konten).
+
+## Run 11c — Stück 2: Oberfläche überarbeitet (erledigt)
+
+Auftrag: die Teile der Oberfläche überarbeiten, die noch nicht gut sind, ohne
+Funktionen zu verlieren. Vorher und nachher wurde jede Trainer- und Spielerseite auf
+Handy und Desktop fotografiert.
+
+**Rahmen und Navigation**
+- Ein gemeinsamer Rahmen für alle Trainer- und Spielerseiten (`RoleShell`): Seitenleiste
+  auf dem Desktop, Tab-Leiste mit Symbolen auf dem Handy, ein Seitentitel mit Unterzeile,
+  Konto-Knopf (Initialen) oben rechts. Ersetzt `CoachDrawer`, den eigenen Kopf und die
+  zweite untere Leiste der Teamansicht und den „Load cockpit“-Kopf der Spielerseiten.
+- **Behobener Fehler:** Auf dem Desktop lag die Seitenleiste über der Teamansicht.
+- Trainer: Today · Calendar · Team (bzw. Teams) · Halls · History. Spieler: Today ·
+  Calendar · Load. Doppelte Überschriften („COACH OS Today“ über „TODAY Sessions and
+  availability“) sind weg.
+
+**Ein Kalender statt zwei**
+- Die Teamansicht hatte einen eigenen Kalender (rund 950 Zeilen, parallel zum
+  Trainerkalender). Er ist entfernt; „Team calendar“ öffnet den Trainerkalender auf das
+  Team gefiltert. Wer mehrere Teams betreut, hat dort Filter-Knöpfe je Team. Doppelte
+  Serien-Handler in `TeamWorkspace.tsx` sind mit weg.
+- Handy: Tagesansicht als Standard, mit Tagesleiste (Punkt = an dem Tag gibt es etwas),
+  „Whole week“ für die Wochenansicht, Hinweis bei leeren Tagen. Kacheln zeigen den Titel
+  der Einheit statt nur den Teamnamen. Im Bearbeitungsmodus erklärt eine Zeile, was geht.
+
+**Inhalte**
+- **Behobener Fehler:** Spielerliste zeigte Gruppen-IDs (`group-u16-rehab`) statt Namen.
+- **Behobener Fehler:** Die Teamübersicht zeigte für kommende Einheiten immer „Out 0,
+  Late 0“, weil sie nur Absagen vergangener Einheiten kannte. Sie nutzt jetzt dieselben
+  Sitzungsdaten wie Today (mit denselben Rechten), die beiden Seiten stimmen überein.
+- Today: Einheiten heute als Karten, „Coming up“ als Liste mit „2 out“/„1 late“.
+- Teamansicht: Tabs Overview · Players · Groups · Staff & settings; Overview mit nächster
+  Einheit, den folgenden Einheiten und offenen Einrichtungsschritten; bedeutungslose
+  Plaketten „12“/„OK“ und „SECONDARY“ entfernt.
+- Spielerliste: „Load low / in range / high“ statt „Low/Ready“, „3× out or late“.
+- History: kompakte Karten (There · RPE · Load · Reported), „Wk 32“ statt „KW 32“.
+- Datum und Uhrzeit überall einheitlich europäisch (`src/shared/format.ts`, `en-GB`,
+  24 Stunden: „Fri 25 Sept · 16:30–17:30“) statt je nach Browser „04:30 PM“.
+- Zahlwörter („1 session“, „3 sessions“) über `plural`.
+- Einheitlich „Hall“ statt „Facility“ in der Oberfläche.
+- Spieler: Kennzahlen lesbar statt abgeschnitten („Room to high 1231 AU“, „≈ 2.4
+  sessions“); Today = was jetzt zu tun ist (Einschätzen, nächste Einheit mit dem eigenen
+  Status „You are in / late“), Load = die Auswertung mit dem Diagramm. Die Aufwärmphase
+  vor einem Spiel ist nicht mehr die Schlagzeile, das Spiel ist es. Diagramm-Tooltip
+  zeigt bei Prognosetagen „—“ statt leerer Felder.
+
+**Geprüft:** Typecheck, Build; Screenshots aller Seiten (Handy 390 px, Desktop 1280 px),
+auf dem Handy keine Seite breiter als der Bildschirm; 17 Klick-Abläufe im Demo-Modus:
+Einheit öffnen, Einheit im Kalender anlegen, Wochenplan, Spielerliste mit
+Gruppennamen, Spielerdetail, Gruppen bearbeiten, Trainerteam, Teamkalender-Link,
+Hallenkalender und zurück, History, Rollenwechsel über den Konto-Knopf, Trainer mit zwei
+Teams (Teamliste, Zurück-Link, Teamfilter), Spieler meldet sich verspätet, Load-Diagramm.
+Keine Laufzeitfehler.
+
+**Nicht gemacht (bewusst):** Der Spielerkalender ist weiterhin eine eigene
+Implementierung neben dem Trainerkalender (andere Funktionen: eigene Pläne, Belastung).
+Zusammenlegen wäre ein eigenes Stück. Nicht gegen den echten Server geprüft: Die
+Datenschicht ist unverändert, die Oberfläche ist in beiden Modi dieselbe.

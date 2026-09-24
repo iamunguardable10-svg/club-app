@@ -51,5 +51,8 @@ export type PlayerLoadSummary = ReturnType<typeof playerLoadSummary>;
 export function acwrDisplayLabel(summary: PlayerLoadSummary) {
   if (summary.access === 'none') return 'Load not shared';
   if (summary.acwr === null) return 'No ACWR yet';
-  return summary.zone.tone === 'neutral' ? 'Building trend' : summary.zone.label;
+  if (summary.zone.tone === 'low') return 'Load low';
+  if (summary.zone.tone === 'high') return 'Load high';
+  if (summary.zone.tone === 'ready') return 'Load in range';
+  return 'Building trend';
 }

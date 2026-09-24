@@ -1,12 +1,11 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
 import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictCandidate, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
-import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
+import { CoachShell } from '@/features/role-workspaces/RoleShell';
 import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
 import { normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
@@ -92,7 +91,7 @@ function formatWeekLabel(days: Date[]) {
   const first = days[0];
   const last = days[6];
   if (!first || !last) return '';
-  return `${first.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })} - ${last.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}`;
+  return `${first.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })} - ${last.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}`;
 }
 
 function isMissingAuthSessionError(message?: string) {
@@ -181,7 +180,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   const days = useMemo(() => buildWeekDays(weekOffset), [weekOffset]);
   const weekLabel = useMemo(() => formatWeekLabel(days), [days]);
   const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, buildWeekDays().findIndex((day) => sameDay(day, new Date()))));
-  const [mobileCalendarView, setMobileCalendarView] = useState<'week' | 'day'>('week');
+  const [mobileCalendarView, setMobileCalendarView] = useState<'week' | 'day'>('day');
   const [dayTransitionDirection, setDayTransitionDirection] = useState<'next' | 'previous' | null>(null);
   const [desktopHourHeight, setDesktopHourHeight] = useState(hourHeight);
   const [draft, setDraft] = useState<DraftSession | null>(null);
@@ -380,10 +379,10 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   const hasRoleManagedTeams = isClubAdmin || managedDepartmentIds.size > 0 || managedTeamIds.size > 0;
   const facilityAssignmentNotice = hasRoleManagedTeams && assignedDepartmentIds.size === 0
     ? isClubAdmin
-      ? 'Assign this facility to a department before creating sessions here.'
-      : 'This facility is not assigned to a department yet. Ask a club admin to set it up.'
+      ? 'Assign this hall to a department before creating sessions here.'
+      : 'This hall is not assigned to a department yet. Ask a club admin to set it up.'
     : hasRoleManagedTeams && manageableTeamIds.size === 0
-      ? 'No assigned team can use this facility yet.'
+      ? 'No assigned team can use this hall yet.'
       : null;
 
   const calendarSessions = useMemo<SmartCalendarSession[]>(
@@ -422,7 +421,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   function assertWritableSessionValue(value: FacilitySessionEditValue) {
     const team = teams.find((item) => item.id === value.teamId);
     if (!team) throw new Error('Choose a team first.');
-    if (!manageableTeamIds.has(team.id)) throw new Error('You can only schedule assigned teams in this facility.');
+    if (!manageableTeamIds.has(team.id)) throw new Error('You can only schedule assigned teams in this hall.');
     const allowedDepartmentIds = new Set(departmentFacilityLinks.filter((link) => link.facility_id === value.facilityId).map((link) => link.department_id));
     if (value.facilityId === facilityId) {
       for (const department of assignedDepartmentIds) allowedDepartmentIds.add(department);
@@ -595,8 +594,10 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   // no longer exists — a missing `from` would have led nowhere.
   const backTarget =
     from === 'coachTeam' && teamId
-      ? { href: `/coach/team?teamId=${teamId}`, label: 'Back to team' }
-      : { href: '/coach/facilities', label: 'Back to facilities' };
+      ? { href: `/coach/team?teamId=${teamId}`, label: 'Team' }
+      : from === 'coachCalendar'
+        ? { href: '/coach/sessions', label: 'Calendar' }
+        : { href: '/coach/facilities', label: 'Halls' };
 
   function handleSlotPointerDown(day: Date, event: PointerEvent<HTMLDivElement>) {
     if (mode !== 'edit' || !canCreateSessions) return;
@@ -928,23 +929,21 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   if (state === 'error') return <main className="min-h-screen bg-slate-950 p-8 text-white">{error}</main>;
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-8 text-white sm:px-8 md:pb-8 md:pl-64">
-      <CoachDrawer mode="facilities" basePath="/coach" teamId={teamId} />
-      <div className="mx-auto max-w-7xl space-y-5">
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.22)] ring-1 ring-white/[0.03]">
-          <Link href={backTarget.href} className="text-sm font-black text-slate-300 hover:text-white">{backTarget.label}</Link>
-          <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-slate-500">Facility calendar</p>
-          <h1 className="mt-3 text-3xl font-black sm:text-5xl">{facility?.name}</h1>
-          <p className="mt-2 text-sm text-slate-400">{facility?.address || 'No address set'}</p>
-          <div className="mt-4 flex flex-wrap gap-2 text-xs font-black">
-            {highlightedTeam ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-200">Team: {highlightedTeam.name}</span> : null}
-            {highlightedDepartment ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-200">Department: {highlightedDepartment.name}</span> : null}
-            {!highlightedTeam && !highlightedDepartment ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-300">Full view</span> : null}
-          </div>
-          {facilityAssignmentNotice ? (
-            <p className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm font-medium text-slate-300">{facilityAssignmentNotice}</p>
-          ) : null}
-        </section>
+    <CoachShell
+      active="halls"
+      title={facility?.name ?? 'Hall'}
+      subtitle={facility?.address || 'No address set'}
+      back={backTarget}
+    >
+      <div className="space-y-4">
+        <div className="flex flex-wrap gap-2 text-xs font-black">
+          {highlightedTeam ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-200">Highlighted: {highlightedTeam.name}</span> : null}
+          {!highlightedTeam && highlightedDepartment ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-200">Highlighted: {highlightedDepartment.name}</span> : null}
+          <span className="rounded-full border border-slate-800 px-3 py-1 text-slate-400">Everything booked in this hall, from all teams</span>
+        </div>
+        {facilityAssignmentNotice ? (
+          <p className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm font-medium text-slate-300">{facilityAssignmentNotice}</p>
+        ) : null}
 
         <SmartSessionCalendar
           mode={mode}
@@ -1061,6 +1060,6 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
         onKeepAnyway={() => { void keepFacilityConflictAnyway(); }}
         onCancel={cancelFacilityConflictSave}
       />
-    </main>
+    </CoachShell>
   );
 }

@@ -12,6 +12,8 @@ export type CoachTeam = {
   departmentName: string;
   defaultFacilityId: string | null;
   role: string;
+  /** The active coach's role on this team, e.g. "Head Coach". */
+  roleName?: string | null;
   /** What the active coach may see and do in this team. */
   permissions?: CoachPermission[];
 };

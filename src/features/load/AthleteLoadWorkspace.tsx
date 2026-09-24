@@ -30,6 +30,8 @@ import { aggregateDailyLoads, baselineAgeDays, calculateEWMA, fillMissingDays, f
 import { encodeAthleteLoadShare } from './athleteLoadShare';
 import { displayName, getActivePerson, newId, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
+import { AthleteShell } from '@/features/role-workspaces/RoleShell';
+import { formatDateRange, formatDay, formatLongDay } from '@/shared/format';
 import {
   readAcknowledged,
   readAvailability,
@@ -155,7 +157,7 @@ function withAutoWarmups(sessions: AthletePendingSession[]) {
 }
 
 function formatTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 }
 
 function timeInputFromISO(value: string) {
@@ -205,8 +207,8 @@ function Metric({ label, value, tone = 'default' }: { label: string; value: stri
         : 'border-slate-800 bg-slate-950/55 text-white';
   return (
     <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-3 sm:p-4 ${toneClass}`}>
-      <p className="truncate text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{label}</p>
-      <p className="mt-2 truncate text-xl font-black tracking-tight sm:text-2xl">{value}</p>
+      <p className="text-[11px] font-black leading-tight text-slate-400">{label}</p>
+      <p className="mt-2 truncate text-lg font-black tracking-tight sm:text-2xl">{value}</p>
     </div>
   );
 }
@@ -359,12 +361,12 @@ function LoadRoomMetric({ latest, entries, baselineReady }: { latest: ReturnType
   return (
     <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-3 sm:p-4 ${toneClass}`}>
       <div>
-        <p className="truncate text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{room.label}</p>
-        <p className="mt-2 truncate text-xl font-black tracking-tight sm:text-2xl">{room.value}</p>
+        <p className="text-[11px] font-black leading-tight text-slate-400">{room.label}</p>
+        <p className="mt-2 truncate text-lg font-black tracking-tight sm:text-2xl">{room.value}</p>
       </div>
       <div>
         <LoadRoomGauge room={room} compact />
-        <p className="mt-1 truncate text-[10px] font-bold text-slate-400">{room.detail}</p>
+        <p className="mt-1 text-[10px] font-bold leading-tight text-slate-400">{room.detail}</p>
       </div>
     </div>
   );
@@ -395,12 +397,12 @@ function AcwrMetric({ latest, baselineReady, tone }: { latest: ReturnType<typeof
   return (
     <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-3 sm:p-4 ${toneClass}`}>
       <div>
-        <p className="truncate text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">ACWR</p>
-        <p className="mt-2 truncate text-xl font-black tracking-tight sm:text-2xl">{room.value}</p>
+        <p className="text-[11px] font-black leading-tight text-slate-400">ACWR</p>
+        <p className="mt-2 truncate text-lg font-black tracking-tight sm:text-2xl">{room.value}</p>
       </div>
       <div>
         <LoadRoomGauge room={room} compact />
-        <p className="mt-1 truncate text-[10px] font-bold text-slate-400">{room.detail}</p>
+        <p className="mt-1 text-[10px] font-bold leading-tight text-slate-400">{room.detail}</p>
       </div>
     </div>
   );
@@ -454,11 +456,11 @@ function LoadTooltip({ active, payload }: LoadTooltipProps) {
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-2">
           <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">Acute</p>
-          <p className="mt-1 text-sm font-black text-white">{point.acuteLoad}</p>
+          <p className="mt-1 text-sm font-black text-white">{point.acuteLoad !== null && !point.isProjected ? Math.round(point.acuteLoad) : '—'}</p>
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-2">
           <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">Chronic</p>
-          <p className="mt-1 text-sm font-black text-white">{point.chronicLoad}</p>
+          <p className="mt-1 text-sm font-black text-white">{point.chronicLoad !== null && !point.isProjected ? Math.round(point.chronicLoad) : '—'}</p>
         </div>
       </div>
       {!point.chronicFull ? (
@@ -554,7 +556,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
     const projection = projectedByDate.get(day.date);
     return {
       date: day.date,
-      label: new Date(`${day.date}T00:00:00`).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' }),
+      label: new Date(`${day.date}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }),
       totalLoad: day.totalLoad,
       forecastLoad: plannedProjectionLoad(projection),
       acuteLoad: point?.acuteLoad ?? 0,
@@ -573,7 +575,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
   const projectedLimit = isMobile ? (range === 7 ? 2 : 3) : range === 7 ? 7 : 14;
   const projectedData: LoadChartDatum[] = projected.filter((point) => point.date > lastHistoricalDate).slice(0, projectedLimit).map((point) => ({
     date: point.date,
-    label: new Date(`${point.date}T00:00:00`).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' }),
+    label: new Date(`${point.date}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }),
     totalLoad: 0,
     forecastLoad: plannedProjectionLoad(point),
     acuteLoad: null,
@@ -865,12 +867,13 @@ function AthleteCalendar({
   const [weekOffset, setWeekOffset] = useState(0);
   const weekStartDate = addDays(weekStart(), weekOffset * 7);
   const days = Array.from({ length: 7 }, (_, index) => addDays(weekStartDate, index));
-  const weekLabel = `${days[0].toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })} - ${days[6].toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}`;
+  const weekLabel = formatDateRange(days[0], days[6]);
   const gridMinutes = (lastHour - firstHour + 1) * 60;
   const gridHeightDesktop = hours.length * desktopHourHeight;
   const gridHeightMobile = hours.length * mobileHourHeight;
   const [mode, setMode] = useState<'view' | 'edit'>('view');
-  const [mobileView, setMobileView] = useState<'week' | 'day'>('week');
+  // One day at a time on phones; seven columns are too narrow to read.
+  const [mobileView, setMobileView] = useState<'week' | 'day'>('day');
   const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, days.findIndex((day) => isoDate(day) === todayISO())));
   const [suppressClick, setSuppressClick] = useState(false);
   const [drag, setDrag] = useState<{
@@ -1116,9 +1119,7 @@ function AthleteCalendar({
     <section className="min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-3 sm:rounded-[2rem] sm:p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Calendar</p>
-          <h2 className="mt-1 text-2xl font-black tracking-tight">Training week</h2>
-          <div className="mt-2 flex items-center gap-2 text-xs font-black text-slate-400">
+          <div className="flex items-center gap-2 text-xs font-black text-slate-300">
             <button type="button" onClick={() => setWeekOffset((value) => value - 1)} className="rounded-full border border-slate-700 px-2 py-1 text-slate-200">‹</button>
             <span>{weekLabel}</span>
             <button type="button" onClick={() => setWeekOffset((value) => value + 1)} className="rounded-full border border-slate-700 px-2 py-1 text-slate-200">›</button>
@@ -1126,14 +1127,14 @@ function AthleteCalendar({
         </div>
         <div className="flex items-center gap-2">
           {weekOffset !== 0 ? <button type="button" onClick={() => setWeekOffset(0)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">↺ Week</button> : null}
-          <button type="button" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-200'}`}>
-            {mode === 'edit' ? 'Done' : 'Edit'}
+          <button type="button" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'}`}>
+            {mode === 'edit' ? 'Done' : 'Add own session'}
           </button>
         </div>
       </div>
       {dragPreview ? (
         <div className="mb-3 rounded-2xl border border-sky-300/40 bg-sky-300/10 px-3 py-2 text-xs font-black text-sky-100 shadow-[0_16px_50px_rgba(56,189,248,0.14)]">
-          {new Date(`${dragPreview.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' })} · {formatTime(dragPreview.startsAt)}
+          {new Date(`${dragPreview.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short' })} · {formatTime(dragPreview.startsAt)}
           {' → '}
           {dragPreview.duration} min
         </div>
@@ -1145,8 +1146,8 @@ function AthleteCalendar({
             <div className="bg-slate-950/95 p-1.5">Time</div>
             {days.map((day, index) => (
               <button key={day.toISOString()} type="button" onClick={() => { setActiveDayIndex(index); setMobileView('day'); }} className="border-l border-slate-800 p-1.5 text-center hover:bg-slate-900/80">
-                <span className="block">{day.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2)}</span>
-                <span className="block">{day.toLocaleDateString(undefined, { day: '2-digit' })}</span>
+                <span className="block">{day.toLocaleDateString('en-GB', { weekday: 'short' }).slice(0, 2)}</span>
+                <span className="block">{day.toLocaleDateString('en-GB', { day: '2-digit' })}</span>
               </button>
             ))}
           </div>
@@ -1170,12 +1171,23 @@ function AthleteCalendar({
         </div>
       ) : (
         <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden">
-          <div className="flex items-center justify-between border-b border-slate-800 p-2">
-            <button type="button" onClick={() => setMobileView('week')} className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200">Week</button>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setActiveDayIndex((index) => clampDayIndex(index - 1))} className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-black text-slate-200">‹</button>
-              <span className="text-xs font-black text-slate-200">{activeDay.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</span>
-              <button type="button" onClick={() => setActiveDayIndex((index) => clampDayIndex(index + 1))} className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-black text-slate-200">›</button>
+          <div className="border-b border-slate-800 p-2">
+            <div className="grid grid-cols-7 gap-1">
+              {days.map((day, index) => {
+                const hasItems = items.some((item) => itemDisplayDate(item) === isoDate(day));
+                const selected = isoDate(day) === isoDate(activeDay);
+                return (
+                  <button key={day.toISOString()} type="button" onClick={() => setActiveDayIndex(clampDayIndex(index))} aria-pressed={selected} aria-label={formatDay(day)} className={`flex flex-col items-center rounded-xl py-1.5 text-[11px] font-black transition ${selected ? 'bg-emerald-300 text-slate-950' : isoDate(day) === todayISO() ? 'text-emerald-200' : 'text-slate-300'}`}>
+                    <span className="opacity-80">{formatDay(day).slice(0, 2)}</span>
+                    <span className="text-sm">{day.getDate()}</span>
+                    <span className={`mt-0.5 h-1 w-1 rounded-full ${hasItems ? (selected ? 'bg-slate-950' : 'bg-emerald-300') : 'bg-transparent'}`} />
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-1.5 flex items-center justify-between px-1">
+              <span className="text-xs font-black text-slate-200">{formatLongDay(activeDay)}</span>
+              <button type="button" onClick={() => setMobileView('week')} className="rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-300">Whole week</button>
             </div>
           </div>
           <div className="overflow-hidden">
@@ -1195,7 +1207,7 @@ function AthleteCalendar({
       <div className="hidden overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:block">
         <div className="grid grid-cols-[72px_repeat(7,minmax(120px,1fr))] border-b border-slate-800 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
           <div className="bg-slate-950/95 p-3">Time</div>
-          {days.map((day, index) => <button type="button" key={day.toISOString()} onClick={() => setActiveDayIndex(index)} className="border-l border-slate-800 p-3 text-left hover:bg-slate-900/70">{day.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</button>)}
+          {days.map((day, index) => <button type="button" key={day.toISOString()} onClick={() => setActiveDayIndex(index)} className="border-l border-slate-800 p-3 text-left hover:bg-slate-900/70">{day.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit' })}</button>)}
         </div>
         <div className="grid grid-cols-[72px_repeat(7,minmax(120px,1fr))]">
           <div className="bg-slate-950/95">
@@ -1298,7 +1310,16 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   }
   const activePendingSessions = pendingSessions.filter((session) => !isSessionCancelled(session.id));
   const todayPending = activePendingSessions.filter((session) => session.date <= todayISO()).slice(0, 3);
-  const nextSession = activePendingSessions.find((session) => session.date >= todayISO()) ?? activePendingSessions[0] ?? null;
+  // A warmup belongs to its game; the game is what comes next.
+  const nextSession = activePendingSessions.find((session) => session.date >= todayISO() && session.trainingType !== 'warmup') ?? activePendingSessions[0] ?? null;
+  /** What the player told the coach about a session, in one line. */
+  function availabilityLabelFor(session: AthletePendingSession) {
+    if (session.source === 'athlete_plan') return 'Your own plan · tap to edit';
+    if (session.trainingType === 'warmup') return 'Warmup before the game';
+    const mark = availabilityForSession(session.id);
+    if (mark?.status === 'late') return `You told your coach: late${mark.lateMinutes ? ` (${mark.lateMinutes} min)` : ''} · tap to change`;
+    return 'You are in · tap if you cannot come or will be late';
+  }
   const calendarItems = useMemo(() => {
     const reportedSessionIds = new Set(sortedEntries.map((entry) => entry.sessionId).filter(Boolean));
     const entryBySessionId = new Map(sortedEntries.filter((entry) => entry.sessionId).map((entry) => [entry.sessionId!, entry]));
@@ -1737,13 +1758,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       : 'Add load';
   const activeView = initialView ?? 'home';
 
-  useEffect(() => {
-    if (activeView !== 'calendar' || typeof window === 'undefined') return;
-    window.setTimeout(() => {
-      document.getElementById('athlete-calendar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 80);
-  }, [activeView]);
-
   // Placed after every hook, so the hook order stays stable across renders.
   if (ready && database && !isActiveAthlete) {
     return (
@@ -1763,50 +1777,36 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   }
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#050712] text-white">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(56,189,248,0.16),transparent_28rem),radial-gradient(circle_at_92%_8%,rgba(52,211,153,0.12),transparent_30rem)]" />
-      <div className="relative mx-auto flex min-h-screen w-full min-w-0 max-w-6xl flex-col gap-5 px-4 pb-28 pt-4 sm:px-6 sm:py-5 lg:py-7">
-        <header className="overflow-hidden rounded-[1.75rem] border border-slate-800/80 bg-slate-950/70 sm:rounded-[2rem] p-5 shadow-[0_26px_100px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.03] sm:p-7">
-          <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300">Athlete OS</p>
-              <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-6xl">Load cockpit</h1>
-              <div className="mt-5 flex flex-wrap gap-2">
-                <IdentitySwitcher />
-                <button type="button" onClick={copyTrainerShareLink} className={`rounded-full border px-4 py-2 text-xs font-black transition ${shareStatus === 'copied' ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100' : shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
-                  {shareStatus === 'copied' ? 'Copied' : shareStatus === 'error' ? 'Error' : shareActive ? 'Coach link active' : 'Coach link'}
-                </button>
-              </div>
-            </div>
-            <div className="grid w-full min-w-0 grid-cols-3 gap-2 lg:w-auto lg:min-w-[440px] [&>*]:min-h-[92px]">
-              <LoadRoomMetric latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} />
-              <AcwrMetric latest={latest} baselineReady={isBaselineReady} tone={zone.tone} />
-              <Metric label="Zone" value={zone.label} tone={zone.tone} />
-            </div>
-          </div>
-        </header>
-        <AthleteQuickNav activeView={activeView} />
-
+    <AthleteShell
+      active={activeView === 'home' ? 'today' : activeView}
+      title={activeView === 'home' ? 'Today' : activeView === 'calendar' ? 'Calendar' : 'Your load'}
+      subtitle={activeView === 'home' ? formatLongDay(new Date()) : activeView === 'calendar' ? 'Team sessions and your own plans' : 'Training load and ACWR, from your RPE entries'}
+      actions={
+        <button type="button" onClick={copyTrainerShareLink} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${shareStatus === 'copied' ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100' : shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
+          {shareStatus === 'copied' ? 'Link copied' : shareStatus === 'error' ? 'Could not copy' : shareActive ? 'Share with coach: on' : 'Share with coach'}
+        </button>
+      }
+    >
         {error ? <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 px-4 py-3 text-sm font-bold text-rose-100">{error}</div> : null}
 
+        {activeView !== 'calendar' ? (
+          <div className="grid w-full min-w-0 grid-cols-3 gap-2 [&>*]:min-h-[92px]">
+            <LoadRoomMetric latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} />
+            <AcwrMetric latest={latest} baselineReady={isBaselineReady} tone={zone.tone} />
+            <Metric label="Status" value={zone.tone === 'neutral' ? 'Building' : zone.label} tone={zone.tone} />
+          </div>
+        ) : null}
+
         {activeView === 'load' && !isBaselineReady ? (
-          <section className="rounded-[1.75rem] border border-amber-300/25 sm:rounded-[2rem] bg-amber-300/[0.08] p-4 text-sm font-bold text-amber-100">
+          <section className="rounded-2xl border border-amber-300/25 bg-amber-300/[0.08] p-4 text-sm font-bold text-amber-100">
             Load guidance gets reliable after about 30 recorded days.
           </section>
         ) : null}
 
-        {activeView !== 'calendar' ? (
-          <section className="grid min-w-0 items-stretch gap-5">
-            <div className="h-full min-w-0 overflow-hidden rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-300">Trend</p>
-                  <h2 className="mt-1 text-2xl font-black tracking-tight">Load trend</h2>
-                </div>
-                <span className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-black text-slate-300">{source === 'loading' ? 'Loading' : 'Local data'}</span>
-              </div>
-              <LoadChart entries={sortedEntries} pendingSessions={pendingSessions} />
-            </div>
+        {activeView === 'load' ? (
+          <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/65 p-4 sm:p-5">
+            <h2 className="mb-3 text-lg font-black">Trend</h2>
+            <LoadChart entries={sortedEntries} pendingSessions={pendingSessions} />
           </section>
         ) : null}
 
@@ -1825,11 +1825,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         ) : activeView === 'home' ? (
           <section className={`grid min-w-0 items-stretch gap-5 ${todayPending.length > 0 ? 'lg:grid-cols-[0.9fr_1.1fr]' : ''}`}>
             {todayPending.length > 0 ? (
-            <div className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 sm:p-5">
+            <div className="h-full min-w-0 rounded-3xl border border-amber-300/25 bg-slate-950/65 p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-rose-300">Pending</p>
-                  <h2 className="mt-1 text-2xl font-black tracking-tight">Needs input</h2>
+                  <h2 className="text-lg font-black">How hard was it?</h2>
+                  <p className="text-sm text-slate-400">Rate your past sessions so your load stays accurate.</p>
                 </div>
                 <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{todayPending.length}</span>
               </div>
@@ -1854,18 +1854,16 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             </div>
             ) : null}
 
-            <div className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 sm:p-5">
+            <div className="h-full min-w-0 rounded-3xl border border-slate-800/80 bg-slate-950/65 p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Calendar</p>
-                  <h2 className="mt-1 text-2xl font-black tracking-tight">Next up</h2>
-                </div>
-                <Link href="/athlete/calendar#athlete-calendar" className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:border-emerald-300 hover:text-emerald-100">Open</Link>
+                <h2 className="text-lg font-black">Next up</h2>
+                <Link href="/athlete/calendar" className="text-xs font-black text-sky-300 hover:text-sky-200">Calendar ›</Link>
               </div>
               {nextSession ? (
                 <button type="button" onClick={() => openCalendarItem({ id: nextSession.id, title: nextSession.title, date: nextSession.date, startsAt: nextSession.startsAt, endsAt: nextSession.endsAt, trainingType: nextSession.trainingType, teamName: nextSession.teamName, status: nextSession.date < todayISO() ? 'missing' : 'planned', source: nextSession.source ?? 'team_session', session: nextSession })} className="mt-4 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.06] p-5 text-left transition hover:border-emerald-300/55">
-                  <p className="text-3xl font-black tracking-tight">{nextSession.title}</p>
-                  <p className="mt-2 text-sm font-bold text-slate-300">{formatTime(nextSession.startsAt)}{nextSession.endsAt ? ` - ${formatTime(nextSession.endsAt)}` : ''} · {nextSession.teamName ?? 'Solo'}</p>
+                  <p className="text-2xl font-black tracking-tight">{nextSession.title}</p>
+                  <p className="mt-1 text-sm font-bold text-slate-300">{formatDay(nextSession.startsAt)} · {formatTime(nextSession.startsAt)}{nextSession.endsAt ? `–${formatTime(nextSession.endsAt)}` : ''} · {nextSession.teamName ?? 'Own plan'}</p>
+                  <p className="mt-3 text-xs font-bold text-emerald-200">{availabilityLabelFor(nextSession)}</p>
                 </button>
               ) : <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions planned</div>}
               {plans.length > 0 ? (
@@ -1886,7 +1884,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             </div>
           </section>
         ) : null}
-      </div>
       {activeDetailItem ? (
         <div className="fixed inset-0 z-[100] flex items-end bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
           <div className="w-full rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-md">
@@ -2108,48 +2105,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         onConfirm={confirmDeleteTarget}
         onCancel={() => setDeleteTarget(null)}
       />
-    </main>
-  );
-}
-
-const athleteNavItems: Array<{ view: AthleteView; label: string; href: string; icon: string }> = [
-  { view: 'home', label: 'Today', href: '/athlete/home', icon: '●' },
-  { view: 'calendar', label: 'Calendar', href: '/athlete/calendar#athlete-calendar', icon: '▦' },
-  { view: 'load', label: 'Load', href: '/athlete/load', icon: '⌁' },
-];
-
-function AthleteQuickNav({ activeView }: { activeView: AthleteView }) {
-  const linkClass = (isActive: boolean, compact = false) =>
-    `inline-flex items-center justify-center gap-2 rounded-full border font-black transition ${
-      compact ? 'min-w-0 flex-1 px-2.5 py-2 text-[11px]' : 'px-4 py-2 text-xs'
-    } ${
-      isActive
-        ? 'border-emerald-300 bg-emerald-300 text-slate-950 shadow-[0_10px_35px_rgba(110,231,183,0.18)]'
-        : 'border-slate-700 bg-slate-950/70 text-slate-200 hover:border-slate-500 hover:text-white'
-    }`;
-
-  return (
-    <>
-      <nav className="sticky top-3 z-30 hidden w-fit max-w-full self-center rounded-full border border-slate-800/90 bg-slate-950/85 p-1.5 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur sm:flex">
-        {athleteNavItems.map((item) => (
-          <Link key={item.view} href={item.href} className={linkClass(activeView === item.view)}>
-            <span aria-hidden="true">{item.icon}</span>
-            {item.label}
-          </Link>
-        ))}
-      </nav>
-      <nav
-        className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-3 gap-1 rounded-full border border-slate-800/90 bg-slate-950/90 p-1.5 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur sm:hidden"
-        style={{ paddingBottom: 'calc(0.375rem + env(safe-area-inset-bottom))' }}
-      >
-        {athleteNavItems.map((item) => (
-          <Link key={item.view} href={item.href} className={linkClass(activeView === item.view, true)}>
-            <span className="text-xs" aria-hidden="true">{item.icon}</span>
-            <span className="truncate">{item.label}</span>
-          </Link>
-        ))}
-      </nav>
-    </>
+    </AthleteShell>
   );
 }
 
@@ -2165,7 +2121,7 @@ function sessionEstimateLabel(au: number, averageSessionLoad: number) {
   if (au <= 0) return '0 sessions';
   const sessions = au / Math.max(averageSessionLoad, 1);
   if (sessions < 0.75) return '< 1 session';
-  return `about ${sessions.toFixed(1)} sessions`;
+  return `≈ ${sessions.toFixed(1)} sessions`;
 }
 
 function formatCompactNumber(value: number) {
@@ -2201,7 +2157,7 @@ function loadProfileWeekDateRange(key: string) {
   const start = new Date(`${key}T00:00:00`);
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
-  const short = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: '2-digit' });
+  const short = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: '2-digit' });
   return `${short.format(start)}-${short.format(end)}`;
 }
 
@@ -2212,7 +2168,7 @@ function loadProfileWeekLabel(key: string) {
   target.setUTCDate(target.getUTCDate() + 4 - day);
   const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
   const week = Math.ceil((((target.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7);
-  return `KW ${week}`;
+  return `Wk ${week}`;
 }
 
 function buildWeeklyLoadProfile(entries: AthleteLoadEntry[], trailingWeeks = 8): WeeklyLoadProfilePoint[] {
@@ -2259,7 +2215,7 @@ function buildWeeklyLoadDayProfile(entries: AthleteLoadEntry[], weekKey: string)
     const date = addDays(weekStartDate, index);
     return {
       key: isoDate(date),
-      label: new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(date),
+      label: new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(date),
       au: null as number | null,
       minutes: null as number | null,
       rpe: null as number | null,
@@ -2541,12 +2497,11 @@ function LoadDetailsPanel({
   const completedEntries = [...recentEntries].sort((a, b) => b.date.localeCompare(a.date) || (b.startsAt ?? '').localeCompare(a.startsAt ?? '')).slice(0, 8);
 
   return (
-    <section className="grid gap-5 xl:grid-cols-[1fr_0.75fr]">
+    <section className="grid items-start gap-5 xl:grid-cols-[1fr_0.75fr]">
       <div className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-amber-300">Load status</p>
-            <h2 className="mt-1 text-2xl font-black tracking-tight">Room and risk</h2>
+            <h2 className="text-lg font-black">Room and risk</h2>
           </div>
           <span className={`rounded-full border px-3 py-1.5 text-xs font-black ${zone.tone === 'high' ? 'border-rose-400/45 bg-rose-400/10 text-rose-100' : zone.tone === 'low' ? 'border-sky-400/45 bg-sky-400/10 text-sky-100' : zone.tone === 'ready' ? 'border-emerald-400/45 bg-emerald-400/10 text-emerald-100' : 'border-slate-700 text-slate-300'}`}>
             {currentAcwr !== null && baselineReady ? `${currentAcwr.toFixed(2)} ACWR` : 'Building'}
@@ -2599,8 +2554,7 @@ function LoadDetailsPanel({
       <div className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-300">Mix</p>
-            <h2 className="mt-1 text-2xl font-black tracking-tight">Last 28 days</h2>
+            <h2 className="text-lg font-black">Mix, last 28 days</h2>
           </div>
           <span className="text-xs font-black text-slate-500">{recentLoad} AU</span>
         </div>

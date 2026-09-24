@@ -119,7 +119,7 @@ export function formatConflictDescription(conflicts: ConflictSession[]) {
   if (!first) return 'This hall is already booked at this time.';
   const start = new Date(first.startsAt);
   const end = endDate(first.startsAt, first.endsAt);
-  const time = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
+  const time = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
   const owner = [first.teamName, first.departmentName].filter(Boolean).join(' / ');
   const rest = conflicts.length > 1 ? ` + ${conflicts.length - 1} more` : '';
   return `${first.facilityName ?? 'This hall'} already has ${first.title}${owner ? ` (${owner})` : ''} from ${time.format(start)} to ${time.format(end)}${rest}.`;

@@ -50,7 +50,7 @@ export const HOME_FOR_ROLE: Record<MembershipRole, string> = {
   athlete: '/athlete/home',
 };
 
-export function IdentitySwitcher({ className = '' }: { className?: string }) {
+export function IdentitySwitcher({ className = '', variant = 'card' }: { className?: string; variant?: 'card' | 'avatar' }) {
   const { database } = useLocalDatabase();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -145,17 +145,34 @@ export function IdentitySwitcher({ className = '' }: { className?: string }) {
     );
   }
 
+  const initials = current ? `${current.firstName.charAt(0)}${current.lastName.charAt(0)}`.toUpperCase() : '?';
+  const label = current ? `${ROLE_LABEL[identity!.role]}: ${displayName(current)}` : 'Choose a role';
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={`flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-200 ${className}`}
-      >
-        <span className="inline-block h-2 w-2 rounded-full bg-emerald-300" aria-hidden />
-        {current ? `${ROLE_LABEL[identity!.role]}: ${displayName(current)}` : 'Choose a role'}
-        <span aria-hidden className="text-slate-500">{remoteMode ? 'account' : 'switch'}</span>
-      </button>
+      {variant === 'avatar' ? (
+        // Phone headers: just the initials, the sheet says the rest.
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={`${label}. ${remoteMode ? 'Account' : 'Switch role'}`}
+          className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-700 bg-slate-900 text-xs font-black text-slate-100 ${className}`}
+        >
+          {initials}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={`flex min-w-0 items-center gap-2.5 rounded-2xl border border-slate-800 bg-slate-950/70 px-2.5 py-2 text-left text-xs font-bold text-slate-200 transition hover:border-slate-600 ${className}`}
+        >
+          <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-800 text-[11px] font-black text-slate-100">{initials}</span>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-black text-white">{current ? displayName(current) : 'Choose a role'}</span>
+            <span className="block truncate text-[11px] text-slate-400">{current ? ROLE_LABEL[identity!.role] : ''}{remoteMode ? ' · account' : ' · switch'}</span>
+          </span>
+        </button>
+      )}
 
       {open && mounted
         ? createPortal(

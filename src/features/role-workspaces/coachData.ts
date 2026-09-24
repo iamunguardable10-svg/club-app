@@ -116,9 +116,10 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
       clubId: team.clubId,
       name: team.name,
       departmentId: team.departmentId,
-      departmentName: departmentNameById.get(team.departmentId) ?? 'Abteilung',
+      departmentName: departmentNameById.get(team.departmentId) ?? 'Department',
       defaultFacilityId: team.defaultFacilityId,
       role: 'coach',
+      roleName: database.coachRoles.find((role) => role.id === coachMemberships.find((m) => m.teamId === team.id)?.coachRoleId)?.name ?? null,
       permissions: [...permissionsFor(team.id)],
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
