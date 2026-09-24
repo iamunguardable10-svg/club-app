@@ -1431,3 +1431,29 @@ Keine neue Migration.
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 - Gründungs-Code für den eigenen Verein per `app.create_founding_code` erzeugt.
 - Offen bei dir: Supabase Site URL / Redirect-URLs und E-Mail-Bestätigung (siehe Plan).
+
+## Run 14 — Stück 6: Als App installierbar (erledigt)
+
+Vorher: Live-Check der öffentlichen Adresse nach dem Merge von PR #14 (Build `19ca0e7`
+READY; Startseite mit Auswahl, Code-Vorschau und Gründungs-Code-Prüfung gegen Supabase,
+Demo als Vereinsadmin, keine Fehler).
+
+- **Manifest** (`src/app/manifest.ts`): „Club OS“, eigenes Fenster (standalone),
+  Hochformat, Start `/`, dunkle Farben der App, Icons 192/512 und maskierbar 512.
+- **Icons** in `public/icons/` (aus `icon.svg` gerendert), Favicon, Apple-Touch-Icon.
+- **Apple-Tags:** als Web-App startbar, Name unter dem Icon, dunkle Statusleiste
+  (`black`, damit nichts unter die Uhrzeit rutscht); Themenfarbe für Android.
+- **Service Worker** (`public/sw.js`): nur registrieren und übernehmen, bewusst ohne
+  Offline-Speicher und ohne Abfangen von Anfragen, damit nie Altes angezeigt wird. Push
+  (Stück 7) kommt hier dazu.
+- **Hinweis in der App:** Karte „Add Club OS to your home screen“ auf der ersten Seite
+  jeder Rolle, nur am Handy, bis installiert oder „Not now“ (auf dem Gerät gemerkt, über
+  die Datenschicht). iPhone: die Schritte in Safari (Teilen → Zum Home-Bildschirm);
+  Android/Samsung: Menü → App installieren, und wo der Browser es anbietet, ein
+  „Install“-Knopf mit dem Installationsdialog. Im Konto-Menü jederzeit „Install as app“.
+  Als installierte App erscheint nichts davon.
+
+Geprüft: Typecheck, Build, 16 Browser-Prüfungen (Manifest, Icons, Apple-Tags, Service
+Worker übernimmt, Chrome-Installierbarkeit ohne Fehler, Karte auf iPhone und Android mit
+den passenden Schritten, „Not now“ bleibt gemerkt, nur auf den Startseiten der Rollen, am
+Desktop nur im Konto-Menü, kein Überlauf, keine Fehler).

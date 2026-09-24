@@ -135,8 +135,9 @@ Wunsch vom 2026-09-24: Nicht alle Teams haben oder brauchen Load, je nach künft
   brauchen).
 - Hinweis in der App, wie man sie zum Homebildschirm hinzufügt (iPhone: Teilen → „Zum
   Home-Bildschirm“; Android/Samsung: Menü → „App installieren“).
-- **Entscheidung nötig:** App-Name auf dem Homebildschirm (Vorschlag: „Club OS“ oder
-  Vereinsname) und ob du ein Logo hast.
+- **Erledigt (Run 14):** Name „Club OS“ (eine App für alle Vereine, der Verein kommt
+  mit der Anmeldung), vorläufiges Icon (grünes Schild mit Haken, `public/icons/icon.svg`;
+  ein eigenes Logo ersetzt die Dateien in `public/icons/`).
 
 ### 7 Benachrichtigungen
 

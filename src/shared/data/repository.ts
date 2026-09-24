@@ -116,6 +116,27 @@ export function setBackendChoice(choice: BackendChoice): void {
   backendChoice = choice;
 }
 
+const INSTALL_HINT_KEY = 'club-app.install-hint-dismissed';
+
+/** Whether "Add Club OS to your home screen" was dismissed on this device. */
+export function isInstallHintDismissed(): boolean {
+  if (!isBrowser()) return true;
+  try {
+    return window.localStorage.getItem(INSTALL_HINT_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function dismissInstallHint(): void {
+  if (!isBrowser()) return;
+  try {
+    window.localStorage.setItem(INSTALL_HINT_KEY, '1');
+  } catch {
+    // Not remembering is fine; the hint just shows again next time.
+  }
+}
+
 /** Whether this page talks to the pilot database instead of localStorage. */
 export function isRemoteMode(): boolean {
   return remote !== null || getBackendChoice() === 'server';

@@ -15,6 +15,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
+import { InstallHint } from '@/features/install/InstallHint';
 import { getActivePerson, useLocalDatabase } from '@/shared/data';
 
 export type CoachNavItem = 'today' | 'calendar' | 'team' | 'halls' | 'history';
@@ -134,7 +135,11 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
         {actions ? <div className="flex flex-wrap items-center gap-2 px-4 pb-3 md:hidden">{actions}</div> : null}
       </header>
 
-      <div className="mx-auto w-full max-w-6xl space-y-5 px-4 pt-4 sm:px-8 md:pt-6">{children}</div>
+      <div className="mx-auto w-full max-w-6xl space-y-5 px-4 pt-4 sm:px-8 md:pt-6">
+        {/* On the first page of each role only, so it is seen once and not everywhere. */}
+        {active === 'today' || active === 'club' ? <InstallHint variant="card" /> : null}
+        {children}
+      </div>
 
       {tabBar ? <nav className="fixed inset-x-0 bottom-0 z-[70] border-t border-slate-800 bg-slate-950/95 px-2 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 text-white backdrop-blur-xl md:hidden" aria-label="Main navigation">
         <div className={`mx-auto grid max-w-lg ${columns} gap-1`}>
