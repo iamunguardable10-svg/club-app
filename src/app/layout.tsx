@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { SyncStatusBanner } from '@/shared/components/SyncStatusBanner';
+import { AccessGate } from '@/features/access/AccessGate';
 
 export const metadata: Metadata = {
   title: 'Club App / TeamLoad OS',
-  description: 'A club operating system for coaches and athletes. Local test mode, no account needed.',
+  description: 'A club operating system for coaches and athletes. Sign in with your club, or test locally without an account.',
 };
 
 
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         {children}
         <SyncStatusBanner />
+        <AccessGate />
       </body>
     </html>
   );

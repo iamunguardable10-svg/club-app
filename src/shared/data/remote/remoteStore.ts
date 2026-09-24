@@ -46,6 +46,8 @@ export interface RemoteClient {
   /** Returns how many rows changed; 0 when row-level security hid the row. */
   update(table: TableName, key: Row, changes: Row): Promise<number>;
   delete(table: TableName, key: Row): Promise<number>;
+  /** Calls one of the database functions the app may call (join_team, accept_staff_invite, invite_preview). */
+  rpc(name: string, args: Row): Promise<unknown>;
 }
 
 export type Operation =
@@ -129,6 +131,7 @@ export class RemoteStore {
   private status: RemoteStatus = { phase: 'loading', error: null, rejected: null, pending: 0 };
   private queue: Promise<void> = Promise.resolve();
   private listeners = new Set<() => void>();
+  private userId: string | null = null;
 
   constructor(
     private readonly client: RemoteClient,
@@ -156,6 +159,11 @@ export class RemoteStore {
     return this.status;
   }
 
+  /** The signed-in account, as of the last load. */
+  getUserId(): string | null {
+    return this.userId;
+  }
+
   clearRejected() {
     this.setStatus({ rejected: null });
     this.notify();
@@ -165,6 +173,7 @@ export class RemoteStore {
   async load(): Promise<void> {
     try {
       const userId = await this.client.userId();
+      this.userId = userId;
       if (!userId) {
         this.document = null;
         this.setStatus({ phase: 'signedOut', error: null });
@@ -174,7 +183,9 @@ export class RemoteStore {
       const rows = Object.fromEntries(TABLES.map((table, index) => [table.name, tables[index]])) as ServerRows;
       const document = fromServerRows(rows, { userId, version: this.version, previous: this.document });
       this.document = document;
-      this.setStatus({ phase: document ? 'ready' : 'unlinked', error: null });
+      // Signed in, but not (or no longer) anyone in a team: the account needs
+      // a join code or an invitation first.
+      this.setStatus({ phase: document?.activeIdentity ? 'ready' : 'unlinked', error: null });
     } catch (error) {
       this.setStatus({ phase: 'error', error: error instanceof Error ? error.message : String(error) });
     } finally {
@@ -209,6 +220,18 @@ export class RemoteStore {
   /** Resolves once everything sent so far has been answered. */
   flush(): Promise<void> {
     return this.queue;
+  }
+
+  /**
+   * Calls a database function after everything queued has been sent, then
+   * reloads: joining a team or accepting an invitation changes what this
+   * user may read.
+   */
+  async call(name: string, args: Row): Promise<unknown> {
+    await this.queue;
+    const result = await this.client.rpc(name, args);
+    await this.load();
+    return result;
   }
 
   private async push(operations: Operation[]) {

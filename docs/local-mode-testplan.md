@@ -286,3 +286,43 @@ Telefonbreite 390 × 844, Produktions-Build, frische Testdaten, ohne Geoapify-Sc
 `/coach/today`, `/coach/team`: „Nicht angemeldet.“; `/athlete/home` zeigt den Rahmen und
 dieselbe Meldung. Keine Anfrage an Supabase, kein lokales Testdokument, keine
 Laufzeitfehler.
+
+## Run 10 — Zugang (2026-09-24)
+
+### Datenbank lokal
+
+`supabase/pilot/tests/run-local.sh`: 75 + 35 Prüfungen, `npm run test:pilot`: 50
+Prüfungen, alle bestanden. Neu u. a.: Betreuer sieht keinen Code und keine Einladungen;
+keine Einladung für Spieler oder Personen mit Konto; ohne Anmeldung nur die
+Einladungsvorschau; falscher Code und fehlende Namen abgelehnt; zweimal beitreten
+ändert nichts; eine Einladung gilt einmal, abgelaufene gar nicht; Annahme durch
+jemanden, der schon im Verein ist, führt zu einer Person mit zwei Teams;
+`setup_club` legt Verein, Team mit vier Rollen, Code, Halle und Head-Coach-Einladung an
+und ist aus der App nicht aufrufbar.
+
+### Live gegen das Supabase-Projekt, 390 × 844
+
+| Schritt | Ergebnis |
+|---|---|
+| Servermodus, nicht angemeldet, `/coach/today` | weiter auf `/login?next=%2Fcoach%2Ftoday` |
+| `/join?invite=…` | „Testa Trainerin · Head Coach · Test-U16 · Claude-Testverein“ |
+| Anmelden, „Einladung annehmen“ | `/coach/today` als Testa Trainerin; Datenbank: verknüpft, Head Coach |
+| Trainerteam | Code „Q664-X4NR“, „Konto verbunden“; Tina Test angelegt, Einladungslink erstellt |
+| `/join?code=…`, Anmelden als Spieler | Code vorbefüllt; Beitritt → `/athlete/home` als Sam Spieler |
+| Spieler sagt künftige Einheit mit Grund ab | `availability` out + `availability_reasons` „Klassenfahrt“ |
+| Trainerin, Spielerliste | Sam Spieler sichtbar |
+| Abmelden, „Ohne Anmeldung lokal testen“ | lokaler Testverein, als Martin Weber weiter |
+| Laufzeitfehler | keine |
+
+Im Testlauf gefunden und behoben: Auf `/join` startete die Verbindung zum Server-Speicher
+nie, „Einladung annehmen“ blieb grau.
+
+### Lokaler Modus im selben Build
+
+Startseite mit beiden Wegen; Trainer- und Spielerrouten fehlerfrei; im Trainerteam
+kein Code und keine Einladungen; Identitätsmenü mit „Mit Konto anmelden“ und
+„Testdaten zurücksetzen“, ohne „Abmelden“; 0 Anfragen an Supabase.
+
+Hinweis für Browser-Tests hier: Der Test-Browser muss die App über die Container-
+Adresse statt `localhost` öffnen (sonst läuft auch sie über den Proxy) und mit
+`--ignore-certificate-errors` starten; sonst dauert jede Supabase-Anfrage 16 Sekunden.

@@ -1,31 +1,109 @@
 'use client';
 
 /**
- * Entry page: pick a role and start.
+ * Entry page.
  *
- * Replaces the marketing landing page, which linked to /admin/setup and
- * /department/overview — areas that leave the active app in run 5 — and
- * advertised "No login required", which is now simply true.
+ * Two ways in, side by side:
+ * - With the club (pilot server): sign in, or create an account and join.
+ * - Without an account (local test mode): pick a role and start in a test
+ *   club that lives in this browser — no sign-up, no intermediate step.
  *
- * Deliberately plain. There is no sign-up, no onboarding and no intermediate
- * step: the whole point of the local test mode is that opening the app puts
- * you straight into a working club.
+ * Which one a device uses is remembered (`getBackendChoice`); the other one
+ * is always one tap away here and in the identity menu.
  */
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 import {
   athletesForTeam,
   displayName,
+  getActivePerson,
+  isRemoteMode,
+  isServerAvailable,
   peopleWithRole,
+  readDatabase,
   setActiveIdentity,
+  signOut,
   teamsForPerson,
+  useBackendStatus,
   useLocalDatabase,
   type MembershipRole,
 } from '@/shared/data';
 import { HOME_FOR_ROLE } from '@/features/identity/IdentitySwitcher';
+import { LocalModeLink } from '@/features/access/LocalModeLink';
 
 export default function EntryPage() {
+  // Decided after mounting: the choice lives in this browser, so the server
+  // render cannot know it.
+  const [mode, setMode] = useState<'local' | 'server' | null>(null);
+  useEffect(() => setMode(isRemoteMode() ? 'server' : 'local'), []);
+  if (mode === null) return null;
+  return mode === 'server' ? <ServerEntry /> : <LocalEntry />;
+}
+
+function ClubCard() {
+  return (
+    <section className="os-panel grid gap-3 p-5">
+      <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Mit deinem Verein</p>
+      <p className="text-sm text-slate-300">Mit Konto: deine echten Einheiten, dein Team, auf allen Geräten.</p>
+      <div className="flex flex-wrap gap-2">
+        <Link href="/login" className="os-success justify-center">Anmelden</Link>
+        <Link href="/login?mode=signUp&next=%2Fjoin" className="rounded-2xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-200">Konto erstellen</Link>
+      </div>
+    </section>
+  );
+}
+
+function ServerEntry() {
+  const status = useBackendStatus();
+  // Reading starts the connection to the server.
+  useLocalDatabase();
+  const database = status.phase === 'ready' ? readDatabase() : null;
+  const person = database ? getActivePerson(database) : null;
+  const identity = database?.activeIdentity ?? null;
+
+  return (
+    <main className="os-page">
+      <div className="os-container max-w-2xl space-y-5">
+        <header className="os-hero p-6">
+          <p className="os-kicker">Club OS</p>
+          <h1 className="os-title mt-2">{database ? database.club.name : 'Willkommen'}</h1>
+        </header>
+        {status.phase === 'loading' ? <section className="os-panel p-5 text-sm text-slate-400">Verbindung zum Verein …</section> : null}
+        {status.phase === 'signedOut' ? <ClubCard /> : null}
+        {status.phase === 'unlinked' ? (
+          <section className="os-panel grid gap-3 p-5 text-sm text-slate-300">
+            <p>Dein Konto ist noch in keinem Team.</p>
+            <Link href="/join" className="os-success justify-center">Mit Code beitreten</Link>
+          </section>
+        ) : null}
+        {status.phase === 'error' ? (
+          <section className="rounded-3xl border border-red-500/40 bg-red-950/30 p-5 text-sm text-red-100">
+            Die Daten konnten nicht vom Server geladen werden. {status.error}
+          </section>
+        ) : null}
+        {person && identity ? (
+          <section className="os-panel grid gap-3 p-5">
+            <p className="text-sm text-slate-300">Angemeldet als <span className="font-bold text-white">{displayName(person)}</span></p>
+            <Link href={HOME_FOR_ROLE[identity.role]} className="os-success justify-center">Weiter</Link>
+          </section>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-4">
+          {status.phase === 'ready' || status.phase === 'unlinked' ? (
+            <button type="button" onClick={async () => { await signOut(); window.location.assign('/'); }} className="text-xs font-bold text-slate-400 underline">
+              Abmelden
+            </button>
+          ) : null}
+          <LocalModeLink />
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function LocalEntry() {
   const { database, error, ready } = useLocalDatabase();
   const router = useRouter();
 
@@ -80,6 +158,13 @@ export default function EntryPage() {
             und beide Perspektiven arbeiten auf denselben Daten.
           </p>
         </header>
+
+        {isServerAvailable() ? (
+          <>
+            <ClubCard />
+            <p className="px-1 text-xs font-black uppercase tracking-[0.18em] text-slate-500">Oder ohne Anmeldung testen, mit einem Testverein nur in diesem Browser</p>
+          </>
+        ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <button

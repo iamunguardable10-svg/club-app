@@ -172,9 +172,14 @@ Doppelpflege mit.
 
 **Stand 2026-09-24:** Schritt 1 (Trainerrollen) und Schritt 2 (Hallen) sind erledigt,
 siehe `docs/simplify-progress.md`, Run 7 und Run 8. Schritt 3 ist erledigt: Datenbank
-(Run 9a, `supabase/pilot/`) und Server-Speicher hinter der Datenschicht (Run 9b,
-Schalter `NEXT_PUBLIC_DATA_BACKEND=supabase`). Eingeschaltet wird er erst mit dem Zugang
-(Schritt 4). Bis Schritt 3 und 4 formen die Rechte nur die
-Oberfläche: im lokalen Modus kann jeder die Identität wechseln. Wer eine Ansicht
+(Run 9a, `supabase/pilot/`) und Server-Speicher hinter der Datenschicht (Run 9b). Schritt 4
+ist erledigt (Run 10): Anmeldung mit E-Mail und Passwort, Beitrittscode für Spieler,
+Einladungslink für Trainer, Einrichtung eines Vereins per Datenbankfunktion.
+
+**Der lokale Testmodus bleibt, ohne Anmeldung** (Entscheidung vom 2026-09-24): Auf
+der Startseite steht er neben „Anmelden“, jedes Gerät wählt selbst und kann jederzeit
+zurück. Er berührt den Server nie. Im lokalen Modus formen die Rechte weiter nur die
+Oberfläche, weil jeder die Identität wechseln kann; mit Anmeldung setzt die Datenbank
+sie durch. Wer eine Ansicht
 ändert, prüft Rechte über `coachPermissions`/`hasCoachPermission` aus `@/shared/data`,
 nie über URL-Parameter.

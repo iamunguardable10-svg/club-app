@@ -1025,3 +1025,61 @@ Der Servermodus gegen das echte Supabase-Projekt: Aus dieser Umgebung ist
 ohnehin nichts zu lesen. Die supabase-js-Anbindung (`supabaseBackend.ts`) ist deshalb
 nur über Typen und den Probelauf ohne Anmeldung belegt; sie ist bewusst dünn (lesen mit
 Seitenweise-Abruf, anlegen, ändern und löschen nach Schlüssel).
+
+## Run 10 — Zugang (erledigt)
+
+Schritt 4 aus Entscheidung 8. Anmeldung mit E-Mail und Passwort, Beitrittscode für
+Spieler, Einladungslink für Trainer — und, auf Wunsch vom 2026-09-24, weiterhin ein Weg
+ohne Anmeldung, bei dem alles lokal läuft.
+
+### Zwei Wege, pro Gerät gewählt
+
+- Die Startseite zeigt „Mit deinem Verein“ (Anmelden, Konto erstellen) und darunter
+  den lokalen Testmodus wie bisher. Die Wahl merkt sich das Gerät
+  (`getBackendChoice`); zurück geht es jederzeit über „Ohne Anmeldung lokal testen“
+  (Startseite, Anmeldeseite, Identitätsmenü) bzw. „Mit Konto anmelden“.
+- Der lokale Modus berührt den Server nie (im Browser geprüft: 0 Anfragen) und zeigt
+  keine Codes oder Einladungen.
+- Der Schalter `NEXT_PUBLIC_DATA_BACKEND` aus Run 9b entfällt. Sind URL und Key gesetzt,
+  gibt es beide Wege; sonst nur den lokalen.
+
+### Wie Menschen hineinkommen
+
+| Wer | Weg |
+|---|---|
+| erster Head Coach | Verein per `app.setup_club(...)` anlegen (SQL, einmalig); der zurückgegebene Link `/join?invite=…` führt zu Konto und Team |
+| weitere Trainer | im Trainerteam per Name anlegen, „Einladungslink erstellen“, Link schicken; gilt 30 Tage, einmal |
+| Spieler | Konto erstellen, Beitrittscode des Teams eingeben (oder Link `/join?code=…`); Code im Trainerteam, erneuerbar |
+
+Wer ohne Anmeldung eine geschützte Seite öffnet, landet auf `/login` und danach wieder
+dort; wer angemeldet, aber in keinem Team ist, auf `/join` (`AccessGate`). Abmelden im
+Identitätsmenü. Nimmt jemand, der schon Trainer im Verein ist, eine weitere Einladung an,
+bleibt er eine Person mit beiden Teams.
+
+### Datenbank (Migrationen 0004, 0005)
+
+- `team_join_codes`, `staff_invites`, je mit Zugriffsregeln (nur `manageStaff`).
+- `join_team`, `accept_staff_invite`, `invite_preview`: die einzigen Funktionen, die die
+  App direkt aufruft. `app.setup_club` nur für den Datenbank-Eigentümer.
+- 35 neue Zugriffsprüfungen, alle bestanden.
+
+### Live gegen Supabase geprüft (Handybreite, Testverein danach gelöscht)
+
+Nicht angemeldet → Weiterleitung auf `/login`; Einladung zeigt „Testa Trainerin · Head
+Coach · Test-U16“; Anmelden, Einladung annehmen → Trainerstart; im Trainerteam Code und
+„Konto verbunden“; Person angelegt und eingeladen; Spieler meldet sich an, Code ist
+vorbefüllt, Beitritt → Spielerstart; Absage mit Grund landet als `availability` und
+`availability_reasons`; die Trainerin sieht den neuen Spieler; Abmelden; lokaler Modus
+startet mit Testverein. Keine Laufzeitfehler. Danach: 0 Vereine, 0 Konten im Projekt.
+
+### Offen, außerhalb des Codes
+
+- **E-Mail-Bestätigung:** im Projekt eingeschaltet. Supabases eingebauter Mailversand
+  erreicht nur wenige Adressen pro Stunde. Für den Pilot die Bestätigung ausschalten
+  oder eigenes SMTP einrichten; außerdem die App-Adresse als Site URL und
+  Redirect-URL eintragen.
+- „Passwort vergessen“ fehlt noch (braucht ebenfalls Mailversand).
+- Der echte Verein ist noch nicht angelegt: Es fehlen Name, Stadt, Abteilung, Team,
+  Name des Head Coaches und optional die Halle.
+- Die App muss unter einer festen Adresse laufen (z. B. Vercel), mit URL und Key als
+  Umgebungsvariablen.

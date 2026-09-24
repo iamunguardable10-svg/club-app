@@ -18,11 +18,17 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import Link from 'next/link';
+
+import { LocalModeLink } from '@/features/access/LocalModeLink';
 
 import {
   displayName,
   peopleWithRole,
   isRemoteMode,
+  isServerAvailable,
+  signOut,
+  ownPersonIds,
   resetDatabase,
   setActiveIdentity,
   teamsForPerson,
@@ -92,10 +98,10 @@ export function IdentitySwitcher({ className = '' }: { className?: string }) {
   // With the server you are always yourself; the sheet only offers your own
   // roles and has no test data to reset.
   const remoteMode = isRemoteMode();
-  const ownUserId = current?.userId ?? null;
+  const own = ownPersonIds(database);
 
   function renderGroup(role: MembershipRole) {
-    const people = peopleWithRole(database!, role).filter((person) => !remoteMode || (ownUserId !== null && person.userId === ownUserId));
+    const people = peopleWithRole(database!, role).filter((person) => !remoteMode || own.includes(person.id));
     if (people.length === 0) return null;
     return (
       <div key={role} className="space-y-2">
@@ -176,7 +182,24 @@ export function IdentitySwitcher({ className = '' }: { className?: string }) {
             {/* Reset lives here because this sheet is reachable from both the
                 coach and the athlete side. Two steps, in place: a browser
                 confirm() is easy to dismiss by accident on a phone. */}
-            {remoteMode ? null : <div className="mt-6 border-t border-slate-800 pt-4">
+            <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-800 pt-4">
+              {remoteMode ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={async () => { await signOut(); window.location.assign('/'); }}
+                    className="rounded-2xl border border-slate-700 px-4 py-2 text-xs font-black text-slate-200"
+                  >
+                    Abmelden
+                  </button>
+                  <LocalModeLink />
+                </>
+              ) : isServerAvailable() ? (
+                <Link href="/login" className="text-xs font-bold text-slate-400 underline">Mit Konto anmelden</Link>
+              ) : null}
+            </div>
+
+            {remoteMode ? null : <div className="mt-4 border-t border-slate-800 pt-4">
               {confirmReset ? (
                 <div className="space-y-3">
                   <p className="text-sm text-slate-300">

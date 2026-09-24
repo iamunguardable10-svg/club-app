@@ -41,10 +41,12 @@ export const TABLES: readonly TableSpec[] = [
   { name: 'departments', key: ['id'], readOnly: true },
   { name: 'facilities', key: ['id'] },
   { name: 'teams', key: ['id'], kinds: { created_at: 'timestamp' } },
+  { name: 'team_join_codes', key: ['team_id'], kinds: { created_at: 'timestamp' } },
   { name: 'department_facilities', key: ['department_id', 'facility_id'] },
   { name: 'people', key: ['id'], kinds: { created_at: 'timestamp' } },
   { name: 'coach_roles', key: ['id'], kinds: { created_at: 'timestamp' } },
   { name: 'memberships', key: ['id'], kinds: { created_at: 'timestamp' } },
+  { name: 'staff_invites', key: ['token'], kinds: { created_at: 'timestamp', expires_at: 'timestamp', accepted_at: 'timestamp' } },
   { name: 'player_groups', key: ['id'] },
   { name: 'player_group_members', key: ['group_id', 'person_id'] },
   { name: 'session_series', key: ['id'], kinds: { start_time: 'time', end_time: 'time', created_at: 'timestamp' } },
@@ -59,7 +61,8 @@ export const TABLES: readonly TableSpec[] = [
 ];
 
 export type TableName =
-  | 'clubs' | 'departments' | 'facilities' | 'teams' | 'department_facilities' | 'people' | 'coach_roles'
+  | 'clubs' | 'departments' | 'facilities' | 'teams' | 'team_join_codes' | 'department_facilities' | 'people' | 'coach_roles'
+  | 'staff_invites'
   | 'memberships' | 'player_groups' | 'player_group_members' | 'session_series' | 'sessions'
   | 'session_series_week_states' | 'availability' | 'availability_reasons' | 'load_entries'
   | 'load_summaries' | 'athlete_plans' | 'acknowledged_sessions';
@@ -108,6 +111,10 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     facilities: database.facilities.map((f) => ({ id: f.id, club_id: f.clubId, name: f.name, address: f.address })),
     teams: database.teams.map((t) => ({
       id: t.id, club_id: t.clubId, department_id: t.departmentId, name: t.name, default_facility_id: t.defaultFacilityId, created_at: t.createdAt,
+    })),
+    team_join_codes: database.joinCodes.map((c) => ({ team_id: c.teamId, code: c.code, created_at: c.createdAt })),
+    staff_invites: database.staffInvites.map((i) => ({
+      token: i.token, person_id: i.personId, team_id: i.teamId, created_at: i.createdAt, expires_at: i.expiresAt, accepted_at: i.acceptedAt,
     })),
     department_facilities: database.departmentFacilities.map((l) => ({ department_id: l.departmentId, facility_id: l.facilityId })),
     people: database.people.map((p) => ({
@@ -208,6 +215,11 @@ export function fromServerRows(
     coachRoles: rows.coach_roles.map((r) => ({
       id: s(r.id), teamId: s(r.team_id), name: s(r.name), permissions: r.permissions as LocalDatabase['coachRoles'][number]['permissions'],
       locked: Boolean(r.locked), createdAt: s(r.created_at),
+    })),
+    joinCodes: rows.team_join_codes.map((c) => ({ teamId: s(c.team_id), code: s(c.code), createdAt: s(c.created_at) })),
+    staffInvites: rows.staff_invites.map((i) => ({
+      token: s(i.token), personId: s(i.person_id), teamId: s(i.team_id), createdAt: s(i.created_at), expiresAt: s(i.expires_at),
+      acceptedAt: sn(i.accepted_at),
     })),
     playerGroups: rows.player_groups.map((g) => ({ id: s(g.id), teamId: s(g.team_id), name: s(g.name) })),
     playerGroupMembers: rows.player_group_members.map((m) => ({ groupId: s(m.group_id), personId: s(m.person_id) })),

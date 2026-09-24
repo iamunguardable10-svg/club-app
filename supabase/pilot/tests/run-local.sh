@@ -11,5 +11,7 @@ PSQL=(psql -v ON_ERROR_STOP=1 -q)
 "${PSQL[@]}" -d "$DB" -f "$DIR/tests/00_supabase_shim.sql"
 for f in "$DIR"/migrations/*.sql; do "${PSQL[@]}" -d "$DB" -f "$f" >/dev/null; done
 if [ "${SKIP_RLS_TESTS:-}" != "1" ]; then
-  "${PSQL[@]}" -d "$DB" -f "$DIR/tests/01_rls_test.sql" 2>&1 | grep -E "FAIL|ERROR|passed" || true
+  for t in "$DIR"/tests/[0-9][0-9]_*_test.sql; do
+    "${PSQL[@]}" -d "$DB" -f "$t" 2>&1 | grep -E "FAIL|ERROR|passed" || true
+  done
 fi

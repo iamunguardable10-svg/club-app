@@ -18,8 +18,10 @@
  *    seeded. A present but unreadable document is an error and is thrown, not
  *    quietly replaced with fresh test data.
  *
- * With `NEXT_PUBLIC_DATA_BACKEND=supabase` the same document is backed by the
+ * When the build knows the pilot server (Supabase URL and key) and this
+ * device chose it on the start page, the same document is backed by the
  * pilot database instead (`./remote`, docs/simplify-decisions.md point 8).
+ * The local test mode stays available on every device, without an account.
  * Every function below works unchanged in both modes: reads come from the
  * document, writes go through `mutate`, and only `readDatabase`/`mutate`
  * know where the document lives.
@@ -47,6 +49,7 @@ import {
   type Person,
   type Session,
   type SessionSeries,
+  type StaffInvite,
   type SessionType,
   type Team,
 } from './schema';
@@ -57,9 +60,47 @@ type Listener = () => void;
 let remote: RemoteStore | null = null;
 let remoteStarting = false;
 
-/** Whether this build talks to the pilot database instead of localStorage. */
+const BACKEND_CHOICE_KEY = 'club-app.backend';
+
+export type BackendChoice = 'local' | 'server';
+
+let backendChoice: BackendChoice | null = null;
+
+/** Whether this build knows a pilot server at all. */
+export function isServerAvailable(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+}
+
+/**
+ * Which store this device uses: the pilot server (with sign-in) or the local
+ * test mode (no account, test data in this browser). Chosen on the start
+ * page; the local mode is the default and always available.
+ */
+export function getBackendChoice(): BackendChoice {
+  if (!isServerAvailable() || !isBrowser()) return 'local';
+  if (backendChoice === null) {
+    try {
+      backendChoice = window.localStorage.getItem(BACKEND_CHOICE_KEY) === 'server' ? 'server' : 'local';
+    } catch {
+      backendChoice = 'local';
+    }
+  }
+  return backendChoice;
+}
+
+/**
+ * Remembers the choice for this device. Callers then load a new page
+ * (`window.location.assign`): the two modes never share a document in memory.
+ */
+export function setBackendChoice(choice: BackendChoice): void {
+  if (!isBrowser()) return;
+  window.localStorage.setItem(BACKEND_CHOICE_KEY, choice);
+  backendChoice = choice;
+}
+
+/** Whether this page talks to the pilot database instead of localStorage. */
 export function isRemoteMode(): boolean {
-  return process.env.NEXT_PUBLIC_DATA_BACKEND === 'supabase';
+  return remote !== null || getBackendChoice() === 'server';
 }
 
 const listeners = new Set<Listener>();
@@ -259,7 +300,7 @@ export type BackendStatus = {
 
 /** Where the data comes from and whether it is there yet. */
 export function getBackendStatus(): BackendStatus {
-  if (!isRemoteMode() && !remote) return { mode: 'local', phase: 'ready', error: null, rejected: null, pending: 0 };
+  if (!isRemoteMode()) return { mode: 'local', phase: 'ready', error: null, rejected: null, pending: 0 };
   if (remoteLoadError) return { mode: 'remote', phase: 'error', error: remoteLoadError, rejected: null, pending: 0 };
   if (!remote) return { mode: 'remote', phase: 'loading', error: null, rejected: null, pending: 0 };
   return { mode: 'remote', ...remote.getStatus() };
@@ -311,7 +352,7 @@ export function subscribe(listener: Listener): () => void {
 
 /** Drops the local database and seeds a fresh test club. */
 export function resetDatabase(): void {
-  if (remote || isRemoteMode()) throw new LocalDataError('Mit dem Server gibt es keine Testdaten zum Zurücksetzen.');
+  if (isRemoteMode()) throw new LocalDataError('Mit dem Server gibt es keine Testdaten zum Zurücksetzen.');
   if (!isBrowser()) return;
   cache = null;
   window.localStorage.removeItem(DATABASE_KEY);
@@ -334,6 +375,172 @@ if (isBrowser()) {
 }
 
 // ---------------------------------------------------------------------------
+// Accounts and access (pilot server)
+// ---------------------------------------------------------------------------
+
+function supabaseModule() {
+  return import('./remote/supabaseBackend');
+}
+
+async function authClient() {
+  if (!isBrowser()) throw new LocalDataError('Anmelden geht nur im Browser.');
+  const { getSupabase, authStorage } = await supabaseModule();
+  return getSupabase(authStorage(window.localStorage));
+}
+
+/** Supabase answers in English; these are the messages people actually meet. */
+function authMessage(message: string): string {
+  const known: [RegExp, string][] = [
+    [/invalid login credentials/i, 'E-Mail oder Passwort stimmt nicht.'],
+    [/email not confirmed/i, 'Bitte bestätige zuerst deine E-Mail-Adresse über den Link in der Mail.'],
+    [/already registered|already exists/i, 'Mit dieser E-Mail gibt es schon ein Konto. Melde dich an.'],
+    [/password should be at least (\d+)/i, 'Das Passwort ist zu kurz.'],
+    [/rate limit|too many/i, 'Zu viele Versuche. Bitte warte kurz und versuche es dann noch einmal.'],
+    [/not authorized/i, 'An diese E-Mail-Adresse kann der Server gerade keine Mails schicken.'],
+    [/unable to validate email|invalid format|invalid email/i, 'Diese E-Mail-Adresse sieht nicht gültig aus.'],
+  ];
+  return known.find(([pattern]) => pattern.test(message))?.[1] ?? message;
+}
+
+export async function signInWithPassword(email: string, password: string): Promise<void> {
+  const supabase = await authClient();
+  const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+  if (error) throw new LocalDataError(authMessage(error.message));
+}
+
+/**
+ * Creates an account. When the project asks for e-mail confirmation there is
+ * no session yet and the person has to click the link in the mail first.
+ */
+export async function signUpWithPassword(email: string, password: string, returnTo: string): Promise<{ confirmationNeeded: boolean }> {
+  const supabase = await authClient();
+  const { data, error } = await supabase.auth.signUp({
+    email: email.trim(),
+    password,
+    options: { emailRedirectTo: `${window.location.origin}${returnTo}` },
+  });
+  if (error) throw new LocalDataError(authMessage(error.message));
+  return { confirmationNeeded: !data.session };
+}
+
+export async function signOut(): Promise<void> {
+  const supabase = await authClient();
+  await supabase.auth.signOut();
+}
+
+/** The signed-in account, or null. */
+export async function currentAccount(): Promise<{ email: string } | null> {
+  if (!isServerAvailable()) return null;
+  const supabase = await authClient();
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user.email ? { email: data.session.user.email } : null;
+}
+
+export type InvitePreview = {
+  clubName: string;
+  teamName: string;
+  firstName: string;
+  lastName: string;
+  roleName: string | null;
+  usable: boolean;
+};
+
+/** What an invitation link is for; works before signing in. */
+export async function previewInvite(token: string): Promise<InvitePreview | null> {
+  const supabase = await authClient();
+  const { data, error } = await supabase.rpc('invite_preview', { p_token: token });
+  if (error) throw new LocalDataError(error.message);
+  const row = (data as Record<string, unknown>[] | null)?.[0];
+  if (!row) return null;
+  return {
+    clubName: String(row.club_name), teamName: String(row.team_name), firstName: String(row.first_name),
+    lastName: String(row.last_name), roleName: row.role_name ? String(row.role_name) : null, usable: Boolean(row.usable),
+  };
+}
+
+function requireRemote(): RemoteStore {
+  if (!remote) throw new LocalDataError('Beitreten geht nur mit dem Server und nach dem Anmelden.');
+  return remote;
+}
+
+/** Joins the team behind a join code as an athlete. Returns the team id. */
+export async function joinTeamWithCode(code: string, firstName: string, lastName: string): Promise<Id> {
+  try {
+    return (await requireRemote().call('join_team', { p_code: code, p_first_name: firstName, p_last_name: lastName })) as Id;
+  } catch (error) {
+    throw error instanceof LocalDataError ? error : new LocalDataError(error instanceof Error ? error.message : String(error));
+  }
+}
+
+/** Links the signed-in account to the invited staff member. Returns the team id. */
+export async function acceptStaffInvite(token: string): Promise<Id> {
+  try {
+    return (await requireRemote().call('accept_staff_invite', { p_token: token })) as Id;
+  } catch (error) {
+    throw error instanceof LocalDataError ? error : new LocalDataError(error instanceof Error ? error.message : String(error));
+  }
+}
+
+/**
+ * The people this device acts as. With the server: every person linked to
+ * the signed-in account (one per club). Locally: whoever is active.
+ */
+export function ownPersonIds(database: LocalDatabase): Id[] {
+  const userId = remote?.getUserId();
+  if (userId) return database.people.filter((person) => person.userId === userId).map((person) => person.id);
+  return database.activeIdentity ? [database.activeIdentity.personId] : [];
+}
+
+export function joinCodeFor(database: LocalDatabase, teamId: Id): string | null {
+  return database.joinCodes.find((code) => code.teamId === teamId)?.code ?? null;
+}
+
+const JOIN_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+/** Replaces the team's join code; the old one stops working. */
+export function rotateJoinCode(teamId: Id): string {
+  const bytes = new Uint8Array(8);
+  globalThis.crypto.getRandomValues(bytes);
+  const code = Array.from(bytes, (byte) => JOIN_CODE_ALPHABET[byte % JOIN_CODE_ALPHABET.length]).join('');
+  mutate((database) => {
+    const existing = database.joinCodes.find((candidate) => candidate.teamId === teamId);
+    if (!existing) throw new LocalDataError('Dieses Team hat keinen Beitrittscode.');
+    existing.code = code;
+  });
+  return code;
+}
+
+/** The open (not accepted, not expired) invitation for this staff member, if any. */
+export function openInviteFor(database: LocalDatabase, personId: Id, teamId: Id): StaffInvite | null {
+  const now = Date.now();
+  return database.staffInvites.find(
+    (invite) => invite.personId === personId && invite.teamId === teamId && !invite.acceptedAt && Date.parse(invite.expiresAt) >= now,
+  ) ?? null;
+}
+
+/** A personal invitation link for a staff member without an account, valid 30 days. */
+export function createStaffInvite(personId: Id, teamId: Id): Id {
+  const token = newId();
+  mutate((database) => {
+    const isStaff = database.memberships.some((m) => m.personId === personId && m.teamId === teamId && m.role === 'coach');
+    if (!isStaff) throw new LocalDataError('Einladungen gibt es nur für Personen im Trainerteam.');
+    if (database.people.find((person) => person.id === personId)?.userId) throw new LocalDataError('Diese Person hat schon ein Konto.');
+    const now = new Date();
+    database.staffInvites.push({
+      token, personId, teamId, createdAt: now.toISOString(),
+      expiresAt: new Date(now.getTime() + 30 * 86_400_000).toISOString(), acceptedAt: null,
+    });
+  });
+  return token;
+}
+
+export function revokeStaffInvite(token: Id): void {
+  mutate((database) => {
+    database.staffInvites = database.staffInvites.filter((invite) => invite.token !== token);
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Identity
 // ---------------------------------------------------------------------------
 
@@ -345,12 +552,8 @@ export function setActiveIdentity(identity: ActiveIdentity | null): void {
   mutate((database) => {
     // With the server you are always yourself: only a switch between your
     // own roles (coach and athlete) is possible.
-    if (remote && identity) {
-      const current = database.people.find((person) => person.id === database.activeIdentity?.personId);
-      const target = database.people.find((person) => person.id === identity.personId);
-      if (!current?.userId || target?.userId !== current.userId) {
-        throw new LocalDataError('Mit dem Server kannst du nur zwischen deinen eigenen Rollen wechseln.');
-      }
+    if (remote && identity && !ownPersonIds(database).includes(identity.personId)) {
+      throw new LocalDataError('Mit dem Server kannst du nur zwischen deinen eigenen Rollen wechseln.');
     }
     database.activeIdentity = identity;
   });

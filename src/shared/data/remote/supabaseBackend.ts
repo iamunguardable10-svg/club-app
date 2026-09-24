@@ -4,7 +4,7 @@
  * half minute while it is visible, so a coach sees a player's cancellation
  * without reloading the page).
  *
- * Only loaded in remote mode (`NEXT_PUBLIC_DATA_BACKEND=supabase`), through a
+ * Only loaded when this device chose the server (start page), through a
  * dynamic import in the repository.
  */
 
@@ -82,6 +82,12 @@ export function supabaseRemoteClient(supabase: SupabaseClient): RemoteClient {
       const { error, count } = await supabase.from(table).delete({ count: 'exact' }).match(key);
       if (error) fail(table, 'Löschen', error.message);
       return count ?? 0;
+    },
+    async rpc(name, args) {
+      const { data, error } = await supabase.rpc(name, args);
+      // Database functions raise German messages meant for the person.
+      if (error) throw new Error(error.message);
+      return data;
     },
   };
 }

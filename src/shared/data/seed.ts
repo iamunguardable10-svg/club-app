@@ -468,6 +468,10 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     people,
     memberships,
     coachRoles,
+    // Codes exist locally so the data looks like the server's; joining with
+    // them needs accounts and only works there.
+    joinCodes: teams.map((team, index) => ({ teamId: team.id, code: ['TESTABCD', 'TESTEFGH'][index] ?? 'TESTJKMN', createdAt })),
+    staffInvites: [],
     playerGroups,
     playerGroupMembers,
     sessions,

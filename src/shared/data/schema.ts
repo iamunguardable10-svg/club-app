@@ -241,6 +241,29 @@ export type LoadEntry = AthleteLoadEntry & {
 export type { AthleteLoadEntry, LoadTrainingType };
 
 /**
+ * The code athletes enter to join a team (`team_join_codes`). One per team,
+ * replaceable by roles with `manageStaff`. Only meaningful with the server.
+ */
+export type JoinCode = {
+  teamId: Id;
+  code: string;
+  createdAt: Timestamp;
+};
+
+/**
+ * A personal invitation link for a staff member added by name
+ * (`staff_invites`). Accepting it links the invitee's account to that person.
+ */
+export type StaffInvite = {
+  token: Id;
+  personId: Id;
+  teamId: Id;
+  createdAt: Timestamp;
+  expiresAt: Timestamp;
+  acceptedAt: Timestamp | null;
+};
+
+/**
  * The ACWR traffic light of one athlete, without the entries it comes from.
  *
  * Coach roles with `viewLoadSummary` but not `viewLoadDetails` read this
@@ -301,6 +324,8 @@ export type LocalDatabase = {
   people: Person[];
   memberships: Membership[];
   coachRoles: CoachRole[];
+  joinCodes: JoinCode[];
+  staffInvites: StaffInvite[];
   playerGroups: PlayerGroup[];
   playerGroupMembers: PlayerGroupMember[];
   sessions: Session[];

@@ -82,6 +82,15 @@ function pgClient(userId: string): RemoteClient {
       }),
     delete: (table, key) =>
       asUser(async (client) => (await client.query(`delete from public.${table} where ${where(key, 0)}`, Object.values(key))).rowCount ?? 0),
+    rpc: (name, args) =>
+      asUser(async (client) => {
+        const names = Object.keys(args);
+        const result = await client.query(
+          `select * from public.${name}(${names.map((arg, index) => `${arg} => $${index + 1}`).join(', ')})`,
+          Object.values(args),
+        );
+        return result.rows.length === 1 && Object.keys(result.rows[0]).length === 1 ? Object.values(result.rows[0])[0] : result.rows;
+      }),
   };
 }
 
@@ -90,6 +99,8 @@ const U = {
   uwe: '10000000-0000-0000-0000-000000000005',
   jonas: '10000000-0000-0000-0000-000000000011',
   ben: '10000000-0000-0000-0000-000000000012',
+  mia: '10000000-0000-0000-0000-000000000031',
+  newCoach: '10000000-0000-0000-0000-000000000032',
 };
 const P = {
   martin: 'a0000000-0000-0000-0000-000000000001',
@@ -108,7 +119,8 @@ async function fixture() {
   await pool.query(`
     insert into auth.users (id, email) values
       ('${U.martin}', 'martin@example.test'), ('${U.uwe}', 'uwe@example.test'),
-      ('${U.jonas}', 'jonas@example.test'), ('${U.ben}', 'ben@example.test');
+      ('${U.jonas}', 'jonas@example.test'), ('${U.ben}', 'ben@example.test'),
+      ('${U.mia}', 'mia@example.test'), ('${U.newCoach}', 'lea@example.test');
     insert into public.clubs (id, name, city) values ('${CLUB}', 'TV Test', 'Essen');
     insert into public.departments (id, club_id, name) values ('${DEP}', '${CLUB}', 'Basketball');
     insert into public.facilities (id, club_id, name, address) values ('${HALL}', '${CLUB}', 'Sporthalle Nord', 'Nordring 12');
@@ -264,6 +276,50 @@ async function main() {
   check('Martin: hall deleted, default cleared', (await count('select 1 from teams where default_facility_id is null')) === 1);
   check('… session kept without hall', (await count('select 1 from sessions where id = $1 and facility_id is null', [newSession])) === 1);
   check('… not reported as refused', store.getStatus().rejected === null, store.getStatus().rejected);
+
+  // --- Access: join code and invitation -----------------------------------
+  store = await actAs(U.martin);
+  const code = data.rotateJoinCode(TEAM);
+  await data.flushRemote();
+  check('Martin: new join code on the server', (await count('select 1 from team_join_codes where code = $1', [code])) === 1, store.getStatus().rejected);
+  const token = data.createStaffInvite(lea, TEAM);
+  await data.flushRemote();
+  check('Martin: invitation for Lea on the server', (await count('select 1 from staff_invites where token = $1', [token])) === 1, store.getStatus().rejected);
+  check('… and listed as open', data.openInviteFor(db(), lea, TEAM)?.token === token);
+  let refusedInvite = false;
+  try {
+    data.createStaffInvite(P.uwe, TEAM);
+  } catch {
+    refusedInvite = true;
+  }
+  check('Martin: no invitation for Uwe, who has an account', refusedInvite);
+
+  store = await actAs(U.mia);
+  check('Mia (new account): not linked yet', store.getStatus().phase === 'unlinked', store.getStatus());
+  let wrongCode = '';
+  try {
+    await data.joinTeamWithCode('WRONG234', 'Mia', 'Neu');
+  } catch (error) {
+    wrongCode = error instanceof Error ? error.message : String(error);
+  }
+  check('Mia: a wrong code is refused with a German message', wrongCode.includes('gibt es nicht'), wrongCode);
+  await data.joinTeamWithCode(code.toLowerCase(), 'Mia', 'Neu');
+  check('Mia: joined, now an athlete of U16', store.getStatus().phase === 'ready' && db().activeIdentity?.role === 'athlete', store.getStatus());
+  check('Mia: sees the team sessions', data.sessionsForTeam(db(), TEAM).length > 0);
+
+  store = await actAs(U.newCoach);
+  check('new coach account: not linked yet', store.getStatus().phase === 'unlinked');
+  await data.acceptStaffInvite(token);
+  const me = data.getActivePerson(db());
+  check('new coach: is Lea Sommer now, as coach', me?.id === lea && db().activeIdentity?.role === 'coach', me);
+  check('… with Betreuer rights (roster, attendance, traffic light)', [...data.coachPermissions(db(), lea, TEAM)].sort().join() === 'viewAttendance,viewLoadSummary,viewRoster');
+  let reused = '';
+  try {
+    await data.acceptStaffInvite(token);
+  } catch (error) {
+    reused = error instanceof Error ? error.message : String(error);
+  }
+  check('the invitation works only once', reused.includes('gilt nicht mehr'), reused);
 
   // --- Not signed in ------------------------------------------------------
   const anonymous = new RemoteStore({ ...pgClient(U.martin), userId: async () => null }, data.SCHEMA_VERSION);

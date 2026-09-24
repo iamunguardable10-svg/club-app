@@ -19,6 +19,12 @@ import {
   assignCoachRole,
   coachRolesForTeam,
   createCoachRole,
+  createStaffInvite,
+  isRemoteMode,
+  joinCodeFor,
+  openInviteFor,
+  revokeStaffInvite,
+  rotateJoinCode,
   deleteCoachRole,
   removeStaffMember,
   staffForTeam,
@@ -63,6 +69,74 @@ function togglePermission(current: readonly CoachPermission[], permission: Coach
   return current.filter((candidate) => candidate !== permission && !dependents.includes(candidate));
 }
 
+/** Copies text; on plain http (no clipboard API) the link stays visible to copy by hand. */
+function CopyLink({ label, url }: { label: string; url: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="grid gap-1">
+      <div className="flex items-center gap-2">
+        <input readOnly value={url} aria-label={label} onFocus={(event) => event.currentTarget.select()} className="min-w-0 flex-1 rounded-lg border border-slate-800 bg-slate-950 px-2 py-1.5 font-mono text-[11px] text-slate-300" />
+        <button
+          type="button"
+          onClick={() => navigator.clipboard?.writeText(url).then(() => setCopied(true)).catch(() => undefined)}
+          className="shrink-0 rounded-lg border border-sky-500/50 px-2 py-1.5 text-[11px] font-black text-sky-100"
+        >
+          {copied ? 'Kopiert' : 'Kopieren'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * How people get into the team on the server: the athletes' join code and a
+ * personal link per staff member without an account.
+ */
+function JoinCodeSection({ database, teamId, onRun }: { database: LocalDatabase; teamId: Id; onRun: (action: () => void) => boolean }) {
+  const code = joinCodeFor(database, teamId);
+  const [confirmRotate, setConfirmRotate] = useState(false);
+  if (!code) return null;
+  const origin = typeof window === 'undefined' ? '' : window.location.origin;
+  return (
+    <div className="grid gap-2 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Spieler einladen</p>
+      <p className="font-mono text-2xl font-black tracking-[0.25em] text-white">{code.slice(0, 4)}-{code.slice(4)}</p>
+      <p className="text-xs font-bold text-slate-400">Spieler erstellen ein Konto und geben diesen Code ein, oder öffnen direkt den Link.</p>
+      <CopyLink label="Beitrittslink für Spieler" url={`${origin}/join?code=${code}`} />
+      {confirmRotate ? (
+        <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-300">
+          Der alte Code funktioniert danach nicht mehr.
+          <button type="button" onClick={() => { onRun(() => { rotateJoinCode(teamId); }); setConfirmRotate(false); }} className={`${smallButtonClass} border-amber-400/60 text-amber-100`}>Neuen Code erzeugen</button>
+          <button type="button" onClick={() => setConfirmRotate(false)} className={`${smallButtonClass} border-slate-700 text-slate-300`}>Abbrechen</button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setConfirmRotate(true)} className="justify-self-start text-xs font-bold text-slate-400 underline">Neuen Code erzeugen</button>
+      )}
+    </div>
+  );
+}
+
+function StaffAccess({ database, teamId, personId, name, onRun }: { database: LocalDatabase; teamId: Id; personId: Id; name: string; onRun: (action: () => void) => boolean }) {
+  const person = database.people.find((candidate) => candidate.id === personId);
+  const invite = openInviteFor(database, personId, teamId);
+  const origin = typeof window === 'undefined' ? '' : window.location.origin;
+  if (person?.userId) return <p className="text-[11px] font-bold text-emerald-300">Konto verbunden</p>;
+  if (!invite) {
+    return (
+      <button type="button" onClick={() => onRun(() => { createStaffInvite(personId, teamId); })} className={`${smallButtonClass} justify-self-start border-sky-500/50 text-sky-100`}>
+        Einladungslink erstellen
+      </button>
+    );
+  }
+  return (
+    <div className="grid gap-1">
+      <p className="text-[11px] font-bold text-amber-200">Eingeladen, noch nicht angenommen · gilt bis {new Date(invite.expiresAt).toLocaleDateString('de-DE')}</p>
+      <CopyLink label={`Einladungslink für ${name}`} url={`${origin}/join?invite=${invite.token}`} />
+      <button type="button" onClick={() => onRun(() => revokeStaffInvite(invite.token))} className="justify-self-start text-[11px] font-bold text-slate-400 underline">Link zurückziehen</button>
+    </div>
+  );
+}
+
 const inputClass = 'min-w-0 rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm font-bold text-slate-100 outline-none focus:border-sky-300';
 const smallButtonClass = 'rounded-xl border px-3 py-2 text-xs font-black transition disabled:opacity-50';
 
@@ -89,6 +163,9 @@ export function TeamStaffPanel({ database, teamId, canManage }: { database: Loca
     }
   };
 
+  // Accounts, codes and invitations only exist with the server.
+  const serverMode = isRemoteMode();
+
   const membersByRole = new Map<Id, number>();
   for (const member of staff) {
     if (member.roleId) membersByRole.set(member.roleId, (membersByRole.get(member.roleId) ?? 0) + 1);
@@ -100,9 +177,12 @@ export function TeamStaffPanel({ database, teamId, canManage }: { database: Loca
         <p role="alert" className="rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-bold text-red-100">{error}</p>
       ) : null}
 
+      {serverMode && canManage ? <JoinCodeSection database={database} teamId={teamId} onRun={run} /> : null}
+
       <div className="grid gap-2">
         {staff.map((member) => (
-          <div key={member.membershipId} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+          <div key={member.membershipId} className="grid gap-2 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="truncate text-sm font-black text-slate-100">{member.name}</p>
               {!canManage ? <p className="mt-0.5 text-xs font-bold text-slate-500">{member.roleName ?? 'No role'}</p> : null}
@@ -128,6 +208,8 @@ export function TeamStaffPanel({ database, teamId, canManage }: { database: Loca
                 )}
               </div>
             ) : null}
+          </div>
+          {serverMode && canManage ? <StaffAccess database={database} teamId={teamId} personId={member.personId} name={member.name} onRun={run} /> : null}
           </div>
         ))}
         {staff.length === 0 ? <p className="text-sm font-bold text-slate-500">No staff yet.</p> : null}
