@@ -956,3 +956,72 @@ die Migrationen unverändert eingespielt.
 Die App liest die Datenbank noch nicht. Das kommt in 9b (Supabase-Speicher hinter der
 Datenschicht) und wird erst mit Run 10 (Anmeldung) für echte Nutzer eingeschaltet.
 `.env.example` nennt die beiden Variablen; die Werte liegen nicht im Repository.
+
+## Run 9b — Server-Speicher hinter der Datenschicht (erledigt)
+
+Die App kann jetzt statt localStorage die Pilot-Datenbank benutzen. Alle Oberflächen
+und alle Schreibfunktionen bleiben, wie sie sind: Sie arbeiten weiter auf einem
+Dokument, nur wo es liegt, ändert sich.
+
+**Schalter:** `NEXT_PUBLIC_DATA_BACKEND=supabase` (plus URL und Publishable Key). Ohne
+ihn bleibt der lokale Testmodus, auch wenn die Supabase-Variablen gesetzt sind.
+
+### Wie eine Änderung zum Server kommt
+
+1. `mutate` wendet sie wie immer auf das Dokument an; die Ansicht zeigt sie sofort.
+2. Der Server-Speicher (`src/shared/data/remote/remoteStore.ts`) übersetzt Dokument vorher
+   und nachher in Tabellenzeilen (`tables.ts`) und schickt nur die Differenz: erst
+   Löschungen von unten nach oben, dann Neues und Geändertes von oben nach unten.
+3. Danach lädt er, was der Nutzer lesen darf, und vergleicht. Was die Zugriffsregeln
+   still abgelehnt haben (eine Änderung an einer Zeile, die man nicht ändern darf,
+   ändert einfach nichts) oder eine Datenbankregel laut abgelehnt hat, springt zurück;
+   ein Hinweis unten am Bildschirm sagt, was nicht gespeichert wurde.
+
+Änderungen gehen der Reihe nach raus; neu geladen wird nur, wenn nichts mehr unterwegs
+ist. Zusätzlich lädt die App neu, wenn sie wieder in den Vordergrund kommt, und alle
+30 Sekunden, solange sie sichtbar ist.
+
+### Was sich im lokalen Modell dafür geändert hat
+
+- **IDs sind UUIDs** (`newId()`), in der Datenschicht und in Team-, Kalender- und
+  Spieler-Oberfläche. Eine geänderte Zu- oder Absage behält ihre Zeile.
+- **Belastungsampel als eigene Sammlung** (`loadSummaries`), neu berechnet, sobald sich
+  die Einträge eines Spielers ändern, und einmal am Tag beim Öffnen. Rollen mit nur
+  „Ampel“ lesen sie, statt aus Rohdaten zu rechnen — auch lokal, damit beide Modi
+  gleich aussehen.
+- **Einheit löschen** wie auf dem Server: Zu- und Absagen gehen mit, geloggte Belastung
+  bleibt beim Spieler (ohne Bezug zur Einheit).
+- Personen haben `userId` (lokal immer leer), Hallen verlieren die ungenutzten Felder
+  `scope`/`ownerDepartmentId`.
+- Schema-Version `2026-09-24-pilot-shape-v5`: lokale Testdaten werden neu angelegt.
+- Serien-Bestätigung erkennt eine schon angelegte Einheit jetzt über `seriesId` statt
+  über ein ID-Präfix, das nach dem alten Schema nie mehr passte.
+
+### Im Servermodus anders
+
+- Man ist immer man selbst: Der Identitätswechsel zeigt nur die eigenen Rollen, „Test-
+  daten zurücksetzen“ gibt es nicht.
+- Ohne Anmeldung zeigen die Seiten „Nicht angemeldet.“, ohne Vereinszuordnung „Dein
+  Konto ist noch keinem Verein zugeordnet.“ Die Anmeldung kommt in Run 10.
+- supabase-js speichert die Anmeldung im Browser; den Speicher reicht die Datenschicht
+  hinein, sie bleibt die einzige Stelle mit `localStorage`.
+- supabase-js wird nur im Servermodus nachgeladen; die Seiten im lokalen Modus sind so
+  groß wie vorher.
+
+### Geprüft
+
+- `npm run test:pilot`: 38 Prüfungen, die echten Funktionen der Datenschicht über den
+  Server-Speicher gegen die lokale Postgres mit den Pilot-Migrationen, als Head Coach,
+  Betreuer und Spieler (Details in `docs/local-mode-testplan.md`).
+- Browser, lokaler Modus, Telefonbreite: alle Routen fehlerfrei; Spieler sagt mit Grund
+  ab und korrigiert RPE; Ampel neu berechnet; Head Coach sieht den Grund, Betreuer nicht.
+- Browser, Servermodus ohne Anmeldung: „Nicht angemeldet.“, keine Anfrage an Supabase,
+  keine lokalen Testdaten, keine Laufzeitfehler.
+
+### Nicht geprüft
+
+Der Servermodus gegen das echte Supabase-Projekt: Aus dieser Umgebung ist
+`tszxeainmwowmixqmphn.supabase.co` gesperrt, und ohne Anmeldung (Run 10) gäbe es dort
+ohnehin nichts zu lesen. Die supabase-js-Anbindung (`supabaseBackend.ts`) ist deshalb
+nur über Typen und den Probelauf ohne Anmeldung belegt; sie ist bewusst dünn (lesen mit
+Seitenweise-Abruf, anlegen, ändern und löschen nach Schlüssel).

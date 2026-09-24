@@ -14,6 +14,8 @@ migrations below are applied there (2026-09-24).
 | `migrations/0003_pilot_indexes_and_write_policies.sql` | Foreign-key indexes and one policy per write command (Supabase performance advisor); no rule changes |
 | `tests/00_supabase_shim.sql` | Stand-in for Supabase's `auth` schema and roles, **local tests only** |
 | `tests/01_rls_test.sql` | 75 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
+| `tests/run-local.sh` | Recreates a local test database, applies shim and migrations, runs the checks above |
+| `tests/remote-store.test.ts` | 38 end-to-end checks: the app's real data-layer functions through the server store against the local database, as Head Coach, Betreuer and athlete |
 
 ## What the rules guarantee
 
@@ -31,18 +33,25 @@ migrations below are applied there (2026-09-24).
 
 ## Running the tests locally
 
-Needs a plain Postgres 15 or newer. From this folder:
+Needs a plain Postgres 15 or newer; connection through the usual `PG*`
+variables. From the repository root:
 
 ```bash
-createdb pilot_test
-psql -d pilot_test -v ON_ERROR_STOP=1 -f tests/00_supabase_shim.sql
-for f in migrations/*.sql; do psql -d pilot_test -v ON_ERROR_STOP=1 -f "$f"; done
-psql -d pilot_test -f tests/01_rls_test.sql
+supabase/pilot/tests/run-local.sh   # access rules: ends with "all access-rule checks passed"
+npm run test:pilot                  # server store: ends with "all server-store checks passed"
 ```
 
-Every check prints `ok …`; the run ends with `all access-rule checks passed`
-or stops at the first `FAIL`. Never run the shim or the tests against the
-Supabase project.
+Both recreate their own database (`pilot_test`, `pilot_app_test`). Never run
+the shim or the tests against the Supabase project.
+
+## How the app uses it
+
+`src/shared/data/remote/`: the app keeps working on one document, as in the
+local test mode. With `NEXT_PUBLIC_DATA_BACKEND=supabase` the repository hands
+every change to the server store, which sends only the changed rows, then
+reloads what the user may read. What row-level security or a database rule
+refused jumps back, with a message (`SyncStatusBanner`). Details in
+`remoteStore.ts`.
 
 ## Changing the schema
 

@@ -11,4 +11,4 @@ export * from './loadCalculations';
 export * from './repository';
 export { createSeedDatabase } from './seed';
 export { SCHEMA_VERSION, DATABASE_KEY } from './migrations';
-export { useLocalDatabase } from './useLocalData';
+export { useBackendStatus, useLocalDatabase } from './useLocalData';

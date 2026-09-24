@@ -14,6 +14,8 @@
 
 import { getLatestACWR, loadZone, type AthleteLoadEntry, type CoachPermission } from '@/shared/data';
 
+export { summarizeLoadEntries } from '@/shared/data';
+
 export type LoadAccess = 'full' | 'summary' | 'none';
 
 /** What a summary-only role gets instead of the entries it was computed from. */
@@ -30,11 +32,6 @@ export function loadAccessFor(permissions: ReadonlySet<CoachPermission>): LoadAc
   if (permissions.has('viewLoadDetails')) return 'full';
   if (permissions.has('viewLoadSummary')) return 'summary';
   return 'none';
-}
-
-export function summarizeLoadEntries(entries: AthleteLoadEntry[]): LoadSummary {
-  const latest = getLatestACWR(entries, 'ewma');
-  return { acwr: latest?.acwr ?? null, chronicFull: latest?.chronicFull ?? false };
 }
 
 export function playerLoadSummary(player: PlayerLoadInput) {

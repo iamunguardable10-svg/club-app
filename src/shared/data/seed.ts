@@ -25,6 +25,7 @@ import type {
   Facility,
   Id,
   LoadEntry,
+  LoadSummaryRow,
   LocalDatabase,
   Membership,
   Person,
@@ -35,6 +36,7 @@ import type {
   SessionType,
 } from './schema';
 import { sessionTypeToLoadType } from './loadTypes';
+import { summarizeLoadEntries } from './loadCalculations';
 
 /** Days of load history before today. Must stay above 28 for ACWR to work. */
 const SEED_HISTORY_DAYS = 42;
@@ -177,6 +179,17 @@ const BASE_RPE: Record<SessionType, number> = {
   other: 5,
 };
 
+/** One traffic-light row per athlete with entries, as the repository keeps them. */
+function summariesFor(entries: LoadEntry[], now: Date): LoadSummaryRow[] {
+  const byPerson = new Map<Id, LoadEntry[]>();
+  for (const entry of entries) byPerson.set(entry.personId, [...(byPerson.get(entry.personId) ?? []), entry]);
+  return Array.from(byPerson, ([personId, personEntries]) => ({
+    personId,
+    ...summarizeLoadEntries(personEntries),
+    updatedAt: now.toISOString(),
+  }));
+}
+
 export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
   const today = startOfDay(now);
   const createdAt = addDays(today, -SEED_HISTORY_DAYS).toISOString();
@@ -194,9 +207,9 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
   ];
 
   const facilities: Facility[] = [
-    { id: FACILITY_MAIN, clubId: CLUB_ID, name: 'Sporthalle Nord', address: 'Nordring 12, 45141 Essen', scope: 'club_shared', ownerDepartmentId: null },
-    { id: FACILITY_SMALL, clubId: CLUB_ID, name: 'Gymnastikhalle', address: 'Nordring 12, 45141 Essen', scope: 'club_shared', ownerDepartmentId: null },
-    { id: FACILITY_GYM, clubId: CLUB_ID, name: 'Kraftraum', address: 'Nordring 14, 45141 Essen', scope: 'department_only', ownerDepartmentId: DEPARTMENT_ID },
+    { id: FACILITY_MAIN, clubId: CLUB_ID, name: 'Sporthalle Nord', address: 'Nordring 12, 45141 Essen' },
+    { id: FACILITY_SMALL, clubId: CLUB_ID, name: 'Gymnastikhalle', address: 'Nordring 12, 45141 Essen' },
+    { id: FACILITY_GYM, clubId: CLUB_ID, name: 'Kraftraum', address: 'Nordring 14, 45141 Essen' },
   ];
 
   const departmentFacilities: DepartmentFacility[] = facilities.map((facility) => ({
@@ -227,7 +240,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
 
   STAFF.forEach((member, index) => {
     const id = `coach-${index + 1}`;
-    people.push({ id, clubId: CLUB_ID, firstName: member.firstName, lastName: member.lastName, createdAt });
+    people.push({ id, clubId: CLUB_ID, userId: null, firstName: member.firstName, lastName: member.lastName, createdAt });
     member.roles.forEach(({ teamId, role }) => {
       memberships.push({
         id: `m-${id}-${teamId}`,
@@ -243,7 +256,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
   const addAthletes = (teamId: Id, names: [string, string][], prefix: string) => {
     names.forEach(([firstName, lastName], index) => {
       const id = `${prefix}-${index + 1}`;
-      people.push({ id, clubId: CLUB_ID, firstName, lastName, createdAt });
+      people.push({ id, clubId: CLUB_ID, userId: null, firstName, lastName, createdAt });
       memberships.push({ id: `m-${id}`, personId: id, teamId, role: 'athlete', coachRoleId: null, createdAt });
     });
   };
@@ -462,6 +475,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     sessionSeriesWeekStates: [],
     availability,
     loadEntries,
+    loadSummaries: summariesFor(loadEntries, now),
     athletePlans,
     acknowledgedSessions: [],
     shareLinks: {},

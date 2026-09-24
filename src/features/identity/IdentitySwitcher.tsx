@@ -22,6 +22,7 @@ import { createPortal } from 'react-dom';
 import {
   displayName,
   peopleWithRole,
+  isRemoteMode,
   resetDatabase,
   setActiveIdentity,
   teamsForPerson,
@@ -88,8 +89,13 @@ export function IdentitySwitcher({ className = '' }: { className?: string }) {
     router.push(HOME_FOR_ROLE[role]);
   }
 
+  // With the server you are always yourself; the sheet only offers your own
+  // roles and has no test data to reset.
+  const remoteMode = isRemoteMode();
+  const ownUserId = current?.userId ?? null;
+
   function renderGroup(role: MembershipRole) {
-    const people = peopleWithRole(database!, role);
+    const people = peopleWithRole(database!, role).filter((person) => !remoteMode || (ownUserId !== null && person.userId === ownUserId));
     if (people.length === 0) return null;
     return (
       <div key={role} className="space-y-2">
@@ -155,8 +161,8 @@ export function IdentitySwitcher({ className = '' }: { className?: string }) {
           <div className="relative max-h-[85vh] w-full overflow-y-auto rounded-t-3xl border border-slate-800 bg-slate-950 p-5 sm:max-w-md sm:rounded-3xl">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-black text-white">Als wen möchtest du testen?</h2>
-                <p className="mt-1 text-xs text-slate-400">Kein Login nötig. Alle sehen dieselben Daten.</p>
+                <h2 className="text-lg font-black text-white">{remoteMode ? 'Deine Rollen' : 'Als wen möchtest du testen?'}</h2>
+                <p className="mt-1 text-xs text-slate-400">{remoteMode ? 'Wechsel zwischen deinen eigenen Rollen.' : 'Kein Login nötig. Alle sehen dieselben Daten.'}</p>
               </div>
               <button type="button" onClick={() => setOpen(false)} className="rounded-full border border-slate-700 px-3 py-1 text-xs font-bold text-slate-300">
                 Schließen
@@ -170,7 +176,7 @@ export function IdentitySwitcher({ className = '' }: { className?: string }) {
             {/* Reset lives here because this sheet is reachable from both the
                 coach and the athlete side. Two steps, in place: a browser
                 confirm() is easy to dismiss by accident on a phone. */}
-            <div className="mt-6 border-t border-slate-800 pt-4">
+            {remoteMode ? null : <div className="mt-6 border-t border-slate-800 pt-4">
               {confirmReset ? (
                 <div className="space-y-3">
                   <p className="text-sm text-slate-300">
@@ -191,7 +197,7 @@ export function IdentitySwitcher({ className = '' }: { className?: string }) {
                   Testdaten zurücksetzen
                 </button>
               )}
-            </div>
+            </div>}
           </div>
         </div>,
         document.body,

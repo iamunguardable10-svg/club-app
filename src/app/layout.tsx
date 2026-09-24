@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { SyncStatusBanner } from '@/shared/components/SyncStatusBanner';
 
 export const metadata: Metadata = {
   title: 'Club App / TeamLoad OS',
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en">
       <body>
         {children}
+        <SyncStatusBanner />
       </body>
     </html>
   );

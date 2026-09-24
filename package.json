@@ -13,9 +13,11 @@
     "review:claude": "node scripts/claude-review.mjs",
     "check:review": "npm run check && npm run clean:next-env && npm run review:claude",
     "hooks:claude-review": "node scripts/install-claude-review-hook.mjs",
-    "clean:next-env": "node scripts/clean-next-env.mjs"
+    "clean:next-env": "node scripts/clean-next-env.mjs",
+    "test:pilot": "tsx supabase/pilot/tests/remote-store.test.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.1",
     "next": "^15.1.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -23,12 +25,15 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "eslint": "^9.17.0",
     "eslint-config-next": "^15.1.3",
+    "pg": "^8.23.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.23.15",
     "typescript": "^5.7.2"
   }
 }

@@ -63,9 +63,14 @@ function toCoachPlayer(database: LocalDatabase, personId: Id, teamId: Id, access
     .filter((entry) => entry.personId === personId && (!entry.teamId || entry.teamId === teamId))
     .map(({ personId: _personId, createdAt: _createdAt, ...entry }) => entry);
 
-  // The ratio is computed from the entries here, then the entries are dropped
-  // for roles that may only see the summary; `none` gets neither.
-  const loadSummary = access === 'none' ? null : summarizeLoadEntries(entries);
+  // Full access computes the ratio from the entries. Summary-only roles read
+  // the stored traffic light: on the server they never receive the entries.
+  const storedSummary = database.loadSummaries.find((row) => row.personId === personId);
+  const loadSummary = access === 'none'
+    ? null
+    : access === 'full'
+      ? summarizeLoadEntries(entries)
+      : { acwr: storedSummary?.acwr ?? null, chronicFull: storedSummary?.chronicFull ?? false };
   const zone = loadZone(loadSummary?.acwr ?? null, loadSummary?.chronicFull ?? false);
 
   return {

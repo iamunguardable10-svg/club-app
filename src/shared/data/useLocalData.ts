@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { readDatabase, subscribe } from './repository';
+import { getBackendStatus, readDatabase, subscribe, type BackendStatus } from './repository';
 import { LocalDataError, type LocalDatabase } from './schema';
 
 type LocalDataState = {
@@ -24,12 +24,30 @@ type LocalDataState = {
   ready: boolean;
 };
 
+/** What the pages show instead of data while the server has none for this person. */
+const BACKEND_MESSAGES: Partial<Record<BackendStatus['phase'], string>> = {
+  signedOut: 'Nicht angemeldet.',
+  unlinked: 'Dein Konto ist noch keinem Verein zugeordnet.',
+  error: 'Die Daten konnten nicht vom Server geladen werden.',
+};
+
 export function useLocalDatabase(): LocalDataState {
   const [state, setState] = useState<LocalDataState>({ database: null, error: null, ready: false });
 
   const read = useCallback(() => {
     try {
-      setState({ database: readDatabase(), error: null, ready: true });
+      const database = readDatabase();
+      const backend = getBackendStatus();
+      if (backend.phase === 'loading') {
+        setState({ database: null, error: null, ready: false });
+        return;
+      }
+      const message = BACKEND_MESSAGES[backend.phase];
+      if (message) {
+        setState({ database: null, error: new LocalDataError(backend.error ? `${message} (${backend.error})` : message), ready: true });
+        return;
+      }
+      setState({ database, error: null, ready: true });
     } catch (error) {
       // Surfaced, never swallowed: a broken document must not look like an
       // empty club.
@@ -47,4 +65,19 @@ export function useLocalDatabase(): LocalDataState {
   }, [read]);
 
   return state;
+}
+
+/**
+ * Where the data comes from, whether changes are still on their way to the
+ * server and whether the server refused the last one. Local mode: always
+ * ready, nothing pending.
+ */
+export function useBackendStatus(): BackendStatus {
+  const [status, setStatus] = useState<BackendStatus>(() => getBackendStatus());
+  useEffect(() => {
+    const update = () => setStatus(getBackendStatus());
+    update();
+    return subscribe(update);
+  }, []);
+  return status;
 }

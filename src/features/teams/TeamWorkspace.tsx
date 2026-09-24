@@ -29,7 +29,7 @@ import type { SeriesTemplateInput } from '@/features/sessions/SeriesTemplateEdit
 import type { SeriesWeekItem } from '@/features/sessions/sessionSeriesPlanner';
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { buildCoachData } from '@/features/role-workspaces/coachData';
-import { loadAccessFor, summarizeLoadEntries } from '@/features/load/loadAccess';
+import { loadAccessFor } from '@/features/load/loadAccess';
 import { TeamStaffPanel } from '@/features/teams/TeamStaffPanel';
 import {
   athletesForTeam,
@@ -39,6 +39,7 @@ import {
   deleteSession,
   displayName,
   mutate,
+  newId,
   setSeriesWeekState,
   setTeamDefaultFacility,
   updateSession,
@@ -141,6 +142,10 @@ export function TeamWorkspace({
     if (!team) return null;
 
     const loadAccess = loadAccessFor(permissions);
+    const storedSummary = (personId: Id) => {
+      const row = database.loadSummaries.find((candidate) => candidate.personId === personId);
+      return { acwr: row?.acwr ?? null, chronicFull: row?.chronicFull ?? false };
+    };
     const attendanceShared = permissions.has('viewAttendance');
     const reasonsShared = permissions.has('viewAbsenceReasons');
 
@@ -172,11 +177,11 @@ export function TeamWorkspace({
         id: person.id,
         name: displayName(person),
         groups: groupIdsByPerson.get(person.id) ?? [],
-        // Entries only for full access; the summary is computed here so the
-        // raw RPE values never reach a summary-only role's view.
+        // Entries only for full access; summary-only roles get the stored
+        // traffic light, as they would from the server.
         loadEntries: loadAccess === 'full' ? loadEntries : undefined,
         loadAccess,
-        loadSummary: loadAccess === 'summary' ? summarizeLoadEntries(loadEntries) : null,
+        loadSummary: loadAccess === 'summary' ? storedSummary(person.id) : null,
         attendanceShared,
         ...(attendanceShared
           ? {
@@ -280,7 +285,7 @@ export function TeamWorkspace({
 
   const handleAddGroup = useCallback((name: string) => {
     mutate((draft) => {
-      draft.playerGroups.push({ id: `group-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, teamId, name });
+      draft.playerGroups.push({ id: newId(), teamId, name });
     });
   }, [teamId]);
 
@@ -312,7 +317,7 @@ export function TeamWorkspace({
       const team = draft.teams.find((candidate) => candidate.id === (input.teamId || teamId));
       if (!team) return;
       draft.sessionSeries.push({
-        id: `series-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        id: newId(),
         clubId: team.clubId,
         departmentId: team.departmentId,
         teamId: team.id,

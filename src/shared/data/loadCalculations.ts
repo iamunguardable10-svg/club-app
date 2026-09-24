@@ -287,3 +287,12 @@ export function sevenDayLoad(entries: AthleteLoadEntry[]) {
 export function formatLoadDate(date: string) {
   return new Intl.DateTimeFormat(undefined, { weekday: 'short', day: '2-digit', month: 'short' }).format(new Date(`${date}T00:00:00`));
 }
+
+/**
+ * The traffic-light inputs for one athlete: the latest EWMA ratio and whether
+ * the chronic window is full. What a summary-only coach role gets.
+ */
+export function summarizeLoadEntries(entries: AthleteLoadEntry[]): { acwr: number | null; chronicFull: boolean } {
+  const latest = getLatestACWR(entries, 'ewma');
+  return { acwr: latest?.acwr ?? null, chronicFull: latest?.chronicFull ?? false };
+}

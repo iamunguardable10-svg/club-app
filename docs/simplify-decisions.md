@@ -171,8 +171,10 @@ portiert, nicht pauschal zurückgespielt — sonst kämen die Demo-Zwillinge und
 Doppelpflege mit.
 
 **Stand 2026-09-24:** Schritt 1 (Trainerrollen) und Schritt 2 (Hallen) sind erledigt,
-siehe `docs/simplify-progress.md`, Run 7 und Run 8. Von Schritt 3 steht die Datenbank
-(Run 9a, `supabase/pilot/`); die App ist noch nicht mit ihr verbunden. Bis Schritt 3 und 4 formen die Rechte nur die
+siehe `docs/simplify-progress.md`, Run 7 und Run 8. Schritt 3 ist erledigt: Datenbank
+(Run 9a, `supabase/pilot/`) und Server-Speicher hinter der Datenschicht (Run 9b,
+Schalter `NEXT_PUBLIC_DATA_BACKEND=supabase`). Eingeschaltet wird er erst mit dem Zugang
+(Schritt 4). Bis Schritt 3 und 4 formen die Rechte nur die
 Oberfläche: im lokalen Modus kann jeder die Identität wechseln. Wer eine Ansicht
 ändert, prüft Rechte über `coachPermissions`/`hasCoachPermission` aus `@/shared/data`,
 nie über URL-Parameter.

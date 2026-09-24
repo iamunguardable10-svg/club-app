@@ -10,6 +10,7 @@ import {
   deleteSession,
   getActivePerson,
   mutate,
+  newId,
   setSeriesWeekState,
   updateSession,
   useLocalDatabase,
@@ -988,7 +989,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     try {
       mutate((draft) => {
         draft.sessionSeries.push({
-          id: `series-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          id: newId(),
           clubId: team.clubId,
           departmentId: team.departmentId,
           teamId: team.id,
@@ -1090,8 +1091,10 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         const team = item.teamId ? teams.find((candidate) => candidate.id === item.teamId) : null;
         if (!team || item.committedSessionId) continue;
 
-        const existing = sessions.find(
-          (session) => session.id.startsWith(`session-${item.id}-`) && session.startsAt === item.startsAt,
+        // Already created for this series and slot (e.g. a retry after a
+        // partial failure): link it instead of creating a duplicate.
+        const existing = database?.sessions.find(
+          (session) => session.seriesId === item.id && session.startsAt === item.startsAt,
         );
         if (existing) {
           setSeriesWeekState(item.id, item.weekStart, true, existing.id);

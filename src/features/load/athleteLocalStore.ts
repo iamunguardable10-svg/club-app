@@ -19,6 +19,7 @@
 
 import {
   mutate,
+  newId,
   sessionTypeToLoadType,
   teamsForPerson,
   type AthleteLoadEntry,
@@ -165,7 +166,8 @@ export function saveAvailability(personId: Id, marks: Map<string, AthleteAvailab
           previous.lateMinutes === (status === 'late' ? mark.lateMinutes : null);
         if (unchanged) return previous;
         return {
-          id: `av-${sessionId}-${personId}`,
+          // Keep the row's identity when the report changes; a new one otherwise.
+          id: previous?.id ?? newId(),
           sessionId,
           personId,
           status,

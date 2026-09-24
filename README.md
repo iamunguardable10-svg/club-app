@@ -89,8 +89,15 @@ None are needed in the local test mode.
 
 Optional: `NEXT_PUBLIC_GEOAPIFY_API_KEY` turns on address suggestions in the hall
 form (`/coach/facilities`, “Edit halls”). Without it the address is a plain text
-field. The previous `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-are unused until the server step (`docs/simplify-decisions.md`, point 8).
+field.
+
+Server mode for the club pilot (`docs/simplify-decisions.md`, point 8):
+`NEXT_PUBLIC_DATA_BACKEND=supabase` plus `NEXT_PUBLIC_SUPABASE_URL` and
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (see `.env.example`). The same screens
+then read and write the pilot database; without the switch the app stays in
+the local test mode, whatever else is set. Sign-in comes in Run 10, so server
+mode currently shows “Nicht angemeldet.”. Database and tests:
+`supabase/pilot/README.md`.
 
 ## Facility address input principle
 

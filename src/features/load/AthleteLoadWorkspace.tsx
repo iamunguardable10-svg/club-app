@@ -28,7 +28,7 @@ import {
 } from './loadTypes';
 import { aggregateDailyLoads, baselineAgeDays, calculateEWMA, fillMissingDays, formatLoadDate, getLatestACWR, loadZone, projectFutureACWR, todayISO } from './loadCalculations';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
-import { displayName, getActivePerson, useLocalDatabase } from '@/shared/data';
+import { displayName, getActivePerson, newId, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import {
   readAcknowledged,
@@ -1408,7 +1408,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   async function submitPending(session: AthletePendingSession, rpe: number, durationMinutes: number) {
     const isAthletePlan = session.source === 'athlete_plan';
     const entry: AthleteLoadEntry = {
-      id: `pending-${session.id}-${Date.now()}`,
+      id: newId(),
       sessionId: isAthletePlan ? null : session.id,
       teamId: session.teamId,
       teamName: session.teamName,
@@ -1437,7 +1437,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   async function createPlan() {
     const startsAt = planForm.time ? new Date(`${planForm.date}T${planForm.time}`).toISOString() : null;
     const plan: AthleteLoadPlan = {
-      id: `plan-${Date.now()}`,
+      id: newId(),
       teamId: null,
       teamName: null,
       title: LOAD_TYPE_LABELS[planForm.trainingType],
@@ -1630,7 +1630,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
     const startsAt = planForm.time ? new Date(`${planForm.date}T${planForm.time}`).toISOString() : null;
     const entry: AthleteLoadEntry = {
-      id: `manual-${Date.now()}`,
+      id: newId(),
       sessionId: null,
       teamId: null,
       teamName: null,

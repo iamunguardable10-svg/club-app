@@ -82,8 +82,6 @@ export type SessionType = 'training' | 's_and_c' | 'game' | 'recovery' | 'other'
 
 export const SESSION_TYPES: SessionType[] = ['training', 's_and_c', 'game', 'recovery', 'other'];
 
-export type FacilityScope = 'club_shared' | 'department_only';
-
 /** How an athlete reports in for a specific session. */
 export type AvailabilityStatus = 'in' | 'late' | 'out';
 
@@ -115,8 +113,6 @@ export type Facility = {
   clubId: Id;
   name: string;
   address: string;
-  scope: FacilityScope;
-  ownerDepartmentId: Id | null;
 };
 
 /** Which departments may book which facility. Mirrors `department_facilities`. */
@@ -133,6 +129,8 @@ export type DepartmentFacility = {
 export type Person = {
   id: Id;
   clubId: Id;
+  /** The account this person signs in with (pilot server). Always null in the local test mode. */
+  userId: Id | null;
   firstName: string;
   lastName: string;
   createdAt: Timestamp;
@@ -243,6 +241,21 @@ export type LoadEntry = AthleteLoadEntry & {
 export type { AthleteLoadEntry, LoadTrainingType };
 
 /**
+ * The ACWR traffic light of one athlete, without the entries it comes from.
+ *
+ * Coach roles with `viewLoadSummary` but not `viewLoadDetails` read this
+ * instead of the entries (`load_summaries` on the server). The repository
+ * recomputes it whenever an athlete's entries change; it depends on today's
+ * date, so it can age while nobody writes.
+ */
+export type LoadSummaryRow = {
+  personId: Id;
+  acwr: number | null;
+  chronicFull: boolean;
+  updatedAt: Timestamp;
+};
+
+/**
  * A session an athlete plans for themselves — gym, a run, extra shooting.
  *
  * Existed in the athlete workspace under its own demo key and the Supabase
@@ -295,6 +308,7 @@ export type LocalDatabase = {
   sessionSeriesWeekStates: SessionSeriesWeekState[];
   availability: Availability[];
   loadEntries: LoadEntry[];
+  loadSummaries: LoadSummaryRow[];
   athletePlans: AthletePlan[];
   acknowledgedSessions: AcknowledgedSession[];
   /** The last load link an athlete shared with a coach, per person. */

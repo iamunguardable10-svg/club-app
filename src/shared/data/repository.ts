@@ -17,11 +17,18 @@
  * 3. No silent fallbacks. A missing document means "first start" and is
  *    seeded. A present but unreadable document is an error and is thrown, not
  *    quietly replaced with fresh test data.
+ *
+ * With `NEXT_PUBLIC_DATA_BACKEND=supabase` the same document is backed by the
+ * pilot database instead (`./remote`, docs/simplify-decisions.md point 8).
+ * Every function below works unchanged in both modes: reads come from the
+ * document, writes go through `mutate`, and only `readDatabase`/`mutate`
+ * know where the document lives.
  */
 
-import { calculateEWMA, getLatestACWR, loadZone, sevenDayLoad } from './loadCalculations';
+import { calculateEWMA, getLatestACWR, loadZone, sevenDayLoad, summarizeLoadEntries } from './loadCalculations';
 import { DATABASE_KEY, LEGACY_KEY_PREFIXES, SCHEMA_VERSION, isCurrent } from './migrations';
 import { createSeedDatabase } from './seed';
+import type { RemoteStore } from './remote/remoteStore';
 import {
   COACH_PERMISSIONS,
   COACH_PERMISSION_REQUIRES,
@@ -45,6 +52,15 @@ import {
 } from './schema';
 
 type Listener = () => void;
+
+/** The server store once connected; null in the local test mode. */
+let remote: RemoteStore | null = null;
+let remoteStarting = false;
+
+/** Whether this build talks to the pilot database instead of localStorage. */
+export function isRemoteMode(): boolean {
+  return process.env.NEXT_PUBLIC_DATA_BACKEND === 'supabase';
+}
 
 const listeners = new Set<Listener>();
 
@@ -94,7 +110,12 @@ function persist(database: LocalDatabase) {
  * tester had entered, which looks like the app losing data at random.
  */
 export function readDatabase(): LocalDatabase | null {
+  if (remote) return remote.read();
   if (!isBrowser()) return null;
+  if (isRemoteMode()) {
+    startRemote();
+    return null;
+  }
   if (cache) return cache;
   purgeLegacyKeys();
 
@@ -129,6 +150,53 @@ export function readDatabase(): LocalDatabase | null {
 }
 
 /**
+ * A new record id. UUIDs, because the pilot server stores ids as `uuid`.
+ *
+ * Not `crypto.randomUUID()`: browsers only offer it on https or localhost,
+ * and the app is also opened on phones over the local network during
+ * development. `getRandomValues` is available everywhere.
+ */
+export function newId(): Id {
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/**
+ * Keeps `loadSummaries` in step with the entries: recomputed for every person
+ * whose entries this change touched, and only for them — on the server an
+ * athlete may only write their own summary.
+ */
+function refreshLoadSummaries(before: LocalDatabase, after: LocalDatabase) {
+  const signature = (database: LocalDatabase) => {
+    const byPerson = new Map<Id, string>();
+    for (const entry of database.loadEntries) {
+      byPerson.set(entry.personId, `${byPerson.get(entry.personId) ?? ''}|${entry.id}:${entry.date}:${entry.load}`);
+    }
+    return byPerson;
+  };
+  const previous = signature(before);
+  const next = signature(after);
+  const changed = new Set<Id>();
+  for (const personId of new Set([...previous.keys(), ...next.keys()])) {
+    if (previous.get(personId) !== next.get(personId)) changed.add(personId);
+  }
+  if (changed.size === 0) return;
+  const now = new Date().toISOString();
+  after.loadSummaries = [
+    ...after.loadSummaries.filter((row) => !changed.has(row.personId)),
+    ...Array.from(changed).map((personId) => ({
+      personId,
+      ...summarizeLoadEntries(after.loadEntries.filter((entry) => entry.personId === personId)),
+      updatedAt: now,
+    })),
+  ];
+}
+
+/**
  * Applies a change and notifies subscribers.
  *
  * The callback receives a structural copy, so a half-finished mutation cannot
@@ -140,8 +208,97 @@ export function mutate(apply: (database: LocalDatabase) => void): void {
 
   const draft: LocalDatabase = JSON.parse(JSON.stringify(current));
   apply(draft);
+  refreshLoadSummaries(current, draft);
+  if (remote) {
+    // Shown at once; the store sends the difference and notifies again when
+    // the server has answered.
+    void remote.write(current, draft);
+    return;
+  }
   persist(draft);
   notify();
+}
+
+/**
+ * Connects the server store. The browser does this itself in remote mode
+ * (`startRemote`); tests call it with a store on a local Postgres.
+ */
+export function connectRemoteStore(store: RemoteStore): void {
+  remote = store;
+  cache = null;
+  store.subscribe(notify);
+}
+
+function startRemote() {
+  if (remoteStarting) return;
+  remoteStarting = true;
+  // Loaded on demand, so the local test mode never ships the server client.
+  import('./remote/supabaseBackend')
+    .then(async ({ createSupabaseStore, authStorage }) => {
+      const store = createSupabaseStore(SCHEMA_VERSION, authStorage(window.localStorage));
+      connectRemoteStore(store);
+      await store.load();
+      ensureFreshLoadSummary();
+    })
+    .catch((error) => {
+      remoteLoadError = error instanceof Error ? error.message : String(error);
+      notify();
+    });
+}
+
+let remoteLoadError: string | null = null;
+
+export type BackendStatus = {
+  mode: 'local' | 'remote';
+  phase: 'loading' | 'ready' | 'signedOut' | 'unlinked' | 'error';
+  error: string | null;
+  /** The last change the server did not (fully) accept. */
+  rejected: string | null;
+  pending: number;
+};
+
+/** Where the data comes from and whether it is there yet. */
+export function getBackendStatus(): BackendStatus {
+  if (!isRemoteMode() && !remote) return { mode: 'local', phase: 'ready', error: null, rejected: null, pending: 0 };
+  if (remoteLoadError) return { mode: 'remote', phase: 'error', error: remoteLoadError, rejected: null, pending: 0 };
+  if (!remote) return { mode: 'remote', phase: 'loading', error: null, rejected: null, pending: 0 };
+  return { mode: 'remote', ...remote.getStatus() };
+}
+
+/** Hides the message about a refused change. */
+export function dismissRejectedChange(): void {
+  remote?.clearRejected();
+}
+
+/** Reloads from the server (remote mode); a no-op locally. */
+export function refreshFromServer(): Promise<void> {
+  return remote ? remote.refresh() : Promise.resolve();
+}
+
+/** Resolves once every change sent to the server has been answered. */
+export function flushRemote(): Promise<void> {
+  return remote ? remote.flush() : Promise.resolve();
+}
+
+/**
+ * The traffic light depends on today's date, so an athlete's app refreshes
+ * its own summary once a day even without new entries. Only the athlete may
+ * write it on the server.
+ */
+export function ensureFreshLoadSummary(): void {
+  const database = readDatabase();
+  const identity = database?.activeIdentity;
+  if (!database || identity?.role !== 'athlete') return;
+  const today = new Date().toISOString().slice(0, 10);
+  const row = database.loadSummaries.find((candidate) => candidate.personId === identity.personId);
+  const entries = database.loadEntries.filter((entry) => entry.personId === identity.personId);
+  if (entries.length === 0 || row?.updatedAt.slice(0, 10) === today) return;
+  mutate((draft) => {
+    draft.loadSummaries = [
+      ...draft.loadSummaries.filter((candidate) => candidate.personId !== identity.personId),
+      { personId: identity.personId, ...summarizeLoadEntries(entries), updatedAt: new Date().toISOString() },
+    ];
+  });
 }
 
 /** Subscribes to every change. Returns the unsubscribe function. */
@@ -154,6 +311,7 @@ export function subscribe(listener: Listener): () => void {
 
 /** Drops the local database and seeds a fresh test club. */
 export function resetDatabase(): void {
+  if (remote || isRemoteMode()) throw new LocalDataError('Mit dem Server gibt es keine Testdaten zum Zurücksetzen.');
   if (!isBrowser()) return;
   cache = null;
   window.localStorage.removeItem(DATABASE_KEY);
@@ -185,6 +343,15 @@ export function getActiveIdentity(): ActiveIdentity | null {
 
 export function setActiveIdentity(identity: ActiveIdentity | null): void {
   mutate((database) => {
+    // With the server you are always yourself: only a switch between your
+    // own roles (coach and athlete) is possible.
+    if (remote && identity) {
+      const current = database.people.find((person) => person.id === database.activeIdentity?.personId);
+      const target = database.people.find((person) => person.id === identity.personId);
+      if (!current?.userId || target?.userId !== current.userId) {
+        throw new LocalDataError('Mit dem Server kannst du nur zwischen deinen eigenen Rollen wechseln.');
+      }
+    }
     database.activeIdentity = identity;
   });
 }
@@ -351,7 +518,7 @@ function assertRoleNameFree(database: LocalDatabase, teamId: Id, name: string, e
 export function createCoachRole(teamId: Id, name: string, permissions: readonly string[]): Id {
   const trimmed = name.trim();
   if (!trimmed) throw new LocalDataError('Die Rolle braucht einen Namen.');
-  const id = `role-${teamId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const id = newId();
   mutate((database) => {
     assertRoleNameFree(database, teamId, trimmed, null);
     database.coachRoles.push({
@@ -416,15 +583,15 @@ export function addStaffMember(teamId: Id, firstName: string, lastName: string, 
   const first = firstName.trim();
   const last = lastName.trim();
   if (!first || !last) throw new LocalDataError('Vor- und Nachname werden gebraucht.');
-  const personId = `coach-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const personId = newId();
   mutate((database) => {
     const team = database.teams.find((candidate) => candidate.id === teamId);
     const role = database.coachRoles.find((candidate) => candidate.id === roleId);
     if (!team) throw new LocalDataError(`Unknown team: ${teamId}`);
     if (!role || role.teamId !== teamId) throw new LocalDataError('Diese Rolle gehört zu einem anderen Team.');
     const now = new Date().toISOString();
-    database.people.push({ id: personId, clubId: team.clubId, firstName: first, lastName: last, createdAt: now });
-    const membership: Membership = { id: `m-${personId}-${teamId}`, personId, teamId, role: 'coach', coachRoleId: roleId, createdAt: now };
+    database.people.push({ id: personId, clubId: team.clubId, userId: null, firstName: first, lastName: last, createdAt: now });
+    const membership: Membership = { id: newId(), personId, teamId, role: 'coach', coachRoleId: roleId, createdAt: now };
     database.memberships.push(membership);
   });
   return personId;
@@ -508,10 +675,10 @@ function requireFacility(database: LocalDatabase, facilityId: Id): Facility {
 export function createFacility(input: { name: string; address: string; departmentIds: readonly Id[] }): Id {
   const name = input.name.trim();
   if (!name) throw new LocalDataError('Die Halle braucht einen Namen.');
-  const id = `facility-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const id = newId();
   mutate((database) => {
     const departments = database.departments.filter((department) => input.departmentIds.includes(department.id));
-    database.facilities.push({ id, clubId: database.club.id, name, address: input.address.trim(), scope: 'club_shared', ownerDepartmentId: null });
+    database.facilities.push({ id, clubId: database.club.id, name, address: input.address.trim() });
     for (const department of departments) {
       database.departmentFacilities.push({ departmentId: department.id, facilityId: id });
     }
@@ -624,7 +791,7 @@ export type SessionInput = {
 };
 
 export function createSession(input: SessionInput): Id {
-  const id = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const id = newId();
   mutate((database) => {
     const team = database.teams.find((candidate) => candidate.id === input.teamId);
     if (!team) throw new LocalDataError(`Unknown team: ${input.teamId}`);
@@ -658,9 +825,12 @@ export function updateSession(sessionId: Id, changes: Partial<SessionInput>): vo
 export function deleteSession(sessionId: Id): void {
   mutate((database) => {
     database.sessions = database.sessions.filter((session) => session.id !== sessionId);
-    // Reports that referred to the session would otherwise linger forever.
+    // Same as the server's foreign keys: reports and dismissals go with the
+    // session; load an athlete logged stays theirs, just no longer tied to it.
     database.availability = database.availability.filter((entry) => entry.sessionId !== sessionId);
-    database.loadEntries = database.loadEntries.filter((entry) => entry.sessionId !== sessionId);
+    database.acknowledgedSessions = database.acknowledgedSessions.filter((entry) => entry.sessionId !== sessionId);
+    for (const entry of database.loadEntries) if (entry.sessionId === sessionId) entry.sessionId = null;
+    for (const state of database.sessionSeriesWeekStates) if (state.committedSessionId === sessionId) state.committedSessionId = null;
   });
 }
 
@@ -722,12 +892,14 @@ export function reportAvailability(input: {
   lateMinutes?: number | null;
 }): void {
   mutate((database) => {
-    database.availability = database.availability.filter(
-      (entry) => !(entry.sessionId === input.sessionId && entry.personId === input.personId),
+    const previous = database.availability.find(
+      (entry) => entry.sessionId === input.sessionId && entry.personId === input.personId,
     );
+    database.availability = database.availability.filter((entry) => entry !== previous);
     if (input.status === 'in') return;
     database.availability.push({
-      id: `av-${input.sessionId}-${input.personId}`,
+      // A changed report keeps its row (and its id on the server).
+      id: previous?.id ?? newId(),
       sessionId: input.sessionId,
       personId: input.personId,
       status: input.status,
@@ -763,7 +935,7 @@ export type LoadEntryInput = {
 };
 
 export function recordLoadEntry(input: LoadEntryInput): Id {
-  const id = `load-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const id = newId();
   mutate((database) => {
     if (input.rpe < 1 || input.rpe > 10) throw new LocalDataError(`RPE out of range: ${input.rpe}`);
     if (input.durationMinutes <= 0) throw new LocalDataError(`Duration must be positive: ${input.durationMinutes}`);

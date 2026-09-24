@@ -247,3 +247,42 @@ Telefonbreite 390 × 844, Produktions-Build, frische Testdaten, ohne Geoapify-Sc
 - Adressvorschläge mit echtem Geoapify-Schlüssel (in dieser Umgebung kein Schlüssel und
   kein Zugang zu `api.geoapify.com`).
 - Hallen, die mit einer zweiten Abteilung geteilt sind (die Testdaten haben eine).
+
+## Run 9b — Server-Speicher (2026-09-24)
+
+### Ende-zu-Ende gegen Postgres mit den Pilot-Zugriffsregeln (`npm run test:pilot`)
+
+38 Prüfungen, alle bestanden. Auszug:
+
+| Wer | Prüfung | Ergebnis |
+|---|---|---|
+| Head Coach | Einheit anlegen, verschieben, in neue Halle legen | auf dem Server, nichts abgelehnt |
+| Head Coach | Halle anlegen und freigeben, Standardhalle setzen | auf dem Server |
+| Head Coach | Lea Sommer als Betreuerin, Rolle „Physio“ (Anwesenheit ergänzt), Gruppe mit Jonas | auf dem Server |
+| Spieler | Absage mit Grund; Wechsel auf „spät“ behält die Zeile, Grund verschwindet | bestanden |
+| Spieler | Belastung 600 AU, eigene Ampel mitgeschrieben | bestanden |
+| Spieler | als Martin handeln | abgelehnt |
+| Betreuer | sieht Absage, nicht den Grund, keine Belastung | bestanden |
+| Betreuer | Einheit umbenennen | abgelehnt mit Hinweis „Einheiten“, Ansicht zeigt wieder den Serverstand, Server unverändert |
+| Betreuer | nach Freigabe der Ampel: zwei Ampeln, weiter keine Einträge | bestanden |
+| Head Coach | Einheit löschen: Belastung des Spielers bleibt ohne Bezug | ohne Fehlalarm |
+| Head Coach | Halle löschen: Standard geleert, Einheit ohne Halle | ohne Fehlalarm |
+| niemand | nicht angemeldet | kein Dokument, Status „signedOut“ |
+
+### Browser, lokaler Modus, 390 × 844
+
+| Prüfung | Ergebnis |
+|---|---|
+| Neue Testdaten: Version v5, 24 Ampeln, Hallen ohne `scope`, Personen mit `userId: null` | bestanden |
+| Alle Trainer- und Spielerrouten ohne Laufzeitfehler | bestanden |
+| Halle, Staff-Person, Mitgliedschaft und Gruppe über die Oberfläche angelegt: UUIDs | bestanden |
+| Spieler sagt künftiges Spiel ab („Fieber“): gespeichert, UUID | bestanden |
+| Spieler korrigiert RPE auf 9 (810 AU): Ampel 0,870 → 0,940 | bestanden |
+| Head Coach öffnet das Spiel: „Jonas Kern“ und „Fieber“ | bestanden |
+| Betreuer öffnet das Spiel: „Jonas Kern“, kein „Fieber“ | bestanden |
+
+### Browser, Servermodus ohne Anmeldung
+
+`/coach/today`, `/coach/team`: „Nicht angemeldet.“; `/athlete/home` zeigt den Rahmen und
+dieselbe Meldung. Keine Anfrage an Supabase, kein lokales Testdokument, keine
+Laufzeitfehler.
