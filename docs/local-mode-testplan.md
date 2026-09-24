@@ -1,0 +1,328 @@
+# Prüfplan für den lokalen Modus
+
+Das Repository hat keine automatisierten Tests. Was hier nicht abgehakt ist, gilt als
+ungeprüft. Jeder Run der Vereinfachung trägt sein Ergebnis ein.
+
+Voraussetzung für jeden Durchlauf: frisches Browserprofil, **keine**
+Umgebungsvariablen gesetzt.
+
+## Die Kette
+
+| # | Schritt | Ab Run | Stand |
+|---|---|---|---|
+| 1 | Trainer erstellt eine Einheit | 2 | bestanden |
+| 2 | Spieler sieht die Einheit in seinem Kalender | 3 | bestanden |
+| 3 | Spieler meldet sich verspätet oder ab | 3 | bestanden |
+| 4 | Trainer sieht die Meldung | 3 | bestanden (Name und Grund in der Detailansicht, Run 5) |
+| 5 | Spieler trägt RPE und Dauer ein | 4 | bestanden |
+| 6 | Trainer sieht die neue Belastung beim richtigen Spieler | 4 | bestanden |
+| 7 | Reload: Daten und Identität bleiben erhalten | 2 | bestanden |
+| 8 | Rollenwechsel in beide Richtungen | 3 | bestanden |
+| 9 | Personenwechsel: jeder sieht nur seine eigenen Werte | 3 | bestanden |
+| 10 | Reset legt Testdaten korrekt neu an | 4 | bestanden |
+| 11 | Frisches Profil ohne Umgebungsvariablen: App läuft | 2 | bestanden |
+
+## Run 2 — Trainerbereich (2026-09-22)
+
+Geprüft mit Playwright gegen den laufenden Dev-Server, ohne
+`NEXT_PUBLIC_SUPABASE_URL` und `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+
+| Prüfung | Ergebnis |
+|---|---|
+| `/coach/today` öffnet, **keine** Weiterleitung zur Anmeldung | bestanden |
+| `/coach/sessions`, `/coach/team`, `/coach/load`, `/coach/facilities`, `/coach/history`, `/coach/attendance` laden | bestanden, alle sieben |
+| Seed-Daten erscheinen (U16 Jungen, Basketball, Sporthalle Nord) | bestanden |
+| Einheit anlegen → nach Reload weiterhin vorhanden (73 → 74) | bestanden |
+| Kader zeigt 12 Spieler mit Namen, ACWR und Gruppen | bestanden |
+| ACWR-Werte gestreut und plausibel (0,62 bis 1,09, Zonen Low/Ready) | bestanden |
+| Absagen aus dem Seed erreichen die Trainersicht („3 availability flags") | bestanden |
+| Anwesenheitsquote echt berechnet (96 %, 92 %, 88 %, 96 %, 79 %) | bestanden |
+| `/demo/coach/today` leitet auf `/coach/today` weiter | bestanden |
+| Laufzeitfehler in der Konsole | keine |
+| `npm run typecheck`, `npm run build` | grün |
+
+**Schritt 4 ist nur teilweise erfüllt:** Der Trainer sieht Absagen und Verspätungen —
+aber bisher nur die aus dem Seed, weil es noch keine Oberfläche gibt, über die ein
+Spieler etwas meldet. Die Richtung Spieler → Trainer wird in Run 3 vollständig geprüft.
+
+**Schritt 6 ebenso:** Belastungswerte erscheinen beim richtigen Spieler, stammen aber
+aus dem Seed. Der Weg über eine echte RPE-Meldung kommt in Run 4.
+
+### Nicht geprüft
+
+- Hallenkalender unter `/coach/facilities/[facilityId]/calendar` samt Konfliktprüfung:
+  nur die Übersicht wurde geöffnet, nicht der Wochenkalender selbst.
+- Serienplanung und Wochenbestätigung.
+- Mobile Darstellung. Die Prüfung lief in Desktop-Breite.
+
+
+## Run 3 — Einstieg, Identität, Verfügbarkeit (2026-09-23)
+
+Geprüft mit Playwright bei **Telefonbreite (390 × 844)**, ohne Umgebungsvariablen.
+
+| Prüfung | Ergebnis |
+|---|---|
+| `/` zeigt „Wie möchtest du die App testen?", keine Anmeldung | bestanden |
+| „Training melden" öffnet den Spielerbereich mit gesetzter Identität | bestanden |
+| Spieler sieht Team, 7-Tage-Last und ACWR (Jonas Kern: U16, 0,86) | bestanden |
+| Hinweis auf ungemeldete Einheiten („11 kommende Einheiten") | bestanden |
+| Absage mit Grund melden (2 Taps: Absage → Krank) | bestanden |
+| Verspätung melden (2 Taps: Später → 15 Min) | bestanden |
+| Meldungen landen in der Datenschicht (`out/Krank`, `late/15`) | bestanden |
+| Rollenwechsel zum Trainer **ohne Reload** | bestanden |
+| Trainer sieht Name und Grund konkret („Emil Busch · Familientermin", „Noah Wagner · 16m · Bus verpasst") | bestanden |
+| Reload: Identität und beide Meldungen bleiben | bestanden |
+| Personenwechsel: Jonas Kern ACWR 0,86 / 37 Einheiten, Lena Sturm 1,33 / 36 Einheiten | bestanden |
+| Spieler sieht nur Einheiten des eigenen Teams (36 von 73) | bestanden |
+| Laufzeitfehler | keine |
+| Supabase im Spielerpfad (19 Dateien über die Importkette) | keine |
+| `npm run typecheck`, `npm run build` | grün |
+
+### Gefundener und behobener Fehler
+
+Der Rollenwechsel war auf Telefonbreite **nicht bedienbar**. Das Auswahlfenster saß
+454 Pixel oberhalb des Bildschirms und ließ sich nicht antippen.
+
+Ursache: `os-panel` setzt `backdrop-filter: blur(24px)`, und ein backdrop-filter macht
+das Element zum Bezugsrahmen für `position: fixed` seiner Nachkommen. Das Fenster
+verankerte sich am umgebenden Panel statt am Sichtfenster. Betroffen wäre auch die
+Trainer-Seitenleiste gewesen, die dieselbe Klasse trägt.
+
+Behoben, indem das Fenster über ein Portal direkt in `document.body` gerendert wird.
+Damit ist die ganze Fehlerklasse ausgeschlossen, egal welche Filter oder Transformationen
+eine spätere Umgebung mitbringt.
+
+Der Fehler wäre bei einer reinen Desktop-Prüfung nicht aufgefallen: ab 640 Pixel
+zentriert sich das Fenster und liegt zufällig im sichtbaren Bereich.
+
+### Nicht geprüft
+
+- Hallenkalender als Wochenansicht samt Konfliktprüfung (steht seit Run 2 offen).
+- Serienplanung und Wochenbestätigung.
+- Reset-Schaltfläche: existiert noch nicht, kommt in Run 4.
+
+
+## Run 4 — Spieler-Workspace auf lokalen Daten (2026-09-23)
+
+Geprüft mit Playwright bei **Telefonbreite (390 × 844)**, ohne Umgebungsvariablen,
+**in einer zusammenhängenden Browsersitzung**. Die Spieleroberfläche ist ab diesem Run
+wieder der ursprüngliche `AthleteLoadWorkspace`, nicht mehr die Seiten aus Run 3.
+
+| Prüfung | Ergebnis |
+|---|---|
+| Startseite → „Training melden" → Load cockpit mit ACWR, Zone, Belastungsdiagramm | bestanden |
+| `/athlete/availability` leitet auf `/athlete/calendar` | bestanden |
+| Kalender-Wochenansicht auf dem Telefon: Einheiten, Seed-Absage rot markiert | bestanden |
+| Zukünftiges Spiel öffnen → Out → Grund „Knöchel verdreht" → Save availability | bestanden, in der Datenschicht als `out` mit Grund |
+| Automatische Aufwärmeinheit wird mit abgesagt | bestanden |
+| Vergangene Einheit: Seed-Eintrag löschen (30 → 29 Einträge) | bestanden |
+| Neu eintragen: RPE 8, 75 Min → „Save 600 AU" | bestanden, Eintrag an der richtigen Einheit |
+| ACWR Jonas Kern: Spieleransicht 1,07 = Traineransicht 1,07 | bestanden |
+| Rollenwechsel Spieler → Trainer ohne Reload | bestanden |
+| Reload: Eintrag und Identität bleiben | bestanden |
+| Reset über „Testdaten zurücksetzen": zurück auf `/`, eigene Daten weg, 43 Tage Historie neu | bestanden |
+| Trainer-Link erzeugen und `/share/load` öffnen | bestanden **nach Fix** (siehe unten) |
+| Laufzeitfehler | keine |
+| Supabase im aktiven Pfad (Start, Trainer, Spieler, Teilen) | keine |
+| `localStorage` im aktiven Pfad | nur `src/shared/data/repository.ts` |
+| `npm run typecheck`, `npm run build` | grün |
+
+### Gefundener und behobener Fehler: `/share/load` war mit echter Historie kaputt
+
+Der Trainer-Link packt bis zu 90 Einträge und 30 geplante Einheiten als Base64 in die
+Adresse. Mit 42 Tagen Historie war der Link **19.544 Zeichen** lang, und der Server
+antwortete mit **431 Request Header Fields Too Large**, bevor die Seite überhaupt lud.
+
+Das war kein Fehler aus dem Umbau, sondern ein schlafender im Bestand. Mit den alten,
+dünnen Demo-Daten blieb der Link unter der Grenze; ein echter Spieler nach drei Monaten
+Nutzung hätte ihn genauso gerissen.
+
+Behoben, indem die Daten im Fragment (`#data=`) statt im Query-String (`?data=`)
+stehen. Das Fragment schickt der Browser nie an den Server — keine Längengrenze auf
+Serverseite, und Belastungsdaten der Athleten landen nicht mehr in Server- oder
+Proxy-Logs. Alte `?data=`-Links werden weiterhin gelesen.
+
+### Nicht von Hand geprüft
+
+- Dass der Trainer **genau diese** neue Absage („Knöchel verdreht") auf seinem Bildschirm
+  sieht. Geprüft ist: Sie liegt in derselben `availability`-Sammlung, die der Trainer
+  liest, und Run 3 hat gezeigt, dass der Trainer Namen und Gründe von dort anzeigt. Die
+  Kette ist also belegt, der letzte Bildschirmblick für diesen konkreten Eintrag fehlt.
+- Eigene Trainingspläne anlegen, verschieben und löschen. Die Seed-Pläne erscheinen im
+  Kalender, die Bearbeitung ist nicht durchgespielt.
+- Hallenkalender als Wochenansicht samt Konfliktprüfung (seit Run 2 offen).
+
+
+## Run 5 — nach dem Löschen (2026-09-23)
+
+Regressionslauf der ganzen Kette nach dem Entfernen von 53 Routen und 53 Dateien,
+Telefonbreite 390 × 844, ohne Umgebungsvariablen, eine zusammenhängende Sitzung.
+
+| Prüfung | Ergebnis |
+|---|---|
+| Verwaiste Schlüssel `club-app.demo.*`, `.admin.*`, `.athlete-load.*` beim Start entfernt | bestanden |
+| 1 Startseite ohne Anmeldung | bestanden |
+| 2 Spieler-Cockpit | bestanden |
+| 3 Absage mit Grund aus dem Kalender | bestanden |
+| 4 Trainer sieht **genau diese** Absage: „Jonas Kern out · Knöchel verdreht" in der Detailansicht | bestanden — war seit Run 4 nur auf Datenebene belegt |
+| 5 RPE 8, 75 Min → 600 AU | bestanden |
+| 6 ACWR Spieler = Trainer (1,07 / 1,07) | bestanden |
+| 7 Reload | bestanden |
+| 8 Rollenwechsel ohne Reload | bestanden |
+| 9 Personenwechsel zu Lena Sturm | bestanden |
+| 10 Reset | bestanden |
+| 11 Teilen-Link (Fragment) | bestanden |
+| Hallenkalender ohne `from`: lädt, Rückweg nach `/coach/facilities` | bestanden |
+| Hallenkalender, Ziehen einer **fremden** Einheit (U18) | bestanden: unverändert |
+| Hallenkalender, Ziehen einer **eigenen** Einheit (U16) | bestanden: verschoben |
+| Laufzeitfehler | keine |
+| `npm run typecheck`, `npm run build` (14 Routen) | grün |
+
+### Gefundener und behobener Fehler: kein Rollenwechsel in der Team-Ansicht auf dem Telefon
+
+`TeamWorkspaceView` blendet die mobile Trainer-Navigation aus, weil es eigene Tabs hat
+— und der Identitätswechsel saß in genau dieser Navigation. Auf `/coach/team`,
+`/coach/attendance` und `/coach/load` kam man auf dem Telefon nicht mehr aus der
+Trainerrolle heraus. Seit Run 3 so, aufgefallen erst jetzt, weil der Regressionslauf
+den Wechsel erstmals aus der Team-Ansicht heraus versucht hat.
+
+Ein erster Fix mit schwebendem Knopf unten rechts hat die Tab-Leiste der Team-Ansicht
+verdeckt; der Test hat es sofort gezeigt. Jetzt sitzt der Wechsel als eigene Zeile in
+der festen Kopfzeile der Team-Ansicht, nur auf dem Telefon.
+
+## Run 7 — Trainerrollen (2026-09-24)
+
+Telefonbreite 390 × 844, Produktions-Build, frische Testdaten. U16 Jungen:
+Martin Weber (Head Coach), Tobias Neumann (Co-Trainer), Jana Vogt (Athletiktrainer),
+Uwe Heller (Betreuer).
+
+| Prüfung | Ergebnis |
+|---|---|
+| Head Coach: 12 Spieler mit ACWR, Detail mit Diagrammen und Trainingsmix | bestanden |
+| Head Coach: Gruppen bearbeitbar, Standardhalle wählbar, 4 Rollen-Auswahlen im Trainerteam | bestanden |
+| Betreuer: 12 Spieler, keine ACWR, „Load not shared" in Liste und Detail | bestanden |
+| Betreuer: keine Gruppenbearbeitung, Standardhalle gesperrt, Trainerteam nur lesend (11/11 Häkchen gesperrt) | bestanden |
+| Betreuer: Bearbeiten-Modus im Trainerkalender und im Hallenkalender nicht schaltbar, Ziehen ändert nichts | bestanden |
+| Betreuer: künftige Einheit ohne „Edit session"/„Delete session"; Head Coach hat beide | bestanden |
+| Head gibt Betreuer die Ampel → Betreuer sieht ACWR, im Detail nur die Ampel und den Hinweis, keine Diagramme | bestanden |
+| Anwesenheit abgewählt → Absagegründe mit abgewählt | bestanden |
+| Co-Trainer und Athletiktrainer ohne `manageStaff`, dann Head auf Betreuer setzen → abgelehnt mit Meldung, bleibt Head Coach | bestanden |
+| Vergebene Rolle „Betreuer" löschen → abgelehnt mit Meldung | bestanden |
+| Rolle „Physio" anlegen, Lea Sommer als Physio hinzufügen | bestanden |
+| Identitätswechsel zeigt „U16 Jungen · Head Coach", Tobias mit beiden Teams und Rollen | bestanden |
+| Laufzeitfehler | keine |
+
+Datenschicht zusätzlich per Skript: Rechteanzahl je Rolle (11/11/11/2, Nichtmitglied 0),
+Head-Coach-Rolle unveränderbar und unlöschbar, letzter Verwalter nicht entfernbar,
+ungültige Rechte gefiltert, doppelte Rollennamen abgelehnt.
+
+### Nicht geprüft
+
+- Hallenkalender: Verschieben einer eigenen Einheit als Head Coach wurde in diesem Lauf
+  nicht erneut belegt (Bearbeiten-Modus schaltbar; der Ziehtest traf keine eigene,
+  künftige Einheit). Belegt zuletzt in Run 5; der Pfad wurde nur um den Rechtefilter
+  ergänzt.
+- Rechte ohne `viewRoster` oder ohne `viewAttendance` in allen Trainerseiten von Hand.
+
+## Run 8 — Hallen (2026-09-24)
+
+Telefonbreite 390 × 844, Produktions-Build, frische Testdaten, ohne Geoapify-Schlüssel.
+
+| Prüfung | Ergebnis |
+|---|---|
+| Head Coach: drei Hallen mit Adresse, „Edit halls“ sichtbar | bestanden |
+| Neue Halle an „Nordring 12“ → Warnung „Possible same facility: Sporthalle Nord …“; nach Adresswechsel keine Warnung | bestanden |
+| „Sporthalle Süd“ angelegt, für die Abteilung freigegeben | bestanden |
+| Als Standardhalle von U16 gesetzt, umbenannt | bestanden |
+| Freigabe entzogen → U16 verliert sie als Standard, Halle bleibt für den Verwalter sichtbar | bestanden |
+| Kraftraum löschen → Rückfrage „6 upcoming and 12 past sessions and 2 weekly series stay, without a hall“; danach Halle weg, 18 Einheiten bestehen ohne Halle, keine Serie verweist mehr darauf | bestanden |
+| Hallenkalender der neuen Halle zeigt neuen Namen und Adresse | bestanden |
+| Betreuer: Hallenliste sichtbar, kein „Edit halls“ | bestanden |
+| Einheiten ohne Halle: Trainerseiten (Today, Sessions, Series, History, Team) und Spielerseiten (Home, Calendar, Load) ohne Laufzeitfehler | bestanden |
+| Ohne Schlüssel keine Anfrage an Geoapify | bestanden (0) |
+| Laufzeitfehler | keine |
+
+### Nicht geprüft
+
+- Adressvorschläge mit echtem Geoapify-Schlüssel (in dieser Umgebung kein Schlüssel und
+  kein Zugang zu `api.geoapify.com`).
+- Hallen, die mit einer zweiten Abteilung geteilt sind (die Testdaten haben eine).
+
+## Run 9b — Server-Speicher (2026-09-24)
+
+### Ende-zu-Ende gegen Postgres mit den Pilot-Zugriffsregeln (`npm run test:pilot`)
+
+38 Prüfungen, alle bestanden. Auszug:
+
+| Wer | Prüfung | Ergebnis |
+|---|---|---|
+| Head Coach | Einheit anlegen, verschieben, in neue Halle legen | auf dem Server, nichts abgelehnt |
+| Head Coach | Halle anlegen und freigeben, Standardhalle setzen | auf dem Server |
+| Head Coach | Lea Sommer als Betreuerin, Rolle „Physio“ (Anwesenheit ergänzt), Gruppe mit Jonas | auf dem Server |
+| Spieler | Absage mit Grund; Wechsel auf „spät“ behält die Zeile, Grund verschwindet | bestanden |
+| Spieler | Belastung 600 AU, eigene Ampel mitgeschrieben | bestanden |
+| Spieler | als Martin handeln | abgelehnt |
+| Betreuer | sieht Absage, nicht den Grund, keine Belastung | bestanden |
+| Betreuer | Einheit umbenennen | abgelehnt mit Hinweis „Einheiten“, Ansicht zeigt wieder den Serverstand, Server unverändert |
+| Betreuer | nach Freigabe der Ampel: zwei Ampeln, weiter keine Einträge | bestanden |
+| Head Coach | Einheit löschen: Belastung des Spielers bleibt ohne Bezug | ohne Fehlalarm |
+| Head Coach | Halle löschen: Standard geleert, Einheit ohne Halle | ohne Fehlalarm |
+| niemand | nicht angemeldet | kein Dokument, Status „signedOut“ |
+
+### Browser, lokaler Modus, 390 × 844
+
+| Prüfung | Ergebnis |
+|---|---|
+| Neue Testdaten: Version v5, 24 Ampeln, Hallen ohne `scope`, Personen mit `userId: null` | bestanden |
+| Alle Trainer- und Spielerrouten ohne Laufzeitfehler | bestanden |
+| Halle, Staff-Person, Mitgliedschaft und Gruppe über die Oberfläche angelegt: UUIDs | bestanden |
+| Spieler sagt künftiges Spiel ab („Fieber“): gespeichert, UUID | bestanden |
+| Spieler korrigiert RPE auf 9 (810 AU): Ampel 0,870 → 0,940 | bestanden |
+| Head Coach öffnet das Spiel: „Jonas Kern“ und „Fieber“ | bestanden |
+| Betreuer öffnet das Spiel: „Jonas Kern“, kein „Fieber“ | bestanden |
+
+### Browser, Servermodus ohne Anmeldung
+
+`/coach/today`, `/coach/team`: „Nicht angemeldet.“; `/athlete/home` zeigt den Rahmen und
+dieselbe Meldung. Keine Anfrage an Supabase, kein lokales Testdokument, keine
+Laufzeitfehler.
+
+## Run 10 — Zugang (2026-09-24)
+
+### Datenbank lokal
+
+`supabase/pilot/tests/run-local.sh`: 75 + 35 Prüfungen, `npm run test:pilot`: 50
+Prüfungen, alle bestanden. Neu u. a.: Betreuer sieht keinen Code und keine Einladungen;
+keine Einladung für Spieler oder Personen mit Konto; ohne Anmeldung nur die
+Einladungsvorschau; falscher Code und fehlende Namen abgelehnt; zweimal beitreten
+ändert nichts; eine Einladung gilt einmal, abgelaufene gar nicht; Annahme durch
+jemanden, der schon im Verein ist, führt zu einer Person mit zwei Teams;
+`setup_club` legt Verein, Team mit vier Rollen, Code, Halle und Head-Coach-Einladung an
+und ist aus der App nicht aufrufbar.
+
+### Live gegen das Supabase-Projekt, 390 × 844
+
+| Schritt | Ergebnis |
+|---|---|
+| Servermodus, nicht angemeldet, `/coach/today` | weiter auf `/login?next=%2Fcoach%2Ftoday` |
+| `/join?invite=…` | „Testa Trainerin · Head Coach · Test-U16 · Claude-Testverein“ |
+| Anmelden, „Einladung annehmen“ | `/coach/today` als Testa Trainerin; Datenbank: verknüpft, Head Coach |
+| Trainerteam | Code „Q664-X4NR“, „Konto verbunden“; Tina Test angelegt, Einladungslink erstellt |
+| `/join?code=…`, Anmelden als Spieler | Code vorbefüllt; Beitritt → `/athlete/home` als Sam Spieler |
+| Spieler sagt künftige Einheit mit Grund ab | `availability` out + `availability_reasons` „Klassenfahrt“ |
+| Trainerin, Spielerliste | Sam Spieler sichtbar |
+| Abmelden, „Ohne Anmeldung lokal testen“ | lokaler Testverein, als Martin Weber weiter |
+| Laufzeitfehler | keine |
+
+Im Testlauf gefunden und behoben: Auf `/join` startete die Verbindung zum Server-Speicher
+nie, „Einladung annehmen“ blieb grau.
+
+### Lokaler Modus im selben Build
+
+Startseite mit beiden Wegen; Trainer- und Spielerrouten fehlerfrei; im Trainerteam
+kein Code und keine Einladungen; Identitätsmenü mit „Mit Konto anmelden“ und
+„Testdaten zurücksetzen“, ohne „Abmelden“; 0 Anfragen an Supabase.
+
+Hinweis für Browser-Tests hier: Der Test-Browser muss die App über die Container-
+Adresse statt `localhost` öffnen (sonst läuft auch sie über den Proxy) und mit
+`--ignore-certificate-errors` starten; sonst dauert jede Supabase-Anfrage 16 Sekunden.

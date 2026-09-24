@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { formatDateRange, formatDay, formatTimeRange as formatSharedTimeRange } from '@/shared/format';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { SessionDetailSheet, type SessionDetailFacilityOption, type SessionDetailGroup } from '@/features/sessions/SessionDetailSheet';
 import type { CoachSession } from '@/features/role-workspaces/CoachTypes';
@@ -51,14 +52,22 @@ export function sortCoachLoadRisks<T extends LoadRiskPlayer>(players: T[]) {
 
 function formatTimeRange(startsAt: string, endsAt: string | null) {
   const start = new Date(startsAt);
-  const end = endsAt ? new Date(endsAt) : new Date(start.getTime() + 90 * 60_000);
-  return `${new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(start)} - ${new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(end)}`;
+  return formatSharedTimeRange(start, endsAt ? new Date(endsAt) : new Date(start.getTime() + 90 * 60_000));
+}
+
+/**
+ * Session insights are built from every player's RPE entries. A role that may
+ * only see the traffic light gets no entries, so the insights would read as
+ * "nobody reported" rather than "not shared with you".
+ */
+function sessionLoadDetailsShared(session: CoachSession) {
+  return session.players.length > 0 && session.players.every((player) => (player.loadAccess ?? 'full') === 'full');
 }
 
 function summarizeCoachSession(session: CoachSession) {
   const late = session.availability.filter((item) => item.status === 'late');
   const out = session.availability.filter((item) => item.status === 'out');
-  const loadReports = session.players.flatMap((player) => player.loadEntries.filter((entry) => entry.sessionId === session.id).map((entry) => ({ player, entry })));
+  const loadReports = session.players.flatMap((player) => player.loadEntries.filter((entry) => entry.sessionId === session.id && entry.trainingType !== 'warmup').map((entry) => ({ player, entry })));
   const reportRate = session.players.length > 0 ? loadReports.length / session.players.length : 0;
   const avgRpe = loadReports.length > 0 ? loadReports.reduce((sum, item) => sum + item.entry.rpe, 0) / loadReports.length : null;
   const avgLoad = loadReports.length > 0 ? loadReports.reduce((sum, item) => sum + item.entry.load, 0) / loadReports.length : null;
@@ -130,12 +139,11 @@ function formatHistoryWeekLabel(key: string) {
   const start = new Date(`${key}T00:00:00`);
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
-  const short = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: '2-digit' });
-  return `${short.format(start)}-${short.format(end)}`;
+  return formatDateRange(start, end);
 }
 
 function formatHistoryDayLabel(date: Date) {
-  return new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(date);
+  return formatDay(date).split(' ')[0];
 }
 
 function isoWeekNumber(date: Date) {
@@ -211,7 +219,7 @@ function buildCoachHistoryGraph(sessions: CoachSession[], rangeWeeks: number): C
 
   return Array.from(buckets.entries()).map(([key, bucket]) => ({
     key,
-    label: `KW ${isoWeekNumber(new Date(`${key}T00:00:00`))}`,
+    label: `Wk ${isoWeekNumber(new Date(`${key}T00:00:00`))}`,
     dateRange: formatHistoryWeekLabel(key),
     sessionCount: bucket.sessionCount,
     expectedPlayers: bucket.expectedPlayers,
@@ -356,8 +364,8 @@ function CoachHistoryTrendGraph({
     <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/70 p-3 shadow-[0_18px_70px_rgba(0,0,0,0.18)] sm:p-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-300">Trend</p>
-          <h3 className="mt-1 text-lg font-black text-white">History by calendar week</h3>
+          <h3 className="text-base font-black text-white">By week</h3>
+          <p className="text-xs text-slate-400">Tap a week to see its sessions.</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(HISTORY_METRIC_META) as CoachHistoryMetric[]).map((metric) => {
@@ -607,6 +615,9 @@ export function CoachSessionDetailOverlay({
         id: activePlayer.id,
         name: activePlayer.name,
         loadEntries: activePlayer.loadEntries,
+        loadAccess: activePlayer.loadAccess,
+        loadSummary: activePlayer.loadSummary,
+        attendanceShared: session.attendanceShared,
         attendanceEvents: session.availability
           .filter((item) => item.userId === activePlayer.id)
           .map((item) => ({
@@ -636,7 +647,7 @@ export function CoachSessionDetailOverlay({
         groups={groups}
         selectedGroupIds={selectedGroupIds ?? session.groupIds}
         canEditGroups={false}
-        attendance={{
+        attendance={session.attendanceShared === false ? undefined : {
           expected: session.players.length,
           late: summary.late.length,
           out: summary.out.length,
@@ -648,7 +659,9 @@ export function CoachSessionDetailOverlay({
           })),
         }}
         loadRisks={isPast ? [] : summary.risks.map((player) => ({ id: player.id, name: player.name, status: player.risk as 'high' | 'low', detail: player.acwr !== null ? `${player.acwr.toFixed(2)} ACWR` : null }))}
-        insights={isPast ? (
+        insights={isPast && !sessionLoadDetailsShared(session) ? (
+          <p className="rounded-2xl border border-slate-800 bg-slate-950/55 p-3 text-xs font-bold text-slate-400">{session.loadTracked === false ? `${session.teamName} does not track training load.` : 'Load reports for this session are not shared with your role.'}</p>
+        ) : isPast ? (
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-300">Session insights</p>
@@ -803,11 +816,8 @@ export function CoachHistoryInsights({
 
   return (
     <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-white sm:p-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-300">History</p>
-          <h2 className="mt-1.5 text-2xl font-black">Session insights</h2>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-black">Last {rangeWeeks} weeks</h2>
         <div className="flex flex-wrap gap-1.5">
           {[4, 8, 12].map((weeks) => (
             <button
@@ -816,7 +826,7 @@ export function CoachHistoryInsights({
               onClick={() => setRangeWeeks(weeks)}
               className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${rangeWeeks === weeks ? 'border-violet-300 bg-violet-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
             >
-              {weeks}W
+              {weeks} wk
             </button>
           ))}
         </div>
@@ -841,7 +851,7 @@ export function CoachHistoryInsights({
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-bold text-slate-500">
-          {filteredSessions.length} sessions in view{selectedPeriodKey !== null ? ` - ${formatHistoryWeekLabel(selectedPeriodKey)}` : ''}
+          {filteredSessions.length === 1 ? '1 session' : `${filteredSessions.length} sessions`}{selectedPeriodKey !== null ? ` · ${formatHistoryWeekLabel(selectedPeriodKey)}` : ''}
         </p>
       </div>
 
@@ -865,6 +875,16 @@ export function CoachHistoryInsights({
   );
 }
 
+function HistoryStat({ label, value, detail, onClick }: { label: string; value: string; detail: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="min-w-0 rounded-xl border border-slate-800 bg-slate-950/70 px-2 py-2 text-left transition hover:border-violet-300/55 hover:bg-slate-900/80">
+      <p className="truncate text-[10px] font-black text-slate-500">{label}</p>
+      <p className="truncate text-sm font-black text-slate-100">{value}</p>
+      <p className="truncate text-[10px] font-bold text-slate-500">{detail}</p>
+    </button>
+  );
+}
+
 export function CoachHistorySessionCard({
   session,
   onDetails,
@@ -877,38 +897,26 @@ export function CoachHistorySessionCard({
   const summary = summarizeCoachSession(session);
   const presentCount = Math.max(0, session.players.length - summary.out.length);
   const completionLabel = formatPercent(summary.reportRate);
+  const loadShared = sessionLoadDetailsShared(session);
   return (
-    <article className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-white transition hover:border-violet-300/35 hover:bg-slate-900/55">
+    <article className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-white transition hover:border-violet-300/35 hover:bg-slate-900/55 sm:p-4">
       <button type="button" onClick={onDetails} className="flex w-full items-start justify-between gap-3 text-left">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{session.teamName} · {new Date(session.startsAt).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' })}</p>
-          <h3 className="mt-2 text-xl font-black text-white">{session.title}</h3>
-          <p className="mt-1 text-xs font-bold text-slate-500">{formatTimeRange(session.startsAt, session.endsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+        <div className="min-w-0">
+          <p className="truncate text-xs font-bold text-slate-400">{formatDay(session.startsAt)} · {formatTimeRange(session.startsAt, session.endsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+          <h3 className="mt-0.5 truncate text-base font-black text-white">{session.title} <span className="text-sm font-bold text-slate-500">{session.teamName}</span></h3>
         </div>
-        <span className="text-lg font-black text-slate-500">›</span>
+        <span aria-hidden className="text-lg font-black text-slate-500">›</span>
       </button>
 
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <button type="button" onClick={() => onInsight?.(session, 'expected')} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-left transition hover:border-violet-300/55 hover:bg-slate-900/80">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Attendance</p>
-          <p className="mt-1 text-sm font-black text-slate-100">{presentCount}/{session.players.length}</p>
-          <p className="mt-0.5 text-[11px] font-bold text-slate-500">{summary.late.length} late · {summary.out.length} out</p>
-        </button>
-        <button type="button" onClick={() => onInsight?.(session, 'rpe')} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-left transition hover:border-violet-300/55 hover:bg-slate-900/80">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">RPE</p>
-          <p className="mt-1 text-sm font-black text-slate-100">{summary.avgRpe !== null ? summary.avgRpe.toFixed(1) : '—'}</p>
-          <p className="mt-0.5 text-[11px] font-bold text-slate-500">{summary.loadReports.length} reports</p>
-        </button>
-        <button type="button" onClick={() => onInsight?.(session, 'au')} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-left transition hover:border-violet-300/55 hover:bg-slate-900/80">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">AU</p>
-          <p className="mt-1 text-sm font-black text-slate-100">{summary.avgLoad !== null ? Math.round(summary.avgLoad) : '—'}</p>
-          <p className="mt-0.5 text-[11px] font-bold text-slate-500">avg load</p>
-        </button>
-        <button type="button" onClick={() => onInsight?.(session, 'completion')} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-left transition hover:border-violet-300/55 hover:bg-slate-900/80">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Completion</p>
-          <p className="mt-1 text-sm font-black text-slate-100">{completionLabel}</p>
-          <p className="mt-0.5 text-[11px] font-bold text-slate-500">{session.players.length - summary.loadReports.length} missing</p>
-        </button>
+      <div className="mt-3 grid grid-cols-4 gap-1.5">
+        <HistoryStat label="There" value={`${presentCount}/${session.players.length}`} detail={`${summary.out.length} out · ${summary.late.length} late`} onClick={() => onInsight?.(session, 'expected')} />
+        {loadShared ? (
+          <>
+            <HistoryStat label="RPE" value={summary.avgRpe !== null ? summary.avgRpe.toFixed(1) : '—'} detail={summary.loadReports.length === 1 ? '1 report' : `${summary.loadReports.length} reports`} onClick={() => onInsight?.(session, 'rpe')} />
+            <HistoryStat label="Load" value={summary.avgLoad !== null ? `${Math.round(summary.avgLoad)}` : '—'} detail="avg AU" onClick={() => onInsight?.(session, 'au')} />
+            <HistoryStat label="Reported" value={completionLabel} detail={`${session.players.length - summary.loadReports.length} missing`} onClick={() => onInsight?.(session, 'completion')} />
+          </>
+        ) : null}
       </div>
     </article>
   );

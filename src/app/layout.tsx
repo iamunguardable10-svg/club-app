@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from 'next';
-import { GeoapifyAddressEnhancer } from '@/shared/components/places/GeoapifyAddressEnhancer';
 import './globals.css';
+import { SyncStatusBanner } from '@/shared/components/SyncStatusBanner';
+import { AccessGate } from '@/features/access/AccessGate';
 
 export const metadata: Metadata = {
-  title: 'Club App / TeamLoad OS',
-  description: 'A club operating system for admins, coaches and athletes.',
+  title: 'Club OS',
+  description: 'A club operating system for coaches and athletes. Sign in with your club, or test locally without an account.',
 };
 
 
@@ -18,8 +19,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
-        <GeoapifyAddressEnhancer />
         {children}
+        <SyncStatusBanner />
+        <AccessGate />
       </body>
     </html>
   );

@@ -5,9 +5,20 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TeamWorkspace } from '@/features/teams/TeamWorkspace';
 import type { TeamWorkspaceSection } from '@/features/teams/TeamWorkspaceView';
-import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
-import { sessionTypeToLoadType, type AthleteLoadEntry, type LoadTrainingType } from '@/features/load/loadTypes';
+import {
+  createSession,
+  deleteSession,
+  getActivePerson,
+  mutate,
+  newId,
+  setSeriesWeekState,
+  updateSession,
+  useLocalDatabase,
+  type SessionType,
+} from '@/shared/data';
+import { buildCoachData, EMPTY_COACH_DATA } from '@/features/role-workspaces/coachData';
 import type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
+import { FacilitiesManager } from '@/features/facilities/FacilitiesManager';
 import { CoachHistoryInsights, CoachSessionDetailOverlay, type CoachSessionInsight } from '@/features/role-workspaces/CoachSessionSurfaces';
 import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
@@ -17,80 +28,30 @@ import { buildSeriesWeekItems, getIsoWeekStart, type SeriesTemplate, type Series
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
 import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
-import { CoachDrawer } from '@/features/role-workspaces/CoachDrawer';
+import { CoachSection, CoachShell, type CoachNavItem } from '@/features/role-workspaces/RoleShell';
+import { formatDateRange, formatDay, formatLongDay, formatSessionTime, formatTimeRange, plural } from '@/shared/format';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
-import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 export type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 export { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
 export { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 
-type SessionRow = {
-  id: string;
-  title: string;
-  session_type: string;
-  starts_at: string;
-  ends_at: string | null;
-  owner_team_id: string | null;
-  department_id: string;
-  facility_id: string | null;
-  facilities?: { name?: string | null } | { name?: string | null }[] | null;
-};
-type AvailabilityRow = { session_id: string; user_id: string; status: 'late' | 'out'; reason: string | null; late_minutes: number | null };
-type AthleteMembershipRow = { id: string; team_id: string; user_id: string };
-type SessionGroupRow = { session_id: string; group_id: string };
-type PlayerGroupMemberRow = { group_id: string; team_membership_id: string };
-type ProfileRow = { id: string; full_name: string | null; email: string | null };
-type LoadEntryRow = {
-  id: string;
-  session_id: string | null;
-  user_id: string;
-  team_id: string | null;
-  entry_date: string | null;
-  training_type: LoadTrainingType | null;
-  rpe: number;
-  duration_minutes: number;
-  session_load: number | null;
-  note: string | null;
-  submitted_at: string;
-  sessions?: { title?: string | null; starts_at?: string | null; session_type?: string | null; teams?: { name?: string | null } | null } | null;
-};
-
 function sectionForMode(mode: CoachMode): TeamWorkspaceSection {
-  if (mode === 'sessions') return 'calendar';
   if (mode === 'load' || mode === 'attendance') return 'players';
   return 'dashboard';
 }
 
-function titleForMode(mode: CoachMode) {
-  if (mode === 'sessions') return 'Calendar';
-  if (mode === 'facilities') return 'Facilities';
-  if (mode === 'history') return 'History';
-  if (mode === 'attendance') return 'Attendance';
-  if (mode === 'load') return 'Player load';
-  if (mode === 'team') return 'Teams';
-  return 'Today';
-}
-
-function facilityNameFromRow(row: SessionRow) {
-  const facility = row.facilities;
-  if (Array.isArray(facility)) return facility[0]?.name ?? null;
-  return facility?.name ?? null;
-}
-
-function formatTimeRange(startsAt: string, endsAt: string | null) {
-  const start = new Date(startsAt);
-  const end = endsAt ? new Date(endsAt) : new Date(start.getTime() + 60 * 60_000);
-  return `${new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(start)} - ${new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(end)}`;
-}
-
-function formatNextSession(session: CoachSession | undefined) {
-  if (!session) return 'No planned session yet';
-  const date = new Date(session.startsAt).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' });
-  return `${date} · ${formatTimeRange(session.startsAt, session.endsAt)}`;
-}
+const NAV_FOR_MODE: Record<CoachMode, CoachNavItem> = {
+  today: 'today',
+  sessions: 'calendar',
+  team: 'team',
+  attendance: 'team',
+  load: 'team',
+  facilities: 'halls',
+  history: 'history',
+};
 
 function formatConflictDateLine(startsAt: string) {
-  return new Date(startsAt).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' });
+  return formatDay(startsAt);
 }
 
 function isSameLocalDay(value: string, day: Date) {
@@ -139,7 +100,7 @@ function formatWeekLabel(days: Date[]) {
   const first = days[0];
   const last = days[6];
   if (!first || !last) return '';
-  return `${first.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })} - ${last.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}`;
+  return formatDateRange(first, last);
 }
 
 function localDateKey(date: Date) {
@@ -174,22 +135,7 @@ function durationMinutes(start: Date, end: Date) {
   return Math.max(30, Math.round((end.getTime() - start.getTime()) / 60_000));
 }
 
-function profileName(profile: ProfileRow | undefined, fallback: string) {
-  return profile?.full_name || profile?.email || fallback;
-}
 
-function toCoachPlayer(userId: string, teamId: string, profile: ProfileRow | undefined, loadEntries: (AthleteLoadEntry & { userId: string })[]): CoachPlayer {
-  const entries = loadEntries.filter((entry) => entry.userId === userId && (!entry.teamId || entry.teamId === teamId)).map(({ userId: _userId, ...entry }) => entry);
-  const latest = getLatestACWR(entries, 'ewma');
-  const zone = loadZone(latest?.acwr ?? null, latest?.chronicFull ?? false);
-  return {
-    id: userId,
-    name: profileName(profile, 'Player'),
-    loadEntries: entries,
-    acwr: latest?.acwr ?? null,
-    risk: zone.tone === 'high' ? 'high' : zone.tone === 'low' ? 'low' : zone.tone === 'ready' ? 'ready' : 'baseline',
-  };
-}
 
 function summarizeAvailability(session: CoachSession) {
   const out = session.availability.filter((item) => item.status === 'out');
@@ -197,58 +143,62 @@ function summarizeAvailability(session: CoachSession) {
   return { out, late };
 }
 
-function CoachTopNav({ mode, singleTeamId }: { mode: CoachMode; singleTeamId?: string | null }) {
-  const modes: CoachMode[] = ['today', 'sessions', 'team', 'facilities', 'history'];
-  return (
-    <nav className="mt-5 flex flex-wrap gap-2">
-      {modes.map((item) => {
-        const href = item === 'team' && singleTeamId ? `/coach/team?teamId=${singleTeamId}` : `/coach/${item}`;
-        return (
-          <Link key={item} href={href} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === item ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950 text-slate-200'}`}>
-            {titleForMode(item)}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
 
 function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDetails: () => void }) {
   const { out, late } = summarizeAvailability(session);
-  const flags = [...out, ...late];
   return (
-    <button type="button" onClick={onDetails} className="block w-full rounded-3xl border border-slate-800 bg-slate-950/72 p-4 text-left text-white shadow-[0_18px_70px_rgba(0,0,0,0.22)] transition hover:border-emerald-300/45 hover:bg-slate-900/70">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">{session.departmentName} · {session.teamName}</p>
-          <h3 className="mt-2 text-xl font-black">{session.title}</h3>
-          <p className="mt-1 text-sm font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+    <button type="button" onClick={onDetails} className="block w-full rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-left text-white transition hover:border-emerald-300/45 hover:bg-slate-900/70">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-2xl font-black tabular-nums">{formatTimeRange(session.startsAt, session.endsAt)}</p>
+          <h3 className="mt-1 text-base font-black">{session.title}</h3>
+          <p className="mt-0.5 text-sm font-bold text-slate-400">{session.teamName}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
         </div>
-        <span className="text-lg font-black text-slate-500">›</span>
+        <span aria-hidden className="text-lg font-black text-slate-500">›</span>
       </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        <div className={`rounded-2xl border p-3 ${out.length > 0 ? 'border-rose-400/35 bg-rose-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className={`rounded-xl border p-3 ${out.length > 0 ? 'border-rose-400/35 bg-rose-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Out</p>
+            <p className="text-xs font-black text-slate-400">Out</p>
             <span className="text-lg font-black text-white">{out.length}</span>
           </div>
           {out.slice(0, 3).map((item) => (
-            <p key={item.id} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.reason ? ` · ${item.reason}` : ''}</p>
+            <p key={item.id} className="mt-1.5 text-xs font-bold text-slate-300">{item.playerName}{item.reason ? ` · ${item.reason}` : ''}</p>
           ))}
         </div>
-        <div className={`rounded-2xl border p-3 ${late.length > 0 ? 'border-amber-400/35 bg-amber-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
+        <div className={`rounded-xl border p-3 ${late.length > 0 ? 'border-amber-400/35 bg-amber-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Late</p>
+            <p className="text-xs font-black text-slate-400">Late</p>
             <span className="text-lg font-black text-white">{late.length}</span>
           </div>
           {late.slice(0, 3).map((item) => (
-            <p key={item.id} className="mt-2 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${item.lateMinutes}m` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>
+            <p key={item.id} className="mt-1.5 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${item.lateMinutes} min` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>
           ))}
         </div>
       </div>
+    </button>
+  );
+}
 
-      {flags.length === 0 ? <p className="mt-3 text-sm font-bold text-slate-500">No late/out marks yet.</p> : null}
+/** One line per upcoming session: when, what, who is missing. */
+function UpcomingSessionRow({ session, showTeam, onOpen }: { session: CoachSession; showTeam: boolean; onOpen: () => void }) {
+  const { out, late } = summarizeAvailability(session);
+  const start = new Date(session.startsAt);
+  return (
+    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 px-3 py-3 text-left transition hover:border-sky-300/50 hover:bg-slate-900/70">
+      <div className="w-12 shrink-0 text-center">
+        <p className="text-[11px] font-black uppercase text-slate-400">{formatDay(start).split(' ')[0]}</p>
+        <p className="text-lg font-black leading-tight text-white">{start.getDate()}</p>
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-black text-white">{session.title}</p>
+        <p className="truncate text-xs font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt)}{showTeam ? ` · ${session.teamName}` : ''}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1 text-[11px] font-black">
+        {out.length > 0 ? <span className="rounded-full bg-rose-400/15 px-2 py-0.5 text-rose-200">{out.length} out</span> : null}
+        {late.length > 0 ? <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-amber-200">{late.length} late</span> : null}
+      </div>
     </button>
   );
 }
@@ -279,6 +229,9 @@ export function CoachCalendarSurface({
   onDetails,
   editSessionId = null,
   onEditSessionHandled,
+  editableTeamIds,
+  seriesTeamIds,
+  initialTeamId = null,
 }: {
   teams: CoachTeam[];
   sessions: CoachSession[];
@@ -299,7 +252,16 @@ export function CoachCalendarSurface({
   onDetails: (session: CoachSession) => void;
   editSessionId?: string | null;
   onEditSessionHandled?: () => void;
+  /** Teams whose sessions the active coach may create, move and edit. All when omitted. */
+  editableTeamIds?: ReadonlySet<string>;
+  /** Teams whose weekly series the active coach may plan. All when omitted. */
+  seriesTeamIds?: ReadonlySet<string>;
+  /** Show only this team at first (coming from a team's page). */
+  initialTeamId?: string | null;
 }) {
+  const canEditTeam = (teamId: string) => !editableTeamIds || editableTeamIds.has(teamId);
+  const editableTeams = teams.filter((team) => canEditTeam(team.id));
+  const seriesTeams = teams.filter((team) => !seriesTeamIds || seriesTeamIds.has(team.id));
   const [weekOffset, setWeekOffset] = useState(0);
   const days = useMemo(() => buildWeekDays(weekOffset), [weekOffset]);
   const [surfaceMode, setSurfaceMode] = useState<'week' | 'series'>('week');
@@ -307,10 +269,12 @@ export function CoachCalendarSurface({
   const [seriesEditor, setSeriesEditor] = useState<{ kind: 'new'; weekday: number } | { kind: 'edit'; template: SeriesTemplate } | null>(null);
   const [pendingSeriesConflict, setPendingSeriesConflict] = useState<{ items: SeriesWeekItem[]; item: SeriesWeekItem; description: string; suggestions: ConflictSuggestion[] } | null>(null);
   const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, buildWeekDays().findIndex((day) => sameDay(day, new Date()))));
-  const [mobileCalendarView, setMobileCalendarView] = useState<'week' | 'day'>('week');
+  // Seven columns do not fit a phone; one day at a time does.
+  const [mobileCalendarView, setMobileCalendarView] = useState<'week' | 'day'>('day');
   const [dayTransitionDirection, setDayTransitionDirection] = useState<'next' | 'previous' | null>(null);
   const [desktopHourHeight, setDesktopHourHeight] = useState(baseDesktopHourHeight);
   const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const [teamFilter, setTeamFilter] = useState<string | null>(initialTeamId && teams.some((team) => team.id === initialTeamId) ? initialTeamId : null);
   const [drag, setDrag] = useState<CoachCalendarDrag | null>(null);
   const [draft, setDraft] = useState<CoachCalendarDraft | null>(null);
   const [localSessions, setLocalSessions] = useState<CoachSession[]>(sessions);
@@ -352,7 +316,8 @@ export function CoachCalendarSurface({
   const smartSessions = useMemo<SmartCalendarSession[]>(() => {
     const tones = ['accent1', 'accent2', 'accent3', 'accent4'] as const;
     const toneByTeamId = new Map(teams.map((team, index) => [team.id, tones[index % tones.length]]));
-    return localSessions.map((session) => ({
+    // The team filter only hides; conflicts are still checked against everything.
+    return localSessions.filter((session) => !teamFilter || session.teamId === teamFilter).map((session) => ({
       id: session.id,
       title: session.title,
       startsAt: session.startsAt,
@@ -360,9 +325,10 @@ export function CoachCalendarSurface({
       teamName: session.teamName,
       departmentName: session.departmentName,
       tone: toneByTeamId.get(session.teamId) ?? 'primary',
-      canManage: true,
+      // Was `true` for every session: any coach could drag any team's session.
+      canManage: !editableTeamIds || editableTeamIds.has(session.teamId),
     }));
-  }, [localSessions, teams]);
+  }, [localSessions, teams, editableTeamIds, teamFilter]);
 
   const conflictSessions = useMemo<ConflictSession[]>(() => {
     const byId = new Map<string, ConflictSession>();
@@ -382,7 +348,10 @@ export function CoachCalendarSurface({
     return Array.from(byId.values());
   }, [facilityConflictSessions, localSessions]);
 
-  const seriesWeekItems = useMemo(() => buildSeriesWeekItems(seriesTemplates, seriesWeekStates, seriesWeekStart), [seriesTemplates, seriesWeekStates, seriesWeekStart]);
+  const seriesWeekItems = useMemo(
+    () => buildSeriesWeekItems(seriesTemplates.filter((template) => !teamFilter || template.teamId === teamFilter), seriesWeekStates, seriesWeekStart),
+    [seriesTemplates, seriesWeekStates, seriesWeekStart, teamFilter],
+  );
 
   const requestSeriesSave = useCallback(async (save: CoachSeriesSave) => {
     if (save.kind === 'create' && !onCreateSeries) return;
@@ -675,7 +644,7 @@ export function CoachCalendarSurface({
     function createDraftAt(clientY: number) {
       const clickedMinutes = clamp(roundToSlot(((clientY - rect.top) / Math.max(rect.height, 1)) * visibleMinutes), 0, visibleMinutes - 30);
       const start = createDateForCalendarMinute(day, (baseHour - firstHour) * 60 + clickedMinutes);
-      const team = teams.length === 1 ? defaultTeamForDay(day) : null;
+      const team = editableTeams.length === 1 ? editableTeams[0] : editableTeams.find((candidate) => candidate.id === teamFilter) ?? null;
       setDraft({ startsAt: start.toISOString(), endsAt: addMinutes(start, 90).toISOString(), teamId: team?.id ?? null, facilityId: defaultFacilityForTeam(team), groupIds: [], sessionType: 'training' });
       setEditor(null);
     }
@@ -773,16 +742,30 @@ export function CoachCalendarSurface({
   const pendingConflictFacilityLabel = pendingConflictFacilityId ? facilities.find((facility) => facility.id === pendingConflictFacilityId)?.name ?? null : null;
   const pendingSeriesConflictFacilityLabel = pendingSeriesConflict?.item.facilityName ?? (pendingSeriesConflictFacilityId ? facilities.find((facility) => facility.id === pendingSeriesConflictFacilityId)?.name ?? null : null);
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Coach calendar</p><h2 className="mt-2 text-2xl font-black">All assigned teams</h2></div>
-        <div className="mb-2 flex rounded-full border border-slate-800 bg-slate-950/80 p-1 sm:mb-0">
-          <button type="button" onClick={showWeekSurface} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'week' ? 'bg-sky-300 text-slate-950' : 'text-slate-400'}`}>Week</button>
-          <button type="button" onClick={showSeriesSurface} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Series</button>
+    <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-white sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {teams.length > 1 ? (
+          <div className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1" role="group" aria-label="Show team">
+            {[{ id: null as string | null, name: 'All teams' }, ...teams].map((team) => (
+              <button
+                key={team.id ?? 'all'}
+                type="button"
+                onClick={() => setTeamFilter(team.id)}
+                aria-pressed={teamFilter === team.id}
+                className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-black transition ${teamFilter === team.id ? 'border-sky-300 bg-sky-300/15 text-sky-100' : 'border-slate-800 text-slate-400 hover:text-white'}`}
+              >
+                {team.name}
+              </button>
+            ))}
+          </div>
+        ) : <span />}
+        <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1" role="group" aria-label="Calendar view">
+          <button type="button" onClick={showWeekSurface} aria-pressed={surfaceMode === 'week'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'week' ? 'bg-sky-300 text-slate-950' : 'text-slate-400'}`}>Sessions</button>
+          <button type="button" onClick={showSeriesSurface} aria-pressed={surfaceMode === 'series'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Weekly plan</button>
         </div>
       </div>
       {surfaceMode === 'week' ? (
-        <SmartSessionCalendar mode={mode} canCreateSessions={teams.length > 0 && facilities.length > 0} days={days} hours={calendarHours} firstHour={firstHour} lastHour={lastHour} mobileVisibleHours={mobileVisibleHours} mobileFirstHour={mobileFirstHour} mobileHourHeight={mobileHourHeight} mobileGridHeight={mobileGridHeight} desktopHourHeight={desktopHourHeight} activeDayIndex={activeDayIndex} mobileCalendarView={mobileCalendarView} dayTransitionDirection={dayTransitionDirection} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null} weekLabel={weekLabel} isCurrentWeek={weekOffset === 0} calendarScrollRef={calendarScrollRef} setDayRef={(index, element) => { dayRefs.current[index] = element; }} onSetMode={setMode} onClearDraft={() => setDraft(null)} onPreviousWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onResetWeek={resetWeek} onMobileDaySelect={switchMobileDay} onMobileCalendarViewChange={setMobileCalendarView} onMobileDaySwipeStart={handleMobileDaySwipeStart} onMobileDaySwipeEnd={handleMobileDaySwipeEnd} onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }} onSlotPointerDown={handleSlotPointerDown} onSessionPointerDown={startSessionDrag} onSessionClick={handleSessionClick} onSessionKeyDown={handleSessionKeyDown} onDraftPointerDown={startDraftDrag} onDraftClick={() => setEditor({ kind: 'draft' })} onDraftCancel={() => setDraft(null)} />
+        <SmartSessionCalendar mode={mode} canCreateSessions={editableTeams.length > 0 && facilities.length > 0} days={days} hours={calendarHours} firstHour={firstHour} lastHour={lastHour} mobileVisibleHours={mobileVisibleHours} mobileFirstHour={mobileFirstHour} mobileHourHeight={mobileHourHeight} mobileGridHeight={mobileGridHeight} desktopHourHeight={desktopHourHeight} activeDayIndex={activeDayIndex} mobileCalendarView={mobileCalendarView} dayTransitionDirection={dayTransitionDirection} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null} weekLabel={weekLabel} isCurrentWeek={weekOffset === 0} calendarScrollRef={calendarScrollRef} setDayRef={(index, element) => { dayRefs.current[index] = element; }} onSetMode={setMode} onClearDraft={() => setDraft(null)} onPreviousWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onResetWeek={resetWeek} onMobileDaySelect={switchMobileDay} onMobileCalendarViewChange={setMobileCalendarView} onMobileDaySwipeStart={handleMobileDaySwipeStart} onMobileDaySwipeEnd={handleMobileDaySwipeEnd} onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }} onSlotPointerDown={handleSlotPointerDown} onSessionPointerDown={startSessionDrag} onSessionClick={handleSessionClick} onSessionKeyDown={handleSessionKeyDown} onDraftPointerDown={startDraftDrag} onDraftClick={() => setEditor({ kind: 'draft' })} onDraftCancel={() => setDraft(null)} />
       ) : (
         <div className="mt-7 sm:mt-5">
           <WeeklySeriesBoard
@@ -802,7 +785,7 @@ export function CoachCalendarSurface({
           <SeriesTemplateEditSheet
             key={`series-new-${seriesEditor.weekday}`}
             title="New weekly template"
-            teams={teams}
+            teams={seriesTeams}
             facilities={facilities}
             groups={groups}
             initial={null}
@@ -815,7 +798,7 @@ export function CoachCalendarSurface({
           <SeriesTemplateEditSheet
             key={`series-edit-${seriesEditor.template.id}`}
             title="Edit weekly template"
-            teams={teams}
+            teams={seriesTeams}
             facilities={facilities}
             groups={groups}
             initial={seriesEditor.template}
@@ -834,7 +817,7 @@ export function CoachCalendarSurface({
           />
         )
       ) : null}
-      {editor && editorInitial ? <CoachSessionEditSheet key={editor.kind === 'session' ? `session-${editor.sessionId}` : `draft-${editorInitial.startsAt}`} title={editor.kind === 'draft' ? 'New training' : editingSession?.title ?? 'Training'} teams={teams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { if (editor.kind === 'draft') { await requestCoachCalendarSave({ kind: 'create', input: value }); } else if (editingSession) { await requestCoachCalendarSave({ kind: 'update', input: { sessionId: editingSession.id, ...value } }); } }} onDraftUpdate={editor.kind === 'draft' ? (value) => setDraft((current) => current ? { ...current, ...value } : current) : undefined} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : undefined} onClose={() => setEditor(null)} /> : null}
+      {editor && editorInitial ? <CoachSessionEditSheet key={editor.kind === 'session' ? `session-${editor.sessionId}` : `draft-${editorInitial.startsAt}`} title={editor.kind === 'draft' ? 'New training' : editingSession?.title ?? 'Training'} teams={editableTeams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { if (editor.kind === 'draft') { await requestCoachCalendarSave({ kind: 'create', input: value }); } else if (editingSession) { await requestCoachCalendarSave({ kind: 'update', input: { sessionId: editingSession.id, ...value } }); } }} onDraftUpdate={editor.kind === 'draft' ? (value) => setDraft((current) => current ? { ...current, ...value } : current) : undefined} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : undefined} onClose={() => setEditor(null)} /> : null}
 
       <FacilityConflictDialog
         isOpen={Boolean(pendingConflictSave)}
@@ -879,14 +862,28 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const searchParams = useSearchParams();
   const selectedTeamId = searchParams.get('teamId');
   const editSessionId = searchParams.get('editSessionId');
-  const [teams, setTeams] = useState<CoachTeam[]>([]);
-  const [sessions, setSessions] = useState<CoachSession[]>([]);
-  const [facilityConflictSessions, setFacilityConflictSessions] = useState<ConflictSession[]>([]);
-  const [facilities, setFacilities] = useState<CoachFacility[]>([]);
-  const [groups, setGroups] = useState<CoachGroup[]>([]);
-  const [seriesTemplates, setSeriesTemplates] = useState<SeriesTemplate[]>([]);
-  const [seriesWeekStates, setSeriesWeekStates] = useState<SeriesWeekState[]>([]);
-  const [reloadKey, setReloadKey] = useState(0);
+  const { database, error: dataError, ready } = useLocalDatabase();
+  const activePerson = database ? getActivePerson(database) : null;
+
+  // Everything the workspace renders is derived from the one local document.
+  // Where the Supabase version fired a dozen queries and juggled a reload key,
+  // the repository notifies `useLocalDatabase` and this recomputes.
+  const { teams, sessions, facilities, groups, seriesTemplates, seriesWeekStates, facilityConflictSessions } = useMemo(
+    () => (database ? buildCoachData(database, activePerson?.id ?? null) : EMPTY_COACH_DATA),
+    [database, activePerson?.id],
+  );
+
+  const editableTeamIds = useMemo(
+    () => new Set(teams.filter((team) => team.permissions?.includes('editSessions')).map((team) => team.id)),
+    [teams],
+  );
+  const seriesTeamIds = useMemo(
+    () => new Set(teams.filter((team) => team.permissions?.includes('planSeries')).map((team) => team.id)),
+    [teams],
+  );
+  const teamOfSession = (sessionId: string) => sessions.find((session) => session.id === sessionId)?.teamId ?? null;
+  const teamOfSeries = (seriesId: string) => seriesTemplates.find((series) => series.id === seriesId)?.teamId ?? null;
+
   const [activeSession, setActiveSession] = useState<CoachSession | null>(null);
   const [activeHistoryInsight, setActiveHistoryInsight] = useState<CoachSessionInsight | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
@@ -894,8 +891,8 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
   const [isDeletingSession, setIsDeletingSession] = useState(false);
   const [isSavingSessionEdit, setIsSavingSessionEdit] = useState(false);
-  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
+
   const clearEditSessionParam = useCallback(() => {
     router.replace('/coach/sessions');
   }, [router]);
@@ -910,448 +907,11 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     setActiveSession(null);
   }
 
+  // The detail overlay holds a session object; keep it pointing at live data
+  // after a write instead of showing a stale copy.
   useEffect(() => {
-    let mounted = true;
-
-    async function loadCoachTeams() {
-      const supabase = createBrowserSupabaseClient();
-      const { data: userResult, error: userError } = await supabase.auth.getUser();
-      if (!mounted) return;
-      if (userError || !userResult.user) {
-        router.replace(`/auth/login?next=/coach/${mode}`);
-        return;
-      }
-
-      const { data: memberships, error: membershipError } = await supabase
-        .from('team_memberships')
-        .select('team_id, role')
-        .eq('user_id', userResult.user.id)
-        .eq('status', 'active')
-        .in('role', ['head_coach', 'assistant_coach']);
-
-      if (!mounted) return;
-      if (membershipError) {
-        setError(membershipError.message);
-        setState('error');
-        return;
-      }
-
-      const membershipRows = (memberships ?? []) as { team_id: string; role: string }[];
-      const teamIds = Array.from(new Set(membershipRows.map((row) => row.team_id).filter(Boolean)));
-      if (teamIds.length === 0) {
-        setTeams([]);
-        setSessions([]);
-        setFacilityConflictSessions([]);
-        setFacilities([]);
-        setGroups([]);
-        setSeriesTemplates([]);
-        setSeriesWeekStates([]);
-        setState('ready');
-        return;
-      }
-
-      const { data: teamRows, error: teamsError } = await supabase
-        .from('teams')
-        .select('id, club_id, name, department_id, default_facility_id, departments(name)')
-        .in('id', teamIds)
-        .order('name');
-
-      if (!mounted) return;
-      if (teamsError) {
-        setError(teamsError.message);
-        setState('error');
-        return;
-      }
-
-      const roleByTeamId = new Map(membershipRows.map((row) => [row.team_id, row.role]));
-      const loadedTeams = ((teamRows ?? []) as Array<{ id: string; club_id: string; name: string; department_id: string; default_facility_id: string | null; departments?: { name?: string } | { name?: string }[] | null }>).map((team) => ({
-        id: team.id,
-        clubId: team.club_id,
-        name: team.name,
-        departmentId: team.department_id,
-        defaultFacilityId: team.default_facility_id,
-        departmentName: Array.isArray(team.departments) ? team.departments[0]?.name ?? 'Department' : team.departments?.name ?? 'Department',
-        role: roleByTeamId.get(team.id) ?? 'coach',
-      }));
-
-      const start = new Date();
-      start.setDate(start.getDate() - 90);
-      start.setHours(0, 0, 0, 0);
-      const futureLimit = new Date();
-      futureLimit.setDate(futureLimit.getDate() + 90);
-      futureLimit.setHours(23, 59, 59, 999);
-
-      const { data: sessionRowsRaw, error: sessionsError } = await supabase
-        .from('sessions')
-        .select('id, title, session_type, starts_at, ends_at, owner_team_id, department_id, facility_id, facilities(name)')
-        .in('owner_team_id', loadedTeams.map((team) => team.id))
-        .gte('starts_at', start.toISOString())
-        .lte('starts_at', futureLimit.toISOString())
-        .order('starts_at', { ascending: true })
-        .limit(500);
-
-      if (!mounted) return;
-      if (sessionsError) {
-        setError(sessionsError.message);
-        setState('error');
-        return;
-      }
-
-      const sessionRows = (sessionRowsRaw ?? []) as unknown as SessionRow[];
-      const departmentIds = Array.from(new Set(loadedTeams.map((team) => team.departmentId)));
-      const { data: departmentFacilityRowsRaw, error: departmentFacilitiesError } = await supabase
-        .from('department_facilities')
-        .select('department_id, facility_id')
-        .in('department_id', departmentIds);
-      if (!mounted) return;
-      if (departmentFacilitiesError) {
-        setError(departmentFacilitiesError.message);
-        setState('error');
-        return;
-      }
-      const departmentFacilityRows = (departmentFacilityRowsRaw ?? []) as { department_id: string; facility_id: string }[];
-      const facilityIds = Array.from(new Set(departmentFacilityRows.map((row) => row.facility_id)));
-      let loadedFacilities: CoachFacility[] = [];
-      if (facilityIds.length > 0) {
-        const { data: facilityRowsRaw, error: facilitiesError } = await supabase.from('facilities').select('id, name').in('id', facilityIds).order('name');
-        if (!mounted) return;
-        if (facilitiesError) {
-          setError(facilitiesError.message);
-          setState('error');
-          return;
-        }
-        loadedFacilities = ((facilityRowsRaw ?? []) as { id: string; name: string }[]).map((facility) => ({
-          id: facility.id,
-          name: facility.name,
-          departmentIds: departmentFacilityRows.filter((row) => row.facility_id === facility.id).map((row) => row.department_id),
-        }));
-      }
-      let loadedFacilityConflictSessions: ConflictSession[] = [];
-      if (facilityIds.length > 0) {
-        const clubIds = Array.from(new Set(loadedTeams.map((team) => team.clubId)));
-        // Security note: this intentionally stays club-scoped; sessions RLS must also enforce club/team membership.
-        const { data: facilitySessionRowsRaw, error: facilitySessionsError } = await supabase
-          .from('sessions')
-          .select('id, title, starts_at, ends_at, facility_id, owner_team_id')
-          .in('club_id', clubIds)
-          .in('facility_id', facilityIds)
-          .gte('starts_at', start.toISOString())
-          .lte('starts_at', futureLimit.toISOString())
-          .order('starts_at', { ascending: true })
-          .limit(1000);
-        if (!mounted) return;
-        if (facilitySessionsError) {
-          console.warn('Facility conflict guard unavailable', facilitySessionsError.message);
-        } else {
-          if ((facilitySessionRowsRaw?.length ?? 0) === 1000) console.warn('Facility conflict guard reached session limit; some conflicts may be missing.');
-          const facilityNameById = new Map(loadedFacilities.map((facility) => [facility.id, facility.name]));
-          const facilitySessionRows = (facilitySessionRowsRaw ?? []) as { id: string; title: string; starts_at: string; ends_at: string | null; facility_id: string | null; owner_team_id: string | null }[];
-          const ownerTeamIds = Array.from(new Set(facilitySessionRows.map((session) => session.owner_team_id).filter(Boolean))) as string[];
-          const teamNameById = new Map(loadedTeams.map((team) => [team.id, team.name]));
-          if (ownerTeamIds.length > 0) {
-            const { data: ownerTeamRowsRaw } = await supabase.from('teams').select('id, name').in('id', ownerTeamIds);
-            if (!mounted) return;
-            for (const team of (ownerTeamRowsRaw ?? []) as { id: string; name: string }[]) teamNameById.set(team.id, team.name);
-          }
-          loadedFacilityConflictSessions = facilitySessionRows.map((session) => ({
-            id: session.id,
-            title: session.title,
-            startsAt: session.starts_at,
-            endsAt: session.ends_at,
-            facilityId: session.facility_id,
-            facilityName: session.facility_id ? facilityNameById.get(session.facility_id) ?? null : null,
-            teamName: session.owner_team_id ? teamNameById.get(session.owner_team_id) ?? 'Another team' : 'Another booking',
-            departmentName: null,
-          }));
-        }
-      }
-
-      const sessionIds = sessionRows.map((session) => session.id);
-      const { data: athleteRowsRaw, error: athleteError } = await supabase
-        .from('team_memberships')
-        .select('id, team_id, user_id')
-        .in('team_id', loadedTeams.map((team) => team.id))
-        .eq('role', 'athlete')
-        .eq('status', 'active');
-
-      if (!mounted) return;
-      if (athleteError) {
-        setError(athleteError.message);
-        setState('error');
-        return;
-      }
-
-      const athleteRows = (athleteRowsRaw ?? []) as AthleteMembershipRow[];
-      const athleteIds = Array.from(new Set(athleteRows.map((row) => row.user_id)));
-      let availabilityRows: AvailabilityRow[] = [];
-      let profileRows: ProfileRow[] = [];
-      let loadedLoadEntries: (AthleteLoadEntry & { userId: string })[] = [];
-      let sessionGroupRows: SessionGroupRow[] = [];
-      let playerGroupMemberRows: PlayerGroupMemberRow[] = [];
-      let loadedGroups: CoachGroup[] = [];
-
-      const { data: groupRowsRaw, error: groupRowsError } = await supabase.from('player_groups').select('id, team_id, name').in('team_id', teamIds).order('name');
-      if (!mounted) return;
-      if (groupRowsError) {
-        setError(groupRowsError.message);
-        setState('error');
-        return;
-      }
-      const groupRows = (groupRowsRaw ?? []) as { id: string; team_id: string; name: string }[];
-
-      if (sessionIds.length > 0) {
-        const { data: sessionGroupRowsRaw, error: sessionGroupError } = await supabase
-          .from('session_groups')
-          .select('session_id, group_id')
-          .in('session_id', sessionIds);
-        if (!mounted) return;
-        if (sessionGroupError) {
-          setError(sessionGroupError.message);
-          setState('error');
-          return;
-        }
-        sessionGroupRows = (sessionGroupRowsRaw ?? []) as SessionGroupRow[];
-      }
-
-      if (athleteRows.length > 0) {
-        const { data: playerGroupMemberRowsRaw, error: playerGroupMemberError } = await supabase
-          .from('player_group_members')
-          .select('group_id, team_membership_id')
-          .in('team_membership_id', athleteRows.map((row) => row.id));
-        if (!mounted) return;
-        if (playerGroupMemberError) {
-          setError(playerGroupMemberError.message);
-          setState('error');
-          return;
-        }
-        playerGroupMemberRows = (playerGroupMemberRowsRaw ?? []) as PlayerGroupMemberRow[];
-      }
-
-      if (athleteIds.length > 0) {
-        const { data: profilesRaw, error: profilesError } = await supabase.from('profiles').select('id, full_name, email').in('id', athleteIds);
-        if (!mounted) return;
-        if (profilesError) {
-          setError(profilesError.message);
-          setState('error');
-          return;
-        }
-        profileRows = (profilesRaw ?? []) as ProfileRow[];
-
-        const loadCutoff = new Date();
-        loadCutoff.setDate(loadCutoff.getDate() - 90);
-        // Sensitive athlete load data: RLS must restrict rows to the athlete themselves and authorised team staff/department/club admins.
-        const { data: loadRows, error: loadError } = await supabase
-          .from('load_entries')
-          .select('id, session_id, user_id, team_id, entry_date, training_type, rpe, duration_minutes, session_load, note, submitted_at, sessions(title, starts_at, session_type, teams(name))')
-          .in('user_id', athleteIds)
-          .gte('entry_date', loadCutoff.toISOString().slice(0, 10))
-          .order('submitted_at', { ascending: true });
-        if (!mounted) return;
-        if (loadError) {
-          setError(loadError.message);
-          setState('error');
-          return;
-        }
-        loadedLoadEntries = ((loadRows ?? []) as unknown as LoadEntryRow[]).map((row) => {
-          const trainingType = row.training_type ?? sessionTypeToLoadType(row.sessions?.session_type);
-          return {
-            id: row.id,
-            sessionId: row.session_id,
-            teamId: row.team_id,
-            teamName: row.sessions?.teams?.name ?? null,
-            date: row.entry_date ?? row.sessions?.starts_at?.slice(0, 10) ?? row.submitted_at.slice(0, 10),
-            startsAt: row.sessions?.starts_at ?? row.submitted_at,
-            title: row.sessions?.title ?? 'Training',
-            trainingType,
-            rpe: row.rpe,
-            durationMinutes: row.duration_minutes,
-            load: row.session_load ?? row.rpe * row.duration_minutes,
-            note: row.note,
-            source: row.session_id ? 'planned_session' : 'manual',
-            userId: row.user_id,
-          };
-        });
-      }
-
-      if (sessionIds.length > 0 && athleteIds.length > 0) {
-        const { data: availabilityRaw, error: availabilityError } = await supabase
-          .from('availability')
-          .select('session_id, user_id, status, reason, late_minutes')
-          .in('session_id', sessionIds)
-          .in('user_id', athleteIds)
-          .in('status', ['late', 'out']);
-        if (!mounted) return;
-        if (availabilityError) {
-          setError(availabilityError.message);
-          setState('error');
-          return;
-        }
-        availabilityRows = (availabilityRaw ?? []) as AvailabilityRow[];
-      }
-
-      const teamById = new Map(loadedTeams.map((team) => [team.id, team]));
-      const profileById = new Map(profileRows.map((profile) => [profile.id, profile]));
-      const athleteIdsByTeamId = new Map<string, string[]>();
-      for (const row of athleteRows) {
-        athleteIdsByTeamId.set(row.team_id, [...(athleteIdsByTeamId.get(row.team_id) ?? []), row.user_id]);
-      }
-      const playersByTeamId = new Map<string, CoachPlayer[]>();
-      for (const team of loadedTeams) {
-        playersByTeamId.set(team.id, (athleteIdsByTeamId.get(team.id) ?? []).map((userId) => toCoachPlayer(userId, team.id, profileById.get(userId), loadedLoadEntries)));
-      }
-      const teamMembershipIdByUserTeam = new Map(athleteRows.map((row) => [`${row.team_id}:${row.user_id}`, row.id]));
-      const groupIdsByMembershipId = new Map<string, Set<string>>();
-      for (const row of playerGroupMemberRows) {
-        groupIdsByMembershipId.set(row.team_membership_id, new Set([...(groupIdsByMembershipId.get(row.team_membership_id) ?? []), row.group_id]));
-      }
-      loadedGroups = groupRows.map((group) => ({
-        id: group.id,
-        teamId: group.team_id,
-        name: group.name,
-        playerCount: playerGroupMemberRows.filter((row) => row.group_id === group.id).length,
-      }));
-      const sessionGroupIdsBySessionId = new Map<string, string[]>();
-      for (const row of sessionGroupRows) {
-        sessionGroupIdsBySessionId.set(row.session_id, [...(sessionGroupIdsBySessionId.get(row.session_id) ?? []), row.group_id]);
-      }
-      let loadedSeriesTemplates: SeriesTemplate[] = [];
-      let loadedSeriesWeekStates: SeriesWeekState[] = [];
-      const clubIdsForSeries = Array.from(new Set(loadedTeams.map((team) => team.clubId)));
-      const { data: seriesRowsRaw, error: seriesRowsError } = await supabase
-        .from('session_series')
-        .select('id, club_id, department_id, team_id, facility_id, session_type, weekday, start_time, end_time, starts_on, ends_on, status')
-        .in('team_id', teamIds)
-        .in('club_id', clubIdsForSeries)
-        .neq('status', 'ended')
-        .order('weekday', { ascending: true })
-        .order('start_time', { ascending: true });
-      if (!mounted) return;
-      if (seriesRowsError) {
-        // Migration may not be applied yet in older environments; keep the live coach calendar usable.
-        console.warn('Session series unavailable', seriesRowsError.message);
-      } else {
-        const seriesRows = (seriesRowsRaw ?? []) as Array<{ id: string; club_id: string; department_id: string; team_id: string; facility_id: string | null; session_type: string; weekday: number; start_time: string; end_time: string; starts_on: string | null; ends_on: string | null; status: string }>;
-        const seriesIds = seriesRows.map((series) => series.id);
-        const seriesGroupIdsBySeriesId = new Map<string, string[]>();
-        if (seriesIds.length > 0) {
-          const { data: seriesGroupRowsRaw, error: seriesGroupsError } = await supabase
-            .from('session_series_groups')
-            .select('series_id, group_id')
-            .in('series_id', seriesIds);
-          if (!mounted) return;
-          if (seriesGroupsError) {
-            console.warn('Session series groups unavailable', seriesGroupsError.message);
-          } else {
-            for (const row of (seriesGroupRowsRaw ?? []) as { series_id: string; group_id: string }[]) {
-              seriesGroupIdsBySeriesId.set(row.series_id, [...(seriesGroupIdsBySeriesId.get(row.series_id) ?? []), row.group_id]);
-            }
-          }
-          const { data: seriesStateRowsRaw, error: seriesStateError } = await supabase
-            .from('session_series_week_state')
-            .select('series_id, week_start, checked, committed_session_id')
-            .in('series_id', seriesIds);
-          if (!mounted) return;
-          if (seriesStateError) {
-            console.warn('Session series week state unavailable', seriesStateError.message);
-          } else {
-            loadedSeriesWeekStates = ((seriesStateRowsRaw ?? []) as { series_id: string; week_start: string; checked: boolean; committed_session_id: string | null }[]).map((row) => ({
-              seriesId: row.series_id,
-              weekStart: row.week_start,
-              checked: row.checked,
-              committedSessionId: row.committed_session_id,
-            }));
-          }
-        }
-        const facilityNameById = new Map(loadedFacilities.map((facility) => [facility.id, facility.name]));
-        loadedSeriesTemplates = seriesRows
-          .filter((series) => teamById.has(series.team_id))
-          .map((series) => {
-            const team = teamById.get(series.team_id)!;
-            return {
-              id: series.id,
-              department: team.departmentName,
-              teamId: team.id,
-              teamName: team.name,
-              team: team.name,
-              sessionType: series.session_type,
-              weekday: series.weekday,
-              startTime: String(series.start_time).slice(0, 5),
-              endTime: String(series.end_time).slice(0, 5),
-              facilityId: series.facility_id,
-              facilityName: series.facility_id ? facilityNameById.get(series.facility_id) ?? null : null,
-              facility: series.facility_id ? facilityNameById.get(series.facility_id) ?? null : null,
-              groupIds: seriesGroupIdsBySeriesId.get(series.id) ?? [],
-              activeFrom: series.starts_on,
-              activeUntil: series.ends_on,
-            } satisfies SeriesTemplate;
-          });
-      }
-      const availabilityBySessionId = new Map<string, CoachAvailability[]>();
-      for (const row of availabilityRows) {
-        availabilityBySessionId.set(row.session_id, [
-          ...(availabilityBySessionId.get(row.session_id) ?? []),
-          {
-            id: `${row.session_id}-${row.user_id}-${row.status}`,
-            userId: row.user_id,
-            playerName: profileName(profileById.get(row.user_id), 'Player'),
-            status: row.status,
-            reason: row.reason,
-            lateMinutes: row.late_minutes,
-          },
-        ]);
-      }
-
-      const loadedSessions = sessionRows
-        .filter((session) => session.owner_team_id && teamById.has(session.owner_team_id))
-        .map((session) => {
-          const team = teamById.get(session.owner_team_id!)!;
-          const groupIds = sessionGroupIdsBySessionId.get(session.id) ?? [];
-          const teamPlayers = playersByTeamId.get(team.id) ?? [];
-          const scopedPlayers = groupIds.length === 0
-            ? teamPlayers
-            : teamPlayers.filter((player) => {
-                const membershipId = teamMembershipIdByUserTeam.get(`${team.id}:${player.id}`);
-                if (!membershipId) return false;
-                const playerGroupIds = groupIdsByMembershipId.get(membershipId) ?? new Set<string>();
-                return groupIds.some((groupId) => playerGroupIds.has(groupId));
-              });
-          const scopedPlayerIds = new Set(scopedPlayers.map((player) => player.id));
-          const sessionAvailability = availabilityBySessionId.get(session.id) ?? [];
-          const scopedAvailability = groupIds.length === 0
-            ? sessionAvailability
-            : sessionAvailability.filter((row) => scopedPlayerIds.has(row.userId));
-          return {
-            id: session.id,
-            title: session.title,
-            sessionType: session.session_type ?? 'training',
-            startsAt: session.starts_at,
-            endsAt: session.ends_at,
-            teamId: team.id,
-            teamName: team.name,
-            departmentName: team.departmentName,
-            facilityId: session.facility_id,
-            facilityName: facilityNameFromRow(session),
-            groupIds,
-            availability: scopedAvailability,
-            players: scopedPlayers,
-          } satisfies CoachSession;
-        });
-
-      setTeams(loadedTeams);
-      setFacilities(loadedFacilities);
-      setFacilityConflictSessions(loadedFacilityConflictSessions);
-      setGroups(loadedGroups);
-      setSeriesTemplates(loadedSeriesTemplates);
-      setSeriesWeekStates(loadedSeriesWeekStates);
-      setSessions(loadedSessions);
-      setState('ready');
-    }
-
-    loadCoachTeams();
-    return () => {
-      mounted = false;
-    };
-  }, [mode, reloadKey, router]);
+    setActiveSession((current) => (current ? sessions.find((session) => session.id === current.id) ?? null : null));
+  }, [sessions]);
 
   const singleTeam = teams.length === 1 ? teams[0] : null;
   const selectedTeam = selectedTeamId ? teams.find((team) => team.id === selectedTeamId) ?? null : null;
@@ -1370,229 +930,232 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     return map;
   }, [sessions]);
 
-  async function handleCoachSessionCreate(input: CoachSessionCreateInput) {
+  function reportError(error: unknown, fallback: string) {
+    setError(error instanceof Error ? error.message : fallback);
+  }
+
+  function handleCoachSessionCreate(input: CoachSessionCreateInput) {
     const team = teams.find((item) => item.id === input.teamId);
     if (!team) return;
-    const supabase = createBrowserSupabaseClient();
-    const { data: userResult } = await supabase.auth.getUser();
-    const { data: insertedSession, error: insertError } = await supabase
-      .from('sessions')
-      .insert({
-        club_id: team.clubId,
-        department_id: team.departmentId,
-        team_id: team.id,
-        owner_team_id: team.id,
-        created_by: userResult.user?.id ?? null,
-        title: labelForCoachSessionType(input.sessionType),
-        session_type: input.sessionType,
-        starts_at: input.startsAt,
-        ends_at: input.endsAt,
-        facility_id: input.facilityId,
-        status: 'scheduled',
-      })
-      .select('id')
-      .single();
-    if (insertError) { setError(insertError.message); return; }
-    if (input.groupIds.length > 0 && insertedSession?.id) {
-      const { error: groupError } = await supabase.from('session_groups').insert(input.groupIds.map((groupId) => ({ session_id: insertedSession.id, group_id: groupId })));
-      if (groupError) { setError(groupError.message); setReloadKey((current) => current + 1); return; }
-    }
-    setReloadKey((current) => current + 1);
-  }
-
-  async function handleCoachSessionUpdate(input: CoachSessionMutation) {
-    if (!sessions.some((session) => session.id === input.sessionId)) {
-      setError('You can only edit sessions from your assigned teams.');
+    if (!editableTeamIds.has(team.id)) {
+      setError('Your role may not create sessions in this team.');
       return;
     }
-    const supabase = createBrowserSupabaseClient();
-    const updatePayload: { starts_at: string; ends_at: string; session_type: string; title: string; facility_id?: string } = {
-      starts_at: input.startsAt,
-      ends_at: input.endsAt,
-      session_type: input.sessionType,
-      title: labelForCoachSessionType(input.sessionType),
-    };
-    if (input.facilityId) updatePayload.facility_id = input.facilityId;
-    const { error: updateError } = await supabase.from('sessions').update(updatePayload).eq('id', input.sessionId);
-    if (updateError) { setError(updateError.message); return; }
-    const { error: deleteGroupsError } = await supabase.from('session_groups').delete().eq('session_id', input.sessionId);
-    if (deleteGroupsError) { setError(deleteGroupsError.message); setReloadKey((current) => current + 1); return; }
-    if (input.groupIds.length > 0) {
-      const { error: insertGroupsError } = await supabase.from('session_groups').insert(input.groupIds.map((groupId) => ({ session_id: input.sessionId, group_id: groupId })));
-      if (insertGroupsError) { setError(insertGroupsError.message); setReloadKey((current) => current + 1); return; }
+    try {
+      createSession({
+        teamId: team.id,
+        title: labelForCoachSessionType(input.sessionType),
+        sessionType: normalizeCoachSessionType(input.sessionType) as SessionType,
+        startsAt: input.startsAt,
+        endsAt: input.endsAt,
+        facilityId: input.facilityId || null,
+        groupIds: input.groupIds,
+      });
+      setError(null);
+    } catch (error) {
+      reportError(error, 'The session could not be created.');
     }
-    setSessions((current) => current.map((session) => session.id === input.sessionId ? { ...session, title: labelForCoachSessionType(input.sessionType), sessionType: input.sessionType, startsAt: input.startsAt, endsAt: input.endsAt, facilityId: input.facilityId || session.facilityId, facilityName: facilities.find((facility) => facility.id === input.facilityId)?.name ?? session.facilityName, groupIds: input.groupIds } : session));
   }
 
-  async function handleCoachSessionDelete(sessionId: string) {
+  function handleCoachSessionUpdate(input: CoachSessionMutation) {
+    // Scope check, previously enforced by row-level security: a coach may only
+    // touch sessions of the teams they actually coach.
+    if (!sessions.some((session) => session.id === input.sessionId)) {
+      setError('You can only edit sessions of your own teams.');
+      return;
+    }
+    const sessionTeamId = teamOfSession(input.sessionId);
+    if (!sessionTeamId || !editableTeamIds.has(sessionTeamId)) {
+      setError('Your role may not edit this session.');
+      return;
+    }
+    try {
+      updateSession(input.sessionId, {
+        title: labelForCoachSessionType(input.sessionType),
+        sessionType: normalizeCoachSessionType(input.sessionType) as SessionType,
+        startsAt: input.startsAt,
+        endsAt: input.endsAt,
+        ...(input.facilityId ? { facilityId: input.facilityId } : {}),
+        groupIds: input.groupIds,
+      });
+      setError(null);
+    } catch (error) {
+      reportError(error, 'The session could not be saved.');
+    }
+  }
+
+  function handleCoachSessionDelete(sessionId: string) {
     if (!sessions.some((session) => session.id === sessionId)) {
-      setError('You can only delete sessions from your assigned teams.');
+      setError('You can only delete sessions of your own teams.');
+      return;
+    }
+    const sessionTeamId = teamOfSession(sessionId);
+    if (!sessionTeamId || !editableTeamIds.has(sessionTeamId)) {
+      setError('Your role may not delete this session.');
       return;
     }
     setIsDeletingSession(true);
     try {
-      const supabase = createBrowserSupabaseClient();
-      const { error: deleteError } = await supabase.from('sessions').delete().eq('id', sessionId);
-      if (deleteError) { setError(deleteError.message); return; }
-      setSessions((current) => current.filter((session) => session.id !== sessionId));
+      deleteSession(sessionId);
       closeSessionDetails();
       setReturnToSessionId(null);
       setDeleteSessionId(null);
+      setError(null);
+    } catch (error) {
+      reportError(error, 'The session could not be deleted.');
     } finally {
       setIsDeletingSession(false);
     }
   }
 
-  async function handleCoachSeriesCreate(input: SeriesTemplateInput) {
+  function handleCoachSeriesCreate(input: SeriesTemplateInput) {
     const team = teams.find((item) => item.id === input.teamId);
     if (!team) return;
-    const supabase = createBrowserSupabaseClient();
-    const { data: userResult } = await supabase.auth.getUser();
-    const { data: insertedSeries, error: insertError } = await supabase
-      .from('session_series')
-      .insert({
-        club_id: team.clubId,
-        department_id: team.departmentId,
-        team_id: team.id,
-        facility_id: input.facilityId,
-        created_by: userResult.user?.id ?? null,
-        session_type: input.sessionType,
-        weekday: input.weekday,
-        start_time: input.startTime,
-        end_time: input.endTime,
-        status: 'active',
-      })
-      .select('id')
-      .single();
-    if (insertError) { setError(insertError.message); return; }
-    if (input.groupIds.length > 0 && insertedSeries?.id) {
-      const { error: groupError } = await supabase.from('session_series_groups').insert(input.groupIds.map((groupId) => ({ series_id: insertedSeries.id, group_id: groupId })));
-      if (groupError) { setError(groupError.message); setReloadKey((current) => current + 1); return; }
-    }
-    setReloadKey((current) => current + 1);
-  }
-
-  async function handleCoachSeriesUpdate(seriesId: string, input: SeriesTemplateInput) {
-    const team = teams.find((item) => item.id === input.teamId);
-    if (!team) return;
-    const supabase = createBrowserSupabaseClient();
-    const { error: updateError } = await supabase
-      .from('session_series')
-      .update({
-        team_id: team.id,
-        facility_id: input.facilityId,
-        session_type: input.sessionType,
-        weekday: input.weekday,
-        start_time: input.startTime,
-        end_time: input.endTime,
-      })
-      .eq('id', seriesId);
-    if (updateError) { setError(updateError.message); return; }
-    const { error: deleteGroupsError } = await supabase.from('session_series_groups').delete().eq('series_id', seriesId);
-    if (deleteGroupsError) { setError(deleteGroupsError.message); setReloadKey((current) => current + 1); return; }
-    if (input.groupIds.length > 0) {
-      const { error: insertGroupsError } = await supabase.from('session_series_groups').insert(input.groupIds.map((groupId) => ({ series_id: seriesId, group_id: groupId })));
-      if (insertGroupsError) { setError(insertGroupsError.message); setReloadKey((current) => current + 1); return; }
-    }
-    setReloadKey((current) => current + 1);
-  }
-
-  async function handleCoachSeriesDelete(seriesId: string) {
-    const series = seriesTemplates.find((item) => item.id === seriesId);
-    if (!series || !series.teamId || !teams.some((team) => team.id === series.teamId)) {
-      setError('You can only delete series templates from your assigned teams.');
+    if (!seriesTeamIds.has(team.id)) {
+      setError('Your role may not plan series for this team.');
       return;
     }
-    const supabase = createBrowserSupabaseClient();
-    // Verified in migration 0020: session_series_delete_manager enforces ownership; child rows use FK cascade.
-    const { error: deleteError } = await supabase.from('session_series').delete().eq('id', seriesId);
-    if (deleteError) { setError(deleteError.message); return; }
-    setSeriesTemplates((current) => current.filter((item) => item.id !== seriesId));
-    setSeriesWeekStates((current) => current.filter((state) => state.seriesId !== seriesId));
-    setReloadKey((current) => current + 1);
+    try {
+      mutate((draft) => {
+        draft.sessionSeries.push({
+          id: newId(),
+          clubId: team.clubId,
+          departmentId: team.departmentId,
+          teamId: team.id,
+          title: labelForCoachSessionType(input.sessionType),
+          sessionType: normalizeCoachSessionType(input.sessionType) as SessionType,
+          weekday: input.weekday,
+          startTime: input.startTime,
+          endTime: input.endTime,
+          facilityId: input.facilityId || null,
+          groupIds: input.groupIds ?? [],
+          activeFrom: null,
+          activeUntil: null,
+          createdAt: new Date().toISOString(),
+        });
+      });
+      setError(null);
+    } catch (error) {
+      reportError(error, 'The series could not be created.');
+    }
   }
 
-  async function handleCoachSeriesWeekToggle(seriesId: string, weekStart: string, checked: boolean) {
-    const supabase = createBrowserSupabaseClient();
-    const { error: upsertError } = await supabase
-      .from('session_series_week_state')
-      .upsert({ series_id: seriesId, week_start: weekStart, checked }, { onConflict: 'series_id,week_start' });
-    if (upsertError) { setError(upsertError.message); return; }
-    setSeriesWeekStates((current) => {
-      const existing = current.find((state) => state.seriesId === seriesId && getIsoWeekStart(state.weekStart) === getIsoWeekStart(weekStart));
-      if (existing) return current.map((state) => state === existing ? { ...state, checked } : state);
-      return [...current, { seriesId, weekStart, checked, committedSessionId: null }];
-    });
+  function handleCoachSeriesUpdate(seriesId: string, input: SeriesTemplateInput) {
+    const team = teams.find((item) => item.id === input.teamId);
+    if (!team) return;
+    const currentTeamId = teamOfSeries(seriesId);
+    if (!seriesTeamIds.has(team.id) || !currentTeamId || !seriesTeamIds.has(currentTeamId)) {
+      setError('Your role may not change this series.');
+      return;
+    }
+    try {
+      mutate((draft) => {
+        const series = draft.sessionSeries.find((candidate) => candidate.id === seriesId);
+        if (!series) return;
+        series.teamId = team.id;
+        series.departmentId = team.departmentId;
+        series.facilityId = input.facilityId || null;
+        series.sessionType = normalizeCoachSessionType(input.sessionType) as SessionType;
+        series.weekday = input.weekday;
+        series.startTime = input.startTime;
+        series.endTime = input.endTime;
+        series.groupIds = input.groupIds ?? [];
+      });
+      setError(null);
+    } catch (error) {
+      reportError(error, 'The series could not be saved.');
+    }
   }
 
-  async function handleCoachSeriesWeekConfirm(items: SeriesWeekItem[]) {
-    const supabase = createBrowserSupabaseClient();
-    const { data: userResult } = await supabase.auth.getUser();
+  function handleCoachSeriesDelete(seriesId: string) {
+    const series = seriesTemplates.find((item) => item.id === seriesId);
+    if (!series || !series.teamId || !seriesTeamIds.has(series.teamId)) {
+      setError('Your role may not delete this series.');
+      return;
+    }
+    try {
+      mutate((draft) => {
+        draft.sessionSeries = draft.sessionSeries.filter((item) => item.id !== seriesId);
+        draft.sessionSeriesWeekStates = draft.sessionSeriesWeekStates.filter((state) => state.seriesId !== seriesId);
+      });
+      setError(null);
+    } catch (error) {
+      reportError(error, 'The series could not be deleted.');
+    }
+  }
+
+  function handleCoachSeriesWeekToggle(seriesId: string, weekStart: string, checked: boolean) {
+    const seriesTeamId = teamOfSeries(seriesId);
+    if (!seriesTeamId || !seriesTeamIds.has(seriesTeamId)) {
+      setError('Your role may not plan this series.');
+      return;
+    }
+    try {
+      const existing = seriesWeekStates.find(
+        (state) => state.seriesId === seriesId && getIsoWeekStart(state.weekStart) === getIsoWeekStart(weekStart),
+      );
+      setSeriesWeekState(seriesId, weekStart, checked, existing?.committedSessionId ?? null);
+      setError(null);
+    } catch (error) {
+      reportError(error, 'The week could not be saved.');
+    }
+  }
+
+  /**
+   * Turns confirmed series weeks into real sessions.
+   *
+   * The rollback is kept from the Supabase version: if one week fails halfway
+   * through, the sessions already created in this pass are removed again. A
+   * local write is far less likely to fail, but a half-confirmed week is
+   * exactly the kind of state a coach cannot repair by hand.
+   */
+  function handleCoachSeriesWeekConfirm(items: SeriesWeekItem[]) {
+    if (items.some((item) => !item.teamId || !seriesTeamIds.has(item.teamId))) {
+      setError('Your role may not plan this series.');
+      return;
+    }
     const createdSessionIds: string[] = [];
     try {
       for (const item of items) {
         const team = item.teamId ? teams.find((candidate) => candidate.id === item.teamId) : null;
         if (!team || item.committedSessionId) continue;
-        const { data: existingSession, error: existingError } = await supabase
-          .from('sessions')
-          .select('id')
-          .eq('series_id', item.id)
-          .eq('series_week_start', item.weekStart)
-          .maybeSingle();
-        if (existingError) throw new Error(existingError.message);
-        if (existingSession?.id) {
-          const { error: stateError } = await supabase
-            .from('session_series_week_state')
-            .upsert({ series_id: item.id, week_start: item.weekStart, checked: true, committed_session_id: existingSession.id }, { onConflict: 'series_id,week_start' });
-          if (stateError) throw new Error(stateError.message);
+
+        // Already created for this series and slot (e.g. a retry after a
+        // partial failure): link it instead of creating a duplicate.
+        const existing = database?.sessions.find(
+          (session) => session.seriesId === item.id && session.startsAt === item.startsAt,
+        );
+        if (existing) {
+          setSeriesWeekState(item.id, item.weekStart, true, existing.id);
           continue;
         }
-        const { data: insertedSession, error: insertError } = await supabase
-          .from('sessions')
-          .insert({
-            club_id: team.clubId,
-            department_id: team.departmentId,
-            team_id: team.id,
-            owner_team_id: team.id,
-            created_by: userResult.user?.id ?? null,
-            title: labelForCoachSessionType(item.sessionType),
-            session_type: item.sessionType,
-            starts_at: item.startsAt,
-            ends_at: item.endsAt,
-            facility_id: item.facilityId ?? null,
-            status: 'scheduled',
-            series_id: item.id,
-            series_week_start: item.weekStart,
-          })
-          .select('id')
-          .single();
-        if (insertError) throw new Error(insertError.message);
-        if (!insertedSession?.id) throw new Error('Session creation did not return an id.');
-        createdSessionIds.push(insertedSession.id);
-        if (item.groupIds && item.groupIds.length > 0) {
-          const { error: groupError } = await supabase.from('session_groups').insert(item.groupIds.map((groupId) => ({ session_id: insertedSession.id, group_id: groupId })));
-          if (groupError) throw new Error(groupError.message);
-        }
-        const { error: stateError } = await supabase
-          .from('session_series_week_state')
-          .upsert({ series_id: item.id, week_start: item.weekStart, checked: true, committed_session_id: insertedSession.id }, { onConflict: 'series_id,week_start' });
-        if (stateError) throw new Error(stateError.message);
+
+        const sessionId = createSession({
+          teamId: team.id,
+          title: labelForCoachSessionType(item.sessionType),
+          sessionType: normalizeCoachSessionType(item.sessionType) as SessionType,
+          startsAt: item.startsAt,
+          endsAt: item.endsAt,
+          facilityId: item.facilityId ?? null,
+          groupIds: item.groupIds ?? [],
+        });
+        createdSessionIds.push(sessionId);
+        mutate((draft) => {
+          const created = draft.sessions.find((session) => session.id === sessionId);
+          if (created) {
+            created.seriesId = item.id;
+            created.seriesWeekStart = item.weekStart;
+          }
+        });
+        setSeriesWeekState(item.id, item.weekStart, true, sessionId);
       }
-      setReloadKey((current) => current + 1);
+      setError(null);
     } catch (error) {
-      if (createdSessionIds.length > 0) {
-        const { error: rollbackError } = await supabase.from('sessions').delete().in('id', createdSessionIds);
-        if (rollbackError) {
-          const message = `${error instanceof Error ? error.message : 'Series confirmation failed'} Rollback failed: ${rollbackError.message}`;
-          setError(message);
-          throw new Error(message);
-        }
-      }
-      const message = error instanceof Error ? error.message : 'Series confirmation failed.';
+      for (const sessionId of createdSessionIds) deleteSession(sessionId);
+      const message = error instanceof Error ? error.message : 'Confirming the series week failed.';
       setError(message);
       throw error;
     }
-    setReloadKey((current) => current + 1);
   }
 
   const historySessions = useMemo(() => [...sessions].filter((session) => new Date(session.startsAt).getTime() < Date.now()).sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()), [sessions]);
@@ -1604,73 +1167,86 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     if (returnSession) openSessionDetails(returnSession);
   }
 
-  if (state === 'loading') {
-    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">Loading coach workspace...</section></div></main>;
+  if (!ready) {
+    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">Loading …</section></div></main>;
   }
 
-  if (state === 'error') {
-    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-red-500/40 bg-red-950/30 p-6 text-red-100">{error}</section></div></main>;
+  // A broken document is shown as such rather than silently replaced with
+  // fresh test data, which would look like the app losing work at random.
+  if (dataError) {
+    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-red-500/40 bg-red-950/30 p-6 text-red-100">{dataError.message}</section></div></main>;
+  }
+
+  if (!activePerson) {
+    return (
+      <main className="os-page">
+        <div className="os-container">
+          <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">
+            <p className="mb-4">No coach is selected.</p>
+            <Link className="underline" href="/">Choose a role</Link>
+          </section>
+        </div>
+      </main>
+    );
   }
 
   const shouldOpenTeamWorkspace = mode === 'team' || mode === 'attendance' || mode === 'load';
-  const teamWorkspaceBackHref = mode === 'team' && selectedTeam && teams.length > 1 ? '/coach/team' : '/coach/today';
-  const teamWorkspaceBackLabel = mode === 'team' && selectedTeam && teams.length > 1 ? 'Back to Teams' : 'Back to Today';
+  const workspaceTeam = shouldOpenTeamWorkspace ? selectedTeam ?? singleTeam : null;
 
-  if (selectedTeam && shouldOpenTeamWorkspace) {
-    return <TeamWorkspace teamId={selectedTeam.id} backHref={teamWorkspaceBackHref} backLabel={teamWorkspaceBackLabel} initialSection={initialSection} frame="coach" />;
+  if (workspaceTeam) {
+    // Several teams: back to the list. One team: the tab itself is the team.
+    return <TeamWorkspace teamId={workspaceTeam.id} back={teams.length > 1 ? { href: '/coach/team', label: 'All teams' } : undefined} initialSection={initialSection} />;
   }
 
-  if (singleTeam && shouldOpenTeamWorkspace) {
-    // Single-team coaches have no team-list screen to return to.
-    return <TeamWorkspace teamId={singleTeam.id} backHref="/coach/today" backLabel="Back to Today" initialSection={initialSection} frame="coach" />;
-  }
+  const calendarTeam = mode === 'sessions' && selectedTeam ? selectedTeam : null;
+  const header = {
+    today: { title: 'Today', subtitle: formatLongDay(today) },
+    sessions: { title: 'Calendar', subtitle: teams.length === 1 ? teams[0]?.name : calendarTeam ? calendarTeam.name : 'All your teams' },
+    team: { title: 'Teams', subtitle: plural(teams.length, 'team') },
+    attendance: { title: 'Teams', subtitle: plural(teams.length, 'team') },
+    load: { title: 'Teams', subtitle: plural(teams.length, 'team') },
+    facilities: { title: 'Halls', subtitle: 'Where your teams train' },
+    history: { title: 'History', subtitle: 'Past sessions, attendance and load' },
+  }[mode];
 
   return (
-    <main className="os-page pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0 md:pl-64">
-      <CoachDrawer mode={mode === 'attendance' || mode === 'load' ? 'team' : mode} basePath="/coach" teamId={singleTeam?.id ?? selectedTeamId} />
-      <div className="os-container space-y-5">
-        <section className="sticky top-0 z-30 rounded-2xl border border-slate-800 bg-slate-950/92 p-3 text-white shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:static md:p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Coach OS</p>
-          <div className="mt-1 flex items-center justify-between gap-3">
-            <h1 className="text-2xl font-black tracking-tight">{titleForMode(mode)}</h1>
+    <CoachShell active={NAV_FOR_MODE[mode]} title={header.title} subtitle={header.subtitle}>
+        {error ? (
+          <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-500/40 bg-red-950/30 p-4 text-sm text-red-100">
+            <span>{error}</span>
+            <button type="button" onClick={() => setError(null)} className="text-xs font-black underline">Dismiss</button>
           </div>
-        </section>
+        ) : null}
 
         {teams.length === 0 ? (
           <section className="rounded-3xl border border-amber-500/35 bg-amber-950/20 p-5 text-amber-100">
-            <h2 className="text-xl font-black">No assigned teams yet</h2>
-            <p className="mt-2 text-sm font-bold text-amber-100/80">A club admin or department lead must assign you as coach first.</p>
+            <h2 className="text-xl font-black">No team yet</h2>
+            <p className="mt-2 text-sm font-bold text-amber-100/80">You are not part of a team's staff yet. Open the invitation link your Head Coach sent you.</p>
           </section>
         ) : null}
 
         {mode === 'today' && teams.length > 0 ? (
           <>
-            <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
-              <div className="flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Today</p>
-                  <h2 className="mt-2 text-2xl font-black">Sessions and availability</h2>
+            <CoachSection title={todaySessions.length > 0 ? plural(todaySessions.length, 'session') + ' today' : 'No sessions today'}>
+              {todaySessions.length > 0 ? (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {todaySessions.map((session) => <CoachSessionCard key={session.id} session={session} onDetails={() => openSessionDetails(session)} />)}
                 </div>
-                {todaySessions.length > 0 ? <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{todaySessions.length} today</span> : null}
-              </div>
-              <div className="mt-5 grid gap-3 lg:grid-cols-2">
-                {todaySessions.length > 0 ? todaySessions.map((session) => <CoachSessionCard key={session.id} session={session} onDetails={() => openSessionDetails(session)} />) : <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions today.</div>}
-              </div>
-            </section>
+              ) : (
+                <p className="text-sm text-slate-400">{upcomingSessions[0] ? `Next up: ${upcomingSessions[0].title}, ${formatSessionTime(upcomingSessions[0].startsAt, upcomingSessions[0].endsAt)}.` : 'Nothing planned yet. Plan sessions in the calendar.'}</p>
+              )}
+            </CoachSection>
 
             {upcomingSessions.length > 0 ? (
-              <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Next</p>
-                <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+              <CoachSection title="Coming up" actions={<Link href="/coach/sessions" className="text-xs font-black text-sky-300 hover:text-sky-200">Calendar ›</Link>}>
+                <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
                   {upcomingSessions.map((session) => (
-                    <button key={session.id} type="button" onClick={() => openSessionDetails(session)} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-left transition hover:border-sky-300/50 hover:bg-slate-900/70">
-                      <p className="text-sm font-black text-white">{session.teamName}</p>
-                      <p className="mt-1 text-xs font-bold text-slate-400">{new Date(session.startsAt).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' })} · {formatTimeRange(session.startsAt, session.endsAt)}</p>
-                      <p className="mt-3 text-xs font-black text-slate-500">{session.availability.length} availability flags</p>
-                    </button>
+                    <li key={session.id}>
+                      <UpcomingSessionRow session={session} showTeam={teams.length > 1} onOpen={() => openSessionDetails(session)} />
+                    </li>
                   ))}
-                </div>
-              </section>
+                </ul>
+              </CoachSection>
             ) : null}
           </>
         ) : null}
@@ -1690,30 +1266,34 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             onCreateSession={handleCoachSessionCreate}
             onUpdateSession={handleCoachSessionUpdate}
             onDeleteSession={handleCoachSessionDelete}
-            onCreateSeries={handleCoachSeriesCreate}
-            onUpdateSeries={handleCoachSeriesUpdate}
-            onDeleteSeries={handleCoachSeriesDelete}
-            onToggleSeriesWeek={handleCoachSeriesWeekToggle}
-            onConfirmSeriesWeek={handleCoachSeriesWeekConfirm}
+            editableTeamIds={editableTeamIds}
+            seriesTeamIds={seriesTeamIds}
+            // Without a team to plan for, the series controls disappear rather
+            // than offering buttons that end in an error.
+            onCreateSeries={seriesTeamIds.size > 0 ? handleCoachSeriesCreate : undefined}
+            onUpdateSeries={seriesTeamIds.size > 0 ? handleCoachSeriesUpdate : undefined}
+            onDeleteSeries={seriesTeamIds.size > 0 ? handleCoachSeriesDelete : undefined}
+            onToggleSeriesWeek={seriesTeamIds.size > 0 ? handleCoachSeriesWeekToggle : undefined}
+            onConfirmSeriesWeek={seriesTeamIds.size > 0 ? handleCoachSeriesWeekConfirm : undefined}
             onDetails={openSessionDetails}
+            initialTeamId={selectedTeamId}
           />
         ) : null}
 
-        {mode === 'facilities' && teams.length > 0 ? (
-          <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Facilities</p>
-            <h2 className="mt-2 text-2xl font-black">Department halls</h2>
-            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {facilities.map((facility) => {
-                const facilityTeams = teams.filter((team) => facility.departmentIds.includes(team.departmentId));
-                const teamIds = facilityTeams.map((team) => team.id).join(',');
-                const departmentIds = Array.from(new Set(facilityTeams.map((team) => team.departmentId))).join(',');
-                const contextTeam = facilityTeams.length === 1 ? facilityTeams[0] : null;
-                const href = contextTeam ? `/coach/facilities/${facility.id}/calendar?from=coachFacilities&teamId=${contextTeam.id}&departmentId=${contextTeam.departmentId}&teamIds=${encodeURIComponent(teamIds)}&departmentIds=${encodeURIComponent(departmentIds)}` : `/coach/facilities/${facility.id}/calendar?from=coachFacilities&teamIds=${encodeURIComponent(teamIds)}&departmentIds=${encodeURIComponent(departmentIds)}`;
-                return <Link key={facility.id} href={href} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 transition hover:border-sky-300/45 hover:bg-slate-900/70"><p className="text-lg font-black text-white">{facility.name}</p><p className="mt-2 text-xs font-bold text-slate-500">{facility.departmentIds.length} department context{facility.departmentIds.length === 1 ? '' : 's'}</p></Link>;
-              })}
-            </div>
-          </section>
+        {mode === 'facilities' && teams.length > 0 && database && activePerson ? (
+          <FacilitiesManager
+            database={database}
+            personId={activePerson.id}
+            calendarHref={(facilityId) => {
+              const facilityDepartmentIds = facilities.find((facility) => facility.id === facilityId)?.departmentIds ?? [];
+              const facilityTeams = teams.filter((team) => facilityDepartmentIds.includes(team.departmentId));
+              const teamIds = facilityTeams.map((team) => team.id).join(',');
+              const departmentIds = Array.from(new Set(facilityTeams.map((team) => team.departmentId))).join(',');
+              const contextTeam = facilityTeams.length === 1 ? facilityTeams[0] : null;
+              const teamContext = contextTeam ? `&teamId=${contextTeam.id}&departmentId=${contextTeam.departmentId}` : '';
+              return `/coach/facilities/${facilityId}/calendar?from=coachFacilities${teamContext}&teamIds=${encodeURIComponent(teamIds)}&departmentIds=${encodeURIComponent(departmentIds)}`;
+            }}
+          />
         ) : null}
 
         {mode === 'history' && teams.length > 0 ? (
@@ -1729,8 +1309,8 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             session={activeSession}
             calendarHref={mode === 'today' ? '/coach/sessions' : null}
             initialInsight={activeHistoryInsight}
-            onEdit={() => { setReturnToSessionId(activeSession.id); setEditingSessionId(activeSession.id); closeSessionDetails(); }}
-            onDelete={() => setDeleteSessionId(activeSession.id)}
+            onEdit={editableTeamIds.has(activeSession.teamId) ? () => { setReturnToSessionId(activeSession.id); setEditingSessionId(activeSession.id); closeSessionDetails(); } : undefined}
+            onDelete={editableTeamIds.has(activeSession.teamId) ? () => setDeleteSessionId(activeSession.id) : undefined}
             onClose={closeSessionDetails}
           />
         ) : null}
@@ -1788,33 +1368,23 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         />
 
         {mode === 'team' && teams.length > 0 ? (
-          <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Teams</p>
-                <h2 className="mt-2 text-2xl font-black">Select team</h2>
-              </div>
-            </div>
-            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {teams.map((team) => {
-                const nextSession = nextSessionByTeamId.get(team.id);
-                return (
-                  <Link key={team.id} href={`/coach/team?teamId=${team.id}`} className="block rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white transition hover:border-emerald-300/50 hover:bg-slate-900/70">
-                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">{team.departmentName}</p>
-                    <h3 className="mt-2 text-2xl font-black">{team.name}</h3>
-                    <p className="mt-2 text-sm font-bold text-slate-400">{team.role.replace('_', ' ')}</p>
-                    <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Next session</p>
-                      <p className="mt-1 text-sm font-black text-slate-200">{nextSession ? nextSession.title : 'None planned'}</p>
-                      <p className="mt-1 text-xs font-bold text-slate-500">{formatNextSession(nextSession)}</p>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {teams.map((team) => {
+              const nextSession = nextSessionByTeamId.get(team.id);
+              return (
+                <Link key={team.id} href={`/coach/team?teamId=${team.id}`} className="block rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white transition hover:border-emerald-300/50 hover:bg-slate-900/70">
+                  <p className="text-xs font-bold text-slate-400">{team.departmentName}{team.roleName ? ` · ${team.roleName}` : ''}</p>
+                  <h3 className="mt-1 text-xl font-black">{team.name}</h3>
+                  <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
+                    <p className="text-xs font-bold text-slate-500">Next session</p>
+                    <p className="mt-1 text-sm font-black text-slate-200">{nextSession ? nextSession.title : 'None planned'}</p>
+                    {nextSession ? <p className="mt-0.5 text-xs font-bold text-slate-400">{formatSessionTime(nextSession.startsAt, nextSession.endsAt)}</p> : null}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         ) : null}
-      </div>
-    </main>
+    </CoachShell>
   );
 }

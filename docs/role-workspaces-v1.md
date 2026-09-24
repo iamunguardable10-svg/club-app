@@ -1,5 +1,7 @@
 # Role Workspaces V1
 
+> **Stand 2026-09-24 (Run 11c):** Trainer- und Spielerseiten teilen sich einen Rahmen (`src/features/role-workspaces/RoleShell.tsx`): Seitenleiste auf dem Desktop, Tab-Leiste unten auf dem Handy, ein Seitentitel, der Konto-Knopf oben rechts. Trainer: Today · Calendar · Team · Halls · History. Spieler: Today · Calendar · Load.
+
 ## Goal
 
 Coach and department-lead routes should no longer be dead placeholder pages. They should connect into the operational surfaces we already built while keeping permissions role-aware.

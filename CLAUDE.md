@@ -14,8 +14,9 @@ Check whether the diff:
 
 - breaks Club OS product rules
 - breaks membership-based role logic
-- introduces Supabase, RLS or Auth risks
-- misaligns demo and real flows
+- introduces Supabase, RLS or Auth risks (currently: reintroduces a backend or login into the local test mode without a decision in `docs/simplify-decisions.md`)
+- bypasses the local data layer: touches `localStorage` outside `src/shared/data/repository.ts`, or derives permissions from URL parameters
+- ~~misaligns demo and real flows~~ (suspended 2026-09: there is one local mode; flag any change that reintroduces a second, parallel implementation)
 - ignores mobile or desktop behavior
 - removes functionality during UI work
 - is larger than necessary
@@ -25,6 +26,8 @@ Check whether the diff:
 ## Required reading for reviews
 
 For meaningful product or code reviews, read:
+
+- `docs/simplify-decisions.md` — the current local test mode; takes precedence over older rules while it lasts
 
 - `AGENTS.md`
 - `README.md`

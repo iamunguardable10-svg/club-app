@@ -13,7 +13,6 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { createBrowserSupabaseClient } from '@/shared/lib/supabase/client';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import {
   ACWR_ZONES,
@@ -29,7 +28,35 @@ import {
 } from './loadTypes';
 import { aggregateDailyLoads, baselineAgeDays, calculateEWMA, fillMissingDays, formatLoadDate, getLatestACWR, loadZone, projectFutureACWR, todayISO } from './loadCalculations';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
-import { DEMO_PRIMARY_ATHLETE_TEAM_ID, getDemoClubSetup, getDemoSessions, getDemoTeams, type DemoSession } from '@/shared/dev/demoStorage';
+import { athleteHasLoad, displayName, getActivePerson, newId, useLocalDatabase } from '@/shared/data';
+import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
+import { AthleteShell } from '@/features/role-workspaces/RoleShell';
+import { formatDateRange, formatDay, formatLongDay } from '@/shared/format';
+import {
+  readAcknowledged,
+  readAvailability,
+  readEntries,
+  readPlans,
+  readShareLink,
+  readSessionsToRate,
+  readTeamSessions,
+  saveAcknowledged,
+  saveAvailability,
+  saveEntries,
+  saveMissedSession,
+  savePlans,
+  saveSessionRating,
+  saveShareLink,
+  type AthleteAvailabilityMark,
+} from './athleteLocalStore';
+import { RatePrompt, WARMUP_MINUTES, WARMUP_RPE } from './RatePrompt';
+
+/**
+ * Players who were already asked in this visit, so moving between Today,
+ * Calendar and Load does not ask again. A new visit (reload, reopening the
+ * app) starts empty and asks again.
+ */
+const askedThisVisit = new Set<string>();
 
 type AthleteView = 'home' | 'load' | 'calendar';
 
@@ -59,66 +86,7 @@ type AthleteCalendarItem = {
   entry?: AthleteLoadEntry;
 };
 
-type AthleteAvailabilityMark = {
-  status: 'expected' | 'late' | 'out';
-  reason: string | null;
-  lateMinutes: number | null;
-};
-
 type AvailabilityDraft = 'expected' | 'late' | 'out';
-
-type RawLoadEntry = {
-  id: string;
-  session_id: string | null;
-  team_id?: string | null;
-  entry_date?: string | null;
-  training_type?: string | null;
-  rpe: number;
-  duration_minutes: number;
-  session_load?: number | null;
-  note: string | null;
-  submitted_at: string;
-  sessions?: {
-    title: string;
-    starts_at: string;
-    session_type: string;
-    team_id: string;
-    teams?: { name: string } | null;
-  } | null;
-};
-
-type RawSession = {
-  id: string;
-  title: string;
-  session_type: string;
-  starts_at: string;
-  ends_at: string | null;
-  team_id: string | null;
-  teams?: { name: string } | null;
-};
-
-type RawLoadPlan = {
-  id: string;
-  team_id: string | null;
-  plan_date: string;
-  planned_time: string | null;
-  training_type: string;
-  expected_rpe: number;
-  expected_duration_minutes: number;
-  title: string | null;
-  note: string | null;
-  teams?: { name: string } | null;
-};
-
-const DEMO_LOAD_KEY = 'club-app.demo.athlete-load-entries';
-const DEMO_ACK_KEY = 'club-app.demo.athlete-pending-ack';
-const DEMO_PLANS_KEY = 'club-app.demo.athlete-load-plans';
-const DEMO_CANCELLED_SESSIONS_KEY = 'club-app.demo.athlete-cancelled-sessions';
-const DEMO_AVAILABILITY_KEY = 'club-app.demo.athlete-availability';
-const LOAD_SHARE_ACTIVE_KEY = 'club-app.athlete-load.active-share-link';
-// Session-linked entries cover the recent 28-day story; older manual entries keep the long ACWR baseline.
-const DEMO_SESSION_WINDOW_PAST_DAYS = 28;
-const DEMO_SESSION_WINDOW_FUTURE_DAYS = 21;
 
 const emptyPlanForm: PlanFormState = {
   trainingType: 'team_training',
@@ -149,340 +117,7 @@ function isoDate(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-function atLocalDate(date: Date, hour: number, minute = 0) {
-  const next = new Date(date);
-  next.setHours(hour, minute, 0, 0);
-  return next.toISOString();
-}
 
-function demoPendingSessions(): AthletePendingSession[] {
-  const setup = getDemoClubSetup();
-  if (!setup) return fallbackDemoPendingSessions();
-  const teams = getDemoTeams(setup);
-  const teamByName = new Map(teams.map((team) => [`${team.department}:${team.name}`, team]));
-  const windowStart = addDays(new Date(`${todayISO()}T00:00:00`), -DEMO_SESSION_WINDOW_PAST_DAYS).getTime();
-  const windowEnd = addDays(new Date(`${todayISO()}T00:00:00`), DEMO_SESSION_WINDOW_FUTURE_DAYS).getTime();
-  return getDemoSessions()
-    .map((session: DemoSession): AthletePendingSession | null => {
-      const team = teamByName.get(`${session.department}:${session.team}`);
-      if (!team || team.id !== DEMO_PRIMARY_ATHLETE_TEAM_ID) return null;
-      const startsAt = new Date(session.startsAt).getTime();
-      if (startsAt < windowStart || startsAt > windowEnd) return null;
-      const trainingType = normalizeTrainingType(session.sessionType);
-      if (session.sessionType === 's_and_c' && trainingType !== 'strength' && process.env.NODE_ENV !== 'production') console.warn('Club OS demo load mapping drift: s_and_c should map to strength.');
-      return {
-        id: session.id,
-        title: session.title || LOAD_TYPE_LABELS[trainingType],
-        teamId: team.id,
-        teamName: team.name,
-        date: session.startsAt.slice(0, 10),
-        startsAt: session.startsAt,
-        endsAt: session.endsAt,
-        trainingType,
-        source: 'team_session',
-      } satisfies AthletePendingSession;
-    })
-    .filter((session): session is AthletePendingSession => Boolean(session))
-    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-}
-
-function fallbackDemoPendingSessions(): AthletePendingSession[] {
-  const today = new Date(`${todayISO()}T00:00:00`);
-  const yesterday = addDays(today, -1);
-  const tomorrow = addDays(today, 1);
-  return [
-    { id: 'demo-session-yesterday-team', title: 'Team Training', teamId: DEMO_PRIMARY_ATHLETE_TEAM_ID, teamName: 'U14 Boys', date: isoDate(yesterday), startsAt: atLocalDate(yesterday, 18, 0), endsAt: atLocalDate(yesterday, 19, 30), trainingType: 'team_training', source: 'team_session' } satisfies AthletePendingSession,
-    { id: 'demo-session-today-strength', title: 'Strength', teamId: DEMO_PRIMARY_ATHLETE_TEAM_ID, teamName: 'U14 Boys', date: isoDate(today), startsAt: atLocalDate(today, 16, 30), endsAt: atLocalDate(today, 17, 30), trainingType: 'strength', source: 'team_session' } satisfies AthletePendingSession,
-    { id: 'demo-session-tomorrow-team', title: 'Team Training', teamId: DEMO_PRIMARY_ATHLETE_TEAM_ID, teamName: 'U14 Boys', date: isoDate(tomorrow), startsAt: atLocalDate(tomorrow, 18, 15), endsAt: atLocalDate(tomorrow, 20, 0), trainingType: 'team_training', source: 'team_session' } satisfies AthletePendingSession,
-  ];
-}
-
-function demoAthleteTeamName() {
-  const setup = getDemoClubSetup();
-  if (!setup) return 'U14 Boys';
-  const team = getDemoTeams(setup).find((candidate) => candidate.id === DEMO_PRIMARY_ATHLETE_TEAM_ID);
-  if (!team && process.env.NODE_ENV !== 'production') console.warn(`Club OS demo athlete team missing: ${DEMO_PRIMARY_ATHLETE_TEAM_ID}`);
-  return team?.name ?? 'U14 Boys';
-}
-
-function demoSeedPlans(): AthleteLoadPlan[] {
-  const today = new Date(`${todayISO()}T00:00:00`);
-  return [
-    {
-      id: 'demo-plan-strength',
-      teamId: null,
-      teamName: null,
-      title: 'Strength',
-      date: isoDate(addDays(today, 2)),
-      startsAt: atLocalDate(addDays(today, 2), 17, 0),
-      trainingType: 'strength',
-      expectedRpe: 7,
-      expectedDurationMinutes: 60,
-      note: null,
-    },
-    {
-      id: 'demo-plan-recovery',
-      teamId: null,
-      teamName: null,
-      title: 'Recovery',
-      date: isoDate(addDays(today, 4)),
-      startsAt: atLocalDate(addDays(today, 4), 10, 0),
-      trainingType: 'recovery',
-      expectedRpe: 3,
-      expectedDurationMinutes: 35,
-      note: null,
-    },
-  ];
-}
-
-function demoSeedEntries(teamSessions = demoPendingSessions()): AthleteLoadEntry[] {
-  const today = new Date(`${todayISO()}T00:00:00`);
-  const teamName = demoAthleteTeamName();
-  const plan: Array<[number, LoadTrainingType, number, number]> = [
-    [-55, 'team_training', 5, 90],
-    [-53, 'strength', 6, 55],
-    [-51, 'individual', 5, 45],
-    [-49, 'game', 8, 75],
-    [-46, 'team_training', 6, 95],
-    [-44, 'recovery', 3, 35],
-    [-42, 'strength', 7, 60],
-    [-40, 'team_training', 6, 90],
-    [-38, 'individual', 6, 50],
-    [-36, 'game', 9, 80],
-    [-34, 'team_training', 5, 85],
-    [-32, 'strength', 6, 55],
-    [-30, 'recovery', 2, 35],
-    [-28, 'team_training', 6, 95],
-    [-26, 'individual', 5, 40],
-    [-24, 'strength', 7, 60],
-    [-22, 'game', 8, 80],
-    [-20, 'team_training', 6, 95],
-    [-18, 'strength', 7, 55],
-    [-16, 'team_training', 5, 90],
-    [-15, 'individual', 6, 45],
-    [-13, 'game', 9, 80],
-    [-11, 'team_training', 6, 90],
-    [-9, 'recovery', 3, 35],
-    [-8, 'strength', 6, 60],
-    [-6, 'team_training', 7, 95],
-    [-5, 'individual', 5, 40],
-    [-3, 'strength', 6, 60],
-    [-2, 'team_training', 7, 90],
-    [-1, 'recovery', 2, 30],
-  ];
-
-  const manualEntries = plan.map(([offset, trainingType, rpe, durationMinutes], index) => {
-    const date = isoDate(addDays(today, offset));
-    return {
-      id: `demo-load-v2-${index}`,
-      sessionId: null,
-      teamId: DEMO_PRIMARY_ATHLETE_TEAM_ID,
-      teamName,
-      date,
-      startsAt: null,
-      title: LOAD_TYPE_LABELS[trainingType],
-      trainingType,
-      rpe,
-      durationMinutes,
-      load: rpe * durationMinutes,
-      note: null,
-      source: 'manual',
-    } satisfies AthleteLoadEntry;
-  });
-  const sessionEntries = teamSessions
-    .filter((session) => session.date < todayISO())
-    .map((session) => {
-      const durationMinutes = durationMinutesFromSession(session);
-      // Deterministic demo jitter keeps the graph readable without changing across resets.
-      const stableDelta = Array.from(session.id).reduce((sum, char) => sum + char.charCodeAt(0), 0) % 2;
-      const rpe = session.trainingType === 'game' ? 10 : session.trainingType === 'strength' ? 7 : 6 + stableDelta;
-      return {
-        id: `demo-session-load-${session.id}`,
-        sessionId: session.id,
-        teamId: session.teamId,
-        teamName: session.teamName,
-        date: session.date,
-        startsAt: session.startsAt,
-        title: session.title,
-        trainingType: session.trainingType,
-        rpe,
-        durationMinutes,
-        load: rpe * durationMinutes,
-        note: null,
-        source: 'planned_session',
-      } satisfies AthleteLoadEntry;
-    });
-
-  const sessionDates = new Set(sessionEntries.map((entry) => entry.date));
-  // Scheduled sessions own their date in the demo seed, so the manual baseline
-  // does not double count a second generic load on the same day.
-  const soloEntries = manualEntries.filter((entry) => !sessionDates.has(entry.date));
-  return [...soloEntries, ...sessionEntries].sort((a, b) => a.date.localeCompare(b.date));
-}
-
-function readDemoEntries(teamSessions = demoPendingSessions()) {
-  if (typeof window === 'undefined') return demoSeedEntries(teamSessions);
-  const raw = window.localStorage.getItem(DEMO_LOAD_KEY);
-  if (!raw) {
-    const seed = demoSeedEntries(teamSessions);
-    window.localStorage.setItem(DEMO_LOAD_KEY, JSON.stringify(seed));
-    return seed;
-  }
-  try {
-    const parsed = JSON.parse(raw) as AthleteLoadEntry[];
-    const seed = demoSeedEntries(teamSessions);
-    if (parsed.length < seed.length) {
-      const customEntries = parsed.filter((entry) => !entry.id.startsWith('demo-load-') && !entry.id.startsWith('demo-session-load-'));
-      const merged = [...seed, ...customEntries].sort((a, b) => a.date.localeCompare(b.date));
-      window.localStorage.setItem(DEMO_LOAD_KEY, JSON.stringify(merged));
-      return merged;
-    }
-    return parsed;
-  } catch {
-    return demoSeedEntries(teamSessions);
-  }
-}
-
-function saveDemoEntries(entries: AthleteLoadEntry[]) {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(DEMO_LOAD_KEY, JSON.stringify(entries));
-}
-
-function readAcknowledgedDemoSessions() {
-  if (typeof window === 'undefined') return [] as string[];
-  const raw = window.localStorage.getItem(DEMO_ACK_KEY);
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw) as string[];
-  } catch {
-    return [];
-  }
-}
-
-function saveAcknowledgedDemoSessions(ids: string[]) {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(DEMO_ACK_KEY, JSON.stringify(ids));
-}
-
-function readDemoPlans() {
-  if (typeof window === 'undefined') return demoSeedPlans();
-  const raw = window.localStorage.getItem(DEMO_PLANS_KEY);
-  if (!raw) {
-    const seed = demoSeedPlans();
-    window.localStorage.setItem(DEMO_PLANS_KEY, JSON.stringify(seed));
-    return seed;
-  }
-  try {
-    return JSON.parse(raw) as AthleteLoadPlan[];
-  } catch {
-    return demoSeedPlans();
-  }
-}
-
-function saveDemoPlans(plans: AthleteLoadPlan[]) {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(DEMO_PLANS_KEY, JSON.stringify(plans));
-}
-
-function readCancelledDemoSessions() {
-  if (typeof window === 'undefined') return [];
-  const raw = window.localStorage.getItem(DEMO_CANCELLED_SESSIONS_KEY);
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw) as string[];
-  } catch {
-    return [];
-  }
-}
-
-function saveCancelledDemoSessions(ids: string[]) {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(DEMO_CANCELLED_SESSIONS_KEY, JSON.stringify(Array.from(new Set(ids))));
-}
-
-function readDemoAvailability() {
-  if (typeof window === 'undefined') return new Map<string, AthleteAvailabilityMark>();
-  const map = new Map<string, AthleteAvailabilityMark>();
-  try {
-    const raw = window.localStorage.getItem(DEMO_AVAILABILITY_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Record<string, AthleteAvailabilityMark>;
-      Object.entries(parsed).forEach(([sessionId, mark]) => {
-        if (mark.status === 'late' || mark.status === 'out') map.set(sessionId, mark);
-      });
-    }
-  } catch {
-    // ignore broken demo data
-  }
-  for (const sessionId of readCancelledDemoSessions()) {
-    if (!map.has(sessionId)) map.set(sessionId, { status: 'out', reason: 'Cancelled in demo', lateMinutes: null });
-  }
-  return map;
-}
-
-function saveDemoAvailability(map: Map<string, AthleteAvailabilityMark>) {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(DEMO_AVAILABILITY_KEY, JSON.stringify(Object.fromEntries(map.entries())));
-  saveCancelledDemoSessions(Array.from(map.entries()).filter(([, mark]) => mark.status === 'out').map(([sessionId]) => sessionId));
-}
-
-function normalizeTrainingType(value?: string | null): LoadTrainingType {
-  if (value && LOAD_TRAINING_TYPES.includes(value as LoadTrainingType)) return value as LoadTrainingType;
-  return sessionTypeToLoadType(value);
-}
-
-function mapRawEntry(row: RawLoadEntry): AthleteLoadEntry {
-  const session = row.sessions;
-  const date = row.entry_date ?? (session?.starts_at ? session.starts_at.slice(0, 10) : row.submitted_at.slice(0, 10));
-  const trainingType = normalizeTrainingType(row.training_type ?? session?.session_type ?? null);
-  return {
-    id: row.id,
-    sessionId: row.session_id,
-    teamId: row.team_id ?? session?.team_id ?? null,
-    teamName: session?.teams?.name ?? null,
-    date,
-    startsAt: session?.starts_at ?? null,
-    title: session?.title || LOAD_TYPE_LABELS[trainingType],
-    trainingType,
-    rpe: row.rpe,
-    durationMinutes: row.duration_minutes,
-    load: row.session_load ?? row.rpe * row.duration_minutes,
-    note: row.note,
-    source: row.session_id ? 'planned_session' : 'solo',
-  };
-}
-
-function mapRawSession(row: RawSession): AthletePendingSession {
-  const trainingType = normalizeTrainingType(row.session_type);
-  return {
-    id: row.id,
-    title: row.title || LOAD_TYPE_LABELS[trainingType],
-    teamId: row.team_id,
-    teamName: row.teams?.name ?? null,
-    date: row.starts_at.slice(0, 10),
-    startsAt: row.starts_at,
-    endsAt: row.ends_at,
-    trainingType,
-    source: 'team_session',
-  };
-}
-
-function mapRawPlan(row: RawLoadPlan): AthleteLoadPlan {
-  const trainingType = normalizeTrainingType(row.training_type);
-  const startsAt = row.planned_time ? new Date(`${row.plan_date}T${row.planned_time}`).toISOString() : null;
-  return {
-    id: row.id,
-    teamId: row.team_id,
-    teamName: row.teams?.name ?? null,
-    title: row.title || LOAD_TYPE_LABELS[trainingType],
-    date: row.plan_date,
-    startsAt,
-    trainingType,
-    expectedRpe: row.expected_rpe,
-    expectedDurationMinutes: row.expected_duration_minutes,
-    note: row.note,
-  };
-}
 
 function planToPendingSession(plan: AthleteLoadPlan): AthletePendingSession {
   const startsAt = plan.startsAt ?? new Date(`${plan.date}T12:00:00`).toISOString();
@@ -518,6 +153,7 @@ function warmupForSession(session: AthletePendingSession): AthletePendingSession
     expectedRpe: 3,
     expectedDurationMinutes: 20,
     source: session.source,
+    loadTracked: session.loadTracked,
   };
 }
 
@@ -533,7 +169,7 @@ function withAutoWarmups(sessions: AthletePendingSession[]) {
 }
 
 function formatTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 }
 
 function timeInputFromISO(value: string) {
@@ -583,8 +219,8 @@ function Metric({ label, value, tone = 'default' }: { label: string; value: stri
         : 'border-slate-800 bg-slate-950/55 text-white';
   return (
     <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-3 sm:p-4 ${toneClass}`}>
-      <p className="truncate text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{label}</p>
-      <p className="mt-2 truncate text-xl font-black tracking-tight sm:text-2xl">{value}</p>
+      <p className="text-[11px] font-black leading-tight text-slate-400">{label}</p>
+      <p className="mt-2 truncate text-lg font-black tracking-tight sm:text-2xl">{value}</p>
     </div>
   );
 }
@@ -737,12 +373,12 @@ function LoadRoomMetric({ latest, entries, baselineReady }: { latest: ReturnType
   return (
     <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-3 sm:p-4 ${toneClass}`}>
       <div>
-        <p className="truncate text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{room.label}</p>
-        <p className="mt-2 truncate text-xl font-black tracking-tight sm:text-2xl">{room.value}</p>
+        <p className="text-[11px] font-black leading-tight text-slate-400">{room.label}</p>
+        <p className="mt-2 truncate text-lg font-black tracking-tight sm:text-2xl">{room.value}</p>
       </div>
       <div>
         <LoadRoomGauge room={room} compact />
-        <p className="mt-1 truncate text-[10px] font-bold text-slate-400">{room.detail}</p>
+        <p className="mt-1 text-[10px] font-bold leading-tight text-slate-400">{room.detail}</p>
       </div>
     </div>
   );
@@ -773,12 +409,12 @@ function AcwrMetric({ latest, baselineReady, tone }: { latest: ReturnType<typeof
   return (
     <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-3 sm:p-4 ${toneClass}`}>
       <div>
-        <p className="truncate text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">ACWR</p>
-        <p className="mt-2 truncate text-xl font-black tracking-tight sm:text-2xl">{room.value}</p>
+        <p className="text-[11px] font-black leading-tight text-slate-400">ACWR</p>
+        <p className="mt-2 truncate text-lg font-black tracking-tight sm:text-2xl">{room.value}</p>
       </div>
       <div>
         <LoadRoomGauge room={room} compact />
-        <p className="mt-1 truncate text-[10px] font-bold text-slate-400">{room.detail}</p>
+        <p className="mt-1 text-[10px] font-bold leading-tight text-slate-400">{room.detail}</p>
       </div>
     </div>
   );
@@ -832,11 +468,11 @@ function LoadTooltip({ active, payload }: LoadTooltipProps) {
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-2">
           <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">Acute</p>
-          <p className="mt-1 text-sm font-black text-white">{point.acuteLoad}</p>
+          <p className="mt-1 text-sm font-black text-white">{point.acuteLoad !== null && !point.isProjected ? Math.round(point.acuteLoad) : '—'}</p>
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-2">
           <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">Chronic</p>
-          <p className="mt-1 text-sm font-black text-white">{point.chronicLoad}</p>
+          <p className="mt-1 text-sm font-black text-white">{point.chronicLoad !== null && !point.isProjected ? Math.round(point.chronicLoad) : '—'}</p>
         </div>
       </div>
       {!point.chronicFull ? (
@@ -932,7 +568,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
     const projection = projectedByDate.get(day.date);
     return {
       date: day.date,
-      label: new Date(`${day.date}T00:00:00`).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' }),
+      label: new Date(`${day.date}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }),
       totalLoad: day.totalLoad,
       forecastLoad: plannedProjectionLoad(projection),
       acuteLoad: point?.acuteLoad ?? 0,
@@ -951,7 +587,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
   const projectedLimit = isMobile ? (range === 7 ? 2 : 3) : range === 7 ? 7 : 14;
   const projectedData: LoadChartDatum[] = projected.filter((point) => point.date > lastHistoricalDate).slice(0, projectedLimit).map((point) => ({
     date: point.date,
-    label: new Date(`${point.date}T00:00:00`).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' }),
+    label: new Date(`${point.date}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }),
     totalLoad: 0,
     forecastLoad: plannedProjectionLoad(point),
     acuteLoad: null,
@@ -1231,7 +867,8 @@ function AthleteCalendar({
   onPlanTimeChange,
 }: {
   items: AthleteCalendarItem[];
-  onEmptySlot: (date: string, time: string) => void;
+  /** Missing for players without load tracking: own plans are part of load. */
+  onEmptySlot?: (date: string, time: string) => void;
   onItemSelect: (item: AthleteCalendarItem, intent: 'view' | 'edit') => void;
   onPlanTimeChange: (session: AthletePendingSession, startsAt: string, durationMinutes: number) => void;
 }) {
@@ -1243,12 +880,13 @@ function AthleteCalendar({
   const [weekOffset, setWeekOffset] = useState(0);
   const weekStartDate = addDays(weekStart(), weekOffset * 7);
   const days = Array.from({ length: 7 }, (_, index) => addDays(weekStartDate, index));
-  const weekLabel = `${days[0].toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })} - ${days[6].toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })}`;
+  const weekLabel = formatDateRange(days[0], days[6]);
   const gridMinutes = (lastHour - firstHour + 1) * 60;
   const gridHeightDesktop = hours.length * desktopHourHeight;
   const gridHeightMobile = hours.length * mobileHourHeight;
   const [mode, setMode] = useState<'view' | 'edit'>('view');
-  const [mobileView, setMobileView] = useState<'week' | 'day'>('week');
+  // One day at a time on phones; seven columns are too narrow to read.
+  const [mobileView, setMobileView] = useState<'week' | 'day'>('day');
   const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, days.findIndex((day) => isoDate(day) === todayISO())));
   const [suppressClick, setSuppressClick] = useState(false);
   const [drag, setDrag] = useState<{
@@ -1282,6 +920,7 @@ function AthleteCalendar({
 
   function pickSlot(day: Date, event: MouseEvent<HTMLDivElement>, hourHeight: number) {
     if ((event.target as HTMLElement).closest('[data-athlete-calendar-item="true"]')) return;
+    if (!onEmptySlot) return;
     const minutes = minutesFromPointer(event.currentTarget, event.clientY, hourHeight);
     onEmptySlot(isoDate(day), minutesToTime(minutes));
   }
@@ -1494,9 +1133,7 @@ function AthleteCalendar({
     <section className="min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-3 sm:rounded-[2rem] sm:p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Calendar</p>
-          <h2 className="mt-1 text-2xl font-black tracking-tight">Training week</h2>
-          <div className="mt-2 flex items-center gap-2 text-xs font-black text-slate-400">
+          <div className="flex items-center gap-2 text-xs font-black text-slate-300">
             <button type="button" onClick={() => setWeekOffset((value) => value - 1)} className="rounded-full border border-slate-700 px-2 py-1 text-slate-200">‹</button>
             <span>{weekLabel}</span>
             <button type="button" onClick={() => setWeekOffset((value) => value + 1)} className="rounded-full border border-slate-700 px-2 py-1 text-slate-200">›</button>
@@ -1504,14 +1141,16 @@ function AthleteCalendar({
         </div>
         <div className="flex items-center gap-2">
           {weekOffset !== 0 ? <button type="button" onClick={() => setWeekOffset(0)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">↺ Week</button> : null}
-          <button type="button" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-200'}`}>
-            {mode === 'edit' ? 'Done' : 'Edit'}
-          </button>
+          {onEmptySlot ? (
+            <button type="button" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'}`}>
+              {mode === 'edit' ? 'Done' : 'Add own session'}
+            </button>
+          ) : null}
         </div>
       </div>
       {dragPreview ? (
         <div className="mb-3 rounded-2xl border border-sky-300/40 bg-sky-300/10 px-3 py-2 text-xs font-black text-sky-100 shadow-[0_16px_50px_rgba(56,189,248,0.14)]">
-          {new Date(`${dragPreview.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' })} · {formatTime(dragPreview.startsAt)}
+          {new Date(`${dragPreview.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short' })} · {formatTime(dragPreview.startsAt)}
           {' → '}
           {dragPreview.duration} min
         </div>
@@ -1523,8 +1162,8 @@ function AthleteCalendar({
             <div className="bg-slate-950/95 p-1.5">Time</div>
             {days.map((day, index) => (
               <button key={day.toISOString()} type="button" onClick={() => { setActiveDayIndex(index); setMobileView('day'); }} className="border-l border-slate-800 p-1.5 text-center hover:bg-slate-900/80">
-                <span className="block">{day.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2)}</span>
-                <span className="block">{day.toLocaleDateString(undefined, { day: '2-digit' })}</span>
+                <span className="block">{day.toLocaleDateString('en-GB', { weekday: 'short' }).slice(0, 2)}</span>
+                <span className="block">{day.toLocaleDateString('en-GB', { day: '2-digit' })}</span>
               </button>
             ))}
           </div>
@@ -1548,12 +1187,23 @@ function AthleteCalendar({
         </div>
       ) : (
         <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden">
-          <div className="flex items-center justify-between border-b border-slate-800 p-2">
-            <button type="button" onClick={() => setMobileView('week')} className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200">Week</button>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setActiveDayIndex((index) => clampDayIndex(index - 1))} className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-black text-slate-200">‹</button>
-              <span className="text-xs font-black text-slate-200">{activeDay.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</span>
-              <button type="button" onClick={() => setActiveDayIndex((index) => clampDayIndex(index + 1))} className="rounded-lg border border-slate-700 px-2 py-1 text-xs font-black text-slate-200">›</button>
+          <div className="border-b border-slate-800 p-2">
+            <div className="grid grid-cols-7 gap-1">
+              {days.map((day, index) => {
+                const hasItems = items.some((item) => itemDisplayDate(item) === isoDate(day));
+                const selected = isoDate(day) === isoDate(activeDay);
+                return (
+                  <button key={day.toISOString()} type="button" onClick={() => setActiveDayIndex(clampDayIndex(index))} aria-pressed={selected} aria-label={formatDay(day)} className={`flex flex-col items-center rounded-xl py-1.5 text-[11px] font-black transition ${selected ? 'bg-emerald-300 text-slate-950' : isoDate(day) === todayISO() ? 'text-emerald-200' : 'text-slate-300'}`}>
+                    <span className="opacity-80">{formatDay(day).slice(0, 2)}</span>
+                    <span className="text-sm">{day.getDate()}</span>
+                    <span className={`mt-0.5 h-1 w-1 rounded-full ${hasItems ? (selected ? 'bg-slate-950' : 'bg-emerald-300') : 'bg-transparent'}`} />
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-1.5 flex items-center justify-between px-1">
+              <span className="text-xs font-black text-slate-200">{formatLongDay(activeDay)}</span>
+              <button type="button" onClick={() => setMobileView('week')} className="rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-300">Whole week</button>
             </div>
           </div>
           <div className="overflow-hidden">
@@ -1573,7 +1223,7 @@ function AthleteCalendar({
       <div className="hidden overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:block">
         <div className="grid grid-cols-[72px_repeat(7,minmax(120px,1fr))] border-b border-slate-800 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
           <div className="bg-slate-950/95 p-3">Time</div>
-          {days.map((day, index) => <button type="button" key={day.toISOString()} onClick={() => setActiveDayIndex(index)} className="border-l border-slate-800 p-3 text-left hover:bg-slate-900/70">{day.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit' })}</button>)}
+          {days.map((day, index) => <button type="button" key={day.toISOString()} onClick={() => setActiveDayIndex(index)} className="border-l border-slate-800 p-3 text-left hover:bg-slate-900/70">{day.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit' })}</button>)}
         </div>
         <div className="grid grid-cols-[72px_repeat(7,minmax(120px,1fr))]">
           <div className="bg-slate-950/95">
@@ -1601,7 +1251,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [pendingSessions, setPendingSessions] = useState<AthletePendingSession[]>([]);
   const [calendarSessions, setCalendarSessions] = useState<AthletePendingSession[]>([]);
   const [planForm, setPlanForm] = useState<PlanFormState>(emptyPlanForm);
-  const [source, setSource] = useState<'loading' | 'demo' | 'supabase'>('loading');
+  const [source, setSource] = useState<'loading' | 'local'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [activePendingId, setActivePendingId] = useState<string | null>(null);
   const [todayAction, setTodayAction] = useState<'plan' | 'report'>('plan');
@@ -1620,108 +1270,50 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [availabilityReason, setAvailabilityReason] = useState('');
   const [lateMinutes, setLateMinutes] = useState(10);
 
+  const { database, error: dataError, ready } = useLocalDatabase();
+  const activePerson = database ? getActivePerson(database) : null;
+  const activePersonId = activePerson?.id ?? null;
+  const isActiveAthlete = Boolean(
+    database && activePersonId && database.memberships.some((membership) => membership.personId === activePersonId && membership.role === 'athlete'),
+  );
+  // Load (RPE, ACWR, own plans, sharing) only for players of a team that
+  // tracks it; everyone else gets sessions and availability.
+  const hasLoad = database ? athleteHasLoad(database, activePersonId) : false;
+
+  // Everything below is fed from the shared local document, scoped to the
+  // active athlete. This used to be a Supabase load with a demo fallback that
+  // was hard-wired to one team; the workspace logic that consumes these states
+  // is unchanged. The effect re-runs on every write, so a coach's change and
+  // an athlete's report show up without a reload.
   useEffect(() => {
-    let mounted = true;
-
-    async function load() {
-      try {
-        const supabase = createBrowserSupabaseClient();
-        const { data: authData, error: authError } = await supabase.auth.getUser();
-        if (authError || !authData.user) throw authError ?? new Error('No athlete session');
-
-        setAthleteName(authData.user.user_metadata?.full_name || authData.user.email || 'Athlete');
-
-        const now = new Date();
-        const windowStart = addDays(now, -14).toISOString();
-        const windowEnd = addDays(now, 14).toISOString();
-        const [loadResult, sessionResult, planResult] = await Promise.all([
-          supabase
-            .from('load_entries')
-            .select('id, session_id, team_id, entry_date, training_type, rpe, duration_minutes, session_load, note, submitted_at, sessions(title, starts_at, session_type, team_id, teams(name))')
-            .eq('user_id', authData.user.id)
-            .order('submitted_at', { ascending: true }),
-          supabase
-            .from('sessions')
-            .select('id, title, session_type, starts_at, ends_at, team_id, teams(name)')
-            .gte('starts_at', windowStart)
-            .lte('starts_at', windowEnd)
-            .order('starts_at', { ascending: true }),
-          supabase
-            .from('athlete_load_plans')
-            .select('id, team_id, plan_date, planned_time, training_type, expected_rpe, expected_duration_minutes, title, note, teams(name)')
-            .eq('user_id', authData.user.id)
-            .eq('status', 'planned')
-            .gte('plan_date', addDays(now, -14).toISOString().slice(0, 10))
-            .lte('plan_date', addDays(now, 21).toISOString().slice(0, 10))
-            .order('plan_date', { ascending: true }),
-        ]);
-
-        if (loadResult.error) throw loadResult.error;
-        if (sessionResult.error) throw sessionResult.error;
-        if (planResult.error) throw planResult.error;
-
-        const mappedEntries = ((loadResult.data ?? []) as unknown as RawLoadEntry[]).map(mapRawEntry);
-        const reportedSessionIds = new Set(mappedEntries.map((entry) => entry.sessionId).filter(Boolean));
-        const mappedPlans = ((planResult.data ?? []) as unknown as RawLoadPlan[]).map(mapRawPlan);
-        const mappedSessions = ((sessionResult.data ?? []) as unknown as RawSession[]).map(mapRawSession);
-        const sessionIds = mappedSessions.map((session) => session.id);
-        let cancelledIds = new Set<string>();
-        let availabilityMarks = new Map<string, AthleteAvailabilityMark>();
-        if (sessionIds.length > 0) {
-          const { data: availabilityRows, error: availabilityError } = await supabase
-            .from('availability')
-            .select('session_id, status, reason, late_minutes')
-            .eq('user_id', authData.user.id)
-            .in('session_id', sessionIds)
-            .in('status', ['late', 'out']);
-          if (availabilityError) throw availabilityError;
-          availabilityMarks = new Map(((availabilityRows ?? []) as { session_id: string; status: 'late' | 'out'; reason: string | null; late_minutes: number | null }[]).map((row) => [
-            row.session_id,
-            { status: row.status, reason: row.reason, lateMinutes: row.late_minutes },
-          ]));
-          cancelledIds = new Set(Array.from(availabilityMarks.entries()).filter(([, mark]) => mark.status === 'out').map(([sessionId]) => sessionId));
-        }
-        const mappedPending = mappedSessions.filter((session) => !reportedSessionIds.has(session.id));
-
-        if (!mounted) return;
-        setEntries(mappedEntries);
-        setPlans(mappedPlans);
-        setCalendarSessions(withAutoWarmups([...mappedSessions, ...mappedPlans.map(planToPendingSession)]));
-        setPendingSessions(withAutoWarmups([...mappedPending, ...mappedPlans.map(planToPendingSession)]));
-        setCancelledSessionIds(cancelledIds);
-        setAvailabilityBySessionId(availabilityMarks);
-        setSource('supabase');
-      } catch {
-        if (!mounted) return;
-        const demoTeamSessions = demoPendingSessions();
-        const demoEntries = readDemoEntries(demoTeamSessions);
-        const demoPlans = readDemoPlans();
-        const acknowledged = new Set(readAcknowledgedDemoSessions());
-        const demoAvailability = readDemoAvailability();
-        const cancelledIds = new Set(Array.from(demoAvailability.entries()).filter(([, mark]) => mark.status === 'out').map(([sessionId]) => sessionId));
-        const reportedDemoSessionIds = new Set(demoEntries.map((entry) => entry.sessionId).filter(Boolean));
-        const demoPending = demoTeamSessions.filter((session) => !reportedDemoSessionIds.has(session.id) && !acknowledged.has(session.id));
-        setAthleteName('Demo Athlete');
-        setEntries(demoEntries);
-        setPlans(demoPlans);
-        setCalendarSessions(withAutoWarmups([...demoTeamSessions, ...demoPlans.map(planToPendingSession)]));
-        setPendingSessions(withAutoWarmups([...demoPending, ...demoPlans.map(planToPendingSession)]));
-        setCancelledSessionIds(cancelledIds);
-        setAvailabilityBySessionId(demoAvailability);
-        setSource('demo');
-      }
+    if (!ready) return;
+    if (dataError) {
+      setError(dataError.message);
+      setSource('local');
+      return;
     }
+    if (!database || !activePerson || !isActiveAthlete) return;
 
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    const personId = activePerson.id;
+    const teamSessions = readTeamSessions(database, personId);
+    const storedEntries = readEntries(database, personId);
+    const storedPlans = readPlans(database, personId);
+    const acknowledged = new Set(readAcknowledged(database, personId));
+    const marks = readAvailability(database, personId);
+    const cancelledIds = new Set(Array.from(marks.entries()).filter(([, mark]) => mark.status === 'out' || mark.status === 'missed').map(([sessionId]) => sessionId));
+    const reportedSessionIds = new Set(storedEntries.map((entry) => entry.sessionId).filter(Boolean));
+    const pending = teamSessions.filter((session) => !reportedSessionIds.has(session.id) && !acknowledged.has(session.id));
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    setActiveShareUrl(window.localStorage.getItem(LOAD_SHARE_ACTIVE_KEY));
-  }, []);
+    setAthleteName(displayName(activePerson));
+    setEntries(storedEntries);
+    setPlans(storedPlans);
+    setCalendarSessions(withAutoWarmups([...teamSessions, ...storedPlans.map(planToPendingSession)]));
+    setPendingSessions(withAutoWarmups([...pending, ...storedPlans.map(planToPendingSession)]));
+    setCancelledSessionIds(cancelledIds);
+    setAvailabilityBySessionId(marks);
+    setActiveShareUrl(readShareLink(database, personId));
+    setSource('local');
+  }, [database, dataError, ready, activePerson, isActiveAthlete]);
 
   const sortedEntries = useMemo(() => [...entries].sort((a, b) => a.date.localeCompare(b.date)), [entries]);
   const latest = useMemo(() => getLatestACWR(sortedEntries, 'ewma'), [sortedEntries]);
@@ -1736,8 +1328,27 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     return availabilityBySessionId.get(sessionId) ?? (sessionId.endsWith('-warmup') ? availabilityBySessionId.get(sessionId.replace(/-warmup$/, '')) : undefined);
   }
   const activePendingSessions = pendingSessions.filter((session) => !isSessionCancelled(session.id));
-  const todayPending = activePendingSessions.filter((session) => session.date <= todayISO()).slice(0, 3);
-  const nextSession = activePendingSessions.find((session) => session.date >= todayISO()) ?? activePendingSessions[0] ?? null;
+  // Team sessions still to rate (all of them, since joining), then own plans
+  // that are due. The same queue the "How hard was it?" prompt works through.
+  const sessionsToRate = useMemo(
+    () => (database && activePersonId && hasLoad ? readSessionsToRate(database, activePersonId) : []),
+    [database, activePersonId, hasLoad],
+  );
+  const duePlans = activePendingSessions.filter((session) => session.source === 'athlete_plan' && session.date <= todayISO());
+  const allToRate = [...sessionsToRate, ...duePlans];
+  const todayPending = allToRate.slice(0, 3);
+  // Forecasts and planned load only count sessions that are rated afterwards.
+  const loadPendingSessions = activePendingSessions.filter((session) => session.loadTracked !== false);
+  // A warmup belongs to its game; the game is what comes next.
+  const nextSession = activePendingSessions.find((session) => session.date >= todayISO() && session.trainingType !== 'warmup') ?? activePendingSessions[0] ?? null;
+  /** What the player told the coach about a session, in one line. */
+  function availabilityLabelFor(session: AthletePendingSession) {
+    if (session.source === 'athlete_plan') return 'Your own plan · tap to edit';
+    if (session.trainingType === 'warmup') return 'Warmup before the game';
+    const mark = availabilityForSession(session.id);
+    if (mark?.status === 'late') return `You told your coach: late${mark.lateMinutes ? ` (${mark.lateMinutes} min)` : ''} · tap to change`;
+    return 'You are in · tap if you cannot come or will be late';
+  }
   const calendarItems = useMemo(() => {
     const reportedSessionIds = new Set(sortedEntries.map((entry) => entry.sessionId).filter(Boolean));
     const entryBySessionId = new Map(sortedEntries.filter((entry) => entry.sessionId).map((entry) => [entry.sessionId!, entry]));
@@ -1752,7 +1363,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         endsAt: session.endsAt,
         trainingType: session.trainingType,
         teamName: session.teamName,
-        status: isSessionCancelled(session.id) ? 'cancelled' : availabilityForSession(session.id)?.status === 'late' ? 'late' : reported ? 'reported' : session.date < todayISO() ? 'missing' : 'planned',
+        status: isSessionCancelled(session.id) ? 'cancelled' : availabilityForSession(session.id)?.status === 'late' ? 'late' : reported ? 'reported' : session.date < todayISO() && session.loadTracked !== false ? 'missing' : 'planned',
         source: session.source ?? 'team_session',
         session,
         entry: entryBySessionId.get(session.id),
@@ -1785,6 +1396,55 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     }
     return map;
   }, [sortedEntries]);
+  const [ratePromptOpen, setRatePromptOpen] = useState(false);
+  useEffect(() => {
+    if (!activePersonId || sessionsToRate.length === 0 || askedThisVisit.has(activePersonId)) return;
+    askedThisVisit.add(activePersonId);
+    setRatePromptOpen(true);
+  }, [activePersonId, sessionsToRate.length]);
+
+  function entryFor(session: AthletePendingSession, rpe: number, minutes: number): AthleteLoadEntry {
+    return {
+      id: newId(),
+      sessionId: session.id,
+      teamId: session.teamId,
+      teamName: session.teamName,
+      date: session.date,
+      startsAt: session.startsAt,
+      title: session.title,
+      trainingType: session.trainingType,
+      rpe,
+      durationMinutes: minutes,
+      load: rpe * minutes,
+      note: null,
+      source: 'planned_session',
+    };
+  }
+
+  function saveRating(session: AthletePendingSession, rpe: number, minutes: number, withWarmup: boolean) {
+    if (!activePersonId) return;
+    const warmup = withWarmup ? warmupForSession(session) : null;
+    try {
+      saveSessionRating(activePersonId, [
+        entryFor(session, rpe, minutes),
+        ...(warmup ? [entryFor(warmup, WARMUP_RPE, WARMUP_MINUTES)] : []),
+      ]);
+      setError(null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not save your rating.');
+    }
+  }
+
+  function saveMissed(session: AthletePendingSession) {
+    if (!activePersonId) return;
+    try {
+      saveMissedSession(activePersonId, session.id);
+      setError(null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not save your answer.');
+    }
+  }
+
   function averageRpeFor(type: LoadTrainingType, date: string) {
     if (type === 'game') return 10;
     const targetWeekday = new Date(`${date}T00:00:00`).getDay();
@@ -1819,9 +1479,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         entries: sortedEntries.slice(-90),
         pendingSessions: pendingSessions.slice(0, 30),
       });
-      const url = `${window.location.origin}/share/load?data=${token}`;
+      // The payload travels in the fragment, not the query string. A fragment is
+      // never sent to the server: realistic history made the query-string link
+      // ~19,500 characters, which Node rejected with 431 before the page even
+      // loaded, and it kept athlete load data out of server and proxy logs.
+      const url = `${window.location.origin}/share/load#data=${token}`;
       await navigator.clipboard.writeText(url);
-      window.localStorage.setItem(LOAD_SHARE_ACTIVE_KEY, url);
+      if (activePersonId) saveShareLink(activePersonId, url);
       setActiveShareUrl(url);
       setShareStatus('copied');
       window.setTimeout(() => setShareStatus('idle'), 1400);
@@ -1834,38 +1498,16 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   async function persistEntry(entry: AthleteLoadEntry) {
     setEntries((current) => {
       const next = [...current, entry].sort((a, b) => a.date.localeCompare(b.date));
-      if (source === 'demo') saveDemoEntries(next);
+      if (activePersonId) saveEntries(activePersonId, next);
       return next;
     });
 
-    if (source !== 'supabase') return;
-
-    try {
-      const supabase = createBrowserSupabaseClient();
-      const { data: authData } = await supabase.auth.getUser();
-      const userId = authData.user?.id;
-      if (!userId) throw new Error('No athlete session');
-      const { error: insertError } = await supabase.from('load_entries').insert({
-        session_id: entry.sessionId,
-        user_id: userId,
-        team_id: entry.teamId,
-        entry_date: entry.date,
-        training_type: entry.trainingType,
-        rpe: entry.rpe,
-        duration_minutes: entry.durationMinutes,
-        note: entry.note || null,
-        source: entry.source,
-      });
-      if (insertError) throw insertError;
-    } catch (insertError) {
-      setError(insertError instanceof Error ? insertError.message : 'Could not save load entry.');
-    }
   }
 
   async function submitPending(session: AthletePendingSession, rpe: number, durationMinutes: number) {
     const isAthletePlan = session.source === 'athlete_plan';
     const entry: AthleteLoadEntry = {
-      id: `pending-${session.id}-${Date.now()}`,
+      id: newId(),
       sessionId: isAthletePlan ? null : session.id,
       teamId: session.teamId,
       teamName: session.teamName,
@@ -1885,16 +1527,16 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       setCalendarSessions((current) => current.filter((item) => item.id !== session.id));
     }
     setPendingSessions((current) => current.filter((item) => item.id !== session.id));
-    if (source === 'demo') {
-      saveAcknowledgedDemoSessions([...new Set([...readAcknowledgedDemoSessions(), session.id])]);
+    if (activePersonId && database) {
+      saveAcknowledged(activePersonId, [...readAcknowledged(database, activePersonId), session.id]);
     }
     setActivePendingId(null);
   }
 
   async function createPlan() {
     const startsAt = planForm.time ? new Date(`${planForm.date}T${planForm.time}`).toISOString() : null;
-    let plan: AthleteLoadPlan = {
-      id: `plan-${Date.now()}`,
+    const plan: AthleteLoadPlan = {
+      id: newId(),
       teamId: null,
       teamName: null,
       title: LOAD_TYPE_LABELS[planForm.trainingType],
@@ -1906,39 +1548,10 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       note: null,
     };
 
-    if (source === 'supabase') {
-      try {
-        const supabase = createBrowserSupabaseClient();
-        const { data: authData } = await supabase.auth.getUser();
-        const userId = authData.user?.id;
-        if (!userId) throw new Error('No athlete session');
-        const { data: insertedPlan, error: insertError } = await supabase
-          .from('athlete_load_plans')
-          .insert({
-            user_id: userId,
-            team_id: null,
-            plan_date: plan.date,
-            planned_time: planForm.time || null,
-            training_type: plan.trainingType,
-            expected_rpe: plan.expectedRpe,
-            expected_duration_minutes: plan.expectedDurationMinutes,
-            title: plan.title,
-            note: null,
-            status: 'planned',
-          })
-          .select('id, team_id, plan_date, planned_time, training_type, expected_rpe, expected_duration_minutes, title, note, teams(name)')
-          .single();
-        if (insertError) throw insertError;
-        plan = mapRawPlan(insertedPlan as unknown as RawLoadPlan);
-      } catch (insertError) {
-        setError(insertError instanceof Error ? insertError.message : 'Could not save expected load.');
-        return;
-      }
-    }
 
     setPlans((current) => {
       const next = [...current, plan].sort((a, b) => a.date.localeCompare(b.date));
-      if (source === 'demo') saveDemoPlans(next);
+      if (activePersonId) savePlans(activePersonId, next);
       return next;
     });
     setCalendarSessions((current) => withAutoWarmups([...current, planToPendingSession(plan)]));
@@ -1950,31 +1563,21 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     const warmupId = `${planId}-warmup`;
     setPlans((current) => {
       const next = current.filter((plan) => plan.id !== planId);
-      if (source === 'demo') saveDemoPlans(next);
+      if (activePersonId) savePlans(activePersonId, next);
       return next;
     });
     setCalendarSessions((current) => current.filter((session) => session.id !== planId && session.id !== warmupId));
     setPendingSessions((current) => current.filter((session) => session.id !== planId && session.id !== warmupId));
-    if (source === 'supabase') {
-      const supabase = createBrowserSupabaseClient();
-      const { error: deleteError } = await supabase.from('athlete_load_plans').delete().eq('id', planId);
-      if (deleteError) setError(deleteError.message);
-    }
   }
 
   async function deleteEntry(entryId: string) {
     const deletedEntry = entries.find((entry) => entry.id === entryId) ?? null;
     setEntries((current) => {
       const next = current.filter((entry) => entry.id !== entryId);
-      if (source === 'demo') saveDemoEntries(next);
+      if (activePersonId) saveEntries(activePersonId, next);
       return next;
     });
 
-    if (source === 'supabase') {
-      const supabase = createBrowserSupabaseClient();
-      const { error: deleteError } = await supabase.from('load_entries').delete().eq('id', entryId);
-      if (deleteError) setError(deleteError.message);
-    }
 
     if (deletedEntry?.sessionId) {
       const matchingSession = calendarSessions.find((session) => session.id === deletedEntry.sessionId);
@@ -1983,8 +1586,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           ? current
           : [...current, matchingSession].sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
       }
-      if (source === 'demo') {
-        saveAcknowledgedDemoSessions(readAcknowledgedDemoSessions().filter((id) => id !== deletedEntry.sessionId));
+      if (activePersonId && database) {
+        saveAcknowledged(activePersonId, readAcknowledged(database, activePersonId).filter((id) => id !== deletedEntry.sessionId));
       }
     }
 
@@ -2015,7 +1618,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   async function updatePlanTimeFromCalendar(session: AthletePendingSession, startsAt: string, durationMinutes: number) {
     if (session.source !== 'athlete_plan') return;
     const nextDate = isoDate(new Date(startsAt));
-    const nextTime = timeInputFromISO(startsAt);
     const warmupId = `${session.id}-warmup`;
     const applySessionUpdate = (current: AthletePendingSession[]) => withAutoWarmups(current
       .filter((item) => item.id !== warmupId)
@@ -2036,24 +1638,12 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           ? { ...plan, date: nextDate, startsAt, expectedDurationMinutes: durationMinutes }
           : plan)
         .sort((a, b) => a.date.localeCompare(b.date));
-      if (source === 'demo') saveDemoPlans(next);
+      if (activePersonId) savePlans(activePersonId, next);
       return next;
     });
     setCalendarSessions(applySessionUpdate);
     setPendingSessions(applySessionUpdate);
 
-    if (source === 'supabase') {
-      const supabase = createBrowserSupabaseClient();
-      const { error: updateError } = await supabase
-        .from('athlete_load_plans')
-        .update({
-          plan_date: nextDate,
-          planned_time: nextTime,
-          expected_duration_minutes: durationMinutes,
-        })
-        .eq('id', session.id);
-      if (updateError) setError(updateError.message);
-    }
   }
 
   async function updateExistingEntry() {
@@ -2074,24 +1664,10 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
     setEntries((current) => {
       const next = current.map((entry) => entry.id === activeEntry.id ? updated : entry).sort((a, b) => a.date.localeCompare(b.date));
-      if (source === 'demo') saveDemoEntries(next);
+      if (activePersonId) saveEntries(activePersonId, next);
       return next;
     });
 
-    if (source === 'supabase') {
-      const supabase = createBrowserSupabaseClient();
-      const { error: updateError } = await supabase
-        .from('load_entries')
-        .update({
-          entry_date: updated.date,
-          training_type: updated.trainingType,
-          rpe: updated.rpe,
-          duration_minutes: updated.durationMinutes,
-          note: updated.note || null,
-        })
-        .eq('id', updated.id);
-      if (updateError) setError(updateError.message);
-    }
 
     setActiveEntry(null);
     setComposerOpen(false);
@@ -2110,7 +1686,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       const next = new Map(current);
       if (status === 'expected') next.delete(session.id);
       else next.set(session.id, { status, reason: trimmedReason, lateMinutes: status === 'late' ? minutes : null });
-      if (source === 'demo') saveDemoAvailability(next);
+      if (activePersonId) saveAvailability(activePersonId, next);
       return next;
     });
     setCancelledSessionIds((current) => {
@@ -2120,27 +1696,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       return next;
     });
 
-    if (source === 'supabase') {
-      const supabase = createBrowserSupabaseClient();
-      const { data: authData } = await supabase.auth.getUser();
-      const userId = authData.user?.id;
-      if (!userId) return false;
-
-      const { error: upsertError } = await supabase
-        .from('availability')
-        .upsert({
-          session_id: session.id,
-          user_id: userId,
-          status,
-          reason: status === 'expected' ? null : trimmedReason,
-          late_minutes: status === 'late' ? minutes : null,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'session_id,user_id' });
-      if (upsertError) {
-        setError(upsertError.message);
-        return false;
-      }
-    }
     return true;
   }
 
@@ -2174,7 +1729,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
     const startsAt = planForm.time ? new Date(`${planForm.date}T${planForm.time}`).toISOString() : null;
     const entry: AthleteLoadEntry = {
-      id: `manual-${Date.now()}`,
+      id: newId(),
       sessionId: null,
       teamId: null,
       teamName: null,
@@ -2242,7 +1797,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       setActiveEntry(null);
       setActiveComposerSession(item.session);
       const availability = availabilityForSession(item.session.id);
-      setAvailabilityDraft(availability?.status ?? 'expected');
+      setAvailabilityDraft(availability?.status === 'missed' ? 'out' : availability?.status ?? 'expected');
       setAvailabilityReason(availability?.reason ?? '');
       setLateMinutes(availability?.lateMinutes ?? 10);
       setPlanForm({
@@ -2281,61 +1836,68 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       : 'Add load';
   const activeView = initialView ?? 'home';
 
-  useEffect(() => {
-    if (activeView !== 'calendar' || typeof window === 'undefined') return;
-    window.setTimeout(() => {
-      document.getElementById('athlete-calendar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 80);
-  }, [activeView]);
+  // Placed after every hook, so the hook order stays stable across renders.
+  if (ready && database && !isActiveAthlete) {
+    return (
+      <main className="os-page">
+        <div className="os-container max-w-xl space-y-4">
+          <section className="os-panel p-6 text-white">
+            <p className="font-bold">No athlete selected.</p>
+            <p className="mt-2 text-sm text-slate-400">Switch to an athlete to see this view.</p>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <IdentitySwitcher />
+              <Link href="/" className="text-sm underline">Start page</Link>
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#050712] text-white">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(56,189,248,0.16),transparent_28rem),radial-gradient(circle_at_92%_8%,rgba(52,211,153,0.12),transparent_30rem)]" />
-      <div className="relative mx-auto flex min-h-screen w-full min-w-0 max-w-6xl flex-col gap-5 px-4 pb-28 pt-4 sm:px-6 sm:py-5 lg:py-7">
-        <header className="overflow-hidden rounded-[1.75rem] border border-slate-800/80 bg-slate-950/70 sm:rounded-[2rem] p-5 shadow-[0_26px_100px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.03] sm:p-7">
-          <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300">Athlete OS</p>
-              <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-6xl">Load cockpit</h1>
-              <div className="mt-5 flex flex-wrap gap-2">
-                <button type="button" onClick={copyTrainerShareLink} className={`rounded-full border px-4 py-2 text-xs font-black transition ${shareStatus === 'copied' ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100' : shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
-                  {shareStatus === 'copied' ? 'Copied' : shareStatus === 'error' ? 'Error' : shareActive ? 'Trainer link active' : 'Trainer link'}
-                </button>
-              </div>
-            </div>
-            <div className="grid w-full min-w-0 grid-cols-3 gap-2 lg:w-auto lg:min-w-[440px] [&>*]:min-h-[92px]">
-              <LoadRoomMetric latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} />
-              <AcwrMetric latest={latest} baselineReady={isBaselineReady} tone={zone.tone} />
-              <Metric label="Zone" value={zone.label} tone={zone.tone} />
-            </div>
-          </div>
-        </header>
-        <AthleteQuickNav activeView={activeView} />
-
+    <AthleteShell
+      active={activeView === 'home' ? 'today' : activeView}
+      showLoad={hasLoad}
+      title={activeView === 'home' ? 'Today' : activeView === 'calendar' ? 'Calendar' : 'Your load'}
+      subtitle={activeView === 'home' ? formatLongDay(new Date()) : activeView === 'calendar' ? (hasLoad ? 'Team sessions and your own plans' : 'Your team sessions') : 'Training load and ACWR, from your RPE entries'}
+      actions={hasLoad ? (
+        <button type="button" onClick={copyTrainerShareLink} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${shareStatus === 'copied' ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100' : shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
+          {shareStatus === 'copied' ? 'Link copied' : shareStatus === 'error' ? 'Could not copy' : shareActive ? 'Share with coach: on' : 'Share with coach'}
+        </button>
+      ) : undefined}
+    >
         {error ? <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 px-4 py-3 text-sm font-bold text-rose-100">{error}</div> : null}
 
-        {activeView === 'load' && !isBaselineReady ? (
-          <section className="rounded-[1.75rem] border border-amber-300/25 sm:rounded-[2rem] bg-amber-300/[0.08] p-4 text-sm font-bold text-amber-100">
+        {activeView === 'load' && !hasLoad ? (
+          <section className="rounded-3xl border border-slate-800 bg-slate-950/65 p-5">
+            <h2 className="text-lg font-black">No load tracking</h2>
+            <p className="mt-1 text-sm text-slate-400">Your team plans sessions and attendance here, without training load.</p>
+            <Link href="/athlete/home" className="mt-4 inline-block text-sm font-black text-sky-300">Back to Today ›</Link>
+          </section>
+        ) : null}
+
+        {activeView !== 'calendar' && hasLoad ? (
+          <div className="grid w-full min-w-0 grid-cols-3 gap-2 [&>*]:min-h-[92px]">
+            <LoadRoomMetric latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} />
+            <AcwrMetric latest={latest} baselineReady={isBaselineReady} tone={zone.tone} />
+            <Metric label="Status" value={zone.tone === 'neutral' ? 'Building' : zone.label} tone={zone.tone} />
+          </div>
+        ) : null}
+
+        {activeView === 'load' && hasLoad && !isBaselineReady ? (
+          <section className="rounded-2xl border border-amber-300/25 bg-amber-300/[0.08] p-4 text-sm font-bold text-amber-100">
             Load guidance gets reliable after about 30 recorded days.
           </section>
         ) : null}
 
-        {activeView !== 'calendar' ? (
-          <section className="grid min-w-0 items-stretch gap-5">
-            <div className="h-full min-w-0 overflow-hidden rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.2)] sm:p-5">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-300">Trend</p>
-                  <h2 className="mt-1 text-2xl font-black tracking-tight">Load trend</h2>
-                </div>
-                <span className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-black text-slate-300">{source === 'loading' ? 'Loading' : source === 'demo' ? 'Demo data' : 'Live data'}</span>
-              </div>
-              <LoadChart entries={sortedEntries} pendingSessions={pendingSessions} />
-            </div>
+        {activeView === 'load' && hasLoad ? (
+          <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/65 p-4 sm:p-5">
+            <h2 className="mb-3 text-lg font-black">Trend</h2>
+            <LoadChart entries={sortedEntries} pendingSessions={loadPendingSessions} />
           </section>
         ) : null}
 
-        {activeView === 'load' ? (
+        {activeView === 'load' && hasLoad ? (
           <LoadDetailsPanel
             entries={sortedEntries}
             latestEwma={latest}
@@ -2345,19 +1907,24 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
         {activeView === 'calendar' ? (
           <div id="athlete-calendar" className="scroll-mt-24">
-            <AthleteCalendar items={calendarItems} onEmptySlot={openComposer} onItemSelect={openCalendarItem} onPlanTimeChange={updatePlanTimeFromCalendar} />
+            <AthleteCalendar items={calendarItems} onEmptySlot={hasLoad ? openComposer : undefined} onItemSelect={openCalendarItem} onPlanTimeChange={updatePlanTimeFromCalendar} />
           </div>
         ) : activeView === 'home' ? (
           <section className={`grid min-w-0 items-stretch gap-5 ${todayPending.length > 0 ? 'lg:grid-cols-[0.9fr_1.1fr]' : ''}`}>
             {todayPending.length > 0 ? (
-            <div className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 sm:p-5">
+            <div className="h-full min-w-0 rounded-3xl border border-amber-300/25 bg-slate-950/65 p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-rose-300">Pending</p>
-                  <h2 className="mt-1 text-2xl font-black tracking-tight">Needs input</h2>
+                  <h2 className="text-lg font-black">How hard was it?</h2>
+                  <p className="text-sm text-slate-400">Rate your past sessions so your load stays accurate.</p>
                 </div>
-                <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{todayPending.length}</span>
+                <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{allToRate.length}</span>
               </div>
+              {sessionsToRate.length > 0 ? (
+                <button type="button" onClick={() => setRatePromptOpen(true)} className="mt-3 w-full rounded-2xl bg-emerald-300 px-4 py-2.5 text-sm font-black text-slate-950">
+                  {sessionsToRate.length === 1 ? 'Rate it now' : `Rate ${sessionsToRate.length} sessions now`}
+                </button>
+              ) : null}
               <div className="mt-4 space-y-3">
                 {todayPending.map((session) => {
                   const active = activePendingId === session.id;
@@ -2379,21 +1946,19 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             </div>
             ) : null}
 
-            <div className="h-full min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 sm:rounded-[2rem] p-4 sm:p-5">
+            <div className="h-full min-w-0 rounded-3xl border border-slate-800/80 bg-slate-950/65 p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Calendar</p>
-                  <h2 className="mt-1 text-2xl font-black tracking-tight">Next up</h2>
-                </div>
-                <Link href="/athlete/calendar#athlete-calendar" className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:border-emerald-300 hover:text-emerald-100">Open</Link>
+                <h2 className="text-lg font-black">Next up</h2>
+                <Link href="/athlete/calendar" className="text-xs font-black text-sky-300 hover:text-sky-200">Calendar ›</Link>
               </div>
               {nextSession ? (
                 <button type="button" onClick={() => openCalendarItem({ id: nextSession.id, title: nextSession.title, date: nextSession.date, startsAt: nextSession.startsAt, endsAt: nextSession.endsAt, trainingType: nextSession.trainingType, teamName: nextSession.teamName, status: nextSession.date < todayISO() ? 'missing' : 'planned', source: nextSession.source ?? 'team_session', session: nextSession })} className="mt-4 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.06] p-5 text-left transition hover:border-emerald-300/55">
-                  <p className="text-3xl font-black tracking-tight">{nextSession.title}</p>
-                  <p className="mt-2 text-sm font-bold text-slate-300">{formatTime(nextSession.startsAt)}{nextSession.endsAt ? ` - ${formatTime(nextSession.endsAt)}` : ''} · {nextSession.teamName ?? 'Solo'}</p>
+                  <p className="text-2xl font-black tracking-tight">{nextSession.title}</p>
+                  <p className="mt-1 text-sm font-bold text-slate-300">{formatDay(nextSession.startsAt)} · {formatTime(nextSession.startsAt)}{nextSession.endsAt ? `–${formatTime(nextSession.endsAt)}` : ''} · {nextSession.teamName ?? 'Own plan'}</p>
+                  <p className="mt-3 text-xs font-bold text-emerald-200">{availabilityLabelFor(nextSession)}</p>
                 </button>
               ) : <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions planned</div>}
-              {plans.length > 0 ? (
+              {hasLoad && plans.length > 0 ? (
                 <div className="mt-4 space-y-2">
                   {plans.slice(0, 4).map((plan) => (
                     <div key={plan.id} className="flex items-center justify-between gap-3 rounded-2xl border border-violet-300/20 bg-violet-300/[0.06] px-3 py-2">
@@ -2411,7 +1976,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             </div>
           </section>
         ) : null}
-      </div>
       {activeDetailItem ? (
         <div className="fixed inset-0 z-[100] flex items-end bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
           <div className="w-full rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-md">
@@ -2514,7 +2078,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               </div>
             ) : null}
 
-            {activeTeamSessionIsFuture ? (
+            {activeComposerSession?.loadTracked === false && !activeTeamSessionIsFuture ? (
+              <p className="mt-5 rounded-2xl border border-slate-700 bg-slate-950/70 p-4 text-sm font-bold text-slate-300">
+                {activeComposerSession.teamName ?? 'This team'} does not track training load, so there is nothing to rate for this session.
+              </p>
+            ) : activeTeamSessionIsFuture ? (
               <div className="mt-5 space-y-3 rounded-2xl border border-slate-700 bg-slate-950/70 p-4 text-sm font-bold text-slate-300">
                 {(() => {
                   const mark = activeComposerSession ? availabilityForSession(activeComposerSession.id) : undefined;
@@ -2622,6 +2190,16 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         </div>
       ) : null}
 
+      {ratePromptOpen && sessionsToRate.length > 0 ? (
+        <RatePrompt
+          sessions={sessionsToRate}
+          defaultRpeFor={(session) => averageRpeFor(session.trainingType, session.date)}
+          onSave={saveRating}
+          onMissed={saveMissed}
+          onLater={() => setRatePromptOpen(false)}
+        />
+      ) : null}
+
       <AppConfirmDialog
         isOpen={Boolean(deleteTarget)}
         title={deleteTarget?.kind === 'entry' ? 'Delete load entry?' : 'Delete planned load?'}
@@ -2633,48 +2211,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         onConfirm={confirmDeleteTarget}
         onCancel={() => setDeleteTarget(null)}
       />
-    </main>
-  );
-}
-
-const athleteNavItems: Array<{ view: AthleteView; label: string; href: string; icon: string }> = [
-  { view: 'home', label: 'Today', href: '/athlete/home', icon: '●' },
-  { view: 'calendar', label: 'Calendar', href: '/athlete/calendar#athlete-calendar', icon: '▦' },
-  { view: 'load', label: 'Load', href: '/athlete/load', icon: '⌁' },
-];
-
-function AthleteQuickNav({ activeView }: { activeView: AthleteView }) {
-  const linkClass = (isActive: boolean, compact = false) =>
-    `inline-flex items-center justify-center gap-2 rounded-full border font-black transition ${
-      compact ? 'min-w-0 flex-1 px-2.5 py-2 text-[11px]' : 'px-4 py-2 text-xs'
-    } ${
-      isActive
-        ? 'border-emerald-300 bg-emerald-300 text-slate-950 shadow-[0_10px_35px_rgba(110,231,183,0.18)]'
-        : 'border-slate-700 bg-slate-950/70 text-slate-200 hover:border-slate-500 hover:text-white'
-    }`;
-
-  return (
-    <>
-      <nav className="sticky top-3 z-30 hidden w-fit max-w-full self-center rounded-full border border-slate-800/90 bg-slate-950/85 p-1.5 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur sm:flex">
-        {athleteNavItems.map((item) => (
-          <Link key={item.view} href={item.href} className={linkClass(activeView === item.view)}>
-            <span aria-hidden="true">{item.icon}</span>
-            {item.label}
-          </Link>
-        ))}
-      </nav>
-      <nav
-        className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-3 gap-1 rounded-full border border-slate-800/90 bg-slate-950/90 p-1.5 shadow-[0_20px_70px_rgba(0,0,0,0.5)] backdrop-blur sm:hidden"
-        style={{ paddingBottom: 'calc(0.375rem + env(safe-area-inset-bottom))' }}
-      >
-        {athleteNavItems.map((item) => (
-          <Link key={item.view} href={item.href} className={linkClass(activeView === item.view, true)}>
-            <span className="text-xs" aria-hidden="true">{item.icon}</span>
-            <span className="truncate">{item.label}</span>
-          </Link>
-        ))}
-      </nav>
-    </>
+    </AthleteShell>
   );
 }
 
@@ -2690,7 +2227,7 @@ function sessionEstimateLabel(au: number, averageSessionLoad: number) {
   if (au <= 0) return '0 sessions';
   const sessions = au / Math.max(averageSessionLoad, 1);
   if (sessions < 0.75) return '< 1 session';
-  return `about ${sessions.toFixed(1)} sessions`;
+  return `≈ ${sessions.toFixed(1)} sessions`;
 }
 
 function formatCompactNumber(value: number) {
@@ -2726,7 +2263,7 @@ function loadProfileWeekDateRange(key: string) {
   const start = new Date(`${key}T00:00:00`);
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
-  const short = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: '2-digit' });
+  const short = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: '2-digit' });
   return `${short.format(start)}-${short.format(end)}`;
 }
 
@@ -2737,7 +2274,7 @@ function loadProfileWeekLabel(key: string) {
   target.setUTCDate(target.getUTCDate() + 4 - day);
   const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
   const week = Math.ceil((((target.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7);
-  return `KW ${week}`;
+  return `Wk ${week}`;
 }
 
 function buildWeeklyLoadProfile(entries: AthleteLoadEntry[], trailingWeeks = 8): WeeklyLoadProfilePoint[] {
@@ -2784,7 +2321,7 @@ function buildWeeklyLoadDayProfile(entries: AthleteLoadEntry[], weekKey: string)
     const date = addDays(weekStartDate, index);
     return {
       key: isoDate(date),
-      label: new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(date),
+      label: new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(date),
       au: null as number | null,
       minutes: null as number | null,
       rpe: null as number | null,
@@ -3066,12 +2603,11 @@ function LoadDetailsPanel({
   const completedEntries = [...recentEntries].sort((a, b) => b.date.localeCompare(a.date) || (b.startsAt ?? '').localeCompare(a.startsAt ?? '')).slice(0, 8);
 
   return (
-    <section className="grid gap-5 xl:grid-cols-[1fr_0.75fr]">
+    <section className="grid items-start gap-5 xl:grid-cols-[1fr_0.75fr]">
       <div className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-amber-300">Load status</p>
-            <h2 className="mt-1 text-2xl font-black tracking-tight">Room and risk</h2>
+            <h2 className="text-lg font-black">Room and risk</h2>
           </div>
           <span className={`rounded-full border px-3 py-1.5 text-xs font-black ${zone.tone === 'high' ? 'border-rose-400/45 bg-rose-400/10 text-rose-100' : zone.tone === 'low' ? 'border-sky-400/45 bg-sky-400/10 text-sky-100' : zone.tone === 'ready' ? 'border-emerald-400/45 bg-emerald-400/10 text-emerald-100' : 'border-slate-700 text-slate-300'}`}>
             {currentAcwr !== null && baselineReady ? `${currentAcwr.toFixed(2)} ACWR` : 'Building'}
@@ -3124,8 +2660,7 @@ function LoadDetailsPanel({
       <div className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-300">Mix</p>
-            <h2 className="mt-1 text-2xl font-black tracking-tight">Last 28 days</h2>
+            <h2 className="text-lg font-black">Mix, last 28 days</h2>
           </div>
           <span className="text-xs font-black text-slate-500">{recentLoad} AU</span>
         </div>

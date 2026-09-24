@@ -1,5 +1,6 @@
 ﻿'use client';
 
+import { formatSessionTime } from '@/shared/format';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 
@@ -50,11 +51,7 @@ export type SessionDetailParticipant = {
 };
 
 function formatTimeRange(startsAt: string, endsAt: string | null) {
-  const start = new Date(startsAt);
-  const end = endsAt ? new Date(endsAt) : new Date(start.getTime() + 60 * 60_000);
-  const day = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: '2-digit', month: '2-digit' }).format(start);
-  const time = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
-  return `${day} · ${time.format(start)} - ${time.format(end)}`;
+  return formatSessionTime(startsAt, endsAt);
 }
 
 function statusClass(status?: string) {

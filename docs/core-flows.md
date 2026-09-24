@@ -1,5 +1,10 @@
 # Core Product Flows
 
+> **Status 2026-09:** Flows that start with an admin, an invite or a login are
+> not active in the local test mode (`docs/simplify-decisions.md`). The session,
+> availability and load flows are active; they are checked end to end in
+> `docs/local-mode-testplan.md`.
+
 ## Philosophy
 
 The product should revolve around operational workflows, not isolated screens.

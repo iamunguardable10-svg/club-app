@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { LoadChart, WeeklyLoadProfileGraph } from '@/features/load/AthleteLoadWorkspace';
-import { getLatestACWR, loadZone } from '@/features/load/loadCalculations';
+import { acwrDisplayLabel, playerLoadSummary, type PlayerLoadInput, type PlayerLoadSummary } from '@/features/load/loadAccess';
+import { loadZone } from '@/features/load/loadCalculations';
 import { ACWR_ZONES, LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/features/load/loadTypes';
 
-export type PlayerLoadDetailPlayer = {
+export type PlayerLoadDetailPlayer = PlayerLoadInput & {
   id: string;
   name: string;
-  loadEntries?: AthleteLoadEntry[];
+  /** Missing means shared. A role without `viewAttendance` sees a note instead of "Clean". */
+  attendanceShared?: boolean;
   attendanceRate?: number | null;
   missedSessions?: number | null;
   attendanceEvents?: {
@@ -16,30 +18,17 @@ export type PlayerLoadDetailPlayer = {
     title: string;
     startsAt: string;
     status: 'out' | 'late';
+    missed?: boolean;
     reason?: string | null;
     lateMinutes?: number | null;
   }[];
 };
-
-function playerLoadSummary(player: PlayerLoadDetailPlayer) {
-  const entries = player.loadEntries ?? [];
-  const latest = getLatestACWR(entries, 'ewma');
-  const zone = loadZone(latest?.acwr ?? null, latest?.chronicFull ?? false);
-  const acwr = latest?.acwr ?? null;
-  const riskRank = zone.tone === 'high' ? 0 : zone.tone === 'low' ? 1 : zone.tone === 'ready' ? 2 : 3;
-  return { entries, latest, zone, acwr, riskRank };
-}
 
 function acwrToneClass(tone: ReturnType<typeof loadZone>['tone']) {
   if (tone === 'high') return 'border-rose-400/45 bg-rose-400/10 text-rose-100';
   if (tone === 'low') return 'border-sky-400/45 bg-sky-400/10 text-sky-100';
   if (tone === 'ready') return 'border-emerald-400/45 bg-emerald-400/10 text-emerald-100';
   return 'border-slate-700 bg-slate-950/55 text-slate-300';
-}
-
-function acwrDisplayLabel(summary: ReturnType<typeof playerLoadSummary>) {
-  if (summary.acwr === null) return 'No ACWR yet';
-  return summary.zone.tone === 'neutral' ? 'Building trend' : summary.zone.label;
 }
 
 function averageMinutes(entries: AthleteLoadEntry[], predicate: (entry: AthleteLoadEntry) => boolean) {
@@ -62,7 +51,7 @@ function averageRecentLoad(entries: AthleteLoadEntry[]) {
   return Math.max(1, Math.round(active.reduce((sum, entry) => sum + entry.load, 0) / active.length));
 }
 
-function PlayerLoadRoom({ summary }: { summary: ReturnType<typeof playerLoadSummary> }) {
+function PlayerLoadRoom({ summary }: { summary: PlayerLoadSummary }) {
   const latest = summary.latest;
   const averageLoad = averageRecentLoad(summary.entries);
   const overloadLimit = latest ? ewmaLoadForTargetRatio(latest.acuteLoad, latest.chronicLoad, ACWR_ZONES.high) : null;
@@ -114,6 +103,8 @@ export function PlayerLoadDetail({
   attendanceContextLabel = 'Default range: one month',
   emptyAttendanceLabel = 'No late/out sessions in this range.',
   showAttendanceRange = true,
+  loadTracked = true,
+  footer,
   onClose,
 }: {
   player: PlayerLoadDetailPlayer;
@@ -121,11 +112,18 @@ export function PlayerLoadDetail({
   attendanceContextLabel?: string;
   emptyAttendanceLabel?: string;
   showAttendanceRange?: boolean;
+  /** `false` when the team does not track training load. */
+  loadTracked?: boolean;
+  /** Actions below the details, e.g. removing the player from the team. */
+  footer?: ReactNode;
   onClose: () => void;
 }) {
   const [attendanceRange, setAttendanceRange] = useState(30);
   const summary = playerLoadSummary(player);
   const { entries, zone, acwr } = summary;
+  // Charts, RPE and monotony come from the raw entries, which only roles
+  // with load details receive.
+  const showDetails = summary.access === 'full';
   const attendanceEvents = player.attendanceEvents ?? [];
   const since = new Date();
   since.setDate(since.getDate() - attendanceRange);
@@ -161,7 +159,7 @@ export function PlayerLoadDetail({
       <div className="max-h-[92vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-5xl sm:rounded-[2rem] sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 pb-4">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">Player load</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">{loadTracked ? 'Player load' : 'Player'}</p>
             <h2 className="mt-1 text-3xl font-black tracking-tight text-white">{player.name}</h2>
             <p className="mt-1 text-sm font-bold text-slate-400">{teamName}</p>
           </div>
@@ -170,24 +168,31 @@ export function PlayerLoadDetail({
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
           <div className="space-y-4">
-            <div className={`rounded-3xl border p-4 ${acwrToneClass(zone.tone)}`}>
-              <div className="flex items-center gap-4">
-                <div className="grid h-20 w-20 shrink-0 place-items-center rounded-3xl border border-current/25 bg-slate-950/40">
-                  <div className="text-center">
-                    <p className="text-2xl font-black leading-none">{acwr !== null ? acwr.toFixed(2) : '?'}</p>
-                    <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] opacity-70">ACWR</p>
+            {summary.access === 'none' ? (
+              <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
+                <p className="text-sm font-black text-white">{loadTracked ? 'Load not shared' : 'No load tracking'}</p>
+                <p className="mt-1 text-sm font-bold text-slate-400">{loadTracked ? 'Your role on this team does not include player load.' : `${teamName} does not track training load.`}</p>
+              </div>
+            ) : (
+              <div className={`rounded-3xl border p-4 ${acwrToneClass(zone.tone)}`}>
+                <div className="flex items-center gap-4">
+                  <div className="grid h-20 w-20 shrink-0 place-items-center rounded-3xl border border-current/25 bg-slate-950/40">
+                    <div className="text-center">
+                      <p className="text-2xl font-black leading-none">{acwr !== null ? acwr.toFixed(2) : '?'}</p>
+                      <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] opacity-70">ACWR</p>
+                    </div>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xl font-black text-white">{acwrDisplayLabel(summary)}</p>
+                    <p className="mt-1 text-sm font-bold text-slate-300">
+                      {zone.tone === 'high' ? 'High load: reduce intensity or monitor recovery.' : zone.tone === 'low' ? 'Low load: controlled exposure may be useful.' : zone.tone === 'ready' ? 'Balanced range for normal training.' : 'Baseline still building.'}
+                    </p>
                   </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xl font-black text-white">{acwrDisplayLabel(summary)}</p>
-                  <p className="mt-1 text-sm font-bold text-slate-300">
-                    {zone.tone === 'high' ? 'High load: reduce intensity or monitor recovery.' : zone.tone === 'low' ? 'Low load: controlled exposure may be useful.' : zone.tone === 'ready' ? 'Balanced range for normal training.' : 'Baseline still building.'}
-                  </p>
-                </div>
+                <TeamAcwrGauge acwr={acwr} />
+                {showDetails ? <PlayerLoadRoom summary={summary} /> : null}
               </div>
-              <TeamAcwrGauge acwr={acwr} />
-              <PlayerLoadRoom summary={summary} />
-            </div>
+            )}
 
             <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
               <div className="flex items-center justify-between gap-3">
@@ -195,9 +200,12 @@ export function PlayerLoadDetail({
                   <p className="text-sm font-black text-white">Attendance</p>
                   <p className="mt-1 text-xs font-bold text-slate-500">{attendanceContextLabel}</p>
                 </div>
-                <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-black text-slate-300">{attendanceLabel}</span>
+                {player.attendanceShared === false ? null : <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-black text-slate-300">{attendanceLabel}</span>}
               </div>
-              {showAttendanceRange ? (
+              {player.attendanceShared === false ? (
+                <p className="mt-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm font-bold text-slate-500">Attendance is not shared with your role.</p>
+              ) : null}
+              {showAttendanceRange && player.attendanceShared !== false ? (
                 <div className="mt-3 flex gap-2">
                   {[30, 60, 90].map((days) => (
                     <button key={days} type="button" onClick={() => setAttendanceRange(days)} className={`rounded-full border px-3 py-1.5 text-xs font-black ${attendanceRange === days ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>
@@ -207,111 +215,126 @@ export function PlayerLoadDetail({
                 </div>
               ) : null}
               <div className="mt-3 space-y-2">
-                {filteredAttendance.length === 0 ? <p className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm font-bold text-slate-500">{emptyAttendanceLabel}</p> : null}
+                {filteredAttendance.length === 0 && player.attendanceShared !== false ? <p className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm font-bold text-slate-500">{emptyAttendanceLabel}</p> : null}
                 {filteredAttendance.slice(0, 5).map((event) => (
                   <div key={`${event.sessionId}-${event.status}`} className={`rounded-2xl border p-3 ${event.status === 'out' ? 'border-rose-400/35 bg-rose-400/10' : 'border-sky-400/35 bg-sky-400/10'}`}>
                     <p className="text-sm font-black text-white">{event.title}</p>
-                    <p className="mt-1 text-xs font-bold text-slate-400">{new Date(event.startsAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })} · {event.status === 'out' ? 'Out' : `Late${event.lateMinutes ? ` ${event.lateMinutes}m` : ''}`}</p>
+                    <p className="mt-1 text-xs font-bold text-slate-400">{new Date(event.startsAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} · {event.missed ? 'Did not take part' : event.status === 'out' ? 'Out' : `Late${event.lateMinutes ? ` ${event.lateMinutes} min` : ''}`}</p>
                     {event.reason ? <p className="mt-2 text-xs font-bold text-slate-300">{event.reason}</p> : null}
                   </div>
                 ))}
               </div>
             </div>
 
-            <div>
-              <WeeklyLoadProfileGraph entries={entries} title="Weekly load profile" />
-              <p className="mt-2 text-xs font-bold text-slate-500">
-                {avgTrainingMinutes === null ? 'No training average' : `${avgTrainingMinutes} min / training`}{avgGameMinutes === null ? '' : ` - ${avgGameMinutes} min / game`}
-              </p>
-            </div>
-
-            <div className={`rounded-3xl border p-4 ${stabilityState.tone}`}>
-              <div className="flex flex-wrap items-start justify-between gap-3">
+            {showDetails ? (
+              <>
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] opacity-70">Monotony / strain</p>
-                  <p className="mt-2 text-xl font-black text-white">{stabilityState.label}</p>
-                  <p className="mt-1 text-xs font-bold text-slate-300">{stabilityState.detail}</p>
+                  <WeeklyLoadProfileGraph entries={entries} title="Weekly load profile" />
+                  <p className="mt-2 text-xs font-bold text-slate-500">
+                    {avgTrainingMinutes === null ? 'No training average' : `${avgTrainingMinutes} min / training`}{avgGameMinutes === null ? '' : ` - ${avgGameMinutes} min / game`}
+                  </p>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-center">
-                  <div className="rounded-2xl border border-current/20 bg-slate-950/35 px-3 py-2">
-                    <p className="text-[10px] font-black uppercase tracking-[0.12em] opacity-70">Monotony</p>
-                    <p className="mt-1 text-lg font-black text-white">{monotony === null ? '—' : monotony.toFixed(2)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-current/20 bg-slate-950/35 px-3 py-2">
-                    <p className="text-[10px] font-black uppercase tracking-[0.12em] opacity-70">Strain</p>
-                    <p className="mt-1 text-lg font-black text-white">{strain === null ? '—' : `${Math.round(strain)} AU`}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <div className="min-w-0 space-y-4">
-            <div className="rounded-3xl border border-slate-800 bg-slate-950/55 p-3">
-              {entries.length > 0 ? <LoadChart entries={entries} pendingSessions={[]} /> : (
-                <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/50 p-6 text-sm font-bold text-slate-400">
-                  Load graph appears once this player has reported load entries.
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-black text-white">Training mix</p>
-                  <p className="mt-1 text-xs font-bold text-slate-500">By load share in selected range.</p>
-                </div>
-                <span className="text-xs font-black text-slate-500">{mixTotal} AU</span>
-              </div>
-              <div className="mt-4 space-y-3">
-                {mix.length === 0 ? <p className="text-sm font-bold text-slate-500">No load in this range.</p> : null}
-                {mix.slice(0, 6).map(([type, load]) => {
-                  const percent = Math.round((load / Math.max(mixTotal, 1)) * 100);
-                  const label = LOAD_TYPE_LABELS[type as keyof typeof LOAD_TYPE_LABELS] ?? type;
-                  const color = LOAD_TYPE_COLORS[type as keyof typeof LOAD_TYPE_COLORS] ?? '#94a3b8';
-                  return (
-                    <div key={type}>
-                      <div className="flex justify-between text-xs font-black text-slate-300">
-                        <span>{label}</span>
-                        <span>{percent}%</span>
-                      </div>
-                      <div className="mt-1 h-2.5 rounded-full bg-slate-900">
-                        <div className="h-2.5 rounded-full" style={{ width: `${Math.max(5, percent)}%`, backgroundColor: color }} />
-                      </div>
+                <div className={`rounded-3xl border p-4 ${stabilityState.tone}`}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] opacity-70">Monotony / strain</p>
+                      <p className="mt-2 text-xl font-black text-white">{stabilityState.label}</p>
+                      <p className="mt-1 text-xs font-bold text-slate-300">{stabilityState.detail}</p>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-black text-white">Completed sessions</p>
-                  <p className="mt-1 text-xs font-bold text-slate-500">Duration and RPE from recent entries.</p>
-                </div>
-                <span className="text-xs font-black text-slate-500">{completedEntries.length}</span>
-              </div>
-              <div className="mt-3 grid gap-2">
-                {completedEntries.length === 0 ? <p className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm font-bold text-slate-500">No completed entries in this range.</p> : null}
-                {completedEntries.map((entry) => (
-                  <div key={entry.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-black text-white">{entry.title}</p>
-                        <p className="mt-1 text-xs font-bold text-slate-500">{new Date(`${entry.date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' })} · {LOAD_TYPE_LABELS[entry.trainingType]}</p>
+                    <div className="grid grid-cols-2 gap-2 text-center">
+                      <div className="rounded-2xl border border-current/20 bg-slate-950/35 px-3 py-2">
+                        <p className="text-[10px] font-black uppercase tracking-[0.12em] opacity-70">Monotony</p>
+                        <p className="mt-1 text-lg font-black text-white">{monotony === null ? '—' : monotony.toFixed(2)}</p>
                       </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-sm font-black text-slate-100">{entry.durationMinutes} min</p>
-                        <p className="mt-1 text-xs font-black text-slate-500">RPE {entry.rpe} · {entry.load} AU</p>
+                      <div className="rounded-2xl border border-current/20 bg-slate-950/35 px-3 py-2">
+                        <p className="text-[10px] font-black uppercase tracking-[0.12em] opacity-70">Strain</p>
+                        <p className="mt-1 text-lg font-black text-white">{strain === null ? '—' : `${Math.round(strain)} AU`}</p>
                       </div>
                     </div>
                   </div>
-                ))}
+                </div>
+              </>
+            ) : null}
+          </div>
+
+          {showDetails ? (
+            <div className="min-w-0 space-y-4">
+              <div className="rounded-3xl border border-slate-800 bg-slate-950/55 p-3">
+                {entries.length > 0 ? <LoadChart entries={entries} pendingSessions={[]} /> : (
+                  <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/50 p-6 text-sm font-bold text-slate-400">
+                    Load graph appears once this player has reported load entries.
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-black text-white">Training mix</p>
+                    <p className="mt-1 text-xs font-bold text-slate-500">By load share in selected range.</p>
+                  </div>
+                  <span className="text-xs font-black text-slate-500">{mixTotal} AU</span>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {mix.length === 0 ? <p className="text-sm font-bold text-slate-500">No load in this range.</p> : null}
+                  {mix.slice(0, 6).map(([type, load]) => {
+                    const percent = Math.round((load / Math.max(mixTotal, 1)) * 100);
+                    const label = LOAD_TYPE_LABELS[type as keyof typeof LOAD_TYPE_LABELS] ?? type;
+                    const color = LOAD_TYPE_COLORS[type as keyof typeof LOAD_TYPE_COLORS] ?? '#94a3b8';
+                    return (
+                      <div key={type}>
+                        <div className="flex justify-between text-xs font-black text-slate-300">
+                          <span>{label}</span>
+                          <span>{percent}%</span>
+                        </div>
+                        <div className="mt-1 h-2.5 rounded-full bg-slate-900">
+                          <div className="h-2.5 rounded-full" style={{ width: `${Math.max(5, percent)}%`, backgroundColor: color }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-black text-white">Completed sessions</p>
+                    <p className="mt-1 text-xs font-bold text-slate-500">Duration and RPE from recent entries.</p>
+                  </div>
+                  <span className="text-xs font-black text-slate-500">{completedEntries.length}</span>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  {completedEntries.length === 0 ? <p className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm font-bold text-slate-500">No completed entries in this range.</p> : null}
+                  {completedEntries.map((entry) => (
+                    <div key={entry.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-black text-white">{entry.title}</p>
+                          <p className="mt-1 text-xs font-bold text-slate-500">{new Date(`${entry.date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' })} · {LOAD_TYPE_LABELS[entry.trainingType]}</p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-sm font-black text-slate-100">{entry.durationMinutes} min</p>
+                          <p className="mt-1 text-xs font-black text-slate-500">RPE {entry.rpe} · {entry.load} AU</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="min-w-0">
+              <div className="rounded-3xl border border-dashed border-slate-700 bg-slate-950/50 p-6 text-sm font-bold text-slate-400">
+                {summary.access === 'summary'
+                  ? 'Your role sees the load traffic light only. Charts, RPE and session entries stay with roles that have load details.'
+                  : loadTracked ? 'Charts, RPE and session entries are not shared with your role.' : `${teamName} tracks sessions and attendance only.`}
+              </div>
+            </div>
+          )}
         </div>
+        {footer ? <div className="mt-5 border-t border-slate-800 pt-4">{footer}</div> : null}
       </div>
     </div>
   );

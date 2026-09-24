@@ -60,13 +60,13 @@ function sameDate(first: Date, second: Date) {
 
 function formatWeekRange(weekStart: Date) {
   const weekEnd = addDays(weekStart, 6);
-  const formatter = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short' });
+  const formatter = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short' });
   return `${formatter.format(weekStart)} - ${formatter.format(weekEnd)}`;
 }
 
 function formatDayDate(weekStart: Date, dayIndex: number) {
   const date = addDays(weekStart, dayIndex);
-  return new Intl.DateTimeFormat(undefined, { day: '2-digit', month: '2-digit' }).format(date);
+  return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: '2-digit' }).format(date);
 }
 
 function templateId(template: WeeklySeriesBoardTemplate) {
@@ -93,9 +93,9 @@ function templateTime(template: WeeklySeriesBoardTemplate, key: 'start' | 'end')
   const value: unknown = key === 'start'
     ? view.startTime ?? view.startsAt ?? view.start_at ?? view.start
     : view.endTime ?? view.endsAt ?? view.end_at ?? view.end;
-  if (value instanceof Date) return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(value);
+  if (value instanceof Date) return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(value);
   if (typeof value !== 'string') return key === 'start' ? '—' : '';
-  if (value.includes('T')) return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  if (value.includes('T')) return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
   return value.slice(0, 5);
 }
 
@@ -259,7 +259,7 @@ export function WeeklySeriesBoard({
                           </div>
                           <p className="mt-1.5 truncate text-sm font-black text-white">{templateTime(template, 'start')} - {templateTime(template, 'end')}</p>
                           <p className="mt-0.5 truncate text-xs font-bold text-slate-300">{stringFrom(template, ['teamName', 'team'])}</p>
-                          <p className="mt-1 truncate text-xs text-slate-500">{stringFrom(template, ['facilityName', 'facility'], 'No facility')}</p>
+                          <p className="mt-1 truncate text-xs text-slate-500">{stringFrom(template, ['facilityName', 'facility'], 'No hall')}</p>
                           <p className="mt-1.5 truncate text-xs font-bold text-slate-400">{participantsSummary(template)}</p>
                         </button>
                       </div>

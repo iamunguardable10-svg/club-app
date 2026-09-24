@@ -1,4 +1,6 @@
 import type { AthleteLoadEntry } from '@/features/load/loadTypes';
+import type { LoadAccess, LoadSummary } from '@/features/load/loadAccess';
+import type { CoachPermission } from '@/shared/data';
 
 export type CoachMode = 'today' | 'team' | 'sessions' | 'attendance' | 'load' | 'history' | 'facilities';
 
@@ -10,6 +12,12 @@ export type CoachTeam = {
   departmentName: string;
   defaultFacilityId: string | null;
   role: string;
+  /** The active coach's role on this team, e.g. "Head Coach". */
+  roleName?: string | null;
+  /** What the active coach may see and do in this team. */
+  permissions?: CoachPermission[];
+  /** `false` when the team does not track training load. */
+  loadTracked?: boolean;
 };
 
 export type CoachAvailability = {
@@ -19,12 +27,17 @@ export type CoachAvailability = {
   status: 'late' | 'out';
   reason: string | null;
   lateMinutes: number | null;
+  /** Said afterwards: did not take part (counts as out, shown with its own label). */
+  missed?: boolean;
 };
 
 export type CoachPlayer = {
   id: string;
   name: string;
   loadEntries: AthleteLoadEntry[];
+  /** Missing means `full`; see `@/features/load/loadAccess`. */
+  loadAccess?: LoadAccess;
+  loadSummary?: LoadSummary | null;
   acwr: number | null;
   risk: 'high' | 'low' | 'ready' | 'baseline';
 };
@@ -43,6 +56,10 @@ export type CoachSession = {
   groupIds: string[];
   availability: CoachAvailability[];
   players: CoachPlayer[];
+  /** Missing means shared; `false` for roles without `viewAttendance`. */
+  attendanceShared?: boolean;
+  /** `false` when the session's team does not track training load. */
+  loadTracked?: boolean;
 };
 
 export type CoachFacility = { id: string; name: string; departmentIds: string[] };

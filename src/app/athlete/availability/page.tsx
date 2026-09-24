@@ -1,13 +1,13 @@
-import { PlaceholderPage } from '@/shared/ui/PlaceholderPage';
+import { redirect } from 'next/navigation';
 
-export default function AthleteAvailabilityPage() {
-  return (
-    <PlaceholderPage
-      area="Athlete"
-      title="Availability"
-      description="Athletes report expected, late, maybe or out before a session. Coaches read this but do not edit it."
-      primaryFocus="Availability reporting should take under 10 seconds and work perfectly on mobile."
-      nextModules={['Expected', 'Late + minutes', 'Maybe', 'Out + reason', 'Coach visibility']}
-    />
-  );
+/**
+ * Availability is reported inside the athlete calendar: open a session, then
+ * mark it available, late or out, with a reason the coach can read.
+ *
+ * This route used to be a placeholder. Run 3 briefly gave it a separate
+ * reporting screen, which duplicated what the workspace already did; it was
+ * taken out again so availability has one implementation, not two.
+ */
+export default function AthleteAvailabilityRedirect() {
+  redirect('/athlete/calendar');
 }

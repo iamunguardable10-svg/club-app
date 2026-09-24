@@ -2,6 +2,8 @@
 
 This document records the current team workspace direction and the decisions made around team calendars, staff, players, groups, facilities and navigation.
 
+> **Stand 2026-09-24 (Run 11c):** Die Teamansicht hat keinen eigenen Kalender und keine eigene Navigation mehr. Sie läuft im gemeinsamen Rahmen `RoleShell` (eine Navigation für alle Trainerseiten) mit den Bereichen Overview · Players · Groups · Staff & settings als Tabs im Inhalt. Die Einheiten des Teams plant man im Trainerkalender, gefiltert auf das Team (`/coach/sessions?teamId=…`). Beschreibungen weiter unten, die „Home“, „Calendar“ oder eine eigene untere Leiste der Teamansicht nennen, sind überholt.
+
 ## Product role
 
 The team workspace is the operational home for a single team.

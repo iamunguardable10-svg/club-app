@@ -2,6 +2,24 @@
 
 Club App is the foundation for a club operating system for teams, coaches, athletes and club admins.
 
+> **Current state (since 2026-09): local test mode.** The app runs without
+> accounts, login, database or environment variables. Open it, pick
+> *Trainer* or *Spieler*, and you are in a seeded club. Both perspectives
+> share the same data, stored in the browser. See `docs/simplify-decisions.md`
+> for why, and `docs/simplify-progress.md` for how it got here. The sections
+> below on admins, invites and Supabase describe the target product and the
+> previous setup; they are kept as reference.
+
+## Running it
+
+```bash
+npm install
+npm run dev
+```
+
+No `.env` file is needed. Test data is created on first start and can be reset
+from the identity switcher ("Testdaten zurücksetzen").
+
 ## Product direction
 
 The app is not just an attendance app. It is designed as a structured operating system for clubs:
@@ -30,18 +48,28 @@ V1 is a clean product and code foundation with placeholder screens. The priority
 
 ## Main app areas
 
+Active routes in the local test mode:
+
 ```txt
-/admin   - club setup, departments, teams, coaches, facilities, roles
-/coach   - today cockpit, teams, coach calendar, facilities, history
-/athlete - home, calendar, availability, load
-/invite  - coach and athlete invite acceptance
-/auth    - login, signup, session handling
+/            - pick a role to test as
+/coach       - today, sessions (calendar), team, facilities, history, attendance, load
+/athlete     - home, calendar (incl. availability), load
+/share/load  - read-only load view an athlete shares with a coach
+```
+
+Removed for the local test mode, recoverable from commit `543775f` on `main`:
+
+```txt
+/admin, /department   - club and department administration
+/invite, /join        - invites and join codes (need accounts)
+/auth, /onboarding    - login, signup, club creation
+/demo                 - the former second, demo-only app
 ```
 
 Role-shell rule:
 
 - Coach and department-lead shells are scoped operational surfaces, not alternate admin dashboards.
-- Department-lead routes live under `/department/...` and are documented in `docs/role-workspaces-v1.md`.
+- Department-lead routes lived under `/department/...` (documented in `docs/role-workspaces-v1.md`); removed for the local test mode.
 - Team Workspace keeps its own Home / Calendar / Players / Groups / Staff-Settings navigation after a concrete team is opened.
 - Calendars share one Untis-style engine and become smarter through context rather than separate per-role implementations.
 
@@ -52,18 +80,26 @@ Preferred stack:
 - Next.js
 - TypeScript
 - Tailwind CSS
-- Supabase Auth + Postgres + RLS
+- Supabase Auth + Postgres + RLS — target backend; not wired up in the local test mode. Schema and migrations stay under `supabase/`.
 - Feature-based architecture
 
 ## Environment variables
 
-```bash
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-NEXT_PUBLIC_GEOAPIFY_API_KEY=
-```
+None are needed in the local test mode.
 
-`NEXT_PUBLIC_GEOAPIFY_API_KEY` enables Geoapify address autocomplete on facility address fields. If it is missing or Geoapify cannot be reached, facility address fields keep working as normal manual inputs.
+Optional: `NEXT_PUBLIC_GEOAPIFY_API_KEY` turns on address suggestions in the hall
+form (`/coach/facilities`, “Edit halls”). Without it the address is a plain text
+field.
+
+Club pilot (`docs/simplify-decisions.md`, point 8): with
+`NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` set (see
+`.env.example`), the start page offers signing in with the club next to the
+local test mode. Each device chooses and can switch back at any time (start
+page, identity menu); the local test mode needs no account and never touches
+the server. Signed in, the same screens read and write the pilot database.
+Accounts come in through `/join`: athletes with their team's join code, staff
+with a personal invitation link. Database, setup and tests:
+`supabase/pilot/README.md`.
 
 ## Facility address input principle
 
@@ -72,7 +108,7 @@ Facility names and facility addresses are intentionally separate:
 - The facility name is the internal club or department name, for example `Main Hall` or `U18 Gym`.
 - The address field can search by official venue name, school name, hall name or street address.
 - Geoapify may fill the address, but it must not automatically overwrite the internal facility name.
-- Demo flows and real Supabase-backed flows should use the same input behavior whenever possible.
+- The hall form on `/coach/facilities` follows this: suggestions only fill the address (`src/features/facilities/AddressField.tsx`).
 
 ## Key principle
 

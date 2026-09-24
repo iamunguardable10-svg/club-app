@@ -1,21 +1,41 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { LoadChart } from './AthleteLoadWorkspace';
 import { decodeAthleteLoadShare } from './athleteLoadShare';
 import { baselineAgeDays, getLatestACWR, loadZone, sevenDayLoad } from './loadCalculations';
 
+/** Reads `data` from the fragment (current links) or the query (older links). */
+function readShareToken(queryToken: string | null) {
+  const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  return fragment.get('data') ?? queryToken ?? '';
+}
+
 export function AthleteLoadShareView() {
   const params = useSearchParams();
-  const payload = useMemo(() => decodeAthleteLoadShare(params.get('data') ?? ''), [params]);
+  // The fragment only exists in the browser, so decoding waits for mount.
+  // Rendering "invalid link" on the server first would flash an error at
+  // everyone who opens a perfectly good link.
+  const [token, setToken] = useState<string | null>(null);
+  useEffect(() => {
+    const sync = () => setToken(readShareToken(params.get('data')));
+    sync();
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, [params]);
+  const payload = useMemo(() => (token ? decodeAthleteLoadShare(token) : null), [token]);
   const entries = useMemo(() => [...(payload?.entries ?? [])].sort((a, b) => a.date.localeCompare(b.date)), [payload]);
   const latest = useMemo(() => getLatestACWR(entries, 'ewma'), [entries]);
   const baselineDays = useMemo(() => baselineAgeDays(entries), [entries]);
   const isBaselineReady = (latest?.chronicFull ?? false) && baselineDays >= 30;
   const zone = loadZone(latest?.acwr ?? null, isBaselineReady);
   const weeklyLoad = useMemo(() => sevenDayLoad(entries), [entries]);
+
+  if (token === null) {
+    return <main className="min-h-screen bg-[#050712] px-4 py-6 text-white" />;
+  }
 
   if (!payload) {
     return (
@@ -38,7 +58,7 @@ export function AthleteLoadShareView() {
           <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h1 className="text-4xl font-black tracking-tight sm:text-6xl">{payload.athleteName}</h1>
-              <p className="mt-2 text-sm font-bold text-slate-500">Generated {new Date(payload.generatedAt).toLocaleString()}</p>
+              <p className="mt-2 text-sm font-bold text-slate-500">Generated {new Date(payload.generatedAt).toLocaleString('en-GB')}</p>
             </div>
             <div className="grid grid-cols-3 gap-2 sm:min-w-[420px]">
               <div className="rounded-2xl border border-slate-800/80 bg-slate-950/55 p-3">
