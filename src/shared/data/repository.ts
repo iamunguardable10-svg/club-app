@@ -866,6 +866,37 @@ export function removeStaffMember(membershipId: Id): void {
   });
 }
 
+/**
+ * Takes a player out of a team, e.g. after joining the wrong team with a code.
+ *
+ * The membership and the player's places in this team's groups go. The person,
+ * their availability reports and load entries stay: they are the player's own
+ * history and the team's past attendance. On the server only staff with
+ * `manageStaff` may do this (migration 0008); the interface offers it only to
+ * them. A removed player can rejoin with the join code until it is replaced.
+ */
+export function removeAthleteFromTeam(teamId: Id, personId: Id): void {
+  mutate((database) => {
+    const membership = database.memberships.find(
+      (candidate) => candidate.teamId === teamId && candidate.personId === personId && candidate.role === 'athlete',
+    );
+    if (!membership) return;
+    database.memberships = database.memberships.filter((candidate) => candidate.id !== membership.id);
+    const teamGroupIds = new Set(database.playerGroups.filter((group) => group.teamId === teamId).map((group) => group.id));
+    database.playerGroupMembers = database.playerGroupMembers.filter(
+      (member) => !(member.personId === personId && teamGroupIds.has(member.groupId)),
+    );
+    // Someone acting as this player would otherwise stay in a team they left.
+    if (
+      database.activeIdentity?.role === 'athlete' &&
+      database.activeIdentity.personId === personId &&
+      !database.memberships.some((candidate) => candidate.personId === personId && candidate.role === 'athlete')
+    ) {
+      database.activeIdentity = null;
+    }
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Facilities
 // ---------------------------------------------------------------------------

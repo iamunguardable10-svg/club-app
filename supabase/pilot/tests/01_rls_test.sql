@@ -399,4 +399,44 @@ reset role;
 select test.expect_count('sessions stay, without a hall', $q$select 1 from public.sessions where facility_id is null$q$, 2);
 select test.expect_count('the series stays, without a hall', $q$select 1 from public.session_series where facility_id is null$q$, 1);
 
+-- ---------------------------------------------------------------------------
+-- Removing players from a team (Run 11d): manageStaff only
+-- ---------------------------------------------------------------------------
+
+insert into public.player_groups (id, team_id, name) values
+  ('9a000000-0000-0000-0000-000000000016', '70000000-0000-0000-0000-000000000016', 'Rehab');
+insert into public.player_group_members (group_id, person_id) values
+  ('9a000000-0000-0000-0000-000000000016', 'a0000000-0000-0000-0000-000000000012'),
+  ('9a000000-0000-0000-0000-000000000016', 'a0000000-0000-0000-0000-000000000011');
+
+set role authenticated;
+select test.act_as('10000000-0000-0000-0000-000000000005');
+select test.expect_rows('Uwe (Team Manager, no manageStaff) cannot remove Ben',
+  $q$delete from public.memberships where person_id = 'a0000000-0000-0000-0000-000000000012' and role = 'athlete'$q$, 0);
+select test.act_as('10000000-0000-0000-0000-000000000011');
+select test.expect_rows('Jonas (athlete) cannot remove Ben',
+  $q$delete from public.memberships where person_id = 'a0000000-0000-0000-0000-000000000012' and role = 'athlete'$q$, 0);
+select test.act_as('10000000-0000-0000-0000-000000000012');
+select test.expect_rows('Ben cannot remove himself',
+  $q$delete from public.memberships where person_id = 'a0000000-0000-0000-0000-000000000012' and role = 'athlete'$q$, 0);
+select test.act_as('10000000-0000-0000-0000-000000000001');
+select test.expect_rows('Martin (Head Coach U16) cannot remove Lena from U18',
+  $q$delete from public.memberships where person_id = 'a0000000-0000-0000-0000-000000000013' and role = 'athlete'$q$, 0);
+select test.expect_rows('Martin removes Ben from U16',
+  $q$delete from public.memberships where person_id = 'a0000000-0000-0000-0000-000000000012' and team_id = '70000000-0000-0000-0000-000000000016' and role = 'athlete'$q$, 1);
+select test.expect_count('… Martin no longer sees Ben',
+  $q$select 1 from public.people where id = 'a0000000-0000-0000-0000-000000000012'$q$, 0);
+select test.expect_count('… nor his load entries',
+  $q$select 1 from public.load_entries where person_id = 'a0000000-0000-0000-0000-000000000012'$q$, 0);
+reset role;
+select test.expect_count('… Ben left the U16 groups', $q$select 1 from public.player_group_members where person_id = 'a0000000-0000-0000-0000-000000000012'$q$, 0);
+select test.expect_count('… Jonas is still in the group', $q$select 1 from public.player_group_members where person_id = 'a0000000-0000-0000-0000-000000000011'$q$, 1);
+select test.expect_count('… Ben himself and his load history stay',
+  $q$select 1 from public.people p join public.load_entries l on l.person_id = p.id where p.id = 'a0000000-0000-0000-0000-000000000012'$q$, 1);
+set role authenticated;
+select test.act_as('10000000-0000-0000-0000-000000000012');
+select test.expect_count('… Ben no longer sees U16 sessions',
+  $q$select 1 from public.sessions where team_id = '70000000-0000-0000-0000-000000000016'$q$, 0);
+reset role;
+
 \echo 'all access-rule checks passed'

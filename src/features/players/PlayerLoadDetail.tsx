@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { LoadChart, WeeklyLoadProfileGraph } from '@/features/load/AthleteLoadWorkspace';
 import { acwrDisplayLabel, playerLoadSummary, type PlayerLoadInput, type PlayerLoadSummary } from '@/features/load/loadAccess';
 import { loadZone } from '@/features/load/loadCalculations';
@@ -102,6 +102,7 @@ export function PlayerLoadDetail({
   attendanceContextLabel = 'Default range: one month',
   emptyAttendanceLabel = 'No late/out sessions in this range.',
   showAttendanceRange = true,
+  footer,
   onClose,
 }: {
   player: PlayerLoadDetailPlayer;
@@ -109,6 +110,8 @@ export function PlayerLoadDetail({
   attendanceContextLabel?: string;
   emptyAttendanceLabel?: string;
   showAttendanceRange?: boolean;
+  /** Actions below the details, e.g. removing the player from the team. */
+  footer?: ReactNode;
   onClose: () => void;
 }) {
   const [attendanceRange, setAttendanceRange] = useState(30);
@@ -327,6 +330,7 @@ export function PlayerLoadDetail({
             </div>
           )}
         </div>
+        {footer ? <div className="mt-5 border-t border-slate-800 pt-4">{footer}</div> : null}
       </div>
     </div>
   );

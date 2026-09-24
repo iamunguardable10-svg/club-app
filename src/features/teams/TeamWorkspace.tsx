@@ -40,6 +40,7 @@ import {
   displayName,
   mutate,
   newId,
+  removeAthleteFromTeam,
   setTeamDefaultFacility,
   updateSession,
   useLocalDatabase,
@@ -318,6 +319,7 @@ export function TeamWorkspace({
       onAddGroup={canManageGroups ? handleAddGroup : undefined}
       onRemoveGroup={canManageGroups ? handleRemoveGroup : undefined}
       onTogglePlayerGroup={canManageGroups ? handleTogglePlayerGroup : undefined}
+      onRemovePlayer={permissions.has('manageStaff') ? (personId) => removeAthleteFromTeam(teamId, personId) : undefined}
       staffPanel={staffPanel}
     />
     </CoachShell>

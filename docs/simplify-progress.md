@@ -1192,3 +1192,30 @@ Keine Laufzeitfehler.
 Implementierung neben dem Trainerkalender (andere Funktionen: eigene Pläne, Belastung).
 Zusammenlegen wäre ein eigenes Stück. Nicht gegen den echten Server geprüft: Die
 Datenschicht ist unverändert, die Oberfläche ist in beiden Modi dieselbe.
+
+## Run 11d — Stück 3: Spieler aus dem Team entfernen (erledigt)
+
+Entscheidung vom 2026-09-24: Spieler entfernen darf, wer das Trainerteam verwalten darf
+(`manageStaff`, Standard: Head Coach, Assistant Coach, Athletic Coach; nicht Team
+Manager).
+
+- **Datenbank (Migration 0008, im Projekt angewendet):** Eine Löschregel für
+  Mitgliedschaften (Trainer und Spieler) mit `manageStaff`, statt einer zweiten Regel
+  daneben. Ein Trigger nimmt den Spieler dabei aus den Gruppen dieses Teams, auch wenn
+  der Entfernende keine Gruppen verwalten darf. Person, Meldungen und Belastung bleiben.
+- **Datenschicht:** `removeAthleteFromTeam(teamId, personId)` in `repository.ts`, lokal
+  und auf dem Server gleich.
+- **Oberfläche:** In der Spieleransicht unten „Remove from team“, nur mit dem Recht, mit
+  Rückfrage. Die Rückfrage sagt, was bleibt und dass der Spieler mit dem Beitrittscode
+  wieder beitreten kann, bis man ihn ersetzt. Der Bestätigungsdialog heißt allgemein
+  „Please confirm“ statt „Confirm deletion“.
+- Was der Spieler danach sieht: angemeldet, aber in keinem Team (Startseite bietet „Join
+  with a code“). Ist er noch in einem anderen Team, bleibt alles andere wie es war.
+
+Geprüft: 86 + 35 Zugriffsprüfungen (neu: Team Manager, Spieler und fremder Head Coach
+dürfen nicht; Head Coach darf; danach keine Sicht mehr auf Person und Belastung; Gruppen
+verlassen; Person und Belastung bleiben; der Spieler sieht die Einheiten nicht mehr),
+61 Ende-zu-Ende-Prüfungen (neu: Mia tritt dem falschen Team bei, Team Manager wird
+abgelehnt, Head Coach entfernt sie, Mia ist danach ohne Team), Browser (Demo-Modus,
+Handybreite): entfernen mit Rückfrage, Liste zeigt 11 Spieler, Team Manager sieht den
+Knopf nicht; keine Laufzeitfehler. Supabase-Sicherheitsprüfung: keine neuen Befunde.

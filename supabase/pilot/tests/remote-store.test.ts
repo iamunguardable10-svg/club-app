@@ -316,6 +316,31 @@ async function main() {
   await data.joinTeamWithCode(code.toLowerCase(), 'Mia', 'Neu');
   check('Mia: joined, now an athlete of U16', store.getStatus().phase === 'ready' && db().activeIdentity?.role === 'athlete', store.getStatus());
   check('Mia: sees the team sessions', data.sessionsForTeam(db(), TEAM).length > 0);
+  const mia = data.getActivePerson(db())!.id;
+
+  // --- Mia joined the wrong team: removing a player (Run 11d) -------------
+  store = await actAs(U.martin);
+  data.mutate((draft) => { draft.playerGroupMembers.push({ groupId: group.id, personId: mia }); });
+  await data.flushRemote();
+  check('Martin: Mia is in the group', (await count('select 1 from player_group_members where person_id = $1', [mia])) === 1, store.getStatus().rejected);
+
+  store = await actAs(U.uwe);
+  data.removeAthleteFromTeam(TEAM, mia);
+  await data.flushRemote();
+  check('Uwe (no manageStaff): removing Mia is refused with a message', store.getStatus().rejected !== null, store.getStatus());
+  check('… and Mia is still in the team', (await count("select 1 from memberships where person_id = $1 and role = 'athlete'", [mia])) === 1);
+
+  store = await actAs(U.martin);
+  data.removeAthleteFromTeam(TEAM, mia);
+  await data.flushRemote();
+  check('Martin: Mia removed from U16', (await count("select 1 from memberships where person_id = $1", [mia])) === 0, store.getStatus().rejected);
+  check('… and from its group', (await count('select 1 from player_group_members where person_id = $1', [mia])) === 0);
+  check('… Mia herself stays', (await count('select 1 from people where id = $1', [mia])) === 1);
+  check('… not reported as refused', store.getStatus().rejected === null, store.getStatus().rejected);
+  check('… and the roster no longer shows her', !data.athletesForTeam(db(), TEAM).some((person) => person.id === mia));
+
+  store = await actAs(U.mia);
+  check('Mia: signed in, but not in a team any more', store.getStatus().phase === 'unlinked', store.getStatus());
 
   store = await actAs(U.newCoach);
   check('new coach account: not linked yet', store.getStatus().phase === 'unlinked');

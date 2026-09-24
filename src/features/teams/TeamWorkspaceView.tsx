@@ -228,6 +228,7 @@ export function TeamWorkspaceView({
   onAddGroup,
   onRemoveGroup,
   onTogglePlayerGroup,
+  onRemovePlayer,
   staffPanel,
 }: {
   data: TeamWorkspaceData;
@@ -247,6 +248,8 @@ export function TeamWorkspaceView({
   onAddGroup?: (name: string) => void | Promise<void>;
   onRemoveGroup?: (groupId: string) => void | Promise<void>;
   onTogglePlayerGroup?: (groupId: string, playerId: string) => void | Promise<void>;
+  /** Only for roles that may manage the staff. */
+  onRemovePlayer?: (playerId: string) => void | Promise<void>;
   /** Replaces the read-only staff overview in settings, e.g. with role management. */
   staffPanel?: ReactNode;
 }) {
@@ -260,6 +263,8 @@ export function TeamWorkspaceView({
   const [isSavingDashboardEdit, setIsSavingDashboardEdit] = useState(false);
   const [isDeletingDashboardSession, setIsDeletingDashboardSession] = useState(false);
   const [playerSort, setPlayerSort] = useState<'risk' | 'az'>('risk');
+  const [removePlayerTarget, setRemovePlayerTarget] = useState<TeamWorkspacePlayer | null>(null);
+  const [isRemovingPlayer, setIsRemovingPlayer] = useState(false);
   // Same accent as the hall list, seeded by the hall id.
   const selectedFacilityAccent = data.defaultFacilityId ? getFacilityAccent(data.defaultFacilityId) : null;
   const players = data.players ?? [];
@@ -757,7 +762,43 @@ export function TeamWorkspaceView({
         onCancel={() => setDashboardDeleteTargetId(null)}
       />
 
-      {activePlayer ? <PlayerLoadDetail player={activePlayer} teamName={data.name} onClose={() => setActivePlayer(null)} /> : null}
+      {activePlayer ? (
+        <PlayerLoadDetail
+          player={activePlayer}
+          teamName={data.name}
+          onClose={() => setActivePlayer(null)}
+          footer={onRemovePlayer ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs font-bold text-slate-500">Joined the wrong team, or left the club?</p>
+              <button type="button" onClick={() => setRemovePlayerTarget(activePlayer)} className="rounded-xl border border-red-500/50 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">
+                Remove from team
+              </button>
+            </div>
+          ) : undefined}
+        />
+      ) : null}
+
+      <AppConfirmDialog
+        isOpen={Boolean(removePlayerTarget)}
+        title={removePlayerTarget ? `Remove ${removePlayerTarget.name} from ${data.name}?` : 'Remove player?'}
+        description="They leave the team and its groups and no longer see its sessions. Their past reports and load stay. They can rejoin with the join code until you replace it (Staff & settings)."
+        confirmLabel="Remove from team"
+        cancelLabel="Keep"
+        tone="danger"
+        isConfirming={isRemovingPlayer}
+        onConfirm={async () => {
+          if (!removePlayerTarget || !onRemovePlayer) return;
+          setIsRemovingPlayer(true);
+          try {
+            await onRemovePlayer(removePlayerTarget.id);
+            setRemovePlayerTarget(null);
+            setActivePlayer(null);
+          } finally {
+            setIsRemovingPlayer(false);
+          }
+        }}
+        onCancel={() => setRemovePlayerTarget(null)}
+      />
     </div>
   );
 }

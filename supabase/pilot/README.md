@@ -4,7 +4,7 @@ The Supabase schema for the club pilot (docs/simplify-decisions.md, point 8).
 Derived from the local data model in `src/shared/data/schema.ts`; the older
 schema in `supabase/migrations` is the pre-pilot one and only a reference.
 
-Project: `CLUB_ProjectV2` (`tszxeainmwowmixqmphn`, eu-west-3). All seven
+Project: `CLUB_ProjectV2` (`tszxeainmwowmixqmphn`, eu-west-3). All eight
 migrations below are applied there (2026-09-24).
 
 | File | What it does |
@@ -16,11 +16,12 @@ migrations below are applied there (2026-09-24).
 | `migrations/0005_pilot_setup_function.sql` | `app.setup_club(...)`: creates a club with department, team, hall and a Head Coach invitation; owner only |
 | `migrations/0006_pilot_english_messages.sql` | The same functions with English messages (the interface is English) |
 | `migrations/0007_pilot_english_role_templates.sql` | English role templates: Head Coach, Assistant Coach, Athletic Coach, Team Manager |
+| `migrations/0008_pilot_remove_athletes.sql` | Staff with `manageStaff` may remove players from their team; the player also leaves the team's groups, person and history stay |
 | `tests/00_supabase_shim.sql` | Stand-in for Supabase's `auth` schema and roles, **local tests only** |
-| `tests/01_rls_test.sql` | 75 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
+| `tests/01_rls_test.sql` | 86 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
 | `tests/02_access_test.sql` | 35 checks for join codes, invitations and club setup |
 | `tests/run-local.sh` | Recreates a local test database, applies shim and migrations, runs the checks above |
-| `tests/remote-store.test.ts` | 52 end-to-end checks: the app's real data-layer functions through the server store against the local database, as Head Coach, Betreuer, athlete and two new accounts joining |
+| `tests/remote-store.test.ts` | 61 end-to-end checks: the app's real data-layer functions through the server store against the local database, as Head Coach, Betreuer, athlete and two new accounts joining |
 
 ## What the rules guarantee
 
@@ -31,7 +32,7 @@ migrations below are applied there (2026-09-24).
   `availability_reasons`), load traffic light (`load_summaries`), raw load
   (`load_entries`), athlete plans.
 - Sessions, series, groups, halls, team default hall and staff can only be
-  changed with the matching right; club, departments and teams are read-only
+  changed with the matching right; removing a player needs the staff right; club, departments and teams are read-only
   for the app.
 - A hall shared with another department can only be changed by someone who
   manages halls in all of them.
