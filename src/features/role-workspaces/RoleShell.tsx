@@ -19,7 +19,7 @@ import { getActivePerson, useLocalDatabase } from '@/shared/data';
 
 export type CoachNavItem = 'today' | 'calendar' | 'team' | 'halls' | 'history';
 export type AthleteNavItem = 'today' | 'calendar' | 'load';
-export type ClubNavItem = 'club';
+export type ClubNavItem = 'club' | 'halls';
 type NavItem = CoachNavItem | AthleteNavItem | ClubNavItem;
 type NavEntry = { item: NavItem; label: string; href: string };
 
@@ -37,9 +37,9 @@ const COACH_NAV: NavEntry[] = [
   { item: 'history', label: 'History', href: '/coach/history' },
 ];
 
-// Piece 8c adds the club's teams, people and halls here.
 const CLUB_NAV: NavEntry[] = [
   { item: 'club', label: 'Club', href: '/club' },
+  { item: 'halls', label: 'Halls', href: '/club/halls' },
 ];
 
 function NavIcon({ item }: { item: NavItem }) {

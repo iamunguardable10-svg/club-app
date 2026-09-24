@@ -222,7 +222,7 @@ dorthin (die Auswahl wird dann übersprungen):
 - **Bewusst nicht jetzt:** Eltern-Zugänge, ein Konto in mehreren Vereinen, Anfragen
   „Ich möchte Trainer werden“ ohne Link, Login per Magic Link.
 
-**8c — Vereinsbereich**
+**8c — Vereinsbereich (erledigt, Run 12c)**
 - Neue Rolle im Konto-Menü „Club admin“ bzw. „Department lead“, eigener Bereich
   `/club` im gemeinsamen Rahmen: Übersicht (Abteilungen, Teams, Personen, offene
   Einladungen), Abteilungen anlegen/umbenennen und Leitung einladen, Teams

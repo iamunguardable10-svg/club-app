@@ -1189,7 +1189,9 @@ export function revokeClubRoleInvite(token: Id): void {
  * is held per team but applies per department.
  */
 export function facilityManagerDepartmentIds(database: LocalDatabase, personId: Id | null): ReadonlySet<Id> {
-  const departmentIds = new Set<Id>();
+  // Club admins and department leads manage the halls of their departments,
+  // as on the server (app.facility_manager_department_ids).
+  const departmentIds = new Set<Id>(managedDepartmentIds(database, personId));
   if (!personId) return departmentIds;
   for (const membership of database.memberships) {
     if (membership.personId !== personId || membership.role !== 'coach') continue;

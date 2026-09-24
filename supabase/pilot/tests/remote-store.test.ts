@@ -474,6 +474,32 @@ async function main() {
     store.getStatus().phase === 'ready' && db().activeIdentity?.role === 'club' && data.clubRoleLabel(db(), db().activeIdentity!.personId) === 'Department lead · Handball',
     { status: store.getStatus(), identity: db().activeIdentity });
   check('… he sees the Handball teams, not the others', data.managedDepartmentIds(db(), db().activeIdentity!.personId).length === 1);
+  // Piece 8c: the lead runs his department from the club area.
+  const u14 = data.createTeam(handball, 'U14');
+  await data.flushRemote();
+  check('lead: created U14 in Handball, with roles and join code',
+    (await count('select 1 from teams where id = $1', [u14])) === 1 && data.joinCodeFor(db(), u14) !== null, store.getStatus().rejected);
+  const headCoachRole = db().coachRoles.find((role) => role.teamId === u14 && role.locked)!;
+  const hanna = data.addStaffMember(u14, 'Hanna', 'Head', headCoachRole.id);
+  await data.flushRemote();
+  const hannaToken = data.createStaffInvite(hanna, u14);
+  await data.flushRemote();
+  check('lead: added Hanna as Head Coach of U14 and invited her',
+    (await count("select 1 from memberships where person_id = $1 and team_id = $2 and role = 'coach'", [hanna, u14])) === 1
+      && (await count('select 1 from staff_invites where token = $1', [hannaToken])) === 1, store.getStatus().rejected);
+  const nordHall = data.createFacility({ name: 'Sporthalle Nord', address: 'Nordstr. 1, Köln', departmentIds: [handball] });
+  await data.flushRemote();
+  check('lead: created a hall for Handball', (await count('select 1 from department_facilities where facility_id = $1', [nordHall])) === 1, store.getStatus().rejected);
+  check('… no refusals', store.getStatus().rejected === null, store.getStatus().rejected);
+  const teamsBefore = await count('select 1 from teams');
+  try {
+    data.createTeam(tennis, 'Herren 1');
+  } catch {
+    // Refused locally is fine too; the server must refuse it in any case.
+  }
+  await data.flushRemote();
+  check('lead: cannot create a team in Tennis', (await count('select 1 from teams')) === teamsBefore && store.getStatus().rejected !== null, store.getStatus());
+  data.dismissRejectedChange();
   store = await actAs(U.founder);
   check('founder: can switch to her club role', data.hasIdentityRole(db(), frida!.id, 'club') && data.hasIdentityRole(db(), frida!.id, 'coach'));
   data.setActiveIdentity({ role: 'club', personId: frida!.id });

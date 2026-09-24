@@ -135,7 +135,8 @@ export function TeamStaffPanel({ database, teamId, canManage }: { database: Loca
   const [confirmRemoveId, setConfirmRemoveId] = useState<Id | null>(null);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const defaultNewRoleId = roles.find((role) => !role.locked)?.id ?? roles[0]?.id ?? '';
+  // A team without staff needs its Head Coach first; after that, helpers.
+  const defaultNewRoleId = (staff.length === 0 ? roles.find((role) => role.locked)?.id : roles.find((role) => !role.locked)?.id) ?? roles[0]?.id ?? '';
   const [newStaffRoleId, setNewStaffRoleId] = useState<Id>('');
   const [newRoleName, setNewRoleName] = useState('');
 

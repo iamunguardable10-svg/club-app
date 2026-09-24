@@ -1388,3 +1388,32 @@ Offen: Ein echter Durchlauf mit Konto (Gründen mit echtem Code, Spieler per Lin
 nach Stück 5 (Adresse in Supabase eintragen, E-Mail-Bestätigung). `npm audit` meldet
 bekannte Lücken in `next` 15 (kritisch) und Werkzeugen, unabhängig von diesem Stück — vor
 dem Livegang aktualisieren.
+
+## Run 12c — Stück 8c: Vereinsbereich zum Arbeiten (erledigt)
+
+- **`/club` (Tab „Club“):** Kennzahlen (Abteilungen, Teams, Teams ohne Head Coach), je
+  Abteilung die Leitung und die Teams.
+  - Vereinsadmin: Abteilung anlegen und umbenennen („Department settings“), Leitung und
+    weitere Admins per Name hinzufügen und entfernen (nie den letzten Admin). Mit dem
+    Server entsteht dabei gleich der persönliche Einladungslink (Kopieren, Teilen,
+    Widerrufen, neu erstellen); im Demo-Verein steht „No account (demo club)“.
+  - Abteilungsleitung (und Admin): Teams anlegen, umbenennen, archivieren (mit
+    Rückfrage) und wiederherstellen („Archived teams“). Jedes Team klappt auf zum
+    selben Trainerteam-Panel wie bei Trainern: Team-Code mit QR, Staff, Rollen und
+    Rechte, Einladungslinks. Ein Team ohne Staff bekommt als Vorgabe die Rolle Head
+    Coach und einen Hinweis „Add the Head Coach by name …“; Kennzeichen „No Head Coach“.
+  - Keine Spielerdaten im Vereinsbereich.
+- **`/club/halls` (Tab „Halls“):** die Hallenverwaltung für die verwalteten Abteilungen
+  (auch Abteilungen ohne Team), der Hallenkalender öffnet im Vereinsrahmen und zurück.
+  Im Hallenkalender dürfen Admin und Leitung Einheiten ihrer Teams bearbeiten; die
+  Rechte kommen aus den Vereinsrollen in den Daten, nie aus der URL.
+- Datenschicht: `facilityManagerDepartmentIds` enthält jetzt wie der Server die
+  verwalteten Abteilungen von Admin und Leitung.
+
+Geprüft: 98 Ende-zu-Ende-Prüfungen (neu: Leitung legt U14 an, fügt die Head Coach hinzu
+und lädt sie ein, legt eine Halle an, darf in Tennis kein Team anlegen), Zugriffsprüfungen
+unverändert grün, Typecheck, Build, 30 Browser-Prüfungen auf Handy und Desktop (Abteilung,
+doppelter Name, Leitung, Team mit Head Coach, Umbenennen, Archivieren und Wiederherstellen,
+Hallen und Hallenkalender im Vereinsrahmen, Leitung ohne Admin-Funktionen, keine
+Spielerdaten, kein Überlauf, keine Fehler) und die Trainer-Hallen unverändert.
+Keine neue Migration.

@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentProps, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
 import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictCandidate, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
-import { CoachShell } from '@/features/role-workspaces/RoleShell';
+import { ClubShell, CoachShell } from '@/features/role-workspaces/RoleShell';
 import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
 import { normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
@@ -13,6 +13,7 @@ import type { CoachFacility, CoachGroup, CoachSession, CoachTeam } from '@/featu
 import {
   createSession,
   deleteSession,
+  clubRolesOf,
   getActivePerson,
   hasCoachPermission,
   updateSession,
@@ -284,12 +285,14 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       playerCount: groupMemberCount.get(group.id) ?? 0,
     })));
 
-    // The permission model is kept, only its source changed. There are no club
-    // admins without accounts, so rights come purely from coach memberships —
-    // a coach manages their own teams and nothing else. The demo build derived
-    // this from the `from` query parameter instead, which meant anyone could
-    // grant themselves edit rights by editing the URL.
-    setClubMemberships([]);
+    // Rights come from the data, never from the URL (the demo build once took
+    // them from the `from` parameter, so anyone could grant themselves edit
+    // rights). Coaches: their teams where the role may edit sessions. Club
+    // admins and department leads (piece 8): the teams they manage.
+    setClubMemberships(clubRolesOf(database, activePerson?.id ?? null).map((clubRole) => ({
+      role: clubRole.role === 'admin' ? 'club_admin' as const : 'department_lead' as const,
+      department_id: clubRole.departmentId,
+    })));
     setTeamMemberships(activePerson
       ? database.memberships
           .filter((membership) => membership.personId === activePerson.id && membership.role === 'coach')
@@ -593,7 +596,9 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   // targets went with those areas, and the old fallback pointed at /app, which
   // no longer exists — a missing `from` would have led nowhere.
   const backTarget =
-    from === 'coachTeam' && teamId
+    from === 'club'
+      ? { href: '/club/halls', label: 'Halls' }
+      : from === 'coachTeam' && teamId
       ? { href: `/coach/team?teamId=${teamId}`, label: 'Team' }
       : from === 'coachCalendar'
         ? { href: '/coach/sessions', label: 'Calendar' }
@@ -929,8 +934,8 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   if (state === 'error') return <main className="min-h-screen bg-slate-950 p-8 text-white">{error}</main>;
 
   return (
-    <CoachShell
-      active="halls"
+    <HallShell
+      club={database?.activeIdentity?.role === 'club'}
       title={facility?.name ?? 'Hall'}
       subtitle={facility?.address || 'No address set'}
       back={backTarget}
@@ -1060,6 +1065,11 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
         onKeepAnyway={() => { void keepFacilityConflictAnyway(); }}
         onCancel={cancelFacilityConflictSave}
       />
-    </CoachShell>
+    </HallShell>
   );
+}
+
+/** The club area's frame when acting as club admin or department lead, the coach frame otherwise. */
+function HallShell({ club, ...props }: { club: boolean } & Omit<ComponentProps<typeof CoachShell>, 'active'>) {
+  return club ? <ClubShell active="halls" {...props} /> : <CoachShell active="halls" {...props} />;
 }

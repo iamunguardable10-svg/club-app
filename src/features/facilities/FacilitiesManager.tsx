@@ -47,23 +47,32 @@ export function FacilitiesManager({
   database,
   personId,
   calendarHref,
+  teams,
 }: {
   database: LocalDatabase;
   personId: Id;
   calendarHref: (facilityId: Id) => string;
+  /** The teams whose halls are shown; default: the teams this person coaches (club area: the managed teams). */
+  teams?: Team[];
 }) {
   const [editMode, setEditMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<Id | null>(null);
 
   const coachTeams = useMemo(() => {
+    if (teams) return teams;
     const teamIds = new Set(
       database.memberships.filter((m) => m.personId === personId && m.role === 'coach').map((m) => m.teamId),
     );
     return database.teams.filter((team) => teamIds.has(team.id));
-  }, [database, personId]);
-  const departmentIds = useMemo(() => new Set(coachTeams.map((team) => team.departmentId)), [coachTeams]);
+  }, [database, personId, teams]);
   const managedDepartmentIds = useMemo(() => facilityManagerDepartmentIds(database, personId), [database, personId]);
+  // Also departments they manage halls for without a team there yet (a club
+  // admin with a new department).
+  const departmentIds = useMemo(
+    () => new Set([...coachTeams.map((team) => team.departmentId), ...managedDepartmentIds]),
+    [coachTeams, managedDepartmentIds],
+  );
   const isManager = managedDepartmentIds.size > 0;
 
   // Halls the coach's departments can book; for managers also halls no
