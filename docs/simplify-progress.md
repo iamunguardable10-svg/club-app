@@ -1256,3 +1256,41 @@ Eintrag auf ein Team ohne Load, App kann die Liste nicht ändern, wieder einscha
 alles), 68 Ende-zu-Ende-Prüfungen (neu 7), Browser im Demo-Modus (Handybreite, 10
 Prüfungen: U18-Trainerin, U18-Spielerin, U16-Spieler), keine Laufzeitfehler, keine
 Überbreite. Supabase-Prüfungen: keine neuen Befunde.
+
+## Run 11f — Stück 4: Automatische RPE-Abfrage (erledigt)
+
+Entscheidungen vom 2026-09-24: gefragt wird ohne Zeitgrenze nach jeder vergangenen,
+angesetzten Team-Einheit ohne Eintrag, ab dem Beitritt ins Team; „I didn't take part“
+erscheint beim Trainer als „did not take part“, nicht als vorherige Absage.
+
+- **Warteschlange** (`readSessionsToRate` in `athleteLocalStore.ts`): beendete
+  Einheiten von Teams mit Load, seit dem Beitritt, nur wenn der Spieler dazugehört
+  (Gruppen-Einheiten nur für Gruppenmitglieder); nicht bewertet, nicht vorher abgesagt,
+  nicht als verpasst gemeldet, nicht weggeklickt. Älteste zuerst.
+- **Abfrage** (`RatePrompt.tsx`): öffnet sich beim ersten Aufruf der Spielerseiten pro
+  Besuch (Neuladen oder erneutes Öffnen der App fragt wieder, der Wechsel zwischen
+  Today, Calendar und Load nicht). RPE als zehn Knöpfe mit Beschreibung, Dauer aus der
+  Einheit vorbelegt; bei Spielen RPE 10 und Spielminuten, das Aufwärmen wird im selben
+  Schritt mitgespeichert (abwählbar). „Save“ und „I didn't take part“ gehen zur nächsten
+  Einheit, „Later“ schließt. Today zeigt, was noch offen ist, mit „Rate … now“.
+- **„I didn't take part“:** neuer Meldestatus `missed` (Migration 0010, angewendet).
+  Der Server erlaubt ihn erst nach Beginn der Einheit. Trainer sehen „out · did not
+  take part“; das zählt als Abwesenheit, der Text ist kein privater Grund und bleibt
+  auch für Rollen ohne Einsicht in Gründe sichtbar.
+- **Behobener Fehler (nur mit Server):** Aufwärm-Einträge hatten die Sitzungs-ID
+  `…-warmup`, die der Server als ungültige ID abgelehnt hätte; ebenso bestätigte eigene
+  Pläne. Gespeichert zeigt ein Aufwärm-Eintrag jetzt auf die Spiel-Einheit und wird
+  über die Trainingsart unterschieden; die Spielerseite rechnet das beim Lesen zurück.
+  In der Trainer-Auswertung zählt das Aufwärmen nicht in den RPE-Schnitt des Spiels.
+- **Demo:** Die letzte vergangene Einheit je Team ist von niemandem bewertet, die davor
+  von etwa der Hälfte, damit die Abfrage zu sehen ist (Schema-Version
+  `2026-09-24-rate-sessions-v9`).
+- Nebenbei: Einheitsdetail im neuen Datumsformat.
+
+Geprüft: 105 + 35 Zugriffsprüfungen (neu 4: verpasst melden, nicht vor Beginn,
+Aufwärmen auf der Spiel-ID, Team Manager sieht „missed“), 77 Ende-zu-Ende-Prüfungen
+(neu 9: Warteschlange mit Beitrittsdatum, Gruppe und Reihenfolge, Spiel mit Aufwärmen
+auf dem Server, „missed“, nichts mehr offen, keine Meldung vor Beginn, Trainer sieht
+„did not take part“), Browser im Demo-Modus (Handybreite, 10 Prüfungen: Abfrage öffnet
+sich, bewerten, nicht teilgenommen, Later, kein zweites Fragen im selben Besuch, neuer
+Besuch fragt wieder, Trainer sieht „did not take part“), keine Laufzeitfehler.

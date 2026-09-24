@@ -4,7 +4,7 @@ The Supabase schema for the club pilot (docs/simplify-decisions.md, point 8).
 Derived from the local data model in `src/shared/data/schema.ts`; the older
 schema in `supabase/migrations` is the pre-pilot one and only a reference.
 
-Project: `CLUB_ProjectV2` (`tszxeainmwowmixqmphn`, eu-west-3). All nine
+Project: `CLUB_ProjectV2` (`tszxeainmwowmixqmphn`, eu-west-3). All ten
 migrations below are applied there (2026-09-24).
 
 | File | What it does |
@@ -18,11 +18,12 @@ migrations below are applied there (2026-09-24).
 | `migrations/0007_pilot_english_role_templates.sql` | English role templates: Head Coach, Assistant Coach, Athletic Coach, Team Manager |
 | `migrations/0008_pilot_remove_athletes.sql` | Staff with `manageStaff` may remove players from their team; the player also leaves the team's groups, person and history stay |
 | `migrations/0009_pilot_team_features.sql` | Team features (`teams.features`, for now `load`): without load, the team's load rights have no effect and its players cannot record load |
+| `migrations/0010_pilot_missed_sessions.sql` | Availability status `missed` ("I didn't take part", said after the session), only once the session has started |
 | `tests/00_supabase_shim.sql` | Stand-in for Supabase's `auth` schema and roles, **local tests only** |
-| `tests/01_rls_test.sql` | 101 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
+| `tests/01_rls_test.sql` | 105 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
 | `tests/02_access_test.sql` | 35 checks for join codes, invitations and club setup |
 | `tests/run-local.sh` | Recreates a local test database, applies shim and migrations, runs the checks above |
-| `tests/remote-store.test.ts` | 68 end-to-end checks: the app's real data-layer functions through the server store against the local database, as Head Coach, Betreuer, athlete and two new accounts joining |
+| `tests/remote-store.test.ts` | 77 end-to-end checks: the app's real data-layer functions through the server store against the local database, as Head Coach, Betreuer, athlete and two new accounts joining |
 
 ## What the rules guarantee
 

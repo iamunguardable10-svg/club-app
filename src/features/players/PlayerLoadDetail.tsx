@@ -18,6 +18,7 @@ export type PlayerLoadDetailPlayer = PlayerLoadInput & {
     title: string;
     startsAt: string;
     status: 'out' | 'late';
+    missed?: boolean;
     reason?: string | null;
     lateMinutes?: number | null;
   }[];
@@ -218,7 +219,7 @@ export function PlayerLoadDetail({
                 {filteredAttendance.slice(0, 5).map((event) => (
                   <div key={`${event.sessionId}-${event.status}`} className={`rounded-2xl border p-3 ${event.status === 'out' ? 'border-rose-400/35 bg-rose-400/10' : 'border-sky-400/35 bg-sky-400/10'}`}>
                     <p className="text-sm font-black text-white">{event.title}</p>
-                    <p className="mt-1 text-xs font-bold text-slate-400">{new Date(event.startsAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} · {event.status === 'out' ? 'Out' : `Late${event.lateMinutes ? ` ${event.lateMinutes}m` : ''}`}</p>
+                    <p className="mt-1 text-xs font-bold text-slate-400">{new Date(event.startsAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} · {event.missed ? 'Did not take part' : event.status === 'out' ? 'Out' : `Late${event.lateMinutes ? ` ${event.lateMinutes} min` : ''}`}</p>
                     {event.reason ? <p className="mt-2 text-xs font-bold text-slate-300">{event.reason}</p> : null}
                   </div>
                 ))}

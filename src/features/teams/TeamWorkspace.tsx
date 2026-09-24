@@ -29,7 +29,7 @@ import {
 } from '@/features/teams/TeamWorkspaceView';
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { CoachShell } from '@/features/role-workspaces/RoleShell';
-import { buildCoachData } from '@/features/role-workspaces/coachData';
+import { MISSED_LABEL, buildCoachData } from '@/features/role-workspaces/coachData';
 import { loadAccessFor } from '@/features/load/loadAccess';
 import { TeamStaffPanel } from '@/features/teams/TeamStaffPanel';
 import {
@@ -100,9 +100,10 @@ function attendanceForPlayer(database: LocalDatabase, personId: Id, teamId: Id) 
         sessionId: session.id,
         title: session.title,
         startsAt: session.startsAt,
-        status: report.status,
-        reason: report.reason,
+        status: report.status === 'missed' ? ('out' as const) : report.status,
+        reason: report.status === 'missed' ? MISSED_LABEL : report.reason,
         lateMinutes: report.lateMinutes,
+        missed: report.status === 'missed',
       };
     })
     .filter((event): event is NonNullable<typeof event> => event !== null);
@@ -184,7 +185,7 @@ export function TeamWorkspace({
               ...attendance,
               attendanceEvents: reasonsShared
                 ? attendance.attendanceEvents
-                : attendance.attendanceEvents.map((event) => ({ ...event, reason: null })),
+                : attendance.attendanceEvents.map((event) => (event.missed ? event : { ...event, reason: null })),
             }
           : { attendanceRate: null, missedSessions: null, attendanceEvents: [] }),
       };

@@ -1198,6 +1198,12 @@ export function reportAvailability(input: {
   lateMinutes?: number | null;
 }): void {
   mutate((database) => {
+    if (input.status === 'missed') {
+      const session = database.sessions.find((candidate) => candidate.id === input.sessionId);
+      if (session && new Date(session.startsAt).getTime() > Date.now()) {
+        throw new LocalDataError('You can only say you did not take part once the session has started.');
+      }
+    }
     const previous = database.availability.find(
       (entry) => entry.sessionId === input.sessionId && entry.personId === input.personId,
     );

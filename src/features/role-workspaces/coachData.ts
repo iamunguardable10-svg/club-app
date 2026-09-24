@@ -93,6 +93,9 @@ function toCoachPlayer(database: LocalDatabase, personId: Id, teamId: Id, access
  * version relied on: a coach sees their own teams, not the whole club. Without
  * accounts there is nothing to enforce it for us, so it is enforced here.
  */
+/** How a report of "I didn't take part" reads for coaches. */
+export const MISSED_LABEL = 'did not take part';
+
 export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null): CoachData {
   if (!coachPersonId) return EMPTY_COACH_DATA;
 
@@ -198,9 +201,11 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
         id: entry.id,
         userId: entry.personId,
         playerName: personNameById.get(entry.personId) ?? 'Player',
-        status: entry.status,
-        reason: entry.reason,
+        // "Did not take part" is an absence for every count, with its own label.
+        status: entry.status === 'missed' ? 'out' : entry.status,
+        reason: entry.status === 'missed' ? MISSED_LABEL : entry.reason,
         lateMinutes: entry.lateMinutes,
+        missed: entry.status === 'missed',
       },
     ]);
   }
@@ -224,7 +229,8 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
       const sessionAvailability = !permissions.has('viewAttendance')
         ? []
         : (availabilityBySessionId.get(session.id) ?? []).map((entry) =>
-            permissions.has('viewAbsenceReasons') ? entry : { ...entry, reason: null },
+            // "did not take part" is a status, not a private reason.
+            permissions.has('viewAbsenceReasons') || entry.missed ? entry : { ...entry, reason: null },
           );
 
       return {
@@ -324,7 +330,7 @@ export function attendanceRateForPerson(database: LocalDatabase, personId: Id, t
 
   const absences = new Set(
     database.availability
-      .filter((entry) => entry.personId === personId && entry.status === 'out')
+      .filter((entry) => entry.personId === personId && (entry.status === 'out' || entry.status === 'missed'))
       .map((entry) => entry.sessionId),
   );
   const attended = pastSessions.filter((session) => !absences.has(session.id)).length;

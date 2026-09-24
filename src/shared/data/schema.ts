@@ -98,8 +98,13 @@ export type SessionType = 'training' | 's_and_c' | 'game' | 'recovery' | 'other'
 
 export const SESSION_TYPES: SessionType[] = ['training', 's_and_c', 'game', 'recovery', 'other'];
 
-/** How an athlete reports in for a specific session. */
-export type AvailabilityStatus = 'in' | 'late' | 'out';
+/**
+ * How an athlete reports in for a specific session. `late` and `out` are said
+ * beforehand; `missed` ("I didn't take part") is said afterwards, when the app
+ * asks how hard a session was that the player did not attend. Coaches see it
+ * as an absence with its own label, not as a cancellation.
+ */
+export type AvailabilityStatus = 'in' | 'late' | 'out' | 'missed';
 
 export type Club = {
   id: Id;

@@ -20,16 +20,19 @@
 import {
   mutate,
   newId,
+  reportAvailability,
   sessionTypeToLoadType,
   teamsForPerson,
   type AthleteLoadEntry,
   type Id,
   type LocalDatabase,
+  type Session,
 } from '@/shared/data';
 import type { AthleteLoadPlan, AthletePendingSession } from './loadTypes';
 
 export type AthleteAvailabilityMark = {
-  status: 'expected' | 'late' | 'out';
+  /** `missed`: did not take part, said after the session. */
+  status: 'expected' | 'late' | 'out' | 'missed';
   reason: string | null;
   lateMinutes: number | null;
 };
@@ -58,27 +61,46 @@ export function readTeamSessions(database: LocalDatabase, personId: Id): Athlete
       return time >= start && time < end;
     })
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
-    .map((session) => {
-      const startsAt = new Date(session.startsAt);
-      return {
-        id: session.id,
-        title: session.title,
-        teamId: session.teamId,
-        teamName: teamById.get(session.teamId)?.name ?? null,
-        date: `${startsAt.getFullYear()}-${String(startsAt.getMonth() + 1).padStart(2, '0')}-${String(startsAt.getDate()).padStart(2, '0')}`,
-        startsAt: session.startsAt,
-        endsAt: session.endsAt,
-        trainingType: sessionTypeToLoadType(session.sessionType),
-        source: 'team_session' as const,
-        loadTracked: teamById.get(session.teamId)?.features.includes('load') ?? false,
-      };
-    });
+    .map((session) => toPendingSession(session, teamById.get(session.teamId)?.name ?? null, teamById.get(session.teamId)?.features.includes('load') ?? false));
+}
+
+function toPendingSession(session: Session, teamName: string | null, loadTracked: boolean): AthletePendingSession {
+  const startsAt = new Date(session.startsAt);
+  return {
+    id: session.id,
+    title: session.title,
+    teamId: session.teamId,
+    teamName,
+    date: `${startsAt.getFullYear()}-${String(startsAt.getMonth() + 1).padStart(2, '0')}-${String(startsAt.getDate()).padStart(2, '0')}`,
+    startsAt: session.startsAt,
+    endsAt: session.endsAt,
+    trainingType: sessionTypeToLoadType(session.sessionType),
+    source: 'team_session',
+    loadTracked,
+  };
+}
+
+/**
+ * Warmups are not sessions of their own: the workspace invents one before
+ * every game (`<game id>-warmup`). Stored, a warmup entry points at the game
+ * session and is told apart by its training type, because the server only
+ * accepts real session ids. These two helpers translate between the two.
+ */
+const WARMUP_SUFFIX = '-warmup';
+
+function toStoredSessionId(entry: Pick<AthleteLoadEntry, 'sessionId'>) {
+  return entry.sessionId?.endsWith(WARMUP_SUFFIX) ? entry.sessionId.slice(0, -WARMUP_SUFFIX.length) : entry.sessionId;
+}
+
+function toWorkspaceSessionId(entry: Pick<AthleteLoadEntry, 'sessionId' | 'trainingType'>) {
+  if (entry.trainingType !== 'warmup' || !entry.sessionId || entry.sessionId.endsWith(WARMUP_SUFFIX)) return entry.sessionId;
+  return `${entry.sessionId}${WARMUP_SUFFIX}`;
 }
 
 export function readEntries(database: LocalDatabase, personId: Id): AthleteLoadEntry[] {
   return database.loadEntries
     .filter((entry) => entry.personId === personId)
-    .map(({ personId: _personId, createdAt: _createdAt, ...entry }) => entry)
+    .map(({ personId: _personId, createdAt: _createdAt, ...entry }) => ({ ...entry, sessionId: toWorkspaceSessionId(entry) }))
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
@@ -91,7 +113,7 @@ export function saveEntries(personId: Id, entries: AthleteLoadEntry[]) {
     const now = new Date().toISOString();
     database.loadEntries = [
       ...database.loadEntries.filter((entry) => entry.personId !== personId),
-      ...entries.map((entry) => ({ ...entry, personId, createdAt: createdAtById.get(entry.id) ?? now })),
+      ...entries.map((entry) => ({ ...entry, sessionId: toStoredSessionId(entry), personId, createdAt: createdAtById.get(entry.id) ?? now })),
     ].sort((a, b) => a.date.localeCompare(b.date));
   });
 }
@@ -122,11 +144,74 @@ export function readAcknowledged(database: LocalDatabase, personId: Id): string[
 
 export function saveAcknowledged(personId: Id, sessionIds: string[]) {
   deferWrite((database) => {
+    // Only real team sessions can be acknowledged on the server; warmups and
+    // own plans have ids of their own and would be refused.
+    const sessionIdSet = new Set(database.sessions.map((session) => session.id));
     database.acknowledgedSessions = [
       ...database.acknowledgedSessions.filter((item) => item.personId !== personId),
-      ...Array.from(new Set(sessionIds)).map((sessionId) => ({ personId, sessionId })),
+      ...Array.from(new Set(sessionIds)).filter((sessionId) => sessionIdSet.has(sessionId)).map((sessionId) => ({ personId, sessionId })),
     ];
   });
+}
+
+/**
+ * Saves the answer to "How hard was it?" for one session: its entry, and for
+ * a game the warmup entry too. Written at once (not deferred): it is called
+ * from a button, and the queue is read back from the stored data.
+ */
+export function saveSessionRating(personId: Id, entries: AthleteLoadEntry[]) {
+  const now = new Date().toISOString();
+  const stored = entries.map((entry) => ({ ...entry, sessionId: toStoredSessionId(entry), personId, createdAt: now }));
+  const keyOf = (entry: { sessionId: string | null; trainingType: string }) => `${entry.sessionId}|${entry.trainingType === 'warmup'}`;
+  const replaced = new Set(stored.filter((entry) => entry.sessionId).map(keyOf));
+  mutate((database) => {
+    database.loadEntries = [
+      ...database.loadEntries.filter((entry) => !(entry.personId === personId && entry.sessionId && replaced.has(keyOf(entry)))),
+      ...stored,
+    ].sort((a, b) => a.date.localeCompare(b.date));
+  });
+}
+
+/** "I didn't take part": the coach sees the player as absent from that session. */
+export function saveMissedSession(personId: Id, sessionId: Id) {
+  reportAvailability({ sessionId, personId, status: 'missed' });
+}
+
+/**
+ * Team sessions the player still has to rate (piece 4): every session that
+ * is over, of a team that tracks load, since the player joined that team,
+ * that concerned them (whole team, or one of their groups), and that they
+ * neither rated, cancelled beforehand, said they missed nor dismissed.
+ * Oldest first, no time limit.
+ */
+export function readSessionsToRate(database: LocalDatabase, personId: Id, now = Date.now()): AthletePendingSession[] {
+  const joinedAtByTeam = new Map(
+    database.memberships
+      .filter((membership) => membership.personId === personId && membership.role === 'athlete')
+      .map((membership) => [membership.teamId, new Date(membership.createdAt).getTime()]),
+  );
+  const teamById = new Map(database.teams.map((team) => [team.id, team]));
+  const myGroupIds = new Set(database.playerGroupMembers.filter((member) => member.personId === personId).map((member) => member.groupId));
+  const rated = new Set(
+    database.loadEntries.filter((entry) => entry.personId === personId && entry.sessionId && entry.trainingType !== 'warmup').map((entry) => entry.sessionId),
+  );
+  const answered = new Set(
+    database.availability.filter((entry) => entry.personId === personId && (entry.status === 'out' || entry.status === 'missed')).map((entry) => entry.sessionId),
+  );
+  const dismissed = new Set(readAcknowledged(database, personId));
+
+  return database.sessions
+    .filter((session) => {
+      const joinedAt = joinedAtByTeam.get(session.teamId);
+      if (joinedAt === undefined || !teamById.get(session.teamId)?.features.includes('load')) return false;
+      const start = new Date(session.startsAt).getTime();
+      const end = session.endsAt ? new Date(session.endsAt).getTime() : start + 60 * 60_000;
+      if (end > now || start < joinedAt) return false;
+      if (session.groupIds.length > 0 && !session.groupIds.some((groupId) => myGroupIds.has(groupId))) return false;
+      return !rated.has(session.id) && !answered.has(session.id) && !dismissed.has(session.id);
+    })
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+    .map((session) => toPendingSession(session, teamById.get(session.teamId)?.name ?? null, true));
 }
 
 /**
@@ -156,9 +241,9 @@ export function saveAvailability(personId: Id, marks: Map<string, AthleteAvailab
     );
     const now = new Date().toISOString();
     const next = Array.from(marks.entries())
-      .filter(([, mark]) => mark.status === 'late' || mark.status === 'out')
+      .filter(([, mark]) => mark.status === 'late' || mark.status === 'out' || mark.status === 'missed')
       .map(([sessionId, mark]) => {
-        const status = mark.status as 'late' | 'out';
+        const status = mark.status as 'late' | 'out' | 'missed';
         const previous = existing.get(sessionId);
         const unchanged =
           previous !== undefined &&

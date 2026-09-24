@@ -38,14 +38,25 @@ import {
   readEntries,
   readPlans,
   readShareLink,
+  readSessionsToRate,
   readTeamSessions,
   saveAcknowledged,
   saveAvailability,
   saveEntries,
+  saveMissedSession,
   savePlans,
+  saveSessionRating,
   saveShareLink,
   type AthleteAvailabilityMark,
 } from './athleteLocalStore';
+import { RatePrompt, WARMUP_MINUTES, WARMUP_RPE } from './RatePrompt';
+
+/**
+ * Players who were already asked in this visit, so moving between Today,
+ * Calendar and Load does not ask again. A new visit (reload, reopening the
+ * app) starts empty and asks again.
+ */
+const askedThisVisit = new Set<string>();
 
 type AthleteView = 'home' | 'load' | 'calendar';
 
@@ -1289,7 +1300,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     const storedPlans = readPlans(database, personId);
     const acknowledged = new Set(readAcknowledged(database, personId));
     const marks = readAvailability(database, personId);
-    const cancelledIds = new Set(Array.from(marks.entries()).filter(([, mark]) => mark.status === 'out').map(([sessionId]) => sessionId));
+    const cancelledIds = new Set(Array.from(marks.entries()).filter(([, mark]) => mark.status === 'out' || mark.status === 'missed').map(([sessionId]) => sessionId));
     const reportedSessionIds = new Set(storedEntries.map((entry) => entry.sessionId).filter(Boolean));
     const pending = teamSessions.filter((session) => !reportedSessionIds.has(session.id) && !acknowledged.has(session.id));
 
@@ -1317,7 +1328,15 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     return availabilityBySessionId.get(sessionId) ?? (sessionId.endsWith('-warmup') ? availabilityBySessionId.get(sessionId.replace(/-warmup$/, '')) : undefined);
   }
   const activePendingSessions = pendingSessions.filter((session) => !isSessionCancelled(session.id));
-  const todayPending = activePendingSessions.filter((session) => session.date <= todayISO() && session.loadTracked !== false).slice(0, 3);
+  // Team sessions still to rate (all of them, since joining), then own plans
+  // that are due. The same queue the "How hard was it?" prompt works through.
+  const sessionsToRate = useMemo(
+    () => (database && activePersonId && hasLoad ? readSessionsToRate(database, activePersonId) : []),
+    [database, activePersonId, hasLoad],
+  );
+  const duePlans = activePendingSessions.filter((session) => session.source === 'athlete_plan' && session.date <= todayISO());
+  const allToRate = [...sessionsToRate, ...duePlans];
+  const todayPending = allToRate.slice(0, 3);
   // Forecasts and planned load only count sessions that are rated afterwards.
   const loadPendingSessions = activePendingSessions.filter((session) => session.loadTracked !== false);
   // A warmup belongs to its game; the game is what comes next.
@@ -1377,6 +1396,55 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     }
     return map;
   }, [sortedEntries]);
+  const [ratePromptOpen, setRatePromptOpen] = useState(false);
+  useEffect(() => {
+    if (!activePersonId || sessionsToRate.length === 0 || askedThisVisit.has(activePersonId)) return;
+    askedThisVisit.add(activePersonId);
+    setRatePromptOpen(true);
+  }, [activePersonId, sessionsToRate.length]);
+
+  function entryFor(session: AthletePendingSession, rpe: number, minutes: number): AthleteLoadEntry {
+    return {
+      id: newId(),
+      sessionId: session.id,
+      teamId: session.teamId,
+      teamName: session.teamName,
+      date: session.date,
+      startsAt: session.startsAt,
+      title: session.title,
+      trainingType: session.trainingType,
+      rpe,
+      durationMinutes: minutes,
+      load: rpe * minutes,
+      note: null,
+      source: 'planned_session',
+    };
+  }
+
+  function saveRating(session: AthletePendingSession, rpe: number, minutes: number, withWarmup: boolean) {
+    if (!activePersonId) return;
+    const warmup = withWarmup ? warmupForSession(session) : null;
+    try {
+      saveSessionRating(activePersonId, [
+        entryFor(session, rpe, minutes),
+        ...(warmup ? [entryFor(warmup, WARMUP_RPE, WARMUP_MINUTES)] : []),
+      ]);
+      setError(null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not save your rating.');
+    }
+  }
+
+  function saveMissed(session: AthletePendingSession) {
+    if (!activePersonId) return;
+    try {
+      saveMissedSession(activePersonId, session.id);
+      setError(null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not save your answer.');
+    }
+  }
+
   function averageRpeFor(type: LoadTrainingType, date: string) {
     if (type === 'game') return 10;
     const targetWeekday = new Date(`${date}T00:00:00`).getDay();
@@ -1729,7 +1797,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       setActiveEntry(null);
       setActiveComposerSession(item.session);
       const availability = availabilityForSession(item.session.id);
-      setAvailabilityDraft(availability?.status ?? 'expected');
+      setAvailabilityDraft(availability?.status === 'missed' ? 'out' : availability?.status ?? 'expected');
       setAvailabilityReason(availability?.reason ?? '');
       setLateMinutes(availability?.lateMinutes ?? 10);
       setPlanForm({
@@ -1850,8 +1918,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   <h2 className="text-lg font-black">How hard was it?</h2>
                   <p className="text-sm text-slate-400">Rate your past sessions so your load stays accurate.</p>
                 </div>
-                <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{todayPending.length}</span>
+                <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{allToRate.length}</span>
               </div>
+              {sessionsToRate.length > 0 ? (
+                <button type="button" onClick={() => setRatePromptOpen(true)} className="mt-3 w-full rounded-2xl bg-emerald-300 px-4 py-2.5 text-sm font-black text-slate-950">
+                  {sessionsToRate.length === 1 ? 'Rate it now' : `Rate ${sessionsToRate.length} sessions now`}
+                </button>
+              ) : null}
               <div className="mt-4 space-y-3">
                 {todayPending.map((session) => {
                   const active = activePendingId === session.id;
@@ -2115,6 +2188,16 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             )}
           </div>
         </div>
+      ) : null}
+
+      {ratePromptOpen && sessionsToRate.length > 0 ? (
+        <RatePrompt
+          sessions={sessionsToRate}
+          defaultRpeFor={(session) => averageRpeFor(session.trainingType, session.date)}
+          onSave={saveRating}
+          onMissed={saveMissed}
+          onLater={() => setRatePromptOpen(false)}
+        />
       ) : null}
 
       <AppConfirmDialog

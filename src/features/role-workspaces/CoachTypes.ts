@@ -27,6 +27,8 @@ export type CoachAvailability = {
   status: 'late' | 'out';
   reason: string | null;
   lateMinutes: number | null;
+  /** Said afterwards: did not take part (counts as out, shown with its own label). */
+  missed?: boolean;
 };
 
 export type CoachPlayer = {

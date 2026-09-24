@@ -19,6 +19,8 @@ import pg from 'pg';
 
 import * as data from '../../../src/shared/data';
 import { RemoteStore, type RemoteClient } from '../../../src/shared/data/remote/remoteStore';
+import * as rateStore from '../../../src/features/load/athleteLocalStore';
+import { buildCoachData } from '../../../src/features/role-workspaces/coachData';
 import type { Row, TableName } from '../../../src/shared/data/remote/tables';
 
 const DB = process.env.PILOT_TEST_DB ?? 'pilot_app_test';
@@ -234,6 +236,52 @@ async function main() {
   check('Jonas: load entry 600 AU on the server', (await count('select 1 from load_entries where person_id = $1 and load = 600', [P.jonas])) === 1, store.getStatus().rejected);
   check('Jonas: his traffic light was written too', (await count('select 1 from load_summaries where person_id = $1', [P.jonas])) === 1);
   check('… no refusals', store.getStatus().rejected === null, store.getStatus().rejected);
+
+  // --- "How hard was it?" (piece 4) ---------------------------------------
+  const GAME = '50000000-0000-0000-0000-000000000003';
+  const BEFORE_JOIN = '50000000-0000-0000-0000-000000000004';
+  const GROUP_ONLY = '50000000-0000-0000-0000-000000000005';
+  const MISSED = '50000000-0000-0000-0000-000000000006';
+  await pool.query(`update public.memberships set created_at = now() - interval '10 days' where person_id = $1`, [P.jonas]);
+  await pool.query(`
+    insert into public.player_groups (id, team_id, name) values ('9b000000-0000-0000-0000-000000000001', '${TEAM}', 'Rehab');
+    insert into public.sessions (id, club_id, department_id, team_id, title, session_type, starts_at, ends_at, facility_id, group_ids) values
+      ('${GAME}', '${CLUB}', '${DEP}', '${TEAM}', 'Spiel', 'game', now() - interval '3 days', now() - interval '3 days' + interval '2 hours', '${HALL}', '{}'),
+      ('${BEFORE_JOIN}', '${CLUB}', '${DEP}', '${TEAM}', 'Training', 'training', now() - interval '20 days', now() - interval '20 days' + interval '90 minutes', '${HALL}', '{}'),
+      ('${GROUP_ONLY}', '${CLUB}', '${DEP}', '${TEAM}', 'Reha', 'training', now() - interval '2 days', now() - interval '2 days' + interval '60 minutes', '${HALL}', array['9b000000-0000-0000-0000-000000000001']::uuid[]),
+      ('${MISSED}', '${CLUB}', '${DEP}', '${TEAM}', 'Training', 'training', now() - interval '4 days', now() - interval '4 days' + interval '90 minutes', '${HALL}', '{}');
+  `);
+  store = await actAs(U.jonas);
+  const queue = rateStore.readSessionsToRate(db(), P.jonas).map((session) => session.id);
+  check('rate: asks for the game and the other training, oldest first', queue.join() === [MISSED, GAME].join(), queue);
+  check('… not for sessions before joining, of another group, or already rated',
+    !queue.includes(BEFORE_JOIN) && !queue.includes(GROUP_ONLY) && !queue.includes(PAST));
+  const game = rateStore.readSessionsToRate(db(), P.jonas).find((session) => session.id === GAME)!;
+  const entryOf = (sessionId: string, trainingType: data.LoadTrainingType, rpe: number, minutes: number) => ({
+    id: data.newId(), sessionId, teamId: TEAM, teamName: 'U16', date: game.date, startsAt: game.startsAt, title: game.title,
+    trainingType, rpe, durationMinutes: minutes, load: rpe * minutes, note: null, source: 'planned_session' as const,
+  });
+  rateStore.saveSessionRating(P.jonas, [entryOf(GAME, 'game', 10, 55), entryOf(`${GAME}-warmup`, 'warmup', 3, 20)]);
+  await data.flushRemote();
+  check('rate: game and warmup saved on the server, both on the game session',
+    (await count('select 1 from load_entries where person_id = $1 and session_id = $2', [P.jonas, GAME])) === 2, store.getStatus().rejected);
+  check('… the app still tells the warmup apart', rateStore.readEntries(db(), P.jonas).some((entry) => entry.sessionId === `${GAME}-warmup`));
+  rateStore.saveMissedSession(P.jonas, MISSED);
+  await data.flushRemote();
+  check('rate: "I didn\'t take part" saved as missed', (await count("select 1 from availability where person_id = $1 and session_id = $2 and status = 'missed'", [P.jonas, MISSED])) === 1, store.getStatus().rejected);
+  check('… and nothing is left to rate', rateStore.readSessionsToRate(db(), P.jonas).length === 0);
+  let earlyMissed = '';
+  try {
+    rateStore.saveMissedSession(P.jonas, FUTURE);
+  } catch (error) {
+    earlyMissed = error instanceof Error ? error.message : String(error);
+  }
+  check('rate: a session that has not started cannot be missed', earlyMissed.includes('once the session has started'), earlyMissed);
+  check('… no refusals', store.getStatus().rejected === null, store.getStatus().rejected);
+  store = await actAs(U.uwe);
+  const missedForCoach = buildCoachData(db(), P.uwe).sessions.find((session) => session.id === MISSED)?.availability.find((entry) => entry.userId === P.jonas);
+  check('coach: sees Jonas as absent, labelled "did not take part"', missedForCoach?.status === 'out' && missedForCoach.missed === true && missedForCoach.reason === 'did not take part', missedForCoach);
+  store = await actAs(U.jonas);
   data.renameOwnPerson(P.jonas, 'Jonas', 'Kern-Neu');
   await data.flushRemote();
   check('Jonas: renamed himself on the server', (await count("select 1 from people where id = $1 and last_name = 'Kern-Neu'", [P.jonas])) === 1, store.getStatus().rejected);

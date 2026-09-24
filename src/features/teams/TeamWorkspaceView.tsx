@@ -49,6 +49,8 @@ export type TeamWorkspacePlayer = PlayerLoadInput & {
     status: 'out' | 'late';
     reason?: string | null;
     lateMinutes?: number | null;
+    /** Did not take part, said afterwards. */
+    missed?: boolean;
   }[];
 };
 export type TeamWorkspaceStaffRole = {

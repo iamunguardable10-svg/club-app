@@ -400,6 +400,23 @@ select test.expect_count('sessions stay, without a hall', $q$select 1 from publi
 select test.expect_count('the series stays, without a hall', $q$select 1 from public.session_series where facility_id is null$q$, 1);
 
 -- ---------------------------------------------------------------------------
+-- "How hard was it?": missed sessions and warmups (piece 4)
+-- ---------------------------------------------------------------------------
+
+set role authenticated;
+select test.act_as('10000000-0000-0000-0000-000000000011');
+select test.expect_rows('Jonas says he did not take part in a past session',
+  $q$insert into public.availability (session_id, person_id, status) values ('50000000-0000-0000-0000-000000000017', 'a0000000-0000-0000-0000-000000000011', 'missed')$q$, 1);
+select test.expect_error('… but cannot say so for a session that has not started',
+  $q$update public.availability set status = 'missed' where session_id = '50000000-0000-0000-0000-000000000016' and person_id = 'a0000000-0000-0000-0000-000000000011'$q$, 'did not take part');
+select test.expect_rows('… and stores a warmup entry on the game''s session id',
+  $q$insert into public.load_entries (person_id, session_id, team_id, date, title, training_type, rpe, duration_minutes, load, source) values ('a0000000-0000-0000-0000-000000000011', '50000000-0000-0000-0000-000000000017', '70000000-0000-0000-0000-000000000016', current_date - 2, 'Warmup', 'warmup', 3, 20, 60, 'planned_session')$q$, 1);
+select test.act_as('10000000-0000-0000-0000-000000000005');
+select test.expect_count('Uwe (attendance) sees that Jonas did not take part',
+  $q$select 1 from public.availability where person_id = 'a0000000-0000-0000-0000-000000000011' and status = 'missed'$q$, 1);
+reset role;
+
+-- ---------------------------------------------------------------------------
 -- Removing players from a team (Run 11d): manageStaff only
 -- ---------------------------------------------------------------------------
 

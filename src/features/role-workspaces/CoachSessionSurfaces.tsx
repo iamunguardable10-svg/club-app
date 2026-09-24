@@ -67,7 +67,7 @@ function sessionLoadDetailsShared(session: CoachSession) {
 function summarizeCoachSession(session: CoachSession) {
   const late = session.availability.filter((item) => item.status === 'late');
   const out = session.availability.filter((item) => item.status === 'out');
-  const loadReports = session.players.flatMap((player) => player.loadEntries.filter((entry) => entry.sessionId === session.id).map((entry) => ({ player, entry })));
+  const loadReports = session.players.flatMap((player) => player.loadEntries.filter((entry) => entry.sessionId === session.id && entry.trainingType !== 'warmup').map((entry) => ({ player, entry })));
   const reportRate = session.players.length > 0 ? loadReports.length / session.players.length : 0;
   const avgRpe = loadReports.length > 0 ? loadReports.reduce((sum, item) => sum + item.entry.rpe, 0) / loadReports.length : null;
   const avgLoad = loadReports.length > 0 ? loadReports.reduce((sum, item) => sum + item.entry.load, 0) / loadReports.length : null;

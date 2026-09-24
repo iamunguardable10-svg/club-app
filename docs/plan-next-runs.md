@@ -1,6 +1,6 @@
 # Plan: die nächsten Stücke bis zum Pilotbetrieb
 
-Stand 2026-09-24, nach Run 11e (Stück 3.5, Load je Team). Auf Wunsch des
+Stand 2026-09-24, nach Run 11f (Stück 4, RPE-Abfrage). Auf Wunsch des
 Auftraggebers geht es Stück für Stück: Jedes Stück wird einzeln gebaut, geprüft,
 committet und kurz berichtet, bevor das nächste beginnt. Entscheidungen, die ein Stück
 braucht, stehen jeweils dabei und werden vorher geklärt.
@@ -29,7 +29,7 @@ RPE-Abfrage, keine Benachrichtigungen und keine Installation als App.
 | 2 | UI-Fehler und Layout (erledigt, Run 11c) | echte Fehler und Handy-Probleme aus der Durchsicht | mittel |
 | 3 | Spieler aus dem Team entfernen (erledigt, Run 11d) | Sicherheitslücke im Ablauf (falscher Beitritt) | klein |
 | 3.5 | Belastung (Load) je Team an/aus, vorbereitet für Abos (erledigt, Run 11e) | nicht jedes Team braucht Load; Stück 4 muss es schon beachten | mittel |
-| 4 | Automatische RPE-Abfrage | Kernfunktion für die Belastungssteuerung | mittel |
+| 4 | Automatische RPE-Abfrage (erledigt, Run 11f) | Kernfunktion für die Belastungssteuerung | mittel |
 | 5 | Veröffentlichen (Vercel) | Voraussetzung für Handy-Tests, App-Installation und Push | klein, braucht dich |
 | 6 | Als App installierbar (PWA) | Voraussetzung für Push auf dem iPhone | klein |
 | 7 | Benachrichtigungen (Push) | braucht 5 und 6 | groß |

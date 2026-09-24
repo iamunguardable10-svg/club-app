@@ -327,6 +327,18 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     athletesByTeam.set(membership.teamId, [...(athletesByTeam.get(membership.teamId) ?? []), membership.personId]);
   }
 
+  // The most recent past sessions are not rated yet, as after a real
+  // training day: the latest one by nobody, the one before by about half. The
+  // demo then shows the "How hard was it?" prompt (piece 4).
+  const latestPastByTeam = new Map<Id, Id[]>();
+  for (const session of [...sessions].reverse()) {
+    if (new Date(session.endsAt).getTime() >= now.getTime()) continue;
+    const list = latestPastByTeam.get(session.teamId) ?? [];
+    if (list.length < 2) latestPastByTeam.set(session.teamId, [...list, session.id]);
+  }
+  const unratedByAll = new Set([...latestPastByTeam.values()].map((ids) => ids[0]).filter(Boolean));
+  const unratedBySome = new Set([...latestPastByTeam.values()].map((ids) => ids[1]).filter(Boolean));
+
   const availability: Availability[] = [];
   const loadEntries: LoadEntry[] = [];
   const teamNameById = new Map(teams.map((team) => [team.id, team.name]));
@@ -359,6 +371,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
       }
 
       if (!isPast || status === 'out') continue;
+      if (unratedByAll.has(session.id) || (unratedBySome.has(session.id) && random() < 0.5)) continue;
 
       // Past sessions the athlete attended produce a load entry.
       const durationMinutes = Math.round(
