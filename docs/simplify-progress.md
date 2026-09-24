@@ -1417,3 +1417,17 @@ doppelter Name, Leitung, Team mit Head Coach, Umbenennen, Archivieren und Wieder
 Hallen und Hallenkalender im Vereinsrahmen, Leitung ohne Admin-Funktionen, keine
 Spielerdaten, kein Überlauf, keine Fehler) und die Trainer-Hallen unverändert.
 Keine neue Migration.
+
+## Run 13 — Stück 5: Veröffentlichen (Teil der App erledigt)
+
+- Next.js 15.5.18 → 15.5.26: behebt die veröffentlichten Lücken (u. a. kritisch: Remote
+  Code Execution über die Bildoptimierung; SSRF, DoS). `npm audit fix` für Werkzeug-
+  Pakete. Übrig: die in Next gebündelte `postcss`-Kopie (nur beim Bauen, Fix erst mit
+  Next 16).
+- Geprüft mit der neuen Version: Typecheck, Build, alle Zugriffsprüfungen, 98
+  Ende-zu-Ende-Prüfungen, Browser-Rauchtest (Start, Demo als Trainer, Spieler und
+  Vereinsadmin, Code-Vorschau gegen den Server, Login).
+- Pull Request #14 nach `main`; Vercel-Produktion hat `NEXT_PUBLIC_SUPABASE_URL` und
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+- Gründungs-Code für den eigenen Verein per `app.create_founding_code` erzeugt.
+- Offen bei dir: Supabase Site URL / Redirect-URLs und E-Mail-Bestätigung (siehe Plan).

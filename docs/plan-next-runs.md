@@ -118,9 +118,15 @@ Wunsch vom 2026-09-24: Nicht alle Teams haben oder brauchen Load, je nach künft
   `NEXT_PUBLIC_SUPABASE_URL` (auf `tszxeainmwowmixqmphn`) und
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` sind gesetzt (vorher hieß der Schlüssel
   `…_ANON_KEY`, den die App nicht liest, deshalb lief bisher nur die Demo).
-- Offen für den Livegang: Arbeitszweig nach `main` übernehmen (Pull Request, du gibst
-  frei); Supabase Site URL und Redirect-URLs auf die öffentliche Adresse; E-Mail-
-  Bestätigung aus oder eigenes SMTP. Vereinsdaten entfallen: das macht das Onboarding.
+- **Stand 2026-09-25 (Run 13):** Next.js auf 15.5.26 (Sicherheitslücken), Pull Request
+  #14 nach `main` (freigegeben), Gründungs-Code für den eigenen Verein erzeugt (steht nur
+  im Chat, nicht im Repo). Vereinsdaten entfallen: das macht das Onboarding (`/found`).
+- **Bei dir im Supabase-Dashboard:** Auth → URL Configuration: Site URL
+  `https://club-app-five-rho.vercel.app`, Redirect URLs
+  `https://club-app-five-rho.vercel.app/**` (und für Vorschauen
+  `https://*-iamunguardable10-7821s-projects.vercel.app/**`, falls gewünscht);
+  Auth → Sign In / Providers → Email: „Confirm email“ aus, oder Auth → SMTP mit eigenem
+  Mailkonto (der eingebaute Versand ist auf wenige Mails pro Stunde begrenzt).
 
 ### 6 Als App installierbar
 
