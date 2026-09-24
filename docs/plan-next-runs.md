@@ -31,7 +31,7 @@ RPE-Abfrage, keine Benachrichtigungen und keine Installation als App.
 | 3.5 | Belastung (Load) je Team an/aus, vorbereitet für Abos (erledigt, Run 11e) | nicht jedes Team braucht Load; Stück 4 muss es schon beachten | mittel |
 | 4 | Automatische RPE-Abfrage (erledigt, Run 11f) | Kernfunktion für die Belastungssteuerung | mittel |
 | 5 | Veröffentlichen (Vercel) (Grundlagen erledigt 2026-09-24, Livegang nach 8) | Voraussetzung für Handy-Tests, App-Installation und Push | klein, braucht dich |
-| 8 | Vereinsverwaltung und Onboarding (vorgezogen) | ohne Onboarding kann kein echter Verein starten | groß, in Teilen |
+| 8 | Vereinsverwaltung und Onboarding (vorgezogen; 8a erledigt, Run 12a) | ohne Onboarding kann kein echter Verein starten | groß, in Teilen |
 | 6 | Als App installierbar (PWA) | Voraussetzung für Push auf dem iPhone | klein |
 | 7 | Benachrichtigungen (Push) | braucht 5 und 6 | groß |
 

@@ -34,6 +34,7 @@ import type {
   Session,
   SessionSeries,
   SessionType,
+  ClubRole,
 } from './schema';
 import { sessionTypeToLoadType } from './loadTypes';
 import { summarizeLoadEntries } from './loadCalculations';
@@ -218,10 +219,10 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
   }));
 
   const teams: LocalDatabase['teams'] = [
-    { id: TEAM_U16, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: 'U16 Jungen', defaultFacilityId: FACILITY_MAIN, features: ['load'], createdAt },
+    { id: TEAM_U16, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: 'U16 Jungen', defaultFacilityId: FACILITY_MAIN, features: ['load'], archivedAt: null, createdAt },
     // Without load tracking, to show a team that only plans sessions and
     // attendance (piece 3.5). Its players' load history stays, unseen.
-    { id: TEAM_U18, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: 'U18 Mädchen', defaultFacilityId: FACILITY_MAIN, features: [], createdAt },
+    { id: TEAM_U18, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: 'U18 Mädchen', defaultFacilityId: FACILITY_MAIN, features: [], archivedAt: null, createdAt },
   ];
 
   const people: Person[] = [];
@@ -254,6 +255,17 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
       });
     });
   });
+
+  // Above the teams (piece 8): a club admin and the Basketball lead, neither
+  // of them coaching, so the demo shows what these roles see on their own.
+  people.push(
+    { id: 'club-admin-1', clubId: CLUB_ID, userId: null, firstName: 'Claudia', lastName: 'Brandt', createdAt },
+    { id: 'department-lead-1', clubId: CLUB_ID, userId: null, firstName: 'Frank', lastName: 'Meyer', createdAt },
+  );
+  const clubRoles: ClubRole[] = [
+    { id: 'club-role-admin-1', clubId: CLUB_ID, personId: 'club-admin-1', role: 'admin', departmentId: null, createdAt },
+    { id: 'club-role-lead-1', clubId: CLUB_ID, personId: 'department-lead-1', role: 'department_lead', departmentId: DEPARTMENT_ID, createdAt },
+  ];
 
   const addAthletes = (teamId: Id, names: [string, string][], prefix: string) => {
     names.forEach(([firstName, lastName], index) => {
@@ -487,6 +499,8 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     // them needs accounts and only works there.
     joinCodes: teams.map((team, index) => ({ teamId: team.id, code: ['TESTABCD', 'TESTEFGH'][index] ?? 'TESTJKMN', createdAt })),
     staffInvites: [],
+    clubRoles,
+    clubRoleInvites: [],
     playerGroups,
     playerGroupMembers,
     sessions,

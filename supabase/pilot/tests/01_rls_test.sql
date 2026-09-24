@@ -232,7 +232,7 @@ select test.expect_error('Martin cannot create a U18 session',
   $q$insert into public.sessions (team_id, club_id, department_id, title, session_type, starts_at, ends_at)
      values ('70000000-0000-0000-0000-000000000018', 'c0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001', 'x', 'training', now(), now() + interval '1 hour')$q$,
   'row-level security');
-select test.expect_error('Martin cannot rename his team', $q$update public.teams set name = 'X' where id = '70000000-0000-0000-0000-000000000016'$q$, 'permission denied');
+select test.expect_error('Martin cannot rename his team', $q$update public.teams set name = 'X' where id = '70000000-0000-0000-0000-000000000016'$q$, 'permission denied|Only the club admin');
 select test.expect_rows('Martin sets the U16 default hall',
   $q$update public.teams set default_facility_id = 'f0000000-0000-0000-0000-000000000002' where id = '70000000-0000-0000-0000-000000000016'$q$, 1);
 

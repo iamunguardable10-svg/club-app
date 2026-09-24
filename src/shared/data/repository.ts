@@ -29,15 +29,19 @@
 
 import { calculateEWMA, getLatestACWR, loadZone, sevenDayLoad, summarizeLoadEntries } from './loadCalculations';
 import { DATABASE_KEY, LEGACY_KEY_PREFIXES, SCHEMA_VERSION, isCurrent } from './migrations';
-import { createSeedDatabase } from './seed';
+import { COACH_ROLE_TEMPLATES, createSeedDatabase } from './seed';
 import type { RemoteStore } from './remote/remoteStore';
 import {
   COACH_PERMISSIONS,
   COACH_PERMISSION_REQUIRES,
+  CLUB_MANAGEMENT_PERMISSIONS,
   LOAD_PERMISSIONS,
   LocalDataError,
   type ActiveIdentity,
   type CoachPermission,
+  type ClubRole,
+  type ClubRoleInvite,
+  type ClubRoleKind,
   type CoachRole,
   type Membership,
   type Availability,
@@ -501,7 +505,39 @@ export async function joinTeamWithCode(code: string, firstName: string, lastName
   }
 }
 
-/** Links the signed-in account to the invited staff member. Returns the team id. */
+/**
+ * Founds a club with a one-time founding code (piece 8): club, first
+ * department, first team, and the signed-in account as club admin, if asked
+ * also as the team's Head Coach. Only with the club server; the code comes
+ * from the platform owner. Returns the club id.
+ */
+export async function foundClub(input: {
+  code: string;
+  clubName: string;
+  city: string;
+  firstName: string;
+  lastName: string;
+  departmentName: string;
+  teamName: string;
+  coachTeam: boolean;
+}): Promise<Id> {
+  try {
+    return (await requireRemote().call('found_club', {
+      p_code: input.code,
+      p_club_name: input.clubName,
+      p_city: input.city,
+      p_first_name: input.firstName,
+      p_last_name: input.lastName,
+      p_department_name: input.departmentName,
+      p_team_name: input.teamName,
+      p_coach_team: input.coachTeam,
+    })) as Id;
+  } catch (error) {
+    throw error instanceof LocalDataError ? error : new LocalDataError(error instanceof Error ? error.message : String(error));
+  }
+}
+
+/** Links the signed-in account to the invited staff member or club role. Returns the team (or club) id. */
 export async function acceptStaffInvite(token: string): Promise<Id> {
   try {
     return (await requireRemote().call('accept_staff_invite', { p_token: token })) as Id;
@@ -693,8 +729,13 @@ export function coachPermissions(database: LocalDatabase, personId: Id | null, t
   const membership = database.memberships.find(
     (candidate) => candidate.personId === personId && candidate.teamId === teamId && candidate.role === 'coach',
   );
-  if (!membership) return NO_PERMISSIONS;
-  const granted = permissionsOfRole(roleById(database, membership.coachRoleId));
+  const fromRole = membership ? permissionsOfRole(roleById(database, membership.coachRoleId)) : NO_PERMISSIONS;
+  // Club admins and department leads run the teams they manage, without
+  // seeing player data (piece 8, same as the server's app.team_permissions).
+  const granted = managesTeam(database, personId, teamId)
+    ? new Set<CoachPermission>([...fromRole, ...CLUB_MANAGEMENT_PERMISSIONS])
+    : fromRole;
+  if (granted.size === 0) return NO_PERMISSIONS;
   // Load rights only take effect in teams that track load, as on the server.
   if (teamHasFeature(database, teamId, 'load')) return granted;
   return new Set([...granted].filter((permission) => !LOAD_PERMISSIONS.includes(permission)));
@@ -770,7 +811,12 @@ function assertTeamKeepsStaffManager(database: LocalDatabase, teamId: Id) {
       membership.role === 'coach' &&
       permissionsOfRole(roleById(database, membership.coachRoleId)).has('manageStaff'),
   );
-  if (!stillManaged) {
+  // The club admin or the department lead above the team count too.
+  const team = database.teams.find((candidate) => candidate.id === teamId);
+  const managedByClub = Boolean(team) && database.clubRoles.some(
+    (role) => role.role === 'admin' || role.departmentId === team!.departmentId,
+  );
+  if (!stillManaged && !managedByClub) {
     throw new LocalDataError('The team needs at least one person who may manage staff and roles.');
   }
 }
@@ -917,6 +963,174 @@ export function removeAthleteFromTeam(teamId: Id, personId: Id): void {
     ) {
       database.activeIdentity = null;
     }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Club administration (piece 8): club admin and department leads
+// ---------------------------------------------------------------------------
+
+export function clubRolesOf(database: LocalDatabase, personId: Id | null): ClubRole[] {
+  if (!personId) return [];
+  return database.clubRoles.filter((role) => role.personId === personId);
+}
+
+export function isClubAdmin(database: LocalDatabase, personId: Id | null): boolean {
+  return clubRolesOf(database, personId).some((role) => role.role === 'admin');
+}
+
+/** Departments this person manages: all for a club admin, their own for a lead. */
+export function managedDepartmentIds(database: LocalDatabase, personId: Id | null): Id[] {
+  const roles = clubRolesOf(database, personId);
+  if (roles.some((role) => role.role === 'admin')) return database.departments.map((department) => department.id);
+  return roles.filter((role) => role.departmentId).map((role) => role.departmentId!);
+}
+
+export function managesTeam(database: LocalDatabase, personId: Id | null, teamId: Id): boolean {
+  const team = database.teams.find((candidate) => candidate.id === teamId);
+  return Boolean(team && managedDepartmentIds(database, personId).includes(team.departmentId));
+}
+
+/** Teams in use, without archived ones. */
+export function activeTeams(database: LocalDatabase): Team[] {
+  return database.teams.filter((team) => !team.archivedAt);
+}
+
+function requireName(value: string, what: string) {
+  const name = value.trim();
+  if (!name) throw new LocalDataError(`${what} needs a name.`);
+  return name;
+}
+
+export function createDepartment(name: string): Id {
+  const id = newId();
+  const clean = requireName(name, 'The department');
+  mutate((database) => {
+    if (database.departments.some((department) => department.name.toLowerCase() === clean.toLowerCase())) {
+      throw new LocalDataError('There is already a department with this name.');
+    }
+    database.departments.push({ id, clubId: database.club.id, name: clean });
+  });
+  return id;
+}
+
+export function renameDepartment(departmentId: Id, name: string): void {
+  const clean = requireName(name, 'The department');
+  mutate((database) => {
+    const department = database.departments.find((candidate) => candidate.id === departmentId);
+    if (!department) throw new LocalDataError(`Unknown department: ${departmentId}`);
+    department.name = clean;
+  });
+}
+
+/**
+ * A new team in a department. On the server its coach role templates and
+ * join code come from database triggers; locally they are added here.
+ */
+export function createTeam(departmentId: Id, name: string): Id {
+  const id = newId();
+  const clean = requireName(name, 'The team');
+  mutate((database) => {
+    const department = database.departments.find((candidate) => candidate.id === departmentId);
+    if (!department) throw new LocalDataError(`Unknown department: ${departmentId}`);
+    const now = new Date().toISOString();
+    database.teams.push({
+      id, clubId: department.clubId, departmentId, name: clean, defaultFacilityId: null,
+      features: ['load'], archivedAt: null, createdAt: now,
+    });
+    if (!remote) {
+      COACH_ROLE_TEMPLATES.forEach((template, index) => {
+        database.coachRoles.push({
+          id: newId(), teamId: id, name: template.name, permissions: [...template.permissions], locked: template.locked,
+          createdAt: new Date(Date.parse(now) + index).toISOString(),
+        });
+      });
+      const bytes = new Uint8Array(8);
+      globalThis.crypto.getRandomValues(bytes);
+      database.joinCodes.push({ teamId: id, code: Array.from(bytes, (byte) => JOIN_CODE_ALPHABET[byte % JOIN_CODE_ALPHABET.length]).join(''), createdAt: now });
+    }
+  });
+  return id;
+}
+
+export function renameTeam(teamId: Id, name: string): void {
+  const clean = requireName(name, 'The team');
+  mutate((database) => {
+    const team = database.teams.find((candidate) => candidate.id === teamId);
+    if (!team) throw new LocalDataError(`Unknown team: ${teamId}`);
+    team.name = clean;
+  });
+}
+
+/** Archived teams keep sessions, players and history, and leave every list. */
+export function setTeamArchived(teamId: Id, archived: boolean): void {
+  mutate((database) => {
+    const team = database.teams.find((candidate) => candidate.id === teamId);
+    if (!team) throw new LocalDataError(`Unknown team: ${teamId}`);
+    team.archivedAt = archived ? new Date().toISOString() : null;
+  });
+}
+
+/**
+ * Adds someone to a club role by name, before they have an account; they
+ * get an invitation link (`createClubRoleInvite`). Returns the club role id.
+ */
+export function addClubRolePerson(input: { firstName: string; lastName: string; role: ClubRoleKind; departmentId: Id | null }): Id {
+  const first = input.firstName.trim();
+  const last = input.lastName.trim();
+  if (!first || !last) throw new LocalDataError('First and last name are required.');
+  if ((input.role === 'department_lead') !== Boolean(input.departmentId)) {
+    throw new LocalDataError('A department lead needs a department; a club admin none.');
+  }
+  const roleId = newId();
+  mutate((database) => {
+    const now = new Date().toISOString();
+    const personId = newId();
+    database.people.push({ id: personId, clubId: database.club.id, userId: null, firstName: first, lastName: last, createdAt: now });
+    database.clubRoles.push({ id: roleId, clubId: database.club.id, personId, role: input.role, departmentId: input.departmentId, createdAt: now });
+  });
+  return roleId;
+}
+
+/** Removes a club role; the club always keeps an admin. */
+export function removeClubRole(clubRoleId: Id): void {
+  mutate((database) => {
+    const role = database.clubRoles.find((candidate) => candidate.id === clubRoleId);
+    if (!role) return;
+    database.clubRoles = database.clubRoles.filter((candidate) => candidate.id !== clubRoleId);
+    if (!database.clubRoles.some((candidate) => candidate.role === 'admin')) {
+      throw new LocalDataError('The club needs at least one admin.');
+    }
+    database.clubRoleInvites = database.clubRoleInvites.filter((invite) => invite.clubRoleId !== clubRoleId);
+  });
+}
+
+export function openClubRoleInviteFor(database: LocalDatabase, clubRoleId: Id): ClubRoleInvite | null {
+  const now = Date.now();
+  return database.clubRoleInvites.find(
+    (invite) => invite.clubRoleId === clubRoleId && !invite.acceptedAt && Date.parse(invite.expiresAt) >= now,
+  ) ?? null;
+}
+
+/** An invitation link for someone added to a club role, valid 30 days. */
+export function createClubRoleInvite(clubRoleId: Id): Id {
+  const token = newId();
+  mutate((database) => {
+    const role = database.clubRoles.find((candidate) => candidate.id === clubRoleId);
+    if (!role) throw new LocalDataError('Unknown club role.');
+    if (database.people.find((person) => person.id === role.personId)?.userId) throw new LocalDataError('This person already has an account.');
+    const now = new Date();
+    database.clubRoleInvites.push({
+      token, clubRoleId, createdAt: now.toISOString(),
+      expiresAt: new Date(now.getTime() + 30 * 86_400_000).toISOString(), acceptedAt: null,
+    });
+  });
+  return token;
+}
+
+export function revokeClubRoleInvite(token: Id): void {
+  mutate((database) => {
+    database.clubRoleInvites = database.clubRoleInvites.filter((invite) => invite.token !== token);
   });
 }
 

@@ -4,7 +4,7 @@ The Supabase schema for the club pilot (docs/simplify-decisions.md, point 8).
 Derived from the local data model in `src/shared/data/schema.ts`; the older
 schema in `supabase/migrations` is the pre-pilot one and only a reference.
 
-Project: `CLUB_ProjectV2` (`tszxeainmwowmixqmphn`, eu-west-3). All ten
+Project: `CLUB_ProjectV2` (`tszxeainmwowmixqmphn`, eu-west-3). All eleven
 migrations below are applied there (2026-09-24).
 
 | File | What it does |
@@ -19,11 +19,13 @@ migrations below are applied there (2026-09-24).
 | `migrations/0008_pilot_remove_athletes.sql` | Staff with `manageStaff` may remove players from their team; the player also leaves the team's groups, person and history stay |
 | `migrations/0009_pilot_team_features.sql` | Team features (`teams.features`, for now `load`): without load, the team's load rights have no effect and its players cannot record load |
 | `migrations/0010_pilot_missed_sessions.sql` | Availability status `missed` ("I didn't take part", said after the session), only once the session has started |
+| `migrations/0011_pilot_club_admin.sql` | Club administration: club admin and department leads (`club_roles`), their invitations, one-time founding codes and `found_club`, management rights in managed teams without player data, archiving teams |
 | `tests/00_supabase_shim.sql` | Stand-in for Supabase's `auth` schema and roles, **local tests only** |
 | `tests/01_rls_test.sql` | 105 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
 | `tests/02_access_test.sql` | 35 checks for join codes, invitations and club setup |
+| `tests/03_club_admin_test.sql` | 50 checks for founding a club and running it as admin and department lead |
 | `tests/run-local.sh` | Recreates a local test database, applies shim and migrations, runs the checks above |
-| `tests/remote-store.test.ts` | 77 end-to-end checks: the app's real data-layer functions through the server store against the local database, as Head Coach, Betreuer, athlete and two new accounts joining |
+| `tests/remote-store.test.ts` | 89 end-to-end checks: the app's real data-layer functions through the server store against the local database, as Head Coach, Betreuer, athlete and two new accounts joining |
 
 ## What the rules guarantee
 
@@ -61,7 +63,20 @@ reloads what the user may read. What row-level security or a database rule
 refused jumps back, with a message (`SyncStatusBanner`). Details in
 `remoteStore.ts`.
 
-## Setting up the club
+## Founding a club
+
+Clubs are founded in the app (piece 8). The platform owner creates a one-time
+founding code in the SQL editor and passes it on:
+
+```sql
+select app.create_founding_code('for SV Example');   -- returns e.g. K7M2QX9PLA
+```
+
+Whoever signs up and enters it founds the club with its first department and
+team and becomes its club admin (optionally also the team's Head Coach).
+Unused codes: `select * from public.founding_codes where used_at is null;`
+
+## Setting up a club by SQL (old way, still works)
 
 In the Supabase SQL editor (or via the Supabase connection), once:
 
@@ -104,6 +119,9 @@ data again. The app cannot change this.
   `invite_preview` as callable security-definer functions. That is intended:
   they are the entry points; each checks who is signed in and what it is
   given, and `invite_preview` only answers for an unguessable token.
+  `found_club` (0011) is listed the same way: it only acts with an unused
+  founding code. `founding_codes` has no read policy on purpose: codes are
+  never readable from the app.
   `rls_auto_enable` comes with the Supabase project.
 
 ## Changing the schema

@@ -21,7 +21,9 @@ create table if not exists auth.users (
 -- the same setting with `set_config('request.jwt.claims', ...)`.
 create or replace function auth.uid() returns uuid
 language sql stable as $$
-  select nullif(current_setting('request.jwt.claims', true)::jsonb ->> 'sub', '')::uuid
+  -- A pooled connection keeps an empty setting after a request; Supabase
+  -- reads that as "nobody", so this does too.
+  select nullif(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub', '')::uuid
 $$;
 
 grant usage on schema auth to anon, authenticated;

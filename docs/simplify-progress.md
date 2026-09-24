@@ -1294,3 +1294,48 @@ auf dem Server, „missed“, nichts mehr offen, keine Meldung vor Beginn, Train
 „did not take part“), Browser im Demo-Modus (Handybreite, 10 Prüfungen: Abfrage öffnet
 sich, bewerten, nicht teilgenommen, Later, kein zweites Fragen im selben Besuch, neuer
 Besuch fragt wieder, Trainer sieht „did not take part“), keine Laufzeitfehler.
+
+## Run 12a — Stück 8a: Vereinsverwaltung, Datenbank und Datenschicht (erledigt)
+
+Entscheidungen vom 2026-09-24: Verein nur mit Gründungs-Code anlegen; Vereinsadmin und
+Abteilungsleitung; Doppelrollen erlaubt; Admin und Leitung bekommen in ihren Teams die
+Verwaltungsrechte, aber keine Spielerdaten.
+
+- **Migration 0011 (angewendet):**
+  - `club_roles` (Vereinsadmin für den ganzen Verein, Abteilungsleitung für eine
+    Abteilung), eine Person kann sie neben Trainer- oder Spielerrollen haben; der
+    Verein behält immer einen Admin.
+  - `founding_codes`: einmalige Codes, nur der Betreiber erzeugt sie per SQL
+    (`app.create_founding_code`), die App liest sie nie. `found_club(...)` legt
+    Verein, erste Abteilung, erstes Team (mit Rollenvorlagen und Beitrittscode) an und
+    macht den Gründer zum Vereinsadmin, auf Wunsch auch zum Head Coach.
+  - Rechte: Admin legt Abteilungen an und benennt sie um, legt Teams an, benennt sie um
+    und archiviert sie, verwaltet Rollen und Einladungen; die Abteilungsleitung macht
+    dasselbe für Teams ihrer Abteilung, aber keine Abteilungen und keine Leitungen. In
+    verwalteten Teams: Trainerteam, Hallen, Einheiten, Wochenplan, Gruppen, Beitrittscode;
+    kein Kader, keine Anwesenheit, keine Gründe, keine Belastung, keine Pläne (außer mit
+    eigener Trainerrolle im Team).
+  - Einladungen für Abteilungsleitung und Admin über denselben Link wie für Staff
+    (`accept_staff_invite`, `invite_preview` kennen beide Arten).
+  - Teams werden archiviert (`archived_at`) statt gelöscht; Name und Archivierung darf
+    nur ändern, wer das Team verwaltet; Funktionen (Load) setzt nie die App.
+  - Ein Team darf ohne Trainer sein, solange der Verein darüber es verwaltet.
+- **Datenschicht:** Typen `ClubRole`, `ClubRoleInvite`, `Team.archivedAt`; Funktionen
+  `foundClub`, `isClubAdmin`, `managedDepartmentIds`, `managesTeam`, `activeTeams`,
+  `createDepartment`, `renameDepartment`, `createTeam`, `renameTeam`,
+  `setTeamArchived`, `addClubRolePerson`, `removeClubRole`, `createClubRoleInvite`,
+  `openClubRoleInviteFor`, `revokeClubRoleInvite`; `coachPermissions` ergänzt die
+  Verwaltungsrechte wie der Server. Demo-Verein: Claudia Brandt (Vereinsadmin) und Frank
+  Meyer (Leitung Basketball), noch ohne eigene Oberfläche (kommt in 8c).
+- Test-Hilfe: `auth.uid()` im lokalen Supabase-Ersatz liest einen leeren Wert wie
+  Supabase als „niemand“.
+
+Geprüft: 105 + 35 + 50 Zugriffsprüfungen (neue Datei `03_club_admin_test.sql`: Gründen,
+Code nur einmal, kein Zweitverein, Codes unlesbar, Admin baut den Verein, Leitung
+eingeladen und angenommen, Leitung darf nur in ihrer Abteilung, keine Spielerdaten für
+Admin und Leitung, Head Coach darf sein Team nicht umbenennen, fremder Verein tabu, letzter
+Admin bleibt, Team ohne Trainer unter Vereinsverwaltung), 89 Ende-zu-Ende-Prüfungen (neu
+12: Gründen über die App-Datenschicht, Abteilung und Team anlegen, Rechte, umbenennen,
+archivieren, Leitung einladen und annehmen), Typecheck, Build, Browser-Rauchtest im
+Demo-Modus. Supabase-Sicherheitsprüfung: nur die beabsichtigten Hinweise
+(`found_club` als Einstieg, `founding_codes` absichtlich ohne Leseregel).

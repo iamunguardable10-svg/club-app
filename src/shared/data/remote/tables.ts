@@ -15,6 +15,7 @@ import type {
   Availability,
   LoadSummaryRow,
   LocalDatabase,
+  ClubRoleKind,
   SessionType,
   TeamFeature,
 } from '../schema';
@@ -40,14 +41,17 @@ type TableSpec = {
  */
 export const TABLES: readonly TableSpec[] = [
   { name: 'clubs', key: ['id'], kinds: { created_at: 'timestamp' }, readOnly: true },
-  { name: 'departments', key: ['id'], readOnly: true },
+  // Created and renamed by the club admin (piece 8).
+  { name: 'departments', key: ['id'] },
   { name: 'facilities', key: ['id'] },
-  { name: 'teams', key: ['id'], kinds: { created_at: 'timestamp' } },
+  { name: 'teams', key: ['id'], kinds: { created_at: 'timestamp', archived_at: 'timestamp' } },
   { name: 'team_join_codes', key: ['team_id'], kinds: { created_at: 'timestamp' } },
   { name: 'department_facilities', key: ['department_id', 'facility_id'] },
   { name: 'people', key: ['id'], kinds: { created_at: 'timestamp' } },
   { name: 'coach_roles', key: ['id'], kinds: { created_at: 'timestamp' } },
   { name: 'memberships', key: ['id'], kinds: { created_at: 'timestamp' } },
+  { name: 'club_roles', key: ['id'], kinds: { created_at: 'timestamp' } },
+  { name: 'club_role_invites', key: ['token'], kinds: { created_at: 'timestamp', expires_at: 'timestamp', accepted_at: 'timestamp' } },
   { name: 'staff_invites', key: ['token'], kinds: { created_at: 'timestamp', expires_at: 'timestamp', accepted_at: 'timestamp' } },
   { name: 'player_groups', key: ['id'] },
   { name: 'player_group_members', key: ['group_id', 'person_id'] },
@@ -64,7 +68,7 @@ export const TABLES: readonly TableSpec[] = [
 
 export type TableName =
   | 'clubs' | 'departments' | 'facilities' | 'teams' | 'team_join_codes' | 'department_facilities' | 'people' | 'coach_roles'
-  | 'staff_invites'
+  | 'staff_invites' | 'club_roles' | 'club_role_invites'
   | 'memberships' | 'player_groups' | 'player_group_members' | 'session_series' | 'sessions'
   | 'session_series_week_states' | 'availability' | 'availability_reasons' | 'load_entries'
   | 'load_summaries' | 'athlete_plans' | 'acknowledged_sessions';
@@ -112,11 +116,18 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     departments: database.departments.map((d) => ({ id: d.id, club_id: d.clubId, name: d.name })),
     facilities: database.facilities.map((f) => ({ id: f.id, club_id: f.clubId, name: f.name, address: f.address })),
     teams: database.teams.map((t) => ({
-      id: t.id, club_id: t.clubId, department_id: t.departmentId, name: t.name, default_facility_id: t.defaultFacilityId, features: t.features, created_at: t.createdAt,
+      id: t.id, club_id: t.clubId, department_id: t.departmentId, name: t.name, default_facility_id: t.defaultFacilityId, features: t.features,
+      archived_at: t.archivedAt, created_at: t.createdAt,
     })),
     team_join_codes: database.joinCodes.map((c) => ({ team_id: c.teamId, code: c.code, created_at: c.createdAt })),
     staff_invites: database.staffInvites.map((i) => ({
       token: i.token, person_id: i.personId, team_id: i.teamId, created_at: i.createdAt, expires_at: i.expiresAt, accepted_at: i.acceptedAt,
+    })),
+    club_roles: database.clubRoles.map((r) => ({
+      id: r.id, club_id: r.clubId, person_id: r.personId, role: r.role, department_id: r.departmentId, created_at: r.createdAt,
+    })),
+    club_role_invites: database.clubRoleInvites.map((i) => ({
+      token: i.token, club_role_id: i.clubRoleId, created_at: i.createdAt, expires_at: i.expiresAt, accepted_at: i.acceptedAt,
     })),
     department_facilities: database.departmentFacilities.map((l) => ({ department_id: l.departmentId, facility_id: l.facilityId })),
     people: database.people.map((p) => ({
@@ -204,7 +215,7 @@ export function fromServerRows(
     teams: rows.teams.map((t) => ({
       id: s(t.id), clubId: s(t.club_id), departmentId: s(t.department_id), name: s(t.name),
       defaultFacilityId: sn(t.default_facility_id), features: ((t.features as string[] | null) ?? []).filter((f): f is TeamFeature => (TEAM_FEATURES as readonly string[]).includes(f)),
-      createdAt: s(t.created_at),
+      archivedAt: sn(t.archived_at), createdAt: s(t.created_at),
     })),
     facilities: rows.facilities.map((f) => ({ id: s(f.id), clubId: s(f.club_id), name: s(f.name), address: s(f.address) })),
     departmentFacilities: rows.department_facilities.map((l) => ({ departmentId: s(l.department_id), facilityId: s(l.facility_id) })),
@@ -223,6 +234,13 @@ export function fromServerRows(
     staffInvites: rows.staff_invites.map((i) => ({
       token: s(i.token), personId: s(i.person_id), teamId: s(i.team_id), createdAt: s(i.created_at), expiresAt: s(i.expires_at),
       acceptedAt: sn(i.accepted_at),
+    })),
+    clubRoles: rows.club_roles.map((r) => ({
+      id: s(r.id), clubId: s(r.club_id), personId: s(r.person_id), role: r.role as ClubRoleKind, departmentId: sn(r.department_id),
+      createdAt: s(r.created_at),
+    })),
+    clubRoleInvites: rows.club_role_invites.map((i) => ({
+      token: s(i.token), clubRoleId: s(i.club_role_id), createdAt: s(i.created_at), expiresAt: s(i.expires_at), acceptedAt: sn(i.accepted_at),
     })),
     playerGroups: rows.player_groups.map((g) => ({ id: s(g.id), teamId: s(g.team_id), name: s(g.name) })),
     playerGroupMembers: rows.player_group_members.map((m) => ({ groupId: s(m.group_id), personId: s(m.person_id) })),

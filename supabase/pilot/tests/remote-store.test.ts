@@ -103,6 +103,8 @@ const U = {
   ben: '10000000-0000-0000-0000-000000000012',
   mia: '10000000-0000-0000-0000-000000000031',
   newCoach: '10000000-0000-0000-0000-000000000032',
+  founder: '10000000-0000-0000-0000-000000000041',
+  lead: '10000000-0000-0000-0000-000000000042',
 };
 const P = {
   martin: 'a0000000-0000-0000-0000-000000000001',
@@ -122,7 +124,8 @@ async function fixture() {
     insert into auth.users (id, email) values
       ('${U.martin}', 'martin@example.test'), ('${U.uwe}', 'uwe@example.test'),
       ('${U.jonas}', 'jonas@example.test'), ('${U.ben}', 'ben@example.test'),
-      ('${U.mia}', 'mia@example.test'), ('${U.newCoach}', 'lea@example.test');
+      ('${U.mia}', 'mia@example.test'), ('${U.newCoach}', 'lea@example.test'),
+      ('${U.founder}', 'frida@example.test'), ('${U.lead}', 'lars@example.test');
     insert into public.clubs (id, name, city) values ('${CLUB}', 'TV Test', 'Essen');
     insert into public.departments (id, club_id, name) values ('${DEP}', '${CLUB}', 'Basketball');
     insert into public.facilities (id, club_id, name, address) values ('${HALL}', '${CLUB}', 'Sporthalle Nord', 'Nordring 12');
@@ -429,6 +432,43 @@ async function main() {
     reused = error instanceof Error ? error.message : String(error);
   }
   check('the invitation works only once', reused.includes('no longer valid'), reused);
+
+  // --- Founding a club and running it (piece 8a) ---------------------------
+  const foundingCode = (await pool.query(`select app.create_founding_code('e2e') as code`)).rows[0].code as string;
+  store = await actAs(U.founder);
+  check('founder: signed in, no club yet', store.getStatus().phase === 'unlinked');
+  await data.foundClub({ code: foundingCode, clubName: 'SV Neu', city: 'Köln', firstName: 'Frida', lastName: 'Founder', departmentName: 'Handball', teamName: 'A-Jugend', coachTeam: true });
+  const frida = data.getActivePerson(db());
+  check('founder: club founded, she is its admin and Head Coach of the first team',
+    db().club.name === 'SV Neu' && data.isClubAdmin(db(), frida?.id ?? null) && db().activeIdentity?.role === 'coach', { club: db().club, identity: db().activeIdentity });
+  check('… the first team has its roles and join code', db().coachRoles.length === 4 && db().joinCodes.length === 1);
+  const handball = db().departments[0].id;
+  const tennis = data.createDepartment('Tennis');
+  await data.flushRemote();
+  check('admin: department created on the server', (await count('select 1 from departments where id = $1', [tennis])) === 1, store.getStatus().rejected);
+  const damen = data.createTeam(tennis, 'Damen 1');
+  await data.flushRemote();
+  check('admin: team created, the server added roles and a join code',
+    db().coachRoles.filter((role) => role.teamId === damen).length === 4 && data.joinCodeFor(db(), damen) !== null, store.getStatus().rejected);
+  check('admin: management rights in Damen 1, no player data',
+    data.coachPermissions(db(), frida!.id, damen).has('manageStaff') && !data.coachPermissions(db(), frida!.id, damen).has('viewRoster'));
+  data.renameTeam(damen, 'Damen I');
+  data.setTeamArchived(damen, true);
+  await data.flushRemote();
+  check('admin: renamed and archived on the server', (await count("select 1 from teams where id = $1 and name = 'Damen I' and archived_at is not null", [damen])) === 1, store.getStatus().rejected);
+  check('… and archived teams leave the lists', !data.activeTeams(db()).some((team) => team.id === damen));
+  const leadRole = data.addClubRolePerson({ firstName: 'Lars', lastName: 'Lead', role: 'department_lead', departmentId: handball });
+  await data.flushRemote();
+  const leadToken = data.createClubRoleInvite(leadRole);
+  await data.flushRemote();
+  check('admin: Lars added as Handball lead and invited', (await count('select 1 from club_role_invites where token = $1', [leadToken])) === 1, store.getStatus().rejected);
+  const preview = (await pool.query('select * from public.invite_preview($1)', [leadToken])).rows[0];
+  check('… the link says what it is for', preview?.role_name === 'Department lead' && preview?.team_name === 'Handball', preview);
+  check('… no refusals', store.getStatus().rejected === null, store.getStatus().rejected);
+  store = await actAs(U.lead);
+  await data.acceptStaffInvite(leadToken);
+  check('lead: accepted, his account now holds the Handball lead role',
+    (await count("select 1 from club_roles cr join people p on p.id = cr.person_id where p.user_id = $1 and cr.role = 'department_lead'", [U.lead])) === 1);
 
   // --- Not signed in ------------------------------------------------------
   const anonymous = new RemoteStore({ ...pgClient(U.martin), userId: async () => null }, data.SCHEMA_VERSION);

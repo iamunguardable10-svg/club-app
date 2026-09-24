@@ -78,6 +78,14 @@ export type TeamFeature = (typeof TEAM_FEATURES)[number];
 export const LOAD_PERMISSIONS: readonly CoachPermission[] = ['viewLoadSummary', 'viewLoadDetails', 'viewAthletePlans'];
 
 /**
+ * What club admins and department leads may do in the teams they manage:
+ * run the team, but not see player data (roster, attendance, reasons, load,
+ * plans) unless they also hold a coach role there. Same list as the server's
+ * `app.team_permissions`.
+ */
+export const CLUB_MANAGEMENT_PERMISSIONS: readonly CoachPermission[] = ['editSessions', 'planSeries', 'manageGroups', 'manageFacilities', 'manageStaff'];
+
+/**
  * A coach role within one team, for example Head Coach, Assistant Coach or
  * Athletic Coach, with the rights it carries.
  *
@@ -128,6 +136,8 @@ export type Team = {
   defaultFacilityId: Id | null;
   /** Switched-on features, see `TEAM_FEATURES`. */
   features: TeamFeature[];
+  /** Archived teams keep their data but leave every list. */
+  archivedAt: Timestamp | null;
   createdAt: Timestamp;
 };
 
@@ -277,6 +287,33 @@ export type JoinCode = {
  * A personal invitation link for a staff member added by name
  * (`staff_invites`). Accepting it links the invitee's account to that person.
  */
+/**
+ * A role above the teams (piece 8): the club admin manages the whole club,
+ * a department lead one department. Held next to coach or athlete
+ * memberships. In the teams they manage they get the management rights
+ * (`CLUB_MANAGEMENT_PERMISSIONS`), never player data.
+ */
+export type ClubRoleKind = 'admin' | 'department_lead';
+
+export type ClubRole = {
+  id: Id;
+  clubId: Id;
+  personId: Id;
+  role: ClubRoleKind;
+  /** Only for department leads. */
+  departmentId: Id | null;
+  createdAt: Timestamp;
+};
+
+/** Invitation link for someone added to a club role by name. */
+export type ClubRoleInvite = {
+  token: Id;
+  clubRoleId: Id;
+  createdAt: Timestamp;
+  expiresAt: Timestamp;
+  acceptedAt: Timestamp | null;
+};
+
 export type StaffInvite = {
   token: Id;
   personId: Id;
@@ -349,6 +386,8 @@ export type LocalDatabase = {
   coachRoles: CoachRole[];
   joinCodes: JoinCode[];
   staffInvites: StaffInvite[];
+  clubRoles: ClubRole[];
+  clubRoleInvites: ClubRoleInvite[];
   playerGroups: PlayerGroup[];
   playerGroupMembers: PlayerGroupMember[];
   sessions: Session[];
