@@ -75,7 +75,7 @@ function toCoachPlayer(database: LocalDatabase, personId: Id, teamId: Id, access
 
   return {
     id: personId,
-    name: person ? displayName(person) : 'Spieler',
+    name: person ? displayName(person) : 'Player',
     loadEntries: access === 'full' ? entries : [],
     loadAccess: access,
     loadSummary,
@@ -194,7 +194,7 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
       {
         id: entry.id,
         userId: entry.personId,
-        playerName: personNameById.get(entry.personId) ?? 'Spieler',
+        playerName: personNameById.get(entry.personId) ?? 'Player',
         status: entry.status,
         reason: entry.reason,
         lateMinutes: entry.lateMinutes,

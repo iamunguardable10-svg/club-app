@@ -352,7 +352,7 @@ export function subscribe(listener: Listener): () => void {
 
 /** Drops the local database and seeds a fresh test club. */
 export function resetDatabase(): void {
-  if (isRemoteMode()) throw new LocalDataError('Mit dem Server gibt es keine Testdaten zum Zurücksetzen.');
+  if (isRemoteMode()) throw new LocalDataError('There is no test data to reset while signed in to the club.');
   if (!isBrowser()) return;
   cache = null;
   window.localStorage.removeItem(DATABASE_KEY);
@@ -383,7 +383,7 @@ function supabaseModule() {
 }
 
 async function authClient() {
-  if (!isBrowser()) throw new LocalDataError('Anmelden geht nur im Browser.');
+  if (!isBrowser()) throw new LocalDataError('Signing in only works in the browser.');
   const { getSupabase, authStorage } = await supabaseModule();
   return getSupabase(authStorage(window.localStorage));
 }
@@ -391,13 +391,13 @@ async function authClient() {
 /** Supabase answers in English; these are the messages people actually meet. */
 function authMessage(message: string): string {
   const known: [RegExp, string][] = [
-    [/invalid login credentials/i, 'E-Mail oder Passwort stimmt nicht.'],
-    [/email not confirmed/i, 'Bitte bestätige zuerst deine E-Mail-Adresse über den Link in der Mail.'],
-    [/already registered|already exists/i, 'Mit dieser E-Mail gibt es schon ein Konto. Melde dich an.'],
-    [/password should be at least (\d+)/i, 'Das Passwort ist zu kurz.'],
-    [/rate limit|too many/i, 'Zu viele Versuche. Bitte warte kurz und versuche es dann noch einmal.'],
-    [/not authorized/i, 'An diese E-Mail-Adresse kann der Server gerade keine Mails schicken.'],
-    [/unable to validate email|invalid format|invalid email/i, 'Diese E-Mail-Adresse sieht nicht gültig aus.'],
+    [/invalid login credentials/i, 'Email or password is incorrect.'],
+    [/email not confirmed/i, 'Please confirm your email address first, using the link we sent you.'],
+    [/already registered|already exists/i, 'There is already an account with this email. Please sign in.'],
+    [/password should be at least (\d+)/i, 'The password is too short.'],
+    [/rate limit|too many/i, 'Too many attempts. Please wait a moment and try again.'],
+    [/not authorized/i, 'The server cannot send mail to this address right now.'],
+    [/unable to validate email|invalid format|invalid email/i, 'This email address does not look valid.'],
   ];
   return known.find(([pattern]) => pattern.test(message))?.[1] ?? message;
 }
@@ -421,6 +421,22 @@ export async function signUpWithPassword(email: string, password: string, return
   });
   if (error) throw new LocalDataError(authMessage(error.message));
   return { confirmationNeeded: !data.session };
+}
+
+/** Sends a link to choose a new password; it leads to /reset-password. */
+export async function requestPasswordReset(email: string): Promise<void> {
+  const supabase = await authClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: `${window.location.origin}/reset-password`,
+  });
+  if (error) throw new LocalDataError(authMessage(error.message));
+}
+
+/** Sets a new password for the signed-in account (after the reset link). */
+export async function updatePassword(password: string): Promise<void> {
+  const supabase = await authClient();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw new LocalDataError(authMessage(error.message));
 }
 
 export async function signOut(): Promise<void> {
@@ -459,7 +475,7 @@ export async function previewInvite(token: string): Promise<InvitePreview | null
 }
 
 function requireRemote(): RemoteStore {
-  if (!remote) throw new LocalDataError('Beitreten geht nur mit dem Server und nach dem Anmelden.');
+  if (!remote) throw new LocalDataError('Joining needs the club server and a signed-in account.');
   return remote;
 }
 
@@ -491,6 +507,20 @@ export function ownPersonIds(database: LocalDatabase): Id[] {
   return database.activeIdentity ? [database.activeIdentity.personId] : [];
 }
 
+/** Changes the name of one of your own people (the one you act as). */
+export function renameOwnPerson(personId: Id, firstName: string, lastName: string): void {
+  const first = firstName.trim();
+  const last = lastName.trim();
+  if (!first || !last) throw new LocalDataError('First and last name are required.');
+  mutate((database) => {
+    if (!ownPersonIds(database).includes(personId)) throw new LocalDataError('You can only change your own name.');
+    const person = database.people.find((candidate) => candidate.id === personId);
+    if (!person) throw new LocalDataError(`Unknown person: ${personId}`);
+    person.firstName = first;
+    person.lastName = last;
+  });
+}
+
 export function joinCodeFor(database: LocalDatabase, teamId: Id): string | null {
   return database.joinCodes.find((code) => code.teamId === teamId)?.code ?? null;
 }
@@ -504,7 +534,7 @@ export function rotateJoinCode(teamId: Id): string {
   const code = Array.from(bytes, (byte) => JOIN_CODE_ALPHABET[byte % JOIN_CODE_ALPHABET.length]).join('');
   mutate((database) => {
     const existing = database.joinCodes.find((candidate) => candidate.teamId === teamId);
-    if (!existing) throw new LocalDataError('Dieses Team hat keinen Beitrittscode.');
+    if (!existing) throw new LocalDataError('This team has no join code.');
     existing.code = code;
   });
   return code;
@@ -523,8 +553,8 @@ export function createStaffInvite(personId: Id, teamId: Id): Id {
   const token = newId();
   mutate((database) => {
     const isStaff = database.memberships.some((m) => m.personId === personId && m.teamId === teamId && m.role === 'coach');
-    if (!isStaff) throw new LocalDataError('Einladungen gibt es nur für Personen im Trainerteam.');
-    if (database.people.find((person) => person.id === personId)?.userId) throw new LocalDataError('Diese Person hat schon ein Konto.');
+    if (!isStaff) throw new LocalDataError('Invitations are only for members of the staff.');
+    if (database.people.find((person) => person.id === personId)?.userId) throw new LocalDataError('This person already has an account.');
     const now = new Date();
     database.staffInvites.push({
       token, personId, teamId, createdAt: now.toISOString(),
@@ -553,7 +583,7 @@ export function setActiveIdentity(identity: ActiveIdentity | null): void {
     // With the server you are always yourself: only a switch between your
     // own roles (coach and athlete) is possible.
     if (remote && identity && !ownPersonIds(database).includes(identity.personId)) {
-      throw new LocalDataError('Mit dem Server kannst du nur zwischen deinen eigenen Rollen wechseln.');
+      throw new LocalDataError('Signed in, you can only switch between your own roles.');
     }
     database.activeIdentity = identity;
   });
@@ -699,7 +729,7 @@ function assertTeamKeepsStaffManager(database: LocalDatabase, teamId: Id) {
       permissionsOfRole(roleById(database, membership.coachRoleId)).has('manageStaff'),
   );
   if (!stillManaged) {
-    throw new LocalDataError('Das Team braucht mindestens eine Person, die Trainerrollen verwalten darf.');
+    throw new LocalDataError('The team needs at least one person who may manage staff and roles.');
   }
 }
 
@@ -715,12 +745,12 @@ function assertRoleNameFree(database: LocalDatabase, teamId: Id, name: string, e
   const taken = database.coachRoles.some(
     (role) => role.teamId === teamId && role.id !== exceptRoleId && role.name.toLowerCase() === name.toLowerCase(),
   );
-  if (taken) throw new LocalDataError(`Die Rolle „${name}" gibt es in diesem Team schon.`);
+  if (taken) throw new LocalDataError(`This team already has a role called "${name}".`);
 }
 
 export function createCoachRole(teamId: Id, name: string, permissions: readonly string[]): Id {
   const trimmed = name.trim();
-  if (!trimmed) throw new LocalDataError('Die Rolle braucht einen Namen.');
+  if (!trimmed) throw new LocalDataError('The role needs a name.');
   const id = newId();
   mutate((database) => {
     assertRoleNameFree(database, teamId, trimmed, null);
@@ -740,10 +770,10 @@ export function updateCoachRole(roleId: Id, changes: { name?: string; permission
   mutate((database) => {
     const role = database.coachRoles.find((candidate) => candidate.id === roleId);
     if (!role) throw new LocalDataError(`Unknown role: ${roleId}`);
-    if (role.locked) throw new LocalDataError('Die Rolle Head Coach hat immer alle Rechte und lässt sich nicht ändern.');
+    if (role.locked) throw new LocalDataError('The Head Coach role always has every right and cannot be changed.');
     if (changes.name !== undefined) {
       const trimmed = changes.name.trim();
-      if (!trimmed) throw new LocalDataError('Die Rolle braucht einen Namen.');
+      if (!trimmed) throw new LocalDataError('The role needs a name.');
       assertRoleNameFree(database, role.teamId, trimmed, role.id);
       role.name = trimmed;
     }
@@ -756,9 +786,9 @@ export function deleteCoachRole(roleId: Id): void {
   mutate((database) => {
     const role = database.coachRoles.find((candidate) => candidate.id === roleId);
     if (!role) return;
-    if (role.locked) throw new LocalDataError('Die Rolle Head Coach lässt sich nicht löschen.');
+    if (role.locked) throw new LocalDataError('The Head Coach role cannot be deleted.');
     if (database.memberships.some((membership) => membership.coachRoleId === roleId)) {
-      throw new LocalDataError(`„${role.name}" ist noch vergeben. Weise den Personen zuerst eine andere Rolle zu.`);
+      throw new LocalDataError(`"${role.name}" is still assigned. Give those people another role first.`);
     }
     database.coachRoles = database.coachRoles.filter((candidate) => candidate.id !== roleId);
   });
@@ -769,7 +799,7 @@ export function assignCoachRole(membershipId: Id, roleId: Id): void {
     const membership = database.memberships.find((candidate) => candidate.id === membershipId);
     const role = database.coachRoles.find((candidate) => candidate.id === roleId);
     if (!membership || membership.role !== 'coach') throw new LocalDataError(`Unknown staff membership: ${membershipId}`);
-    if (!role || role.teamId !== membership.teamId) throw new LocalDataError('Diese Rolle gehört zu einem anderen Team.');
+    if (!role || role.teamId !== membership.teamId) throw new LocalDataError('This role belongs to another team.');
     membership.coachRoleId = roleId;
     assertTeamKeepsStaffManager(database, membership.teamId);
   });
@@ -785,13 +815,13 @@ export function assignCoachRole(membershipId: Id, roleId: Id): void {
 export function addStaffMember(teamId: Id, firstName: string, lastName: string, roleId: Id): Id {
   const first = firstName.trim();
   const last = lastName.trim();
-  if (!first || !last) throw new LocalDataError('Vor- und Nachname werden gebraucht.');
+  if (!first || !last) throw new LocalDataError('First and last name are required.');
   const personId = newId();
   mutate((database) => {
     const team = database.teams.find((candidate) => candidate.id === teamId);
     const role = database.coachRoles.find((candidate) => candidate.id === roleId);
     if (!team) throw new LocalDataError(`Unknown team: ${teamId}`);
-    if (!role || role.teamId !== teamId) throw new LocalDataError('Diese Rolle gehört zu einem anderen Team.');
+    if (!role || role.teamId !== teamId) throw new LocalDataError('This role belongs to another team.');
     const now = new Date().toISOString();
     database.people.push({ id: personId, clubId: team.clubId, userId: null, firstName: first, lastName: last, createdAt: now });
     const membership: Membership = { id: newId(), personId, teamId, role: 'coach', coachRoleId: roleId, createdAt: now };
@@ -877,7 +907,7 @@ function requireFacility(database: LocalDatabase, facilityId: Id): Facility {
 
 export function createFacility(input: { name: string; address: string; departmentIds: readonly Id[] }): Id {
   const name = input.name.trim();
-  if (!name) throw new LocalDataError('Die Halle braucht einen Namen.');
+  if (!name) throw new LocalDataError('The hall needs a name.');
   const id = newId();
   mutate((database) => {
     const departments = database.departments.filter((department) => input.departmentIds.includes(department.id));
@@ -894,7 +924,7 @@ export function updateFacility(facilityId: Id, changes: { name?: string; address
     const facility = requireFacility(database, facilityId);
     if (changes.name !== undefined) {
       const name = changes.name.trim();
-      if (!name) throw new LocalDataError('Die Halle braucht einen Namen.');
+      if (!name) throw new LocalDataError('The hall needs a name.');
       facility.name = name;
     }
     if (changes.address !== undefined) facility.address = changes.address.trim();
@@ -949,7 +979,7 @@ export function setTeamDefaultFacility(teamId: Id, facilityId: Id | null): void 
     if (facilityId !== null) {
       requireFacility(database, facilityId);
       const bookable = database.departmentFacilities.some((link) => link.facilityId === facilityId && link.departmentId === team.departmentId);
-      if (!bookable) throw new LocalDataError('Diese Halle ist für die Abteilung des Teams nicht freigegeben.');
+      if (!bookable) throw new LocalDataError('This hall is not shared with the team\'s department.');
     }
     team.defaultFacilityId = facilityId;
   });

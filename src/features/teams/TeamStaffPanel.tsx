@@ -81,7 +81,7 @@ function CopyLink({ label, url }: { label: string; url: string }) {
           onClick={() => navigator.clipboard?.writeText(url).then(() => setCopied(true)).catch(() => undefined)}
           className="shrink-0 rounded-lg border border-sky-500/50 px-2 py-1.5 text-[11px] font-black text-sky-100"
         >
-          {copied ? 'Kopiert' : 'Kopieren'}
+          {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
     </div>
@@ -99,18 +99,18 @@ function JoinCodeSection({ database, teamId, onRun }: { database: LocalDatabase;
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
   return (
     <div className="grid gap-2 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
-      <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Spieler einladen</p>
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Invite players</p>
       <p className="font-mono text-2xl font-black tracking-[0.25em] text-white">{code.slice(0, 4)}-{code.slice(4)}</p>
-      <p className="text-xs font-bold text-slate-400">Spieler erstellen ein Konto und geben diesen Code ein, oder öffnen direkt den Link.</p>
-      <CopyLink label="Beitrittslink für Spieler" url={`${origin}/join?code=${code}`} />
+      <p className="text-xs font-bold text-slate-400">Players create an account and enter this code, or open the link directly.</p>
+      <CopyLink label="Join link for players" url={`${origin}/join?code=${code}`} />
       {confirmRotate ? (
         <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-300">
-          Der alte Code funktioniert danach nicht mehr.
-          <button type="button" onClick={() => { onRun(() => { rotateJoinCode(teamId); }); setConfirmRotate(false); }} className={`${smallButtonClass} border-amber-400/60 text-amber-100`}>Neuen Code erzeugen</button>
-          <button type="button" onClick={() => setConfirmRotate(false)} className={`${smallButtonClass} border-slate-700 text-slate-300`}>Abbrechen</button>
+          The old code stops working.
+          <button type="button" onClick={() => { onRun(() => { rotateJoinCode(teamId); }); setConfirmRotate(false); }} className={`${smallButtonClass} border-amber-400/60 text-amber-100`}>New code</button>
+          <button type="button" onClick={() => setConfirmRotate(false)} className={`${smallButtonClass} border-slate-700 text-slate-300`}>Cancel</button>
         </div>
       ) : (
-        <button type="button" onClick={() => setConfirmRotate(true)} className="justify-self-start text-xs font-bold text-slate-400 underline">Neuen Code erzeugen</button>
+        <button type="button" onClick={() => setConfirmRotate(true)} className="justify-self-start text-xs font-bold text-slate-400 underline">Replace code</button>
       )}
     </div>
   );
@@ -120,19 +120,19 @@ function StaffAccess({ database, teamId, personId, name, onRun }: { database: Lo
   const person = database.people.find((candidate) => candidate.id === personId);
   const invite = openInviteFor(database, personId, teamId);
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
-  if (person?.userId) return <p className="text-[11px] font-bold text-emerald-300">Konto verbunden</p>;
+  if (person?.userId) return <p className="text-[11px] font-bold text-emerald-300">Account connected</p>;
   if (!invite) {
     return (
       <button type="button" onClick={() => onRun(() => { createStaffInvite(personId, teamId); })} className={`${smallButtonClass} justify-self-start border-sky-500/50 text-sky-100`}>
-        Einladungslink erstellen
+        Create invitation link
       </button>
     );
   }
   return (
     <div className="grid gap-1">
-      <p className="text-[11px] font-bold text-amber-200">Eingeladen, noch nicht angenommen · gilt bis {new Date(invite.expiresAt).toLocaleDateString('de-DE')}</p>
-      <CopyLink label={`Einladungslink für ${name}`} url={`${origin}/join?invite=${invite.token}`} />
-      <button type="button" onClick={() => onRun(() => revokeStaffInvite(invite.token))} className="justify-self-start text-[11px] font-bold text-slate-400 underline">Link zurückziehen</button>
+      <p className="text-[11px] font-bold text-amber-200">Invited, not accepted yet · valid until {new Date(invite.expiresAt).toLocaleDateString('en-GB')}</p>
+      <CopyLink label={`Invitation link for ${name}`} url={`${origin}/join?invite=${invite.token}`} />
+      <button type="button" onClick={() => onRun(() => revokeStaffInvite(invite.token))} className="justify-self-start text-[11px] font-bold text-slate-400 underline">Revoke link</button>
     </div>
   );
 }
@@ -163,7 +163,7 @@ export function TeamStaffPanel({ database, teamId, canManage }: { database: Loca
     }
   };
 
-  // Accounts, codes and invitations only exist with the server.
+  // Accounts, codes and invitations only exist with the club server.
   const serverMode = isRemoteMode();
 
   const membersByRole = new Map<Id, number>();

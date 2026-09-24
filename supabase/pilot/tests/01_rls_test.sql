@@ -135,9 +135,9 @@ select v.person_id::uuid, v.team_id::uuid, 'coach', r.id
 from (values
   ('a0000000-0000-0000-0000-000000000001', '70000000-0000-0000-0000-000000000016', 'Head Coach'),
   ('a0000000-0000-0000-0000-000000000002', '70000000-0000-0000-0000-000000000018', 'Head Coach'),
-  ('a0000000-0000-0000-0000-000000000003', '70000000-0000-0000-0000-000000000016', 'Co-Trainer'),
-  ('a0000000-0000-0000-0000-000000000003', '70000000-0000-0000-0000-000000000018', 'Co-Trainer'),
-  ('a0000000-0000-0000-0000-000000000005', '70000000-0000-0000-0000-000000000016', 'Betreuer'),
+  ('a0000000-0000-0000-0000-000000000003', '70000000-0000-0000-0000-000000000016', 'Assistant Coach'),
+  ('a0000000-0000-0000-0000-000000000003', '70000000-0000-0000-0000-000000000018', 'Assistant Coach'),
+  ('a0000000-0000-0000-0000-000000000005', '70000000-0000-0000-0000-000000000016', 'Team Manager'),
   ('a0000000-0000-0000-0000-000000000006', '70000000-0000-0000-0000-000000000099', 'Head Coach')
 ) as v(person_id, team_id, role_name)
 join public.coach_roles r on r.team_id = v.team_id::uuid and r.name = v.role_name;
@@ -175,7 +175,7 @@ insert into public.athlete_plans (person_id, title, date, training_type, expecte
 
 -- Martin cannot read U18 roles, so the tests below take this id from here.
 select id as u18_betreuer from public.coach_roles
-where team_id = '70000000-0000-0000-0000-000000000018' and name = 'Betreuer' \gset
+where team_id = '70000000-0000-0000-0000-000000000018' and name = 'Team Manager' \gset
 
 -- ---------------------------------------------------------------------------
 -- Integrity rules (as the owner, before any role is involved)
@@ -189,10 +189,10 @@ select test.expect_error('a session cannot use a hall its department cannot book
   $q$insert into public.sessions (team_id, club_id, department_id, title, session_type, starts_at, ends_at, facility_id)
      select '70000000-0000-0000-0000-000000000099', c.id, d.id, 'x', 'training', now(), now() + interval '1 hour', 'f0000000-0000-0000-0000-000000000001'
      from public.clubs c, public.departments d where c.id = 'c0000000-0000-0000-0000-000000000001' and d.id = 'd0000000-0000-0000-0000-000000000002'$q$,
-  'nicht freigegeben');
+  'not shared');
 select test.expect_error('an athlete cannot report for another team''s session',
   $q$insert into public.availability (session_id, person_id, status) values ('50000000-0000-0000-0000-000000000018', 'a0000000-0000-0000-0000-000000000011', 'in')$q$,
-  'Nur Spieler');
+  'Only players');
 
 -- ---------------------------------------------------------------------------
 -- Not signed in
@@ -242,7 +242,7 @@ select test.expect_rows('the Head Coach role cannot be deleted',
 select test.expect_error('the Head Coach role cannot be renamed',
   $q$update public.coach_roles set name = 'Chef' where team_id = '70000000-0000-0000-0000-000000000016' and locked$q$, 'Head Coach');
 select test.expect_error('an assigned role cannot be deleted',
-  $q$delete from public.coach_roles where team_id = '70000000-0000-0000-0000-000000000016' and name = 'Betreuer'$q$, 'foreign key');
+  $q$delete from public.coach_roles where team_id = '70000000-0000-0000-0000-000000000016' and name = 'Team Manager'$q$, 'foreign key');
 select test.expect_error('Martin cannot create a locked role',
   $q$insert into public.coach_roles (team_id, name, permissions, locked) values ('70000000-0000-0000-0000-000000000016', 'Zweiter Chef', '{}', true)$q$,
   'row-level security');
@@ -264,7 +264,7 @@ select test.expect_error('Martin cannot make himself an athlete of U18',
   'row-level security');
 select test.expect_error('a U18 role cannot be assigned in U16',
   'update public.memberships set coach_role_id = ' || quote_literal(:'u18_betreuer') || $q$ where person_id = 'a0000000-0000-0000-0000-000000000005'$q$,
-  'anderen Team');
+  'another team');
 
 -- Halls
 select test.expect_rows('Martin adds a hall',
@@ -283,7 +283,7 @@ select test.expect_rows('Martin cannot delete the hall shared with Volleyball',
 reset role;
 
 -- ---------------------------------------------------------------------------
--- Uwe, Betreuer U16 (roster and attendance)
+-- Uwe, Team Manager U16 (roster and attendance)
 -- ---------------------------------------------------------------------------
 
 set role authenticated;
@@ -302,15 +302,15 @@ select test.expect_rows('Uwe cannot change the default hall',
 select test.expect_error('Uwe cannot add a hall',
   $q$insert into public.facilities (club_id, name) values ('c0000000-0000-0000-0000-000000000001', 'Uwes Halle')$q$, 'row-level security');
 select test.expect_rows('Uwe cannot give his role more rights',
-  $q$update public.coach_roles set permissions = app.all_permissions() where name = 'Betreuer' and team_id = '70000000-0000-0000-0000-000000000016'$q$, 0);
+  $q$update public.coach_roles set permissions = app.all_permissions() where name = 'Team Manager' and team_id = '70000000-0000-0000-0000-000000000016'$q$, 0);
 select test.expect_count('Uwe sees the U16 staff', 'select 1 from public.memberships where role = ''coach''', 4);
 reset role;
 
--- Martin gives Betreuer the traffic light.
+-- Martin gives Team Manager the traffic light.
 set role authenticated;
 select test.act_as('10000000-0000-0000-0000-000000000001');
-select test.expect_rows('Martin gives Betreuer the load traffic light',
-  $q$update public.coach_roles set permissions = array['viewRoster', 'viewAttendance', 'viewLoadSummary'] where name = 'Betreuer' and team_id = '70000000-0000-0000-0000-000000000016'$q$, 1);
+select test.expect_rows('Martin gives Team Manager the load traffic light',
+  $q$update public.coach_roles set permissions = array['viewRoster', 'viewAttendance', 'viewLoadSummary'] where name = 'Team Manager' and team_id = '70000000-0000-0000-0000-000000000016'$q$, 1);
 reset role;
 
 set role authenticated;
@@ -363,20 +363,20 @@ select test.expect_count('an outsider sees no halls of the club', 'select 1 from
 reset role;
 
 -- ---------------------------------------------------------------------------
--- Lockout protection (U18: Sabine Head Coach, Tobias Co-Trainer)
+-- Lockout protection (U18: Sabine Head Coach, Tobias Assistant Coach)
 -- ---------------------------------------------------------------------------
 
 set role authenticated;
 select test.act_as('10000000-0000-0000-0000-000000000002');
-select test.expect_rows('Sabine takes staff management away from Co-Trainer',
-  $q$update public.coach_roles set permissions = array['viewRoster'] where name = 'Co-Trainer' and team_id = '70000000-0000-0000-0000-000000000018'$q$, 1);
-select test.expect_refused_at_commit('Sabine cannot make herself Betreuer (nobody would manage staff)',
-  $q$update public.memberships set coach_role_id = (select id from public.coach_roles where team_id = '70000000-0000-0000-0000-000000000018' and name = 'Betreuer')
+select test.expect_rows('Sabine takes staff management away from Assistant Coach',
+  $q$update public.coach_roles set permissions = array['viewRoster'] where name = 'Assistant Coach' and team_id = '70000000-0000-0000-0000-000000000018'$q$, 1);
+select test.expect_refused_at_commit('Sabine cannot make herself Team Manager (nobody would manage staff)',
+  $q$update public.memberships set coach_role_id = (select id from public.coach_roles where team_id = '70000000-0000-0000-0000-000000000018' and name = 'Team Manager')
      where person_id = 'a0000000-0000-0000-0000-000000000002' and team_id = '70000000-0000-0000-0000-000000000018'$q$,
-  'mindestens eine Person');
+  'at least one person');
 select test.expect_refused_at_commit('Sabine cannot remove herself',
   $q$delete from public.memberships where person_id = 'a0000000-0000-0000-0000-000000000002' and team_id = '70000000-0000-0000-0000-000000000018'$q$,
-  'mindestens eine Person');
+  'at least one person');
 reset role;
 
 -- ---------------------------------------------------------------------------

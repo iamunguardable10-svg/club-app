@@ -62,8 +62,8 @@ export const COACH_PERMISSION_REQUIRES: Partial<Record<CoachPermission, CoachPer
 };
 
 /**
- * A coach role within one team, for example Head Coach, Co-Trainer or
- * Athletiktrainer, with the rights it carries.
+ * A coach role within one team, for example Head Coach, Assistant Coach or
+ * Athletic Coach, with the rights it carries.
  *
  * `locked` marks the Head Coach role: it always holds every right and can be
  * neither edited nor deleted, so a team can never lock itself out of managing

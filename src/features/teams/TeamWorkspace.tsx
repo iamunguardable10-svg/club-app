@@ -118,7 +118,7 @@ function attendanceForPlayer(database: LocalDatabase, personId: Id, teamId: Id) 
 export function TeamWorkspace({
   teamId,
   backHref = '/coach/team',
-  backLabel = 'Zurück zu den Teams',
+  backLabel = 'Back to teams',
   initialSection = 'dashboard',
   frame = 'coach',
 }: {
@@ -386,7 +386,7 @@ export function TeamWorkspace({
   }, [teamId]);
 
   if (!ready) {
-    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">Team wird geladen ...</section></div></main>;
+    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">Loading team …</section></div></main>;
   }
 
   if (error) {
@@ -394,7 +394,7 @@ export function TeamWorkspace({
   }
 
   if (!data) {
-    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">Dieses Team gibt es nicht.</section></div></main>;
+    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">This team does not exist.</section></div></main>;
   }
 
   const canEditSessions = permissions.has('editSessions');

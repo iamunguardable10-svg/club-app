@@ -12,7 +12,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useBackendStatus } from '@/shared/data';
 
 /** Pages that work without being signed in or linked. */
-const OPEN_PATHS = ['/', '/login', '/join', '/share/load'];
+const OPEN_PATHS = ['/', '/login', '/join', '/reset-password', '/share/load'];
 
 export function AccessGate() {
   const status = useBackendStatus();

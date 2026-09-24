@@ -4,7 +4,7 @@ The Supabase schema for the club pilot (docs/simplify-decisions.md, point 8).
 Derived from the local data model in `src/shared/data/schema.ts`; the older
 schema in `supabase/migrations` is the pre-pilot one and only a reference.
 
-Project: `CLUB_ProjectV2` (`tszxeainmwowmixqmphn`, eu-west-3). All five
+Project: `CLUB_ProjectV2` (`tszxeainmwowmixqmphn`, eu-west-3). All seven
 migrations below are applied there (2026-09-24).
 
 | File | What it does |
@@ -14,11 +14,13 @@ migrations below are applied there (2026-09-24).
 | `migrations/0003_pilot_indexes_and_write_policies.sql` | Foreign-key indexes and one policy per write command (Supabase performance advisor); no rule changes |
 | `migrations/0004_pilot_access.sql` | Join codes (one per team) and staff invitations, with `join_team`, `accept_staff_invite` and `invite_preview`, the only functions the app calls |
 | `migrations/0005_pilot_setup_function.sql` | `app.setup_club(...)`: creates a club with department, team, hall and a Head Coach invitation; owner only |
+| `migrations/0006_pilot_english_messages.sql` | The same functions with English messages (the interface is English) |
+| `migrations/0007_pilot_english_role_templates.sql` | English role templates: Head Coach, Assistant Coach, Athletic Coach, Team Manager |
 | `tests/00_supabase_shim.sql` | Stand-in for Supabase's `auth` schema and roles, **local tests only** |
 | `tests/01_rls_test.sql` | 75 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
 | `tests/02_access_test.sql` | 35 checks for join codes, invitations and club setup |
 | `tests/run-local.sh` | Recreates a local test database, applies shim and migrations, runs the checks above |
-| `tests/remote-store.test.ts` | 50 end-to-end checks: the app's real data-layer functions through the server store against the local database, as Head Coach, Betreuer, athlete and two new accounts joining |
+| `tests/remote-store.test.ts` | 52 end-to-end checks: the app's real data-layer functions through the server store against the local database, as Head Coach, Betreuer, athlete and two new accounts joining |
 
 ## What the rules guarantee
 

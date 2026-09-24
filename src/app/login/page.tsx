@@ -24,8 +24,8 @@ function LoginContent() {
       <div className="os-container max-w-md space-y-5">
         <header className="os-hero p-6">
           <p className="os-kicker">Club OS</p>
-          <h1 className="os-title mt-2">Mit deinem Verein</h1>
-          <p className="os-copy mt-3">Melde dich an. Neu hier? Konto erstellen, danach mit dem Code deines Teams oder dem Einladungslink beitreten.</p>
+          <h1 className="os-title mt-2">Sign in to your club</h1>
+          <p className="os-copy mt-3">New here? Create an account, then join with your team&apos;s code or your invitation link.</p>
         </header>
         <AuthForm initialMode={params.get('mode') === 'signUp' ? 'signUp' : 'signIn'} returnTo={next} />
         <LocalModeLink />

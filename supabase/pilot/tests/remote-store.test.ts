@@ -2,7 +2,7 @@
  * End-to-end test of the server store: the app's real data-layer functions
  * (createSession, reportAvailability, addStaffMember, …) running against a
  * local Postgres with the pilot migrations and their row-level security,
- * acting as a Head Coach, a Betreuer and an athlete.
+ * acting as a Head Coach, a Team Manager and an athlete.
  *
  * The only stand-in is the connection: instead of supabase-js over HTTP, a
  * `RemoteClient` that runs each request as its own transaction with the
@@ -132,7 +132,7 @@ async function fixture() {
     insert into public.memberships (person_id, team_id, role, coach_role_id)
       select '${P.martin}', '${TEAM}', 'coach', id from public.coach_roles where team_id = '${TEAM}' and locked;
     insert into public.memberships (person_id, team_id, role, coach_role_id)
-      select '${P.uwe}', '${TEAM}', 'coach', id from public.coach_roles where team_id = '${TEAM}' and name = 'Betreuer';
+      select '${P.uwe}', '${TEAM}', 'coach', id from public.coach_roles where team_id = '${TEAM}' and name = 'Team Manager';
     insert into public.memberships (person_id, team_id, role) values ('${P.jonas}', '${TEAM}', 'athlete'), ('${P.ben}', '${TEAM}', 'athlete');
     insert into public.sessions (id, club_id, department_id, team_id, title, session_type, starts_at, ends_at, facility_id) values
       ('${FUTURE}', '${CLUB}', '${DEP}', '${TEAM}', 'Training', 'training', now() + interval '1 day', now() + interval '1 day 90 minutes', '${HALL}'),
@@ -193,10 +193,10 @@ async function main() {
   await data.flushRemote();
   check('Martin: session moved into the new hall', (await count('select 1 from sessions where id = $1 and facility_id = $2', [newSession, hall])) === 1);
 
-  const betreuer = data.coachRolesForTeam(db(), TEAM).find((role) => role.name === 'Betreuer')!;
+  const betreuer = data.coachRolesForTeam(db(), TEAM).find((role) => role.name === 'Team Manager')!;
   const lea = data.addStaffMember(TEAM, 'Lea', 'Sommer', betreuer.id);
   await data.flushRemote();
-  check('Martin: added Lea as Betreuer', (await count("select 1 from memberships where person_id = $1 and role = 'coach'", [lea])) === 1, store.getStatus().rejected);
+  check('Martin: added Lea as Team Manager', (await count("select 1 from memberships where person_id = $1 and role = 'coach'", [lea])) === 1, store.getStatus().rejected);
 
   data.createCoachRole(TEAM, 'Physio', ['viewRoster', 'viewAbsenceReasons']);
   await data.flushRemote();
@@ -234,6 +234,16 @@ async function main() {
   check('Jonas: load entry 600 AU on the server', (await count('select 1 from load_entries where person_id = $1 and load = 600', [P.jonas])) === 1, store.getStatus().rejected);
   check('Jonas: his traffic light was written too', (await count('select 1 from load_summaries where person_id = $1', [P.jonas])) === 1);
   check('… no refusals', store.getStatus().rejected === null, store.getStatus().rejected);
+  data.renameOwnPerson(P.jonas, 'Jonas', 'Kern-Neu');
+  await data.flushRemote();
+  check('Jonas: renamed himself on the server', (await count("select 1 from people where id = $1 and last_name = 'Kern-Neu'", [P.jonas])) === 1, store.getStatus().rejected);
+  let renamedOther = false;
+  try {
+    data.renameOwnPerson(P.ben, 'Ben', 'Hacked');
+  } catch {
+    renamedOther = true;
+  }
+  check('Jonas: cannot rename Ben', renamedOther && (await count("select 1 from people where last_name = 'Hacked'")) === 0);
   let refused = false;
   try {
     data.setActiveIdentity({ role: 'coach', personId: P.martin });
@@ -242,7 +252,7 @@ async function main() {
   }
   check('Jonas: cannot act as Martin', refused && db().activeIdentity?.personId === P.jonas);
 
-  // --- Uwe, Betreuer (roster and attendance) ------------------------------
+  // --- Uwe, Team Manager (roster and attendance) ------------------------------
   store = await actAs(U.uwe);
   const out = db().availability.find((entry) => entry.personId === P.jonas);
   check('Uwe: sees that Jonas is out', out?.status === 'out');
@@ -251,11 +261,11 @@ async function main() {
   check('Uwe: no traffic light yet', db().loadSummaries.length === 0);
   data.updateSession(FUTURE, { title: 'Umbenannt von Uwe' });
   await data.flushRemote();
-  check('Uwe: renaming a session is refused with a message', store.getStatus().rejected?.includes('Einheiten') === true, store.getStatus().rejected);
+  check('Uwe: renaming a session is refused with a message', store.getStatus().rejected?.includes('sessions') === true, store.getStatus().rejected);
   check('… and the app shows the server state again', db().sessions.find((session) => session.id === FUTURE)?.title === 'Training');
   check('… and the server is unchanged', (await count("select 1 from sessions where title = 'Umbenannt von Uwe'")) === 0);
 
-  // --- Martin gives Betreuer the traffic light ----------------------------
+  // --- Martin gives Team Manager the traffic light ----------------------------
   store = await actAs(U.martin);
   check('Martin: sees Jonas’ reason', db().availability.find((entry) => entry.personId === P.jonas)?.reason === 'Knöchel verdreht');
   data.updateCoachRole(betreuer.id, { permissions: ['viewRoster', 'viewAttendance', 'viewLoadSummary'] });
@@ -302,7 +312,7 @@ async function main() {
   } catch (error) {
     wrongCode = error instanceof Error ? error.message : String(error);
   }
-  check('Mia: a wrong code is refused with a German message', wrongCode.includes('gibt es nicht'), wrongCode);
+  check('Mia: a wrong code is refused with a clear message', wrongCode.includes('does not exist'), wrongCode);
   await data.joinTeamWithCode(code.toLowerCase(), 'Mia', 'Neu');
   check('Mia: joined, now an athlete of U16', store.getStatus().phase === 'ready' && db().activeIdentity?.role === 'athlete', store.getStatus());
   check('Mia: sees the team sessions', data.sessionsForTeam(db(), TEAM).length > 0);
@@ -312,14 +322,14 @@ async function main() {
   await data.acceptStaffInvite(token);
   const me = data.getActivePerson(db());
   check('new coach: is Lea Sommer now, as coach', me?.id === lea && db().activeIdentity?.role === 'coach', me);
-  check('… with Betreuer rights (roster, attendance, traffic light)', [...data.coachPermissions(db(), lea, TEAM)].sort().join() === 'viewAttendance,viewLoadSummary,viewRoster');
+  check('… with Team Manager rights (roster, attendance, traffic light)', [...data.coachPermissions(db(), lea, TEAM)].sort().join() === 'viewAttendance,viewLoadSummary,viewRoster');
   let reused = '';
   try {
     await data.acceptStaffInvite(token);
   } catch (error) {
     reused = error instanceof Error ? error.message : String(error);
   }
-  check('the invitation works only once', reused.includes('gilt nicht mehr'), reused);
+  check('the invitation works only once', reused.includes('no longer valid'), reused);
 
   // --- Not signed in ------------------------------------------------------
   const anonymous = new RemoteStore({ ...pgClient(U.martin), userId: async () => null }, data.SCHEMA_VERSION);

@@ -62,7 +62,7 @@ export function supabaseRemoteClient(supabase: SupabaseClient): RemoteClient {
       const rows: Row[] = [];
       for (let from = 0; ; from += PAGE_SIZE) {
         const { data, error } = await supabase.from(table).select('*').range(from, from + PAGE_SIZE - 1);
-        if (error) fail(table, 'Laden', error.message);
+        if (error) fail(table, 'Loading', error.message);
         rows.push(...(data ?? []));
         if (!data || data.length < PAGE_SIZE) return rows;
       }
@@ -71,21 +71,21 @@ export function supabaseRemoteClient(supabase: SupabaseClient): RemoteClient {
       // No `.select()`: a row may be writable but not yet readable (a staff
       // member added before their membership), which would fail the request.
       const { error } = await supabase.from(table).insert(rows);
-      if (error) fail(table, 'Anlegen', error.message);
+      if (error) fail(table, 'Creating', error.message);
     },
     async update(table, key, changes) {
       const { error, count } = await supabase.from(table).update(changes, { count: 'exact' }).match(key);
-      if (error) fail(table, 'Ändern', error.message);
+      if (error) fail(table, 'Updating', error.message);
       return count ?? 0;
     },
     async delete(table, key) {
       const { error, count } = await supabase.from(table).delete({ count: 'exact' }).match(key);
-      if (error) fail(table, 'Löschen', error.message);
+      if (error) fail(table, 'Deleting', error.message);
       return count ?? 0;
     },
     async rpc(name, args) {
       const { data, error } = await supabase.rpc(name, args);
-      // Database functions raise German messages meant for the person.
+      // Database functions raise messages meant for the person.
       if (error) throw new Error(error.message);
       return data;
     },

@@ -13,7 +13,7 @@ export function LocalModeLink({ className = '' }: { className?: string }) {
       }}
       className={`text-xs font-bold text-slate-400 underline ${className}`}
     >
-      Ohne Anmeldung lokal testen
+      Try the demo club without an account
     </button>
   );
 }

@@ -17,7 +17,7 @@ insert into public.memberships (person_id, team_id, role, coach_role_id)
 select p, '70000000-0000-0000-0000-000000000016', 'coach', r.id
 from unnest(array['a0000000-0000-0000-0000-000000000041', 'a0000000-0000-0000-0000-000000000042']::uuid[]) p,
      public.coach_roles r
-where r.team_id = '70000000-0000-0000-0000-000000000016' and r.name = 'Co-Trainer';
+where r.team_id = '70000000-0000-0000-0000-000000000016' and r.name = 'Assistant Coach';
 insert into public.staff_invites (token, person_id, team_id) values
   ('e0000000-0000-0000-0000-000000000041', 'a0000000-0000-0000-0000-000000000041', '70000000-0000-0000-0000-000000000016');
 insert into public.staff_invites (token, person_id, team_id, expires_at) values
@@ -39,16 +39,16 @@ select test.expect_error('a code must be eight unambiguous characters',
 select test.expect_rows('Martin invites Lea Sommer',
   $q$insert into public.staff_invites (token, person_id, team_id) values ('e0000000-0000-0000-0000-000000000021', 'a0000000-0000-0000-0000-000000000021', '70000000-0000-0000-0000-000000000016')$q$, 1);
 select test.expect_error('no invitation for an athlete',
-  $q$insert into public.staff_invites (person_id, team_id) values ('a0000000-0000-0000-0000-000000000012', '70000000-0000-0000-0000-000000000016')$q$, 'Trainerteam');
+  $q$insert into public.staff_invites (person_id, team_id) values ('a0000000-0000-0000-0000-000000000012', '70000000-0000-0000-0000-000000000016')$q$, 'members of the staff');
 select test.expect_error('no invitation for someone with an account',
-  $q$insert into public.staff_invites (person_id, team_id) values ('a0000000-0000-0000-0000-000000000005', '70000000-0000-0000-0000-000000000016')$q$, 'Konto');
+  $q$insert into public.staff_invites (person_id, team_id) values ('a0000000-0000-0000-0000-000000000005', '70000000-0000-0000-0000-000000000016')$q$, 'account');
 select test.expect_error('Martin cannot invite into U18',
   $q$insert into public.staff_invites (person_id, team_id) values ('a0000000-0000-0000-0000-000000000003', '70000000-0000-0000-0000-000000000018')$q$);
 reset role;
 
 set role authenticated;
 select test.act_as('10000000-0000-0000-0000-000000000005');
-select test.expect_count('Uwe (Betreuer) sees no join code', 'select 1 from public.team_join_codes', 0);
+select test.expect_count('Uwe (Team Manager) sees no join code', 'select 1 from public.team_join_codes', 0);
 select test.expect_count('Uwe sees no invitations', 'select 1 from public.staff_invites', 0);
 select test.expect_rows('Uwe cannot replace the code',
   $q$update public.team_join_codes set code = 'UWEUWE22' where team_id = '70000000-0000-0000-0000-000000000016'$q$, 0);
@@ -75,8 +75,8 @@ reset role;
 set role authenticated;
 select test.act_as('10000000-0000-0000-0000-000000000031');
 select test.expect_count('before joining: no club data', 'select 1 from public.sessions', 0);
-select test.expect_error('a wrong code is refused', $q$select public.join_team('WRONG234', 'Mia', 'Neu')$q$, 'gibt es nicht');
-select test.expect_error('names are needed', $q$select public.join_team('TEST2345', ' ', '')$q$, 'Nachname');
+select test.expect_error('a wrong code is refused', $q$select public.join_team('WRONG234', 'Mia', 'Neu')$q$, 'does not exist');
+select test.expect_error('names are needed', $q$select public.join_team('TEST2345', ' ', '')$q$, 'last name');
 select test.expect_count('Mia joins U16 with the code (any case, spaces)',
   $q$select 1 from public.join_team(' test2345 ', 'Mia', 'Neu') t where t = '70000000-0000-0000-0000-000000000016'$q$, 1);
 select test.expect_count('Mia is now an athlete of U16', $q$select 1 from public.memberships where role = 'athlete'$q$, 1);
@@ -99,8 +99,8 @@ select test.expect_count('… and is Lea now, with her Physio role',
   $q$select 1 from public.people p join public.memberships m on m.person_id = p.id join public.coach_roles r on r.id = m.coach_role_id
      where p.user_id = '10000000-0000-0000-0000-000000000032' and p.first_name = 'Lea' and r.name = 'Physio'$q$, 1);
 select test.expect_count('… and sees the U16 roles now', 'select 1 from public.coach_roles', 5);
-select test.expect_error('an invitation works once', $q$select public.accept_staff_invite('e0000000-0000-0000-0000-000000000021')$q$, 'gilt nicht mehr');
-select test.expect_error('an expired invitation is refused', $q$select public.accept_staff_invite('e0000000-0000-0000-0000-000000000042')$q$, 'gilt nicht mehr');
+select test.expect_error('an invitation works once', $q$select public.accept_staff_invite('e0000000-0000-0000-0000-000000000021')$q$, 'no longer valid');
+select test.expect_error('an expired invitation is refused', $q$select public.accept_staff_invite('e0000000-0000-0000-0000-000000000042')$q$, 'no longer valid');
 reset role;
 
 set role authenticated;

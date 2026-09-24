@@ -58,8 +58,8 @@ function ErrorLine({ message }: { message: string | null }) {
 function AccountLine({ account }: { account: { email: string } }) {
   return (
     <p className="text-xs text-slate-400">
-      Angemeldet als {account.email} ·{' '}
-      <button type="button" className="underline" onClick={async () => { await signOut(); window.location.reload(); }}>anderes Konto</button>
+      Signed in as {account.email} ·{' '}
+      <button type="button" className="underline" onClick={async () => { await signOut(); window.location.reload(); }}>use another account</button>
     </p>
   );
 }
@@ -86,22 +86,22 @@ function InviteFlow({ token, account }: { token: string; account: Account }) {
     previewInvite(token).then(setPreview).catch((caught) => setError(caught instanceof Error ? caught.message : String(caught)));
   }, [token]);
 
-  if (preview === undefined && !error) return <Shell title="Einladung"><p className="text-sm text-slate-400">Einladung wird geladen …</p></Shell>;
+  if (preview === undefined && !error) return <Shell title="Invitation"><p className="text-sm text-slate-400">Loading invitation …</p></Shell>;
   if (!preview || !preview.usable) {
     return (
-      <Shell title="Einladung">
+      <Shell title="Invitation">
         <section className="os-panel p-5 text-sm text-slate-300">
-          {error ?? 'Diese Einladung gilt nicht mehr. Bitte lass dir einen neuen Link schicken.'}
+          {error ?? 'This invitation is no longer valid. Please ask for a new link.'}
         </section>
       </Shell>
     );
   }
 
   return (
-    <Shell title="Einladung ins Trainerteam">
+    <Shell title="Join the staff">
       <section className="os-panel p-5 text-sm text-slate-300">
         <p className="text-lg font-black text-white">{preview.firstName} {preview.lastName}</p>
-        <p className="mt-1">{preview.roleName ?? 'Trainerteam'} · {preview.teamName} · {preview.clubName}</p>
+        <p className="mt-1">{preview.roleName ?? 'Staff'} · {preview.teamName} · {preview.clubName}</p>
       </section>
       {account ? (
         <section className="os-panel grid gap-3 p-5">
@@ -123,14 +123,14 @@ function InviteFlow({ token, account }: { token: string; account: Account }) {
             }}
             className="os-success justify-center disabled:opacity-60"
           >
-            {busy ? 'Einen Moment …' : 'Einladung annehmen'}
+            {busy ? 'One moment …' : 'Accept invitation'}
           </button>
         </section>
       ) : (
         <AuthForm
           initialMode="signUp"
           returnTo={`/join?invite=${encodeURIComponent(token)}`}
-          intro="Erstelle ein Konto (oder melde dich an). Danach nimmst du die Einladung an."
+          intro="Create an account (or sign in), then accept the invitation."
         />
       )}
     </Shell>
@@ -150,18 +150,18 @@ function CodeFlow({ initialCode, account }: { initialCode: string; account: Acco
 
   if (!account) {
     return (
-      <Shell title="Team beitreten">
+      <Shell title="Join your team">
         <AuthForm
           initialMode="signUp"
           returnTo={`/join${initialCode ? `?code=${encodeURIComponent(initialCode)}` : ''}`}
-          intro="Erstelle ein Konto (oder melde dich an). Danach trittst du mit dem Code deines Teams bei."
+          intro="Create an account (or sign in), then join with your team's code."
         />
       </Shell>
     );
   }
 
   return (
-    <Shell title="Team beitreten">
+    <Shell title="Join your team">
       <form
         className="os-panel grid gap-3 p-5"
         onSubmit={async (event) => {
@@ -178,22 +178,22 @@ function CodeFlow({ initialCode, account }: { initialCode: string; account: Acco
         }}
       >
         <AccountLine account={account} />
-        <p className="text-sm text-slate-400">Den Code bekommst du von deinem Trainer.</p>
+        <p className="text-sm text-slate-400">Your coach gives you the code.</p>
         <label className="grid gap-1 text-sm font-bold text-slate-200">
-          Beitrittscode
+          Join code
           <input required value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} autoCapitalize="characters" autoComplete="off" className="os-field font-mono tracking-[0.2em]" />
         </label>
         <label className="grid gap-1 text-sm font-bold text-slate-200">
-          Vorname
+          First name
           <input required value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" className="os-field" />
         </label>
         <label className="grid gap-1 text-sm font-bold text-slate-200">
-          Nachname
+          Last name
           <input required value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" className="os-field" />
         </label>
         <ErrorLine message={error} />
         <button type="submit" disabled={busy || status.phase === 'loading'} className="os-success justify-center disabled:opacity-60">
-          {busy ? 'Einen Moment …' : 'Beitreten'}
+          {busy ? 'One moment …' : 'Join team'}
         </button>
       </form>
     </Shell>
@@ -219,7 +219,7 @@ function JoinContent() {
       .catch(() => setAccount(null));
   }, []);
 
-  if (account === undefined) return <Shell title="Club OS"><p className="text-sm text-slate-400">Einen Moment …</p></Shell>;
+  if (account === undefined) return <Shell title="Club OS"><p className="text-sm text-slate-400">One moment …</p></Shell>;
   const invite = params.get('invite');
   if (invite) return <InviteFlow token={invite} account={account} />;
   return <CodeFlow initialCode={(params.get('code') ?? '').toUpperCase()} account={account} />;

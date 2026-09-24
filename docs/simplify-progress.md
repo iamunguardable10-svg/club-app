@@ -1083,3 +1083,28 @@ startet mit Testverein. Keine Laufzeitfehler. Danach: 0 Vereine, 0 Konten im Pro
   Name des Head Coaches und optional die Halle.
 - Die App muss unter einer festen Adresse laufen (z. B. Vercel), mit URL und Key als
   Umgebungsvariablen.
+
+## Run 11a — Oberfläche durchgehend englisch (erledigt)
+
+Entscheidung vom 2026-09-24: Die ganze Oberfläche ist englisch. Bisher war sie gemischt
+(Einstieg deutsch, Trainer- und Spielerbereich englisch).
+
+- Übersetzt: Startseite, `/login`, `/join`, Identitätsmenü, Trainerteam (Code,
+  Einladungen), Hinweise bei abgelehnten Änderungen, Lade- und Fehlertexte, alle
+  Meldungen der Datenschicht und der Anmeldung.
+- Datenbank: Migration 0006 definiert die Trigger und Funktionen mit englischen
+  Meldungen neu, 0007 benennt die Rollenvorlagen um (Head Coach, Assistant Coach,
+  Athletic Coach, Team Manager). Die lokalen Testdaten nutzen dieselben Namen
+  (Schema-Version `2026-09-24-english-roles-v7`).
+- Mitgenommen, weil sie an denselben Stellen hängen: „Forgot password?“ auf der
+  Anmeldeseite (Mail mit Link) und `/reset-password` zum Setzen eines neuen Passworts;
+  im Identitätsmenü mit Anmeldung „Your name“ zum Ändern des eigenen Namens
+  (`renameOwnPerson`, nur die eigene Person, auf dem Server durch die Zugriffsregeln
+  abgesichert).
+
+Geprüft: 75 + 35 Zugriffsprüfungen, 52 Ende-zu-Ende-Prüfungen (neu: eigener Name
+ändern, fremder Name abgelehnt), Typecheck, Build; im Browser (Handybreite) Startseite,
+Anmeldung mit „Forgot password?“, Beitreten, Reset-Seite mit ungültigem Link,
+Identitätsmenü, Trainerteam: keine deutschen Texte mehr außer Personennamen, keine
+Laufzeitfehler. Der Versand der Reset-Mail selbst ist nicht geprüft (Mailversand, siehe
+offene Punkte aus Run 10).

@@ -234,7 +234,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     const loadedFacility = database.facilities.find((candidate) => candidate.id === facilityId);
     if (!loadedFacility) {
       setState('error');
-      setError('Diese Halle gibt es nicht.');
+      setError('This hall does not exist.');
       return;
     }
 
@@ -295,7 +295,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       ? database.memberships
           .filter((membership) => membership.personId === activePerson.id && membership.role === 'coach')
           // Being on the staff is not enough: the role has to allow editing
-          // sessions. A Betreuer sees the hall's week but cannot move anything.
+          // sessions. A Team Manager sees the hall's week but cannot move anything.
           .filter((membership) => hasCoachPermission(database, activePerson.id, membership.teamId, 'editSessions'))
           .map((membership) => ({
             role: 'head_coach' as const,
@@ -720,7 +720,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       updateSession(save.sessionId, { startsAt: save.startsAt, endsAt: save.endsAt });
       return true;
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Die Einheit konnte nicht verschoben werden.');
+      setError(saveError instanceof Error ? saveError.message : 'The session could not be moved.');
       rollbackFacilitySave(save);
       return false;
     }
@@ -794,7 +794,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   }
 
   async function persistCreateSession(value: FacilitySessionEditValue) {
-    if (!facility) throw new Error('Die Halle fehlt.');
+    if (!facility) throw new Error('The hall is missing.');
     assertWritableSessionValue(value);
     setIsSavingSession(true);
     try {
@@ -825,7 +825,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     const currentSession = originalSession ?? sessions.find((session) => session.id === sessionId);
     if (!currentSession) return;
     // The real permission check, kept from the Supabase version.
-    if (!canManageSession(currentSession)) throw new Error('Du darfst diese Einheit nicht bearbeiten.');
+    if (!canManageSession(currentSession)) throw new Error('You may not edit this session.');
     assertWritableSessionValue(value);
     setIsSavingSession(true);
     try {
@@ -852,7 +852,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     try {
       updateSession(sessionId, { groupIds });
     } catch (changeError) {
-      setError(changeError instanceof Error ? changeError.message : 'Die Gruppen konnten nicht gespeichert werden.');
+      setError(changeError instanceof Error ? changeError.message : 'The groups could not be saved.');
       throw changeError;
     }
   }
@@ -863,7 +863,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       deleteSession(session.id);
       setSelectedSession(null);
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'Die Einheit konnte nicht gelöscht werden.');
+      setError(deleteError instanceof Error ? deleteError.message : 'The session could not be deleted.');
     }
   }
 

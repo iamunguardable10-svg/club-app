@@ -26,9 +26,9 @@ type LocalDataState = {
 
 /** What the pages show instead of data while the server has none for this person. */
 const BACKEND_MESSAGES: Partial<Record<BackendStatus['phase'], string>> = {
-  signedOut: 'Nicht angemeldet.',
-  unlinked: 'Dein Konto ist noch keinem Verein zugeordnet.',
-  error: 'Die Daten konnten nicht vom Server geladen werden.',
+  signedOut: 'Not signed in.',
+  unlinked: 'Your account is not part of a team yet.',
+  error: 'Could not load the data from the server.',
 };
 
 export function useLocalDatabase(): LocalDataState {

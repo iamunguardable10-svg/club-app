@@ -107,23 +107,23 @@ export function diffRows(before: ServerRows, after: ServerRows): Operation[] {
 
 /** Human-readable names for the message when the server refuses something. */
 const TABLE_LABEL: Partial<Record<TableName, string>> = {
-  facilities: 'Hallen',
-  teams: 'Teameinstellungen',
-  department_facilities: 'Hallenfreigaben',
-  people: 'Personen',
-  coach_roles: 'Trainerrollen',
-  memberships: 'Trainerteam',
-  player_groups: 'Gruppen',
-  player_group_members: 'Gruppen',
-  session_series: 'Wochenserien',
-  sessions: 'Einheiten',
-  session_series_week_states: 'Wochenserien',
-  availability: 'Zu- und Absagen',
-  availability_reasons: 'Absagegründe',
-  load_entries: 'Belastung',
-  load_summaries: 'Belastungsampel',
-  athlete_plans: 'Trainingspläne',
-  acknowledged_sessions: 'erledigte Einheiten',
+  facilities: 'halls',
+  teams: 'team settings',
+  department_facilities: 'hall sharing',
+  people: 'people',
+  coach_roles: 'coach roles',
+  memberships: 'staff',
+  player_groups: 'groups',
+  player_group_members: 'groups',
+  session_series: 'weekly series',
+  sessions: 'sessions',
+  session_series_week_states: 'weekly series',
+  availability: 'availability',
+  availability_reasons: 'absence reasons',
+  load_entries: 'load',
+  load_summaries: 'load traffic light',
+  athlete_plans: 'training plans',
+  acknowledged_sessions: 'dismissed sessions',
 };
 
 export class RemoteStore {
@@ -271,8 +271,8 @@ export class RemoteStore {
     if (failure || mismatch) {
       this.setStatus({
         rejected: failure
-          ? `Nicht gespeichert: ${failure}`
-          : `Nicht gespeichert (${TABLE_LABEL[mismatch!] ?? mismatch}): Deine Rolle darf das nicht, oder jemand anderes hat es gerade geändert.`,
+          ? `Not saved: ${failure}`
+          : `Not saved (${TABLE_LABEL[mismatch!] ?? mismatch}): your role may not change this, or someone else just changed it.`,
       });
       this.notify();
     }

@@ -128,15 +128,15 @@ const U18_NAMES: [string, string][] = [
 /**
  * Default coach roles every team starts with. Agreed with the club: head
  * coach, co-trainer and athletic coach see and may do everything; the
- * Betreuer (team manager) sees who is in the squad and who is coming, nothing
+ * Team Manager sees who is in the squad and who is coming, nothing
  * about load or the reasons someone is out. Head coaches can change any of this
  * per team except their own role, which is locked.
  */
 export const COACH_ROLE_TEMPLATES: { key: string; name: string; permissions: CoachPermission[]; locked: boolean }[] = [
   { key: 'head', name: 'Head Coach', permissions: [...COACH_PERMISSIONS], locked: true },
-  { key: 'assistant', name: 'Co-Trainer', permissions: [...COACH_PERMISSIONS], locked: false },
-  { key: 'athletic', name: 'Athletiktrainer', permissions: [...COACH_PERMISSIONS], locked: false },
-  { key: 'manager', name: 'Betreuer', permissions: ['viewRoster', 'viewAttendance'], locked: false },
+  { key: 'assistant', name: 'Assistant Coach', permissions: [...COACH_PERMISSIONS], locked: false },
+  { key: 'athletic', name: 'Athletic Coach', permissions: [...COACH_PERMISSIONS], locked: false },
+  { key: 'manager', name: 'Team Manager', permissions: ['viewRoster', 'viewAttendance'], locked: false },
 ];
 
 /** Staff of the test club, with the role each holds per team. */

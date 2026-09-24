@@ -909,7 +909,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     const team = teams.find((item) => item.id === input.teamId);
     if (!team) return;
     if (!editableTeamIds.has(team.id)) {
-      setError('Deine Rolle darf in diesem Team keine Einheiten anlegen.');
+      setError('Your role may not create sessions in this team.');
       return;
     }
     try {
@@ -924,7 +924,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       });
       setError(null);
     } catch (error) {
-      reportError(error, 'Die Einheit konnte nicht angelegt werden.');
+      reportError(error, 'The session could not be created.');
     }
   }
 
@@ -932,12 +932,12 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     // Scope check, previously enforced by row-level security: a coach may only
     // touch sessions of the teams they actually coach.
     if (!sessions.some((session) => session.id === input.sessionId)) {
-      setError('Du kannst nur Einheiten deiner eigenen Teams bearbeiten.');
+      setError('You can only edit sessions of your own teams.');
       return;
     }
     const sessionTeamId = teamOfSession(input.sessionId);
     if (!sessionTeamId || !editableTeamIds.has(sessionTeamId)) {
-      setError('Deine Rolle darf diese Einheit nicht bearbeiten.');
+      setError('Your role may not edit this session.');
       return;
     }
     try {
@@ -951,18 +951,18 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       });
       setError(null);
     } catch (error) {
-      reportError(error, 'Die Einheit konnte nicht gespeichert werden.');
+      reportError(error, 'The session could not be saved.');
     }
   }
 
   function handleCoachSessionDelete(sessionId: string) {
     if (!sessions.some((session) => session.id === sessionId)) {
-      setError('Du kannst nur Einheiten deiner eigenen Teams löschen.');
+      setError('You can only delete sessions of your own teams.');
       return;
     }
     const sessionTeamId = teamOfSession(sessionId);
     if (!sessionTeamId || !editableTeamIds.has(sessionTeamId)) {
-      setError('Deine Rolle darf diese Einheit nicht löschen.');
+      setError('Your role may not delete this session.');
       return;
     }
     setIsDeletingSession(true);
@@ -973,7 +973,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       setDeleteSessionId(null);
       setError(null);
     } catch (error) {
-      reportError(error, 'Die Einheit konnte nicht gelöscht werden.');
+      reportError(error, 'The session could not be deleted.');
     } finally {
       setIsDeletingSession(false);
     }
@@ -983,7 +983,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     const team = teams.find((item) => item.id === input.teamId);
     if (!team) return;
     if (!seriesTeamIds.has(team.id)) {
-      setError('Deine Rolle darf für dieses Team keine Serien planen.');
+      setError('Your role may not plan series for this team.');
       return;
     }
     try {
@@ -1007,7 +1007,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       });
       setError(null);
     } catch (error) {
-      reportError(error, 'Die Serie konnte nicht angelegt werden.');
+      reportError(error, 'The series could not be created.');
     }
   }
 
@@ -1016,7 +1016,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     if (!team) return;
     const currentTeamId = teamOfSeries(seriesId);
     if (!seriesTeamIds.has(team.id) || !currentTeamId || !seriesTeamIds.has(currentTeamId)) {
-      setError('Deine Rolle darf diese Serie nicht ändern.');
+      setError('Your role may not change this series.');
       return;
     }
     try {
@@ -1034,14 +1034,14 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       });
       setError(null);
     } catch (error) {
-      reportError(error, 'Die Serie konnte nicht gespeichert werden.');
+      reportError(error, 'The series could not be saved.');
     }
   }
 
   function handleCoachSeriesDelete(seriesId: string) {
     const series = seriesTemplates.find((item) => item.id === seriesId);
     if (!series || !series.teamId || !seriesTeamIds.has(series.teamId)) {
-      setError('Deine Rolle darf diese Serie nicht löschen.');
+      setError('Your role may not delete this series.');
       return;
     }
     try {
@@ -1051,14 +1051,14 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       });
       setError(null);
     } catch (error) {
-      reportError(error, 'Die Serie konnte nicht gelöscht werden.');
+      reportError(error, 'The series could not be deleted.');
     }
   }
 
   function handleCoachSeriesWeekToggle(seriesId: string, weekStart: string, checked: boolean) {
     const seriesTeamId = teamOfSeries(seriesId);
     if (!seriesTeamId || !seriesTeamIds.has(seriesTeamId)) {
-      setError('Deine Rolle darf diese Serie nicht planen.');
+      setError('Your role may not plan this series.');
       return;
     }
     try {
@@ -1068,7 +1068,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       setSeriesWeekState(seriesId, weekStart, checked, existing?.committedSessionId ?? null);
       setError(null);
     } catch (error) {
-      reportError(error, 'Die Woche konnte nicht gespeichert werden.');
+      reportError(error, 'The week could not be saved.');
     }
   }
 
@@ -1082,7 +1082,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
    */
   function handleCoachSeriesWeekConfirm(items: SeriesWeekItem[]) {
     if (items.some((item) => !item.teamId || !seriesTeamIds.has(item.teamId))) {
-      setError('Deine Rolle darf diese Serie nicht planen.');
+      setError('Your role may not plan this series.');
       return;
     }
     const createdSessionIds: string[] = [];
@@ -1123,7 +1123,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       setError(null);
     } catch (error) {
       for (const sessionId of createdSessionIds) deleteSession(sessionId);
-      const message = error instanceof Error ? error.message : 'Die Serienbestätigung ist fehlgeschlagen.';
+      const message = error instanceof Error ? error.message : 'Confirming the series week failed.';
       setError(message);
       throw error;
     }
@@ -1139,7 +1139,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   }
 
   if (!ready) {
-    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">Trainerbereich wird geladen ...</section></div></main>;
+    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">Loading coach workspace …</section></div></main>;
   }
 
   // A broken document is shown as such rather than silently replaced with
@@ -1153,8 +1153,8 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       <main className="os-page">
         <div className="os-container">
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">
-            <p className="mb-4">Es ist keine Trainerin und kein Trainer ausgewählt.</p>
-            <Link className="underline" href="/">Rolle wählen</Link>
+            <p className="mb-4">No coach is selected.</p>
+            <Link className="underline" href="/">Choose a role</Link>
           </section>
         </div>
       </main>

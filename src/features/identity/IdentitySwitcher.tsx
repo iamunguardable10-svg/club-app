@@ -3,9 +3,10 @@
 /**
  * Shows who the app is currently acting as, and lets that be changed.
  *
- * Without accounts there is no login to establish identity, so it has to be
- * visible and changeable at all times — otherwise "the athlete sees their
- * sessions" is undefined and nothing about the app is testable.
+ * In the demo club (no accounts) identity has to be visible and changeable at
+ * all times — otherwise "the athlete sees their sessions" is undefined and
+ * nothing is testable. Signed in to the club, the same sheet offers only your
+ * own roles, your name and signing out.
  *
  * Role alone is not enough. Switching person within a role is what proves an
  * athlete only sees their own data, so both are offered.
@@ -25,6 +26,7 @@ import { LocalModeLink } from '@/features/access/LocalModeLink';
 import {
   displayName,
   peopleWithRole,
+  renameOwnPerson,
   isRemoteMode,
   isServerAvailable,
   signOut,
@@ -38,8 +40,8 @@ import {
 } from '@/shared/data';
 
 const ROLE_LABEL: Record<MembershipRole, string> = {
-  coach: 'Trainer',
-  athlete: 'Spieler',
+  coach: 'Coach',
+  athlete: 'Player',
 };
 
 /** Where each role lands when it is picked. */
@@ -131,9 +133,9 @@ export function IdentitySwitcher({ className = '' }: { className?: string }) {
                 >
                   <span>
                     <span className="block text-sm font-bold">{displayName(person)}</span>
-                    <span className="block text-xs text-slate-400">{teams || 'ohne Team'}</span>
+                    <span className="block text-xs text-slate-400">{teams || 'No team'}</span>
                   </span>
-                  {isCurrent ? <span className="text-xs font-black text-emerald-300">aktiv</span> : null}
+                  {isCurrent ? <span className="text-xs font-black text-emerald-300">Active</span> : null}
                 </button>
               </li>
             );
@@ -151,8 +153,8 @@ export function IdentitySwitcher({ className = '' }: { className?: string }) {
         className={`flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-200 ${className}`}
       >
         <span className="inline-block h-2 w-2 rounded-full bg-emerald-300" aria-hidden />
-        {current ? `${ROLE_LABEL[identity!.role]}: ${displayName(current)}` : 'Rolle wählen'}
-        <span aria-hidden className="text-slate-500">wechseln</span>
+        {current ? `${ROLE_LABEL[identity!.role]}: ${displayName(current)}` : 'Choose a role'}
+        <span aria-hidden className="text-slate-500">{remoteMode ? 'account' : 'switch'}</span>
       </button>
 
       {open && mounted
@@ -160,18 +162,18 @@ export function IdentitySwitcher({ className = '' }: { className?: string }) {
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/70 p-0 sm:items-center sm:p-6">
           <button
             type="button"
-            aria-label="Schließen"
+            aria-label="Close"
             className="absolute inset-0 h-full w-full cursor-default"
             onClick={() => setOpen(false)}
           />
           <div className="relative max-h-[85vh] w-full overflow-y-auto rounded-t-3xl border border-slate-800 bg-slate-950 p-5 sm:max-w-md sm:rounded-3xl">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-black text-white">{remoteMode ? 'Deine Rollen' : 'Als wen möchtest du testen?'}</h2>
-                <p className="mt-1 text-xs text-slate-400">{remoteMode ? 'Wechsel zwischen deinen eigenen Rollen.' : 'Kein Login nötig. Alle sehen dieselben Daten.'}</p>
+                <h2 className="text-lg font-black text-white">{remoteMode ? 'Your roles' : 'Who do you want to test as?'}</h2>
+                <p className="mt-1 text-xs text-slate-400">{remoteMode ? 'Switch between your own roles.' : 'Demo club, no account. Everyone here shares the same test data.'}</p>
               </div>
               <button type="button" onClick={() => setOpen(false)} className="rounded-full border border-slate-700 px-3 py-1 text-xs font-bold text-slate-300">
-                Schließen
+                Close
               </button>
             </div>
             <div className="space-y-5">
@@ -182,6 +184,8 @@ export function IdentitySwitcher({ className = '' }: { className?: string }) {
             {/* Reset lives here because this sheet is reachable from both the
                 coach and the athlete side. Two steps, in place: a browser
                 confirm() is easy to dismiss by accident on a phone. */}
+            {remoteMode && current ? <AccountName key={current.id} personId={current.id} firstName={current.firstName} lastName={current.lastName} /> : null}
+
             <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-800 pt-4">
               {remoteMode ? (
                 <>
@@ -190,12 +194,12 @@ export function IdentitySwitcher({ className = '' }: { className?: string }) {
                     onClick={async () => { await signOut(); window.location.assign('/'); }}
                     className="rounded-2xl border border-slate-700 px-4 py-2 text-xs font-black text-slate-200"
                   >
-                    Abmelden
+                    Sign out
                   </button>
                   <LocalModeLink />
                 </>
               ) : isServerAvailable() ? (
-                <Link href="/login" className="text-xs font-bold text-slate-400 underline">Mit Konto anmelden</Link>
+                <Link href="/login" className="text-xs font-bold text-slate-400 underline">Sign in to your club</Link>
               ) : null}
             </div>
 
@@ -203,21 +207,21 @@ export function IdentitySwitcher({ className = '' }: { className?: string }) {
               {confirmReset ? (
                 <div className="space-y-3">
                   <p className="text-sm text-slate-300">
-                    Alle lokalen Daten werden gelöscht und der Testverein neu angelegt — auch alles,
-                    was du selbst eingetragen hast.
+                    All test data in this browser is deleted and the demo club starts over, including
+                    everything you entered yourself.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <button type="button" onClick={reset} className="rounded-2xl border border-red-400/60 bg-red-500/20 px-4 py-3 text-xs font-black text-red-100">
-                      Ja, zurücksetzen
+                      Yes, reset
                     </button>
                     <button type="button" onClick={() => setConfirmReset(false)} className="rounded-2xl border border-slate-700 px-4 py-3 text-xs font-black text-slate-300">
-                      Abbrechen
+                      Cancel
                     </button>
                   </div>
                 </div>
               ) : (
                 <button type="button" onClick={() => setConfirmReset(true)} className="text-xs font-bold text-slate-400 underline">
-                  Testdaten zurücksetzen
+                  Reset test data
                 </button>
               )}
             </div>}
@@ -227,5 +231,37 @@ export function IdentitySwitcher({ className = '' }: { className?: string }) {
           )
         : null}
     </>
+  );
+}
+
+/** Your own name, as the team sees it (server mode). */
+function AccountName({ personId, firstName, lastName }: { personId: string; firstName: string; lastName: string }) {
+  const [first, setFirst] = useState(firstName);
+  const [last, setLast] = useState(lastName);
+  const [message, setMessage] = useState<string | null>(null);
+  const dirty = first.trim() !== firstName || last.trim() !== lastName;
+  return (
+    <form
+      className="mt-6 grid gap-2 border-t border-slate-800 pt-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        try {
+          renameOwnPerson(personId, first, last);
+          setMessage('Saved.');
+        } catch (error) {
+          setMessage(error instanceof Error ? error.message : String(error));
+        }
+      }}
+    >
+      <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Your name</p>
+      <div className="grid grid-cols-2 gap-2">
+        <input value={first} onChange={(event) => { setFirst(event.target.value); setMessage(null); }} aria-label="First name" className="os-field" />
+        <input value={last} onChange={(event) => { setLast(event.target.value); setMessage(null); }} aria-label="Last name" className="os-field" />
+      </div>
+      <div className="flex items-center gap-3">
+        <button type="submit" disabled={!dirty} className="rounded-2xl border border-slate-700 px-4 py-2 text-xs font-black text-slate-200 disabled:opacity-50">Save name</button>
+        {message ? <span className="text-xs font-bold text-slate-400">{message}</span> : null}
+      </div>
+    </form>
   );
 }
