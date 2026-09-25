@@ -1908,3 +1908,28 @@ Geprüft: Typecheck, Build, Datenschicht; Browser Handy/Desktop mit einer gerade
 Einheit: Today und Team zeigen dieselbe, Team mit „Now“; Spieler-Blatt zeigt eigenes Training;
 keine Fehler.
 
+## Run 30 — Angemeldet bleiben beim Hinzufügen zum Home-Bildschirm (erledigt)
+
+Gemeldet (2026-09-25): Nach „Zum Home-Bildschirm“ musste man sich in der App noch einmal
+anmelden. Grund: Auf dem iPhone bekommt die App auf dem Home-Bildschirm einen eigenen, leeren
+Speicher; die Anmeldung aus Safari kommt nicht mit (auch nicht die Wahl „Club-Server statt
+Demo“). Android teilt den Speicher, dort war es kein Problem.
+
+- **Übergabe mit Einmal-Code:** Zeigt die App auf einer angemeldeten Safari-Seite die
+  Installations-Schritte (Karte, Menü „Install as app“, Einstellungen), holt sie einen Code
+  (256 Bit, nur für dieses Konto, 10 Minuten, einmal) und setzt ihn in die Start-Adresse der
+  neuen App: in die Seitenadresse und über `/install.webmanifest?handoff=…` in die Start-Adresse
+  des Manifests, je nachdem, was iOS nimmt. Hinweis in den Schritten: „Signed in here? The app
+  stays signed in if you add it within 10 minutes.“
+- **Erster Start der App vom Home-Bildschirm:** „Signing you in…“, der Code wird über die Edge
+  Function `login-handoff` gegen eine Einmal-Anmeldung getauscht (Migration 0025, keine E-Mail),
+  die App stellt auf den Club-Server und lädt neu – angemeldet. Code verbraucht oder zu alt:
+  die Anmeldeseite, einmal anmelden wie bisher. Im Browser bleibt der Code unangetastet.
+
+Geprüft: Datenbank 14 Testdateien (neu `14_login_handoff_test.sql`: nur angemeldet, lang und
+zufällig, App kann ihn nicht selbst einlösen, neuer ersetzt alten, einmal, nicht nach 10 Min);
+live mit einem Wegwerf-Testkonto (danach gelöscht): Code → Token → Anmeldung für genau dieses
+Konto, zweiter Versuch 404, CORS ok; Browser: installierte App mit abgelaufenem Code → Anmeldung
+im Server-Modus, im Browser bleibt der Code; Typecheck, Build. Auf dem echten iPhone noch zu
+prüfen: App von einer angemeldeten Seite aus hinzufügen und öffnen.
+
