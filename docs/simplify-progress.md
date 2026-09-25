@@ -1811,3 +1811,29 @@ Live: Funktion antwortet auf unbekannte Links mit 404 und über den Serverschlü
 Handy/Desktop: Hinweis im Kalender führt zu den Einstellungen, kein Überlauf, keine Fehler.
 Offen: mit einem echten Konto einmal in Apple Kalender abonnieren.
 
+## Run 26 — Stück 22: Eigenes Training als Serie (erledigt)
+
+Entschieden (2026-09-25): Apple-Kalender werden **nicht** als „Training“ importiert. Eigenes
+Training legt man in der App an, einzeln oder als Serie, und trägt dort die Belastung nach.
+Importierte Kalender sind privat; was der Trainer davon sieht, wählt man je Kalender (21b).
+
+- **Anlegen:** Beim Planen von eigenem Training „Once“ oder „Weekly“. Bei „Weekly“ Wochentage
+  wählen (Standard der Tag des Datums, z. B. Mo + Do) und „Until“ (Standard 8 Wochen, höchstens
+  26). Die App zeigt „16 sessions; each asks ‚How hard was it?‘ afterwards“; der Knopf heißt
+  „Plan 16 sessions · 540 AU each“.
+- **Jeder Termin ist ein normaler eigener Termin:** im Kalender, in der Belastungs-Vorschau,
+  danach „How hard was it?“, im Kalender-Abo.
+- **Ändern und Löschen:** Bei einem Termin einer Serie „Weekly series · change: Only this one /
+  This and following“. „This and following“ übernimmt Uhrzeit, Art, RPE und Dauer für die
+  späteren Termine, die Tage bleiben; nur der gewählte Termin kann auf ein anderes Datum.
+  Löschen fragt entsprechend („… and the later sessions of this weekly series“).
+- **Server:** Migration 0024 (angewendet): `athlete_plans.series_id`. Demo: „Strength“ als
+  Serie über drei Wochen; Datenversion v18.
+
+Geprüft: neu `npm run test:series` (Wochentage, Zeitumstellung, 8 Wochen, Start mitten in der
+Woche, Ende inklusive, höchstens 26 Wochen, „this and following“); Datenschicht 154 (neu:
+Serie auf dem Server, mit Kennung zurückgelesen, „this and following“ gelöscht); Datenbank 13
+Testdateien; Typecheck, Build. Browser Handy/Desktop: Serie Mo + Do über 8 Wochen = 16
+Termine, Desktop: „This and following“ auf 19:00 (erster bleibt 17:00, IDs bleiben), Löschen
+ab dem zweiten lässt einen übrig; kein Überlauf, keine Fehler.
+

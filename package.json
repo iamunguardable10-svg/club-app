@@ -16,7 +16,8 @@
     "clean:next-env": "node scripts/clean-next-env.mjs",
     "test:pilot": "tsx supabase/pilot/tests/remote-store.test.ts",
     "test:load": "tsx src/shared/data/loadCalculations.test.ts",
-    "test:calendar": "tsx supabase/pilot/tests/calendar-ics.test.ts"
+    "test:calendar": "tsx supabase/pilot/tests/calendar-ics.test.ts",
+    "test:series": "tsx src/features/load/planSeries.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.1",

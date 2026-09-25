@@ -23,7 +23,7 @@ import type { LocalDatabase } from './schema';
  *
  * Format: date plus a short reason, so the history stays readable.
  */
-export const SCHEMA_VERSION = '2026-09-25-messages-v17';
+export const SCHEMA_VERSION = '2026-09-25-plan-series-v18';
 
 /** Storage key of the database document. */
 export const DATABASE_KEY = 'club-app.local.db';

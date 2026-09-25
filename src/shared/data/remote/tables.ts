@@ -187,7 +187,7 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     athlete_plans: database.athletePlans.map((p) => ({
       id: p.id, person_id: p.personId, team_id: p.teamId, title: p.title, date: p.date, starts_at: p.startsAt ?? null,
       training_type: p.trainingType, expected_rpe: p.expectedRpe, expected_duration_minutes: p.expectedDurationMinutes,
-      note: p.note ?? null, created_at: p.createdAt,
+      note: p.note ?? null, series_id: p.seriesId ?? null, created_at: p.createdAt,
     })),
     acknowledged_sessions: database.acknowledgedSessions.map((a) => ({ person_id: a.personId, session_id: a.sessionId })),
     load_entry_reviews: database.loadEntryReviews.map((r) => ({
@@ -320,7 +320,7 @@ export function fromServerRows(
     athletePlans: rows.athlete_plans.map((p) => ({
       id: s(p.id), personId: s(p.person_id), teamId: sn(p.team_id), teamName: p.team_id ? teamNameById.get(s(p.team_id)) ?? null : null,
       title: s(p.title), date: s(p.date), startsAt: sn(p.starts_at), trainingType: p.training_type as LoadTrainingType,
-      expectedRpe: Number(p.expected_rpe), expectedDurationMinutes: Number(p.expected_duration_minutes), note: sn(p.note), createdAt: s(p.created_at),
+      expectedRpe: Number(p.expected_rpe), expectedDurationMinutes: Number(p.expected_duration_minutes), note: sn(p.note), seriesId: sn(p.series_id), createdAt: s(p.created_at),
     })),
     acknowledgedSessions: rows.acknowledged_sessions.map((a) => ({ personId: s(a.person_id), sessionId: s(a.session_id) })),
     loadEntryReviews: rows.load_entry_reviews.map((r) => ({
