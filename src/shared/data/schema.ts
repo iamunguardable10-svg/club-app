@@ -437,6 +437,29 @@ export type Absence = {
   createdAt: Timestamp;
 };
 
+/**
+ * An announcement from the staff to a team or some of its groups (piece 17).
+ * No replies. Read counts as soon as the player has seen it.
+ */
+export type TeamMessage = {
+  id: Id;
+  teamId: Id;
+  /** Empty: the whole team. */
+  groupIds: Id[];
+  authorId: Id | null;
+  body: string;
+  important: boolean;
+  createdAt: Timestamp;
+  /** Set once: unread players were reminded. */
+  remindedAt: Timestamp | null;
+};
+
+export type MessageRead = {
+  messageId: Id;
+  personId: Id;
+  readAt: Timestamp;
+};
+
 export type AttendanceConfirmation = {
   sessionId: Id;
   personId: Id;
@@ -487,6 +510,8 @@ export type LocalDatabase = {
   attendanceConfirmations: AttendanceConfirmation[];
   absences: Absence[];
   squadEntries: SquadEntry[];
+  teamMessages: TeamMessage[];
+  messageReads: MessageRead[];
   /** The last load link an athlete shared with a coach, per person. */
   shareLinks: Record<Id, string>;
   activeIdentity: ActiveIdentity | null;

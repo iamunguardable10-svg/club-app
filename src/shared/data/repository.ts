@@ -48,6 +48,7 @@ import {
   type Absence,
   type AbsenceKind,
   type SquadStatus,
+  type TeamMessage,
   type Availability,
   type AvailabilityStatus,
   type Facility,
@@ -546,7 +547,7 @@ export async function deletePushSubscription(endpoint: string): Promise<void> {
 }
 
 /** Kinds of message that can be switched off; "How hard was it?" cannot (piece 12). */
-export type MutablePushKind = 'changed' | 'cancelled' | 'reminder' | 'summary' | 'review';
+export type MutablePushKind = 'changed' | 'cancelled' | 'reminder' | 'summary' | 'review' | 'message';
 
 /** Per account: switched-off kinds and quiet hours (club time, whole hours; null = none). */
 export type NotificationSettings = { mutedKinds: MutablePushKind[]; quietFrom: number | null; quietTo: number | null };
@@ -2052,6 +2053,113 @@ export function publishSquad(sessionId: Id): void {
       database.squadEntries.push({ sessionId, personId: membership.personId, status: 'not_selected', setBy: me, setAt: now });
     }
     session.squadPublishedAt = now;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Team messages (piece 17)
+// ---------------------------------------------------------------------------
+
+/** Players a message is for: the team, or those in its groups. */
+export function messageRecipientIds(database: LocalDatabase, message: Pick<TeamMessage, 'teamId' | 'groupIds'>): Id[] {
+  const players = database.memberships.filter((m) => m.teamId === message.teamId && m.role === 'athlete').map((m) => m.personId);
+  if (message.groupIds.length === 0) return players;
+  const inGroups = new Set(database.playerGroupMembers.filter((member) => message.groupIds.includes(member.groupId)).map((member) => member.personId));
+  return players.filter((personId) => inGroups.has(personId));
+}
+
+/** Messages for a player, newest first. */
+export function messagesForPlayer(database: LocalDatabase, personId: Id): TeamMessage[] {
+  return (database.teamMessages ?? [])
+    .filter((message) => messageRecipientIds(database, message).includes(personId))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export function messagesForTeam(database: LocalDatabase, teamId: Id): TeamMessage[] {
+  return (database.teamMessages ?? []).filter((message) => message.teamId === teamId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export function isMessageRead(database: LocalDatabase, messageId: Id, personId: Id): boolean {
+  return (database.messageReads ?? []).some((read) => read.messageId === messageId && read.personId === personId);
+}
+
+export function unreadMessagesFor(database: LocalDatabase, personId: Id): TeamMessage[] {
+  return messagesForPlayer(database, personId).filter((message) => !isMessageRead(database, message.id, personId));
+}
+
+/** Who has read a message, for the staff. */
+export function messageReadStats(database: LocalDatabase, message: TeamMessage): { read: number; total: number; unreadIds: Id[] } {
+  const recipients = messageRecipientIds(database, message);
+  const unreadIds = recipients.filter((personId) => !isMessageRead(database, message.id, personId));
+  return { read: recipients.length - unreadIds.length, total: recipients.length, unreadIds };
+}
+
+/** Roles that see attendance or plan sessions write to the team. */
+export function mayMessageTeam(database: LocalDatabase, personId: Id | null, teamId: Id): boolean {
+  const permissions = coachPermissions(database, personId, teamId);
+  return permissions.has('viewAttendance') || permissions.has('editSessions');
+}
+
+function requireMessageRights(database: LocalDatabase, teamId: Id): Id {
+  const coachId = database.activeIdentity?.role === 'coach' ? database.activeIdentity.personId : null;
+  if (!coachId || !mayMessageTeam(database, coachId, teamId)) throw new LocalDataError('Your role may not write to this team.');
+  return coachId;
+}
+
+export function postTeamMessage(input: { teamId: Id; groupIds?: Id[]; body: string; important?: boolean }): Id {
+  const body = input.body.trim();
+  if (!body) throw new LocalDataError('Write a message first.');
+  if (body.length > 2000) throw new LocalDataError('A message can be at most 2000 characters.');
+  const id = newId();
+  mutate((database) => {
+    const authorId = requireMessageRights(database, input.teamId);
+    const groupIds = input.groupIds ?? [];
+    if (groupIds.some((groupId) => !database.playerGroups.some((group) => group.id === groupId && group.teamId === input.teamId))) {
+      throw new LocalDataError('The groups must belong to the team.');
+    }
+    database.teamMessages = database.teamMessages ?? [];
+    database.teamMessages.push({
+      id, teamId: input.teamId, groupIds, authorId, body, important: Boolean(input.important),
+      createdAt: new Date().toISOString(), remindedAt: null,
+    });
+  });
+  return id;
+}
+
+export function deleteTeamMessage(messageId: Id): void {
+  mutate((database) => {
+    const message = (database.teamMessages ?? []).find((candidate) => candidate.id === messageId);
+    if (!message) return;
+    requireMessageRights(database, message.teamId);
+    database.teamMessages = database.teamMessages.filter((candidate) => candidate.id !== messageId);
+    database.messageReads = (database.messageReads ?? []).filter((read) => read.messageId !== messageId);
+  });
+}
+
+/** Reminds everyone who has not read it yet, once. */
+export function remindUnread(messageId: Id): void {
+  mutate((database) => {
+    const message = (database.teamMessages ?? []).find((candidate) => candidate.id === messageId);
+    if (!message) throw new LocalDataError('This message no longer exists.');
+    requireMessageRights(database, message.teamId);
+    if (message.remindedAt) throw new LocalDataError('Players were already reminded of this message.');
+    message.remindedAt = new Date().toISOString();
+  });
+}
+
+/** Seen: the player has had these messages on screen. Only their own, only messages for them. */
+export function markMessagesRead(personId: Id, messageIds: Id[]): void {
+  const database = readDatabase();
+  if (!database || !ownPersonIds(database).includes(personId)) return;
+  const unread = messageIds.filter((messageId) => {
+    const message = database.teamMessages?.find((candidate) => candidate.id === messageId);
+    return message && !isMessageRead(database, messageId, personId) && messageRecipientIds(database, message).includes(personId);
+  });
+  if (unread.length === 0) return;
+  mutate((draft) => {
+    draft.messageReads = draft.messageReads ?? [];
+    const now = new Date().toISOString();
+    for (const messageId of unread) draft.messageReads.push({ messageId, personId, readAt: now });
   });
 }
 

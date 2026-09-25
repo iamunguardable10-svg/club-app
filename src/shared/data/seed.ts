@@ -16,6 +16,8 @@ import { SCHEMA_VERSION } from './migrations';
 import { COACH_PERMISSIONS } from './schema';
 import type {
   Absence,
+  MessageRead,
+  TeamMessage,
   AthletePlan,
   CoachPermission,
   CoachRole,
@@ -373,6 +375,27 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
   const unratedByAll = new Set([...latestPastByTeam.values()].map((ids) => ids[0]).filter(Boolean));
   const unratedBySome = new Set([...latestPastByTeam.values()].map((ids) => ids[1]).filter(Boolean));
 
+  // Piece 17: two announcements for U16; most players have read the older
+  // one, the demo player (athlete-u16-1) has read neither.
+  const teamMessages: TeamMessage[] = [
+    {
+      id: 'message-demo-1', teamId: TEAM_U16, groupIds: [], authorId: 'coach-5', important: false,
+      body: 'Kit collection on Monday after training. Please bring 20 € for the warm-up shirt.',
+      createdAt: addDays(now, -3).toISOString(), remindedAt: null,
+    },
+    {
+      id: 'message-demo-2', teamId: TEAM_U16, groupIds: [], authorId: 'coach-1', important: true,
+      body: 'Game on Saturday: be at the hall by 10:15, warm-up starts 10:30. Bring both kits.',
+      createdAt: addDays(now, -1).toISOString(), remindedAt: null,
+    },
+  ];
+  const messageReads: MessageRead[] = [
+    ...['athlete-u16-2', 'athlete-u16-3', 'athlete-u16-4', 'athlete-u16-5', 'athlete-u16-6', 'athlete-u16-8', 'athlete-u16-9']
+      .map((personId) => ({ messageId: 'message-demo-1', personId, readAt: addDays(now, -2).toISOString() })),
+    ...['athlete-u16-2', 'athlete-u16-4', 'athlete-u16-6']
+      .map((personId) => ({ messageId: 'message-demo-2', personId, readAt: now.toISOString() })),
+  ];
+
   const availability: Availability[] = [];
 
   // Piece 16: one U16 player is injured for a while; their sessions in that
@@ -546,6 +569,8 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     attendanceConfirmations: [],
     absences,
     squadEntries: [],
+    teamMessages,
+    messageReads,
     shareLinks: {},
     // Start as the first coach so the app is usable immediately. Run 3 adds
     // the entry page that asks which role to test as and lets the person

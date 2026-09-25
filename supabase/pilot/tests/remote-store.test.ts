@@ -609,6 +609,34 @@ async function main() {
   data.deleteSession(squadGame);
   await data.flushRemote();
 
+  // --- Team messages (piece 17) ---------------------------------------------
+  store = await actAs(U.martin);
+  const messageId = data.postTeamMessage({ teamId: TEAM, body: 'Game on Saturday: meet 10:15.', important: true });
+  await data.flushRemote();
+  check('Martin: message on the server', (await count('select 1 from team_messages where id = $1 and important and author_id = $2', [messageId, P.martin])) === 1, store.getStatus().rejected);
+  store = await actAs(U.ben);
+  check('Ben: sees it, unread', data.unreadMessagesFor(db(), P.ben).some((message) => message.id === messageId));
+  data.markMessagesRead(P.ben, [messageId]);
+  await data.flushRemote();
+  check('… having seen it, it counts as read on the server', (await count('select 1 from message_reads where message_id = $1 and person_id = $2', [messageId, P.ben])) === 1, store.getStatus().rejected);
+  store = await actAs(U.martin);
+  const stats = data.messageReadStats(db(), db().teamMessages.find((message) => message.id === messageId)!);
+  check('Martin: read 1 of 2, Jonas unread', stats.read === 1 && stats.total === 2 && stats.unreadIds.includes(P.jonas), stats);
+  data.remindUnread(messageId);
+  await data.flushRemote();
+  check('… reminded once', (await count('select 1 from team_messages where id = $1 and reminded_at is not null', [messageId])) === 1, store.getStatus().rejected);
+  let secondReminder = '';
+  try {
+    data.remindUnread(messageId);
+  } catch (error) {
+    secondReminder = error instanceof Error ? error.message : String(error);
+  }
+  check('… not twice', secondReminder.includes('already reminded'), secondReminder);
+  store = await actAs(U.uwe);
+  data.postTeamMessage({ teamId: TEAM, body: 'Kit collection Monday.' });
+  await data.flushRemote();
+  check('Uwe (Team Manager) may write too', (await count("select 1 from team_messages where body = 'Kit collection Monday.'")) === 1, store.getStatus().rejected);
+
   // --- Founding a club and running it (piece 8a) ---------------------------
   const foundingCode = (await pool.query(`select app.create_founding_code('e2e') as code`)).rows[0].code as string;
   store = await actAs(U.founder);

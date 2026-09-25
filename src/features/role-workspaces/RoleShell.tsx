@@ -17,10 +17,11 @@ import type { ReactNode } from 'react';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { InstallHint } from '@/features/install/InstallHint';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
-import { athleteHasLoad, getActivePerson, useLocalDatabase } from '@/shared/data';
+import { athleteHasLoad, getActivePerson, unreadMessagesFor, useLocalDatabase } from '@/shared/data';
+import { UnreadMessagesCard } from '@/features/messages/UnreadMessagesCard';
 
 export type CoachNavItem = 'today' | 'calendar' | 'team' | 'halls' | 'history';
-export type AthleteNavItem = 'today' | 'calendar' | 'load';
+export type AthleteNavItem = 'today' | 'calendar' | 'load' | 'messages';
 export type ClubNavItem = 'club' | 'halls';
 type NavItem = CoachNavItem | AthleteNavItem | ClubNavItem;
 type NavEntry = { item: NavItem; label: string; href: string };
@@ -29,6 +30,8 @@ const ATHLETE_NAV: NavEntry[] = [
   { item: 'today', label: 'Today', href: '/athlete/home' },
   { item: 'calendar', label: 'Calendar', href: '/athlete/calendar' },
   { item: 'load', label: 'Load', href: '/athlete/load' },
+  // Piece 17: announcements from the staff.
+  { item: 'messages', label: 'Messages', href: '/athlete/messages' },
 ];
 
 const COACH_NAV: NavEntry[] = [
@@ -55,6 +58,7 @@ function NavIcon({ item }: { item: NavItem }) {
       {item === 'history' ? <><circle cx="12" cy="12" r="9" {...common} /><path d="M12 7v5l3 2" {...common} /></> : null}
       {item === 'club' ? <><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6l8-3z" {...common} /><path d="M9 12l2 2 4-4" {...common} /></> : null}
       {item === 'load' ? <path d="M3 12h4l3-7 4 14 3-7h4" {...common} /> : null}
+      {item === 'messages' ? <path d="M4 5h16v11H9l-5 4V5z" {...common} /> : null}
     </svg>
   );
 }
@@ -103,7 +107,12 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
     ? new Set(database.memberships.filter((m) => m.personId === person.id && m.role === 'coach').map((m) => m.teamId)).size
     : 1;
   const labelFor = (item: NavItem, label: string) => (item === 'team' && teamCount > 1 ? 'Teams' : label);
-  const columns = nav.length === 2 ? 'grid-cols-2' : nav.length === 3 ? 'grid-cols-3' : 'grid-cols-5';
+  const columns = nav.length === 2 ? 'grid-cols-2' : nav.length === 3 ? 'grid-cols-3' : nav.length === 4 ? 'grid-cols-4' : 'grid-cols-5';
+  // Unread messages for a player (piece 17), as a count on the tab.
+  const unread = database && person && database.activeIdentity?.role === 'athlete' ? unreadMessagesFor(database, person.id).length : 0;
+  const badge = (item: NavItem) => item === 'messages' && unread > 0
+    ? <span aria-label={`${unread} unread`} className="absolute -right-1.5 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-400 px-1 text-[10px] font-black text-slate-950">{unread}</span>
+    : null;
   // A single destination needs no tab bar on phones.
   const tabBar = nav.length > 1;
 
@@ -124,7 +133,7 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
                 active === item ? 'bg-emerald-300 text-slate-950' : 'text-slate-300 hover:bg-slate-900 hover:text-white'
               }`}
             >
-              <NavIcon item={item} />
+              <span className="relative"><NavIcon item={item} />{badge(item)}</span>
               {labelFor(item, label)}
             </Link>
           ))}
@@ -159,6 +168,7 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
       <div className="mx-auto w-full max-w-6xl space-y-5 px-4 pt-4 sm:px-8 md:pt-6">
         {/* On the first page of each role only, so it is seen once and not everywhere. */}
         {active === 'today' || active === 'club' ? <><InstallHint variant="card" /><NotificationsHint variant="card" /></> : null}
+        {active === 'today' && unread > 0 && database && person ? <UnreadMessagesCard database={database} personId={person.id} /> : null}
         {children}
       </div>
 
@@ -173,7 +183,7 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
                 active === item ? 'text-emerald-300' : 'text-slate-400 hover:text-white'
               }`}
             >
-              <NavIcon item={item} />
+              <span className="relative"><NavIcon item={item} />{badge(item)}</span>
               <span className="block max-w-full truncate">{labelFor(item, label)}</span>
             </Link>
           ))}
