@@ -33,6 +33,7 @@ migrations below are applied there (2026-09-24).
 | `migrations/0022_pilot_team_messages.sql` | Team messages (piece 17): `team_messages` (to the team or groups, optional important; written by roles with viewAttendance or editSessions) and `message_reads` (a player marks what they have seen); push per message (kind `message`, can be muted; `important` cannot), one reminder to the unread, closed when read |
 | `migrations/0023_pilot_calendar_feed.sql` | Calendar subscription link (piece 19): `calendar_feeds` (one secret link per account, closed to the app), `calendar_feed_token` / `_status` / `_stop` for the signed-in account, `calendar_feed(token)` (service role only) with the account's team sessions (players: their groups, squad status once published; coaches: all sessions of their teams) and own training, 60 days back to a year ahead |
 | `migrations/0024_pilot_plan_series.sql` | Own training as a weekly series (piece 22): `athlete_plans.series_id` marks the plans made together, so they can be changed or deleted "this and following"; access rules unchanged |
+| `migrations/0025_pilot_login_handoff.sql` | Staying signed in when the app is added to the home screen: `app.login_handoffs` (one-time code, 256 bits, 10 minutes, used once), `create_login_handoff()` for the signed-in account, `consume_login_handoff(code)` for the Edge Function `login-handoff` only |
 | `tests/00_supabase_shim.sql` | Stand-in for Supabase's `auth` schema and roles, **local tests only** |
 | `tests/01_rls_test.sql` | 105 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
 | `tests/02_access_test.sql` | 35 checks for join codes, invitations and club setup |
@@ -142,6 +143,15 @@ data again. The app cannot change this.
   signed-in account. `push_take_due` / `push_report` are callable by the
   service role only and check the dispatch secret as well.
   `rls_auto_enable` comes with the Supabase project.
+
+## Sign-in for the home-screen app
+
+On iPhones a home-screen web app has its own storage, so the Safari sign-in
+does not come along. The Edge Function `supabase/functions/login-handoff/`
+(deployed as `login-handoff`, JWT verification off: the one-time code is the
+key) trades a code from `create_login_handoff()` for a one-time sign-in token
+(`auth.admin.generateLink`, type magiclink; no email is sent), which the app
+turns into its session with `auth.verifyOtp`. No setup needed.
 
 ## Calendar link (piece 19)
 

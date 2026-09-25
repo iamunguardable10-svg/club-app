@@ -25,6 +25,7 @@ import {
   wasInstalled,
   type InstallPlatform,
 } from './installPrompt';
+import { prepareLoginHandoff } from './installHandoff';
 
 function ShareIcon() {
   return (
@@ -35,6 +36,11 @@ function ShareIcon() {
 }
 
 function Steps({ platform, canPrompt }: { platform: InstallPlatform; canPrompt: boolean }) {
+  // iPhone: the app on the home screen has its own storage; a one-time code
+  // in its start address keeps the person signed in (installHandoff.ts).
+  useEffect(() => {
+    if (platform === 'ios') void prepareLoginHandoff().catch(() => undefined);
+  }, [platform]);
   if (canPrompt) return <p>Install Club OS like an app: its own icon, full screen, one tap away.</p>;
   if (platform === 'ios') {
     return (
@@ -42,6 +48,7 @@ function Steps({ platform, canPrompt }: { platform: InstallPlatform; canPrompt: 
         <li>Open this page in <span className="font-black text-white">Safari</span>.</li>
         <li>Tap <span className="font-black text-white">Share</span> <ShareIcon /> at the bottom (on iPad: at the top).</li>
         <li>Choose <span className="font-black text-white">Add to Home Screen</span>, then <span className="font-black text-white">Add</span>.</li>
+        <li className="list-none text-xs text-slate-400">Signed in here? The app stays signed in if you add it within 10 minutes.</li>
       </ol>
     );
   }

@@ -622,6 +622,44 @@ export async function saveNotificationSettings(settings: NotificationSettings): 
 }
 
 // ---------------------------------------------------------------------------
+// Staying signed in when the app is added to the home screen
+// ---------------------------------------------------------------------------
+
+/** A one-time code for the app on the home screen (migration 0025); needs a signed-in account. */
+export async function createLoginHandoff(): Promise<string> {
+  const supabase = await authClient();
+  const { data, error } = await supabase.rpc('create_login_handoff');
+  if (error) throw new LocalDataError(error.message);
+  return data as string;
+}
+
+/**
+ * Signs this app in with the code it was installed with. False when the code
+ * is used up or too old (then the person signs in once, as before).
+ */
+export async function completeLoginHandoff(code: string): Promise<boolean> {
+  const supabase = await authClient();
+  const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/login-handoff`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '' },
+    body: JSON.stringify({ code }),
+  });
+  if (!response.ok) return false;
+  const { token_hash: tokenHash } = (await response.json()) as { token_hash?: string };
+  if (!tokenHash) return false;
+  const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'magiclink' });
+  return !error;
+}
+
+/** Whether this device has a signed-in account (server mode). */
+export async function hasSignedInAccount(): Promise<boolean> {
+  if (!isServerAvailable()) return false;
+  const supabase = await authClient();
+  const { data } = await supabase.auth.getSession();
+  return Boolean(data.session);
+}
+
+// ---------------------------------------------------------------------------
 // Calendar subscription link (piece 19)
 // ---------------------------------------------------------------------------
 
