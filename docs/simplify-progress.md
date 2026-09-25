@@ -1781,3 +1781,33 @@ gibt eine klare Meldung); Load-Tests; Typecheck, Build. Im Browser (Produktions-
 gestoppt): Today, Messages, Calendar öffnen offline, Wechsel über die untere Leiste, unbekannte
 Seite zeigt die Offline-Seite. Im Server-Modus mit gespeichertem Stand und ohne Netz erscheint
 der Hinweis mit Uhrzeit und wartender Änderung. Keine Fehler.
+
+## Run 25 — Stück 19: Kalender-Abo-Link (erledigt)
+
+- **Einstellungen → „Calendar“** (Spieler und Trainer, nur mit Konto): „Get my calendar link“,
+  dann „Add to Apple Calendar“ (webcal-Link, öffnet auf iPhone/Mac „Abonnieren“), „Add to
+  Google Calendar“, „Copy link“ (Outlook u. a.: Kalender „aus dem Internet“). Hinweis, dass
+  jeder mit dem Link die Einheiten sieht; „New link“ (der alte geht sofort nicht mehr) und
+  „Stop the link“, beide mit Bestätigung; „Last fetched …“, sobald eine Kalender-App abruft.
+  In der Kalender-Ansicht der Spieler führt ein Link dorthin. Demo: nur der Hinweis.
+- **Inhalt:** Spieler: die Einheiten ihrer Teams (bzw. ihrer Gruppen) mit Halle und Adresse
+  bzw. Auswärts-Adresse, Gegner „vs … (away)“, Treffpunkt, Notiz und dem eigenen Kader-Status,
+  sobald veröffentlicht („Not in the squad this time“ ohne Treffpunkt); dazu eigenes Training
+  (ohne Uhrzeit als ganztägig). Trainer: alle Einheiten ihrer Teams. 60 Tage zurück bis ein
+  Jahr voraus; abgesagte Einheiten verschwinden (sie werden gelöscht). Kalender-Apps fragen
+  etwa stündlich nach.
+- **Server:** Migration 0023 (angewendet), Edge Function `calendar-feed` (deployt, ohne
+  JWT-Prüfung: der geheime Link ist der Schlüssel). Der Link ist 64 Zeichen zufällig, die
+  Tabelle ist für die App gesperrt, lesen darf nur die Funktion mit dem Serverschlüssel.
+
+Geprüft: Datenbank 13 Testdateien grün, neu `13_calendar_feed_test.sql` (Link nur angemeldet,
+gleich bleibend, Tabelle und Feed für die App gesperrt, Spieler sieht nur Team und eigene
+Gruppen, nicht über ein Jahr hinaus, Halle mit Adresse, Auswärtsspiel mit Kader-Status und
+Treffpunkt, nicht nominiert ohne Treffpunkt, eigenes Training mit/ohne Uhrzeit, kein fremdes
+eigenes Training, Trainer sieht alles, unbekannter Link nichts, Abruf wird vermerkt, Absage
+verschwindet, neuer Link ersetzt den alten, Stop). Neu `npm run test:calendar` (Escaping,
+Zeilenumbruch nach 75 Byte, UTC-Zeiten, ganztägig, CRLF). Datenschicht 151, Typecheck, Build.
+Live: Funktion antwortet auf unbekannte Links mit 404 und über den Serverschlüssel. Browser
+Handy/Desktop: Hinweis im Kalender führt zu den Einstellungen, kein Überlauf, keine Fehler.
+Offen: mit einem echten Konto einmal in Apple Kalender abonnieren.
+

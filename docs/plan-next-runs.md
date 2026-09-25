@@ -283,7 +283,7 @@ eine **eigene iPhone-App**, die den Kalender direkt auf dem Gerät nutzt.
 
 | # | Stück | Inhalt | Größe |
 |---|---|---|---|
-| 19 | Kalender-Abo-Link | Persönlicher, geheimer ICS-Link (neu erzeugbar) für alle ohne Apple-Verbindung, z. B. Google/Android und Trainer: Teameinheiten mit Halle, Notiz, Treffpunkt, Gegner, Kader-Status; eigenes Training; bei Trainern alle Einheiten ihrer Teams. Abgesagte Einheiten verschwinden | klein |
+| 19 | Kalender-Abo-Link (erledigt, Run 25) | Persönlicher, geheimer ICS-Link (neu erzeugbar) für alle ohne Apple-Verbindung, z. B. Google/Android und Trainer: Teameinheiten mit Halle, Notiz, Treffpunkt, Gegner, Kader-Status; eigenes Training; bei Trainern alle Einheiten ihrer Teams. Abgesagte Einheiten verschwinden | klein |
 | 20 | Apple-Kalender verbinden (CalDAV) | Spieler/Trainer verbinden iCloud mit Apple-ID und **app-spezifischem Passwort** (Anleitung in der App; das normale Passwort wird nie verlangt). Das Passwort liegt **verschlüsselt** (Supabase Vault) und ist nur für die Abgleich-Funktion lesbar; „Trennen“ löscht es sofort, bei Apple jederzeit widerrufbar. **App → Apple:** die App legt in iCloud einen Kalender „Club OS“ an und hält ihn aktuell (neu, geändert, abgesagt). **Apple → App:** der Nutzer wählt Kalender und je Kalender die Art **„Training“** (Einträge werden eigenes Training mit „How hard was it?“ und zählen in der Belastung) oder **„Privat“**; einzelne Termine umstufbar. Andere Kalender werden nur gelesen, nie verändert. Abgleich alle 15 Minuten (pg_cron → Edge Function) und beim Öffnen der App | groß |
 | 21 | Was der Trainer sieht | Team-Einheiten immer; **eigenes Training immer** (entschieden 2026-09-25: gehört zur Belastung); **private Termine** je Spieler wählbar: **gar nicht / nur „belegt“ / mit Titel** (Standard: nur „belegt“). Beim Planen einer Einheit sieht der Trainer „3 Spieler haben Di 18:00 etwas“. Rollen ohne `viewAthletePlans` sehen weiterhin nichts davon | mittel |
 
@@ -295,7 +295,7 @@ Konto nötig.
 
 - F1 Fehler sehen: **eigene Lösung in Supabase**, tägliche Push-Zusammenfassung.
 - F2 Offline: **anzeigen und Änderungen später senden**.
-- F3 Team-Nachrichten: **Ankündigung + „Gelesen“**, kein Chat.
+- F3 Team-Nachrichten: **Ankündigung**, kein Chat; **gelesen = gesehen** (beim Öffnen, kein Knopf).
 - F4 Abwesenheit: **Spieler und Trainer tragen ein**, ohne Freigabe.
 - K1 Apple → App: **Apple-Login (CalDAV)** jetzt; **eigene iPhone-App** als Ziel.
 - K2 Eigenes Training: **immer für den Trainer sichtbar**; wählbar nur bei privaten

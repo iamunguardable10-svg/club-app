@@ -620,6 +620,48 @@ export async function saveNotificationSettings(settings: NotificationSettings): 
 }
 
 // ---------------------------------------------------------------------------
+// Calendar subscription link (piece 19)
+// ---------------------------------------------------------------------------
+
+export type CalendarLink = {
+  /** https address for copying and for Google/Outlook. */
+  url: string;
+  /** The same as webcal://, which Apple devices open as "Subscribe". */
+  webcalUrl: string;
+  /** When a calendar app last fetched it, if ever. */
+  lastFetchedAt: string | null;
+};
+
+function calendarLink(token: string, lastFetchedAt: string | null): CalendarLink {
+  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/calendar-feed/${token}.ics`;
+  return { url, webcalUrl: url.replace(/^https?:/, 'webcal:'), lastFetchedAt };
+}
+
+/** The account's calendar link, or null when it has none (it is only made when asked for). */
+export async function getCalendarLink(): Promise<CalendarLink | null> {
+  const supabase = await authClient();
+  const { data, error } = await supabase.rpc('calendar_feed_status');
+  if (error) throw new LocalDataError(error.message);
+  const status = data as { token: string; last_fetched_at: string | null } | null;
+  return status?.token ? calendarLink(status.token, status.last_fetched_at) : null;
+}
+
+/** Makes the link, or with `renew` a new one; the old one stops working at once. */
+export async function createCalendarLink(renew = false): Promise<CalendarLink> {
+  const supabase = await authClient();
+  const { data, error } = await supabase.rpc('calendar_feed_token', { p_new: renew });
+  if (error) throw new LocalDataError(error.message);
+  return calendarLink(data as string, null);
+}
+
+/** Switches the link off; subscribed calendars stop getting sessions. */
+export async function stopCalendarLink(): Promise<void> {
+  const supabase = await authClient();
+  const { error } = await supabase.rpc('calendar_feed_stop');
+  if (error) throw new LocalDataError(error.message);
+}
+
+// ---------------------------------------------------------------------------
 // Errors and problem reports (piece 13)
 // ---------------------------------------------------------------------------
 
