@@ -161,14 +161,14 @@ type SeriesTemplate = {
 };
 
 const SERIES_TEMPLATES: SeriesTemplate[] = [
-  { id: 'series-u16-mon', teamId: TEAM_U16, title: 'Mannschaftstraining', sessionType: 'training', weekday: 1, startTime: '17:30', endTime: '19:00', facilityId: FACILITY_MAIN },
-  { id: 'series-u16-wed', teamId: TEAM_U16, title: 'Mannschaftstraining', sessionType: 'training', weekday: 3, startTime: '17:30', endTime: '19:00', facilityId: FACILITY_MAIN },
-  { id: 'series-u16-fri', teamId: TEAM_U16, title: 'Athletik', sessionType: 's_and_c', weekday: 5, startTime: '16:30', endTime: '17:30', facilityId: FACILITY_GYM },
-  { id: 'series-u16-sat', teamId: TEAM_U16, title: 'Spieltag', sessionType: 'game', weekday: 6, startTime: '11:00', endTime: '13:00', facilityId: FACILITY_MAIN },
-  { id: 'series-u18-tue', teamId: TEAM_U18, title: 'Mannschaftstraining', sessionType: 'training', weekday: 2, startTime: '19:00', endTime: '20:45', facilityId: FACILITY_MAIN },
-  { id: 'series-u18-thu', teamId: TEAM_U18, title: 'Mannschaftstraining', sessionType: 'training', weekday: 4, startTime: '19:00', endTime: '20:45', facilityId: FACILITY_SMALL },
-  { id: 'series-u18-fri', teamId: TEAM_U18, title: 'Athletik', sessionType: 's_and_c', weekday: 5, startTime: '18:00', endTime: '19:00', facilityId: FACILITY_GYM },
-  { id: 'series-u18-sun', teamId: TEAM_U18, title: 'Spieltag', sessionType: 'game', weekday: 0, startTime: '15:00', endTime: '17:00', facilityId: FACILITY_MAIN },
+  { id: 'series-u16-mon', teamId: TEAM_U16, title: 'Team training', sessionType: 'training', weekday: 1, startTime: '17:30', endTime: '19:00', facilityId: FACILITY_MAIN },
+  { id: 'series-u16-wed', teamId: TEAM_U16, title: 'Team training', sessionType: 'training', weekday: 3, startTime: '17:30', endTime: '19:00', facilityId: FACILITY_MAIN },
+  { id: 'series-u16-fri', teamId: TEAM_U16, title: 'Strength', sessionType: 's_and_c', weekday: 5, startTime: '16:30', endTime: '17:30', facilityId: FACILITY_GYM },
+  { id: 'series-u16-sat', teamId: TEAM_U16, title: 'Game', sessionType: 'game', weekday: 6, startTime: '11:00', endTime: '13:00', facilityId: FACILITY_MAIN },
+  { id: 'series-u18-tue', teamId: TEAM_U18, title: 'Team training', sessionType: 'training', weekday: 2, startTime: '19:00', endTime: '20:45', facilityId: FACILITY_MAIN },
+  { id: 'series-u18-thu', teamId: TEAM_U18, title: 'Team training', sessionType: 'training', weekday: 4, startTime: '19:00', endTime: '20:45', facilityId: FACILITY_SMALL },
+  { id: 'series-u18-fri', teamId: TEAM_U18, title: 'Strength', sessionType: 's_and_c', weekday: 5, startTime: '18:00', endTime: '19:00', facilityId: FACILITY_GYM },
+  { id: 'series-u18-sun', teamId: TEAM_U18, title: 'Game', sessionType: 'game', weekday: 0, startTime: '15:00', endTime: '17:00', facilityId: FACILITY_MAIN },
 ];
 
 /** Typical RPE per session type, before per-athlete and per-day variation. */
@@ -199,7 +199,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     id: CLUB_ID,
     name: 'SV Ruhrtal',
     city: 'Essen',
-    country: 'Deutschland',
+    country: 'Germany',
     createdAt,
   };
 
@@ -208,9 +208,9 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
   ];
 
   const facilities: Facility[] = [
-    { id: FACILITY_MAIN, clubId: CLUB_ID, name: 'Sporthalle Nord', address: 'Nordring 12, 45141 Essen' },
-    { id: FACILITY_SMALL, clubId: CLUB_ID, name: 'Gymnastikhalle', address: 'Nordring 12, 45141 Essen' },
-    { id: FACILITY_GYM, clubId: CLUB_ID, name: 'Kraftraum', address: 'Nordring 14, 45141 Essen' },
+    { id: FACILITY_MAIN, clubId: CLUB_ID, name: 'North Hall', address: 'Nordring 12, 45141 Essen' },
+    { id: FACILITY_SMALL, clubId: CLUB_ID, name: 'Small Hall', address: 'Nordring 12, 45141 Essen' },
+    { id: FACILITY_GYM, clubId: CLUB_ID, name: 'Weight Room', address: 'Nordring 14, 45141 Essen' },
   ];
 
   const departmentFacilities: DepartmentFacility[] = facilities.map((facility) => ({
@@ -219,10 +219,10 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
   }));
 
   const teams: LocalDatabase['teams'] = [
-    { id: TEAM_U16, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: 'U16 Jungen', defaultFacilityId: FACILITY_MAIN, features: ['load'], archivedAt: null, createdAt },
+    { id: TEAM_U16, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: 'U16 Boys', defaultFacilityId: FACILITY_MAIN, features: ['load'], archivedAt: null, createdAt },
     // Without load tracking, to show a team that only plans sessions and
     // attendance (piece 3.5). Its players' load history stays, unseen.
-    { id: TEAM_U18, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: 'U18 Mädchen', defaultFacilityId: FACILITY_MAIN, features: [], archivedAt: null, createdAt },
+    { id: TEAM_U18, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: 'U18 Girls', defaultFacilityId: FACILITY_MAIN, features: [], archivedAt: null, createdAt },
   ];
 
   const people: Person[] = [];
@@ -280,7 +280,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
 
   const playerGroups: PlayerGroup[] = [
     { id: 'group-u16-starters', teamId: TEAM_U16, name: 'Starting Five' },
-    { id: 'group-u16-rehab', teamId: TEAM_U16, name: 'Aufbau' },
+    { id: 'group-u16-rehab', teamId: TEAM_U16, name: 'Rehab' },
     { id: 'group-u18-starters', teamId: TEAM_U18, name: 'Starting Five' },
   ];
 
@@ -396,7 +396,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
           sessionId: session.id,
           personId,
           status,
-          reason: status === 'out' ? (roll < 0.04 ? 'Krank' : 'Familientermin') : 'Bus verpasst',
+          reason: status === 'out' ? (roll < 0.04 ? 'Sick' : 'Family event') : 'Missed the bus',
           lateMinutes: status === 'late' ? 10 + Math.round(random() * 15) : null,
           reportedAt: addDays(sessionDay, -1).toISOString(),
           seeded: true,
@@ -479,7 +479,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
         personId: membership.personId,
         teamId: null,
         teamName: null,
-        title: 'Kraft',
+        title: 'Strength',
         date: dateOnly(strengthDay),
         startsAt: at(strengthDay, '17:00').toISOString(),
         trainingType: 'strength' as const,
@@ -493,7 +493,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
         personId: membership.personId,
         teamId: null,
         teamName: null,
-        title: 'Regeneration',
+        title: 'Recovery',
         date: dateOnly(recoveryDay),
         startsAt: at(recoveryDay, '10:00').toISOString(),
         trainingType: 'recovery' as const,
