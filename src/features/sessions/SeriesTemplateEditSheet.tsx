@@ -15,6 +15,9 @@ export type SeriesTemplateInput = {
   startTime: string;
   endTime: string;
   groupIds: string[];
+  notes: string | null;
+  meetMinutesBefore: number | null;
+  meetPoint: string | null;
 };
 
 type SeriesTemplateEditorCommonProps = {
@@ -61,6 +64,9 @@ function SeriesTemplateEditorForm({
   const [endTime, setEndTime] = useState(cleanTime(initial?.endTime, '19:30'));
   const [groupIds, setGroupIds] = useState<string[]>(initial?.groupIds ?? []);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [notes, setNotes] = useState(initial?.notes ?? '');
+  const [meetMinutesBefore, setMeetMinutesBefore] = useState<number>(initial?.meetMinutesBefore ?? 0);
+  const [meetPoint, setMeetPoint] = useState(initial?.meetPoint ?? '');
   const previousTeamIdRef = useRef(teamId);
 
   const teamGroups = groups.filter((group) => group.teamId === teamId);
@@ -97,7 +103,10 @@ function SeriesTemplateEditorForm({
 
   async function submit() {
     if (!canSave || selectedWeekday === undefined) return;
-    await onSave({ teamId, facilityId, sessionType, weekday: selectedWeekday, startTime, endTime, groupIds });
+    await onSave({
+      teamId, facilityId, sessionType, weekday: selectedWeekday, startTime, endTime, groupIds,
+      notes: notes.trim() || null, meetMinutesBefore: meetMinutesBefore || null, meetPoint: meetPoint.trim() || null,
+    });
   }
 
   const inputClass = 'mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-black text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm [color-scheme:dark]';
@@ -146,6 +155,27 @@ function SeriesTemplateEditorForm({
             <button key={group.id} type="button" onClick={() => toggleGroup(group.id)} className={`rounded-full border px-2.5 py-1 text-xs font-black ${groupIds.includes(group.id) ? 'border-sky-300 bg-sky-950/50 text-sky-100' : 'border-slate-700 text-slate-300 hover:text-white'}`}>{group.name}{group.playerCount ? ` · ${group.playerCount}` : ''}</button>
           ))}
         </div>
+      </div>
+
+      <div className="grid gap-2 border-t border-slate-800/80 pt-3">
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">For the players · every week</p>
+        <div className="grid grid-cols-[9.5rem_minmax(0,1fr)] gap-2">
+          <label className={labelClass}>
+            Meet
+            <select value={meetMinutesBefore} onChange={(event) => setMeetMinutesBefore(Number(event.target.value))} className={inputClass}>
+              <option value={0}>At the start</option>
+              {[15, 30, 45, 60, 90, 120].map((minutes) => <option key={minutes} value={minutes}>{minutes < 60 ? `${minutes} min before` : `${minutes / 60} h before`}</option>)}
+            </select>
+          </label>
+          <label className={labelClass}>
+            Meeting point
+            <input value={meetPoint} onChange={(event) => setMeetPoint(event.target.value)} maxLength={120} placeholder="e.g. Changing room 2" className={inputClass} />
+          </label>
+        </div>
+        <label className={labelClass}>
+          Note
+          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} rows={2} placeholder="e.g. Indoor shoes" className="mt-1 w-full min-w-0 resize-y rounded-lg border border-slate-700/90 bg-slate-950 px-2 py-1.5 text-[13px] font-bold normal-case tracking-normal text-slate-100 outline-none transition focus:border-sky-300 sm:text-sm" />
+        </label>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 pt-1">

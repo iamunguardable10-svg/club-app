@@ -291,6 +291,12 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
         confirmations: permissions.has('viewAttendance') ? Object.fromEntries(confirmed) : {},
         canConfirmAttendance: permissions.has('viewAttendance') && new Date(session.startsAt).getTime() <= now,
         canRequestReview: permissions.has('viewLoadDetails'),
+        notes: session.notes ?? null,
+        meetMinutesBefore: session.meetMinutesBefore ?? null,
+        meetPoint: session.meetPoint ?? null,
+        opponent: session.opponent ?? null,
+        homeAway: session.homeAway ?? null,
+        venueAddress: session.venueAddress ?? null,
       } satisfies CoachSession;
     });
 
@@ -315,6 +321,9 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
         groupIds: series.groupIds,
         activeFrom: series.activeFrom,
         activeUntil: series.activeUntil,
+        notes: series.notes ?? null,
+        meetMinutesBefore: series.meetMinutesBefore ?? null,
+        meetPoint: series.meetPoint ?? null,
       } satisfies SeriesTemplate;
     })
     .sort((a, b) => a.weekday - b.weekday || a.startTime.localeCompare(b.startTime));

@@ -3,6 +3,7 @@ import './globals.css';
 import { SyncStatusBanner } from '@/shared/components/SyncStatusBanner';
 import { AccessGate } from '@/features/access/AccessGate';
 import { ServiceWorkerRegistration } from '@/features/install/ServiceWorkerRegistration';
+import { ErrorReporter } from '@/features/errors/ErrorReporter';
 
 export const metadata: Metadata = {
   title: 'Club OS',
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <SyncStatusBanner />
         <AccessGate />
         <ServiceWorkerRegistration />
+        <ErrorReporter />
       </body>
     </html>
   );

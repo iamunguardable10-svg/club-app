@@ -7,6 +7,7 @@ import { SessionDetailSheet, type SessionDetailFacilityOption, type SessionDetai
 import type { CoachEntryReview, CoachSession } from '@/features/role-workspaces/CoachTypes';
 import { clearEntryReview, confirmAttendance, requestEntryReview } from '@/shared/data';
 import { PlayerLoadDetail, type PlayerLoadDetailPlayer } from '@/features/players/PlayerLoadDetail';
+import { SessionInfo } from '@/features/sessions/SessionInfo';
 
 type LoadRiskPlayer = { risk: string; acwr: number | null };
 type HistoryTeamOption = { id: string; name: string; departmentName?: string };
@@ -817,8 +818,9 @@ export function CoachSessionDetailOverlay({
         endsAt={session.endsAt}
         teamName={session.teamName}
         departmentName={session.departmentName}
-        facilityName={session.facilityName}
+        facilityName={session.homeAway === 'away' ? null : session.facilityName}
         facilityId={session.facilityId}
+        info={<SessionInfo info={{ ...session, facilityName: null }} />}
         facilityOptions={facilityOptions}
         canEditFacility={canEditFacility}
         isSavingFacility={isSavingFacility}

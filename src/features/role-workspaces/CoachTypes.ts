@@ -1,6 +1,6 @@
 import type { AthleteLoadEntry } from '@/features/load/loadTypes';
 import type { LoadAccess, LoadSummary } from '@/features/load/loadAccess';
-import type { CoachPermission } from '@/shared/data';
+import type { CoachPermission, GameDetails, SessionDetails } from '@/shared/data';
 
 export type CoachMode = 'today' | 'team' | 'sessions' | 'attendance' | 'load' | 'history' | 'facilities';
 
@@ -73,10 +73,12 @@ export type CoachSession = {
   canConfirmAttendance?: boolean;
   /** The active coach may ask players to check entries (viewLoadDetails). */
   canRequestReview?: boolean;
-};
+} & SessionDetails & GameDetails;
 
 export type CoachFacility = { id: string; name: string; departmentIds: string[] };
 export type CoachGroup = { id: string; teamId: string; name: string; playerCount: number };
 
-export type CoachSessionMutation = { sessionId: string; startsAt: string; endsAt: string; facilityId: string; groupIds: string[]; sessionType: string };
-export type CoachSessionCreateInput = { startsAt: string; endsAt: string; teamId: string; facilityId: string; groupIds: string[]; sessionType: string };
+/** Notes, meeting and game details as the editor sends them (piece 14). */
+export type CoachSessionDetailsInput = SessionDetails & GameDetails;
+export type CoachSessionMutation = { sessionId: string; startsAt: string; endsAt: string; facilityId: string; groupIds: string[]; sessionType: string; details?: CoachSessionDetailsInput };
+export type CoachSessionCreateInput = { startsAt: string; endsAt: string; teamId: string; facilityId: string; groupIds: string[]; sessionType: string; details?: CoachSessionDetailsInput };

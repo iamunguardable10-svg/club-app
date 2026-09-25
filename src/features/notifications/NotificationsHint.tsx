@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react';
 
 import { dismissHint, isHintDismissed, isRemoteMode } from '@/shared/data';
 import { installPlatform, isStandalone } from '@/features/install/installPrompt';
+import { reportError } from '@/features/errors/errorReporting';
 
 import { currentPushSubscription, disablePush, enablePush, isPushSupported, pushPermission, syncPushSubscription } from './push';
 
@@ -61,6 +62,7 @@ export function NotificationsHint({ variant }: { variant: 'card' | 'menu' | 'set
       await action();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
+      reportError('push', caught);
     } finally {
       setBusy(false);
       refresh();

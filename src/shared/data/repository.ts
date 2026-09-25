@@ -57,6 +57,8 @@ import {
   type Person,
   type Session,
   type SessionSeries,
+  type SessionDetails,
+  type GameDetails,
   type StaffInvite,
   type SessionType,
   type Team,
@@ -571,6 +573,81 @@ export async function saveNotificationSettings(settings: NotificationSettings): 
     quiet_to: quietTo,
     updated_at: new Date().toISOString(),
   });
+  if (error) throw new LocalDataError(error.message);
+}
+
+// ---------------------------------------------------------------------------
+// Errors and problem reports (piece 13)
+// ---------------------------------------------------------------------------
+
+export type ErrorReportKind = 'crash' | 'error' | 'rejected' | 'push';
+
+/** Where a report comes from; no content, no health data. */
+export type ReportContext = { page: string; role: IdentityRole | null; mode: 'server' | 'demo'; version: string; device: string };
+
+/** Sends an error to the server. Works signed in or not; does nothing without a server. */
+export async function sendErrorReport(kind: ErrorReportKind, message: string, detail: string | null, context: ReportContext): Promise<void> {
+  if (!isServerAvailable()) return;
+  const supabase = await authClient();
+  await supabase.rpc('report_error', {
+    p_kind: kind, p_message: message, p_detail: detail, p_page: context.page, p_role: context.role,
+    p_mode: context.mode, p_version: context.version, p_device: context.device,
+  });
+}
+
+/** "Report a problem" from the account menu. */
+export async function sendProblemReport(text: string, context: ReportContext): Promise<void> {
+  if (!isServerAvailable()) throw new LocalDataError('Reports need a connection to the club server.');
+  const supabase = await authClient();
+  const { error } = await supabase.rpc('report_problem', {
+    p_text: text, p_page: context.page, p_role: context.role, p_mode: context.mode,
+    p_version: context.version, p_device: context.device,
+  });
+  if (error) throw new LocalDataError(error.message);
+}
+
+export type ErrorReport = {
+  id: string;
+  kind: ErrorReportKind | 'server' | 'problem';
+  message: string;
+  detail: string | null;
+  page: string | null;
+  role: IdentityRole | null;
+  mode: 'server' | 'demo' | null;
+  appVersion: string | null;
+  device: string | null;
+  reporter: string | null;
+  count: number;
+  firstSeen: string;
+  lastSeen: string;
+  resolvedAt: string | null;
+};
+
+/** Whether the signed-in account may read the reports (operators, set on the server). */
+export async function isOperator(): Promise<boolean> {
+  if (!isRemoteMode()) return false;
+  const supabase = await authClient();
+  const { data, error } = await supabase.rpc('am_i_operator');
+  return !error && data === true;
+}
+
+export async function listErrorReports(includeResolved: boolean): Promise<ErrorReport[]> {
+  const supabase = await authClient();
+  const { data, error } = await supabase.rpc('list_error_reports', { p_include_resolved: includeResolved });
+  if (error) throw new LocalDataError(error.message);
+  return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    id: String(row.id), kind: row.kind as ErrorReport['kind'], message: String(row.message),
+    detail: (row.detail as string | null) ?? null, page: (row.page as string | null) ?? null,
+    role: (row.role as IdentityRole | null) ?? null, mode: (row.mode as ErrorReport['mode']) ?? null,
+    appVersion: (row.app_version as string | null) ?? null, device: (row.device as string | null) ?? null,
+    reporter: (row.reporter as string | null) ?? null, count: Number(row.count),
+    firstSeen: String(row.first_seen), lastSeen: String(row.last_seen), resolvedAt: (row.resolved_at as string | null) ?? null,
+  }));
+}
+
+export async function resolveErrorReport(id: string, resolved: boolean): Promise<void> {
+  const supabase = await authClient();
+  const { error } = await supabase.rpc('resolve_error_report', { p_id: id, p_resolved: resolved });
   if (error) throw new LocalDataError(error.message);
 }
 
@@ -1502,7 +1579,35 @@ export type SessionInput = {
   endsAt: string;
   facilityId: Id | null;
   groupIds?: Id[];
-};
+} & SessionDetails & GameDetails;
+
+function optionalText(value: string | null | undefined, max: number, what: string): string | null {
+  const clean = (value ?? '').trim();
+  if (!clean) return null;
+  if (clean.length > max) throw new LocalDataError(`${what} can be at most ${max} characters.`);
+  return clean;
+}
+
+/**
+ * Notes, meeting and game details as stored (piece 14): trimmed, empty is
+ * none, game fields only on games. Same limits as the database.
+ */
+export function cleanSessionDetails(sessionType: SessionType, input: SessionDetails & GameDetails): Required<SessionDetails> & Required<GameDetails> {
+  const meet = input.meetMinutesBefore ?? null;
+  if (meet !== null && (!Number.isInteger(meet) || meet < 0 || meet > 240)) {
+    throw new LocalDataError('The meeting time can be at most 4 hours before the start.');
+  }
+  const game = sessionType === 'game';
+  const homeAway = game ? input.homeAway ?? null : null;
+  return {
+    notes: optionalText(input.notes, 1000, 'The note'),
+    meetMinutesBefore: meet === 0 ? null : meet,
+    meetPoint: optionalText(input.meetPoint, 120, 'The meeting point'),
+    opponent: game ? optionalText(input.opponent, 80, 'The opponent') : null,
+    homeAway,
+    venueAddress: game && homeAway === 'away' ? optionalText(input.venueAddress, 200, 'The address') : null,
+  };
+}
 
 export function createSession(input: SessionInput): Id {
   const id = newId();
@@ -1523,16 +1628,23 @@ export function createSession(input: SessionInput): Id {
       seriesId: null,
       seriesWeekStart: null,
       createdAt: new Date().toISOString(),
+      ...cleanSessionDetails(input.sessionType, input),
     });
   });
   return id;
 }
+
+const DETAIL_KEYS = ['notes', 'meetMinutesBefore', 'meetPoint', 'opponent', 'homeAway', 'venueAddress'] as const;
 
 export function updateSession(sessionId: Id, changes: Partial<SessionInput>): void {
   mutate((database) => {
     const session = database.sessions.find((candidate) => candidate.id === sessionId);
     if (!session) throw new LocalDataError(`Unknown session: ${sessionId}`);
     Object.assign(session, changes);
+    // Details are cleaned together: a game turned into training loses its opponent.
+    if (changes.sessionType !== undefined || DETAIL_KEYS.some((key) => key in changes)) {
+      Object.assign(session, cleanSessionDetails(session.sessionType, session));
+    }
   });
 }
 

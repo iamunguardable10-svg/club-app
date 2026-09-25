@@ -253,6 +253,55 @@ Trainer und Spieler, Literatur-Standard). Später je Team wählbar, gekoppelt an
 Load / 7 Tage gegen die 4 Wochen davor (Amateure, ruhiger bei 2–3 Einheiten pro Woche) /
 EWMA (Profis). Hintergrund und Zahlen in `docs/simplify-progress.md`, Run 16.
 
+## Stücke 13–21 (geplant 2026-09-25, Entscheidungen siehe unten)
+
+Wunsch: zuerst Betrieb (Offline, Fehler sehen), dann die vier Lücken, die heute noch
+WhatsApp nötig machen (Infos zur Einheit, Spieltag mit Kader, Abwesenheit über Zeiträume,
+Team-Nachrichten). Danach als eigener Block der Kalender in beide Richtungen, mit der
+Auswahl, was der Trainer vom privaten Kalender sieht.
+
+### Block A — Betrieb und Alltag
+
+| # | Stück | Inhalt | Größe |
+|---|---|---|---|
+| 13 | Fehler sehen (erledigt, Run 19) | Eigene Lösung in Supabase, kein Drittanbieter: Fehler aus der App (Absturz, abgelehnte Speicherung, Push-Fehler) landen mit Seite, Rolle, Gerät und Version in einer Tabelle, ohne Gesundheitsdaten und ohne Inhalte; gleiche Fehler werden gezählt statt vervielfacht, Menge je Gerät begrenzt. Die Edge Functions melden ihre Fehler dort auch. Täglich eine Push-Zusammenfassung an die Betreiber-Konten (nur wenn etwas passiert ist). Dazu (Wunsch 2026-09-25) **„Report a problem“** im Menü: freier Text, Push sofort an die Betreiber | klein |
+| 14 | Infos zur Einheit und Spieltag (erledigt, Run 20) | Einheit/Serie bekommt **Notiz** (z. B. „Hallenschuhe, Video um 17:30“) und **Treffpunkt/Treffzeit**. Spiele zusätzlich: **Gegner, Heim/Auswärts, Spielort-Adresse** (auswärts ist keine eigene Halle), **Abfahrt**. Spieler sehen es in Heute, Kalender und Detail; Änderung an Zeit, Treffpunkt oder Ort geht mit „Session changed“ raus | mittel |
+| 15 | Kader für Spiele | Trainer nominiert für ein Spiel: **im Kader / Ersatz / nicht dabei**, aus den Zusagen heraus (Absagen und Verletzte ausgegraut). „Kader veröffentlichen“ → Push an alle Betroffenen („Du bist im Kader“ / „Diesmal nicht dabei“). Nicht Nominierte werden nach dem Spiel nicht nach „How hard was it?“ gefragt. Anwesenheit am Spieltag startet mit dem Kader | mittel |
+| 16 | Abwesenheit über Zeiträume | Eintragen können **der Spieler und Trainer mit Anwesenheitsrecht für ihn** (ohne Freigabe; der Spieler sieht „eingetragen von …“ und kann kürzen). „Ich bin weg von … bis …“ mit Art **verletzt / krank / Urlaub / Schule-Arbeit / anderes** und optionaler Notiz. Alle Einheiten im Zeitraum zählen als abgesagt (keine „Are you in?“, kein „How hard was it?“), ohne dass der Spieler jede einzeln absagt. Trainer sieht „verletzt bis 12.10.“ in Kader, Heute und Anwesenheit; die Art ist Gesundheitsinfo → wie Absagegründe nur mit `viewAbsenceReasons`, sonst nur „abwesend bis …“. Vorzeitig zurück: Zeitraum kürzen. Einzelne Einheit trotzdem zusagen: geht und gewinnt | mittel |
+| 17 | Team-Nachrichten | Nur Ankündigungen, keine Antworten. Trainer (neues Recht `postMessages`, Head Coach immer) schreibt an Team oder Gruppen: Text, optional „wichtig“ (oben angeheftet). Push an alle Empfänger (abschaltbar, außer „wichtig“). Spieler tippen **„Gelesen“**; Trainer sieht „gelesen 14/18“ und wer fehlt, kann einmal erinnern. Nachrichtenliste im Team; eine Karte auf „Heute“ für ungelesene | mittel |
+| 18 | Offline | Service Worker speichert App-Oberfläche und Seiten; die App merkt sich den letzten Datenstand auf dem Gerät (je Konto, beim Abmelden gelöscht) und zeigt ihn ohne Netz mit Hinweis „offline · Stand 14:32“. Änderungen ohne Netz (Bewertung, Zu-/Absage, Einträge) warten auf dem Gerät und gehen raus, sobald Netz da ist; was der Server dann ablehnt, meldet die App wie heute | groß |
+
+Reihenfolge: 13 zuerst (hilft ab dem ersten Pilottag), dann 14 → 16 → 15 (braucht 14 und 16) →
+17, zuletzt 18, damit Offline alles Neue gleich mit abdeckt. Je Stück: Migration, DB-Tests,
+Datenschicht-Tests, Browser Handy/Desktop, Doku, Commit; PR nach jedem Stück oder je zwei.
+
+### Block B — Kalender in beide Richtungen
+
+Technische Grenze: Eine Web-App (auch installiert) darf den iPhone-Kalender nicht direkt
+lesen oder schreiben. Entschieden: **jetzt über den Apple-Login (CalDAV)**, später als Ziel
+eine **eigene iPhone-App**, die den Kalender direkt auf dem Gerät nutzt.
+
+| # | Stück | Inhalt | Größe |
+|---|---|---|---|
+| 19 | Kalender-Abo-Link | Persönlicher, geheimer ICS-Link (neu erzeugbar) für alle ohne Apple-Verbindung, z. B. Google/Android und Trainer: Teameinheiten mit Halle, Notiz, Treffpunkt, Gegner, Kader-Status; eigenes Training; bei Trainern alle Einheiten ihrer Teams. Abgesagte Einheiten verschwinden | klein |
+| 20 | Apple-Kalender verbinden (CalDAV) | Spieler/Trainer verbinden iCloud mit Apple-ID und **app-spezifischem Passwort** (Anleitung in der App; das normale Passwort wird nie verlangt). Das Passwort liegt **verschlüsselt** (Supabase Vault) und ist nur für die Abgleich-Funktion lesbar; „Trennen“ löscht es sofort, bei Apple jederzeit widerrufbar. **App → Apple:** die App legt in iCloud einen Kalender „Club OS“ an und hält ihn aktuell (neu, geändert, abgesagt). **Apple → App:** der Nutzer wählt Kalender und je Kalender die Art **„Training“** (Einträge werden eigenes Training mit „How hard was it?“ und zählen in der Belastung) oder **„Privat“**; einzelne Termine umstufbar. Andere Kalender werden nur gelesen, nie verändert. Abgleich alle 15 Minuten (pg_cron → Edge Function) und beim Öffnen der App | groß |
+| 21 | Was der Trainer sieht | Team-Einheiten immer; **eigenes Training immer** (entschieden 2026-09-25: gehört zur Belastung); **private Termine** je Spieler wählbar: **gar nicht / nur „belegt“ / mit Titel** (Standard: nur „belegt“). Beim Planen einer Einheit sieht der Trainer „3 Spieler haben Di 18:00 etwas“. Rollen ohne `viewAthletePlans` sehen weiterhin nichts davon | mittel |
+
+Reihenfolge: 19 → 20 → 21. Risiko bei 20: iCloud-CalDAV ist nicht offiziell dokumentiert
+(funktioniert aber stabil, wird von vielen Kalender-Apps genutzt); Test mit deinem eigenen
+Konto nötig.
+
+## Entscheidungen (2026-09-25)
+
+- F1 Fehler sehen: **eigene Lösung in Supabase**, tägliche Push-Zusammenfassung.
+- F2 Offline: **anzeigen und Änderungen später senden**.
+- F3 Team-Nachrichten: **Ankündigung + „Gelesen“**, kein Chat.
+- F4 Abwesenheit: **Spieler und Trainer tragen ein**, ohne Freigabe.
+- K1 Apple → App: **Apple-Login (CalDAV)** jetzt; **eigene iPhone-App** als Ziel.
+- K2 Eigenes Training: **immer für den Trainer sichtbar**; wählbar nur bei privaten
+  Terminen.
+- K3 App → Apple: **eigener iCloud-Kalender „Club OS“**, den die App aktuell hält.
+
 ## Nach dem Pilot (gemerkt 2026-09-25)
 
 Für den Pilot mit nur dem eigenen Team bewusst zurückgestellt, vor einem Start mit
@@ -263,6 +312,7 @@ weiteren Teams oder Vereinen aber nötig:
 - Minderjährige unter 16: Einwilligung der Eltern.
 - Konto löschen und eigene Daten herunterladen (DSGVO). (Team selbst verlassen: vorgezogen, Stück 12.)
 - Supabase-Tarif (Pausieren nach Inaktivität, Backups) prüfen.
+- Ziel: eigene iPhone-App (App Store), u. a. für den Kalender direkt auf dem Gerät.
 
 Annahme für den Pilot: alle Spieler haben die App (kein Eintragen durch den Trainer für
 Spieler ohne Konto nötig).

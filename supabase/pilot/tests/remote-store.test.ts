@@ -183,6 +183,32 @@ async function main() {
   check('Martin: new session is on the server', (await count('select 1 from sessions where id = $1', [newSession])) === 1);
   check('… and nothing was refused', store.getStatus().rejected === null, store.getStatus().rejected);
 
+  // Piece 14: notes, meeting and game details travel with the session.
+  const awayGame = data.createSession({
+    teamId: TEAM, title: 'Game', sessionType: 'game',
+    startsAt: new Date(Date.now() + 5 * 86_400_000).toISOString(), endsAt: new Date(Date.now() + 5 * 86_400_000 + 7_200_000).toISOString(),
+    facilityId: null, opponent: '  TSV Neustadt ', homeAway: 'away', venueAddress: 'Sportpark 3, Neustadt',
+    meetMinutesBefore: 90, meetPoint: 'Club car park', notes: 'Both kits.',
+  });
+  await data.flushRemote();
+  check('Martin: away game with opponent, address and meeting on the server',
+    (await count("select 1 from sessions where id = $1 and opponent = 'TSV Neustadt' and home_away = 'away' and facility_id is null and meet_minutes_before = 90 and meet_point = 'Club car park' and notes = 'Both kits.'", [awayGame])) === 1,
+    store.getStatus().rejected);
+  data.updateSession(awayGame, { sessionType: 'training', title: 'Training' });
+  await data.flushRemote();
+  check('… turned into a training, it drops the game details but keeps the meeting',
+    (await count('select 1 from sessions where id = $1 and opponent is null and home_away is null and venue_address is null and meet_point = $2', [awayGame, 'Club car park'])) === 1,
+    store.getStatus().rejected);
+  let tooLong = '';
+  try {
+    data.updateSession(awayGame, { notes: 'x'.repeat(1001) });
+  } catch (error) {
+    tooLong = error instanceof Error ? error.message : String(error);
+  }
+  check('… a note over 1000 characters is refused in the app already', tooLong.includes('at most 1000'), tooLong);
+  data.deleteSession(awayGame);
+  await data.flushRemote();
+
   const moved = new Date(Date.now() + 3 * 86_400_000).toISOString();
   data.updateSession(newSession, { startsAt: moved, endsAt: new Date(Date.parse(moved) + 3_600_000).toISOString() });
   await data.flushRemote();

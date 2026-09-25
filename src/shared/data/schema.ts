@@ -215,6 +215,26 @@ export type Session = {
   seriesId: Id | null;
   seriesWeekStart: DateOnly | null;
   createdAt: Timestamp;
+} & SessionDetails & GameDetails;
+
+/**
+ * What players need to know beyond time and hall (piece 14). Optional, so
+ * documents from before still load; missing means none.
+ */
+export type SessionDetails = {
+  /** e.g. "Indoor shoes, video at 17:30". */
+  notes?: string | null;
+  /** Meet this many minutes before the start (null: at the start). */
+  meetMinutesBefore?: number | null;
+  /** Where to meet, e.g. "Car park" or "Changing room 2". */
+  meetPoint?: string | null;
+};
+
+/** Games only (piece 14). An away game has an address instead of a hall. */
+export type GameDetails = {
+  opponent?: string | null;
+  homeAway?: 'home' | 'away' | null;
+  venueAddress?: string | null;
 };
 
 export type SessionSeries = {
@@ -233,7 +253,7 @@ export type SessionSeries = {
   activeFrom: DateOnly | null;
   activeUntil: DateOnly | null;
   createdAt: Timestamp;
-};
+} & SessionDetails;
 
 export type SessionSeriesWeekState = {
   seriesId: Id;

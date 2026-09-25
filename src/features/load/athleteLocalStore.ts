@@ -61,10 +61,15 @@ export function readTeamSessions(database: LocalDatabase, personId: Id): Athlete
       return time >= start && time < end;
     })
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
-    .map((session) => toPendingSession(session, teamById.get(session.teamId)?.name ?? null, teamById.get(session.teamId)?.features.includes('load') ?? false));
+    .map((session) => toPendingSession(
+      session,
+      teamById.get(session.teamId)?.name ?? null,
+      teamById.get(session.teamId)?.features.includes('load') ?? false,
+      session.facilityId ? database.facilities.find((facility) => facility.id === session.facilityId)?.name ?? null : null,
+    ));
 }
 
-function toPendingSession(session: Session, teamName: string | null, loadTracked: boolean): AthletePendingSession {
+function toPendingSession(session: Session, teamName: string | null, loadTracked: boolean, facilityName: string | null = null): AthletePendingSession {
   const startsAt = new Date(session.startsAt);
   return {
     id: session.id,
@@ -77,6 +82,15 @@ function toPendingSession(session: Session, teamName: string | null, loadTracked
     trainingType: sessionTypeToLoadType(session.sessionType),
     source: 'team_session',
     loadTracked,
+    info: {
+      facilityName,
+      notes: session.notes ?? null,
+      meetMinutesBefore: session.meetMinutesBefore ?? null,
+      meetPoint: session.meetPoint ?? null,
+      opponent: session.opponent ?? null,
+      homeAway: session.homeAway ?? null,
+      venueAddress: session.venueAddress ?? null,
+    },
   };
 }
 

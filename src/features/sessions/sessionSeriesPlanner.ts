@@ -14,6 +14,10 @@ export type SeriesTemplate = {
   groupIds?: string[];
   activeFrom?: string | null;
   activeUntil?: string | null;
+  /** Piece 14: carried into every week's session. */
+  notes?: string | null;
+  meetMinutesBefore?: number | null;
+  meetPoint?: string | null;
 };
 
 export type SeriesWeekState = {

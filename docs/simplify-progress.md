@@ -1610,3 +1610,60 @@ Abteilung anlegen und löschen, Weg zu den Teameinstellungen; kein Überlauf, ke
 Fehler). Supabase-Hinweise nach der Migration: nichts Neues.
 Offen: Die Server-Teile der Seite (E-Mail, Passwort, Benachrichtigungen) sind nur gegen die
 lokale Datenbank und per SQL geprüft, noch nicht mit einem echten Konto im Browser.
+
+## Run 19 — Stück 13: Fehler sehen und „Report a problem“ (erledigt)
+
+- **Automatisch gemeldet** (mit Seite ohne Query, Rolle, Demo/Server, Gerät kurz, Version =
+  Commit): Abstürze (neue Fehlerseiten `error.tsx`/`global-error.tsx` mit „Try again“ und
+  „Tell us what you did“), nicht abgefangene Fehler und Promises, vom Server abgelehnte
+  Speicherungen, Fehler beim Einschalten der Benachrichtigungen, Fehler der Edge Function
+  `push-dispatch` (neu ausgerollt, Version 2). Je Seitenaufruf jede Meldung einmal, höchstens 20.
+- **„Report a problem“** im Konto-Menü für alle, auch im Demo-Verein: kurzer Text, der
+  Dialog zeigt, was mitgeschickt wird. Betreiber bekommen sofort eine Push-Nachricht
+  („Problem reported by …“).
+- **Betreiber** (`app.operators`, per SQL, siehe `supabase/pilot/README.md`): Menüpunkt
+  „Error reports“ → `/reports`: Problemberichte zuerst, dann Fehler nach letztem Auftreten,
+  mit Anzahl, Zeitraum, Seite, Rolle, Gerät, Version, Melder; „Resolved“/„Reopen“, Details
+  aufklappbar. Jeden Morgen (05:30 UTC) eine Push-Zusammenfassung, nur wenn Fehler kamen.
+- **Datenschutz:** Tabelle für App-Nutzer nicht lesbar; Server und App entfernen E-Mail-
+  Adressen, Query-Strings und was die Datenbank aus Zeilen zitiert („Failing row contains
+  (…)“, „Key (…)=(…)“). Gleiche Fehler (andere IDs/Zahlen) sind eine Zeile mit Zähler.
+  Grenzen: 200 neue Fehler je Stunde, 10 Berichte je Konto und Tag, 30 je Stunde ohne Konto.
+- **Migration 0018 (angewendet).** Auf dem Live-Server gibt es noch kein Konto; sobald du
+  registriert bist, wirst du als Betreiber eingetragen.
+
+Geprüft: Datenbank 105 + 35 + 50 + 19 + 49 + 25 + 34 + 28 (neu `08_error_reports_test.sql`:
+Melden ohne und mit Konto, Bereinigung, Zählen, Grenzen, Rechte, Liste, Erledigt/Wieder
+öffnen, Wiederauftreten, Morgen-Zusammenfassung, Edge Function). Gegen den echten Server im
+Browser (Demo-Verein, Handy und Desktop): Bericht gesendet, Fehler nur einmal je
+Seitenaufruf und als eine Zeile mit „2×“ gespeichert, `/reports` für Nicht-Betreiber
+gesperrt; Testeinträge danach gelöscht. Dabei gefunden und behoben: der Dialog hing im
+Seitenkopf fest (backdrop-blur) → jetzt per Portal wie das Konto-Menü.
+
+## Run 20 — Stück 14: Infos zur Einheit und Spieltag (erledigt)
+
+- **Trainer** (Bearbeiten einer Einheit, Abschnitt „For the players“): **Notiz**, **Treffen**
+  (zu Beginn / 15–120 min vorher) und **Treffpunkt**; bei Spielen zusätzlich **Gegner**,
+  **Home/Away** und bei Auswärtsspielen die **Adresse** (dann darf die Halle leer sein:
+  „No hall (away)“). Serien haben Notiz und Treffen auch; bestätigte Wochen übernehmen sie.
+- **Spieler** sehen im Fenster einer Team-Einheit einen Info-Block: „vs TSV Neustadt
+  (away)“, „Where …“ (Halle oder Adresse mit Karten-Link), „Meet 17:15 at …“ und die
+  Notiz; die nächste Einheit auf „Heute“ zeigt Gegner, Ort, Treffen und die Notiz kurz.
+  Neu dabei: Spieler sehen jetzt überhaupt die **Halle** einer Einheit.
+- **Trainer** sehen dasselbe im Detail-Fenster, auf der Heute-Karte (Gegner, Treffen) und in
+  „Coming up“ („Spieltag vs …“).
+- **Push:** „Session changed“ auch bei geänderter Treffzeit, Treffpunkt, Adresse oder
+  Heim/Auswärts, mit „Meet 17:15 at …“ im Text; Absagen nennen den Gegner. Eine geänderte
+  Notiz allein schickt nichts.
+- **Regeln** (App und Datenbank gleich): Notiz ≤ 1000, Treffpunkt ≤ 120, Gegner ≤ 80,
+  Adresse ≤ 200 Zeichen, Treffen höchstens 4 h vorher; Spielangaben nur bei Spielen, Adresse
+  nur auswärts. Wird aus einem Spiel ein Training, fallen die Spielangaben weg.
+- **Migration 0019 (angewendet).** Demo-Verein: Spiele mit Gegner, Heim/Auswärts,
+  Treffpunkt; Datenversion v13 (Demo-Daten werden einmal neu angelegt).
+
+Geprüft: Datenbank + 16 (neu `09_session_details_test.sql`: Rechte, Regeln, Push-Text mit
+Treffen und Adresse, Notiz ohne Push, Serie, Absage mit Gegner), Datenschicht 121
+(Auswärtsspiel mit allem zum Server, Umwandeln in Training, zu lange Notiz), Load-Mathe,
+Typecheck, Build, Browser Handy/Desktop (Trainer ändert Gegner/Treffen/Notiz, Liste und
+Detail zeigen es, Spieler sieht den Info-Block; kein Überlauf, keine Fehler). Dabei
+behoben: Treffzeit-Auswahl war auf dem Handy abgeschnitten.

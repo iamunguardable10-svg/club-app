@@ -26,6 +26,8 @@ migrations below are applied there (2026-09-24).
 | `migrations/0015_pilot_load_summaries_nightly.sql` | Traffic lights recomputed on the server every night (`app.load_summary`, `app.refresh_load_summaries`, job `club-os-load-summaries`), same EWMA formula as the app |
 | `migrations/0016_pilot_review_and_attendance.sql` | Check requests on load entries (`load_entry_reviews`: coaches with load details ask, the player corrects or confirms, push "Please check an entry") and confirmed attendance (`attendance_confirmations`: coaches with attendance after the start; confirmed absent → no rating push) |
 | `migrations/0017_pilot_settings.sql` | Settings (piece 12): `notification_settings` per account (switched-off kinds, own quiet hours; applied when sending, "How hard was it?" cannot be switched off), club rename by the admin, deleting departments without teams, players leaving a team themselves |
+| `migrations/0018_pilot_error_reports.sql` | Errors and problem reports (piece 13): `app.error_reports` (not readable by app users; cleaned, repeats counted, capped), `report_error` / `report_problem` for the app (signed in or not) and the Edge Function, operators (`app.operators`) list and resolve them at `/reports`, push per problem report and a morning summary (`club-os-error-digest`) |
+| `migrations/0019_pilot_session_details.sql` | Session details (piece 14): note, meeting time (minutes before) and meeting point on sessions and series; games also opponent, home/away and venue address (away games may have no hall). "Session changed" also for meeting/venue changes and says where to meet; a note alone sends nothing |
 | `tests/00_supabase_shim.sql` | Stand-in for Supabase's `auth` schema and roles, **local tests only** |
 | `tests/01_rls_test.sql` | 105 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
 | `tests/02_access_test.sql` | 35 checks for join codes, invitations and club setup |
@@ -163,3 +165,15 @@ sender's answers in `net._http_response`.
 Add a new numbered file under `migrations/`, run the tests locally, then apply
 it to the project. Keep `app.all_permissions()` in sync with
 `COACH_PERMISSIONS` and the role templates with `COACH_ROLE_TEMPLATES`.
+
+## Operators (error reports, piece 13)
+
+Operators see `/reports` in the app and get the pushes about problem reports and
+the morning error summary. Add an account once it exists (by SQL, in the Supabase
+SQL editor):
+
+```sql
+insert into app.operators (user_id)
+select id from auth.users where lower(email) = lower('you@example.com')
+on conflict do nothing;
+```

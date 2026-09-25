@@ -1,6 +1,7 @@
 'use client';
 
 import { type MouseEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useState } from 'react';
+import { SessionInfo, gameLine, meetLine } from '@/features/sessions/SessionInfo';
 import Link from 'next/link';
 import {
   Bar,
@@ -1989,6 +1990,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 <button type="button" onClick={() => openCalendarItem({ id: nextSession.id, title: nextSession.title, date: nextSession.date, startsAt: nextSession.startsAt, endsAt: nextSession.endsAt, trainingType: nextSession.trainingType, teamName: nextSession.teamName, status: nextSession.date < todayISO() ? 'missing' : 'planned', source: nextSession.source ?? 'team_session', session: nextSession })} className="mt-4 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.06] p-5 text-left transition hover:border-emerald-300/55">
                   <p className="text-2xl font-black tracking-tight">{nextSession.title}</p>
                   <p className="mt-1 text-sm font-bold text-slate-300">{formatDay(nextSession.startsAt)} · {formatTime(nextSession.startsAt)}{nextSession.endsAt ? `–${formatTime(nextSession.endsAt)}` : ''} · {nextSession.teamName ?? 'Own plan'}</p>
+                  {nextSession.info ? (() => {
+                    const info = { ...nextSession.info, startsAt: nextSession.startsAt };
+                    const place = info.homeAway === 'away' ? info.venueAddress : info.facilityName;
+                    const lines = [gameLine(info), place, meetLine(info)].filter(Boolean);
+                    return lines.length > 0 ? <p className="mt-1 text-sm font-bold text-amber-100/90">{lines.join(' · ')}</p> : null;
+                  })() : null}
+                  {nextSession.info?.notes ? <p className="mt-1 line-clamp-2 text-xs font-bold text-slate-400">{nextSession.info.notes}</p> : null}
                   <p className="mt-3 text-xs font-bold text-emerald-200">{availabilityLabelFor(nextSession)}</p>
                 </button>
               ) : <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions planned</div>}
@@ -2062,6 +2070,10 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               </div>
               <button type="button" onClick={() => { setComposerOpen(false); setActiveComposerSession(null); setActiveEntry(null); }} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">Close</button>
             </div>
+
+            {activeComposerSession?.source === 'team_session' && activeComposerSession.info ? (
+              <SessionInfo info={{ ...activeComposerSession.info, startsAt: activeComposerSession.startsAt }} className="mt-4" />
+            ) : null}
 
             {activeTeamSessionLocked ? (
               <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm font-black text-slate-200">
