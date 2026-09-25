@@ -507,20 +507,25 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     const strengthDay = addDays(today, 2);
     const recoveryDay = addDays(today, 4);
     return [
-      {
-        id: `plan-${membership.personId}-strength`,
-        personId: membership.personId,
-        teamId: null,
-        teamName: null,
-        title: 'Strength',
-        date: dateOnly(strengthDay),
-        startsAt: at(strengthDay, '17:00').toISOString(),
-        trainingType: 'strength' as const,
-        expectedRpe: 7,
-        expectedDurationMinutes: 60,
-        note: null,
-        createdAt,
-      },
+      // A weekly strength series (piece 22), three weeks ahead.
+      ...[0, 7, 14].map((offset) => {
+        const day = addDays(strengthDay, offset);
+        return {
+          id: `plan-${membership.personId}-strength${offset === 0 ? '' : `-${offset}`}`,
+          personId: membership.personId,
+          teamId: null,
+          teamName: null,
+          title: 'Strength',
+          date: dateOnly(day),
+          startsAt: at(day, '17:00').toISOString(),
+          trainingType: 'strength' as const,
+          expectedRpe: 7,
+          expectedDurationMinutes: 60,
+          note: null,
+          seriesId: `series-${membership.personId}-strength`,
+          createdAt,
+        };
+      }),
       {
         id: `plan-${membership.personId}-recovery`,
         personId: membership.personId,

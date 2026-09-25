@@ -33,7 +33,8 @@ import { encodeAthleteLoadShare } from './athleteLoadShare';
 import { athleteHasLoad, clearEntryReview, displayName, getActivePerson, newId, reviewsForPerson, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
-import { formatDateRange, formatDay, formatLongDay } from '@/shared/format';
+import { formatDateRange, formatDay, formatLongDay, plural } from '@/shared/format';
+import { WEEKDAY_LABELS, latestSeriesEnd, seriesDates, seriesEnd, thisAndFollowing, weekdayOf } from './planSeries';
 import {
   readAcknowledged,
   readAvailability,
@@ -1097,6 +1098,7 @@ function AthleteCalendar({
         key={item.id}
         type="button"
         data-athlete-calendar-item="true"
+        data-item-id={item.id}
         onPointerDown={(event) => startDrag(item, 'move', event)}
         onClick={(event) => { event.stopPropagation(); if (!suppressClick) onItemSelect(item, mode); }}
         className={`${itemClass(item)} ${compact ? 'left-0.5 right-0.5 px-0.5 text-[8px] leading-tight' : ''}`}
@@ -1263,6 +1265,12 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [activeEntry, setActiveEntry] = useState<AthleteLoadEntry | null>(null);
   const [activeDetailItem, setActiveDetailItem] = useState<AthleteCalendarItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'entry' | 'plan'; id: string; title: string } | null>(null);
+  // Own training as a weekly series (piece 22): how a new plan repeats, and
+  // whether a change to a plan of a series is for it alone or the rest too.
+  const [repeat, setRepeat] = useState<'once' | 'weekly'>('once');
+  const [repeatDays, setRepeatDays] = useState<number[]>([]);
+  const [repeatUntil, setRepeatUntil] = useState('');
+  const [seriesScope, setSeriesScope] = useState<'one' | 'following'>('one');
   const [isDeleting, setIsDeleting] = useState(false);
   const [cancelledSessionIds, setCancelledSessionIds] = useState<Set<string>>(new Set());
   const [availabilityBySessionId, setAvailabilityBySessionId] = useState<Map<string, AthleteAvailabilityMark>>(new Map());
@@ -1470,6 +1478,10 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const sessionMode = planForm.date < todayISO() ? 'report' : planForm.date > todayISO() ? 'plan' : todayAction;
   const effectiveRpe = planForm.trainingType === 'game' ? 10 : planForm.expectedRpe;
   const sessionLoadPreview = effectiveRpe * planForm.expectedDurationMinutes;
+  const seriesCount = repeat === 'weekly' ? seriesDates(planForm.date, repeatDays, repeatUntil || seriesEnd(planForm.date)).length : 1;
+  const editingSeriesPlan = activeComposerSession?.source === 'athlete_plan'
+    ? plans.find((plan) => plan.id === activeComposerSession.id && plan.seriesId) ?? null
+    : null;
 
   function setSessionTrainingType(type: LoadTrainingType) {
     if (activeTeamSessionLocked) return;
@@ -1544,29 +1556,46 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     setActivePendingId(null);
   }
 
-  async function createPlan() {
-    const startsAt = planForm.time ? new Date(`${planForm.date}T${planForm.time}`).toISOString() : null;
-    const plan: AthleteLoadPlan = {
+  /** A plan with what the form says, on `date`; `base` keeps an existing plan's id, series and note. */
+  function planFromForm(date: string, base: Partial<AthleteLoadPlan> = {}): AthleteLoadPlan {
+    return {
       id: newId(),
       teamId: null,
       teamName: null,
+      note: null,
+      seriesId: null,
+      ...base,
       title: LOAD_TYPE_LABELS[planForm.trainingType],
-      date: planForm.date,
-      startsAt,
+      date,
+      startsAt: planForm.time ? new Date(`${date}T${planForm.time}`).toISOString() : null,
       trainingType: planForm.trainingType,
       expectedRpe: effectiveRpe,
       expectedDurationMinutes: planForm.expectedDurationMinutes,
-      note: null,
     };
+  }
 
-
+  /** Removes plans (with their warmups) and adds others, in the plans, the calendar and the queue. */
+  function replacePlans(removeIds: readonly string[], add: AthleteLoadPlan[]) {
+    const removed = new Set(removeIds.flatMap((id) => [id, `${id}-warmup`]));
     setPlans((current) => {
-      const next = [...current, plan].sort((a, b) => a.date.localeCompare(b.date));
+      const next = [...current.filter((plan) => !removed.has(plan.id)), ...add].sort((a, b) => a.date.localeCompare(b.date));
       if (activePersonId) savePlans(activePersonId, next);
       return next;
     });
-    setCalendarSessions((current) => withAutoWarmups([...current, planToPendingSession(plan)]));
-    setPendingSessions((current) => withAutoWarmups([...current, planToPendingSession(plan)]));
+    const added = add.map(planToPendingSession);
+    const apply = (current: AthletePendingSession[]) => withAutoWarmups([...current.filter((session) => !removed.has(session.id)), ...added]);
+    setCalendarSessions(apply);
+    setPendingSessions(apply);
+  }
+
+  async function createPlan() {
+    if (repeat === 'weekly') {
+      const seriesId = newId();
+      replacePlans([], seriesDates(planForm.date, repeatDays, repeatUntil || seriesEnd(planForm.date)).map((date) => planFromForm(date, { seriesId })));
+    } else {
+      replacePlans([], [planFromForm(planForm.date)]);
+    }
+    setRepeat('once');
     setPlanForm((current) => ({ ...emptyPlanForm, trainingType: current.trainingType, date: current.date }));
   }
 
@@ -1614,7 +1643,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       if (deleteTarget.kind === 'entry') {
         await deleteEntry(deleteTarget.id);
       } else {
-        await deletePlan(deleteTarget.id);
+        const target = plans.find((plan) => plan.id === deleteTarget.id);
+        replacePlans(target && seriesScope === 'following' ? thisAndFollowing(plans, target).map((plan) => plan.id) : [deleteTarget.id], []);
         if (activeComposerSession?.id === deleteTarget.id) {
           setActiveComposerSession(null);
           setComposerOpen(false);
@@ -1724,10 +1754,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     if (activeComposerSession) {
       if (activeComposerSession.source === 'team_session' && activeComposerSession.date > todayISO()) return;
       if (activeComposerSession.source === 'athlete_plan' && sessionMode === 'plan') {
-        const editingPlanId = activeComposerSession.id;
+        const editing = plans.find((plan) => plan.id === activeComposerSession.id);
         setActiveComposerSession(null);
-        await deletePlan(editingPlanId);
-        await createPlan();
+        if (editing) {
+          // A series keeps its days: "this and following" takes the new time,
+          // type, effort and length; only this plan moves to another date.
+          const targets = seriesScope === 'following' ? thisAndFollowing(plans, editing) : [editing];
+          replacePlans(targets.map((plan) => plan.id), targets.map((plan) => planFromForm(plan.id === editing.id ? planForm.date : plan.date, plan)));
+        }
         setComposerOpen(false);
         return;
       }
@@ -1770,6 +1804,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   }
 
   function openComposer(date: string, time = '18:00') {
+    setRepeat('once');
+    setSeriesScope('one');
     setActiveComposerSession(null);
     setActiveEntry(null);
     setActiveDetailItem(null);
@@ -1789,6 +1825,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
   /** Opens the editor for one of the athlete's own entries. */
   function openEntryEditor(entry: AthleteLoadEntry, fallbackStartsAt?: string | null) {
+    setRepeat('once');
+    setSeriesScope('one');
     setActiveDetailItem(null);
     setActiveComposerSession(null);
     setActiveEntry(entry);
@@ -1805,6 +1843,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   }
 
   function openCalendarItem(item: AthleteCalendarItem, intent: 'view' | 'edit' = 'view') {
+    setRepeat('once');
+    setSeriesScope('one');
     if (intent === 'view' && item.status === 'reported') {
       setActiveDetailItem(item);
       return;
@@ -2132,6 +2172,66 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               </div>
             )}
 
+            {!activeEntry && !activeComposerSession && sessionMode === 'plan' ? (
+              <div className="mt-4 grid gap-2">
+                <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-1">
+                  <button type="button" onClick={() => setRepeat('once')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${repeat === 'once' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>Once</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRepeat('weekly');
+                      setRepeatDays([weekdayOf(planForm.date)]);
+                      setRepeatUntil(seriesEnd(planForm.date));
+                    }}
+                    className={`rounded-xl px-3 py-2 text-xs font-black transition ${repeat === 'weekly' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}
+                  >
+                    Weekly
+                  </button>
+                </div>
+                {repeat === 'weekly' ? (
+                  <>
+                    <div className="flex flex-wrap gap-1.5" role="group" aria-label="Days">
+                      {WEEKDAY_LABELS.map((label, day) => (
+                        <button
+                          key={label}
+                          type="button"
+                          aria-pressed={repeatDays.includes(day)}
+                          onClick={() => setRepeatDays((current) => (current.includes(day) ? current.filter((item) => item !== day) : [...current, day]))}
+                          className={`h-9 w-10 rounded-xl border text-xs font-black transition ${repeatDays.includes(day) ? 'border-violet-300 bg-violet-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-300'}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <label className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                      Until
+                      <input
+                        type="date"
+                        value={repeatUntil}
+                        min={planForm.date}
+                        max={latestSeriesEnd(planForm.date)}
+                        onChange={(event) => setRepeatUntil(event.target.value)}
+                        className="h-9 min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-2 text-sm font-black normal-case tracking-normal text-white outline-none focus:border-violet-300 [color-scheme:dark]"
+                      />
+                    </label>
+                    <p className="text-xs font-bold text-slate-400">
+                      {seriesCount === 0 ? 'Pick at least one day.' : `${plural(seriesCount, 'session')}; each asks “How hard was it?” afterwards.`}
+                    </p>
+                  </>
+                ) : null}
+              </div>
+            ) : null}
+
+            {editingSeriesPlan ? (
+              <div className="mt-4 grid gap-1.5">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Weekly series · change</p>
+                <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-1">
+                  <button type="button" onClick={() => setSeriesScope('one')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${seriesScope === 'one' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>Only this one</button>
+                  <button type="button" onClick={() => setSeriesScope('following')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${seriesScope === 'following' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>This and following</button>
+                </div>
+              </div>
+            ) : null}
+
             {!activeComposerSession && planForm.date === todayISO() ? (
               <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-1">
                 <button type="button" onClick={() => setTodayAction('plan')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${todayAction === 'plan' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>Plan later</button>
@@ -2233,8 +2333,10 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   </div>
                 </div>
 
-                <button type="button" onClick={submitUnifiedSession} className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-black text-slate-950 transition ${sessionMode === 'plan' && !activeComposerSession && !activeEntry ? 'bg-violet-300' : 'bg-emerald-300'}`}>
-                  {sessionMode === 'plan' && !activeComposerSession && !activeEntry ? `Plan ${sessionLoadPreview} AU` : `Save ${sessionLoadPreview} AU`}
+                <button type="button" onClick={submitUnifiedSession} disabled={sessionMode === 'plan' && !activeComposerSession && !activeEntry && seriesCount === 0} className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-black text-slate-950 transition disabled:opacity-50 ${sessionMode === 'plan' && !activeComposerSession && !activeEntry ? 'bg-violet-300' : 'bg-emerald-300'}`}>
+                  {sessionMode === 'plan' && !activeComposerSession && !activeEntry
+                    ? (repeat === 'weekly' ? `Plan ${plural(seriesCount, 'session')} · ${sessionLoadPreview} AU each` : `Plan ${sessionLoadPreview} AU`)
+                    : editingSeriesPlan && seriesScope === 'following' ? `Save this and following · ${sessionLoadPreview} AU` : `Save ${sessionLoadPreview} AU`}
                 </button>
                 {activeEntry ? (
                   <button type="button" onClick={() => setDeleteTarget({ kind: 'entry', id: activeEntry.id, title: activeEntry.title })} className="mt-2 w-full rounded-2xl border border-rose-400/45 bg-rose-400/10 px-4 py-3 text-sm font-black text-rose-100">
@@ -2242,7 +2344,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   </button>
                 ) : activeComposerSession?.source === 'athlete_plan' ? (
                   <button type="button" onClick={() => setDeleteTarget({ kind: 'plan', id: activeComposerSession.id, title: activeComposerSession.title })} className="mt-2 w-full rounded-2xl border border-rose-400/45 bg-rose-400/10 px-4 py-3 text-sm font-black text-rose-100">
-                    Delete plan
+                    {editingSeriesPlan && seriesScope === 'following' ? 'Delete this and following' : 'Delete plan'}
                   </button>
                 ) : null}
               </>
@@ -2264,7 +2366,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       <AppConfirmDialog
         isOpen={Boolean(deleteTarget)}
         title={deleteTarget?.kind === 'entry' ? 'Delete load entry?' : 'Delete planned load?'}
-        description={deleteTarget ? `${deleteTarget.title} will be removed from your calendar and load history.` : undefined}
+        description={deleteTarget
+          ? deleteTarget.kind === 'plan' && editingSeriesPlan && seriesScope === 'following'
+            ? `${deleteTarget.title} and the later sessions of this weekly series will be removed from your calendar.`
+            : `${deleteTarget.title} will be removed from your calendar and load history.`
+          : undefined}
         confirmLabel={deleteTarget?.kind === 'entry' ? 'Delete load' : 'Delete plan'}
         cancelLabel="Cancel"
         tone="danger"

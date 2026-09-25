@@ -754,6 +754,27 @@ async function main() {
   }
   check('… and cannot take Ben out', leftForOther.includes('yourself') && (await count("select 1 from memberships where person_id = $1 and team_id = $2", [P.ben, TEAM])) === 1, leftForOther);
 
+  // --- Own training as a weekly series (piece 22) ----------------------------
+  store = await actAs(U.ben);
+  const seriesId = data.newId();
+  const seriesPlans = [7, 14, 21].map((days) => {
+    const date = new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+    return {
+      id: data.newId(), teamId: null, title: 'Strength', date, startsAt: `${date}T15:00:00.000Z`,
+      trainingType: 'strength' as const, expectedRpe: 7, expectedDurationMinutes: 60, note: null, seriesId,
+    };
+  });
+  rateStore.savePlans(P.ben, [...rateStore.readPlans(db(), P.ben), ...seriesPlans]);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await data.flushRemote();
+  check('Ben: a weekly series of three plans on the server', (await count('select 1 from athlete_plans where series_id = $1 and person_id = $2', [seriesId, P.ben])) === 3, store.getStatus().rejected);
+  store = await actAs(U.ben);
+  check('… read back with its series', rateStore.readPlans(db(), P.ben).filter((plan) => plan.seriesId === seriesId).length === 3);
+  rateStore.savePlans(P.ben, rateStore.readPlans(db(), P.ben).filter((plan) => plan.id !== seriesPlans[1].id && plan.id !== seriesPlans[2].id));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await data.flushRemote();
+  check('… "this and following" from the second: one left', (await count('select 1 from athlete_plans where series_id = $1', [seriesId])) === 1, store.getStatus().rejected);
+
   // --- Offline (piece 18) ------------------------------------------------------
   const net = { online: true, tokenValid: true, loseNextInsertAnswer: false };
   const kept: { snapshot: OfflineSnapshot | null } = { snapshot: null };

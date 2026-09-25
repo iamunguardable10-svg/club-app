@@ -88,6 +88,8 @@ export type AthleteLoadPlan = {
   expectedRpe: number;
   expectedDurationMinutes: number;
   note?: string | null;
+  /** Plans made together as a weekly series (piece 22) share this id. */
+  seriesId?: string | null;
 };
 
 export type DayLoad = {
