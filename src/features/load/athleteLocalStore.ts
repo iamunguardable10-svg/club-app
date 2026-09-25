@@ -18,6 +18,7 @@
  */
 
 import {
+  awayForSession,
   mutate,
   newId,
   reportAvailability,
@@ -29,12 +30,15 @@ import {
   type Session,
 } from '@/shared/data';
 import type { AthleteLoadPlan, AthletePendingSession } from './loadTypes';
+import { awayUntilLabel } from '@/features/absences/absenceText';
 
 export type AthleteAvailabilityMark = {
   /** `missed`: did not take part, said after the session. */
   status: 'expected' | 'late' | 'out' | 'missed';
   reason: string | null;
   lateMinutes: number | null;
+  /** Out because of an absence over a period (piece 16), not a report of its own; never saved as a row. */
+  fromAbsence?: boolean;
 };
 
 /** Same window the demo workspace used around today. */
@@ -228,6 +232,10 @@ export function readSessionsToRate(database: LocalDatabase, personId: Id, now = 
   for (const confirmation of database.attendanceConfirmations) {
     if (confirmation.personId === personId && !confirmation.present) answered.add(confirmation.sessionId);
   }
+  // Away for a period (piece 16): nothing to rate either.
+  for (const session of database.sessions) {
+    if (awayForSession(database, personId, session)) answered.add(session.id);
+  }
   const dismissed = new Set(readAcknowledged(database, personId));
 
   return database.sessions
@@ -254,6 +262,13 @@ export function readAvailability(database: LocalDatabase, personId: Id): Map<str
     if (entry.personId !== personId || entry.status === 'in') continue;
     map.set(entry.sessionId, { status: entry.status, reason: entry.reason, lateMinutes: entry.lateMinutes });
   }
+  // Sessions during an absence show as out (piece 16), unless said otherwise.
+  const teamIds = new Set(teamsForPerson(database, personId).map((team) => team.id));
+  for (const session of database.sessions) {
+    if (!teamIds.has(session.teamId) || map.has(session.id)) continue;
+    const absence = awayForSession(database, personId, session);
+    if (absence) map.set(session.id, { status: 'out', reason: awayUntilLabel(absence, true), lateMinutes: null, fromAbsence: true });
+  }
   return map;
 }
 
@@ -271,7 +286,7 @@ export function saveAvailability(personId: Id, marks: Map<string, AthleteAvailab
     );
     const now = new Date().toISOString();
     const next = Array.from(marks.entries())
-      .filter(([, mark]) => mark.status === 'late' || mark.status === 'out' || mark.status === 'missed')
+      .filter(([, mark]) => !mark.fromAbsence && (mark.status === 'late' || mark.status === 'out' || mark.status === 'missed'))
       .map(([sessionId, mark]) => {
         const status = mark.status as 'late' | 'out' | 'missed';
         const previous = existing.get(sessionId);
@@ -293,7 +308,25 @@ export function saveAvailability(personId: Id, marks: Map<string, AthleteAvailab
           seeded: false,
         };
       });
-    database.availability = [...database.availability.filter((entry) => entry.personId !== personId), ...next];
+    // An explicit "in" said during an absence (piece 16) stays unless the
+    // session got another report now.
+    const saidIn = database.availability.filter((entry) => entry.personId === personId && entry.status === 'in' && !marks.has(entry.sessionId));
+    database.availability = [...database.availability.filter((entry) => entry.personId !== personId), ...next, ...saidIn];
+  });
+}
+
+/**
+ * "Available" for one session during an absence (piece 16): said out loud,
+ * so it wins over the absence for that session only.
+ */
+export function sayInDuringAbsence(personId: Id, sessionId: Id) {
+  deferWrite((database) => {
+    if (database.availability.some((entry) => entry.personId === personId && entry.sessionId === sessionId && entry.status === 'in')) return;
+    database.availability = database.availability.filter((entry) => !(entry.personId === personId && entry.sessionId === sessionId));
+    database.availability.push({
+      id: newId(), sessionId, personId, status: 'in', reason: null, lateMinutes: null,
+      reportedAt: new Date().toISOString(), seeded: false,
+    });
   });
 }
 

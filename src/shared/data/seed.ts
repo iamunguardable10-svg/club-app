@@ -15,6 +15,7 @@
 import { SCHEMA_VERSION } from './migrations';
 import { COACH_PERMISSIONS } from './schema';
 import type {
+  Absence,
   AthletePlan,
   CoachPermission,
   CoachRole,
@@ -373,6 +374,14 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
   const unratedBySome = new Set([...latestPastByTeam.values()].map((ids) => ids[1]).filter(Boolean));
 
   const availability: Availability[] = [];
+
+  // Piece 16: one U16 player is injured for a while; their sessions in that
+  // period have no report and no load of their own.
+  const injured = { personId: 'athlete-u16-7', fromDate: dateOnly(addDays(today, -3)), toDate: dateOnly(addDays(today, 9)) };
+  const absences: Absence[] = [{
+    id: 'absence-demo-1', personId: injured.personId, fromDate: injured.fromDate, toDate: injured.toDate,
+    kind: 'injured', note: 'Ankle sprain, the physio says about two weeks.', createdBy: injured.personId, createdAt,
+  }];
   const loadEntries: LoadEntry[] = [];
   const teamNameById = new Map(teams.map((team) => [team.id, team.name]));
 
@@ -382,6 +391,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     const athletes = athletesByTeam.get(session.teamId) ?? [];
 
     for (const personId of athletes) {
+      if (personId === injured.personId && dateOnly(sessionDay) >= injured.fromDate && dateOnly(sessionDay) <= injured.toDate) continue;
       const random = makeRandom(`${session.id}:${personId}`);
       const roll = random();
 
@@ -534,6 +544,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     acknowledgedSessions: [],
     loadEntryReviews: [],
     attendanceConfirmations: [],
+    absences,
     shareLinks: {},
     // Start as the first coach so the app is usable immediately. Run 3 adds
     // the entry page that asks which role to test as and lets the person

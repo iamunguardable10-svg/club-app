@@ -615,6 +615,7 @@ function AttendanceConfirmation({ session }: { session: CoachSession }) {
     const report = reportFor(playerId);
     if (!report) return null;
     if (report.status === 'late') return report.lateMinutes ? `late · ${report.lateMinutes} min` : 'late';
+    if (report.awayUntil) return report.reason ?? 'away';
     return report.missed ? 'did not take part' : 'said no';
   }
 

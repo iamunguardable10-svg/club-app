@@ -1667,3 +1667,33 @@ Treffen und Adresse, Notiz ohne Push, Serie, Absage mit Gegner), Datenschicht 12
 Typecheck, Build, Browser Handy/Desktop (Trainer ändert Gegner/Treffen/Notiz, Liste und
 Detail zeigen es, Spieler sieht den Info-Block; kein Überlauf, keine Fehler). Dabei
 behoben: Treffzeit-Auswahl war auf dem Handy abgeschnitten.
+
+## Run 21 — Demo auf Englisch, Stück 16: Abwesenheit über Zeiträume (erledigt)
+
+- **Demo-Verein auf Englisch** (Hinweis 2026-09-25: „nur Englisch erstmal“): Einheiten
+  „Team training“ / „Strength“ / „Game“ (wie die App selbst sie beim Speichern nennt), Hallen
+  „North Hall“ / „Small Hall“ / „Weight Room“, Teams „U16 Boys“ / „U18 Girls“, Gruppe „Rehab“,
+  Gründe „Sick“ / „Family event“ / „Missed the bus“. Eigennamen (Personen, Gegner) bleiben.
+- **Spieler** („Today“ → Abschnitt „Away“): „I'll be away for a while“ → Von/Bis, Art
+  (Injured, Sick, Holiday, School / work, Away), Notiz. Liste mit „Now“ / „Coming up“,
+  „entered by …“, „Change“ und „Remove“. Alle Einheiten im Zeitraum zählen als out, ohne
+  „Are you in?“ und „How hard was it?“; tippt der Spieler bei einer davon „Available“, gilt
+  die Zusage für diese Einheit.
+- **Trainer** (Team → Spieler → Fenster, Abschnitt „Away“, für Rollen mit Anwesenheitsrecht):
+  dasselbe für den Spieler („Mark … as away“), ohne Freigabe. Die Art und Notiz sehen und
+  setzen nur Rollen mit dem Recht für Absagegründe; die anderen sehen „away until 4 Oct“.
+  Spielerkarte mit Plakette „Away until 4 Oct“; auf Heute, im Detail und in „Who was there?“
+  steht der Spieler als out mit „injured until …“ bzw. „away until …“; die Anwesenheitsquote
+  zählt es als abwesend.
+- **Migration 0020 (angewendet):** `absences` + `absence_reasons` (wie Zu-/Absage und
+  Grund), `app.absent_for_session`, Push-Planung berücksichtigt Abwesenheiten (keine
+  Erinnerung, keine RPE-Frage, in der Trainer-Übersicht als out), ein neuer Zeitraum schließt
+  schon wartende Nachrichten. Demo: ein U16-Spieler ist verletzt; Datenversion v15.
+
+Geprüft: Datenbank 10 Testdateien grün, neu `10_absences_test.sql` (Rechte je Rolle, Grund nur
+mit Recht, Grenzen, Kürzen, Push-Erinnerung/Bewertung/Übersicht, „in“ gewinnt, wartende
+Nachrichten werden geschlossen); Datenschicht 129 (Spieler, Head Coach, Team Manager ohne
+Grund, Kürzen/Löschen); Typecheck, Build, Browser Handy/Desktop (Plakette, Fenster, Trainer
+trägt ein, Spieler trägt ein; kein Überlauf, keine Fehler). Beim Bau gefunden: Das Speichern
+der Zu-/Absagen ersetzte alle Zeilen eines Spielers und hätte eine ausdrückliche Zusage
+während einer Abwesenheit gelöscht → bleibt jetzt erhalten.

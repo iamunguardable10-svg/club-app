@@ -30,10 +30,13 @@ import {
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { CoachShell } from '@/features/role-workspaces/RoleShell';
 import { MISSED_LABEL, buildCoachData } from '@/features/role-workspaces/coachData';
+import { awayUntilLabel } from '@/features/absences/absenceText';
 import { loadAccessFor } from '@/features/load/loadAccess';
 import { TeamStaffPanel } from '@/features/teams/TeamStaffPanel';
 import {
+  absenceOn,
   athletesForTeam,
+  awayForSession,
   coachPermissions,
   coachesForTeam,
   deleteSession,
@@ -43,6 +46,7 @@ import {
   removeAthleteFromTeam,
   setTeamDefaultFacility,
   updateSession,
+  todayISO,
   useLocalDatabase,
   type AthleteLoadEntry,
   type CoachPermission,
@@ -95,7 +99,15 @@ function attendanceForPlayer(database: LocalDatabase, personId: Id, teamId: Id) 
   const attendanceEvents = pastSessions
     .map((session) => {
       const report = reportBySessionId.get(session.id);
-      if (!report || report.status === 'in') return null;
+      if (!report) {
+        // Away for a period (piece 16) without a report of their own.
+        const absence = awayForSession(database, personId, session);
+        return absence
+          ? { sessionId: session.id, title: session.title, startsAt: session.startsAt, status: 'out' as const,
+              reason: awayUntilLabel(absence, true), lateMinutes: null, missed: false, awayUntil: absence.toDate }
+          : null;
+      }
+      if (report.status === 'in') return null;
       return {
         sessionId: session.id,
         title: session.title,
@@ -180,12 +192,19 @@ export function TeamWorkspace({
         loadAccess,
         loadSummary: loadAccess === 'summary' ? storedSummary(person.id) : null,
         attendanceShared,
+        absenceReasonsShared: reasonsShared,
+        // Away right now, or starting today (piece 16).
+        awayUntil: attendanceShared ? absenceOn(database, person.id, todayISO())?.toDate ?? null : null,
         ...(attendanceShared
           ? {
               ...attendance,
               attendanceEvents: reasonsShared
                 ? attendance.attendanceEvents
-                : attendance.attendanceEvents.map((event) => (event.missed ? event : { ...event, reason: null })),
+                : attendance.attendanceEvents.map((event) => (
+                    event.missed ? event
+                    // Away for a period: the period is attendance, the kind is a reason.
+                    : 'awayUntil' in event && event.awayUntil ? { ...event, reason: awayUntilLabel({ kind: null, toDate: event.awayUntil }, false) }
+                    : { ...event, reason: null })),
             }
           : { attendanceRate: null, missedSessions: null, attendanceEvents: [] }),
       };

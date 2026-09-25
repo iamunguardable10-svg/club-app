@@ -18,6 +18,7 @@ import type {
   ClubRoleKind,
   SessionType,
   TeamFeature,
+  AbsenceKind,
 } from '../schema';
 import type { LoadTrainingType } from '../loadTypes';
 
@@ -64,6 +65,9 @@ export const TABLES: readonly TableSpec[] = [
   { name: 'load_entries', key: ['id'], kinds: { starts_at: 'timestamp', created_at: 'timestamp', rpe: 'number', load: 'number' } },
   { name: 'load_entry_reviews', key: ['entry_id'], kinds: { created_at: 'timestamp' } },
   { name: 'attendance_confirmations', key: ['session_id', 'person_id'], kinds: { confirmed_at: 'timestamp' } },
+  { name: 'absences', key: ['id'], kinds: { created_at: 'timestamp' } },
+  // Kind and note live apart: shared only with viewAbsenceReasons (piece 16).
+  { name: 'absence_reasons', key: ['absence_id'] },
   { name: 'load_summaries', key: ['person_id'], kinds: { acwr: 'number', updated_at: 'timestamp' } },
   { name: 'athlete_plans', key: ['id'], kinds: { starts_at: 'timestamp', created_at: 'timestamp', expected_rpe: 'number' } },
   { name: 'acknowledged_sessions', key: ['person_id', 'session_id'] },
@@ -74,7 +78,7 @@ export type TableName =
   | 'staff_invites' | 'club_roles' | 'club_role_invites'
   | 'memberships' | 'player_groups' | 'player_group_members' | 'session_series' | 'sessions'
   | 'session_series_week_states' | 'availability' | 'availability_reasons' | 'load_entries'
-  | 'load_summaries' | 'athlete_plans' | 'acknowledged_sessions' | 'load_entry_reviews' | 'attendance_confirmations';
+  | 'load_summaries' | 'athlete_plans' | 'acknowledged_sessions' | 'load_entry_reviews' | 'attendance_confirmations' | 'absences' | 'absence_reasons';
 
 export function tableSpec(name: TableName): TableSpec {
   return TABLES.find((table) => table.name === name)!;
@@ -187,6 +191,12 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     attendance_confirmations: database.attendanceConfirmations.map((c) => ({
       session_id: c.sessionId, person_id: c.personId, present: c.present, confirmed_by: c.confirmedBy, confirmed_at: c.confirmedAt,
     })),
+    absences: (database.absences ?? []).map((a) => ({
+      id: a.id, person_id: a.personId, from_date: a.fromDate, to_date: a.toDate, created_by: a.createdBy, created_at: a.createdAt,
+    })),
+    absence_reasons: (database.absences ?? [])
+      .filter((a) => a.kind !== null)
+      .map((a) => ({ absence_id: a.id, kind: a.kind, note: a.note })),
   };
   for (const table of TABLES) rows[table.name] = rows[table.name].map((row) => normalizeRow(table.name, row));
   return rows;
@@ -305,6 +315,16 @@ export function fromServerRows(
     attendanceConfirmations: rows.attendance_confirmations.map((c) => ({
       sessionId: s(c.session_id), personId: s(c.person_id), present: Boolean(c.present), confirmedBy: sn(c.confirmed_by), confirmedAt: s(c.confirmed_at),
     })),
+    absences: rows.absences
+      .map((a) => {
+        const reason = rows.absence_reasons.find((r) => r.absence_id === a.id);
+        return {
+          id: s(a.id), personId: s(a.person_id), fromDate: s(a.from_date), toDate: s(a.to_date),
+          kind: reason ? (s(reason.kind) as AbsenceKind) : null, note: reason ? sn(reason.note) : null,
+          createdBy: sn(a.created_by), createdAt: s(a.created_at),
+        };
+      })
+      .sort((a, b) => a.fromDate.localeCompare(b.fromDate)),
     shareLinks: context.previous?.shareLinks ?? {},
     activeIdentity: null,
   };

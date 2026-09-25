@@ -45,6 +45,8 @@ import {
   type CoachRole,
   type Membership,
   type AttendanceConfirmation,
+  type Absence,
+  type AbsenceKind,
   type Availability,
   type AvailabilityStatus,
   type Facility,
@@ -1728,7 +1730,10 @@ export function reportAvailability(input: {
       (entry) => entry.sessionId === input.sessionId && entry.personId === input.personId,
     );
     database.availability = database.availability.filter((entry) => entry !== previous);
-    if (input.status === 'in') return;
+    // "In" is normally the absence of a report; during an absence it is said
+    // out loud, so it wins over the absence for this session (piece 16).
+    const session = database.sessions.find((candidate) => candidate.id === input.sessionId);
+    if (input.status === 'in' && !(session && absenceOn(database, input.personId, sessionDate(session.startsAt)))) return;
     database.availability.push({
       // A changed report keeps its row (and its id on the server).
       id: previous?.id ?? newId(),
@@ -1891,6 +1896,98 @@ export function confirmAttendance(sessionId: Id, presence: { personId: Id; prese
         database.attendanceConfirmations.push({ sessionId, personId, present, confirmedBy: coachId, confirmedAt: now });
       }
     }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Absences over a period (piece 16)
+// ---------------------------------------------------------------------------
+
+/** The local date (YYYY-MM-DD) a session starts on. */
+export function sessionDate(startsAt: string): string {
+  const date = new Date(startsAt);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/** A person's absences that have not ended before `fromDate` (default: all), earliest first. */
+export function absencesForPerson(database: LocalDatabase, personId: Id, fromDate?: string): Absence[] {
+  return (database.absences ?? [])
+    .filter((absence) => absence.personId === personId && (!fromDate || absence.toDate >= fromDate))
+    .sort((a, b) => a.fromDate.localeCompare(b.fromDate));
+}
+
+export function absenceOn(database: LocalDatabase, personId: Id, date: string): Absence | null {
+  return (database.absences ?? []).find((absence) => absence.personId === personId && absence.fromDate <= date && absence.toDate >= date) ?? null;
+}
+
+/**
+ * Away for this session: an absence covers its day and the player did not
+ * say "in" for it anyway (an explicit "in" wins; same rule as the server).
+ */
+export function awayForSession(database: LocalDatabase, personId: Id, session: Pick<Session, 'id' | 'startsAt'>): Absence | null {
+  const absence = absenceOn(database, personId, sessionDate(session.startsAt));
+  if (!absence) return null;
+  const said = database.availability.find((entry) => entry.sessionId === session.id && entry.personId === personId);
+  return said?.status === 'in' ? null : absence;
+}
+
+/** Whoever enters absences for this person: themselves, or a coach with attendance rights in one of their teams. */
+function mayEditAbsences(database: LocalDatabase, personId: Id): boolean {
+  if (ownPersonIds(database).includes(personId)) return true;
+  const coachId = database.activeIdentity?.role === 'coach' ? database.activeIdentity.personId : null;
+  return database.memberships.some(
+    (membership) => membership.personId === personId && membership.role === 'athlete'
+      && coachPermissions(database, coachId, membership.teamId).has('viewAttendance'),
+  );
+}
+
+export function canEditAbsences(database: LocalDatabase, personId: Id): boolean {
+  return mayEditAbsences(database, personId);
+}
+
+export type AbsenceInput = { id?: Id; personId: Id; fromDate: string; toDate: string; kind: AbsenceKind | null; note?: string | null };
+
+/** Adds or changes an absence. Returns its id. */
+export function saveAbsence(input: AbsenceInput): Id {
+  const id = input.id ?? newId();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.fromDate) || !/^\d{4}-\d{2}-\d{2}$/.test(input.toDate)) {
+    throw new LocalDataError('Choose a start and an end date.');
+  }
+  if (input.toDate < input.fromDate) throw new LocalDataError('The end cannot be before the start.');
+  const days = (Date.parse(`${input.toDate}T00:00:00Z`) - Date.parse(`${input.fromDate}T00:00:00Z`)) / 86_400_000;
+  if (days > 366) throw new LocalDataError('An absence can be at most a year long.');
+  const note = input.note?.trim() || null;
+  if (note && note.length > 300) throw new LocalDataError('The note can be at most 300 characters.');
+  mutate((database) => {
+    if (!mayEditAbsences(database, input.personId)) throw new LocalDataError('You may not enter absences for this player.');
+    database.absences = database.absences ?? [];
+    const existing = database.absences.find((absence) => absence.id === id);
+    if (existing) {
+      if (existing.personId !== input.personId) throw new LocalDataError('This absence belongs to someone else.');
+      existing.fromDate = input.fromDate;
+      existing.toDate = input.toDate;
+      // Someone who cannot see the reason leaves it as it is.
+      if (input.kind !== null) {
+        existing.kind = input.kind;
+        existing.note = note;
+      }
+      return;
+    }
+    const me = database.activeIdentity?.personId ?? null;
+    database.absences.push({
+      id, personId: input.personId, fromDate: input.fromDate, toDate: input.toDate,
+      kind: input.kind, note: input.kind ? note : null, createdBy: me, createdAt: new Date().toISOString(),
+    });
+  });
+  return id;
+}
+
+export function deleteAbsence(absenceId: Id): void {
+  mutate((database) => {
+    const absence = (database.absences ?? []).find((candidate) => candidate.id === absenceId);
+    if (!absence) return;
+    if (!mayEditAbsences(database, absence.personId)) throw new LocalDataError('You may not remove this absence.');
+    database.absences = database.absences.filter((candidate) => candidate.id !== absenceId);
   });
 }
 

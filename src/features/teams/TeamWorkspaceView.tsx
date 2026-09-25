@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { AbsencePanel } from '@/features/absences/AbsencePanel';
+import { shortDate } from '@/features/absences/absenceText';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { getFacilityAccent } from '@/features/facilities/facilityAccent';
@@ -40,6 +42,10 @@ export type TeamWorkspacePlayer = PlayerLoadInput & {
   groups?: string[];
   /** Missing means shared; `false` for roles without `viewAttendance`. */
   attendanceShared?: boolean;
+  /** The active role may see why players are absent (viewAbsenceReasons). */
+  absenceReasonsShared?: boolean;
+  /** Away for a period right now, until this date (piece 16). */
+  awayUntil?: string | null;
   attendanceRate?: number | null;
   missedSessions?: number | null;
   attendanceEvents?: {
@@ -539,6 +545,7 @@ export function TeamWorkspaceView({
                       <span>{data.loadTracked === false ? '' : acwrDisplayLabel(summary)}</span>
                       {player.attendanceShared !== false ? <span>{attendanceFlags > 0 ? `${attendanceFlags}× out or late` : 'Always there'}</span> : null}
                     </div>
+                    {player.awayUntil ? <p className="mt-2 inline-flex rounded-full border border-amber-300/40 bg-amber-300/10 px-2 py-0.5 text-[11px] font-black text-amber-100">Away until {shortDate(player.awayUntil)}</p> : null}
                   </button>
                 );
               })}
@@ -772,12 +779,23 @@ export function TeamWorkspaceView({
           teamName={data.name}
           loadTracked={data.loadTracked !== false}
           onClose={() => setActivePlayer(null)}
-          footer={onRemovePlayer ? (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs font-bold text-slate-500">Joined the wrong team, or left the club?</p>
-              <button type="button" onClick={() => setRemovePlayerTarget(activePlayer)} className="rounded-xl border border-red-500/50 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">
-                Remove from team
-              </button>
+          footer={(activePlayer.attendanceShared !== false || onRemovePlayer) ? (
+            <div className="grid gap-4">
+              {/* Piece 16: roles that see attendance can mark a player away for a period. */}
+              {activePlayer.attendanceShared !== false ? (
+                <div>
+                  <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Away</p>
+                  <AbsencePanel personId={activePlayer.id} viewer="coach" showReasons={Boolean(activePlayer.absenceReasonsShared)} />
+                </div>
+              ) : null}
+              {onRemovePlayer ? (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs font-bold text-slate-500">Joined the wrong team, or left the club?</p>
+                  <button type="button" onClick={() => setRemovePlayerTarget(activePlayer)} className="rounded-xl border border-red-500/50 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">
+                    Remove from team
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : undefined}
         />
