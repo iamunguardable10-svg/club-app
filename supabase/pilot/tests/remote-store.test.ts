@@ -783,6 +783,17 @@ async function main() {
   store = await actAs(U.uwe);
   check('Uwe (no athlete plans): sees none, the server sends none', data.ownTrainingForTeam(db(), P.uwe, TEAM, todayDate, inAMonth).length === 0 && db().athletePlans.length === 0, db().athletePlans.length);
 
+  // --- A coach also plays in their own team (2026-09-25) -----------------------
+  store = await actAs(U.martin);
+  const ownCode = data.joinCodeFor(db(), TEAM);
+  check('Martin: sees his team’s join code', Boolean(ownCode));
+  await data.joinTeamWithCode(ownCode!, 'Martin', 'Weber');
+  check('… joins as a player: same person, now coach and player',
+    (await count("select 1 from memberships where person_id = $1 and team_id = $2 and role in ('coach', 'athlete')", [P.martin, TEAM])) === 2
+      && (await count('select 1 from people where user_id = $1', [U.martin])) === 1);
+  check('… both roles to switch between', data.peopleWithRole(db(), 'athlete').some((person) => person.id === P.martin) && data.peopleWithRole(db(), 'coach').some((person) => person.id === P.martin));
+  await pool.query("delete from memberships where person_id = $1 and team_id = $2 and role = 'athlete'", [P.martin, TEAM]);
+
   // --- Offline (piece 18) ------------------------------------------------------
   const net = { online: true, tokenValid: true, loseNextInsertAnswer: false };
   const kept: { snapshot: OfflineSnapshot | null } = { snapshot: null };

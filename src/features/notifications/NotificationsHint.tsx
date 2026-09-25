@@ -29,7 +29,19 @@ async function readState(): Promise<State> {
   const iosOutsideApp = installPlatform() === 'ios' && !isStandalone();
   if (!isPushSupported()) return iosOutsideApp ? 'needsInstall' : 'unsupported';
   if (pushPermission() === 'denied') return 'denied';
-  return (await currentPushSubscription()) ? 'on' : 'off';
+  if (await currentPushSubscription()) return 'on';
+  // Allowed before, but this app has no subscription (e.g. added to the home
+  // screen again, which starts with fresh storage): renew it quietly, no
+  // question and no card needed.
+  if (pushPermission() === 'granted') {
+    try {
+      await enablePush();
+      return 'on';
+    } catch {
+      return 'off';
+    }
+  }
+  return 'off';
 }
 
 function usePushState() {
