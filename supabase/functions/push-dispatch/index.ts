@@ -34,6 +34,12 @@ async function rpc<T>(name: string, args: Record<string, unknown>): Promise<{ ok
   return { ok: true, data: (text ? JSON.parse(text) : null) as T };
 }
 
+// Problems on this side land in the error reports (piece 13); a failed
+// report is ignored, sending goes on.
+async function reportFailure(message: string) {
+  await rpc<null>('report_error', { p_kind: 'server', p_message: `push-dispatch: ${message}`.slice(0, 500), p_page: 'push-dispatch' }).catch(() => undefined);
+}
+
 Deno.serve(async (request) => {
   if (request.method !== 'POST') return json({ error: 'POST only' }, 405);
   const secret = request.headers.get('x-dispatch-secret') ?? '';
@@ -41,11 +47,15 @@ Deno.serve(async (request) => {
   const batch = await rpc<Batch>('push_take_due', { p_secret: secret });
   if (!batch.ok) {
     const denied = batch.status === 401 || batch.status === 403;
+    if (!denied) await reportFailure(`push_take_due failed (${batch.status}): ${batch.error}`);
     return json({ error: denied ? 'Not allowed.' : batch.error }, denied ? 401 : 500);
   }
   const { vapid, items } = batch.data;
   if (items.length === 0) return json({ sent: 0, failed: 0 });
-  if (!vapid.public_key || !vapid.private_key || !vapid.subject) return json({ error: 'VAPID keys are not set up.' }, 500);
+  if (!vapid.public_key || !vapid.private_key || !vapid.subject) {
+    await reportFailure('VAPID keys are not set up.');
+    return json({ error: 'VAPID keys are not set up.' }, 500);
+  }
   webpush.setVapidDetails(vapid.subject, vapid.public_key, vapid.private_key);
 
   const results = await Promise.all(items.map(async (item) => {
@@ -64,7 +74,10 @@ Deno.serve(async (request) => {
   }));
 
   const report = await rpc<null>('push_report', { p_secret: secret, p_results: results });
-  if (!report.ok) return json({ error: report.error }, 500);
+  if (!report.ok) {
+    await reportFailure(`push_report failed (${report.status}): ${report.error}`);
+    return json({ error: report.error }, 500);
+  }
   const sent = results.filter((result) => result.status >= 200 && result.status < 300).length;
   return json({ sent, failed: results.length - sent });
 });

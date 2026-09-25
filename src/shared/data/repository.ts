@@ -574,6 +574,81 @@ export async function saveNotificationSettings(settings: NotificationSettings): 
   if (error) throw new LocalDataError(error.message);
 }
 
+// ---------------------------------------------------------------------------
+// Errors and problem reports (piece 13)
+// ---------------------------------------------------------------------------
+
+export type ErrorReportKind = 'crash' | 'error' | 'rejected' | 'push';
+
+/** Where a report comes from; no content, no health data. */
+export type ReportContext = { page: string; role: IdentityRole | null; mode: 'server' | 'demo'; version: string; device: string };
+
+/** Sends an error to the server. Works signed in or not; does nothing without a server. */
+export async function sendErrorReport(kind: ErrorReportKind, message: string, detail: string | null, context: ReportContext): Promise<void> {
+  if (!isServerAvailable()) return;
+  const supabase = await authClient();
+  await supabase.rpc('report_error', {
+    p_kind: kind, p_message: message, p_detail: detail, p_page: context.page, p_role: context.role,
+    p_mode: context.mode, p_version: context.version, p_device: context.device,
+  });
+}
+
+/** "Report a problem" from the account menu. */
+export async function sendProblemReport(text: string, context: ReportContext): Promise<void> {
+  if (!isServerAvailable()) throw new LocalDataError('Reports need a connection to the club server.');
+  const supabase = await authClient();
+  const { error } = await supabase.rpc('report_problem', {
+    p_text: text, p_page: context.page, p_role: context.role, p_mode: context.mode,
+    p_version: context.version, p_device: context.device,
+  });
+  if (error) throw new LocalDataError(error.message);
+}
+
+export type ErrorReport = {
+  id: string;
+  kind: ErrorReportKind | 'server' | 'problem';
+  message: string;
+  detail: string | null;
+  page: string | null;
+  role: IdentityRole | null;
+  mode: 'server' | 'demo' | null;
+  appVersion: string | null;
+  device: string | null;
+  reporter: string | null;
+  count: number;
+  firstSeen: string;
+  lastSeen: string;
+  resolvedAt: string | null;
+};
+
+/** Whether the signed-in account may read the reports (operators, set on the server). */
+export async function isOperator(): Promise<boolean> {
+  if (!isRemoteMode()) return false;
+  const supabase = await authClient();
+  const { data, error } = await supabase.rpc('am_i_operator');
+  return !error && data === true;
+}
+
+export async function listErrorReports(includeResolved: boolean): Promise<ErrorReport[]> {
+  const supabase = await authClient();
+  const { data, error } = await supabase.rpc('list_error_reports', { p_include_resolved: includeResolved });
+  if (error) throw new LocalDataError(error.message);
+  return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    id: String(row.id), kind: row.kind as ErrorReport['kind'], message: String(row.message),
+    detail: (row.detail as string | null) ?? null, page: (row.page as string | null) ?? null,
+    role: (row.role as IdentityRole | null) ?? null, mode: (row.mode as ErrorReport['mode']) ?? null,
+    appVersion: (row.app_version as string | null) ?? null, device: (row.device as string | null) ?? null,
+    reporter: (row.reporter as string | null) ?? null, count: Number(row.count),
+    firstSeen: String(row.first_seen), lastSeen: String(row.last_seen), resolvedAt: (row.resolved_at as string | null) ?? null,
+  }));
+}
+
+export async function resolveErrorReport(id: string, resolved: boolean): Promise<void> {
+  const supabase = await authClient();
+  const { error } = await supabase.rpc('resolve_error_report', { p_id: id, p_resolved: resolved });
+  if (error) throw new LocalDataError(error.message);
+}
+
 /** The signed-in account, or null. */
 export async function currentAccount(): Promise<{ email: string } | null> {
   if (!isServerAvailable()) return null;

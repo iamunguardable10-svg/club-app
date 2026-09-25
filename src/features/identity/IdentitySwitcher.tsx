@@ -22,11 +22,13 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 
 import { LocalModeLink } from '@/features/access/LocalModeLink';
+import { ReportProblemDialog } from '@/features/errors/ReportProblemDialog';
 
 import {
   clubRoleLabel,
   displayName,
   peopleWithRole,
+  isOperator,
   isRemoteMode,
   isServerAvailable,
   signOut,
@@ -58,6 +60,14 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [reporting, setReporting] = useState(false);
+  const [operator, setOperator] = useState(false);
+
+  // Operators (set on the server) get the way to the reports (piece 13).
+  useEffect(() => {
+    if (!open || !isRemoteMode()) return;
+    void isOperator().then(setOperator).catch(() => setOperator(false));
+  }, [open]);
 
   // The sheet is rendered into document.body rather than in place.
   //
@@ -208,6 +218,21 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
                 <span aria-hidden className="text-slate-500">›</span>
               </Link>
             ) : null}
+            {/* Piece 13: anyone can tell us when something is wrong. */}
+            <button
+              type="button"
+              onClick={() => { setOpen(false); setReporting(true); }}
+              className={`${current ? 'mt-2' : 'mt-6'} flex w-full items-center justify-between rounded-2xl border border-slate-700 px-4 py-3 text-left text-sm font-black text-slate-100 hover:border-slate-500`}
+            >
+              Report a problem
+              <span aria-hidden className="text-slate-500">›</span>
+            </button>
+            {operator ? (
+              <Link href="/reports" onClick={() => setOpen(false)} className="mt-2 flex items-center justify-between rounded-2xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-100 hover:border-slate-500">
+                Error reports
+                <span aria-hidden className="text-slate-500">›</span>
+              </Link>
+            ) : null}
 
             <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-800 pt-4">
               {remoteMode ? (
@@ -256,6 +281,7 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
         document.body,
           )
         : null}
+      <ReportProblemDialog isOpen={reporting} onClose={() => setReporting(false)} />
     </>
   );
 }
