@@ -2001,3 +2001,20 @@ Passwort nie für die App lesbar, Trennen löscht alles); Datenschicht; Typechec
 Browser: Einstellungen und Kalender im Demo-Modus unverändert, ohne Fehler. Nebenbei: der
 Abwesenheits-Test schlug kurz nach Mitternacht fehl (Einheit „gerade vorbei“ lag am Vortag);
 die Test-Abwesenheit beginnt jetzt gestern. Mit echtem iCloud noch zu prüfen (Bens Konto).
+
+## Run 34 — Kalender einmal beim ersten Öffnen anbieten (erledigt)
+
+Gewünscht (2026-09-25): Der Apple-Kalender soll einmal im Onboarding vorkommen, für Spieler und
+Trainer beim ersten Öffnen des Kalenders, bevor er nur noch in den Einstellungen steht. 21b
+(was der Trainer von privaten Terminen sieht) später; bis dahin sieht der Trainer sie nicht.
+
+- **Kalender (Spieler und Trainer), nur mit Konto:** Karte „Your sessions in your phone’s
+  calendar“, bis sie weggelegt ist. Auf iPhone/iPad/Mac „Connect Apple Calendar“ (dieselbe
+  geführte Anleitung wie in den Einstellungen), dazu „Use a calendar link“; auf anderen Geräten
+  „Get the calendar link“ (führt zu den Einstellungen). „Not now“ merkt sich das Gerät; beides
+  bleibt in den Einstellungen. Ist Apple schon verbunden, kommt keine Karte.
+- Nach dem Verbinden: „Apple Calendar connected“ mit „Choose calendars“ (Einstellungen).
+
+Geprüft: Typecheck, Build; Browser mit vorübergehend freigeschalteter Karte (nicht committet):
+iPhone 390 px, Android 390 px, Desktop 1280 px (Trainer), kein seitliches Scrollen, Anleitung
+öffnet, „Not now“ bleibt nach Neuladen weg; im Demo-Modus keine Karte.

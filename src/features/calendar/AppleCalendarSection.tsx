@@ -81,7 +81,7 @@ export function AppleCalendarSection({ remote }: { remote: boolean }) {
 
   return (
     <CoachSection title="Apple Calendar" description="Optional. Club OS works fully without it.">
-      <div className="grid gap-4">
+      <div id="apple-calendar" className="grid scroll-mt-24 gap-4">
         {status === undefined ? <p className="text-sm text-slate-400">Loading…</p> : null}
 
         {status === null ? (
@@ -167,7 +167,7 @@ export function AppleCalendarSection({ remote }: { remote: boolean }) {
 }
 
 /** The guided connection: what it does, the app-specific password, then connect. */
-function ConnectGuide({ initialAppleId, onClose, onConnected }: { initialAppleId: string; onClose: () => void; onConnected: () => Promise<void> }) {
+export function ConnectGuide({ initialAppleId, onClose, onConnected }: { initialAppleId: string; onClose: () => void; onConnected: () => Promise<void> }) {
   const [step, setStep] = useState<1 | 2 | 3>(initialAppleId ? 3 : 1);
   const [appleId, setAppleId] = useState(initialAppleId);
   const [password, setPassword] = useState('');

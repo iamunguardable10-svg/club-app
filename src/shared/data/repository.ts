@@ -157,8 +157,8 @@ export function setBackendChoice(choice: BackendChoice): void {
   backendChoice = choice;
 }
 
-/** Hints that can be put away with "Not now": installing the app, turning on notifications. */
-export type HintName = 'install' | 'notifications';
+/** Hints that can be put away with "Not now": installing the app, turning on notifications, the calendar (piece 20). */
+export type HintName = 'install' | 'notifications' | 'calendar';
 
 const hintKey = (name: HintName) => `club-app.hint-dismissed.${name}`;
 
