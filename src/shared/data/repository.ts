@@ -44,11 +44,13 @@ import {
   type ClubRoleKind,
   type CoachRole,
   type Membership,
+  type AttendanceConfirmation,
   type Availability,
   type AvailabilityStatus,
   type Facility,
   type Id,
   type LoadEntry,
+  type LoadEntryReview,
   type LocalDatabase,
   type IdentityRole,
   type MembershipRole,
@@ -1608,6 +1610,91 @@ export function recordLoadEntry(input: LoadEntryInput): Id {
 export function deleteLoadEntry(entryId: Id): void {
   mutate((database) => {
     database.loadEntries = database.loadEntries.filter((entry) => entry.id !== entryId);
+    database.loadEntryReviews = database.loadEntryReviews.filter((review) => review.entryId !== entryId);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Asking a player to check an entry (piece 10)
+// ---------------------------------------------------------------------------
+
+/** Whether this coach may see (and so question) the player's load details in any shared team. */
+function coachSeesLoadDetails(database: LocalDatabase, coachId: Id | null, athleteId: Id) {
+  return database.memberships.some(
+    (membership) => membership.personId === athleteId && membership.role === 'athlete'
+      && coachPermissions(database, coachId, membership.teamId).has('viewLoadDetails'),
+  );
+}
+
+export function reviewForEntry(database: LocalDatabase, entryId: Id): LoadEntryReview | null {
+  return database.loadEntryReviews.find((review) => review.entryId === entryId) ?? null;
+}
+
+export function reviewsForPerson(database: LocalDatabase, personId: Id): LoadEntryReview[] {
+  return database.loadEntryReviews.filter((review) => review.personId === personId);
+}
+
+/** The active coach asks the entry's owner to check it, with an optional note. */
+export function requestEntryReview(entryId: Id, note: string | null = null): void {
+  const clean = note?.trim() ? note.trim().slice(0, 300) : null;
+  mutate((database) => {
+    const entry = database.loadEntries.find((candidate) => candidate.id === entryId);
+    if (!entry) throw new LocalDataError('This entry no longer exists.');
+    const coachId = database.activeIdentity?.role === 'coach' ? database.activeIdentity.personId : null;
+    if (!coachSeesLoadDetails(database, coachId, entry.personId)) {
+      throw new LocalDataError('Only a coach who may see load details can ask for a check.');
+    }
+    database.loadEntryReviews = [
+      ...database.loadEntryReviews.filter((review) => review.entryId !== entryId),
+      { entryId, personId: entry.personId, requestedBy: coachId, note: clean, createdAt: new Date().toISOString() },
+    ];
+  });
+}
+
+/** Withdrawn by the coach, or "it is correct" from the player. */
+export function clearEntryReview(entryId: Id): void {
+  mutate((database) => {
+    database.loadEntryReviews = database.loadEntryReviews.filter((review) => review.entryId !== entryId);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Confirmed attendance (piece 11)
+// ---------------------------------------------------------------------------
+
+export function attendanceConfirmationsFor(database: LocalDatabase, sessionId: Id): AttendanceConfirmation[] {
+  return database.attendanceConfirmations.filter((confirmation) => confirmation.sessionId === sessionId);
+}
+
+/**
+ * Who was actually there, recorded by the active coach once the session has
+ * started. Overrides what the players said in every count.
+ */
+export function confirmAttendance(sessionId: Id, presence: { personId: Id; present: boolean }[]): void {
+  mutate((database) => {
+    const session = database.sessions.find((candidate) => candidate.id === sessionId);
+    if (!session) throw new LocalDataError('This session no longer exists.');
+    if (new Date(session.startsAt).getTime() > Date.now()) throw new LocalDataError('Attendance can only be confirmed once the session has started.');
+    const coachId = database.activeIdentity?.role === 'coach' ? database.activeIdentity.personId : null;
+    if (!coachPermissions(database, coachId, session.teamId).has('viewAttendance')) {
+      throw new LocalDataError('Only a coach who may see attendance can confirm it.');
+    }
+    const athletes = new Set(
+      database.memberships.filter((m) => m.teamId === session.teamId && m.role === 'athlete').map((m) => m.personId),
+    );
+    const now = new Date().toISOString();
+    for (const { personId, present } of presence) {
+      if (!athletes.has(personId)) throw new LocalDataError('Attendance can only be confirmed for players of the team.');
+      const existing = database.attendanceConfirmations.find((c) => c.sessionId === sessionId && c.personId === personId);
+      if (existing) {
+        if (existing.present === present) continue;
+        existing.present = present;
+        existing.confirmedBy = coachId;
+        existing.confirmedAt = now;
+      } else {
+        database.attendanceConfirmations.push({ sessionId, personId, present, confirmedBy: coachId, confirmedAt: now });
+      }
+    }
   });
 }
 

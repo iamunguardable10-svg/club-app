@@ -321,6 +321,42 @@ async function main() {
   store = await actAs(U.uwe);
   const missedForCoach = buildCoachData(db(), P.uwe).sessions.find((session) => session.id === MISSED)?.availability.find((entry) => entry.userId === P.jonas);
   check('coach: sees Jonas as absent, labelled "did not take part"', missedForCoach?.status === 'out' && missedForCoach.missed === true && missedForCoach.reason === 'did not take part', missedForCoach);
+
+  // --- Pieces 10 and 11: check requests and confirmed attendance ------------
+  const CONFIRM = '50000000-0000-0000-0000-000000000007';
+  await pool.query(`insert into public.sessions (id, club_id, department_id, team_id, title, session_type, starts_at, ends_at, facility_id, group_ids)
+    values ('${CONFIRM}', '${CLUB}', '${DEP}', '${TEAM}', 'Training', 'training', now() - interval '1 day', now() - interval '1 day' + interval '90 minutes', '${HALL}', '{}')`);
+  let uweRefused = '';
+  try {
+    data.requestEntryReview(db().loadEntries.find((entry) => entry.personId === P.jonas && entry.sessionId === GAME)?.id ?? 'none');
+  } catch (error) {
+    uweRefused = error instanceof Error ? error.message : String(error);
+  }
+  check('check: Uwe (no load details) cannot ask', uweRefused.length > 0, uweRefused);
+  store = await actAs(U.martin);
+  const gameEntry = db().loadEntries.find((entry) => entry.personId === P.jonas && entry.sessionId === GAME && entry.trainingType !== 'warmup')!;
+  data.requestEntryReview(gameEntry.id, 'Really 70 minutes?');
+  await data.flushRemote();
+  check('check: Martin asks Jonas to check his game entry',
+    (await count('select 1 from load_entry_reviews where entry_id = $1 and requested_by = $2 and note = $3', [gameEntry.id, P.martin, 'Really 70 minutes?'])) === 1, store.getStatus().rejected);
+  check('… Martin sees it on the player', buildCoachData(db(), P.martin).sessions.find((session) => session.id === GAME)?.players.find((player) => player.id === P.jonas)?.reviews?.[gameEntry.id]?.note === 'Really 70 minutes?');
+  store = await actAs(U.jonas);
+  check('… Jonas sees the request', data.reviewsForPerson(db(), P.jonas).length === 1);
+  data.clearEntryReview(gameEntry.id);
+  await data.flushRemote();
+  check('… "it is correct" removes it on the server', (await count('select 1 from load_entry_reviews')) === 0, store.getStatus().rejected);
+  const queueBefore = rateStore.readSessionsToRate(db(), P.jonas).map((session) => session.id);
+  store = await actAs(U.martin);
+  data.confirmAttendance(CONFIRM, [{ personId: P.jonas, present: false }, { personId: P.ben, present: true }]);
+  await data.flushRemote();
+  check('attendance: Martin confirms Jonas was not there, Ben was',
+    (await count('select 1 from attendance_confirmations where session_id = $1', [CONFIRM])) === 2, store.getStatus().rejected);
+  const confirmedForCoach = buildCoachData(db(), P.martin).sessions.find((session) => session.id === CONFIRM);
+  check('… the coach counts Jonas as absent (confirmed)', confirmedForCoach?.availability.some((entry) => entry.userId === P.jonas && entry.confirmedByCoach) === true, confirmedForCoach?.availability);
+  store = await actAs(U.jonas);
+  check('… and Jonas is no longer asked to rate it',
+    queueBefore.includes(CONFIRM) && !rateStore.readSessionsToRate(db(), P.jonas).some((session) => session.id === CONFIRM), queueBefore);
+  store = await actAs(U.uwe);
   store = await actAs(U.jonas);
   data.renameOwnPerson(P.jonas, 'Jonas', 'Kern-Neu');
   await data.flushRemote();

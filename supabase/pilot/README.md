@@ -24,6 +24,7 @@ migrations below are applied there (2026-09-24).
 | `migrations/0013_pilot_push.sql` | Push notifications: devices (`push_subscriptions`), the outbox, quiet hours 22–07 (except "How hard was it?"), change/cancel triggers, due reminders, coach overview and rating prompts, the minute tick (pg_cron + pg_net) and the sender's functions |
 | `migrations/0014_pilot_push_hardening.sql` | Only the service role calls the sender's functions; `pg_net` in the `extensions` schema |
 | `migrations/0015_pilot_load_summaries_nightly.sql` | Traffic lights recomputed on the server every night (`app.load_summary`, `app.refresh_load_summaries`, job `club-os-load-summaries`), same EWMA formula as the app |
+| `migrations/0016_pilot_review_and_attendance.sql` | Check requests on load entries (`load_entry_reviews`: coaches with load details ask, the player corrects or confirms, push "Please check an entry") and confirmed attendance (`attendance_confirmations`: coaches with attendance after the start; confirmed absent → no rating push) |
 | `tests/00_supabase_shim.sql` | Stand-in for Supabase's `auth` schema and roles, **local tests only** |
 | `tests/01_rls_test.sql` | 105 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
 | `tests/02_access_test.sql` | 35 checks for join codes, invitations and club setup |

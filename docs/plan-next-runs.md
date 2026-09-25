@@ -244,8 +244,8 @@ dorthin (die Auswahl wird dann übersprungen):
 | # | Stück | Inhalt |
 |---|---|---|
 | 9 | Belastungs-Mathematik (erledigt, Run 16) | EWMA-Startwert, Prognose (Spiele, heute, Kalender vs. Rhythmus, unbewertete Einheiten), „Luft bis zur Grenze“ zentral, nächtliche Ampel auf dem Server |
-| 10 | Einträge prüfen lassen | Trainer mit Detailrecht markiert einen auffälligen Eintrag „bitte prüfen“, der Spieler bekommt Hinweis + Push und korrigiert selbst. **Keine Soll-Intensität je Einheit** (entschieden 2026-09-25: RPE ist bewusst individuell; der Trainer sieht je Einheit die Werte je Spieler und im Schnitt und beurteilt selbst) |
-| 11 | Anwesenheit bestätigen | Trainer hält fest, wer wirklich da war (bei allen Spielern mit App: Korrektur, wenn jemand „in“ sagte und nicht kam) |
+| 10 | Einträge prüfen lassen (erledigt, Run 17) | Trainer mit Detailrecht markiert einen auffälligen Eintrag „bitte prüfen“, der Spieler bekommt Hinweis + Push und korrigiert selbst. **Keine Soll-Intensität je Einheit** (entschieden 2026-09-25: RPE ist bewusst individuell; der Trainer sieht je Einheit die Werte je Spieler und im Schnitt und beurteilt selbst) |
+| 11 | Anwesenheit bestätigen (erledigt, Run 17) | Trainer hält fest, wer wirklich da war (bei allen Spielern mit App: Korrektur, wenn jemand „in“ sagte und nicht kam) |
 | 12 | Vereinseinstellungen | Verein umbenennen, Abteilung löschen, Admin-Rolle übergeben |
 
 **Entschieden (2026-09-25):** Die Ampel rechnet mit dem **EWMA-Tageswert** (ein Wert für

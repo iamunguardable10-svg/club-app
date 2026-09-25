@@ -23,7 +23,7 @@ import type { LocalDatabase } from './schema';
  *
  * Format: date plus a short reason, so the history stays readable.
  */
-export const SCHEMA_VERSION = '2026-09-25-load-ewma-v11';
+export const SCHEMA_VERSION = '2026-09-25-review-attendance-v12';
 
 /** Storage key of the database document. */
 export const DATABASE_KEY = 'club-app.local.db';
@@ -71,6 +71,8 @@ export function isCurrent(value: unknown): value is LocalDatabase {
     Array.isArray(candidate.loadSummaries) &&
     Array.isArray(candidate.athletePlans) &&
     Array.isArray(candidate.acknowledgedSessions) &&
+    Array.isArray(candidate.loadEntryReviews) &&
+    Array.isArray(candidate.attendanceConfirmations) &&
     typeof candidate.shareLinks === 'object'
   );
 }

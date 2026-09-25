@@ -28,7 +28,7 @@ import {
 } from './loadTypes';
 import { BASELINE_DAYS, aggregateDailyLoads, baselineAgeDays, calculateACWR, fillMissingDays, formatLoadDate, getLatestACWR, loadRoom, loadZone, projectFutureACWR, todayISO } from './loadCalculations';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
-import { athleteHasLoad, displayName, getActivePerson, newId, useLocalDatabase } from '@/shared/data';
+import { athleteHasLoad, clearEntryReview, displayName, getActivePerson, newId, reviewsForPerson, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
 import { formatDateRange, formatDay, formatLongDay } from '@/shared/format';
@@ -1333,6 +1333,17 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   );
   const duePlans = activePendingSessions.filter((session) => session.source === 'athlete_plan' && session.date <= todayISO());
   const allToRate = [...sessionsToRate, ...duePlans];
+  // Entries a coach asked this athlete to check (piece 10).
+  const entriesToCheck = useMemo(() => {
+    if (!database || !activePersonId) return [];
+    return reviewsForPerson(database, activePersonId)
+      .map((review) => {
+        const entry = entries.find((candidate) => candidate.id === review.entryId);
+        const coach = review.requestedBy ? database.people.find((person) => person.id === review.requestedBy) : null;
+        return entry ? { entry, review, coachName: coach ? displayName(coach) : null } : null;
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+  }, [database, activePersonId, entries]);
   const todayPending = allToRate.slice(0, 3);
   // Forecasts and planned load only count sessions that are rated afterwards.
   const loadPendingSessions = activePendingSessions.filter((session) => session.loadTracked !== false);
@@ -1768,24 +1779,30 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     setComposerOpen(true);
   }
 
+  /** Opens the editor for one of the athlete's own entries. */
+  function openEntryEditor(entry: AthleteLoadEntry, fallbackStartsAt?: string | null) {
+    setActiveDetailItem(null);
+    setActiveComposerSession(null);
+    setActiveEntry(entry);
+    const startsAt = entry.startsAt ?? fallbackStartsAt ?? null;
+    setPlanForm({
+      trainingType: entry.trainingType,
+      date: entry.date,
+      time: startsAt ? timeInputFromISO(startsAt) : '',
+      expectedRpe: entry.trainingType === 'game' ? 10 : entry.rpe,
+      expectedDurationMinutes: entry.durationMinutes,
+    });
+    setTodayAction('report');
+    setComposerOpen(true);
+  }
+
   function openCalendarItem(item: AthleteCalendarItem, intent: 'view' | 'edit' = 'view') {
     if (intent === 'view' && item.status === 'reported') {
       setActiveDetailItem(item);
       return;
     }
     if (intent === 'edit' && item.entry) {
-      setActiveDetailItem(null);
-      setActiveComposerSession(null);
-      setActiveEntry(item.entry);
-      setPlanForm({
-        trainingType: item.entry.trainingType,
-        date: item.entry.date,
-        time: item.entry.startsAt ? timeInputFromISO(item.entry.startsAt) : timeInputFromISO(item.startsAt),
-        expectedRpe: item.entry.trainingType === 'game' ? 10 : item.entry.rpe,
-        expectedDurationMinutes: item.entry.durationMinutes,
-      });
-      setTodayAction('report');
-      setComposerOpen(true);
+      openEntryEditor(item.entry, item.startsAt);
       return;
     }
     if (item.session) {
@@ -1891,6 +1908,26 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/65 p-4 sm:p-5">
             <h2 className="mb-3 text-lg font-black">Trend</h2>
             <LoadChart entries={sortedEntries} pendingSessions={loadPendingSessions} />
+          </section>
+        ) : null}
+
+        {hasLoad && entriesToCheck.length > 0 && (activeView === 'home' || activeView === 'load') ? (
+          <section aria-label="Your coach asks you to check" className="rounded-3xl border border-amber-300/35 bg-amber-300/[0.07] p-4 sm:p-5">
+            <h2 className="text-lg font-black text-white">Your coach asks you to check</h2>
+            <p className="mt-1 text-sm text-slate-400">Something may be off in {entriesToCheck.length === 1 ? 'this entry' : 'these entries'}. Correct it, or tell your coach it is right.</p>
+            <ul className="mt-3 grid gap-2">
+              {entriesToCheck.map(({ entry, review, coachName }) => (
+                <li key={entry.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
+                  <p className="font-black text-white">{entry.title}</p>
+                  <p className="text-xs font-bold text-slate-400">{formatLoadDate(entry.date)} · RPE {entry.rpe} · {entry.durationMinutes} min · {entry.load} AU</p>
+                  {review.note ? <p className="mt-2 rounded-xl bg-slate-900 px-3 py-2 text-sm text-amber-100">“{review.note}”{coachName ? <span className="text-xs text-slate-400"> – {coachName}</span> : null}</p> : coachName ? <p className="mt-1 text-xs text-slate-400">Asked by {coachName}</p> : null}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => openEntryEditor(entry)} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-slate-950">Edit entry</button>
+                    <button type="button" onClick={() => clearEntryReview(entry.id)} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-200">It's correct</button>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </section>
         ) : null}
 

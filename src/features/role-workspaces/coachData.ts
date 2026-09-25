@@ -28,6 +28,7 @@ import type { ConflictSession } from '@/features/calendar/sessionConflicts';
 import type { SeriesTemplate, SeriesWeekState } from '@/features/sessions/sessionSeriesPlanner';
 import type {
   CoachAvailability,
+  CoachEntryReview,
   CoachFacility,
   CoachGroup,
   CoachPlayer,
@@ -74,9 +75,20 @@ function toCoachPlayer(database: LocalDatabase, personId: Id, teamId: Id, access
       : { acwr: storedSummary?.acwr ?? null, chronicFull: storedSummary?.chronicFull ?? false };
   const zone = loadZone(loadSummary?.acwr ?? null, loadSummary?.chronicFull ?? false);
 
+  const reviews: Record<string, CoachEntryReview> = {};
+  if (access === 'full') {
+    const entryIds = new Set(entries.map((entry) => entry.id));
+    for (const review of database.loadEntryReviews) {
+      if (!entryIds.has(review.entryId)) continue;
+      const coach = review.requestedBy ? database.people.find((candidate) => candidate.id === review.requestedBy) : null;
+      reviews[review.entryId] = { note: review.note, requestedByName: coach ? displayName(coach) : null };
+    }
+  }
+
   return {
     id: personId,
     name: person ? displayName(person) : 'Player',
+    reviews,
     loadEntries: access === 'full' ? entries : [],
     loadAccess: access,
     loadSummary,
@@ -95,6 +107,8 @@ function toCoachPlayer(database: LocalDatabase, personId: Id, teamId: Id, access
  */
 /** How a report of "I didn't take part" reads for coaches. */
 export const MISSED_LABEL = 'did not take part';
+/** A coach confirmed afterwards that the player was not there (piece 11). */
+export const CONFIRMED_ABSENT_LABEL = 'not there (confirmed by coach)';
 
 export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null): CoachData {
   if (!coachPersonId) return EMPTY_COACH_DATA;
@@ -226,12 +240,35 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
       const permissions = permissionsFor(team.id);
       // Who is coming is one right, why someone is not is another: absence
       // reasons are often about health.
-      const sessionAvailability = !permissions.has('viewAttendance')
+      const reported = !permissions.has('viewAttendance')
         ? []
         : (availabilityBySessionId.get(session.id) ?? []).map((entry) =>
             // "did not take part" is a status, not a private reason.
             permissions.has('viewAbsenceReasons') || entry.missed ? entry : { ...entry, reason: null },
           );
+      // What a coach confirmed afterwards wins over what the player said
+      // (piece 11): confirmed there → not an absence; confirmed not there →
+      // an absence, whatever was reported.
+      const confirmed = new Map(
+        database.attendanceConfirmations.filter((c) => c.sessionId === session.id).map((c) => [c.personId, c.present]),
+      );
+      const sessionAvailability: CoachAvailability[] = !permissions.has('viewAttendance') ? [] : [
+        ...reported.filter((entry) => {
+          const present = confirmed.get(entry.userId);
+          return present === undefined || (present && entry.status === 'late');
+        }),
+        ...[...confirmed.entries()]
+          .filter(([personId, present]) => !present && scopedPlayerIds.has(personId))
+          .map(([personId]) => ({
+            id: `confirmed-${session.id}-${personId}`,
+            userId: personId,
+            playerName: personNameById.get(personId) ?? 'Player',
+            status: 'out' as const,
+            reason: CONFIRMED_ABSENT_LABEL,
+            lateMinutes: null,
+            confirmedByCoach: true,
+          })),
+      ];
 
       return {
         id: session.id,
@@ -251,6 +288,9 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
         players: scopedPlayers,
         attendanceShared: permissions.has('viewAttendance'),
         loadTracked: team.loadTracked,
+        confirmations: permissions.has('viewAttendance') ? Object.fromEntries(confirmed) : {},
+        canConfirmAttendance: permissions.has('viewAttendance') && new Date(session.startsAt).getTime() <= now,
+        canRequestReview: permissions.has('viewLoadDetails'),
       } satisfies CoachSession;
     });
 
@@ -333,6 +373,12 @@ export function attendanceRateForPerson(database: LocalDatabase, personId: Id, t
       .filter((entry) => entry.personId === personId && (entry.status === 'out' || entry.status === 'missed'))
       .map((entry) => entry.sessionId),
   );
+  // A coach's confirmation wins over the player's own report (piece 11).
+  for (const confirmation of database.attendanceConfirmations) {
+    if (confirmation.personId !== personId) continue;
+    if (confirmation.present) absences.delete(confirmation.sessionId);
+    else absences.add(confirmation.sessionId);
+  }
   const attended = pastSessions.filter((session) => !absences.has(session.id)).length;
   return Math.round((attended / pastSessions.length) * 100);
 }

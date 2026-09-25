@@ -1527,3 +1527,34 @@ Meta-Analyse 2025).
   wählbar (Abo): kein Load / 7:28 entkoppelt (Amateure) / EWMA (Profis).
 - Tests: neu `npm run test:load` (13 Prüfungen der Mathematik), Datenschicht-Tests +2
   (Server = App), Demo-Daten neu aufgesetzt (Version v11), Typecheck, Build, Browser.
+
+## Run 17 — Stücke 10 und 11: Einträge prüfen lassen, Anwesenheit bestätigen (erledigt)
+
+Entscheidungen vom 2026-09-25: keine Soll-Intensität je Einheit (RPE ist bewusst
+individuell); Spieler dürfen ihre Einträge jederzeit selbst ändern, die Markierung des
+Trainers ist nur ein Hinweis.
+
+- **Stück 10 – „Ask to check“:** In der Einheit (Load signal → Liste je Spieler) kann ein
+  Trainer mit Detailrecht einen Eintrag markieren, mit optionaler Notiz („90 min? We
+  stopped after 75.“), und die Markierung wieder zurückziehen. Der Spieler sieht auf
+  „Today“ und „Load“ die Karte „Your coach asks you to check“ mit „Edit entry“ (öffnet
+  den Eintrag) und „It's correct“, dazu eine Push-Nachricht „Please check an entry“
+  (Ruhezeit gilt). Ändert der Spieler den Eintrag, verschwindet die Markierung (App und
+  Server-Trigger); löscht er ihn, ebenso.
+- **Stück 11 – „Who was there?“:** Bei vergangenen Einheiten (ab Beginn) kann ein Trainer
+  mit Anwesenheitsrecht für jeden Spieler „There“ / „Not there“ festhalten. Vorbelegt mit
+  dem, was die Spieler gesagt haben (in/late → da, out/nicht teilgenommen → nicht da).
+  Die Bestätigung gewinnt in allen Zahlen (Anwesenheit in Verlauf und Quote); wer als
+  „nicht da“ bestätigt ist, wird nicht mehr nach „How hard was it?“ gefragt (App und
+  Push).
+- **Migration 0016 (angewendet):** Tabellen `load_entry_reviews` und
+  `attendance_confirmations` mit Zugriffsregeln, Trigger für Besitzer, Aufräumen und
+  Push.
+
+Geprüft: 105 + 35 + 50 + 19 + 49 + 25 Datenbank-Prüfungen, neu `06_review_attendance_test.sql` (Rechte je Rolle,
+Notiz, Push-Text, Korrektur löscht Markierung und Push, „ist korrekt“, fremder Verein,
+Anwesenheit nur nach Beginn und nur für Spieler des Teams, Korrektur durch anderen
+Trainer, Bewertungs-Push geschlossen), Datenschicht 109 Prüfungen, `npm run test:load`,
+Typecheck, Build, Browser auf Handy und Desktop (Trainer bestätigt Anwesenheit 9 von 12,
+markiert einen Eintrag mit Notiz, Spieler sieht Karte, „Edit entry“, „It's correct“,
+kein Überlauf, keine Fehler).

@@ -124,6 +124,8 @@ const TABLE_LABEL: Partial<Record<TableName, string>> = {
   load_summaries: 'load traffic light',
   athlete_plans: 'training plans',
   acknowledged_sessions: 'dismissed sessions',
+  load_entry_reviews: 'check requests',
+  attendance_confirmations: 'attendance',
 };
 
 export class RemoteStore {
