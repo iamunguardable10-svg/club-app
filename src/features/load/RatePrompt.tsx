@@ -9,8 +9,11 @@
  *   is 10 and the duration means playing minutes, as everywhere else in the
  *   app; the warmup before it is saved in the same step unless unticked.
  * - I didn't take part: the coach sees the player as absent from it.
- * - Later: closes until the app is opened next time; the sessions stay listed
- *   on Today.
+ * - Later: closes until the app is opened next time; the sessions wait on
+ *   Today ("Rate … now") and the Today tab shows how many.
+ *
+ * Own training (piece 22) comes through here too: planned with a length only,
+ * so effort and the real length are asked now.
  */
 
 import { useState } from 'react';
@@ -147,8 +150,9 @@ function RateForm({
           Save · {load} AU
         </button>
         <button type="button" onClick={() => onMissed(session)} className="mt-2 w-full rounded-2xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-200">
-          I didn&apos;t take part
+          {session.source === 'athlete_plan' ? 'I didn\u2019t do it' : 'I didn\u2019t take part'}
         </button>
+        <p className="mt-3 text-center text-xs font-bold text-slate-500">Not now? “Later” keeps it on Today until you rate it.</p>
       </section>
     </div>
   );

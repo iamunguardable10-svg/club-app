@@ -41,6 +41,7 @@ import {
   readEntries,
   readPlans,
   readShareLink,
+  readPlansToRate,
   readSessionsToRate,
   readTeamSessions,
   saveAcknowledged,
@@ -1342,6 +1343,12 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     () => (database && activePersonId && hasLoad ? readSessionsToRate(database, activePersonId) : []),
     [database, activePersonId, hasLoad],
   );
+  // Own plans that are over: asked "How hard was it?" too (piece 22).
+  const plansToRate = useMemo(
+    () => (database && activePersonId && hasLoad ? readPlansToRate(database, activePersonId) : []),
+    [database, activePersonId, hasLoad],
+  );
+  const rateQueue = useMemo(() => [...sessionsToRate, ...plansToRate], [sessionsToRate, plansToRate]);
   const duePlans = activePendingSessions.filter((session) => session.source === 'athlete_plan' && session.date <= todayISO());
   const allToRate = [...sessionsToRate, ...duePlans];
   // Entries a coach asked this athlete to check (piece 10).
@@ -1417,10 +1424,10 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   }, [sortedEntries]);
   const [ratePromptOpen, setRatePromptOpen] = useState(false);
   useEffect(() => {
-    if (!activePersonId || sessionsToRate.length === 0 || askedThisVisit.has(activePersonId)) return;
+    if (!activePersonId || rateQueue.length === 0 || askedThisVisit.has(activePersonId)) return;
     askedThisVisit.add(activePersonId);
     setRatePromptOpen(true);
-  }, [activePersonId, sessionsToRate.length]);
+  }, [activePersonId, rateQueue.length]);
 
   function entryFor(session: AthletePendingSession, rpe: number, minutes: number): AthleteLoadEntry {
     return {
@@ -1442,6 +1449,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
   function saveRating(session: AthletePendingSession, rpe: number, minutes: number, withWarmup: boolean) {
     if (!activePersonId) return;
+    // Own training: the entry replaces the plan.
+    if (session.source === 'athlete_plan') {
+      void submitPending(session, rpe, minutes);
+      return;
+    }
     const warmup = withWarmup ? warmupForSession(session) : null;
     try {
       saveSessionRating(activePersonId, [
@@ -1456,6 +1468,10 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
   function saveMissed(session: AthletePendingSession) {
     if (!activePersonId) return;
+    if (session.source === 'athlete_plan') {
+      replacePlans([session.id], []);
+      return;
+    }
     try {
       saveMissedSession(activePersonId, session.id);
       setError(null);
@@ -1476,7 +1492,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const activeTeamSessionLocked = Boolean(activeComposerSession?.source === 'team_session' || (activeEntry?.source === 'planned_session' && activeEntry.sessionId));
   const activeTeamSessionIsFuture = Boolean(activeComposerSession?.source === 'team_session' && new Date(activeComposerSession.startsAt).getTime() > Date.now());
   const sessionMode = planForm.date < todayISO() ? 'report' : planForm.date > todayISO() ? 'plan' : todayAction;
-  const effectiveRpe = planForm.trainingType === 'game' ? 10 : planForm.expectedRpe;
+  // Planning own training asks for the length only; effort and the real
+  // length are asked after the session ("How hard was it?"). The plan keeps
+  // the usual effort for this kind of training, for the load forecast.
+  const isPlanning = sessionMode === 'plan' && !activeEntry && (!activeComposerSession || activeComposerSession.source === 'athlete_plan');
+  const effectiveRpe = planForm.trainingType === 'game' ? 10 : isPlanning ? averageRpeFor(planForm.trainingType, planForm.date) : planForm.expectedRpe;
   const sessionLoadPreview = effectiveRpe * planForm.expectedDurationMinutes;
   const seriesCount = repeat === 'weekly' ? seriesDates(planForm.date, repeatDays, repeatUntil || seriesEnd(planForm.date)).length : 1;
   const editingSeriesPlan = activeComposerSession?.source === 'athlete_plan'
@@ -1569,7 +1589,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       date,
       startsAt: planForm.time ? new Date(`${date}T${planForm.time}`).toISOString() : null,
       trainingType: planForm.trainingType,
-      expectedRpe: effectiveRpe,
+      expectedRpe: planForm.trainingType === 'game' ? 10 : averageRpeFor(planForm.trainingType, date),
       expectedDurationMinutes: planForm.expectedDurationMinutes,
     };
   }
@@ -1894,7 +1914,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       ? 'Session details'
       : 'Report session'
     : sessionMode === 'plan'
-      ? 'Plan load'
+      ? 'Plan training'
       : 'Add load';
   const activeView = initialView ?? 'home';
 
@@ -2003,9 +2023,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 </div>
                 <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{allToRate.length}</span>
               </div>
-              {sessionsToRate.length > 0 ? (
+              {rateQueue.length > 0 ? (
                 <button type="button" onClick={() => setRatePromptOpen(true)} className="mt-3 w-full rounded-2xl bg-emerald-300 px-4 py-2.5 text-sm font-black text-slate-950">
-                  {sessionsToRate.length === 1 ? 'Rate it now' : `Rate ${sessionsToRate.length} sessions now`}
+                  {rateQueue.length === 1 ? 'Rate it now' : `Rate ${rateQueue.length} sessions now`}
                 </button>
               ) : null}
               <div className="mt-4 space-y-3">
@@ -2300,7 +2320,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             ) : (
               <>
                 <div className="mt-5 space-y-5">
-                  {planForm.trainingType === 'game' ? (
+                  {isPlanning ? null : planForm.trainingType === 'game' ? (
                     <div className="rounded-2xl border border-violet-300/25 bg-violet-300/[0.08] p-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">RPE</span>
@@ -2319,24 +2339,30 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   )}
                   <label className="block">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{planForm.trainingType === 'game' ? 'Playing minutes' : 'Duration'}</span>
+                      <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{isPlanning ? 'Planned length' : planForm.trainingType === 'game' ? 'Playing minutes' : 'Duration'}</span>
                       <span className="text-xl font-black text-white">{planForm.expectedDurationMinutes} min</span>
                     </div>
                     <input type="range" min={planForm.trainingType === 'game' ? '0' : '5'} max={planForm.trainingType === 'game' ? '120' : '240'} step={planForm.trainingType === 'game' ? '1' : '5'} value={planForm.expectedDurationMinutes} onChange={(event) => setPlanForm((current) => ({ ...current, expectedDurationMinutes: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
                   </label>
                 </div>
 
-                <div className="mt-5 rounded-2xl border border-slate-700 bg-slate-950/70 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-bold text-slate-400">{sessionMode === 'plan' ? 'Expected load' : 'Training load'}</span>
-                    <span className="text-3xl font-black text-amber-200">{sessionLoadPreview} AU</span>
+                {isPlanning ? (
+                  <p className="mt-4 text-xs font-bold text-slate-400">After the session the app asks “How hard was it?”: effort and how long it really took.</p>
+                ) : (
+                  <div className="mt-5 rounded-2xl border border-slate-700 bg-slate-950/70 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-bold text-slate-400">Training load</span>
+                      <span className="text-3xl font-black text-amber-200">{sessionLoadPreview} AU</span>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <button type="button" onClick={submitUnifiedSession} disabled={sessionMode === 'plan' && !activeComposerSession && !activeEntry && seriesCount === 0} className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-black text-slate-950 transition disabled:opacity-50 ${sessionMode === 'plan' && !activeComposerSession && !activeEntry ? 'bg-violet-300' : 'bg-emerald-300'}`}>
                   {sessionMode === 'plan' && !activeComposerSession && !activeEntry
-                    ? (repeat === 'weekly' ? `Plan ${plural(seriesCount, 'session')} · ${sessionLoadPreview} AU each` : `Plan ${sessionLoadPreview} AU`)
-                    : editingSeriesPlan && seriesScope === 'following' ? `Save this and following · ${sessionLoadPreview} AU` : `Save ${sessionLoadPreview} AU`}
+                    ? (repeat === 'weekly' ? `Plan ${plural(seriesCount, 'session')}` : 'Plan it')
+                    : isPlanning
+                      ? (editingSeriesPlan && seriesScope === 'following' ? 'Save this and following' : 'Save plan')
+                      : `Save ${sessionLoadPreview} AU`}
                 </button>
                 {activeEntry ? (
                   <button type="button" onClick={() => setDeleteTarget({ kind: 'entry', id: activeEntry.id, title: activeEntry.title })} className="mt-2 w-full rounded-2xl border border-rose-400/45 bg-rose-400/10 px-4 py-3 text-sm font-black text-rose-100">
@@ -2353,9 +2379,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         </div>
       ) : null}
 
-      {ratePromptOpen && sessionsToRate.length > 0 ? (
+      {ratePromptOpen && rateQueue.length > 0 ? (
         <RatePrompt
-          sessions={sessionsToRate}
+          sessions={rateQueue}
           defaultRpeFor={(session) => averageRpeFor(session.trainingType, session.date)}
           onSave={saveRating}
           onMissed={saveMissed}

@@ -1837,3 +1837,28 @@ Testdateien; Typecheck, Build. Browser Handy/Desktop: Serie Mo + Do über 8 Woch
 Termine, Desktop: „This and following“ auf 19:00 (erster bleibt 17:00, IDs bleiben), Löschen
 ab dem zweiten lässt einen übrig; kein Überlauf, keine Fehler.
 
+## Run 27 — Planen ohne RPE, „How hard was it?“ auch später (erledigt)
+
+Entschieden (2026-09-25): Beim Planen von eigenem Training (einzeln oder als Serie) **kein RPE**,
+nur die Dauer. RPE und tatsächliche Dauer werden **nach der Einheit** abgefragt. „How hard was
+it?“ muss man auch **später** beantworten können.
+
+- **Planen:** Titel „Plan training“; nur Art, Datum/Uhrzeit, Once/Weekly und „Planned length“;
+  kein RPE, keine erwartete Belastung; Hinweis „After the session the app asks ‚How hard was
+  it?‘: effort and how long it really took.“ Knopf „Plan it“ / „Plan 16 sessions“ bzw. beim
+  Ändern „Save plan“ / „Save this and following“. Für die Belastungs-Vorschau nimmt der Plan
+  still das übliche RPE dieser Art (Durchschnitt der eigenen Einträge, sonst 6).
+- **Nach der Einheit:** Eigenes Training kommt jetzt in dieselbe Abfrage wie Team-Einheiten
+  (mit Uhrzeit, sobald das geplante Ende vorbei ist; ohne Uhrzeit ab dem nächsten Tag; eigene
+  „Games“ bleiben wegen des Warmups auf Today). RPE und Dauer (vorbelegt mit der geplanten)
+  werden gespeichert, der Plan wird zum Eintrag. „I didn’t do it“ löscht den Plan.
+- **Später beantworten:** „Later“ schließt die Abfrage; darunter steht „Not now? ‚Later‘ keeps
+  it on Today until you rate it.“ Der **Today-Tab zeigt auf jeder Seite die Zahl** der offenen
+  Einheiten (gelb), auf Today öffnet „Rate it now“ / „Rate 3 sessions now“ die Abfrage wieder,
+  jetzt für Team-Einheiten und eigenes Training.
+
+Geprüft: Typecheck, Build, Datenschicht, Serien-Tests. Browser Handy/Desktop: Abfrage mit
+Hinweis, „Later“ → Zähler 1 am Today-Tab (auch auf Messages), „Rate it now“ öffnet wieder,
+eigenes Training „Gym“ (45 min) in der Abfrage mit „I didn’t do it“, RPE 8 gespeichert als
+Eintrag 8 × 45, Plan weg; Planen zeigt kein RPE und keine erwartete Belastung; keine Fehler.
+
