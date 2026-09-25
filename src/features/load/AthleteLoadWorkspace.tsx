@@ -26,7 +26,7 @@ import {
   type LoadTrainingType,
   sessionTypeToLoadType,
 } from './loadTypes';
-import { aggregateDailyLoads, baselineAgeDays, calculateEWMA, fillMissingDays, formatLoadDate, getLatestACWR, loadZone, projectFutureACWR, todayISO } from './loadCalculations';
+import { BASELINE_DAYS, aggregateDailyLoads, baselineAgeDays, calculateACWR, fillMissingDays, formatLoadDate, getLatestACWR, loadRoom, loadZone, projectFutureACWR, todayISO } from './loadCalculations';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
 import { athleteHasLoad, displayName, getActivePerson, newId, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
@@ -259,7 +259,7 @@ function buildLoadRoomSummary(latest: ReturnType<typeof getLatestACWR>, entries:
     return {
       label: 'Load room',
       value: '-',
-      detail: '30 days needed',
+      detail: `${BASELINE_DAYS} days needed`,
       tone: 'neutral' as const,
       mode: 'baseline' as LoadRoomMode,
       markerPercent,
@@ -270,13 +270,10 @@ function buildLoadRoomSummary(latest: ReturnType<typeof getLatestACWR>, entries:
     };
   }
 
-  const overloadLimit = ewmaLoadForTargetRatio(latest.acuteLoad, latest.chronicLoad, ACWR_ZONES.high);
-  const lowFloor = ewmaLoadForTargetRatio(latest.acuteLoad, latest.chronicLoad, ACWR_ZONES.low);
-  const lowGapAu = currentAcwr < ACWR_ZONES.low && lowFloor !== null ? Math.max(0, lowFloor) : 0;
-  const overloadDebtAu = currentAcwr > ACWR_ZONES.high
-    ? Math.max(1, Math.round(latest.acuteLoad - ACWR_ZONES.high * latest.chronicLoad))
-    : 0;
-  const headroomAu = currentAcwr <= ACWR_ZONES.high && overloadLimit !== null ? Math.max(0, overloadLimit) : 0;
+  const room = loadRoom(entries);
+  const lowGapAu = currentAcwr < ACWR_ZONES.low && room ? room.toLow : 0;
+  const overloadDebtAu = currentAcwr > ACWR_ZONES.high && room ? Math.max(1, room.overBy) : 0;
+  const headroomAu = currentAcwr <= ACWR_ZONES.high && room ? room.toHigh : 0;
   const lowPercent = ACWR_ZONES.low * 50;
   const highPercent = ACWR_ZONES.high * 50;
   const marker = markerPercent ?? 0;
@@ -390,7 +387,7 @@ function AcwrMetric({ latest, baselineReady, tone }: { latest: ReturnType<typeof
   const room = {
     label: 'ACWR',
     value: displayAcwr !== null ? displayAcwr.toFixed(2) : '-',
-    detail: displayAcwr !== null ? (tone === 'high' ? 'High' : tone === 'low' ? 'Low' : 'Optimal') : '30 days needed',
+    detail: displayAcwr !== null ? (tone === 'high' ? 'High' : tone === 'low' ? 'Low' : 'Optimal') : `${BASELINE_DAYS} days needed`,
     tone,
     mode: 'baseline' as LoadRoomMode,
     markerPercent: acwrPercent(displayAcwr),
@@ -477,7 +474,7 @@ function LoadTooltip({ active, payload }: LoadTooltipProps) {
       </div>
       {!point.chronicFull ? (
         <div className="mt-3 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-[11px] font-bold text-amber-100">
-          Baseline still building. ACWR becomes reliable after about 30 days.
+          Baseline still building. The ratio shows after {BASELINE_DAYS} days of history.
         </div>
       ) : null}
       {segments.length > 0 ? (
@@ -555,8 +552,8 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
   }, [isFullscreen]);
 
   const daily = fillMissingDays(aggregateDailyLoads(entries), Math.max(range, 84));
-  const acwr = calculateEWMA(entries);
-  const projected = projectFutureACWR(entries, pendingSessions, 14, 'ewma');
+  const acwr = calculateACWR(entries);
+  const projected = projectFutureACWR(entries, pendingSessions, 14);
   const acwrByDate = new Map(acwr.map((point) => [point.date, point]));
   const projectedByDate = new Map(projected.map((point) => [point.date, point]));
   const entriesByDate = new Map<string, AthleteLoadEntry[]>();
@@ -1316,7 +1313,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   }, [database, dataError, ready, activePerson, isActiveAthlete]);
 
   const sortedEntries = useMemo(() => [...entries].sort((a, b) => a.date.localeCompare(b.date)), [entries]);
-  const latest = useMemo(() => getLatestACWR(sortedEntries, 'ewma'), [sortedEntries]);
+  const latest = useMemo(() => getLatestACWR(sortedEntries), [sortedEntries]);
   const baselineDays = useMemo(() => baselineAgeDays(sortedEntries), [sortedEntries]);
   const isBaselineReady = (latest?.chronicFull ?? false) && baselineDays >= 30;
   const zone = loadZone(latest?.acwr ?? null, isBaselineReady);
@@ -2215,14 +2212,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   );
 }
 
-function ewmaLoadForTargetRatio(acuteLoad: number, chronicLoad: number, targetRatio: number) {
-  const acuteLambda = 2 / (7 + 1);
-  const chronicLambda = 2 / (28 + 1);
-  const denominator = acuteLambda - targetRatio * chronicLambda;
-  if (denominator <= 0 || chronicLoad <= 0) return null;
-  return Math.max(0, Math.round((targetRatio * (1 - chronicLambda) * chronicLoad - (1 - acuteLambda) * acuteLoad) / denominator));
-}
-
 function sessionEstimateLabel(au: number, averageSessionLoad: number) {
   if (au <= 0) return '0 sessions';
   const sessions = au / Math.max(averageSessionLoad, 1);
@@ -2297,7 +2286,7 @@ function buildWeeklyLoadProfile(entries: AthleteLoadEntry[], trailingWeeks = 8):
     bucket.sessions += 1;
   }
 
-  for (const point of calculateEWMA(entries)) {
+  for (const point of calculateACWR(entries)) {
     const key = loadProfileWeekKey(new Date(`${point.date}T00:00:00`));
     const bucket = buckets.get(key);
     if (bucket) bucket.acwr = point.acwr;
@@ -2346,7 +2335,7 @@ function buildWeeklyLoadDayProfile(entries: AthleteLoadEntry[], weekKey: string)
     bucket.minuteSum += entry.durationMinutes;
   }
 
-  for (const point of calculateEWMA(entries)) {
+  for (const point of calculateACWR(entries)) {
     const bucket = byKey.get(point.date);
     if (bucket) bucket.acwr = point.acwr;
   }
@@ -2564,7 +2553,7 @@ function LoadDetailsPanel({
   const last28ISO = `${last28Start.getFullYear()}-${String(last28Start.getMonth() + 1).padStart(2, '0')}-${String(last28Start.getDate()).padStart(2, '0')}`;
   const recentEntries = entries.filter((entry) => entry.date >= last28ISO);
   const recentLoad = recentEntries.reduce((sum, entry) => sum + entry.load, 0);
-  const baselineReady = (latestEwma?.chronicFull ?? false) && baselineDays >= 30;
+  const baselineReady = latestEwma?.chronicFull ?? false;
   const currentAcwr = latestEwma?.acwr ?? null;
   const zone = loadZone(currentAcwr, baselineReady);
   const roomSummary = buildLoadRoomSummary(latestEwma, entries, baselineReady);

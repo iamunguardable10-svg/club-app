@@ -1,6 +1,32 @@
-import type { ACWRDataPoint, AthleteLoadEntry, AthletePendingSession, DayLoad, LoadTrainingType } from './loadTypes';
+/**
+ * Training load maths: acute:chronic workload ratio (ACWR), monotony and
+ * strain, the 14-day forecast and how much load is left today.
+ *
+ * One ratio everywhere: the **EWMA ACWR** (Williams et al. 2017, λ = 2/(N+1),
+ * N = 7 and 28). Checked against the literature on 2026-09-25 (piece 9):
+ * EWMA is the more sensitive indicator of injury likelihood than rolling
+ * averages (Murray et al. 2017; meta-analysis 2025), and whether acute and
+ * chronic share days makes little practical difference. Coaches see one
+ * number, not two.
+ *
+ * Fixed in piece 9: the EWMA started from the first training day's load,
+ * which kept the chronic value weeks too high (a steady athlete showed 0.78
+ * "Low" on the day the light switched on). It now starts from the mean daily
+ * load of the first 7 and 28 days.
+ *
+ * Session load is RPE × minutes (Foster's session-RPE). Every view reads the
+ * numbers from here; nothing else computes a ratio.
+ */
 
-type ACWRMethod = 'rolling' | 'ewma';
+import type { ACWRDataPoint, AthleteLoadEntry, AthletePendingSession, DayLoad, LoadTrainingType } from './loadTypes';
+import { ACWR_ZONES } from './loadTypes';
+
+const ACUTE_DAYS = 7;
+const CHRONIC_DAYS = 28;
+const LAMBDA_ACUTE = 2 / (ACUTE_DAYS + 1);
+const LAMBDA_CHRONIC = 2 / (CHRONIC_DAYS + 1);
+/** Days of history before the chronic value is trusted (the light shows "Baseline" until then). */
+export const BASELINE_DAYS = CHRONIC_DAYS;
 
 function localISO(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -31,6 +57,7 @@ export function aggregateDailyLoads(entries: AthleteLoadEntry[]): DayLoad[] {
   return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
+/** Every day from the first entry to today (or the last entry, if later), days without load as 0. */
 export function fillMissingDays(days: DayLoad[], trailingDays = 42): DayLoad[] {
   const today = new Date(`${todayISO()}T00:00:00`);
   const start = days[0]?.date ? new Date(`${days[0].date}T00:00:00`) : addDays(today, -trailingDays + 1);
@@ -47,60 +74,12 @@ export function fillMissingDays(days: DayLoad[], trailingDays = 42): DayLoad[] {
   return result;
 }
 
-function rollingAverage(loads: number[], index: number, window: number) {
-  const start = Math.max(0, index - window + 1);
-  const slice = loads.slice(start, index + 1);
-  return slice.length ? slice.reduce((sum, value) => sum + value, 0) / slice.length : 0;
+function sum(values: number[]) {
+  return values.reduce((total, value) => total + value, 0);
 }
 
-function ewmaAt(loads: number[], index: number) {
-  const lambdaAcute = 2 / (7 + 1);
-  const lambdaChronic = 2 / (28 + 1);
-  let acute = loads[0] ?? 0;
-  let chronic = loads[0] ?? 0;
-
-  for (let cursor = 1; cursor <= index; cursor += 1) {
-    acute = lambdaAcute * loads[cursor] + (1 - lambdaAcute) * acute;
-    chronic = lambdaChronic * loads[cursor] + (1 - lambdaChronic) * chronic;
-  }
-
-  return { acute, chronic };
-}
-
-function trendAt(loads: number[], index: number, method: ACWRMethod) {
-  if (method === 'ewma') return ewmaAt(loads, index);
-  return {
-    acute: rollingAverage(loads, index, 7),
-    chronic: rollingAverage(loads, index, 28),
-  };
-}
-
-function acwrRatio(index: number, acute: number, chronic: number) {
-  return index >= 7 && acute > 0 && chronic > 0 ? acute / chronic : null;
-}
-
-function roundNullableRatio(value: number | null) {
-  return value === null ? null : Math.round(value * 100) / 100;
-}
-
-function weeklyLoadStability(loads: number[], index: number) {
-  if (index < 6) return { monotony: null, strain: null };
-  const slice = loads.slice(index - 6, index + 1);
-  const total = slice.reduce((sum, value) => sum + value, 0);
-  const mean = total / slice.length;
-  const variance = slice.reduce((sum, value) => sum + (value - mean) ** 2, 0) / slice.length;
-  const standardDeviation = Math.sqrt(variance);
-  if (total <= 0 || standardDeviation <= 0) return { monotony: null, strain: null };
-  const monotony = mean / standardDeviation;
-  return {
-    monotony: roundNullableRatio(monotony),
-    strain: Math.round(total * monotony),
-  };
-}
-
-export function baselineAgeDays(entries: AthleteLoadEntry[]) {
-  const days = fillMissingDays(aggregateDailyLoads(entries));
-  return days.length;
+function mean(values: number[]) {
+  return values.length ? sum(values) / values.length : 0;
 }
 
 function median(values: number[]) {
@@ -110,177 +89,117 @@ function median(values: number[]) {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-function sessionDurationMinutes(session: AthletePendingSession) {
-  if (session.expectedDurationMinutes) return session.expectedDurationMinutes;
-  if (!session.endsAt) return 90;
-  return Math.max(30, Math.round((new Date(session.endsAt).getTime() - new Date(session.startsAt).getTime()) / 60_000));
+function roundRatio(value: number | null) {
+  return value === null ? null : Math.round(value * 100) / 100;
 }
 
+// ---------------------------------------------------------------------------
+// The ratio, over a series of daily loads (index 0 = first day)
+// ---------------------------------------------------------------------------
+
+type Trend = { acute: number; chronic: number; ratio: number | null; full: boolean };
+
+/** EWMA, started from the mean daily load of the first 7 / 28 days. */
+function ewmaSeries(loads: number[]): Trend[] {
+  if (loads.length === 0) return [];
+  let acute = mean(loads.slice(0, ACUTE_DAYS));
+  let chronic = mean(loads.slice(0, CHRONIC_DAYS));
+  return loads.map((load, index) => {
+    acute = LAMBDA_ACUTE * load + (1 - LAMBDA_ACUTE) * acute;
+    chronic = LAMBDA_CHRONIC * load + (1 - LAMBDA_CHRONIC) * chronic;
+    return { acute, chronic, ratio: index >= ACUTE_DAYS && chronic > 0 ? acute / chronic : null, full: index >= BASELINE_DAYS - 1 };
+  });
+}
+
+/** Monotony (mean / SD of the last 7 days) and strain (weekly load × monotony), Foster 1998. */
+function weeklyLoadStability(loads: number[], index: number) {
+  if (index < 6) return { monotony: null, strain: null };
+  const slice = loads.slice(index - 6, index + 1);
+  const total = sum(slice);
+  const average = total / slice.length;
+  const standardDeviation = Math.sqrt(slice.reduce((acc, value) => acc + (value - average) ** 2, 0) / slice.length);
+  if (total <= 0 || standardDeviation <= 0) return { monotony: null, strain: null };
+  const monotony = average / standardDeviation;
+  return { monotony: roundRatio(monotony), strain: Math.round(total * monotony) };
+}
+
+function buildSeries(days: DayLoad[]): ACWRDataPoint[] {
+  const loads = days.map((day) => day.totalLoad);
+  const trends = ewmaSeries(loads);
+  return days.map((day, index) => {
+    const trend = trends[index];
+    const stability = weeklyLoadStability(loads, index);
+    return {
+      date: day.date,
+      totalLoad: day.totalLoad,
+      acuteLoad: Math.round(trend.acute),
+      chronicLoad: Math.round(trend.chronic),
+      acwr: roundRatio(trend.ratio),
+      monotony: stability.monotony,
+      strain: stability.strain,
+      chronicFull: trend.full,
+    };
+  });
+}
+
+export function baselineAgeDays(entries: AthleteLoadEntry[]) {
+  return fillMissingDays(aggregateDailyLoads(entries)).length;
+}
+
+/** The ratio series, one point per day from the first entry to today. */
 export function calculateACWR(entries: AthleteLoadEntry[]): ACWRDataPoint[] {
-  const days = fillMissingDays(aggregateDailyLoads(entries));
-  const loads = days.map((day) => day.totalLoad);
-
-  return days.map((day, index) => {
-    const { acute, chronic } = trendAt(loads, index, 'rolling');
-    const acwr = acwrRatio(index, acute, chronic);
-    const stability = weeklyLoadStability(loads, index);
-
-    return {
-      date: day.date,
-      totalLoad: day.totalLoad,
-      acuteLoad: Math.round(acute),
-      chronicLoad: Math.round(chronic),
-      acwr: roundNullableRatio(acwr),
-      monotony: stability.monotony,
-      strain: stability.strain,
-      chronicFull: index >= 27,
-    };
-  });
+  if (entries.length === 0) return [];
+  return buildSeries(fillMissingDays(aggregateDailyLoads(entries)));
 }
 
-export function calculateEWMA(entries: AthleteLoadEntry[]): ACWRDataPoint[] {
-  const days = fillMissingDays(aggregateDailyLoads(entries));
-  if (days.length === 0) return [];
+/** Same as `calculateACWR` (kept for older imports). */
+export const calculateEWMA = calculateACWR;
 
-  const loads = days.map((day) => day.totalLoad);
-
-  return days.map((day, index) => {
-    const { acute, chronic } = trendAt(loads, index, 'ewma');
-    const acwr = acwrRatio(index, acute, chronic);
-    const stability = weeklyLoadStability(loads, index);
-    return {
-      date: day.date,
-      totalLoad: day.totalLoad,
-      acuteLoad: Math.round(acute),
-      chronicLoad: Math.round(chronic),
-      acwr: roundNullableRatio(acwr),
-      monotony: stability.monotony,
-      strain: stability.strain,
-      chronicFull: index >= 27,
-    };
-  });
-}
-
-export function projectFutureACWR(entries: AthleteLoadEntry[], plannedSessions: AthletePendingSession[], daysAhead = 14, method: ACWRMethod = 'rolling'): ACWRDataPoint[] {
+/** Today's point (not a later day with a future entry), or null without entries. */
+export function getLatestACWR(entries: AthleteLoadEntry[]) {
   const today = todayISO();
-  const historicalDays = fillMissingDays(aggregateDailyLoads(entries), 84);
-  if (historicalDays.length === 0) return [];
-
-  const end = addDays(new Date(`${today}T00:00:00`), daysAhead);
-  const endISO = localISO(end);
-  const plannedByDate = new Map<string, AthletePendingSession[]>();
-  for (const session of plannedSessions) {
-    if (session.date < today || session.date > endISO) continue;
-    plannedByDate.set(session.date, [...(plannedByDate.get(session.date) ?? []), session]);
-  }
-
-  const rpeByType = new Map<LoadTrainingType, number[]>();
-  const durationByType = new Map<LoadTrainingType, number[]>();
-  for (const entry of entries) {
-    rpeByType.set(entry.trainingType, [...(rpeByType.get(entry.trainingType) ?? []), entry.rpe]);
-    durationByType.set(entry.trainingType, [...(durationByType.get(entry.trainingType) ?? []), entry.durationMinutes]);
-  }
-
-  const recentHistory = historicalDays.slice(-84);
-  const loadsByWeekday: number[][] = [[], [], [], [], [], [], []];
-  for (const day of recentHistory) {
-    const weekday = new Date(`${day.date}T00:00:00`).getDay();
-    loadsByWeekday[weekday].push(day.totalLoad);
-  }
-
-  const extLoads = historicalDays.map((day) => day.totalLoad);
-  const recent7 = extLoads.slice(-7);
-  const recent7Mean = recent7.length ? recent7.reduce((sum, load) => sum + load, 0) / recent7.length : 0;
-  const activeDays = historicalDays.filter((day) => day.totalLoad > 0);
-  const meanActiveLoad = activeDays.length ? activeDays.reduce((sum, day) => sum + day.totalLoad, 0) / activeDays.length : 0;
-  const firstActive = activeDays[0]?.date ?? today;
-  const lastActive = activeDays[activeDays.length - 1]?.date ?? today;
-  const activeSpanDays = Math.max(1, (new Date(`${lastActive}T00:00:00`).getTime() - new Date(`${firstActive}T00:00:00`).getTime()) / 86_400_000 + 1);
-  const frequencyBasedDailyLoad = meanActiveLoad * (activeDays.length / activeSpanDays);
-  const projected: ACWRDataPoint[] = [];
-  const cursor = new Date(`${today}T00:00:00`);
-
-  while (localISO(cursor) <= endISO) {
-    const date = localISO(cursor);
-    const weekday = cursor.getDay();
-    const weekdayLoads = loadsByWeekday[weekday];
-    const planned = plannedByDate.get(date) ?? [];
-    const plannedLoads: Partial<Record<LoadTrainingType, number>> = {};
-    let predictedLoad = 0;
-    let forecastBasis = 'Rest pattern';
-
-    if (planned.length > 0) {
-      for (const session of planned) {
-        const rpe = session.expectedRpe ?? (median(rpeByType.get(session.trainingType) ?? []) || 6);
-        const duration = sessionDurationMinutes(session) || median(durationByType.get(session.trainingType) ?? []) || 90;
-        const load = Math.round(rpe * duration);
-        predictedLoad += load;
-        plannedLoads[session.trainingType] = (plannedLoads[session.trainingType] ?? 0) + load;
-      }
-      forecastBasis = 'Planned sessions';
-    } else {
-      const offDayFraction = weekdayLoads.length ? weekdayLoads.filter((load) => load === 0).length / weekdayLoads.length : 0;
-      if (offDayFraction >= 0.75) {
-        predictedLoad = 0;
-        forecastBasis = 'Rest pattern';
-      } else {
-        const weekdayMedian = median(weekdayLoads);
-        const recentSameWeekdayMedian = median(weekdayLoads.slice(-4));
-        const patternLoad = Math.round(0.5 * weekdayMedian + 0.3 * recentSameWeekdayMedian + 0.2 * recent7Mean);
-        predictedLoad = patternLoad > 0 ? patternLoad : Math.round(frequencyBasedDailyLoad * 0.6);
-        forecastBasis = patternLoad > 0 ? 'Weekday pattern' : predictedLoad > 0 ? 'Training frequency' : 'Rest pattern';
-      }
-    }
-
-    const historicalIndex = historicalDays.findIndex((day) => day.date === date);
-    if (historicalIndex >= 0) {
-      extLoads[historicalIndex] = Math.max(extLoads[historicalIndex], predictedLoad);
-    } else {
-      extLoads.push(predictedLoad);
-    }
-    const index = historicalIndex >= 0 ? historicalIndex : extLoads.length - 1;
-    const { acute, chronic } = trendAt(extLoads, index, method);
-    const acwr = acwrRatio(index, acute, chronic);
-
-    projected.push({
-      date,
-      totalLoad: predictedLoad,
-      acuteLoad: Math.round(acute),
-      chronicLoad: Math.round(chronic),
-      acwr: roundNullableRatio(acwr),
-      monotony: null,
-      strain: null,
-      chronicFull: index >= 27,
-      isProjected: true,
-      forecastBasis,
-      plannedLoads,
-    });
-
-    cursor.setDate(cursor.getDate() + 1);
-  }
-
-  return projected;
-}
-
-export function getLatestACWR(entries: AthleteLoadEntry[], method: ACWRMethod = 'rolling') {
-  const series = method === 'ewma' ? calculateEWMA(entries) : calculateACWR(entries);
-  const points = series.filter((point) => point.acwr !== null);
-  return points[points.length - 1] ?? null;
+  const upToToday = calculateACWR(entries).filter((point) => point.date <= today);
+  return upToToday[upToToday.length - 1] ?? null;
 }
 
 export function loadZone(acwr: number | null, chronicFull = false) {
   if (acwr === null || !chronicFull) return { label: 'Baseline', tone: 'neutral' as const };
-  if (acwr < 0.8) return { label: 'Low', tone: 'low' as const };
-  if (acwr <= 1.3) return { label: 'Ready', tone: 'ready' as const };
+  if (acwr < ACWR_ZONES.low) return { label: 'Low', tone: 'low' as const };
+  if (acwr <= ACWR_ZONES.high) return { label: 'Ready', tone: 'ready' as const };
   return { label: 'High', tone: 'high' as const };
+}
+
+/**
+ * How much load is left today: the AU that would lift the ratio to the lower
+ * edge (`toLow`) and that fit below the upper edge (`toHigh`), counting what
+ * is already logged today; above the upper edge, how far the acute load is
+ * over it (`overBy`, AU per day, as before). Solved exactly from yesterday's
+ * EWMA values: today's load moves acute and chronic together.
+ */
+export function loadRoom(entries: AthleteLoadEntry[]) {
+  const days = fillMissingDays(aggregateDailyLoads(entries));
+  const index = days.findIndex((day) => day.date === todayISO());
+  if (index < 1) return null;
+  const trends = ewmaSeries(days.map((day) => day.totalLoad));
+  const today = trends[index];
+  const yesterday = trends[index - 1];
+  if (today.ratio === null) return null;
+  const loggedToday = days[index].totalLoad;
+  const todayTotalFor = (ratio: number) =>
+    (ratio * (1 - LAMBDA_CHRONIC) * yesterday.chronic - (1 - LAMBDA_ACUTE) * yesterday.acute) / (LAMBDA_ACUTE - ratio * LAMBDA_CHRONIC);
+  return {
+    toLow: Math.max(0, Math.round(todayTotalFor(ACWR_ZONES.low) - loggedToday)),
+    toHigh: Math.max(0, Math.round(todayTotalFor(ACWR_ZONES.high) - loggedToday)),
+    overBy: Math.max(0, Math.round(today.acute - ACWR_ZONES.high * today.chronic)),
+  };
 }
 
 export function sevenDayLoad(entries: AthleteLoadEntry[]) {
   const today = new Date(`${todayISO()}T00:00:00`);
   const start = addDays(today, -6);
-  return entries.reduce((sum, entry) => {
+  return entries.reduce((total, entry) => {
     const date = new Date(`${entry.date}T00:00:00`);
-    return date >= start && date <= today ? sum + entry.load : sum;
+    return date >= start && date <= today ? total + entry.load : total;
   }, 0);
 }
 
@@ -289,10 +208,172 @@ export function formatLoadDate(date: string) {
 }
 
 /**
- * The traffic-light inputs for one athlete: the latest EWMA ratio and whether
- * the chronic window is full. What a summary-only coach role gets.
+ * The traffic-light inputs for one athlete: today's ratio and whether the
+ * chronic window is full. What a summary-only coach role gets; the server
+ * computes the same numbers every night (app.refresh_load_summaries).
  */
 export function summarizeLoadEntries(entries: AthleteLoadEntry[]): { acwr: number | null; chronicFull: boolean } {
-  const latest = getLatestACWR(entries, 'ewma');
+  const latest = getLatestACWR(entries);
   return { acwr: latest?.acwr ?? null, chronicFull: latest?.chronicFull ?? false };
+}
+
+// ---------------------------------------------------------------------------
+// Forecast
+// ---------------------------------------------------------------------------
+
+function sessionDurationMinutes(session: AthletePendingSession) {
+  if (session.expectedDurationMinutes) return session.expectedDurationMinutes;
+  if (!session.endsAt) return 90;
+  return Math.max(30, Math.round((new Date(session.endsAt).getTime() - new Date(session.startsAt).getTime()) / 60_000));
+}
+
+/** Team sessions are logged against the session; own training is not. */
+function isTeamEntry(entry: AthleteLoadEntry) {
+  return entry.source === 'planned_session' && Boolean(entry.sessionId);
+}
+
+/**
+ * Expected load of one planned session:
+ * 1. an explicit plan (expected RPE and minutes) as given;
+ * 2. a game: the athlete's typical game load (warmup included), because only
+ *    the minutes played count and a game slot is much longer;
+ * 3. otherwise the athlete's typical RPE for the type × the session's length;
+ * 4. without history RPE 6 × length.
+ */
+function sessionEstimator(entries: AthleteLoadEntry[]) {
+  const rpeByType = new Map<LoadTrainingType, number[]>();
+  const perSession = new Map<string, { type: LoadTrainingType; load: number }>();
+  for (const entry of entries) {
+    if (entry.trainingType !== 'warmup') rpeByType.set(entry.trainingType, [...(rpeByType.get(entry.trainingType) ?? []), entry.rpe]);
+    const key = entry.sessionId ?? entry.id;
+    const current = perSession.get(key) ?? { type: entry.trainingType, load: 0 };
+    perSession.set(key, { type: entry.trainingType === 'warmup' ? current.type : entry.trainingType, load: current.load + entry.load });
+  }
+  const gameLoads = Array.from(perSession.values()).filter((item) => item.type === 'game').map((item) => item.load);
+
+  return (session: AthletePendingSession) => {
+    if (session.expectedRpe && session.expectedDurationMinutes) return Math.round(session.expectedRpe * session.expectedDurationMinutes);
+    if (session.trainingType === 'game' && !session.expectedRpe && gameLoads.length >= 2) return Math.round(median(gameLoads));
+    const rpe = session.expectedRpe ?? (median(rpeByType.get(session.trainingType) ?? []) || 6);
+    return Math.round(rpe * sessionDurationMinutes(session));
+  };
+}
+
+/** A weekday's usual load from the last 84 days (0 if the athlete is usually off that day). */
+function weekdayPattern(history: { date: string; load: number }[]) {
+  const recent = history.slice(-84);
+  const byWeekday: number[][] = [[], [], [], [], [], [], []];
+  for (const day of recent) byWeekday[new Date(`${day.date}T00:00:00`).getDay()].push(day.load);
+  const recent7Mean = mean(recent.slice(-7).map((day) => day.load));
+  return (weekday: number) => {
+    const loads = byWeekday[weekday];
+    if (loads.length === 0) return 0;
+    if (loads.filter((load) => load === 0).length / loads.length >= 0.75) return 0;
+    return Math.round(0.5 * median(loads) + 0.3 * median(loads.slice(-4)) + 0.2 * recent7Mean);
+  };
+}
+
+/**
+ * The next `daysAhead` days: expected daily load and the ratio it leads to.
+ *
+ * - Team sessions come from the calendar up to the last day that has one;
+ *   within that horizon a day without a session has no team load (a
+ *   cancelled or free day). Beyond it, the athlete's usual weekday rhythm.
+ * - Own training: planned own sessions, otherwise the usual weekday rhythm
+ *   of own training.
+ * - Today: what is logged plus what is still planned (not the larger of the two).
+ * - Past sessions of the last 7 days that are not rated yet count with their
+ *   expected load, so a missing rating does not drag the forecast down.
+ */
+export function projectFutureACWR(entries: AthleteLoadEntry[], plannedSessions: AthletePendingSession[], daysAhead = 14): ACWRDataPoint[] {
+  const today = todayISO();
+  const historicalDays = fillMissingDays(aggregateDailyLoads(entries), 84);
+  if (entries.length === 0 && plannedSessions.length === 0) return [];
+
+  const endISO = localISO(addDays(new Date(`${today}T00:00:00`), daysAhead));
+  const recentStartISO = localISO(addDays(new Date(`${today}T00:00:00`), -7));
+  const estimate = sessionEstimator(entries);
+
+  const teamByDate = new Map<string, number>();
+  const ownByDate = new Map<string, number>();
+  for (const entry of entries) {
+    const target = isTeamEntry(entry) ? teamByDate : ownByDate;
+    target.set(entry.date, (target.get(entry.date) ?? 0) + entry.load);
+  }
+  const teamPattern = weekdayPattern(historicalDays.map((day) => ({ date: day.date, load: teamByDate.get(day.date) ?? 0 })));
+  const ownPattern = weekdayPattern(historicalDays.map((day) => ({ date: day.date, load: ownByDate.get(day.date) ?? 0 })));
+
+  const plannedByDate = new Map<string, AthletePendingSession[]>();
+  let teamHorizon = '';
+  for (const session of plannedSessions) {
+    if (session.date < recentStartISO || session.date > endISO) continue;
+    plannedByDate.set(session.date, [...(plannedByDate.get(session.date) ?? []), session]);
+    if (session.source !== 'athlete_plan' && session.date > teamHorizon) teamHorizon = session.date;
+  }
+
+  // History with unrated recent sessions filled in, then the days ahead.
+  const extended = historicalDays.map((day) => ({ ...day, totalLoad: day.totalLoad }));
+  const indexOf = new Map(extended.map((day, index) => [day.date, index]));
+  for (const [date, sessions] of plannedByDate) {
+    if (date >= today) continue;
+    const index = indexOf.get(date);
+    if (index === undefined) continue;
+    // Own plans that were never logged are not assumed done; team sessions are.
+    extended[index].totalLoad += sum(sessions.filter((session) => session.source !== 'athlete_plan').map(estimate));
+  }
+
+  const projectedMeta = new Map<string, { load: number; basis: string; planned: Partial<Record<LoadTrainingType, number>> }>();
+  for (let cursor = new Date(`${today}T00:00:00`); localISO(cursor) <= endISO; cursor = addDays(cursor, 1)) {
+    const date = localISO(cursor);
+    const weekday = cursor.getDay();
+    const planned = plannedByDate.get(date) ?? [];
+    const plannedLoads: Partial<Record<LoadTrainingType, number>> = {};
+    let teamPlanned = 0;
+    let ownPlanned = 0;
+    for (const session of planned) {
+      const load = estimate(session);
+      plannedLoads[session.trainingType] = (plannedLoads[session.trainingType] ?? 0) + load;
+      if (session.source === 'athlete_plan') ownPlanned += load;
+      else teamPlanned += load;
+    }
+    const hasOwnPlan = planned.some((session) => session.source === 'athlete_plan');
+    const teamPart = date <= teamHorizon ? teamPlanned : Math.max(teamPlanned, teamPattern(weekday));
+    const ownPart = hasOwnPlan ? ownPlanned : ownPattern(weekday);
+
+    let load = teamPart + ownPart;
+    if (date === today) {
+      // Already logged today plus what is still to come (planned sessions
+      // are the unrated ones); the rhythm only tops up to its usual level.
+      const teamLogged = teamByDate.get(date) ?? 0;
+      const ownLogged = ownByDate.get(date) ?? 0;
+      const ownTopUp = hasOwnPlan ? 0 : Math.max(0, ownPattern(weekday) - ownLogged);
+      const teamTopUp = date <= teamHorizon ? 0 : Math.max(0, teamPattern(weekday) - teamPlanned - teamLogged);
+      load = teamLogged + ownLogged + teamPlanned + ownPlanned + ownTopUp + teamTopUp;
+    }
+    const basis = planned.length > 0 ? 'Planned sessions' : load > 0 ? 'Weekday pattern' : 'Rest pattern';
+    projectedMeta.set(date, { load, basis, planned: plannedLoads });
+
+    const index = indexOf.get(date);
+    if (index !== undefined) extended[index].totalLoad = load;
+    else {
+      indexOf.set(date, extended.length);
+      extended.push({ date, loads: {}, totalLoad: load });
+    }
+  }
+
+  const series = buildSeries(extended);
+  return series
+    .filter((point) => point.date >= today && point.date <= endISO)
+    .map((point) => {
+      const meta = projectedMeta.get(point.date)!;
+      return {
+        ...point,
+        totalLoad: meta.load,
+        monotony: null,
+        strain: null,
+        isProjected: true,
+        forecastBasis: meta.basis,
+        plannedLoads: meta.planned,
+      };
+    });
 }

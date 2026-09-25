@@ -14,7 +14,8 @@
     "check:review": "npm run check && npm run clean:next-env && npm run review:claude",
     "hooks:claude-review": "node scripts/install-claude-review-hook.mjs",
     "clean:next-env": "node scripts/clean-next-env.mjs",
-    "test:pilot": "tsx supabase/pilot/tests/remote-store.test.ts"
+    "test:pilot": "tsx supabase/pilot/tests/remote-store.test.ts",
+    "test:load": "tsx src/shared/data/loadCalculations.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.1",

@@ -239,6 +239,20 @@ dorthin (die Auswahl wird dann übersprungen):
   bestehende Hallenverwaltung).
 - Load je Team bleibt per Datenbank geschaltet (Abo), nicht im Vereinsbereich.
 
+## Stücke 9–12 (geplant 2026-09-25, nach Prüfung der Mathematik und der Abläufe)
+
+| # | Stück | Inhalt |
+|---|---|---|
+| 9 | Belastungs-Mathematik (erledigt, Run 16) | EWMA-Startwert, Prognose (Spiele, heute, Kalender vs. Rhythmus, unbewertete Einheiten), „Luft bis zur Grenze“ zentral, nächtliche Ampel auf dem Server |
+| 10 | Soll-Intensität je Einheit | Trainer plant RPE und Dauer je Einheit; Soll/Ist-Vergleich in der Einheit; Prognose rechnet mit dem Trainerplan; Trainer markiert falsche Einträge „bitte prüfen“, Spieler korrigiert selbst (Hinweis + Push) |
+| 11 | Anwesenheit bestätigen | Trainer hält fest, wer wirklich da war (bei allen Spielern mit App: Korrektur, wenn jemand „in“ sagte und nicht kam) |
+| 12 | Vereinseinstellungen | Verein umbenennen, Abteilung löschen, Admin-Rolle übergeben |
+
+**Entschieden (2026-09-25):** Die Ampel rechnet mit dem **EWMA-Tageswert** (ein Wert für
+Trainer und Spieler, Literatur-Standard). Später je Team wählbar, gekoppelt ans Abo: kein
+Load / 7 Tage gegen die 4 Wochen davor (Amateure, ruhiger bei 2–3 Einheiten pro Woche) /
+EWMA (Profis). Hintergrund und Zahlen in `docs/simplify-progress.md`, Run 16.
+
 ## Nach dem Pilot (gemerkt 2026-09-25)
 
 Für den Pilot mit nur dem eigenen Team bewusst zurückgestellt, vor einem Start mit

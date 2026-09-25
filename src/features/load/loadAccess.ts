@@ -38,7 +38,7 @@ export function playerLoadSummary(player: PlayerLoadInput) {
   const access = player.loadAccess ?? 'full';
   const entries = access === 'full' ? player.loadEntries ?? [] : [];
   // EWMA, matching what the coach views showed before.
-  const latest = access === 'full' ? getLatestACWR(entries, 'ewma') : null;
+  const latest = access === 'full' ? getLatestACWR(entries) : null;
   const acwr = access === 'full' ? latest?.acwr ?? null : access === 'summary' ? player.loadSummary?.acwr ?? null : null;
   const chronicFull = access === 'full' ? latest?.chronicFull ?? false : access === 'summary' ? player.loadSummary?.chronicFull ?? false : false;
   const zone = loadZone(acwr, chronicFull);

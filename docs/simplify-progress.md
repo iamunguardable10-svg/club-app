@@ -1495,3 +1495,35 @@ Datenschicht-Tests, Typecheck, Build, Browser: echtes Push-Abo bei Googles Diens
 Service Worker zeigt eine Push-Nachricht mit Link, Karte und Menü, Demo ohne. Auf Supabase:
 Edge Function lehnt falsches Geheimnis ab (401), echter Versand an ein Test-Abo über die
 Function erfolgreich (`sent: 1`), Test-Eintrag danach vollständig gelöscht.
+
+## Run 16 — Stück 9: Belastungs-Mathematik geprüft und korrigiert (erledigt)
+
+Prüfung mit gleichmäßigen Testspielern (gleiche Woche jede Woche, ACWR muss im Mittel 1,0
+sein) und Literatur (Williams 2017, Murray 2017, Lolli 2019, Impellizzeri 2020,
+Meta-Analyse 2025).
+
+- **Richtig waren:** Einheiten-Load = RPE × Minuten, EWMA-Faktoren λ = 2/(N+1), Monotonie
+  und Strain (Foster), Zonen 0,8–1,3, eine Methode in allen Ansichten.
+- **Fehler 1 – EWMA-Startwert:** Start mit der Belastung des ersten Trainingstags hielt den
+  Langzeitwert wochenlang zu hoch; ein gleichmäßiger Spieler stand genau an Tag 28 bei
+  0,78 („Low“). Jetzt Start mit dem Mittel der ersten 7 bzw. 28 Tage → Tag 28 ≈ 0,9–1,0.
+- **Fehler 2 – Spiel-Prognose:** RPE 10 × ganze Spielzeit (z. B. 1200 AU statt typischer
+  400). Jetzt: typische eigene Spielbelastung inkl. Aufwärmen (Median vergangener Spiele).
+- **Prognose außerdem:** heute = schon eingetragen + noch geplant (vorher das größere von
+  beiden); innerhalb des geplanten Kalenders kein erfundenes Mannschaftstraining an freien
+  Tagen, danach der übliche Wochenrhythmus; eigenes Training getrennt davon; unbewertete
+  Einheiten der letzten 7 Tage zählen mit ihrer erwarteten Belastung.
+- **„Luft bis zur Grenze“** (Room to high / Underload gap) exakt aus den EWMA-Werten von
+  gestern gelöst und zentral in `loadRoom()`; vorher doppelt in zwei Ansichten und mit
+  den Werten von heute statt gestern.
+- **Nächtliche Ampel auf dem Server** (Migration 0015): Trainer mit reinem Ampel-Recht
+  sahen den Wert vom letzten Öffnen der App durch den Spieler. Jetzt rechnet der Server
+  jede Nacht (00:15 UTC) mit exakt derselben Formel; Abgleich App ↔ Server über 60
+  unregelmäßige Tage identisch.
+- **Methode (Entscheidung):** Ein Wert, EWMA-Tageswert. Bekannte Eigenschaft: er schwankt
+  im Wochenrhythmus (gleichmäßig 2×/Woche 0,57–1,38, 3×/Woche 0,76–1,18, im Wochenmittel
+  1,0); „7 Tage gegen 4 Wochen davor“ wäre dabei ruhig (1,00) und erkennt eine Verdopplung
+  klar (2,00), ein über 7 Tage geglätteter EWMA erkennt sie kaum (1,27). Später je Team
+  wählbar (Abo): kein Load / 7:28 entkoppelt (Amateure) / EWMA (Profis).
+- Tests: neu `npm run test:load` (13 Prüfungen der Mathematik), Datenschicht-Tests +2
+  (Server = App), Demo-Daten neu aufgesetzt (Version v11), Typecheck, Build, Browser.

@@ -238,6 +238,43 @@ async function main() {
   await data.flushRemote();
   check('Jonas: load entry 600 AU on the server', (await count('select 1 from load_entries where person_id = $1 and load = 600', [P.jonas])) === 1, store.getStatus().rejected);
   check('Jonas: his traffic light was written too', (await count('select 1 from load_summaries where person_id = $1', [P.jonas])) === 1);
+  // Piece 9: the nightly server job computes the same traffic light as the app.
+  {
+    const jonasEntries = db().loadEntries.filter((entry) => entry.personId === P.jonas);
+    const client = data.summarizeLoadEntries(jonasEntries);
+    const server = (await pool.query('select acwr, chronic_full from app.load_summary($1, $2::date)', [P.jonas, data.todayISO()])).rows[0];
+    check('nightly job: the server computes the same traffic light as the app',
+      server.chronic_full === client.chronicFull && (server.acwr === null ? client.acwr === null : Math.abs(Number(server.acwr) - (client.acwr ?? -1)) < 0.005),
+      { server, client });
+    const refreshed = (await pool.query('select app.refresh_load_summaries($1::date) as n', [data.todayISO()])).rows[0].n;
+    check('… and writes it for every athlete with load', Number(refreshed) >= 1, refreshed);
+  }
+  // … also over a long, uneven history (60 days, fixed pseudo-random loads).
+  {
+    let seed = 7;
+    const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    await pool.query('delete from load_entries where person_id = $1', [P.ben]);
+    for (let offset = -60; offset <= 0; offset += 1) {
+      if (rand() < 0.45) continue;
+      const load = Math.round(100 + rand() * 900);
+      await pool.query(
+        `insert into load_entries (person_id, date, title, training_type, rpe, duration_minutes, load, source)
+         values ($1, current_date + $2::int, 'Synthetic', 'team_training', 5, 60, $3, 'manual')`,
+        [P.ben, offset, load],
+      );
+    }
+    const rows = (await pool.query("select id, to_char(date, 'YYYY-MM-DD') as date, load from load_entries where person_id = $1", [P.ben])).rows;
+    const synthetic = rows.map((row) => ({
+      id: String(row.id), sessionId: null, teamId: null, date: String(row.date), title: 'Synthetic',
+      trainingType: 'team_training' as const, rpe: 5, durationMinutes: 60, load: Number(row.load), source: 'manual' as const,
+    }));
+    const today = (await pool.query("select to_char(current_date, 'YYYY-MM-DD') as d")).rows[0].d as string;
+    const client = data.summarizeLoadEntries(synthetic);
+    const server = (await pool.query('select acwr, chronic_full from app.load_summary($1, $2::date)', [P.ben, today])).rows[0];
+    check('nightly job: same traffic light as the app over 60 uneven days',
+      today === data.todayISO() && server.chronic_full === client.chronicFull && Number(server.acwr) === client.acwr,
+      { server, client, today });
+  }
   check('… no refusals', store.getStatus().rejected === null, store.getStatus().rejected);
 
   // --- "How hard was it?" (piece 4) ---------------------------------------

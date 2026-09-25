@@ -1,8 +1,7 @@
 /**
  * Moved to `@/shared/data/loadCalculations` in the simplification work (run 1).
  *
- * The ACWR, EWMA, monotony and strain maths are sound and were kept as they
- * were; only their location changed. This shim keeps the existing imports
- * working; new code should import from `@/shared/data`.
+ * This shim keeps the existing imports working; new code should import from
+ * `@/shared/data`. (The maths was revised in piece 9, see the file itself.)
  */
 export * from '@/shared/data/loadCalculations';

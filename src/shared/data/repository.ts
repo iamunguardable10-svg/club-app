@@ -27,7 +27,7 @@
  * know where the document lives.
  */
 
-import { calculateEWMA, getLatestACWR, loadZone, sevenDayLoad, summarizeLoadEntries } from './loadCalculations';
+import { calculateACWR, getLatestACWR, loadZone, sevenDayLoad, summarizeLoadEntries } from './loadCalculations';
 import { DATABASE_KEY, LEGACY_KEY_PREFIXES, SCHEMA_VERSION, isCurrent } from './migrations';
 import { COACH_ROLE_TEMPLATES, createSeedDatabase } from './seed';
 import type { RemoteStore } from './remote/remoteStore';
@@ -1618,16 +1618,15 @@ export function deleteLoadEntry(entryId: Id): void {
  * only selects the right entries and hands them over. Views must not compute
  * ACWR themselves.
  *
- * Uses EWMA, like the athlete cockpit and the coach roster. An earlier version
- * used the rolling average, so the same athlete would have shown two different
- * ratios depending on which screen read the number.
+ * Uses the EWMA ratio, like the athlete cockpit, the coach roster and the
+ * nightly server summary.
  */
 export function loadSummaryForPerson(database: LocalDatabase, personId: Id) {
   const entries = loadEntriesForPerson(database, personId);
-  const latest = getLatestACWR(entries, 'ewma');
+  const latest = getLatestACWR(entries);
   return {
     entries,
-    series: calculateEWMA(entries),
+    series: calculateACWR(entries),
     acwr: latest?.acwr ?? null,
     acuteLoad: latest?.acuteLoad ?? 0,
     chronicLoad: latest?.chronicLoad ?? 0,
