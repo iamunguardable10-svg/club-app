@@ -22,6 +22,8 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 
 import { LocalModeLink } from '@/features/access/LocalModeLink';
+import { InstallHint } from '@/features/install/InstallHint';
+import { NotificationsHint } from '@/features/notifications/NotificationsHint';
 
 import {
   clubRoleLabel,
@@ -206,6 +208,9 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
                 coach and the athlete side. Two steps, in place: a browser
                 confirm() is easy to dismiss by accident on a phone. */}
             {remoteMode && current ? <AccountName key={current.id} personId={current.id} firstName={current.firstName} lastName={current.lastName} /> : null}
+
+            <NotificationsHint variant="menu" />
+            <InstallHint variant="menu" />
 
             <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-800 pt-4">
               {remoteMode ? (

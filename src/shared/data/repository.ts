@@ -116,6 +116,30 @@ export function setBackendChoice(choice: BackendChoice): void {
   backendChoice = choice;
 }
 
+/** Hints that can be put away with "Not now": installing the app, turning on notifications. */
+export type HintName = 'install' | 'notifications';
+
+const hintKey = (name: HintName) => `club-app.hint-dismissed.${name}`;
+
+/** Whether a hint was put away on this device. */
+export function isHintDismissed(name: HintName): boolean {
+  if (!isBrowser()) return true;
+  try {
+    return window.localStorage.getItem(hintKey(name)) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function dismissHint(name: HintName): void {
+  if (!isBrowser()) return;
+  try {
+    window.localStorage.setItem(hintKey(name), '1');
+  } catch {
+    // Not remembering is fine; the hint just shows again next time.
+  }
+}
+
 /** Whether this page talks to the pilot database instead of localStorage. */
 export function isRemoteMode(): boolean {
   return remote !== null || getBackendChoice() === 'server';
@@ -459,7 +483,46 @@ export async function updatePassword(password: string): Promise<void> {
 
 export async function signOut(): Promise<void> {
   const supabase = await authClient();
+  // This device stops getting the account's notifications (piece 7): the
+  // next person signing in here must not see them.
+  try {
+    const registration = await navigator.serviceWorker?.getRegistration();
+    const subscription = await registration?.pushManager?.getSubscription();
+    if (subscription) {
+      await supabase.rpc('delete_push_subscription', { p_endpoint: subscription.endpoint });
+      await subscription.unsubscribe();
+    }
+  } catch {
+    // Signing out must not fail over notifications.
+  }
   await supabase.auth.signOut();
+}
+
+// ---------------------------------------------------------------------------
+// Push notifications (piece 7): devices of the signed-in account
+// ---------------------------------------------------------------------------
+
+/** The server's public VAPID key, needed to subscribe a device. */
+export async function getPushPublicKey(): Promise<string | null> {
+  const supabase = await authClient();
+  const { data, error } = await supabase.rpc('push_public_key');
+  if (error) throw new LocalDataError(error.message);
+  return typeof data === 'string' && data ? data : null;
+}
+
+/** Turns notifications on for this device and the signed-in account. */
+export async function savePushSubscription(subscription: { endpoint: string; p256dh: string; auth: string }): Promise<void> {
+  const supabase = await authClient();
+  const { error } = await supabase.rpc('save_push_subscription', {
+    p_endpoint: subscription.endpoint, p_p256dh: subscription.p256dh, p_auth: subscription.auth,
+  });
+  if (error) throw new LocalDataError(error.message);
+}
+
+export async function deletePushSubscription(endpoint: string): Promise<void> {
+  const supabase = await authClient();
+  const { error } = await supabase.rpc('delete_push_subscription', { p_endpoint: endpoint });
+  if (error) throw new LocalDataError(error.message);
 }
 
 /** The signed-in account, or null. */

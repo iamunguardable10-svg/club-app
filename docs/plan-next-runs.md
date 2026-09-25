@@ -135,8 +135,9 @@ Wunsch vom 2026-09-24: Nicht alle Teams haben oder brauchen Load, je nach künft
   brauchen).
 - Hinweis in der App, wie man sie zum Homebildschirm hinzufügt (iPhone: Teilen → „Zum
   Home-Bildschirm“; Android/Samsung: Menü → „App installieren“).
-- **Entscheidung nötig:** App-Name auf dem Homebildschirm (Vorschlag: „Club OS“ oder
-  Vereinsname) und ob du ein Logo hast.
+- **Erledigt (Run 14):** Name „Club OS“ (eine App für alle Vereine, der Verein kommt
+  mit der Anmeldung), vorläufiges Icon (grünes Schild mit Haken, `public/icons/icon.svg`;
+  ein eigenes Logo ersetzt die Dateien in `public/icons/`).
 
 ### 7 Benachrichtigungen
 
@@ -151,9 +152,11 @@ Wunsch vom 2026-09-24: Nicht alle Teams haben oder brauchen Load, je nach künft
   - Spieler: neue, verschobene oder abgesagte Einheit (nächste 7 Tage); Erinnerung an
     die RPE-Abfrage 30 Minuten nach Ende einer Einheit.
   - Trainer: Absage oder Verspätung für eine kommende Einheit (Grund nur mit Recht).
-- In „Your account“: Benachrichtigungen an/aus je Art.
-- **Entscheidung nötig:** Welche Anlässe genau, Ruhezeiten (Vorschlag: 21–7 Uhr keine
-  Pushs), Erinnerungszeitpunkt.
+- **Entschieden (2026-09-25):** Anlässe wie vorgeschlagen (geändert/abgesagt an die
+  betroffenen Spieler, „Are you in?“ ab 24 h vorher, Trainer-Übersicht 2 h vorher,
+  „How hard was it?“ direkt nach dem Ende). Ruhezeit 22–7 Uhr, **„How hard was it?“ hat
+  Vorrang und kommt auch in der Ruhezeit.** An/aus je Gerät (nicht je Art).
+- **Erledigt (Run 15).**
 
 ### 8 Vereinsverwaltung und Onboarding
 

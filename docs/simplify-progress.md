@@ -1431,3 +1431,67 @@ Keine neue Migration.
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 - Gründungs-Code für den eigenen Verein per `app.create_founding_code` erzeugt.
 - Offen bei dir: Supabase Site URL / Redirect-URLs und E-Mail-Bestätigung (siehe Plan).
+
+## Run 14 — Stück 6: Als App installierbar (erledigt)
+
+Vorher: Live-Check der öffentlichen Adresse nach dem Merge von PR #14 (Build `19ca0e7`
+READY; Startseite mit Auswahl, Code-Vorschau und Gründungs-Code-Prüfung gegen Supabase,
+Demo als Vereinsadmin, keine Fehler).
+
+- **Manifest** (`src/app/manifest.ts`): „Club OS“, eigenes Fenster (standalone),
+  Hochformat, Start `/`, dunkle Farben der App, Icons 192/512 und maskierbar 512.
+- **Icons** in `public/icons/` (aus `icon.svg` gerendert), Favicon, Apple-Touch-Icon.
+- **Apple-Tags:** als Web-App startbar, Name unter dem Icon, dunkle Statusleiste
+  (`black`, damit nichts unter die Uhrzeit rutscht); Themenfarbe für Android.
+- **Service Worker** (`public/sw.js`): nur registrieren und übernehmen, bewusst ohne
+  Offline-Speicher und ohne Abfangen von Anfragen, damit nie Altes angezeigt wird. Push
+  (Stück 7) kommt hier dazu.
+- **Hinweis in der App:** Karte „Add Club OS to your home screen“ auf der ersten Seite
+  jeder Rolle, nur am Handy, bis installiert oder „Not now“ (auf dem Gerät gemerkt, über
+  die Datenschicht). iPhone: die Schritte in Safari (Teilen → Zum Home-Bildschirm);
+  Android/Samsung: Menü → App installieren, und wo der Browser es anbietet, ein
+  „Install“-Knopf mit dem Installationsdialog. Im Konto-Menü jederzeit „Install as app“.
+  Als installierte App erscheint nichts davon.
+
+Geprüft: Typecheck, Build, 16 Browser-Prüfungen (Manifest, Icons, Apple-Tags, Service
+Worker übernimmt, Chrome-Installierbarkeit ohne Fehler, Karte auf iPhone und Android mit
+den passenden Schritten, „Not now“ bleibt gemerkt, nur auf den Startseiten der Rollen, am
+Desktop nur im Konto-Menü, kein Überlauf, keine Fehler).
+
+## Run 15 — Stück 7: Benachrichtigungen (erledigt)
+
+Entscheidung vom 2026-09-25: Anlässe wie vorgeschlagen; Ruhezeit 22–7 Uhr, aber „How hard
+was it?“ nach der Einheit hat Vorrang und kommt auch in der Ruhezeit.
+
+- **Was verschickt wird** (Migration 0013):
+  - Einheit verschoben (Zeit oder Halle) oder abgesagt → die betroffenen Spieler (Team
+    oder nur die Gruppen der Einheit); Änderungen werden 2 Minuten gebündelt.
+  - „Are you in?“ ab 24 h vor der Einheit an Spieler ohne Antwort (nicht später als 2 h
+    vorher; wer inzwischen geantwortet hat, bekommt nichts).
+  - Trainer-Übersicht 2 h vorher („5 in · 1 late · 2 out · 3 no answer“) an Trainer mit
+    Anwesenheits-Recht.
+  - „How hard was it?“ direkt nach dem Ende an Spieler von Teams mit Load, die nicht
+    abgesagt und noch nicht bewertet haben – auch in der Ruhezeit.
+  - Alles andere wartet in der Ruhezeit (22–7 Uhr, Europe/Berlin) bis 7 Uhr.
+- **Wie:** Postgres-Ausgang (`app.push_outbox`), jede Minute `app.push_tick()` (pg_cron)
+  → Edge Function `push-dispatch` (pg_net, mit Versand-Geheimnis) → Web Push (VAPID,
+  verschlüsselt) → Ergebnis zurück; verschwundene Geräte werden gelöscht, vorübergehende
+  Fehler bis zu dreimal wiederholt. Schlüssel und Geheimnis liegen in `app.push_config`
+  (für die App unlesbar). Migration 0014 nach der Supabase-Sicherheitsprüfung: nur die
+  Service-Rolle darf die Versand-Funktionen aufrufen, `pg_net` im Schema `extensions`.
+- **App:** Service Worker zeigt Nachrichten und öffnet beim Antippen die passende Seite
+  (neuere Nachricht zur selben Einheit ersetzt die ältere). Konto-Menü „Notifications“
+  (was verschickt wird, an/aus für dieses Gerät, Hinweise bei blockiert oder iPhone ohne
+  installierte App); Karte „Turn on notifications“ auf der ersten Seite jeder Rolle bis
+  eingeschaltet oder „Not now“. Beim Abmelden wird das Gerät abgemeldet. Scheitert das
+  Speichern, wird auch das Browser-Abo zurückgenommen, damit „an“ immer stimmt (im Test
+  gefunden). Im Demo-Verein gibt es keine Benachrichtigungen.
+
+Geprüft: 105 + 35 + 50 + 19 + 49 Datenbank-Prüfungen (neu `05_push_test.sql`: Ruhezeit
+inkl. Winterzeit, Verschieben/Bündeln/Gruppen/Absage, Erinnerung, Trainer-Übersicht mit
+Zahlen, Bewertung auch um 23:35, Team ohne Load, Geheimnis, Abholen ohne Doppelung,
+Zustellung/Gerät weg/Wiederholung, Minutentakt, Geräte nur eigene, uhrzeitunabhängig),
+Datenschicht-Tests, Typecheck, Build, Browser: echtes Push-Abo bei Googles Dienst,
+Service Worker zeigt eine Push-Nachricht mit Link, Karte und Menü, Demo ohne. Auf Supabase:
+Edge Function lehnt falsches Geheimnis ab (401), echter Versand an ein Test-Abo über die
+Function erfolgreich (`sent: 1`), Test-Eintrag danach vollständig gelöscht.
