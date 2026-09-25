@@ -40,7 +40,8 @@ type TableSpec = {
  * updates run top-down, deletes bottom-up.
  */
 export const TABLES: readonly TableSpec[] = [
-  { name: 'clubs', key: ['id'], kinds: { created_at: 'timestamp' }, readOnly: true },
+  // Renamed by the club admin (piece 12); founded through a database function.
+  { name: 'clubs', key: ['id'], kinds: { created_at: 'timestamp' } },
   // Created and renamed by the club admin (piece 8).
   { name: 'departments', key: ['id'] },
   { name: 'facilities', key: ['id'] },

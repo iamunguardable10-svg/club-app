@@ -483,7 +483,20 @@ export async function updatePassword(password: string): Promise<void> {
   if (error) throw new LocalDataError(authMessage(error.message));
 }
 
-export async function signOut(): Promise<void> {
+/**
+ * Changes the account's e-mail address. Supabase sends a confirmation link;
+ * the address changes once it is clicked.
+ */
+export async function changeEmail(email: string): Promise<void> {
+  const clean = email.trim();
+  if (!clean) throw new LocalDataError('Enter the new email address.');
+  const supabase = await authClient();
+  const { error } = await supabase.auth.updateUser({ email: clean }, { emailRedirectTo: `${window.location.origin}/settings` });
+  if (error) throw new LocalDataError(authMessage(error.message));
+}
+
+/** Signs out on this device, or with `everywhere` on every device of the account. */
+export async function signOut(options: { everywhere?: boolean } = {}): Promise<void> {
   const supabase = await authClient();
   // This device stops getting the account's notifications (piece 7): the
   // next person signing in here must not see them.
@@ -497,7 +510,7 @@ export async function signOut(): Promise<void> {
   } catch {
     // Signing out must not fail over notifications.
   }
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: options.everywhere ? 'global' : 'local' });
 }
 
 // ---------------------------------------------------------------------------
@@ -524,6 +537,40 @@ export async function savePushSubscription(subscription: { endpoint: string; p25
 export async function deletePushSubscription(endpoint: string): Promise<void> {
   const supabase = await authClient();
   const { error } = await supabase.rpc('delete_push_subscription', { p_endpoint: endpoint });
+  if (error) throw new LocalDataError(error.message);
+}
+
+/** Kinds of message that can be switched off; "How hard was it?" cannot (piece 12). */
+export type MutablePushKind = 'changed' | 'cancelled' | 'reminder' | 'summary' | 'review';
+
+/** Per account: switched-off kinds and quiet hours (club time, whole hours; null = none). */
+export type NotificationSettings = { mutedKinds: MutablePushKind[]; quietFrom: number | null; quietTo: number | null };
+
+export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = { mutedKinds: [], quietFrom: 22, quietTo: 7 };
+
+export async function getNotificationSettings(): Promise<NotificationSettings> {
+  const supabase = await authClient();
+  const { data, error } = await supabase.from('notification_settings').select('muted_kinds, quiet_from, quiet_to').maybeSingle();
+  if (error) throw new LocalDataError(error.message);
+  if (!data) return DEFAULT_NOTIFICATION_SETTINGS;
+  return { mutedKinds: data.muted_kinds ?? [], quietFrom: data.quiet_from, quietTo: data.quiet_to };
+}
+
+export async function saveNotificationSettings(settings: NotificationSettings): Promise<void> {
+  const { quietFrom, quietTo } = settings;
+  if ((quietFrom === null) !== (quietTo === null)) throw new LocalDataError('Quiet hours need a start and an end.');
+  if (quietFrom !== null && quietFrom === quietTo) throw new LocalDataError('Quiet hours must start and end at different times.');
+  const supabase = await authClient();
+  const { data: session } = await supabase.auth.getSession();
+  const userId = session.session?.user.id;
+  if (!userId) throw new LocalDataError('Please sign in again.');
+  const { error } = await supabase.from('notification_settings').upsert({
+    user_id: userId,
+    muted_kinds: [...new Set(settings.mutedKinds)],
+    quiet_from: quietFrom,
+    quiet_to: quietTo,
+    updated_at: new Date().toISOString(),
+  });
   if (error) throw new LocalDataError(error.message);
 }
 
@@ -1074,6 +1121,16 @@ export function removeAthleteFromTeam(teamId: Id, personId: Id): void {
   });
 }
 
+/**
+ * A player leaves a team themselves (piece 12). Same effect as being removed
+ * by the staff: past reports and load stay, rejoining works with the code.
+ */
+export function leaveTeam(teamId: Id, personId: Id): void {
+  const database = readDatabase();
+  if (!database || !ownPersonIds(database).includes(personId)) throw new LocalDataError('You can only leave a team yourself.');
+  removeAthleteFromTeam(teamId, personId);
+}
+
 // ---------------------------------------------------------------------------
 // Club administration (piece 8): club admin and department leads
 // ---------------------------------------------------------------------------
@@ -1128,6 +1185,33 @@ export function renameDepartment(departmentId: Id, name: string): void {
     const department = database.departments.find((candidate) => candidate.id === departmentId);
     if (!department) throw new LocalDataError(`Unknown department: ${departmentId}`);
     department.name = clean;
+  });
+}
+
+/** The club's name (club admin, piece 12). */
+export function renameClub(name: string): void {
+  const clean = requireName(name, 'The club');
+  if (clean.length > 80) throw new LocalDataError('The club name can be at most 80 characters.');
+  mutate((database) => {
+    database.club.name = clean;
+  });
+}
+
+/**
+ * Deletes a department (club admin, piece 12). Only one without teams,
+ * archived ones included: teams, their sessions and history hang on it.
+ * Its hall shares and its leads go with it.
+ */
+export function deleteDepartment(departmentId: Id): void {
+  mutate((database) => {
+    if (database.teams.some((team) => team.departmentId === departmentId)) {
+      throw new LocalDataError('Only a department without teams can be deleted.');
+    }
+    database.departments = database.departments.filter((department) => department.id !== departmentId);
+    database.departmentFacilities = database.departmentFacilities.filter((link) => link.departmentId !== departmentId);
+    const leadIds = new Set(database.clubRoles.filter((role) => role.departmentId === departmentId).map((role) => role.id));
+    database.clubRoles = database.clubRoles.filter((role) => !leadIds.has(role.id));
+    database.clubRoleInvites = database.clubRoleInvites.filter((invite) => !leadIds.has(invite.clubRoleId));
   });
 }
 

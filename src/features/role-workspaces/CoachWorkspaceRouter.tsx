@@ -915,7 +915,9 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
 
   const singleTeam = teams.length === 1 ? teams[0] : null;
   const selectedTeam = selectedTeamId ? teams.find((team) => team.id === selectedTeamId) ?? null : null;
-  const initialSection = useMemo(() => sectionForMode(mode), [mode]);
+  // `section=settings` comes from the settings page (piece 12); it only picks a tab.
+  const sectionParam = searchParams.get('section');
+  const initialSection = useMemo(() => (mode === 'team' && sectionParam === 'settings' ? 'settings' : sectionForMode(mode)), [mode, sectionParam]);
   const today = useMemo(() => new Date(), []);
   const todaySessions = sessions.filter((session) => isSameLocalDay(session.startsAt, today));
   const upcomingSessions = sessions.filter((session) => new Date(session.startsAt).getTime() >= Date.now() && !isSameLocalDay(session.startsAt, today)).slice(0, 4);

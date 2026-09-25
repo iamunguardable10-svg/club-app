@@ -1567,3 +1567,46 @@ niemand aus Versehen herausfällt. Wer abgesagt hat oder herausgenommen wurde, s
 11“ bzw. „Confirm · 10 of 12 there“); „Change“ öffnet die Liste wieder. Geprüft: Typecheck,
 Build, Browser auf Handy und Desktop (Abbrechen lässt den Spieler drin, Herausnehmen,
 Bestätigen, Wiederöffnen).
+
+## Run 18 — Stück 12: Einstellungen für alle (erledigt)
+
+Auf Wunsch (2026-09-25) nicht nur Vereinseinstellungen, sondern eine Seite für jede Rolle.
+Entschieden per Rückfrage: „How hard was it?“ bleibt immer an; Team verlassen schon jetzt
+(mit Bestätigung); Ruhezeit Von/Bis wählbar oder aus; E-Mail in der App änderbar.
+
+- **`/settings`** (Profil-Menü → „Settings“, auf dem Desktop auch unten in der Seitenleiste;
+  Navigation der aktuellen Rolle ohne markierten Tab):
+  - *Account:* Name; mit Server E-Mail ändern (Bestätigungslink an die neue Adresse),
+    Passwort ändern, „Sign out“ und „Sign out on all devices“ (mit Rückfrage). Normales
+    Abmelden meldet jetzt nur dieses Gerät ab (vorher Supabase-Standard: alle Geräte).
+  - *Notifications* (nur mit Server): je Art an/aus – Spieler: Änderung/Absage, „Are you
+    in?“, „Please check an entry“; Trainer: „Who is coming“; „How hard was it?“ sichtbar,
+    aber fest an. Ruhezeit an/aus mit Von/Bis (volle Stunden, Standard 22–07).
+  - *This device:* Push an/aus für dieses Gerät, „Install as app“.
+  - Rolle Spieler: eigene Teams mit „Leave team“ (Rückfrage; beim letzten Team zurück zur
+    Startseite) und „Join another team with a code“. Rolle Trainer: Teams mit Rolle und
+    „Team settings“ (öffnet den Tab „Staff & settings“). Rolle Verein: Admin benennt den
+    Verein um; Hinweis, wie man die Admin-Rolle übergibt; Link in den Vereinsbereich.
+- **Vereinsbereich:** „Department settings“ bietet „Delete department“, solange die
+  Abteilung keine Teams hat (auch keine archivierten); sonst ein Hinweis.
+- **Migration 0017 (angewendet):** `notification_settings` (nur eigene Zeile), Ruhezeit und
+  abgeschaltete Arten werden beim Versenden angewendet (`push_take_due`), damit Änderungen
+  auch für schon wartende Nachrichten gelten; wird eine Nachricht durchs Warten zu spät
+  („Are you in?“ in der letzten Stunde, Trainer-Übersicht nach Beginn), entfällt sie.
+  Verein umbenennen (nur Name, nur Admin), Abteilung löschen (nur Admin, Sperre bei
+  Teams; Löschen des ganzen Vereins kaskadiert weiter), Spieler dürfen die eigene
+  Spieler-Mitgliedschaft löschen.
+- Das Profil-Menü ist schlanker: Rollen wechseln, „Settings“, Abmelden (Demo: Test-Daten
+  zurücksetzen).
+
+Geprüft: Datenbank 105 + 35 + 50 + 19 + 49 + 25 + 34 (neu `07_settings_test.sql`: eigene
+Einstellungen, ungültige Werte, Ruhezeit über Mitternacht und tagsüber, Versand mit
+abgeschalteter Art, Warten in der Ruhezeit, zu spät gewordene Erinnerung, Verein
+umbenennen, Abteilung löschen mit/ohne Teams, Team verlassen); `01` und `05` an die
+gewollten Änderungen angepasst. Datenschicht 118 Prüfungen (Verein umbenennen, Abteilung
+löschen, Leiter darf nicht umbenennen, Spieler verlässt Team). Typecheck, Build, Browser
+auf Handy und Desktop (Spieler, Trainer, Verein; Abbrechen/Verlassen, Name, Vereinsname,
+Abteilung anlegen und löschen, Weg zu den Teameinstellungen; kein Überlauf, keine
+Fehler). Supabase-Hinweise nach der Migration: nichts Neues.
+Offen: Die Server-Teile der Seite (E-Mail, Passwort, Benachrichtigungen) sind nur gegen die
+lokale Datenbank und per SQL geprüft, noch nicht mit einem echten Konto im Browser.

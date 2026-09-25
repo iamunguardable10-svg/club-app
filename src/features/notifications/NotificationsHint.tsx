@@ -22,7 +22,7 @@ import { currentPushSubscription, disablePush, enablePush, isPushSupported, push
 type State = 'loading' | 'unsupported' | 'needsInstall' | 'denied' | 'on' | 'off';
 
 const WHAT_IS_SENT =
-  'Changed or cancelled sessions, "Are you in?" the day before, "How hard was it?" right after a session; coaches get who is coming 2 hours before. Quiet from 22:00 to 07:00, except "How hard was it?".';
+  'Changed or cancelled sessions, "Are you in?" the day before, "How hard was it?" right after a session; coaches get who is coming 2 hours before. Quiet from 22:00 to 07:00 unless you change it in Settings.';
 
 async function readState(): Promise<State> {
   const iosOutsideApp = installPlatform() === 'ios' && !isStandalone();
@@ -38,7 +38,7 @@ function usePushState() {
   return { state, refresh };
 }
 
-export function NotificationsHint({ variant }: { variant: 'card' | 'menu' }) {
+export function NotificationsHint({ variant }: { variant: 'card' | 'menu' | 'settings' }) {
   const [remote, setRemote] = useState(false);
   const { state, refresh } = usePushState();
   const [busy, setBusy] = useState(false);
@@ -74,11 +74,11 @@ export function NotificationsHint({ variant }: { variant: 'card' | 'menu' }) {
   );
   const errorLine = error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null;
 
-  if (variant === 'menu') {
+  if (variant !== 'card') {
     return (
-      <div className="mt-6 grid gap-2 border-t border-slate-800 pt-4 text-sm text-slate-300">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Notifications</p>
-        <p className="text-xs text-slate-400">{WHAT_IS_SENT}</p>
+      <div className={`grid gap-2 text-sm text-slate-300 ${variant === 'menu' ? 'mt-6 border-t border-slate-800 pt-4' : ''}`}>
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{variant === 'menu' ? 'Notifications' : 'This device'}</p>
+        {variant === 'menu' ? <p className="text-xs text-slate-400">{WHAT_IS_SENT}</p> : null}
         {state === 'on' ? (
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-xs font-black text-emerald-300">On for this device</span>

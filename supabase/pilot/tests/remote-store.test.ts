@@ -578,6 +578,45 @@ async function main() {
   data.setActiveIdentity({ role: 'club', personId: frida!.id });
   check('… and acts as club admin', db().activeIdentity?.role === 'club');
 
+  // --- Settings (piece 12) -------------------------------------------------
+  data.renameClub('SV Neu 1920');
+  await data.flushRemote();
+  check('admin: club renamed on the server', (await count("select 1 from clubs where name = 'SV Neu 1920'")) === 1, store.getStatus().rejected);
+  const chess = data.createDepartment('Schach');
+  await data.flushRemote();
+  data.deleteDepartment(chess);
+  await data.flushRemote();
+  check('admin: empty department deleted on the server', (await count('select 1 from departments where id = $1', [chess])) === 0, store.getStatus().rejected);
+  let refusedDelete = '';
+  try {
+    data.deleteDepartment(tennis);
+  } catch (error) {
+    refusedDelete = error instanceof Error ? error.message : String(error);
+  }
+  check('admin: Tennis (archived team) cannot be deleted', refusedDelete.includes('without teams') && (await count('select 1 from departments where id = $1', [tennis])) === 1, refusedDelete);
+  check('… no refusals', store.getStatus().rejected === null, store.getStatus().rejected);
+  store = await actAs(U.lead);
+  data.renameClub('Lars FC');
+  await data.flushRemote();
+  check('lead: cannot rename the club, and is told so',
+    (await count("select 1 from clubs where name = 'SV Neu 1920'")) === 1 && store.getStatus().rejected !== null && db().club.name === 'SV Neu 1920', store.getStatus());
+  data.dismissRejectedChange();
+
+  store = await actAs(U.jonas);
+  const beforeEntries = await count('select 1 from load_entries where person_id = $1', [P.jonas]);
+  data.leaveTeam(TEAM, P.jonas);
+  await data.flushRemote();
+  check('player: Jonas left U16 himself', (await count("select 1 from memberships where person_id = $1 and team_id = $2", [P.jonas, TEAM])) === 0, store.getStatus().rejected);
+  check('… not reported as refused', store.getStatus().rejected === null, store.getStatus().rejected);
+  check('… his load entries stay', (await count('select 1 from load_entries where person_id = $1', [P.jonas])) === beforeEntries);
+  let leftForOther = '';
+  try {
+    data.leaveTeam(TEAM, P.ben);
+  } catch (error) {
+    leftForOther = error instanceof Error ? error.message : String(error);
+  }
+  check('… and cannot take Ben out', leftForOther.includes('yourself') && (await count("select 1 from memberships where person_id = $1 and team_id = $2", [P.ben, TEAM])) === 1, leftForOther);
+
   // --- Not signed in ------------------------------------------------------
   const anonymous = new RemoteStore({ ...pgClient(U.martin), userId: async () => null }, data.SCHEMA_VERSION);
   await anonymous.load();
