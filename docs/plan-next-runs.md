@@ -239,6 +239,20 @@ dorthin (die Auswahl wird dann übersprungen):
   bestehende Hallenverwaltung).
 - Load je Team bleibt per Datenbank geschaltet (Abo), nicht im Vereinsbereich.
 
+## Nach dem Pilot (gemerkt 2026-09-25)
+
+Für den Pilot mit nur dem eigenen Team bewusst zurückgestellt, vor einem Start mit
+weiteren Teams oder Vereinen aber nötig:
+
+- Datenschutzerklärung, Impressum, Einwilligung bei der Registrierung (Gesundheitsdaten:
+  Belastung, RPE, Absagegründe).
+- Minderjährige unter 16: Einwilligung der Eltern.
+- Konto löschen und eigene Daten herunterladen (DSGVO); Team selbst verlassen.
+- Supabase-Tarif (Pausieren nach Inaktivität, Backups) prüfen.
+
+Annahme für den Pilot: alle Spieler haben die App (kein Eintragen durch den Trainer für
+Spieler ohne Konto nötig).
+
 ## Was außerhalb des Codes offen ist
 
 - Supabase: E-Mail-Bestätigung / SMTP, Site URL und Redirect-URLs.
