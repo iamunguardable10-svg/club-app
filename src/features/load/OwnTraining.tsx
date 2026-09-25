@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * Own training of players as the staff see it (piece 21a): in the player
- * sheet the next two weeks, and while planning a session who has own
- * training then. Only for roles that may see athlete plans; decided
- * 2026-09-25: own training is always visible to them.
+ * Own training of players as the staff see it (piece 21a): only in the
+ * player sheet, the next two weeks (decided 2026-09-25: not while planning
+ * a session; moving own training around a club session is the player's
+ * job). Only for roles that may see athlete plans.
  */
 
 import { hasCoachPermission, ownTrainingForTeam, useLocalDatabase, type OwnTrainingItem } from '@/shared/data';
@@ -38,17 +38,5 @@ export function OwnTrainingList({ items }: { items: OwnTrainingItem[] }) {
         </li>
       ))}
     </ul>
-  );
-}
-
-/** While planning a session: who has own training at that time. */
-export function OwnTrainingClash({ items }: { items: OwnTrainingItem[] }) {
-  if (items.length === 0) return null;
-  const players = new Set(items.map((item) => item.personId)).size;
-  return (
-    <div role="status" className="rounded-xl border border-amber-300/40 bg-amber-300/[0.08] p-3 text-xs font-bold text-amber-100">
-      <p className="font-black">{players === 1 ? '1 player has' : `${players} players have`} own training then</p>
-      <p className="mt-1 text-amber-100/80">{items.map((item) => `${item.playerName} (${ownTrainingLine(item)})`).join(' · ')}</p>
-    </div>
   );
 }

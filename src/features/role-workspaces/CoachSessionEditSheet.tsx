@@ -5,8 +5,6 @@ import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 import type { CoachFacility, CoachGroup, CoachSessionDetailsInput, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 import { coachSessionTypes, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
-import { OwnTrainingClash } from '@/features/load/OwnTraining';
-import { ownTrainingDuring, useLocalDatabase } from '@/shared/data';
 
 type CoachCalendarDraft = { startsAt: string; endsAt: string; teamId: string | null; facilityId: string | null; groupIds: string[]; sessionType: string };
 
@@ -45,7 +43,6 @@ export function CoachSessionEditSheet({
   onDraftUpdate?: (value: Partial<CoachCalendarDraft>) => void;
 }) {
   useBodyScrollLock(true);
-  const { database } = useLocalDatabase();
 
   const [teamId, setTeamId] = useState(initial.teamId ?? (allowTeamChange && teams.length > 1 ? '' : teams[0]?.id ?? ''));
   const selectedTeam = teams.find((team) => team.id === teamId) ?? null;
@@ -143,12 +140,6 @@ export function CoachSessionEditSheet({
     onDraftUpdate?.(nextTimeRange(timeValue, nextEndTimeValue));
   }
 
-  // Piece 21a: players with own training at this time (roles that see athlete plans).
-  const plannedRange = nextTimeRange(timeValue, endTimeValue);
-  const ownTrainingClash = database && teamId
-    ? ownTrainingDuring(database, database.activeIdentity?.personId ?? null, teamId, groupIds, plannedRange.startsAt, plannedRange.endsAt)
-    : [];
-
   async function submit() {
     // An away game is played elsewhere: no hall needed.
     if (!hasTeam || !teamId || (!facilityId && !isAwayGame)) return;
@@ -222,8 +213,6 @@ export function CoachSessionEditSheet({
             <p className="mt-2.5 text-sm font-bold text-slate-500">Choose a team to load team groups.</p>
           )}
         </div>
-
-        {ownTrainingClash.length > 0 ? <div className="mt-3"><OwnTrainingClash items={ownTrainingClash} /></div> : null}
 
         <div className="mt-3 grid gap-2.5 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">For the players</p>

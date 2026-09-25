@@ -2038,30 +2038,6 @@ export function ownTrainingForTeam(
     .sort((a, b) => `${a.date}|${a.startsAt ?? ''}`.localeCompare(`${b.date}|${b.startsAt ?? ''}`));
 }
 
-/**
- * Players of a session (the team, or its groups) with own training at the
- * same time: overlapping plans, and plans for that day without a time. For
- * the hint while planning a session.
- */
-export function ownTrainingDuring(
-  database: LocalDatabase,
-  viewerId: Id | null,
-  teamId: Id,
-  groupIds: readonly Id[],
-  startsAt: Timestamp,
-  endsAt: Timestamp,
-): OwnTrainingItem[] {
-  const day = sessionDate(startsAt);
-  const inGroups = groupIds.length === 0
-    ? null
-    : new Set(database.playerGroupMembers.filter((member) => groupIds.includes(member.groupId)).map((member) => member.personId));
-  const start = new Date(startsAt).getTime();
-  const end = new Date(endsAt).getTime();
-  return ownTrainingForTeam(database, viewerId, teamId, day, day)
-    .filter((item) => !inGroups || inGroups.has(item.personId))
-    .filter((item) => !item.startsAt || (new Date(item.startsAt).getTime() < end && new Date(item.endsAt!).getTime() > start));
-}
-
 // ---------------------------------------------------------------------------
 // Absences over a period (piece 16)
 // ---------------------------------------------------------------------------
