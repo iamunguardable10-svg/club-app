@@ -52,7 +52,9 @@ import {
   type Availability,
   type AvailabilityStatus,
   type Facility,
+  type DateOnly,
   type Id,
+  type Timestamp,
   type LoadEntry,
   type LoadEntryReview,
   type LocalDatabase,
@@ -1980,6 +1982,84 @@ export function confirmAttendance(sessionId: Id, presence: { personId: Id; prese
       }
     }
   });
+}
+
+// ---------------------------------------------------------------------------
+// Own training the coach sees (piece 21a)
+// ---------------------------------------------------------------------------
+
+/** One planned own session of a player, as the staff see it. */
+export type OwnTrainingItem = {
+  planId: Id;
+  personId: Id;
+  playerName: string;
+  title: string;
+  date: DateOnly;
+  /** Null: planned for the day without a time. */
+  startsAt: Timestamp | null;
+  endsAt: Timestamp | null;
+};
+
+function ownTrainingItem(database: LocalDatabase, plan: LocalDatabase['athletePlans'][number]): OwnTrainingItem {
+  const person = database.people.find((candidate) => candidate.id === plan.personId);
+  return {
+    planId: plan.id,
+    personId: plan.personId,
+    playerName: person ? displayName(person) : 'Player',
+    title: plan.title,
+    date: plan.date,
+    startsAt: plan.startsAt ?? null,
+    endsAt: plan.startsAt ? new Date(new Date(plan.startsAt).getTime() + plan.expectedDurationMinutes * 60_000).toISOString() : null,
+  };
+}
+
+/**
+ * Own training of a team's players from `fromDate` to `toDate` (both
+ * included), for staff whose role may see athlete plans (decided
+ * 2026-09-25: own training is always visible to them). Empty otherwise.
+ */
+export function ownTrainingForTeam(
+  database: LocalDatabase,
+  viewerId: Id | null,
+  teamId: Id,
+  fromDate: DateOnly,
+  toDate: DateOnly,
+  personId?: Id,
+): OwnTrainingItem[] {
+  if (!hasCoachPermission(database, viewerId, teamId, 'viewAthletePlans')) return [];
+  const players = new Set(
+    database.memberships
+      .filter((membership) => membership.teamId === teamId && membership.role === 'athlete' && (!personId || membership.personId === personId))
+      .map((membership) => membership.personId),
+  );
+  return database.athletePlans
+    .filter((plan) => players.has(plan.personId) && plan.date >= fromDate && plan.date <= toDate)
+    .map((plan) => ownTrainingItem(database, plan))
+    .sort((a, b) => `${a.date}|${a.startsAt ?? ''}`.localeCompare(`${b.date}|${b.startsAt ?? ''}`));
+}
+
+/**
+ * Players of a session (the team, or its groups) with own training at the
+ * same time: overlapping plans, and plans for that day without a time. For
+ * the hint while planning a session.
+ */
+export function ownTrainingDuring(
+  database: LocalDatabase,
+  viewerId: Id | null,
+  teamId: Id,
+  groupIds: readonly Id[],
+  startsAt: Timestamp,
+  endsAt: Timestamp,
+): OwnTrainingItem[] {
+  const day = sessionDate(startsAt);
+  const inGroups = groupIds.length === 0
+    ? null
+    : new Set(database.playerGroupMembers.filter((member) => groupIds.includes(member.groupId)).map((member) => member.personId));
+  const start = new Date(startsAt).getTime();
+  const end = new Date(endsAt).getTime();
+  return ownTrainingForTeam(database, viewerId, teamId, day, day)
+    .filter((item) => !inGroups || inGroups.has(item.personId))
+    .filter((item) => !item.startsAt || (new Date(item.startsAt).getTime() < end && new Date(item.endsAt!).getTime() > start));
 }
 
 // ---------------------------------------------------------------------------
