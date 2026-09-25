@@ -545,6 +545,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     loadEntryReviews: [],
     attendanceConfirmations: [],
     absences,
+    squadEntries: [],
     shareLinks: {},
     // Start as the first coach so the app is usable immediately. Run 3 adds
     // the entry page that asks which role to test as and lets the person

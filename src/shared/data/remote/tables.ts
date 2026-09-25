@@ -19,6 +19,7 @@ import type {
   SessionType,
   TeamFeature,
   AbsenceKind,
+  SquadStatus,
 } from '../schema';
 import type { LoadTrainingType } from '../loadTypes';
 
@@ -58,7 +59,7 @@ export const TABLES: readonly TableSpec[] = [
   { name: 'player_groups', key: ['id'] },
   { name: 'player_group_members', key: ['group_id', 'person_id'] },
   { name: 'session_series', key: ['id'], kinds: { start_time: 'time', end_time: 'time', created_at: 'timestamp' } },
-  { name: 'sessions', key: ['id'], kinds: { starts_at: 'timestamp', ends_at: 'timestamp', created_at: 'timestamp' } },
+  { name: 'sessions', key: ['id'], kinds: { starts_at: 'timestamp', ends_at: 'timestamp', created_at: 'timestamp', squad_published_at: 'timestamp' } },
   { name: 'session_series_week_states', key: ['series_id', 'week_start'], kinds: { updated_at: 'timestamp' } },
   { name: 'availability', key: ['id'], kinds: { reported_at: 'timestamp' } },
   { name: 'availability_reasons', key: ['availability_id'] },
@@ -68,6 +69,7 @@ export const TABLES: readonly TableSpec[] = [
   { name: 'absences', key: ['id'], kinds: { created_at: 'timestamp' } },
   // Kind and note live apart: shared only with viewAbsenceReasons (piece 16).
   { name: 'absence_reasons', key: ['absence_id'] },
+  { name: 'squad_entries', key: ['session_id', 'person_id'], kinds: { set_at: 'timestamp' } },
   { name: 'load_summaries', key: ['person_id'], kinds: { acwr: 'number', updated_at: 'timestamp' } },
   { name: 'athlete_plans', key: ['id'], kinds: { starts_at: 'timestamp', created_at: 'timestamp', expected_rpe: 'number' } },
   { name: 'acknowledged_sessions', key: ['person_id', 'session_id'] },
@@ -78,7 +80,7 @@ export type TableName =
   | 'staff_invites' | 'club_roles' | 'club_role_invites'
   | 'memberships' | 'player_groups' | 'player_group_members' | 'session_series' | 'sessions'
   | 'session_series_week_states' | 'availability' | 'availability_reasons' | 'load_entries'
-  | 'load_summaries' | 'athlete_plans' | 'acknowledged_sessions' | 'load_entry_reviews' | 'attendance_confirmations' | 'absences' | 'absence_reasons';
+  | 'load_summaries' | 'athlete_plans' | 'acknowledged_sessions' | 'load_entry_reviews' | 'attendance_confirmations' | 'absences' | 'absence_reasons' | 'squad_entries';
 
 export function tableSpec(name: TableName): TableSpec {
   return TABLES.find((table) => table.name === name)!;
@@ -160,6 +162,7 @@ export function toServerRows(database: LocalDatabase): ServerRows {
       series_week_start: s.seriesWeekStart, created_at: s.createdAt,
       notes: s.notes ?? null, meet_minutes_before: s.meetMinutesBefore ?? null, meet_point: s.meetPoint ?? null,
       opponent: s.opponent ?? null, home_away: s.homeAway ?? null, venue_address: s.venueAddress ?? null,
+      squad_published_at: s.squadPublishedAt ?? null,
     })),
     session_series_week_states: database.sessionSeriesWeekStates.map((w) => ({
       series_id: w.seriesId, week_start: w.weekStart, checked: w.checked, committed_session_id: w.committedSessionId, updated_at: w.updatedAt,
@@ -197,6 +200,9 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     absence_reasons: (database.absences ?? [])
       .filter((a) => a.kind !== null)
       .map((a) => ({ absence_id: a.id, kind: a.kind, note: a.note })),
+    squad_entries: (database.squadEntries ?? []).map((q) => ({
+      session_id: q.sessionId, person_id: q.personId, status: q.status, set_by: q.setBy, set_at: q.setAt,
+    })),
   };
   for (const table of TABLES) rows[table.name] = rows[table.name].map((row) => normalizeRow(table.name, row));
   return rows;
@@ -273,6 +279,7 @@ export function fromServerRows(
         groupIds: (x.group_ids as string[]) ?? [], seriesId: sn(x.series_id), seriesWeekStart: sn(x.series_week_start), createdAt: s(x.created_at),
         notes: sn(x.notes), meetMinutesBefore: x.meet_minutes_before === null || x.meet_minutes_before === undefined ? null : Number(x.meet_minutes_before),
         meetPoint: sn(x.meet_point), opponent: sn(x.opponent), homeAway: (sn(x.home_away) as 'home' | 'away' | null), venueAddress: sn(x.venue_address),
+        squadPublishedAt: sn(x.squad_published_at),
       }))
       .sort((a, b) => a.startsAt.localeCompare(b.startsAt)),
     sessionSeries: rows.session_series.map((x) => ({
@@ -325,6 +332,9 @@ export function fromServerRows(
         };
       })
       .sort((a, b) => a.fromDate.localeCompare(b.fromDate)),
+    squadEntries: rows.squad_entries.map((q) => ({
+      sessionId: s(q.session_id), personId: s(q.person_id), status: s(q.status) as SquadStatus, setBy: sn(q.set_by), setAt: s(q.set_at),
+    })),
     shareLinks: context.previous?.shareLinks ?? {},
     activeIdentity: null,
   };

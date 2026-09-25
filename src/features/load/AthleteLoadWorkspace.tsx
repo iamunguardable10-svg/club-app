@@ -1,7 +1,7 @@
 'use client';
 
 import { type MouseEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useState } from 'react';
-import { SessionInfo, gameLine, meetLine } from '@/features/sessions/SessionInfo';
+import { SQUAD_LINE, SessionInfo, gameLine, meetLine } from '@/features/sessions/SessionInfo';
 import { AbsencePanel } from '@/features/absences/AbsencePanel';
 import Link from 'next/link';
 import {
@@ -2000,7 +2000,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   {nextSession.info ? (() => {
                     const info = { ...nextSession.info, startsAt: nextSession.startsAt };
                     const place = info.homeAway === 'away' ? info.venueAddress : info.facilityName;
-                    const lines = [gameLine(info), place, meetLine(info)].filter(Boolean);
+                    const lines = [info.squad ? SQUAD_LINE[info.squad] : null, gameLine(info), place, info.squad === 'not_selected' ? null : meetLine(info)].filter(Boolean);
                     return lines.length > 0 ? <p className="mt-1 text-sm font-bold text-amber-100/90">{lines.join(' · ')}</p> : null;
                   })() : null}
                   {nextSession.info?.notes ? <p className="mt-1 line-clamp-2 text-xs font-bold text-slate-400">{nextSession.info.notes}</p> : null}

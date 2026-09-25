@@ -1697,3 +1697,30 @@ Grund, Kürzen/Löschen); Typecheck, Build, Browser Handy/Desktop (Plakette, Fen
 trägt ein, Spieler trägt ein; kein Überlauf, keine Fehler). Beim Bau gefunden: Das Speichern
 der Zu-/Absagen ersetzte alle Zeilen eines Spielers und hätte eine ausdrückliche Zusage
 während einer Abwesenheit gelöscht → bleibt jetzt erhalten.
+
+## Run 22 — Stück 15: Kader für Spiele (erledigt)
+
+- **Trainer** (Detail-Fenster eines kommenden Spiels, Abschnitt „Squad“; Rollen mit
+  „Einheiten bearbeiten“): je Spieler **Squad / Reserve / Out**; wer abgesagt hat oder
+  abwesend ist, steht getrennt darunter (mit Grund bzw. „injured until …“), nicht versteckt.
+  „Everyone available → squad“ setzt alle Verfügbaren auf einmal. Zähler „9 squad · 1
+  reserve · 0 out · 2 not picked yet“.
+- **Veröffentlichen** („Publish squad“, mit Rückfrage): nicht gewählte Spieler werden „not in
+  the squad“; jeder Spieler bekommt eine Push-Nachricht mit seinem Status („You're in the
+  squad“ mit Treffpunkt / „You're a reserve“ / „Not in the squad this time“). Vorher sehen
+  Spieler nichts. Änderungen danach sieht der Spieler sofort in der App; „Notify players about
+  the changes“ benachrichtigt nur die, deren Status sich geändert hat.
+- **Spieler** sehen im Fenster des Spiels und bei „Next up“ ihren Status als Plakette;
+  nicht Nominierte ohne Treffpunkt.
+- **Folgen von „not in the squad“:** keine RPE-Abfrage für das Spiel, kein „Are you in?“, in
+  der Trainer-Übersicht nicht gezählt, zählt nicht gegen die Anwesenheitsquote, startet in
+  „Who was there?“ als „not there“ (Label „not in the squad“).
+- **Migration 0021 (angewendet).** Datenversion v16.
+
+Geprüft: Datenbank 11 Testdateien grün, neu `11_squads_test.sql` (nur Spiele, nur Spieler des
+Teams, Rechte, vor/nach Veröffentlichen, Push-Texte, erneutes Veröffentlichen nur Geänderte,
+keine Erinnerung für nicht Nominierte); Datenschicht 136 (u. a. Zeitvergleich mit echten
+Server-Zeitstempeln); Typecheck, Build, Browser Handy/Desktop (Auswahl, Veröffentlichen,
+Änderung danach, Spieler sieht „You're a reserve“; kein Überlauf, keine Fehler). Beim Bau
+gefunden: „geändert seit Veröffentlichen“ verglich Zeitstempel als Text (Server liefert
+„+00:00“, die App „Z“) → jetzt als Zeitpunkte. Live geprüft: Stück 16 (PR #18) läuft.
