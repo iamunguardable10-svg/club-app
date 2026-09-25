@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { dismissInstallHint, isInstallHintDismissed } from '@/shared/data';
+import { dismissHint, isHintDismissed } from '@/shared/data';
 
 import {
   canPromptInstall,
@@ -72,7 +72,7 @@ export function InstallHint({ variant }: { variant: 'card' | 'menu' }) {
   const { ready, standalone, platform, canPrompt, installed } = useInstallState();
   const [dismissed, setDismissed] = useState(true);
   const [open, setOpen] = useState(false);
-  useEffect(() => setDismissed(isInstallHintDismissed()), []);
+  useEffect(() => setDismissed(isHintDismissed('install')), []);
 
   if (!ready || standalone || installed) return null;
 
@@ -116,7 +116,7 @@ export function InstallHint({ variant }: { variant: 'card' | 'menu' }) {
         {installButton}
         <button
           type="button"
-          onClick={() => { dismissInstallHint(); setDismissed(true); }}
+          onClick={() => { dismissHint('install'); setDismissed(true); }}
           className="text-xs font-bold text-slate-400 underline"
         >
           Not now

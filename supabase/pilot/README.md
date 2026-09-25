@@ -21,6 +21,8 @@ migrations below are applied there (2026-09-24).
 | `migrations/0010_pilot_missed_sessions.sql` | Availability status `missed` ("I didn't take part", said after the session), only once the session has started |
 | `migrations/0011_pilot_club_admin.sql` | Club administration: club admin and department leads (`club_roles`), their invitations, one-time founding codes and `found_club`, management rights in managed teams without player data, archiving teams |
 | `migrations/0012_pilot_onboarding.sql` | Onboarding: `join_code_preview` (club and team behind a join code) and `founding_code_usable`, both callable before signing in; `join_team` refuses archived teams; clear message when an account already belongs to another club; `invite_preview` returns the kind (`staff` or `club`) |
+| `migrations/0013_pilot_push.sql` | Push notifications: devices (`push_subscriptions`), the outbox, quiet hours 22–07 (except "How hard was it?"), change/cancel triggers, due reminders, coach overview and rating prompts, the minute tick (pg_cron + pg_net) and the sender's functions |
+| `migrations/0014_pilot_push_hardening.sql` | Only the service role calls the sender's functions; `pg_net` in the `extensions` schema |
 | `tests/00_supabase_shim.sql` | Stand-in for Supabase's `auth` schema and roles, **local tests only** |
 | `tests/01_rls_test.sql` | 105 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
 | `tests/02_access_test.sql` | 35 checks for join codes, invitations and club setup |
@@ -125,7 +127,33 @@ data again. The app cannot change this.
   never readable from the app. `join_code_preview` and `founding_code_usable`
   (0012) are callable without signing in on purpose: they only answer club
   and team name for an exact join code, or yes/no for a founding code.
+  `push_public_key` (0013) is public on purpose (the VAPID public key);
+  `save_push_subscription` / `delete_push_subscription` only act for the
+  signed-in account. `push_take_due` / `push_report` are callable by the
+  service role only and check the dispatch secret as well.
   `rls_auto_enable` comes with the Supabase project.
+
+## Push notifications (piece 7)
+
+The Edge Function source is `supabase/functions/push-dispatch/index.ts`
+(deployed as `push-dispatch`, JWT verification off: the dispatch secret is
+the guard). Setting it up on a project, once, in the SQL editor:
+
+```sql
+-- VAPID keys: generate with `npx web-push generate-vapid-keys`.
+insert into app.push_config (key, value) values
+  ('vapid_public_key', '<public key>'),
+  ('vapid_private_key', '<private key>'),
+  ('vapid_subject', 'https://<app address>'),
+  ('function_url', 'https://<project>.supabase.co/functions/v1/push-dispatch'),
+  ('dispatch_secret', encode(extensions.gen_random_bytes(32), 'hex'))
+on conflict (key) do update set value = excluded.value;
+```
+
+Changing the VAPID keys makes every device subscribe again (they have to
+turn notifications on once more). The minute job is `club-os-push-tick`
+(`select * from cron.job`); what was sent is in `app.push_outbox`, the
+sender's answers in `net._http_response`.
 
 ## Changing the schema
 
