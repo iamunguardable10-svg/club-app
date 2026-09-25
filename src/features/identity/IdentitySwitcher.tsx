@@ -23,7 +23,6 @@ import Link from 'next/link';
 
 import { LocalModeLink } from '@/features/access/LocalModeLink';
 import { SignOutButton } from '@/features/access/SignOutButton';
-import { AddRolePanel } from '@/features/identity/AddRolePanel';
 import { ReportProblemDialog } from '@/features/errors/ReportProblemDialog';
 
 import {
@@ -212,8 +211,13 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
               {renderGroup('club')}
             </div>
 
-            {/* The same account can hold more roles (2026-09-25). */}
-            {remoteMode && database ? <AddRolePanel database={database} onDone={() => undefined} /> : null}
+            {/* The same account can hold more roles: the start page shows every way in (2026-09-25). */}
+            {remoteMode ? (
+              <Link href="/?add=1" onClick={() => setOpen(false)} className="mt-5 flex items-center justify-between rounded-2xl border border-emerald-300/40 px-4 py-3 text-sm font-black text-emerald-100 hover:border-emerald-300">
+                Add a role
+                <span aria-hidden className="text-emerald-300">+</span>
+              </Link>
+            ) : null}
 
             {/* Name, email, password, notifications and the rest (piece 12). */}
             {current ? (

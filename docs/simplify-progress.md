@@ -1956,3 +1956,17 @@ Geprüft: Datenschicht (neu: Trainer tritt dem eigenen Team als Spieler bei, die
 beide Rollen); Typecheck, Build; Browser 320/390/1280: Reiter in einer Zeile, passen, kein
 seitliches Scrollen; leere Seite ohne Überhöhe; keine Fehler.
 
+## Run 32 — „Add a role“ führt zur Startseite (erledigt)
+
+Gewünscht (2026-09-25): „Add a role“ im Profilmenü soll zur Startseite mit allen Wegen hinein
+führen, um anderen Teams oder Organisationen beizutreten.
+
+- Profilbild → **„Add a role“** öffnet `/?add=1`: oben „Welcome back“ mit den eigenen Rollen
+  (weiter wie bisher), darunter für Trainer „Also play in <Team>“ (ein Tipp, gleiches Konto),
+  dann die Auswahl „How do you want to join?“ wie für neue Leute: Spieler (Code/Link), Trainer
+  (Einladungslink), Abteilungsleitung (Einladungslink), Verein gründen (Gründungscode).
+- Grenze: **ein Konto gehört zu einem Verein** (`people.user_id` ist eindeutig; der Server
+  antwortet sonst „Your account already belongs to another club“). Andere Teams des eigenen
+  Vereins gehen; mehrere Vereine/Organisationen pro Konto wären ein eigenes, größeres Stück
+  (Datenmodell, Zugriffsregeln, Vereinswechsel in der App) – als Frage an Ben offen.
+
