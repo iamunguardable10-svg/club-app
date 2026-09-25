@@ -75,6 +75,8 @@ export const TABLES: readonly TableSpec[] = [
   { name: 'load_summaries', key: ['person_id'], kinds: { acwr: 'number', updated_at: 'timestamp' } },
   { name: 'athlete_plans', key: ['id'], kinds: { starts_at: 'timestamp', created_at: 'timestamp', expected_rpe: 'number' } },
   { name: 'acknowledged_sessions', key: ['person_id', 'session_id'] },
+  // Imported from the person's Apple calendars by the server (piece 20).
+  { name: 'private_events', key: ['user_id', 'source_url', 'key'], kinds: { starts_at: 'timestamp', ends_at: 'timestamp' }, readOnly: true },
 ];
 
 export type TableName =
@@ -82,7 +84,7 @@ export type TableName =
   | 'staff_invites' | 'club_roles' | 'club_role_invites'
   | 'memberships' | 'player_groups' | 'player_group_members' | 'session_series' | 'sessions'
   | 'session_series_week_states' | 'availability' | 'availability_reasons' | 'load_entries'
-  | 'load_summaries' | 'athlete_plans' | 'acknowledged_sessions' | 'load_entry_reviews' | 'attendance_confirmations' | 'absences' | 'absence_reasons' | 'squad_entries' | 'team_messages' | 'message_reads';
+  | 'load_summaries' | 'athlete_plans' | 'acknowledged_sessions' | 'load_entry_reviews' | 'attendance_confirmations' | 'absences' | 'absence_reasons' | 'squad_entries' | 'team_messages' | 'message_reads' | 'private_events';
 
 export function tableSpec(name: TableName): TableSpec {
   return TABLES.find((table) => table.name === name)!;
@@ -210,6 +212,9 @@ export function toServerRows(database: LocalDatabase): ServerRows {
       created_at: m.createdAt, reminded_at: m.remindedAt,
     })),
     message_reads: (database.messageReads ?? []).map((r) => ({ message_id: r.messageId, person_id: r.personId, read_at: r.readAt })),
+    private_events: (database.privateEvents ?? []).map((e) => ({
+      user_id: e.userId, source_url: e.sourceUrl, key: e.key, title: e.title, starts_at: e.startsAt, ends_at: e.endsAt, all_day: e.allDay,
+    })),
   };
   for (const table of TABLES) rows[table.name] = rows[table.name].map((row) => normalizeRow(table.name, row));
   return rows;
@@ -349,6 +354,10 @@ export function fromServerRows(
       }))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     messageReads: rows.message_reads.map((r) => ({ messageId: s(r.message_id), personId: s(r.person_id), readAt: s(r.read_at) })),
+    privateEvents: rows.private_events.map((e) => ({
+      userId: s(e.user_id), sourceUrl: s(e.source_url), key: s(e.key), title: s(e.title),
+      startsAt: s(e.starts_at), endsAt: s(e.ends_at), allDay: Boolean(e.all_day),
+    })),
     shareLinks: context.previous?.shareLinks ?? {},
     activeIdentity: null,
   };

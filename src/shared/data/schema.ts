@@ -460,6 +460,21 @@ export type MessageRead = {
   readAt: Timestamp;
 };
 
+/**
+ * An event from one of the person's own Apple calendars that they chose to
+ * import (piece 20). Private: only the person sees it (coaches: piece 21b).
+ * Only with the club server; read-only in the app.
+ */
+export type PrivateEvent = {
+  userId: Id;
+  sourceUrl: string;
+  key: string;
+  title: string;
+  startsAt: Timestamp;
+  endsAt: Timestamp;
+  allDay: boolean;
+};
+
 export type AttendanceConfirmation = {
   sessionId: Id;
   personId: Id;
@@ -512,6 +527,8 @@ export type LocalDatabase = {
   squadEntries: SquadEntry[];
   teamMessages: TeamMessage[];
   messageReads: MessageRead[];
+  /** Imported Apple calendar events (server mode only; piece 20). */
+  privateEvents?: PrivateEvent[];
   /** The last load link an athlete shared with a coach, per person. */
   shareLinks: Record<Id, string>;
   activeIdentity: ActiveIdentity | null;

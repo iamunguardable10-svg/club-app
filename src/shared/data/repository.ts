@@ -53,6 +53,7 @@ import {
   type AvailabilityStatus,
   type Facility,
   type DateOnly,
+  type PrivateEvent,
   type Id,
   type Timestamp,
   type LoadEntry,
@@ -699,6 +700,81 @@ export async function stopCalendarLink(): Promise<void> {
   const supabase = await authClient();
   const { error } = await supabase.rpc('calendar_feed_stop');
   if (error) throw new LocalDataError(error.message);
+}
+
+// ---------------------------------------------------------------------------
+// Apple Calendar connection (piece 20), optional
+// ---------------------------------------------------------------------------
+
+export type AppleCalendarStatus = { appleId: string; status: 'ok' | 'error'; lastError: string | null; lastSyncAt: string | null };
+export type CalendarSource = { url: string; name: string; color: string | null; import: boolean; coachSees: 'none' | 'busy' | 'title' };
+
+/** The connection, or null when this account has none (the usual case). */
+export async function getAppleCalendarStatus(): Promise<AppleCalendarStatus | null> {
+  const supabase = await authClient();
+  const { data, error } = await supabase.rpc('apple_calendar_status');
+  if (error) throw new LocalDataError(error.message);
+  const row = data as { apple_id: string; status: 'ok' | 'error'; last_error: string | null; last_sync_at: string | null } | null;
+  return row ? { appleId: row.apple_id, status: row.status, lastError: row.last_error, lastSyncAt: row.last_sync_at } : null;
+}
+
+async function callAppleCalendar(body: Record<string, string>): Promise<Record<string, unknown>> {
+  const supabase = await authClient();
+  const { data: session } = await supabase.auth.getSession();
+  const token = session.session?.access_token;
+  if (!token) throw new LocalDataError('Please sign in again.');
+  const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/apple-calendar`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  }).catch(() => null);
+  if (!response) throw new LocalDataError("You're offline. Try again when you have a connection.");
+  const result = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!response.ok || typeof result.error === 'string') throw new LocalDataError(typeof result.error === 'string' ? result.error : 'Apple Calendar is not available right now.');
+  return result;
+}
+
+/** Checks the Apple ID and app-specific password with iCloud, stores them and runs the first sync. */
+export async function connectAppleCalendar(appleId: string, password: string): Promise<void> {
+  await callAppleCalendar({ action: 'connect', appleId, password });
+  await refreshFromServer();
+}
+
+export async function syncAppleCalendar(): Promise<void> {
+  await callAppleCalendar({ action: 'sync' });
+  await refreshFromServer();
+}
+
+/** Deletes the stored password, the calendar list and imported events. */
+export async function disconnectAppleCalendar(): Promise<void> {
+  const supabase = await authClient();
+  const { error } = await supabase.rpc('disconnect_apple_calendar');
+  if (error) throw new LocalDataError(error.message);
+  await refreshFromServer();
+}
+
+export async function listCalendarSources(): Promise<CalendarSource[]> {
+  const supabase = await authClient();
+  const { data, error } = await supabase.from('calendar_sources').select('url, name, color, import, coach_sees').order('name');
+  if (error) throw new LocalDataError(error.message);
+  return (data ?? []).map((row) => ({ url: row.url, name: row.name, color: row.color, import: row.import, coachSees: row.coach_sees }));
+}
+
+/** Lets Club OS read a calendar or not (off: its events go at once). */
+export async function setCalendarImport(url: string, value: boolean): Promise<void> {
+  const supabase = await authClient();
+  const { error } = await supabase.from('calendar_sources').update({ import: value }).eq('url', url);
+  if (error) throw new LocalDataError(error.message);
+  if (!value) await refreshFromServer();
+}
+
+/** The signed-in person's imported events between two times (for their own calendar). */
+export function privateEventsBetween(database: LocalDatabase, fromMs: number, toMs: number): PrivateEvent[] {
+  return (database.privateEvents ?? []).filter((event) => Date.parse(event.endsAt) > fromMs && Date.parse(event.startsAt) < toMs);
 }
 
 // ---------------------------------------------------------------------------

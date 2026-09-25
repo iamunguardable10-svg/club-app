@@ -79,11 +79,12 @@ select test.expect_count('Pia is away for tomorrow''s session', $q$select 1 wher
 insert into public.availability (session_id, person_id, status) values ('57000000-0000-0000-0000-0000000000a1', 'a7000000-0000-0000-0000-000000000071', 'in');
 select test.expect_count('… unless she says "in" for it anyway', $q$select 1 where not app.absent_for_session('a7000000-0000-0000-0000-000000000071', '57000000-0000-0000-0000-0000000000a1')$q$, 1);
 
--- A new absence closes what is still waiting about its sessions.
+-- A new absence closes what is still waiting about its sessions. It starts
+-- yesterday so "Just over" (an hour ago) is inside it also just after midnight.
 set role authenticated;
 select test.act_as('10000000-0000-0000-0000-000000000072');
-select test.expect_rows('Paul says he is sick today and tomorrow',
-  'insert into public.absences (person_id, from_date, to_date) values (''a7000000-0000-0000-0000-000000000072'', ' || quote_literal(:'today') || ', ' || quote_literal(:'today') || '::date + 1)', 1);
+select test.expect_rows('Paul says he was sick since yesterday, until tomorrow',
+  'insert into public.absences (person_id, from_date, to_date) values (''a7000000-0000-0000-0000-000000000072'', ' || quote_literal(:'today') || '::date - 1, ' || quote_literal(:'today') || '::date + 1)', 1);
 reset role;
 select test.expect_count('… his waiting "Are you in?" and "How hard was it?" are closed',
   $q$select 1 from app.push_outbox where user_id = '10000000-0000-0000-0000-000000000072' and kind in ('reminder', 'rate')
