@@ -13,6 +13,7 @@
 
 import {
   athletesForTeam,
+  awayForSession,
   coachPermissions,
   teamHasFeature,
   displayName,
@@ -24,6 +25,7 @@ import {
   type LocalDatabase,
 } from '@/shared/data';
 import { loadAccessFor, summarizeLoadEntries, type LoadAccess } from '@/features/load/loadAccess';
+import { awayUntilLabel } from '@/features/absences/absenceText';
 import type { ConflictSession } from '@/features/calendar/sessionConflicts';
 import type { SeriesTemplate, SeriesWeekState } from '@/features/sessions/sessionSeriesPlanner';
 import type {
@@ -242,10 +244,23 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
       // reasons are often about health.
       const reported = !permissions.has('viewAttendance')
         ? []
-        : (availabilityBySessionId.get(session.id) ?? []).map((entry) =>
-            // "did not take part" is a status, not a private reason.
-            permissions.has('viewAbsenceReasons') || entry.missed ? entry : { ...entry, reason: null },
-          );
+        : [
+            ...(availabilityBySessionId.get(session.id) ?? []).map((entry) =>
+              // "did not take part" is a status, not a private reason.
+              permissions.has('viewAbsenceReasons') || entry.missed ? entry : { ...entry, reason: null },
+            ),
+            // Away for a period (piece 16): out without a report of their own.
+            ...scopedPlayers.flatMap((player): CoachAvailability[] => {
+              if ((availabilityBySessionId.get(session.id) ?? []).some((entry) => entry.userId === player.id)) return [];
+              const absence = awayForSession(database, player.id, session);
+              return absence
+                ? [{
+                    id: `away-${session.id}-${player.id}`, userId: player.id, playerName: player.name, status: 'out',
+                    reason: awayUntilLabel(absence, permissions.has('viewAbsenceReasons')), lateMinutes: null, awayUntil: absence.toDate,
+                  }]
+                : [];
+            }),
+          ];
       // What a coach confirmed afterwards wins over what the player said
       // (piece 11): confirmed there → not an absence; confirmed not there →
       // an absence, whatever was reported.
@@ -382,6 +397,10 @@ export function attendanceRateForPerson(database: LocalDatabase, personId: Id, t
       .filter((entry) => entry.personId === personId && (entry.status === 'out' || entry.status === 'missed'))
       .map((entry) => entry.sessionId),
   );
+  // Away for a period counts as absent too (piece 16).
+  for (const session of pastSessions) {
+    if (awayForSession(database, personId, session)) absences.add(session.id);
+  }
   // A coach's confirmation wins over the player's own report (piece 11).
   for (const confirmation of database.attendanceConfirmations) {
     if (confirmation.personId !== personId) continue;

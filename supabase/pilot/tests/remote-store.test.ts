@@ -532,6 +532,45 @@ async function main() {
   }
   check('the invitation works only once', reused.includes('no longer valid'), reused);
 
+  // --- Absences over a period (piece 16) ----------------------------------
+  const day = (offset: number) => {
+    const date = new Date(Date.now() + offset * 86_400_000);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+  store = await actAs(U.ben);
+  const benAway = data.saveAbsence({ personId: P.ben, fromDate: day(0), toDate: day(3), kind: 'injured', note: 'Knee' });
+  await data.flushRemote();
+  check('Ben: absence with kind and note on the server',
+    (await count("select 1 from absences a join absence_reasons r on r.absence_id = a.id where a.id = $1 and r.kind = 'injured' and r.note = 'Knee' and a.created_by = $2", [benAway, P.ben])) === 1,
+    store.getStatus().rejected);
+  check('… the future session counts as away for him', data.awayForSession(db(), P.ben, { id: FUTURE, startsAt: new Date(Date.now() + 86_400_000).toISOString() }) !== null);
+  check('… and he is not asked to rate sessions in it', !rateStore.readSessionsToRate(db(), P.ben).some((session) => data.sessionDate(session.startsAt) >= day(0) && data.sessionDate(session.startsAt) <= day(3)));
+  store = await actAs(U.martin);
+  const martinView = buildCoachData(db(), P.martin).sessions.find((session) => session.id === FUTURE);
+  check('Martin (Head Coach): Ben is out, "injured until …"',
+    martinView?.availability.some((entry) => entry.userId === P.ben && entry.status === 'out' && entry.reason?.startsWith('injured until')) === true,
+    martinView?.availability);
+  store = await actAs(U.uwe);
+  check('Uwe (Team Manager, no absence reasons): sees the period, not the kind',
+    db().absences.some((absence) => absence.personId === P.ben && absence.kind === null));
+  const uweView = buildCoachData(db(), P.uwe).sessions.find((session) => session.id === FUTURE);
+  check('… Ben shows as "away until …"',
+    uweView?.availability.some((entry) => entry.userId === P.ben && entry.reason?.startsWith('away until')) === true, uweView?.availability);
+  const uweEntered = data.saveAbsence({ personId: P.ben, fromDate: day(10), toDate: day(12), kind: null });
+  await data.flushRemote();
+  check('Uwe marks Ben away next week, without a reason, and it is not reported as refused',
+    (await count('select 1 from absences where id = $1 and created_by = $2', [uweEntered, P.uwe])) === 1 && store.getStatus().rejected === null,
+    store.getStatus().rejected);
+  store = await actAs(U.ben);
+  data.saveAbsence({ id: benAway, personId: P.ben, fromDate: day(0), toDate: day(0), kind: 'injured', note: 'Knee' });
+  data.deleteAbsence(uweEntered);
+  await data.flushRemote();
+  check('Ben shortens his and removes the one Uwe entered',
+    (await count('select 1 from absences where person_id = $1', [P.ben])) === 1 && (await count('select 1 from absences where id = $1 and to_date = $2', [benAway, day(0)])) === 1,
+    store.getStatus().rejected);
+  data.deleteAbsence(benAway);
+  await data.flushRemote();
+
   // --- Founding a club and running it (piece 8a) ---------------------------
   const foundingCode = (await pool.query(`select app.create_founding_code('e2e') as code`)).rows[0].code as string;
   store = await actAs(U.founder);

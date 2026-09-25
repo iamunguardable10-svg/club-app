@@ -401,6 +401,29 @@ export type LoadEntryReview = {
 };
 
 /** Who was actually at a session, recorded by a coach afterwards (piece 11). */
+/** Why someone is away (piece 16); health information, shared narrowly. */
+export type AbsenceKind = 'injured' | 'sick' | 'holiday' | 'school_work' | 'other';
+
+export const ABSENCE_KINDS: AbsenceKind[] = ['injured', 'sick', 'holiday', 'school_work', 'other'];
+
+/**
+ * Away for a period (piece 16): every session of the player's teams from
+ * `fromDate` to `toDate` (inclusive, club time) counts as out, unless the
+ * player says "in" for one anyway. `kind` and `note` are null for viewers
+ * who may not see absence reasons.
+ */
+export type Absence = {
+  id: Id;
+  personId: Id;
+  fromDate: DateOnly;
+  toDate: DateOnly;
+  kind: AbsenceKind | null;
+  note: string | null;
+  /** Who entered it: the player, or a coach for them. */
+  createdBy: Id | null;
+  createdAt: Timestamp;
+};
+
 export type AttendanceConfirmation = {
   sessionId: Id;
   personId: Id;
@@ -449,6 +472,7 @@ export type LocalDatabase = {
   acknowledgedSessions: AcknowledgedSession[];
   loadEntryReviews: LoadEntryReview[];
   attendanceConfirmations: AttendanceConfirmation[];
+  absences: Absence[];
   /** The last load link an athlete shared with a coach, per person. */
   shareLinks: Record<Id, string>;
   activeIdentity: ActiveIdentity | null;

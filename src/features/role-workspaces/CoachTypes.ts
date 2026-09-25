@@ -31,6 +31,8 @@ export type CoachAvailability = {
   missed?: boolean;
   /** Set by a coach after the session (piece 11); wins over what the player said. */
   confirmedByCoach?: boolean;
+  /** Away for a period until this date (piece 16), no report of their own. */
+  awayUntil?: string;
 };
 
 /** A coach asked the player to check this entry (piece 10). */

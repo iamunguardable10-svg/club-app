@@ -2,6 +2,7 @@
 
 import { type MouseEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useState } from 'react';
 import { SessionInfo, gameLine, meetLine } from '@/features/sessions/SessionInfo';
+import { AbsencePanel } from '@/features/absences/AbsencePanel';
 import Link from 'next/link';
 import {
   Bar,
@@ -43,6 +44,7 @@ import {
   readTeamSessions,
   saveAcknowledged,
   saveAvailability,
+  sayInDuringAbsence,
   saveEntries,
   saveMissedSession,
   savePlans,
@@ -1693,9 +1695,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
     setAvailabilityBySessionId((current) => {
       const next = new Map(current);
+      const wasAway = current.get(session.id)?.fromAbsence === true;
       if (status === 'expected') next.delete(session.id);
       else next.set(session.id, { status, reason: trimmedReason, lateMinutes: status === 'late' ? minutes : null });
-      if (activePersonId) saveAvailability(activePersonId, next);
+      if (activePersonId) {
+        saveAvailability(activePersonId, next);
+        // Coming anyway although away for a period (piece 16).
+        if (status === 'expected' && wasAway) sayInDuringAbsence(activePersonId, session.id);
+      }
       return next;
     });
     setCancelledSessionIds((current) => {
@@ -2013,6 +2020,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                       </button>
                     </div>
                   ))}
+                </div>
+              ) : null}
+              {/* Piece 16: away for a period (injured, sick, holiday …). */}
+              {activePersonId ? (
+                <div className="mt-4 border-t border-slate-800/80 pt-4">
+                  <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Away</p>
+                  <AbsencePanel personId={activePersonId} viewer="self" showReasons />
                 </div>
               ) : null}
             </div>

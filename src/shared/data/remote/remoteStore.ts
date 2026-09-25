@@ -126,6 +126,8 @@ const TABLE_LABEL: Partial<Record<TableName, string>> = {
   acknowledged_sessions: 'dismissed sessions',
   load_entry_reviews: 'check requests',
   attendance_confirmations: 'attendance',
+  absences: 'absences',
+  absence_reasons: 'absence reasons',
 };
 
 export class RemoteStore {
