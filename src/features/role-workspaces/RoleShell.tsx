@@ -17,6 +17,7 @@ import type { ReactNode } from 'react';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { InstallHint } from '@/features/install/InstallHint';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
+import { CalendarHint } from '@/features/calendar/CalendarHint';
 import { athleteHasLoad, getActivePerson, unreadMessagesFor, useLocalDatabase } from '@/shared/data';
 import { UnreadMessagesCard } from '@/features/messages/UnreadMessagesCard';
 import { countToRate } from '@/features/load/athleteLocalStore';
@@ -180,6 +181,7 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
       <div className="mx-auto w-full max-w-6xl space-y-5 px-4 pt-4 sm:px-8 md:pt-6">
         {/* On the first page of each role only, so it is seen once and not everywhere. */}
         {active === 'today' || active === 'club' ? <><InstallHint variant="card" /><NotificationsHint variant="card" /></> : null}
+        {active === 'calendar' ? <CalendarHint /> : null}
         {active === 'today' && unread > 0 && database && person ? <UnreadMessagesCard database={database} personId={person.id} /> : null}
         {children}
       </div>
