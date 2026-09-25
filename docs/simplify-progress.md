@@ -1558,3 +1558,12 @@ Trainer, Bewertungs-Push geschlossen), Datenschicht 109 Prüfungen, `npm run tes
 Typecheck, Build, Browser auf Handy und Desktop (Trainer bestätigt Anwesenheit 9 von 12,
 markiert einen Eintrag mit Notiz, Spieler sieht Karte, „Edit entry“, „It's correct“,
 kein Überlauf, keine Fehler).
+
+**Nachtrag (Wunsch 2026-09-25):** „Who was there?“ ist jetzt eine Liste statt Knöpfen je
+Spieler. Offen, solange nicht bestätigt: alle, die kommen wollten (in/late), sind
+abgehakt; ein Tipp auf einen Spieler fragt „… was not there?“ (Not there / Cancel), damit
+niemand aus Versehen herausfällt. Wer abgesagt hat oder herausgenommen wurde, steht unter
+„Not there“ mit „Was there“. Ein Knopf bestätigt alles auf einmal („All there · confirm
+11“ bzw. „Confirm · 10 of 12 there“); „Change“ öffnet die Liste wieder. Geprüft: Typecheck,
+Build, Browser auf Handy und Desktop (Abbrechen lässt den Spieler drin, Herausnehmen,
+Bestätigen, Wiederöffnen).
