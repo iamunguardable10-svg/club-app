@@ -1724,3 +1724,28 @@ Server-Zeitstempeln); Typecheck, Build, Browser Handy/Desktop (Auswahl, Veröffe
 Änderung danach, Spieler sieht „You're a reserve“; kein Überlauf, keine Fehler). Beim Bau
 gefunden: „geändert seit Veröffentlichen“ verglich Zeitstempel als Text (Server liefert
 „+00:00“, die App „Z“) → jetzt als Zeitpunkte. Live geprüft: Stück 16 (PR #18) läuft.
+
+## Run 23 — Stück 17: Team-Nachrichten (erledigt)
+
+Entschieden (2026-09-25): **gelesen = gesehen**, kein „Gelesen“-Knopf. Eine Nachricht zählt als
+gelesen, sobald der Spieler die Nachrichten-Seite geöffnet hat (auch über die Push-Nachricht).
+Der Hinweis auf „Today“ zeigt nur die erste Zeile und zählt noch nicht.
+
+- **Trainer** (Team → neuer Reiter „Messages“, für Rollen mit Anwesenheitsrecht oder
+  Einheiten-Planung, also auch Team Manager): Text an das ganze Team oder an Gruppen,
+  optional „Important“ (oben angeheftet, Push nicht abschaltbar). Je Nachricht „Read 4/12“,
+  aufklappbar „Not read yet: …“, einmal „Remind 8 unread“, „Delete“.
+- **Spieler**: neuer Punkt **„Messages“** in der unteren Leiste mit Zähler; auf „Today“ eine
+  Karte „2 new messages“ mit der neuesten; die Seite zeigt wichtige der letzten zwei Wochen
+  oben, „New“-Markierung beim ersten Ansehen, danach gelesen.
+- **Push:** jede Nachricht an die Empfänger („U16 Boys · Martin“ / „Important · …“), Erinnerung
+  nur an Ungelesene und nur einmal; wer inzwischen gelesen hat, bekommt nichts mehr.
+  Einstellungen: „Team messages“ abschaltbar, wichtige kommen immer.
+- **Migration 0022 (angewendet).** Demo: zwei Nachrichten in U16 (eine wichtig), teils gelesen;
+  Datenversion v17.
+
+Geprüft: Datenbank 12 Testdateien grün, neu `12_team_messages_test.sql` (Rechte, Gruppen,
+Push-Titel, gelesen nur für eigene und nur als Empfänger, Lesestand nur für Trainer, einmalige
+Erinnerung an Ungelesene, Schließen beim Lesen, wichtige nicht stummschaltbar); Datenschicht
+143; Typecheck, Build, Browser Handy/Desktop (Zähler 2 → 0 nach dem Ansehen, Trainer schreibt,
+Lesestand, Namen der Ungelesenen, Erinnerung; kein Überlauf, keine Fehler).

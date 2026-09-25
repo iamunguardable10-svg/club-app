@@ -70,6 +70,8 @@ export const TABLES: readonly TableSpec[] = [
   // Kind and note live apart: shared only with viewAbsenceReasons (piece 16).
   { name: 'absence_reasons', key: ['absence_id'] },
   { name: 'squad_entries', key: ['session_id', 'person_id'], kinds: { set_at: 'timestamp' } },
+  { name: 'team_messages', key: ['id'], kinds: { created_at: 'timestamp', reminded_at: 'timestamp' } },
+  { name: 'message_reads', key: ['message_id', 'person_id'], kinds: { read_at: 'timestamp' } },
   { name: 'load_summaries', key: ['person_id'], kinds: { acwr: 'number', updated_at: 'timestamp' } },
   { name: 'athlete_plans', key: ['id'], kinds: { starts_at: 'timestamp', created_at: 'timestamp', expected_rpe: 'number' } },
   { name: 'acknowledged_sessions', key: ['person_id', 'session_id'] },
@@ -80,7 +82,7 @@ export type TableName =
   | 'staff_invites' | 'club_roles' | 'club_role_invites'
   | 'memberships' | 'player_groups' | 'player_group_members' | 'session_series' | 'sessions'
   | 'session_series_week_states' | 'availability' | 'availability_reasons' | 'load_entries'
-  | 'load_summaries' | 'athlete_plans' | 'acknowledged_sessions' | 'load_entry_reviews' | 'attendance_confirmations' | 'absences' | 'absence_reasons' | 'squad_entries';
+  | 'load_summaries' | 'athlete_plans' | 'acknowledged_sessions' | 'load_entry_reviews' | 'attendance_confirmations' | 'absences' | 'absence_reasons' | 'squad_entries' | 'team_messages' | 'message_reads';
 
 export function tableSpec(name: TableName): TableSpec {
   return TABLES.find((table) => table.name === name)!;
@@ -203,6 +205,11 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     squad_entries: (database.squadEntries ?? []).map((q) => ({
       session_id: q.sessionId, person_id: q.personId, status: q.status, set_by: q.setBy, set_at: q.setAt,
     })),
+    team_messages: (database.teamMessages ?? []).map((m) => ({
+      id: m.id, team_id: m.teamId, group_ids: m.groupIds, author_id: m.authorId, body: m.body, important: m.important,
+      created_at: m.createdAt, reminded_at: m.remindedAt,
+    })),
+    message_reads: (database.messageReads ?? []).map((r) => ({ message_id: r.messageId, person_id: r.personId, read_at: r.readAt })),
   };
   for (const table of TABLES) rows[table.name] = rows[table.name].map((row) => normalizeRow(table.name, row));
   return rows;
@@ -335,6 +342,13 @@ export function fromServerRows(
     squadEntries: rows.squad_entries.map((q) => ({
       sessionId: s(q.session_id), personId: s(q.person_id), status: s(q.status) as SquadStatus, setBy: sn(q.set_by), setAt: s(q.set_at),
     })),
+    teamMessages: rows.team_messages
+      .map((m) => ({
+        id: s(m.id), teamId: s(m.team_id), groupIds: (m.group_ids as string[]) ?? [], authorId: sn(m.author_id), body: s(m.body),
+        important: Boolean(m.important), createdAt: s(m.created_at), remindedAt: sn(m.reminded_at),
+      }))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    messageReads: rows.message_reads.map((r) => ({ messageId: s(r.message_id), personId: s(r.person_id), readAt: s(r.read_at) })),
     shareLinks: context.previous?.shareLinks ?? {},
     activeIdentity: null,
   };

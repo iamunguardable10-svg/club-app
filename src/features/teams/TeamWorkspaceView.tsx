@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { AbsencePanel } from '@/features/absences/AbsencePanel';
+import { TeamMessagesPanel } from '@/features/messages/TeamMessagesPanel';
 import { shortDate } from '@/features/absences/absenceText';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
@@ -16,7 +17,7 @@ import type { CoachFacility, CoachGroup, CoachSession, CoachTeam } from '@/featu
 import { formatSessionTime, plural } from '@/shared/format';
 
 export type TeamWorkspaceRole = 'admin' | 'department_lead' | 'coach' | 'viewer';
-export type TeamWorkspaceSection = 'dashboard' | 'players' | 'groups' | 'settings';
+export type TeamWorkspaceSection = 'dashboard' | 'players' | 'groups' | 'messages' | 'settings';
 
 export type TeamWorkspaceSession = {
   id: string;
@@ -95,6 +96,7 @@ function sectionLabel(section: TeamWorkspaceSection) {
   if (section === 'dashboard') return 'Overview';
   if (section === 'players') return 'Players';
   if (section === 'groups') return 'Groups';
+  if (section === 'messages') return 'Messages';
   return 'Staff & settings';
 }
 
@@ -228,6 +230,7 @@ function StaffRoleGrid({ roles }: { roles: TeamWorkspaceStaffRole[] }) {
 export function TeamWorkspaceView({
   data,
   initialSection = 'dashboard',
+  canMessage = false,
   coachSessions = [],
   onDefaultFacilityChange,
   onSessionTimeChange,
@@ -243,6 +246,8 @@ export function TeamWorkspaceView({
 }: {
   data: TeamWorkspaceData;
   initialSection?: TeamWorkspaceSection;
+  /** The active coach may write team messages (piece 17). */
+  canMessage?: boolean;
   /**
    * The same sessions as the coach pages build them, with who reported out or
    * late (as far as the coach's role may see). Detail views use these so the
@@ -338,7 +343,7 @@ export function TeamWorkspaceView({
       : null,
   ].filter(Boolean) as { id: string; label: string; action: 'settings' | 'players' | 'none' }[];
 
-  const sections: TeamWorkspaceSection[] = ['dashboard', 'players', 'groups', 'settings'];
+  const sections: TeamWorkspaceSection[] = ['dashboard', 'players', 'groups', ...(canMessage ? ['messages' as const] : []), 'settings'];
   const coachSessionById = useMemo(() => new Map(coachSessions.map((session) => [session.id, session])), [coachSessions]);
   const coachSessionFor = (session: TeamWorkspaceSession) =>
     coachSessionById.get(session.id) ?? coachSessionFromTeamWorkspace(session, data, playersForSession(session));
@@ -551,6 +556,14 @@ export function TeamWorkspaceView({
               })}
             </div>
           )}
+        </section>
+      ) : null}
+
+      {activeSection === 'messages' && canMessage ? (
+        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 sm:p-5">
+          <h2 className="text-lg font-black">Messages</h2>
+          <p className="mb-4 mt-0.5 text-sm text-slate-400">Announcements to the team or some groups. Players see them in the app and get a notification.</p>
+          <TeamMessagesPanel teamId={data.id} />
         </section>
       ) : null}
 

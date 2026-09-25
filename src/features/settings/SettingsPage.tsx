@@ -258,6 +258,7 @@ const PLAYER_KINDS: KindOption[] = [
   { kinds: ['changed', 'cancelled'], label: 'Session changed or cancelled', detail: 'When the time or hall changes, or a session is called off.' },
   { kinds: ['reminder'], label: '“Are you in?”', detail: 'The day before, if you have not answered yet.' },
   { kinds: ['review'], label: 'Please check an entry', detail: 'When a coach asks you to check a load entry.' },
+  { kinds: ['message'], label: 'Team messages', detail: 'Announcements from your coaches. Important ones always come through.' },
 ];
 const COACH_KINDS: KindOption[] = [
   { kinds: ['summary'], label: 'Who is coming', detail: '2 hours before a session: in, late, out, no answer.' },
