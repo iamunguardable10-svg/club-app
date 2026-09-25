@@ -775,6 +775,18 @@ async function main() {
   await data.flushRemote();
   check('… "this and following" from the second: one left', (await count('select 1 from athlete_plans where series_id = $1', [seriesId])) === 1, store.getStatus().rejected);
 
+  // --- The coach sees own training (piece 21a) -------------------------------
+  const inAMonth = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
+  const todayDate = new Date().toISOString().slice(0, 10);
+  store = await actAs(U.martin);
+  check('Martin (Head Coach): sees Ben’s own training', data.ownTrainingForTeam(db(), P.martin, TEAM, todayDate, inAMonth).some((item) => item.personId === P.ben && item.planId === seriesPlans[0].id));
+  const benPlan = seriesPlans[0];
+  const clash = data.ownTrainingDuring(db(), P.martin, TEAM, [], `${benPlan.date}T14:30:00.000Z`, `${benPlan.date}T16:00:00.000Z`);
+  check('… and the clash when planning a session at that time', clash.length === 1 && clash[0].playerName === 'Ben Albrecht', clash);
+  check('… none an hour later', data.ownTrainingDuring(db(), P.martin, TEAM, [], `${benPlan.date}T16:00:00.000Z`, `${benPlan.date}T17:00:00.000Z`).length === 0);
+  store = await actAs(U.uwe);
+  check('Uwe (no athlete plans): sees none, the server sends none', data.ownTrainingForTeam(db(), P.uwe, TEAM, todayDate, inAMonth).length === 0 && db().athletePlans.length === 0, db().athletePlans.length);
+
   // --- Offline (piece 18) ------------------------------------------------------
   const net = { online: true, tokenValid: true, loseNextInsertAnswer: false };
   const kept: { snapshot: OfflineSnapshot | null } = { snapshot: null };

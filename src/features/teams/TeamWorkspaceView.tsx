@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { AbsencePanel } from '@/features/absences/AbsencePanel';
+import { OwnTrainingList, useOwnTraining } from '@/features/load/OwnTraining';
 import { TeamMessagesPanel } from '@/features/messages/TeamMessagesPanel';
 import { shortDate } from '@/features/absences/absenceText';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -271,6 +272,8 @@ export function TeamWorkspaceView({
   const [activeSection, setActiveSection] = useState<TeamWorkspaceSection>(initialSection);
   const [isSavingDefault, setIsSavingDefault] = useState(false);
   const [activePlayer, setActivePlayer] = useState<TeamWorkspacePlayer | null>(null);
+  // Piece 21a: the player's own training, for roles that may see athlete plans.
+  const activePlayerOwnTraining = useOwnTraining(activePlayer?.id ?? null, data.id);
   const [dashboardSession, setDashboardSession] = useState<TeamWorkspaceSession | null>(null);
   const [dashboardEditingSession, setDashboardEditingSession] = useState<TeamWorkspaceSession | null>(null);
   const [dashboardDeleteTargetId, setDashboardDeleteTargetId] = useState<string | null>(null);
@@ -792,8 +795,14 @@ export function TeamWorkspaceView({
           teamName={data.name}
           loadTracked={data.loadTracked !== false}
           onClose={() => setActivePlayer(null)}
-          footer={(activePlayer.attendanceShared !== false || onRemovePlayer) ? (
+          footer={(activePlayer.attendanceShared !== false || onRemovePlayer || activePlayerOwnTraining) ? (
             <div className="grid gap-4">
+              {activePlayerOwnTraining ? (
+                <div>
+                  <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Own training · next 2 weeks</p>
+                  <OwnTrainingList items={activePlayerOwnTraining} />
+                </div>
+              ) : null}
               {/* Piece 16: roles that see attendance can mark a player away for a period. */}
               {activePlayer.attendanceShared !== false ? (
                 <div>

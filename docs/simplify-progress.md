@@ -1862,3 +1862,23 @@ Hinweis, „Later“ → Zähler 1 am Today-Tab (auch auf Messages), „Rate it 
 eigenes Training „Gym“ (45 min) in der Abfrage mit „I didn’t do it“, RPE 8 gespeichert als
 Eintrag 8 × 45, Plan weg; Planen zeigt kein RPE und keine erwartete Belastung; keine Fehler.
 
+## Run 28 — Stück 21a: Trainer sieht eigenes Training (erledigt)
+
+Entschieden (2026-09-25): eigenes Training ist für Rollen mit `viewAthletePlans` (Head Coach
+immer) **immer sichtbar**; private Apple-Termine kommen mit 20/21b dazu.
+
+- **Spieler-Blatt** (Team → Players → Spieler): neuer Abschnitt „Own training · next 2 weeks“
+  mit Uhrzeit, Art und Tag („17:00–18:00 Strength · Sun 27 Sept“, ohne Uhrzeit „Run (no time)“);
+  leer: „No own training planned in the next two weeks.“
+- **Beim Planen oder Ändern einer Einheit:** Hinweis „1 player has own training then · Elias
+  Brandt (11:30–12:30 Gym)“ für Spieler der Einheit (ganzes Team oder die gewählten Gruppen)
+  mit überlappendem eigenem Training oder eigenem Training ohne Uhrzeit an dem Tag. Ändert sich
+  mit Uhrzeit und Gruppen.
+- **Rollen ohne das Recht** sehen nichts davon (der Server schickt ihnen die Pläne gar nicht).
+- Keine Migration: die Lese-Regel für `athlete_plans` gab es schon (0002).
+
+Geprüft: Datenschicht (neu: Head Coach sieht Bens eigenes Training und die Überschneidung,
+keine eine Stunde später; Team Manager ohne das Recht sieht nichts, Server liefert keine
+Pläne); Typecheck, Build. Browser Desktop: Spieler-Blatt zeigt das eigene Training, der
+Editor der Einheit zeigt die Überschneidung; keine Fehler.
+
