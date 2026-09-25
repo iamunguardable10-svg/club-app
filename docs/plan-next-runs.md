@@ -239,6 +239,34 @@ dorthin (die Auswahl wird dann übersprungen):
   bestehende Hallenverwaltung).
 - Load je Team bleibt per Datenbank geschaltet (Abo), nicht im Vereinsbereich.
 
+## Stücke 9–12 (geplant 2026-09-25, nach Prüfung der Mathematik und der Abläufe)
+
+| # | Stück | Inhalt |
+|---|---|---|
+| 9 | Belastungs-Mathematik (erledigt, Run 16) | EWMA-Startwert, Prognose (Spiele, heute, Kalender vs. Rhythmus, unbewertete Einheiten), „Luft bis zur Grenze“ zentral, nächtliche Ampel auf dem Server |
+| 10 | Einträge prüfen lassen (erledigt, Run 17) | Trainer mit Detailrecht markiert einen auffälligen Eintrag „bitte prüfen“, der Spieler bekommt Hinweis + Push und korrigiert selbst. **Keine Soll-Intensität je Einheit** (entschieden 2026-09-25: RPE ist bewusst individuell; der Trainer sieht je Einheit die Werte je Spieler und im Schnitt und beurteilt selbst) |
+| 11 | Anwesenheit bestätigen (erledigt, Run 17) | Trainer hält fest, wer wirklich da war (bei allen Spielern mit App: Korrektur, wenn jemand „in“ sagte und nicht kam) |
+| 12 | Einstellungen für alle (erledigt, Run 18; erweitert am 2026-09-25 von „Vereinseinstellungen“ auf alle Rollen) | Seite `/settings`: Konto (Name, E-Mail, Passwort, Abmelden auch überall), Benachrichtigungen (Arten einzeln aus, „How hard was it?“ immer an; Ruhezeit Von/Bis oder aus), dieses Gerät (Push, App installieren), Spieler: Team verlassen, Trainer: Weg zu den Teameinstellungen, Admin: Verein umbenennen; Abteilung ohne Teams löschen im Vereinsbereich; Admin übergeben = neuen Admin einladen, dann sich selbst entfernen (gab es schon) |
+
+**Entschieden (2026-09-25):** Die Ampel rechnet mit dem **EWMA-Tageswert** (ein Wert für
+Trainer und Spieler, Literatur-Standard). Später je Team wählbar, gekoppelt ans Abo: kein
+Load / 7 Tage gegen die 4 Wochen davor (Amateure, ruhiger bei 2–3 Einheiten pro Woche) /
+EWMA (Profis). Hintergrund und Zahlen in `docs/simplify-progress.md`, Run 16.
+
+## Nach dem Pilot (gemerkt 2026-09-25)
+
+Für den Pilot mit nur dem eigenen Team bewusst zurückgestellt, vor einem Start mit
+weiteren Teams oder Vereinen aber nötig:
+
+- Datenschutzerklärung, Impressum, Einwilligung bei der Registrierung (Gesundheitsdaten:
+  Belastung, RPE, Absagegründe).
+- Minderjährige unter 16: Einwilligung der Eltern.
+- Konto löschen und eigene Daten herunterladen (DSGVO). (Team selbst verlassen: vorgezogen, Stück 12.)
+- Supabase-Tarif (Pausieren nach Inaktivität, Backups) prüfen.
+
+Annahme für den Pilot: alle Spieler haben die App (kein Eintragen durch den Trainer für
+Spieler ohne Konto nötig).
+
 ## Was außerhalb des Codes offen ist
 
 - Supabase: E-Mail-Bestätigung / SMTP, Site URL und Redirect-URLs.

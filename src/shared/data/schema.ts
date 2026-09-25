@@ -367,6 +367,29 @@ export type AcknowledgedSession = {
 };
 
 /**
+ * A coach asks a player to check one load entry (piece 10). Changing the
+ * entry clears it; the player can also confirm it is right (delete).
+ */
+export type LoadEntryReview = {
+  entryId: Id;
+  /** The player who owns the entry. */
+  personId: Id;
+  /** The coach who asked. */
+  requestedBy: Id | null;
+  note: string | null;
+  createdAt: Timestamp;
+};
+
+/** Who was actually at a session, recorded by a coach afterwards (piece 11). */
+export type AttendanceConfirmation = {
+  sessionId: Id;
+  personId: Id;
+  present: boolean;
+  confirmedBy: Id | null;
+  confirmedAt: Timestamp;
+};
+
+/**
  * Who the app is currently acting as. Replaces the login session.
  *
  * Role alone is not enough: "the athlete sees their sessions" is undefined
@@ -404,6 +427,8 @@ export type LocalDatabase = {
   loadSummaries: LoadSummaryRow[];
   athletePlans: AthletePlan[];
   acknowledgedSessions: AcknowledgedSession[];
+  loadEntryReviews: LoadEntryReview[];
+  attendanceConfirmations: AttendanceConfirmation[];
   /** The last load link an athlete shared with a coach, per person. */
   shareLinks: Record<Id, string>;
   activeIdentity: ActiveIdentity | null;

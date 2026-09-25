@@ -17,7 +17,7 @@ import type { ReactNode } from 'react';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { InstallHint } from '@/features/install/InstallHint';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
-import { getActivePerson, useLocalDatabase } from '@/shared/data';
+import { athleteHasLoad, getActivePerson, useLocalDatabase } from '@/shared/data';
 
 export type CoachNavItem = 'today' | 'calendar' | 'team' | 'halls' | 'history';
 export type AthleteNavItem = 'today' | 'calendar' | 'load';
@@ -82,7 +82,20 @@ export function ClubShell({ active, ...props }: ShellProps & { active: ClubNavIt
   return <RoleShell nav={CLUB_NAV} active={active} {...props} />;
 }
 
-function RoleShell({ nav, active, title, subtitle, back, actions, children }: ShellProps & { nav: NavEntry[]; active: NavItem }) {
+/**
+ * Pages that belong to no single tab (settings): the navigation of the role
+ * you act as, with no tab marked.
+ */
+export function ActiveRoleShell(props: ShellProps) {
+  const { database } = useLocalDatabase();
+  const identity = database?.activeIdentity ?? null;
+  const nav = identity?.role === 'athlete'
+    ? (athleteHasLoad(database!, identity.personId) ? ATHLETE_NAV : ATHLETE_NAV.filter((entry) => entry.item !== 'load'))
+    : identity?.role === 'club' ? CLUB_NAV : COACH_NAV;
+  return <RoleShell nav={nav} active={null} {...props} />;
+}
+
+function RoleShell({ nav, active, title, subtitle, back, actions, children }: ShellProps & { nav: NavEntry[]; active: NavItem | null }) {
   const { database } = useLocalDatabase();
   const person = database ? getActivePerson(database) : null;
   // "Team" or "Teams", depending on what the tab opens.
@@ -116,7 +129,14 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
             </Link>
           ))}
         </nav>
-        <div className="mt-auto p-1">
+        <div className="mt-auto grid gap-1 p-1">
+          <Link
+            href="/settings"
+            aria-current={active === null ? 'page' : undefined}
+            className={`rounded-2xl px-3 py-2 text-xs font-black transition ${active === null ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900 hover:text-white'}`}
+          >
+            Settings
+          </Link>
           <IdentitySwitcher className="w-full" />
         </div>
       </aside>

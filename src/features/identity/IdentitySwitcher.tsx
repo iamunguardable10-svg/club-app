@@ -6,7 +6,7 @@
  * In the demo club (no accounts) identity has to be visible and changeable at
  * all times — otherwise "the athlete sees their sessions" is undefined and
  * nothing is testable. Signed in to the club, the same sheet offers only your
- * own roles, your name and signing out.
+ * own roles, the way to the settings and signing out.
  *
  * Role alone is not enough. Switching person within a role is what proves an
  * athlete only sees their own data, so both are offered.
@@ -22,14 +22,11 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 
 import { LocalModeLink } from '@/features/access/LocalModeLink';
-import { InstallHint } from '@/features/install/InstallHint';
-import { NotificationsHint } from '@/features/notifications/NotificationsHint';
 
 import {
   clubRoleLabel,
   displayName,
   peopleWithRole,
-  renameOwnPerson,
   isRemoteMode,
   isServerAvailable,
   signOut,
@@ -204,13 +201,13 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
               {renderGroup('club')}
             </div>
 
-            {/* Reset lives here because this sheet is reachable from both the
-                coach and the athlete side. Two steps, in place: a browser
-                confirm() is easy to dismiss by accident on a phone. */}
-            {remoteMode && current ? <AccountName key={current.id} personId={current.id} firstName={current.firstName} lastName={current.lastName} /> : null}
-
-            <NotificationsHint variant="menu" />
-            <InstallHint variant="menu" />
+            {/* Name, email, password, notifications and the rest (piece 12). */}
+            {current ? (
+              <Link href="/settings" onClick={() => setOpen(false)} className="mt-6 flex items-center justify-between rounded-2xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-100 hover:border-slate-500">
+                Settings
+                <span aria-hidden className="text-slate-500">›</span>
+              </Link>
+            ) : null}
 
             <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-800 pt-4">
               {remoteMode ? (
@@ -229,6 +226,9 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
               ) : null}
             </div>
 
+            {/* Reset lives here because this sheet is reachable from every
+                role. Two steps, in place: a browser confirm() is easy to
+                dismiss by accident on a phone. */}
             {remoteMode ? null : <div className="mt-4 border-t border-slate-800 pt-4">
               {confirmReset ? (
                 <div className="space-y-3">
@@ -257,37 +257,5 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
           )
         : null}
     </>
-  );
-}
-
-/** Your own name, as the team sees it (server mode). */
-function AccountName({ personId, firstName, lastName }: { personId: string; firstName: string; lastName: string }) {
-  const [first, setFirst] = useState(firstName);
-  const [last, setLast] = useState(lastName);
-  const [message, setMessage] = useState<string | null>(null);
-  const dirty = first.trim() !== firstName || last.trim() !== lastName;
-  return (
-    <form
-      className="mt-6 grid gap-2 border-t border-slate-800 pt-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        try {
-          renameOwnPerson(personId, first, last);
-          setMessage('Saved.');
-        } catch (error) {
-          setMessage(error instanceof Error ? error.message : String(error));
-        }
-      }}
-    >
-      <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Your name</p>
-      <div className="grid grid-cols-2 gap-2">
-        <input value={first} onChange={(event) => { setFirst(event.target.value); setMessage(null); }} aria-label="First name" className="os-field" />
-        <input value={last} onChange={(event) => { setLast(event.target.value); setMessage(null); }} aria-label="Last name" className="os-field" />
-      </div>
-      <div className="flex items-center gap-3">
-        <button type="submit" disabled={!dirty} className="rounded-2xl border border-slate-700 px-4 py-2 text-xs font-black text-slate-200 disabled:opacity-50">Save name</button>
-        {message ? <span className="text-xs font-bold text-slate-400">{message}</span> : null}
-      </div>
-    </form>
   );
 }

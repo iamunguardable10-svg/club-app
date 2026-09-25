@@ -40,7 +40,8 @@ type TableSpec = {
  * updates run top-down, deletes bottom-up.
  */
 export const TABLES: readonly TableSpec[] = [
-  { name: 'clubs', key: ['id'], kinds: { created_at: 'timestamp' }, readOnly: true },
+  // Renamed by the club admin (piece 12); founded through a database function.
+  { name: 'clubs', key: ['id'], kinds: { created_at: 'timestamp' } },
   // Created and renamed by the club admin (piece 8).
   { name: 'departments', key: ['id'] },
   { name: 'facilities', key: ['id'] },
@@ -61,6 +62,8 @@ export const TABLES: readonly TableSpec[] = [
   { name: 'availability', key: ['id'], kinds: { reported_at: 'timestamp' } },
   { name: 'availability_reasons', key: ['availability_id'] },
   { name: 'load_entries', key: ['id'], kinds: { starts_at: 'timestamp', created_at: 'timestamp', rpe: 'number', load: 'number' } },
+  { name: 'load_entry_reviews', key: ['entry_id'], kinds: { created_at: 'timestamp' } },
+  { name: 'attendance_confirmations', key: ['session_id', 'person_id'], kinds: { confirmed_at: 'timestamp' } },
   { name: 'load_summaries', key: ['person_id'], kinds: { acwr: 'number', updated_at: 'timestamp' } },
   { name: 'athlete_plans', key: ['id'], kinds: { starts_at: 'timestamp', created_at: 'timestamp', expected_rpe: 'number' } },
   { name: 'acknowledged_sessions', key: ['person_id', 'session_id'] },
@@ -71,7 +74,7 @@ export type TableName =
   | 'staff_invites' | 'club_roles' | 'club_role_invites'
   | 'memberships' | 'player_groups' | 'player_group_members' | 'session_series' | 'sessions'
   | 'session_series_week_states' | 'availability' | 'availability_reasons' | 'load_entries'
-  | 'load_summaries' | 'athlete_plans' | 'acknowledged_sessions';
+  | 'load_summaries' | 'athlete_plans' | 'acknowledged_sessions' | 'load_entry_reviews' | 'attendance_confirmations';
 
 export function tableSpec(name: TableName): TableSpec {
   return TABLES.find((table) => table.name === name)!;
@@ -175,6 +178,12 @@ export function toServerRows(database: LocalDatabase): ServerRows {
       note: p.note ?? null, created_at: p.createdAt,
     })),
     acknowledged_sessions: database.acknowledgedSessions.map((a) => ({ person_id: a.personId, session_id: a.sessionId })),
+    load_entry_reviews: database.loadEntryReviews.map((r) => ({
+      entry_id: r.entryId, person_id: r.personId, requested_by: r.requestedBy, note: r.note, created_at: r.createdAt,
+    })),
+    attendance_confirmations: database.attendanceConfirmations.map((c) => ({
+      session_id: c.sessionId, person_id: c.personId, present: c.present, confirmed_by: c.confirmedBy, confirmed_at: c.confirmedAt,
+    })),
   };
   for (const table of TABLES) rows[table.name] = rows[table.name].map((row) => normalizeRow(table.name, row));
   return rows;
@@ -283,6 +292,12 @@ export function fromServerRows(
       expectedRpe: Number(p.expected_rpe), expectedDurationMinutes: Number(p.expected_duration_minutes), note: sn(p.note), createdAt: s(p.created_at),
     })),
     acknowledgedSessions: rows.acknowledged_sessions.map((a) => ({ personId: s(a.person_id), sessionId: s(a.session_id) })),
+    loadEntryReviews: rows.load_entry_reviews.map((r) => ({
+      entryId: s(r.entry_id), personId: s(r.person_id), requestedBy: sn(r.requested_by), note: sn(r.note), createdAt: s(r.created_at),
+    })),
+    attendanceConfirmations: rows.attendance_confirmations.map((c) => ({
+      sessionId: s(c.session_id), personId: s(c.person_id), present: Boolean(c.present), confirmedBy: sn(c.confirmed_by), confirmedAt: s(c.confirmed_at),
+    })),
     shareLinks: context.previous?.shareLinks ?? {},
     activeIdentity: null,
   };

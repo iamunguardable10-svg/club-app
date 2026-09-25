@@ -27,7 +27,7 @@ export function AthleteLoadShareView() {
   }, [params]);
   const payload = useMemo(() => (token ? decodeAthleteLoadShare(token) : null), [token]);
   const entries = useMemo(() => [...(payload?.entries ?? [])].sort((a, b) => a.date.localeCompare(b.date)), [payload]);
-  const latest = useMemo(() => getLatestACWR(entries, 'ewma'), [entries]);
+  const latest = useMemo(() => getLatestACWR(entries), [entries]);
   const baselineDays = useMemo(() => baselineAgeDays(entries), [entries]);
   const isBaselineReady = (latest?.chronicFull ?? false) && baselineDays >= 30;
   const zone = loadZone(latest?.acwr ?? null, isBaselineReady);
@@ -66,7 +66,7 @@ export function AthleteLoadShareView() {
                 <p className="mt-2 text-xl font-black">{weeklyLoad}</p>
               </div>
               <div className="rounded-2xl border border-slate-800/80 bg-slate-950/55 p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">EWMA</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">ACWR</p>
                 <p className="mt-2 text-xl font-black">{latest?.acwr && isBaselineReady ? latest.acwr.toFixed(2) : '—'}</p>
               </div>
               <div className="rounded-2xl border border-slate-800/80 bg-slate-950/55 p-3">

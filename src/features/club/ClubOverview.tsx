@@ -29,6 +29,7 @@ import {
   createClubRoleInvite,
   createDepartment,
   createTeam,
+  deleteDepartment,
   displayName,
   getActivePerson,
   hasCoachPermission,
@@ -295,6 +296,7 @@ function DepartmentSection({
   const [openTeamId, setOpenTeamId] = useState<Id | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [newTeam, setNewTeam] = useState('');
   const teams = database.teams.filter((team) => team.departmentId === department.id).sort((a, b) => a.name.localeCompare(b.name));
   const active = teams.filter((team) => !team.archivedAt);
@@ -312,8 +314,29 @@ function DepartmentSection({
     >
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
         {editing ? (
-          <RenameForm label={`Name of department ${department.name}`} current={department.name} onSave={(name) => onRun(() => renameDepartment(department.id, name))} />
+          <div className="grid gap-3">
+            <RenameForm label={`Name of department ${department.name}`} current={department.name} onSave={(name) => onRun(() => renameDepartment(department.id, name))} />
+            {teams.length === 0 ? (
+              <button type="button" onClick={() => setConfirmDelete(true)} className="justify-self-start text-xs font-bold text-red-300 underline">
+                Delete department
+              </button>
+            ) : (
+              <p className="text-xs text-slate-500">A department can be deleted once it has no teams, archived ones included.</p>
+            )}
+          </div>
         ) : null}
+        <AppConfirmDialog
+          isOpen={confirmDelete}
+          title={`Delete ${department.name}?`}
+          description="The department and its leads' role go. Halls shared with it stay in the club."
+          confirmLabel="Delete department"
+          tone="danger"
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => {
+            setConfirmDelete(false);
+            onRun(() => deleteDepartment(department.id));
+          }}
+        />
 
         <div className="grid gap-2">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Department lead</p>

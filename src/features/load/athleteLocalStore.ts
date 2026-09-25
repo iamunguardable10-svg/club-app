@@ -107,6 +107,7 @@ export function readEntries(database: LocalDatabase, personId: Id): AthleteLoadE
 /** The athlete's entries become exactly `entries`. */
 export function saveEntries(personId: Id, entries: AthleteLoadEntry[]) {
   deferWrite((database) => {
+    const before = new Map(database.loadEntries.map((entry) => [entry.id, entry]));
     const createdAtById = new Map(
       database.loadEntries.filter((entry) => entry.personId === personId).map((entry) => [entry.id, entry.createdAt]),
     );
@@ -115,6 +116,17 @@ export function saveEntries(personId: Id, entries: AthleteLoadEntry[]) {
       ...database.loadEntries.filter((entry) => entry.personId !== personId),
       ...entries.map((entry) => ({ ...entry, sessionId: toStoredSessionId(entry), personId, createdAt: createdAtById.get(entry.id) ?? now })),
     ].sort((a, b) => a.date.localeCompare(b.date));
+    // A check request ends when its entry is changed or gone (the server does
+    // the same in a trigger); "it is correct" is `clearEntryReview`.
+    const next = new Map(entries.map((entry) => [entry.id, entry]));
+    database.loadEntryReviews = database.loadEntryReviews.filter((review) => {
+      if (review.personId !== personId) return true;
+      const updated = next.get(review.entryId);
+      const original = before.get(review.entryId);
+      if (!updated) return false;
+      return !original || (original.rpe === updated.rpe && original.durationMinutes === updated.durationMinutes
+        && original.load === updated.load && original.date === updated.date && original.trainingType === updated.trainingType);
+    });
   });
 }
 
@@ -198,6 +210,10 @@ export function readSessionsToRate(database: LocalDatabase, personId: Id, now = 
   const answered = new Set(
     database.availability.filter((entry) => entry.personId === personId && (entry.status === 'out' || entry.status === 'missed')).map((entry) => entry.sessionId),
   );
+  // Confirmed absent by a coach (piece 11): nothing to rate.
+  for (const confirmation of database.attendanceConfirmations) {
+    if (confirmation.personId === personId && !confirmation.present) answered.add(confirmation.sessionId);
+  }
   const dismissed = new Set(readAcknowledged(database, personId));
 
   return database.sessions

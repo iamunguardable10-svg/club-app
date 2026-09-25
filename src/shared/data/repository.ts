@@ -27,7 +27,7 @@
  * know where the document lives.
  */
 
-import { calculateEWMA, getLatestACWR, loadZone, sevenDayLoad, summarizeLoadEntries } from './loadCalculations';
+import { calculateACWR, getLatestACWR, loadZone, sevenDayLoad, summarizeLoadEntries } from './loadCalculations';
 import { DATABASE_KEY, LEGACY_KEY_PREFIXES, SCHEMA_VERSION, isCurrent } from './migrations';
 import { COACH_ROLE_TEMPLATES, createSeedDatabase } from './seed';
 import type { RemoteStore } from './remote/remoteStore';
@@ -44,11 +44,13 @@ import {
   type ClubRoleKind,
   type CoachRole,
   type Membership,
+  type AttendanceConfirmation,
   type Availability,
   type AvailabilityStatus,
   type Facility,
   type Id,
   type LoadEntry,
+  type LoadEntryReview,
   type LocalDatabase,
   type IdentityRole,
   type MembershipRole,
@@ -481,7 +483,20 @@ export async function updatePassword(password: string): Promise<void> {
   if (error) throw new LocalDataError(authMessage(error.message));
 }
 
-export async function signOut(): Promise<void> {
+/**
+ * Changes the account's e-mail address. Supabase sends a confirmation link;
+ * the address changes once it is clicked.
+ */
+export async function changeEmail(email: string): Promise<void> {
+  const clean = email.trim();
+  if (!clean) throw new LocalDataError('Enter the new email address.');
+  const supabase = await authClient();
+  const { error } = await supabase.auth.updateUser({ email: clean }, { emailRedirectTo: `${window.location.origin}/settings` });
+  if (error) throw new LocalDataError(authMessage(error.message));
+}
+
+/** Signs out on this device, or with `everywhere` on every device of the account. */
+export async function signOut(options: { everywhere?: boolean } = {}): Promise<void> {
   const supabase = await authClient();
   // This device stops getting the account's notifications (piece 7): the
   // next person signing in here must not see them.
@@ -495,7 +510,7 @@ export async function signOut(): Promise<void> {
   } catch {
     // Signing out must not fail over notifications.
   }
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: options.everywhere ? 'global' : 'local' });
 }
 
 // ---------------------------------------------------------------------------
@@ -522,6 +537,40 @@ export async function savePushSubscription(subscription: { endpoint: string; p25
 export async function deletePushSubscription(endpoint: string): Promise<void> {
   const supabase = await authClient();
   const { error } = await supabase.rpc('delete_push_subscription', { p_endpoint: endpoint });
+  if (error) throw new LocalDataError(error.message);
+}
+
+/** Kinds of message that can be switched off; "How hard was it?" cannot (piece 12). */
+export type MutablePushKind = 'changed' | 'cancelled' | 'reminder' | 'summary' | 'review';
+
+/** Per account: switched-off kinds and quiet hours (club time, whole hours; null = none). */
+export type NotificationSettings = { mutedKinds: MutablePushKind[]; quietFrom: number | null; quietTo: number | null };
+
+export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = { mutedKinds: [], quietFrom: 22, quietTo: 7 };
+
+export async function getNotificationSettings(): Promise<NotificationSettings> {
+  const supabase = await authClient();
+  const { data, error } = await supabase.from('notification_settings').select('muted_kinds, quiet_from, quiet_to').maybeSingle();
+  if (error) throw new LocalDataError(error.message);
+  if (!data) return DEFAULT_NOTIFICATION_SETTINGS;
+  return { mutedKinds: data.muted_kinds ?? [], quietFrom: data.quiet_from, quietTo: data.quiet_to };
+}
+
+export async function saveNotificationSettings(settings: NotificationSettings): Promise<void> {
+  const { quietFrom, quietTo } = settings;
+  if ((quietFrom === null) !== (quietTo === null)) throw new LocalDataError('Quiet hours need a start and an end.');
+  if (quietFrom !== null && quietFrom === quietTo) throw new LocalDataError('Quiet hours must start and end at different times.');
+  const supabase = await authClient();
+  const { data: session } = await supabase.auth.getSession();
+  const userId = session.session?.user.id;
+  if (!userId) throw new LocalDataError('Please sign in again.');
+  const { error } = await supabase.from('notification_settings').upsert({
+    user_id: userId,
+    muted_kinds: [...new Set(settings.mutedKinds)],
+    quiet_from: quietFrom,
+    quiet_to: quietTo,
+    updated_at: new Date().toISOString(),
+  });
   if (error) throw new LocalDataError(error.message);
 }
 
@@ -1072,6 +1121,16 @@ export function removeAthleteFromTeam(teamId: Id, personId: Id): void {
   });
 }
 
+/**
+ * A player leaves a team themselves (piece 12). Same effect as being removed
+ * by the staff: past reports and load stay, rejoining works with the code.
+ */
+export function leaveTeam(teamId: Id, personId: Id): void {
+  const database = readDatabase();
+  if (!database || !ownPersonIds(database).includes(personId)) throw new LocalDataError('You can only leave a team yourself.');
+  removeAthleteFromTeam(teamId, personId);
+}
+
 // ---------------------------------------------------------------------------
 // Club administration (piece 8): club admin and department leads
 // ---------------------------------------------------------------------------
@@ -1126,6 +1185,33 @@ export function renameDepartment(departmentId: Id, name: string): void {
     const department = database.departments.find((candidate) => candidate.id === departmentId);
     if (!department) throw new LocalDataError(`Unknown department: ${departmentId}`);
     department.name = clean;
+  });
+}
+
+/** The club's name (club admin, piece 12). */
+export function renameClub(name: string): void {
+  const clean = requireName(name, 'The club');
+  if (clean.length > 80) throw new LocalDataError('The club name can be at most 80 characters.');
+  mutate((database) => {
+    database.club.name = clean;
+  });
+}
+
+/**
+ * Deletes a department (club admin, piece 12). Only one without teams,
+ * archived ones included: teams, their sessions and history hang on it.
+ * Its hall shares and its leads go with it.
+ */
+export function deleteDepartment(departmentId: Id): void {
+  mutate((database) => {
+    if (database.teams.some((team) => team.departmentId === departmentId)) {
+      throw new LocalDataError('Only a department without teams can be deleted.');
+    }
+    database.departments = database.departments.filter((department) => department.id !== departmentId);
+    database.departmentFacilities = database.departmentFacilities.filter((link) => link.departmentId !== departmentId);
+    const leadIds = new Set(database.clubRoles.filter((role) => role.departmentId === departmentId).map((role) => role.id));
+    database.clubRoles = database.clubRoles.filter((role) => !leadIds.has(role.id));
+    database.clubRoleInvites = database.clubRoleInvites.filter((invite) => !leadIds.has(invite.clubRoleId));
   });
 }
 
@@ -1608,6 +1694,91 @@ export function recordLoadEntry(input: LoadEntryInput): Id {
 export function deleteLoadEntry(entryId: Id): void {
   mutate((database) => {
     database.loadEntries = database.loadEntries.filter((entry) => entry.id !== entryId);
+    database.loadEntryReviews = database.loadEntryReviews.filter((review) => review.entryId !== entryId);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Asking a player to check an entry (piece 10)
+// ---------------------------------------------------------------------------
+
+/** Whether this coach may see (and so question) the player's load details in any shared team. */
+function coachSeesLoadDetails(database: LocalDatabase, coachId: Id | null, athleteId: Id) {
+  return database.memberships.some(
+    (membership) => membership.personId === athleteId && membership.role === 'athlete'
+      && coachPermissions(database, coachId, membership.teamId).has('viewLoadDetails'),
+  );
+}
+
+export function reviewForEntry(database: LocalDatabase, entryId: Id): LoadEntryReview | null {
+  return database.loadEntryReviews.find((review) => review.entryId === entryId) ?? null;
+}
+
+export function reviewsForPerson(database: LocalDatabase, personId: Id): LoadEntryReview[] {
+  return database.loadEntryReviews.filter((review) => review.personId === personId);
+}
+
+/** The active coach asks the entry's owner to check it, with an optional note. */
+export function requestEntryReview(entryId: Id, note: string | null = null): void {
+  const clean = note?.trim() ? note.trim().slice(0, 300) : null;
+  mutate((database) => {
+    const entry = database.loadEntries.find((candidate) => candidate.id === entryId);
+    if (!entry) throw new LocalDataError('This entry no longer exists.');
+    const coachId = database.activeIdentity?.role === 'coach' ? database.activeIdentity.personId : null;
+    if (!coachSeesLoadDetails(database, coachId, entry.personId)) {
+      throw new LocalDataError('Only a coach who may see load details can ask for a check.');
+    }
+    database.loadEntryReviews = [
+      ...database.loadEntryReviews.filter((review) => review.entryId !== entryId),
+      { entryId, personId: entry.personId, requestedBy: coachId, note: clean, createdAt: new Date().toISOString() },
+    ];
+  });
+}
+
+/** Withdrawn by the coach, or "it is correct" from the player. */
+export function clearEntryReview(entryId: Id): void {
+  mutate((database) => {
+    database.loadEntryReviews = database.loadEntryReviews.filter((review) => review.entryId !== entryId);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Confirmed attendance (piece 11)
+// ---------------------------------------------------------------------------
+
+export function attendanceConfirmationsFor(database: LocalDatabase, sessionId: Id): AttendanceConfirmation[] {
+  return database.attendanceConfirmations.filter((confirmation) => confirmation.sessionId === sessionId);
+}
+
+/**
+ * Who was actually there, recorded by the active coach once the session has
+ * started. Overrides what the players said in every count.
+ */
+export function confirmAttendance(sessionId: Id, presence: { personId: Id; present: boolean }[]): void {
+  mutate((database) => {
+    const session = database.sessions.find((candidate) => candidate.id === sessionId);
+    if (!session) throw new LocalDataError('This session no longer exists.');
+    if (new Date(session.startsAt).getTime() > Date.now()) throw new LocalDataError('Attendance can only be confirmed once the session has started.');
+    const coachId = database.activeIdentity?.role === 'coach' ? database.activeIdentity.personId : null;
+    if (!coachPermissions(database, coachId, session.teamId).has('viewAttendance')) {
+      throw new LocalDataError('Only a coach who may see attendance can confirm it.');
+    }
+    const athletes = new Set(
+      database.memberships.filter((m) => m.teamId === session.teamId && m.role === 'athlete').map((m) => m.personId),
+    );
+    const now = new Date().toISOString();
+    for (const { personId, present } of presence) {
+      if (!athletes.has(personId)) throw new LocalDataError('Attendance can only be confirmed for players of the team.');
+      const existing = database.attendanceConfirmations.find((c) => c.sessionId === sessionId && c.personId === personId);
+      if (existing) {
+        if (existing.present === present) continue;
+        existing.present = present;
+        existing.confirmedBy = coachId;
+        existing.confirmedAt = now;
+      } else {
+        database.attendanceConfirmations.push({ sessionId, personId, present, confirmedBy: coachId, confirmedAt: now });
+      }
+    }
   });
 }
 
@@ -1618,16 +1789,15 @@ export function deleteLoadEntry(entryId: Id): void {
  * only selects the right entries and hands them over. Views must not compute
  * ACWR themselves.
  *
- * Uses EWMA, like the athlete cockpit and the coach roster. An earlier version
- * used the rolling average, so the same athlete would have shown two different
- * ratios depending on which screen read the number.
+ * Uses the EWMA ratio, like the athlete cockpit, the coach roster and the
+ * nightly server summary.
  */
 export function loadSummaryForPerson(database: LocalDatabase, personId: Id) {
   const entries = loadEntriesForPerson(database, personId);
-  const latest = getLatestACWR(entries, 'ewma');
+  const latest = getLatestACWR(entries);
   return {
     entries,
-    series: calculateEWMA(entries),
+    series: calculateACWR(entries),
     acwr: latest?.acwr ?? null,
     acuteLoad: latest?.acuteLoad ?? 0,
     chronicLoad: latest?.chronicLoad ?? 0,

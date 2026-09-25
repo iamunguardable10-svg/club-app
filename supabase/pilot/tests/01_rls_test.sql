@@ -433,9 +433,7 @@ select test.expect_rows('Uwe (Team Manager, no manageStaff) cannot remove Ben',
 select test.act_as('10000000-0000-0000-0000-000000000011');
 select test.expect_rows('Jonas (athlete) cannot remove Ben',
   $q$delete from public.memberships where person_id = 'a0000000-0000-0000-0000-000000000012' and role = 'athlete'$q$, 0);
-select test.act_as('10000000-0000-0000-0000-000000000012');
-select test.expect_rows('Ben cannot remove himself',
-  $q$delete from public.memberships where person_id = 'a0000000-0000-0000-0000-000000000012' and role = 'athlete'$q$, 0);
+-- Leaving a team oneself is allowed since 0017 (tested in 07_settings_test.sql).
 select test.act_as('10000000-0000-0000-0000-000000000001');
 select test.expect_rows('Martin (Head Coach U16) cannot remove Lena from U18',
   $q$delete from public.memberships where person_id = 'a0000000-0000-0000-0000-000000000013' and role = 'athlete'$q$, 0);

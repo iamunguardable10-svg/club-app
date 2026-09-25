@@ -87,13 +87,13 @@ $$;
 -- ---------------------------------------------------------------------------
 
 select test.expect_count('quiet hours: 23:30 moves to 07:00 the next day',
-  $q$select 1 where app.push_quiet_shift('2026-09-25 23:30+02') = '2026-09-26 07:00+02'$q$, 1);
+  $q$select 1 where app.push_quiet_until('2026-09-25 23:30+02', '10000000-0000-0000-0000-000000000071') = '2026-09-26 07:00+02'$q$, 1);
 select test.expect_count('quiet hours: 05:00 moves to 07:00 the same day',
-  $q$select 1 where app.push_quiet_shift('2026-09-25 05:00+02') = '2026-09-25 07:00+02'$q$, 1);
+  $q$select 1 where app.push_quiet_until('2026-09-25 05:00+02', '10000000-0000-0000-0000-000000000071') = '2026-09-25 07:00+02'$q$, 1);
 select test.expect_count('quiet hours: 12:00 stays',
-  $q$select 1 where app.push_quiet_shift('2026-09-25 12:00+02') = '2026-09-25 12:00+02'$q$, 1);
+  $q$select 1 where app.push_quiet_until('2026-09-25 12:00+02', '10000000-0000-0000-0000-000000000071') = '2026-09-25 12:00+02'$q$, 1);
 select test.expect_count('quiet hours: 22:00 in winter moves to 07:00 (CET)',
-  $q$select 1 where app.push_quiet_shift('2026-12-10 22:00+01') = '2026-12-11 07:00+01'$q$, 1);
+  $q$select 1 where app.push_quiet_until('2026-12-10 22:00+01', '10000000-0000-0000-0000-000000000071') = '2026-12-11 07:00+01'$q$, 1);
 
 -- ---------------------------------------------------------------------------
 -- Changed and cancelled

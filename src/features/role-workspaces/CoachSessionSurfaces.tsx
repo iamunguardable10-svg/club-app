@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { formatDateRange, formatDay, formatTimeRange as formatSharedTimeRange } from '@/shared/format';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { SessionDetailSheet, type SessionDetailFacilityOption, type SessionDetailGroup } from '@/features/sessions/SessionDetailSheet';
-import type { CoachSession } from '@/features/role-workspaces/CoachTypes';
+import type { CoachEntryReview, CoachSession } from '@/features/role-workspaces/CoachTypes';
+import { clearEntryReview, confirmAttendance, requestEntryReview } from '@/shared/data';
 import { PlayerLoadDetail, type PlayerLoadDetailPlayer } from '@/features/players/PlayerLoadDetail';
 
 type LoadRiskPlayer = { risk: string; acwr: number | null };
@@ -517,6 +518,184 @@ function CoachHistoryTrendGraph({
   );
 }
 
+/**
+ * "Ask to check" for one player's entry (piece 10): an optional note, then
+ * the player gets a hint and a push; the coach can withdraw it again.
+ */
+function EntryReviewControl({ entryId, review, playerName }: { entryId: string; review: CoachEntryReview | null; playerName: string }) {
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const run = (action: () => void) => {
+    try {
+      action();
+      setError(null);
+      setOpen(false);
+      setNote('');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    }
+  };
+  if (review) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 px-2.5 py-1.5 text-[11px] font-bold text-amber-200">
+        <span>Check requested{review.note ? ` · “${review.note}”` : ''}</span>
+        <button type="button" onClick={() => run(() => clearEntryReview(entryId))} className="text-slate-400 underline">Withdraw</button>
+      </div>
+    );
+  }
+  if (!open) {
+    return (
+      <div className="flex justify-end border-t border-slate-800 px-2.5 py-1">
+        <button type="button" onClick={() => setOpen(true)} className="text-[11px] font-black text-sky-300 hover:text-sky-200">Ask to check</button>
+      </div>
+    );
+  }
+  return (
+    <div className="grid gap-2 border-t border-slate-800 p-2.5">
+      <input
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+        maxLength={300}
+        placeholder={`Note for ${playerName.split(' ')[0]} (optional), e.g. 75 min? We did 60.`}
+        aria-label={`Note for ${playerName}`}
+        className="min-w-0 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs font-bold text-slate-100 outline-none focus:border-sky-300"
+      />
+      {error ? <p role="alert" className="text-[11px] font-bold text-red-200">{error}</p> : null}
+      <div className="flex gap-2">
+        <button type="button" onClick={() => run(() => requestEntryReview(entryId, note))} className="rounded-lg bg-sky-300 px-3 py-1.5 text-[11px] font-black text-slate-950">Send</button>
+        <button type="button" onClick={() => { setOpen(false); setNote(''); }} className="rounded-lg border border-slate-700 px-3 py-1.5 text-[11px] font-black text-slate-300">Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * "Who was there?" after a session (piece 11). Everyone who said they would
+ * come is ticked; the coach takes out whoever did not come (each with a
+ * second tap, so nobody is left out by accident), can add someone who said
+ * no but came anyway, and confirms the whole list at once. Saved
+ * confirmations win over the players' own reports in every count.
+ */
+function AttendanceConfirmation({ session }: { session: CoachSession }) {
+  const confirmedCount = session.players.filter((player) => session.confirmations?.[player.id] !== undefined).length;
+  const reportFor = (playerId: string) => session.availability.find((item) => item.userId === playerId && !item.confirmedByCoach);
+  const initial = () => Object.fromEntries(session.players.map((player) => [
+    player.id,
+    session.confirmations?.[player.id] ?? reportFor(player.id)?.status !== 'out',
+  ]));
+  const [open, setOpen] = useState(confirmedCount === 0);
+  const [present, setPresent] = useState<Record<string, boolean>>(initial);
+  const [asking, setAsking] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const thereCount = session.players.filter((player) => session.confirmations?.[player.id] === true).length;
+  const there = session.players.filter((player) => present[player.id] ?? true);
+  const notThere = session.players.filter((player) => !(present[player.id] ?? true));
+
+  function mark(playerId: string, isThere: boolean) {
+    setPresent((current) => ({ ...current, [playerId]: isThere }));
+    setAsking(null);
+    setSaved(false);
+  }
+
+  function save() {
+    try {
+      confirmAttendance(session.id, session.players.map((player) => ({ personId: player.id, present: present[player.id] ?? true })));
+      setError(null);
+      setSaved(true);
+      setOpen(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    }
+  }
+
+  function reportLabel(playerId: string) {
+    const report = reportFor(playerId);
+    if (!report) return null;
+    if (report.status === 'late') return report.lateMinutes ? `late · ${report.lateMinutes} min` : 'late';
+    return report.missed ? 'did not take part' : 'said no';
+  }
+
+  return (
+    <div className="mb-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.06] p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">Who was there?</p>
+          <p className="mt-0.5 text-xs font-bold text-slate-300">
+            {confirmedCount === 0
+              ? `Not confirmed yet · ${there.length} said they would come`
+              : `Confirmed · ${thereCount} of ${session.players.length} there`}
+            {saved ? ' · saved' : ''}
+          </p>
+        </div>
+        {confirmedCount > 0 || !open ? (
+          <button type="button" onClick={() => { setPresent(initial()); setAsking(null); setOpen((value) => !value); setSaved(false); }} aria-expanded={open} className="rounded-full border border-emerald-200/40 px-3 py-1.5 text-xs font-black text-emerald-100">
+            {open ? 'Close' : confirmedCount === 0 ? 'Confirm' : 'Change'}
+          </button>
+        ) : null}
+      </div>
+      {open ? (
+        <div className="mt-3 grid gap-1.5">
+          <p className="text-[11px] font-bold text-slate-400">Tap a player who did not come. Then confirm the list.</p>
+          {there.map((player) => {
+            const label = reportLabel(player.id);
+            if (asking === player.id) {
+              return (
+                <div key={player.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-300/50 bg-rose-300/[0.08] px-2.5 py-1.5">
+                  <span className="min-w-0 text-xs font-black text-rose-100">{player.name} was not there?</span>
+                  <div className="flex shrink-0 gap-1.5 text-[11px] font-black">
+                    <button type="button" onClick={() => mark(player.id, false)} className="rounded-lg bg-rose-300 px-2.5 py-1 text-slate-950">Not there</button>
+                    <button type="button" onClick={() => setAsking(null)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-slate-300">Cancel</button>
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <button
+                key={player.id}
+                type="button"
+                onClick={() => setAsking(player.id)}
+                aria-label={`${player.name} was there. Tap to mark as not there.`}
+                className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-left hover:border-rose-300/50"
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <span aria-hidden className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-300 text-[11px] font-black text-slate-950">✓</span>
+                  <span className="min-w-0 truncate text-xs font-black text-slate-100">{player.name}</span>
+                </span>
+                <span className="flex shrink-0 items-center gap-2">
+                  {label ? <span className="text-[11px] font-bold text-amber-200">{label}</span> : null}
+                  <span aria-hidden className="text-sm font-black text-slate-500">×</span>
+                </span>
+              </button>
+            );
+          })}
+          {notThere.length > 0 ? (
+            <>
+              <p className="mt-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Not there · {notThere.length}</p>
+              {notThere.map((player) => {
+                const label = reportLabel(player.id);
+                return (
+                  <div key={player.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 px-2.5 py-1.5">
+                    <span className="min-w-0 truncate text-xs font-bold text-slate-400">
+                      {player.name}{label ? <span className="text-slate-500"> · {label}</span> : null}
+                    </span>
+                    <button type="button" onClick={() => mark(player.id, true)} className="shrink-0 rounded-lg border border-emerald-200/40 px-2.5 py-1 text-[11px] font-black text-emerald-100">Was there</button>
+                  </div>
+                );
+              })}
+            </>
+          ) : null}
+          {error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null}
+          <button type="button" onClick={save} className="mt-1 rounded-xl bg-emerald-300 px-3 py-2.5 text-xs font-black text-slate-950">
+            {notThere.length === 0 ? `All there · confirm ${there.length}` : `Confirm · ${there.length} of ${session.players.length} there`}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function CoachSessionDetailOverlay({
   session,
   calendarHref,
@@ -659,7 +838,11 @@ export function CoachSessionDetailOverlay({
           })),
         }}
         loadRisks={isPast ? [] : summary.risks.map((player) => ({ id: player.id, name: player.name, status: player.risk as 'high' | 'low', detail: player.acwr !== null ? `${player.acwr.toFixed(2)} ACWR` : null }))}
-        insights={isPast && !sessionLoadDetailsShared(session) ? (
+        insights={isPast ? (<>
+        {session.canConfirmAttendance && session.attendanceShared !== false && session.players.length > 0 ? (
+          <AttendanceConfirmation key={session.id} session={session} />
+        ) : null}
+        {!sessionLoadDetailsShared(session) ? (
           <p className="rounded-2xl border border-slate-800 bg-slate-950/55 p-3 text-xs font-bold text-slate-400">{session.loadTracked === false ? `${session.teamName} does not track training load.` : 'Load reports for this session are not shared with your role.'}</p>
         ) : isPast ? (
           <div>
@@ -695,10 +878,15 @@ export function CoachSessionDetailOverlay({
                     )) : <p className="rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-xs font-bold text-slate-500">No RPE reports yet.</p>
                   ) : null}
                   {activeInsight === 'au' ? auInsightRows.map(({ player, report }) => (
-                    <button key={player.id} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-left text-xs font-black text-slate-100 transition hover:border-violet-200/50">
-                      <span>{player.name}</span>
-                      <span>{report ? `${report.entry.load} AU · RPE ${report.entry.rpe}` : 'Missing report'}</span>
-                    </button>
+                    <div key={player.id} className="rounded-xl border border-slate-800 bg-slate-950/55">
+                      <button type="button" onClick={() => setActivePlayerId(player.id)} className="flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-black text-slate-100 transition hover:bg-slate-900/60">
+                        <span>{player.name}</span>
+                        <span>{report ? `${report.entry.load} AU · RPE ${report.entry.rpe} · ${report.entry.durationMinutes} min` : 'Missing report'}</span>
+                      </button>
+                      {report && session.canRequestReview ? (
+                        <EntryReviewControl entryId={report.entry.id} review={player.reviews?.[report.entry.id] ?? null} playerName={player.name} />
+                      ) : null}
+                    </div>
                   )) : null}
                   {activeInsight === 'completion' ? completionInsightRows.map(({ player, report }) => (
                     <button key={player.id} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-left text-xs font-black text-slate-100 transition hover:border-violet-200/50">
@@ -748,6 +936,7 @@ export function CoachSessionDetailOverlay({
             ) : null}
           </div>
         ) : null}
+        </>) : null}
         participants={session.players.map((player) => {
           const flag = session.availability.find((item) => item.userId === player.id);
           return {

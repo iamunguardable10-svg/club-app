@@ -1495,3 +1495,118 @@ Datenschicht-Tests, Typecheck, Build, Browser: echtes Push-Abo bei Googles Diens
 Service Worker zeigt eine Push-Nachricht mit Link, Karte und Menü, Demo ohne. Auf Supabase:
 Edge Function lehnt falsches Geheimnis ab (401), echter Versand an ein Test-Abo über die
 Function erfolgreich (`sent: 1`), Test-Eintrag danach vollständig gelöscht.
+
+## Run 16 — Stück 9: Belastungs-Mathematik geprüft und korrigiert (erledigt)
+
+Prüfung mit gleichmäßigen Testspielern (gleiche Woche jede Woche, ACWR muss im Mittel 1,0
+sein) und Literatur (Williams 2017, Murray 2017, Lolli 2019, Impellizzeri 2020,
+Meta-Analyse 2025).
+
+- **Richtig waren:** Einheiten-Load = RPE × Minuten, EWMA-Faktoren λ = 2/(N+1), Monotonie
+  und Strain (Foster), Zonen 0,8–1,3, eine Methode in allen Ansichten.
+- **Fehler 1 – EWMA-Startwert:** Start mit der Belastung des ersten Trainingstags hielt den
+  Langzeitwert wochenlang zu hoch; ein gleichmäßiger Spieler stand genau an Tag 28 bei
+  0,78 („Low“). Jetzt Start mit dem Mittel der ersten 7 bzw. 28 Tage → Tag 28 ≈ 0,9–1,0.
+- **Fehler 2 – Spiel-Prognose:** RPE 10 × ganze Spielzeit (z. B. 1200 AU statt typischer
+  400). Jetzt: typische eigene Spielbelastung inkl. Aufwärmen (Median vergangener Spiele).
+- **Prognose außerdem:** heute = schon eingetragen + noch geplant (vorher das größere von
+  beiden); innerhalb des geplanten Kalenders kein erfundenes Mannschaftstraining an freien
+  Tagen, danach der übliche Wochenrhythmus; eigenes Training getrennt davon; unbewertete
+  Einheiten der letzten 7 Tage zählen mit ihrer erwarteten Belastung.
+- **„Luft bis zur Grenze“** (Room to high / Underload gap) exakt aus den EWMA-Werten von
+  gestern gelöst und zentral in `loadRoom()`; vorher doppelt in zwei Ansichten und mit
+  den Werten von heute statt gestern.
+- **Nächtliche Ampel auf dem Server** (Migration 0015): Trainer mit reinem Ampel-Recht
+  sahen den Wert vom letzten Öffnen der App durch den Spieler. Jetzt rechnet der Server
+  jede Nacht (00:15 UTC) mit exakt derselben Formel; Abgleich App ↔ Server über 60
+  unregelmäßige Tage identisch.
+- **Methode (Entscheidung):** Ein Wert, EWMA-Tageswert. Bekannte Eigenschaft: er schwankt
+  im Wochenrhythmus (gleichmäßig 2×/Woche 0,57–1,38, 3×/Woche 0,76–1,18, im Wochenmittel
+  1,0); „7 Tage gegen 4 Wochen davor“ wäre dabei ruhig (1,00) und erkennt eine Verdopplung
+  klar (2,00), ein über 7 Tage geglätteter EWMA erkennt sie kaum (1,27). Später je Team
+  wählbar (Abo): kein Load / 7:28 entkoppelt (Amateure) / EWMA (Profis).
+- Tests: neu `npm run test:load` (13 Prüfungen der Mathematik), Datenschicht-Tests +2
+  (Server = App), Demo-Daten neu aufgesetzt (Version v11), Typecheck, Build, Browser.
+
+## Run 17 — Stücke 10 und 11: Einträge prüfen lassen, Anwesenheit bestätigen (erledigt)
+
+Entscheidungen vom 2026-09-25: keine Soll-Intensität je Einheit (RPE ist bewusst
+individuell); Spieler dürfen ihre Einträge jederzeit selbst ändern, die Markierung des
+Trainers ist nur ein Hinweis.
+
+- **Stück 10 – „Ask to check“:** In der Einheit (Load signal → Liste je Spieler) kann ein
+  Trainer mit Detailrecht einen Eintrag markieren, mit optionaler Notiz („90 min? We
+  stopped after 75.“), und die Markierung wieder zurückziehen. Der Spieler sieht auf
+  „Today“ und „Load“ die Karte „Your coach asks you to check“ mit „Edit entry“ (öffnet
+  den Eintrag) und „It's correct“, dazu eine Push-Nachricht „Please check an entry“
+  (Ruhezeit gilt). Ändert der Spieler den Eintrag, verschwindet die Markierung (App und
+  Server-Trigger); löscht er ihn, ebenso.
+- **Stück 11 – „Who was there?“:** Bei vergangenen Einheiten (ab Beginn) kann ein Trainer
+  mit Anwesenheitsrecht für jeden Spieler „There“ / „Not there“ festhalten. Vorbelegt mit
+  dem, was die Spieler gesagt haben (in/late → da, out/nicht teilgenommen → nicht da).
+  Die Bestätigung gewinnt in allen Zahlen (Anwesenheit in Verlauf und Quote); wer als
+  „nicht da“ bestätigt ist, wird nicht mehr nach „How hard was it?“ gefragt (App und
+  Push).
+- **Migration 0016 (angewendet):** Tabellen `load_entry_reviews` und
+  `attendance_confirmations` mit Zugriffsregeln, Trigger für Besitzer, Aufräumen und
+  Push.
+
+Geprüft: 105 + 35 + 50 + 19 + 49 + 25 Datenbank-Prüfungen, neu `06_review_attendance_test.sql` (Rechte je Rolle,
+Notiz, Push-Text, Korrektur löscht Markierung und Push, „ist korrekt“, fremder Verein,
+Anwesenheit nur nach Beginn und nur für Spieler des Teams, Korrektur durch anderen
+Trainer, Bewertungs-Push geschlossen), Datenschicht 109 Prüfungen, `npm run test:load`,
+Typecheck, Build, Browser auf Handy und Desktop (Trainer bestätigt Anwesenheit 9 von 12,
+markiert einen Eintrag mit Notiz, Spieler sieht Karte, „Edit entry“, „It's correct“,
+kein Überlauf, keine Fehler).
+
+**Nachtrag (Wunsch 2026-09-25):** „Who was there?“ ist jetzt eine Liste statt Knöpfen je
+Spieler. Offen, solange nicht bestätigt: alle, die kommen wollten (in/late), sind
+abgehakt; ein Tipp auf einen Spieler fragt „… was not there?“ (Not there / Cancel), damit
+niemand aus Versehen herausfällt. Wer abgesagt hat oder herausgenommen wurde, steht unter
+„Not there“ mit „Was there“. Ein Knopf bestätigt alles auf einmal („All there · confirm
+11“ bzw. „Confirm · 10 of 12 there“); „Change“ öffnet die Liste wieder. Geprüft: Typecheck,
+Build, Browser auf Handy und Desktop (Abbrechen lässt den Spieler drin, Herausnehmen,
+Bestätigen, Wiederöffnen).
+
+## Run 18 — Stück 12: Einstellungen für alle (erledigt)
+
+Auf Wunsch (2026-09-25) nicht nur Vereinseinstellungen, sondern eine Seite für jede Rolle.
+Entschieden per Rückfrage: „How hard was it?“ bleibt immer an; Team verlassen schon jetzt
+(mit Bestätigung); Ruhezeit Von/Bis wählbar oder aus; E-Mail in der App änderbar.
+
+- **`/settings`** (Profil-Menü → „Settings“, auf dem Desktop auch unten in der Seitenleiste;
+  Navigation der aktuellen Rolle ohne markierten Tab):
+  - *Account:* Name; mit Server E-Mail ändern (Bestätigungslink an die neue Adresse),
+    Passwort ändern, „Sign out“ und „Sign out on all devices“ (mit Rückfrage). Normales
+    Abmelden meldet jetzt nur dieses Gerät ab (vorher Supabase-Standard: alle Geräte).
+  - *Notifications* (nur mit Server): je Art an/aus – Spieler: Änderung/Absage, „Are you
+    in?“, „Please check an entry“; Trainer: „Who is coming“; „How hard was it?“ sichtbar,
+    aber fest an. Ruhezeit an/aus mit Von/Bis (volle Stunden, Standard 22–07).
+  - *This device:* Push an/aus für dieses Gerät, „Install as app“.
+  - Rolle Spieler: eigene Teams mit „Leave team“ (Rückfrage; beim letzten Team zurück zur
+    Startseite) und „Join another team with a code“. Rolle Trainer: Teams mit Rolle und
+    „Team settings“ (öffnet den Tab „Staff & settings“). Rolle Verein: Admin benennt den
+    Verein um; Hinweis, wie man die Admin-Rolle übergibt; Link in den Vereinsbereich.
+- **Vereinsbereich:** „Department settings“ bietet „Delete department“, solange die
+  Abteilung keine Teams hat (auch keine archivierten); sonst ein Hinweis.
+- **Migration 0017 (angewendet):** `notification_settings` (nur eigene Zeile), Ruhezeit und
+  abgeschaltete Arten werden beim Versenden angewendet (`push_take_due`), damit Änderungen
+  auch für schon wartende Nachrichten gelten; wird eine Nachricht durchs Warten zu spät
+  („Are you in?“ in der letzten Stunde, Trainer-Übersicht nach Beginn), entfällt sie.
+  Verein umbenennen (nur Name, nur Admin), Abteilung löschen (nur Admin, Sperre bei
+  Teams; Löschen des ganzen Vereins kaskadiert weiter), Spieler dürfen die eigene
+  Spieler-Mitgliedschaft löschen.
+- Das Profil-Menü ist schlanker: Rollen wechseln, „Settings“, Abmelden (Demo: Test-Daten
+  zurücksetzen).
+
+Geprüft: Datenbank 105 + 35 + 50 + 19 + 49 + 25 + 34 (neu `07_settings_test.sql`: eigene
+Einstellungen, ungültige Werte, Ruhezeit über Mitternacht und tagsüber, Versand mit
+abgeschalteter Art, Warten in der Ruhezeit, zu spät gewordene Erinnerung, Verein
+umbenennen, Abteilung löschen mit/ohne Teams, Team verlassen); `01` und `05` an die
+gewollten Änderungen angepasst. Datenschicht 118 Prüfungen (Verein umbenennen, Abteilung
+löschen, Leiter darf nicht umbenennen, Spieler verlässt Team). Typecheck, Build, Browser
+auf Handy und Desktop (Spieler, Trainer, Verein; Abbrechen/Verlassen, Name, Vereinsname,
+Abteilung anlegen und löschen, Weg zu den Teameinstellungen; kein Überlauf, keine
+Fehler). Supabase-Hinweise nach der Migration: nichts Neues.
+Offen: Die Server-Teile der Seite (E-Mail, Passwort, Benachrichtigungen) sind nur gegen die
+lokale Datenbank und per SQL geprüft, noch nicht mit einem echten Konto im Browser.

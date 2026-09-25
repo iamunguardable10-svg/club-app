@@ -238,6 +238,43 @@ async function main() {
   await data.flushRemote();
   check('Jonas: load entry 600 AU on the server', (await count('select 1 from load_entries where person_id = $1 and load = 600', [P.jonas])) === 1, store.getStatus().rejected);
   check('Jonas: his traffic light was written too', (await count('select 1 from load_summaries where person_id = $1', [P.jonas])) === 1);
+  // Piece 9: the nightly server job computes the same traffic light as the app.
+  {
+    const jonasEntries = db().loadEntries.filter((entry) => entry.personId === P.jonas);
+    const client = data.summarizeLoadEntries(jonasEntries);
+    const server = (await pool.query('select acwr, chronic_full from app.load_summary($1, $2::date)', [P.jonas, data.todayISO()])).rows[0];
+    check('nightly job: the server computes the same traffic light as the app',
+      server.chronic_full === client.chronicFull && (server.acwr === null ? client.acwr === null : Math.abs(Number(server.acwr) - (client.acwr ?? -1)) < 0.005),
+      { server, client });
+    const refreshed = (await pool.query('select app.refresh_load_summaries($1::date) as n', [data.todayISO()])).rows[0].n;
+    check('… and writes it for every athlete with load', Number(refreshed) >= 1, refreshed);
+  }
+  // … also over a long, uneven history (60 days, fixed pseudo-random loads).
+  {
+    let seed = 7;
+    const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    await pool.query('delete from load_entries where person_id = $1', [P.ben]);
+    for (let offset = -60; offset <= 0; offset += 1) {
+      if (rand() < 0.45) continue;
+      const load = Math.round(100 + rand() * 900);
+      await pool.query(
+        `insert into load_entries (person_id, date, title, training_type, rpe, duration_minutes, load, source)
+         values ($1, current_date + $2::int, 'Synthetic', 'team_training', 5, 60, $3, 'manual')`,
+        [P.ben, offset, load],
+      );
+    }
+    const rows = (await pool.query("select id, to_char(date, 'YYYY-MM-DD') as date, load from load_entries where person_id = $1", [P.ben])).rows;
+    const synthetic = rows.map((row) => ({
+      id: String(row.id), sessionId: null, teamId: null, date: String(row.date), title: 'Synthetic',
+      trainingType: 'team_training' as const, rpe: 5, durationMinutes: 60, load: Number(row.load), source: 'manual' as const,
+    }));
+    const today = (await pool.query("select to_char(current_date, 'YYYY-MM-DD') as d")).rows[0].d as string;
+    const client = data.summarizeLoadEntries(synthetic);
+    const server = (await pool.query('select acwr, chronic_full from app.load_summary($1, $2::date)', [P.ben, today])).rows[0];
+    check('nightly job: same traffic light as the app over 60 uneven days',
+      today === data.todayISO() && server.chronic_full === client.chronicFull && Number(server.acwr) === client.acwr,
+      { server, client, today });
+  }
   check('… no refusals', store.getStatus().rejected === null, store.getStatus().rejected);
 
   // --- "How hard was it?" (piece 4) ---------------------------------------
@@ -284,6 +321,42 @@ async function main() {
   store = await actAs(U.uwe);
   const missedForCoach = buildCoachData(db(), P.uwe).sessions.find((session) => session.id === MISSED)?.availability.find((entry) => entry.userId === P.jonas);
   check('coach: sees Jonas as absent, labelled "did not take part"', missedForCoach?.status === 'out' && missedForCoach.missed === true && missedForCoach.reason === 'did not take part', missedForCoach);
+
+  // --- Pieces 10 and 11: check requests and confirmed attendance ------------
+  const CONFIRM = '50000000-0000-0000-0000-000000000007';
+  await pool.query(`insert into public.sessions (id, club_id, department_id, team_id, title, session_type, starts_at, ends_at, facility_id, group_ids)
+    values ('${CONFIRM}', '${CLUB}', '${DEP}', '${TEAM}', 'Training', 'training', now() - interval '1 day', now() - interval '1 day' + interval '90 minutes', '${HALL}', '{}')`);
+  let uweRefused = '';
+  try {
+    data.requestEntryReview(db().loadEntries.find((entry) => entry.personId === P.jonas && entry.sessionId === GAME)?.id ?? 'none');
+  } catch (error) {
+    uweRefused = error instanceof Error ? error.message : String(error);
+  }
+  check('check: Uwe (no load details) cannot ask', uweRefused.length > 0, uweRefused);
+  store = await actAs(U.martin);
+  const gameEntry = db().loadEntries.find((entry) => entry.personId === P.jonas && entry.sessionId === GAME && entry.trainingType !== 'warmup')!;
+  data.requestEntryReview(gameEntry.id, 'Really 70 minutes?');
+  await data.flushRemote();
+  check('check: Martin asks Jonas to check his game entry',
+    (await count('select 1 from load_entry_reviews where entry_id = $1 and requested_by = $2 and note = $3', [gameEntry.id, P.martin, 'Really 70 minutes?'])) === 1, store.getStatus().rejected);
+  check('… Martin sees it on the player', buildCoachData(db(), P.martin).sessions.find((session) => session.id === GAME)?.players.find((player) => player.id === P.jonas)?.reviews?.[gameEntry.id]?.note === 'Really 70 minutes?');
+  store = await actAs(U.jonas);
+  check('… Jonas sees the request', data.reviewsForPerson(db(), P.jonas).length === 1);
+  data.clearEntryReview(gameEntry.id);
+  await data.flushRemote();
+  check('… "it is correct" removes it on the server', (await count('select 1 from load_entry_reviews')) === 0, store.getStatus().rejected);
+  const queueBefore = rateStore.readSessionsToRate(db(), P.jonas).map((session) => session.id);
+  store = await actAs(U.martin);
+  data.confirmAttendance(CONFIRM, [{ personId: P.jonas, present: false }, { personId: P.ben, present: true }]);
+  await data.flushRemote();
+  check('attendance: Martin confirms Jonas was not there, Ben was',
+    (await count('select 1 from attendance_confirmations where session_id = $1', [CONFIRM])) === 2, store.getStatus().rejected);
+  const confirmedForCoach = buildCoachData(db(), P.martin).sessions.find((session) => session.id === CONFIRM);
+  check('… the coach counts Jonas as absent (confirmed)', confirmedForCoach?.availability.some((entry) => entry.userId === P.jonas && entry.confirmedByCoach) === true, confirmedForCoach?.availability);
+  store = await actAs(U.jonas);
+  check('… and Jonas is no longer asked to rate it',
+    queueBefore.includes(CONFIRM) && !rateStore.readSessionsToRate(db(), P.jonas).some((session) => session.id === CONFIRM), queueBefore);
+  store = await actAs(U.uwe);
   store = await actAs(U.jonas);
   data.renameOwnPerson(P.jonas, 'Jonas', 'Kern-Neu');
   await data.flushRemote();
@@ -504,6 +577,45 @@ async function main() {
   check('founder: can switch to her club role', data.hasIdentityRole(db(), frida!.id, 'club') && data.hasIdentityRole(db(), frida!.id, 'coach'));
   data.setActiveIdentity({ role: 'club', personId: frida!.id });
   check('… and acts as club admin', db().activeIdentity?.role === 'club');
+
+  // --- Settings (piece 12) -------------------------------------------------
+  data.renameClub('SV Neu 1920');
+  await data.flushRemote();
+  check('admin: club renamed on the server', (await count("select 1 from clubs where name = 'SV Neu 1920'")) === 1, store.getStatus().rejected);
+  const chess = data.createDepartment('Schach');
+  await data.flushRemote();
+  data.deleteDepartment(chess);
+  await data.flushRemote();
+  check('admin: empty department deleted on the server', (await count('select 1 from departments where id = $1', [chess])) === 0, store.getStatus().rejected);
+  let refusedDelete = '';
+  try {
+    data.deleteDepartment(tennis);
+  } catch (error) {
+    refusedDelete = error instanceof Error ? error.message : String(error);
+  }
+  check('admin: Tennis (archived team) cannot be deleted', refusedDelete.includes('without teams') && (await count('select 1 from departments where id = $1', [tennis])) === 1, refusedDelete);
+  check('… no refusals', store.getStatus().rejected === null, store.getStatus().rejected);
+  store = await actAs(U.lead);
+  data.renameClub('Lars FC');
+  await data.flushRemote();
+  check('lead: cannot rename the club, and is told so',
+    (await count("select 1 from clubs where name = 'SV Neu 1920'")) === 1 && store.getStatus().rejected !== null && db().club.name === 'SV Neu 1920', store.getStatus());
+  data.dismissRejectedChange();
+
+  store = await actAs(U.jonas);
+  const beforeEntries = await count('select 1 from load_entries where person_id = $1', [P.jonas]);
+  data.leaveTeam(TEAM, P.jonas);
+  await data.flushRemote();
+  check('player: Jonas left U16 himself', (await count("select 1 from memberships where person_id = $1 and team_id = $2", [P.jonas, TEAM])) === 0, store.getStatus().rejected);
+  check('… not reported as refused', store.getStatus().rejected === null, store.getStatus().rejected);
+  check('… his load entries stay', (await count('select 1 from load_entries where person_id = $1', [P.jonas])) === beforeEntries);
+  let leftForOther = '';
+  try {
+    data.leaveTeam(TEAM, P.ben);
+  } catch (error) {
+    leftForOther = error instanceof Error ? error.message : String(error);
+  }
+  check('… and cannot take Ben out', leftForOther.includes('yourself') && (await count("select 1 from memberships where person_id = $1 and team_id = $2", [P.ben, TEAM])) === 1, leftForOther);
 
   // --- Not signed in ------------------------------------------------------
   const anonymous = new RemoteStore({ ...pgClient(U.martin), userId: async () => null }, data.SCHEMA_VERSION);

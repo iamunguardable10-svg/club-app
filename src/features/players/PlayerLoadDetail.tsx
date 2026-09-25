@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { LoadChart, WeeklyLoadProfileGraph } from '@/features/load/AthleteLoadWorkspace';
 import { acwrDisplayLabel, playerLoadSummary, type PlayerLoadInput, type PlayerLoadSummary } from '@/features/load/loadAccess';
-import { loadZone } from '@/features/load/loadCalculations';
+import { loadRoom, loadZone } from '@/features/load/loadCalculations';
 import { ACWR_ZONES, LOAD_TYPE_COLORS, LOAD_TYPE_LABELS, type AthleteLoadEntry } from '@/features/load/loadTypes';
 
 export type PlayerLoadDetailPlayer = PlayerLoadInput & {
@@ -37,14 +37,6 @@ function averageMinutes(entries: AthleteLoadEntry[], predicate: (entry: AthleteL
   return Math.round(relevant.reduce((sum, entry) => sum + entry.durationMinutes, 0) / relevant.length);
 }
 
-function ewmaLoadForTargetRatio(acuteLoad: number, chronicLoad: number, targetRatio: number) {
-  const acuteLambda = 2 / (7 + 1);
-  const chronicLambda = 2 / (28 + 1);
-  const denominator = acuteLambda - targetRatio * chronicLambda;
-  if (denominator <= 0 || chronicLoad <= 0) return null;
-  return Math.max(0, Math.round((targetRatio * (1 - chronicLambda) * chronicLoad - (1 - acuteLambda) * acuteLoad) / denominator));
-}
-
 function averageRecentLoad(entries: AthleteLoadEntry[]) {
   const active = entries.slice(-28).filter((entry) => entry.load > 0);
   if (active.length === 0) return 500;
@@ -52,12 +44,10 @@ function averageRecentLoad(entries: AthleteLoadEntry[]) {
 }
 
 function PlayerLoadRoom({ summary }: { summary: PlayerLoadSummary }) {
-  const latest = summary.latest;
   const averageLoad = averageRecentLoad(summary.entries);
-  const overloadLimit = latest ? ewmaLoadForTargetRatio(latest.acuteLoad, latest.chronicLoad, ACWR_ZONES.high) : null;
-  const lowFloor = latest ? ewmaLoadForTargetRatio(latest.acuteLoad, latest.chronicLoad, ACWR_ZONES.low) : null;
-  const lowGap = lowFloor === null || summary.acwr === null || summary.acwr >= ACWR_ZONES.low ? 0 : Math.max(0, lowFloor);
-  const headroom = overloadLimit === null ? null : Math.max(0, overloadLimit);
+  const room = loadRoom(summary.entries);
+  const lowGap = room === null || summary.acwr === null || summary.acwr >= ACWR_ZONES.low ? 0 : room.toLow;
+  const headroom = room === null ? null : room.toHigh;
   const label = lowGap > 0 ? 'Underload gap' : 'Overload room';
   const value = lowGap > 0 ? lowGap : headroom;
   const percent = value === null ? 0 : Math.min(100, Math.max(8, (value / Math.max(averageLoad * 2, 1)) * 100));
