@@ -31,6 +31,7 @@ migrations below are applied there (2026-09-24).
 | `migrations/0020_pilot_absences.sql` | Absences over a period (piece 16): `absences` (period, readable with viewAttendance) and `absence_reasons` (kind and note, readable with viewAbsenceReasons); entered by the player or coaches with attendance rights; sessions in the period count as out unless the player says "in" for one (`app.absent_for_session`); no "Are you in?" or "How hard was it?" for them, counted as out in the coach overview, waiting pushes closed when an absence is added |
 | `migrations/0021_pilot_squads.sql` | Squads for games (piece 15): `squad_entries` (squad / reserve / not selected, picked by roles with editSessions, seen by coaches with attendance and by the player only once `sessions.squad_published_at` is set), push per player on publishing and later only to those whose status changed (`notified_status`); not selected: no "Are you in?", no "How hard was it?", not counted in the coach overview |
 | `migrations/0022_pilot_team_messages.sql` | Team messages (piece 17): `team_messages` (to the team or groups, optional important; written by roles with viewAttendance or editSessions) and `message_reads` (a player marks what they have seen); push per message (kind `message`, can be muted; `important` cannot), one reminder to the unread, closed when read |
+| `migrations/0023_pilot_calendar_feed.sql` | Calendar subscription link (piece 19): `calendar_feeds` (one secret link per account, closed to the app), `calendar_feed_token` / `_status` / `_stop` for the signed-in account, `calendar_feed(token)` (service role only) with the account's team sessions (players: their groups, squad status once published; coaches: all sessions of their teams) and own training, 60 days back to a year ahead |
 | `tests/00_supabase_shim.sql` | Stand-in for Supabase's `auth` schema and roles, **local tests only** |
 | `tests/01_rls_test.sql` | 105 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
 | `tests/02_access_test.sql` | 35 checks for join codes, invitations and club setup |
@@ -140,6 +141,16 @@ data again. The app cannot change this.
   signed-in account. `push_take_due` / `push_report` are callable by the
   service role only and check the dispatch secret as well.
   `rls_auto_enable` comes with the Supabase project.
+
+## Calendar link (piece 19)
+
+The Edge Function source is `supabase/functions/calendar-feed/` (`index.ts`,
+`ics.ts`; deployed as `calendar-feed`, JWT verification off: the secret link
+is the key). A calendar app fetches
+`https://<project>.supabase.co/functions/v1/calendar-feed/<token>.ics`; the
+function reads `calendar_feed(token)` with the service key and answers an
+iCalendar file (unknown or replaced link: 404). No setup needed. The file
+format is tested with `npm run test:calendar`.
 
 ## Push notifications (piece 7)
 

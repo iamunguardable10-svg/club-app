@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
 
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
+import { CalendarLinkSection } from '@/features/calendar/CalendarLinkSection';
 import { InstallHint } from '@/features/install/InstallHint';
 import { SignOutButton } from '@/features/access/SignOutButton';
 import { plural } from '@/shared/format';
@@ -66,6 +67,7 @@ export function SettingsPage() {
         <div className="grid gap-5">
           <AccountSection person={person} remote={remote} />
           {remote ? <NotificationSection database={database} /> : null}
+          <CalendarLinkSection remote={remote} role={role} />
         </div>
         <div className="grid gap-5">
           {role === 'athlete' && person ? <PlayerTeamsSection database={database} person={person} /> : null}
