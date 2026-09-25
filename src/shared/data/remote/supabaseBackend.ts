@@ -6,12 +6,16 @@
  *
  * Only loaded when this device chose the server (start page), through a
  * dynamic import in the repository.
+ *
+ * Offline (piece 18): a request that finds no network throws `OfflineError`,
+ * so the store keeps the change waiting instead of reporting a refusal, and
+ * coming back online sends it.
  */
 
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, isAuthRetryableFetchError, type SupabaseClient } from '@supabase/supabase-js';
 
 import { LocalDataError } from '../schema';
-import { RemoteStore, type RemoteClient } from './remoteStore';
+import { OfflineError, RemoteStore, type OfflineCache, type RemoteClient } from './remoteStore';
 import type { Row, TableName } from './tables';
 
 /** PostgREST returns at most this many rows per request; larger tables are paged. */
@@ -48,21 +52,37 @@ export function getSupabase(storage?: KeyValueStorage): SupabaseClient {
   return client;
 }
 
-function fail(table: TableName, action: string, message: string): never {
-  throw new Error(`${action} ${table}: ${message}`);
+/** The browser knows it has no network. */
+function knownOffline() {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
+function checkOnline() {
+  if (knownOffline()) throw new OfflineError();
+}
+
+type RequestError = { message: string; code?: string };
+
+/** A failed request: no network (the request never got an answer), or the server's refusal. */
+function fail(table: TableName, action: string, error: RequestError, status: number): never {
+  if (status === 0 || knownOffline()) throw new OfflineError();
+  throw Object.assign(new Error(`${action} ${table}: ${error.message}`), { code: error.code });
 }
 
 export function supabaseRemoteClient(supabase: SupabaseClient): RemoteClient {
   return {
     async userId() {
-      const { data } = await supabase.auth.getSession();
+      const { data, error } = await supabase.auth.getSession();
+      // An expired sign-in cannot be renewed without a network; it is not a sign-out.
+      if (!data.session && error && (isAuthRetryableFetchError(error) || knownOffline())) throw new OfflineError();
       return data.session?.user.id ?? null;
     },
     async selectAll(table) {
+      checkOnline();
       const rows: Row[] = [];
       for (let from = 0; ; from += PAGE_SIZE) {
-        const { data, error } = await supabase.from(table).select('*').range(from, from + PAGE_SIZE - 1);
-        if (error) fail(table, 'Loading', error.message);
+        const { data, error, status } = await supabase.from(table).select('*').range(from, from + PAGE_SIZE - 1);
+        if (error) fail(table, 'Loading', error, status);
         rows.push(...(data ?? []));
         if (!data || data.length < PAGE_SIZE) return rows;
       }
@@ -70,21 +90,26 @@ export function supabaseRemoteClient(supabase: SupabaseClient): RemoteClient {
     async insert(table, rows) {
       // No `.select()`: a row may be writable but not yet readable (a staff
       // member added before their membership), which would fail the request.
-      const { error } = await supabase.from(table).insert(rows);
-      if (error) fail(table, 'Creating', error.message);
+      checkOnline();
+      const { error, status } = await supabase.from(table).insert(rows);
+      if (error) fail(table, 'Creating', error, status);
     },
     async update(table, key, changes) {
-      const { error, count } = await supabase.from(table).update(changes, { count: 'exact' }).match(key);
-      if (error) fail(table, 'Updating', error.message);
+      checkOnline();
+      const { error, count, status } = await supabase.from(table).update(changes, { count: 'exact' }).match(key);
+      if (error) fail(table, 'Updating', error, status);
       return count ?? 0;
     },
     async delete(table, key) {
-      const { error, count } = await supabase.from(table).delete({ count: 'exact' }).match(key);
-      if (error) fail(table, 'Deleting', error.message);
+      checkOnline();
+      const { error, count, status } = await supabase.from(table).delete({ count: 'exact' }).match(key);
+      if (error) fail(table, 'Deleting', error, status);
       return count ?? 0;
     },
     async rpc(name, args) {
-      const { data, error } = await supabase.rpc(name, args);
+      if (knownOffline()) throw new OfflineError("You're offline. Try again when you have a connection.");
+      const { data, error, status } = await supabase.rpc(name, args);
+      if (error && status === 0) throw new OfflineError("You're offline. Try again when you have a connection.");
       // Database functions raise messages meant for the person.
       if (error) throw new Error(error.message);
       return data;
@@ -96,9 +121,10 @@ export function createSupabaseStore(
   version: string,
   storage: KeyValueStorage,
   rememberedIdentity: ConstructorParameters<typeof RemoteStore>[2] = null,
+  offlineCache: OfflineCache | null = null,
 ): RemoteStore {
   const supabase = getSupabase(storage);
-  const store = new RemoteStore(supabaseRemoteClient(supabase), version, rememberedIdentity);
+  const store = new RemoteStore(supabaseRemoteClient(supabase), version, rememberedIdentity, offlineCache);
 
   // Signing in or out elsewhere (another tab, token expiry) reloads.
   supabase.auth.onAuthStateChange((event) => {
@@ -110,6 +136,8 @@ export function createSupabaseStore(
       if (document.visibilityState === 'visible') void store.refresh();
     };
     window.addEventListener('focus', refreshIfVisible);
+    // Back online: send what waited, then reload.
+    window.addEventListener('online', () => void store.refresh());
     document.addEventListener('visibilitychange', refreshIfVisible);
     window.setInterval(refreshIfVisible, REFRESH_MS);
   }

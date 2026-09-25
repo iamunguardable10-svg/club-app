@@ -6,6 +6,7 @@
  * and off again.
  */
 
+import { SERVICE_WORKER_URL } from '@/features/install/ServiceWorkerRegistration';
 import { deletePushSubscription, getPushPublicKey, LocalDataError, savePushSubscription } from '@/shared/data';
 
 export function isPushSupported(): boolean {
@@ -18,7 +19,7 @@ export function pushPermission(): NotificationPermission | 'unsupported' {
 
 async function registration(): Promise<ServiceWorkerRegistration> {
   // Registered at start in production; make sure it exists here too.
-  return (await navigator.serviceWorker.getRegistration()) ?? navigator.serviceWorker.register('/sw.js');
+  return (await navigator.serviceWorker.getRegistration()) ?? navigator.serviceWorker.register(SERVICE_WORKER_URL);
 }
 
 export async function currentPushSubscription(): Promise<PushSubscription | null> {

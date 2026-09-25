@@ -22,6 +22,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 
 import { LocalModeLink } from '@/features/access/LocalModeLink';
+import { SignOutButton } from '@/features/access/SignOutButton';
 import { ReportProblemDialog } from '@/features/errors/ReportProblemDialog';
 
 import {
@@ -31,7 +32,6 @@ import {
   isOperator,
   isRemoteMode,
   isServerAvailable,
-  signOut,
   ownPersonIds,
   resetDatabase,
   setActiveIdentity,
@@ -237,13 +237,7 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
             <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-800 pt-4">
               {remoteMode ? (
                 <>
-                  <button
-                    type="button"
-                    onClick={async () => { await signOut(); window.location.assign('/'); }}
-                    className="rounded-2xl border border-slate-700 px-4 py-2 text-xs font-black text-slate-200"
-                  >
-                    Sign out
-                  </button>
+                  <SignOutButton className="rounded-2xl border border-slate-700 px-4 py-2 text-xs font-black text-slate-200" />
                   <LocalModeLink />
                 </>
               ) : isServerAvailable() ? (

@@ -19,6 +19,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { InstallHint } from '@/features/install/InstallHint';
+import { SignOutButton } from '@/features/access/SignOutButton';
+import { plural } from '@/shared/format';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
 import { ActiveRoleShell, CoachSection } from '@/features/role-workspaces/RoleShell';
 import {
@@ -38,6 +40,7 @@ import {
   saveNotificationSettings,
   signOut,
   updatePassword,
+  useBackendStatus,
   useLocalDatabase,
   type LocalDatabase,
   type MutablePushKind,
@@ -222,6 +225,7 @@ function PasswordForm() {
 function SignOutButtons() {
   const [confirmAll, setConfirmAll] = useState(false);
   const [busy, setBusy] = useState(false);
+  const { pending } = useBackendStatus();
   async function leave(everywhere: boolean) {
     setBusy(true);
     try {
@@ -232,12 +236,12 @@ function SignOutButtons() {
   }
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-800 pt-4">
-      <button type="button" disabled={busy} onClick={() => void leave(false)} className={quietButtonClass}>Sign out</button>
+      <SignOutButton className={quietButtonClass} />
       <button type="button" disabled={busy} onClick={() => setConfirmAll(true)} className="text-xs font-bold text-slate-400 underline">Sign out on all devices</button>
       <AppConfirmDialog
         isOpen={confirmAll}
         title="Sign out on all devices?"
-        description="Every phone and computer signed in to your account is signed out, this one too. Useful if you lost a phone."
+        description={`Every phone and computer signed in to your account is signed out, this one too. Useful if you lost a phone.${pending > 0 ? ` ${plural(pending, 'change')} on this device not sent yet will be lost.` : ''}`}
         confirmLabel="Sign out everywhere"
         tone="danger"
         isConfirming={busy}
