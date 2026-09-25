@@ -1,5 +1,6 @@
 'use client';
 
+import { sessionsNotOver } from '@/features/sessions/sessionTiming';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -925,10 +926,8 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const upcomingSessions = sessions.filter((session) => new Date(session.startsAt).getTime() >= Date.now() && !isSameLocalDay(session.startsAt, today)).slice(0, 4);
   const nextSessionByTeamId = useMemo(() => {
     const map = new Map<string, CoachSession>();
-    const upcoming = [...sessions]
-      .filter((session) => new Date(session.startsAt).getTime() >= Date.now())
-      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
-    for (const session of upcoming) {
+    // A running session is still the team's next one, as on Today.
+    for (const session of sessionsNotOver(sessions)) {
       if (!map.has(session.teamId)) map.set(session.teamId, session);
     }
     return map;

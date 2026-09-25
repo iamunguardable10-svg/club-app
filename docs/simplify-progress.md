@@ -1882,3 +1882,29 @@ keine eine Stunde später; Team Manager ohne das Recht sieht nichts, Server lief
 Pläne); Typecheck, Build. Browser Desktop: Spieler-Blatt zeigt das eigene Training, der
 Editor der Einheit zeigt die Überschneidung; keine Fehler.
 
+## Run 29 — Feinschliff: Trainer-Sicht, „nächste Einheit“, Plan für die Apple-Anleitung (erledigt)
+
+Entschieden (2026-09-25):
+- Das eigene Training (und später private Termine) sieht der Trainer **nur in der
+  Detailansicht eines Spielers**. **Kein Hinweis beim Planen einer Einheit und keine
+  Nachricht an den Trainer**, wenn eine Einheit mit eigenem Training kollidiert: das eigene
+  Training zu verschieben oder mit Grund abzusagen ist Sache des Spielers.
+- Stück 20 bekommt eine **geführte Anleitung** für das app-spezifische Passwort (was die
+  Verbindung macht, Schritt für Schritt bei Apple, Test der Verbindung, Widerrufen).
+
+Geändert:
+- Der Hinweis „N players have own training then“ im Einheiten-Editor ist wieder entfernt;
+  das Spieler-Blatt zeigt weiter „Own training · next 2 weeks“. Push-Nachrichten zu eigenem
+  Training gab und gibt es keine.
+- **„Nächste Einheit“ überall gleich:** Today zeigte die laufende Einheit (z. B. 16:30–17:30),
+  das Team-Dashboard sprang schon zur nächsten (Spiel am Samstag), weil es nur Einheiten
+  zählte, die noch nicht begonnen hatten. Kein Datenfehler, auch mit der Datenbank so. Jetzt
+  gilt überall eine Regel (`sessionTiming.ts`): eine Einheit zählt, bis sie vorbei ist; läuft
+  sie, heißt die Karte „Now“. Gilt fürs Team-Dashboard, „After that“ und die nächste Einheit je
+  Team in der Trainer-Übersicht. Das Team-Dashboard zeigt ohne kommende Einheit nicht mehr
+  eine alte als „Next session“.
+
+Geprüft: Typecheck, Build, Datenschicht; Browser Handy/Desktop mit einer gerade laufenden
+Einheit: Today und Team zeigen dieselbe, Team mit „Now“; Spieler-Blatt zeigt eigenes Training;
+keine Fehler.
+

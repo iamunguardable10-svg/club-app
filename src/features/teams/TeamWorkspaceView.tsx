@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { AbsencePanel } from '@/features/absences/AbsencePanel';
+import { isSessionRunning, sessionsNotOver } from '@/features/sessions/sessionTiming';
 import { OwnTrainingList, useOwnTraining } from '@/features/load/OwnTraining';
 import { TeamMessagesPanel } from '@/features/messages/TeamMessagesPanel';
 import { shortDate } from '@/features/absences/absenceText';
@@ -329,10 +330,9 @@ export function TeamWorkspaceView({
     () => activeGroupPlayers.map(loadRiskLine).filter(Boolean) as { id: string; name: string; status: 'high' | 'low'; detail: string | null }[],
     [activeGroupPlayers],
   );
-  const nextSession = useMemo(() => {
-    const now = Date.now();
-    return [...data.sessions].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()).find((session) => new Date(session.startsAt).getTime() >= now) ?? data.sessions[0];
-  }, [data.sessions]);
+  // Same rule as Today: a running session is still the next one ("Now").
+  const notOverSessions = useMemo(() => sessionsNotOver(data.sessions), [data.sessions]);
+  const nextSession = notOverSessions[0] ?? null;
 
   const setupActions = [
     data.staff.headCoaches.length === 0
@@ -351,10 +351,7 @@ export function TeamWorkspaceView({
   const coachSessionFor = (session: TeamWorkspaceSession) =>
     coachSessionById.get(session.id) ?? coachSessionFromTeamWorkspace(session, data, playersForSession(session));
   const groupNameById = useMemo(() => new Map(data.groups.map((group) => [group.id, group.name])), [data.groups]);
-  const upcomingSessions = useMemo(() => {
-    const now = Date.now();
-    return data.sessions.filter((session) => new Date(session.startsAt).getTime() >= now && session.id !== nextSession?.id).slice(0, 4);
-  }, [data.sessions, nextSession?.id]);
+  const upcomingSessions = useMemo(() => notOverSessions.slice(1, 5), [notOverSessions]);
 
   useEffect(() => {
     setActiveSection(initialSection);
@@ -477,7 +474,7 @@ export function TeamWorkspaceView({
           <div className="min-w-0 space-y-4">
             <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-lg font-black">Next session</h2>
+                <h2 className="text-lg font-black">{nextSession && isSessionRunning(nextSession) ? 'Now' : 'Next session'}</h2>
                 <Link href={data.calendarHref} className="text-xs font-black text-sky-300 hover:text-sky-200">Team calendar ›</Link>
               </div>
               {nextSession ? (
