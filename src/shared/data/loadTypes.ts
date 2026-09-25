@@ -1,4 +1,4 @@
-import type { GameDetails, SessionDetails } from './schema';
+import type { GameDetails, SessionDetails, SquadStatus } from './schema';
 
 export type LoadTrainingType =
   | 'team_training'
@@ -74,7 +74,7 @@ export type AthletePendingSession = {
   /** `false` for sessions of a team without load tracking: no RPE is asked. */
   loadTracked?: boolean;
   /** Team sessions: where, meeting, opponent and the coach's note (piece 14). */
-  info?: SessionDetails & GameDetails & { facilityName?: string | null };
+  info?: SessionDetails & GameDetails & { facilityName?: string | null; squad?: SquadStatus | null };
 };
 
 export type AthleteLoadPlan = {

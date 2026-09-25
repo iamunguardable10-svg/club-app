@@ -15,6 +15,8 @@ import {
   athletesForTeam,
   awayForSession,
   coachPermissions,
+  publishedSquadStatus,
+  squadForSession,
   teamHasFeature,
   displayName,
   loadZone,
@@ -312,6 +314,13 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
         opponent: session.opponent ?? null,
         homeAway: session.homeAway ?? null,
         venueAddress: session.venueAddress ?? null,
+        squadPublishedAt: session.squadPublishedAt ?? null,
+        squad: session.sessionType === 'game' && (permissions.has('editSessions') || permissions.has('viewAttendance'))
+          ? Object.fromEntries(squadForSession(database, session.id)) : {},
+        canPickSquad: session.sessionType === 'game' && permissions.has('editSessions') && new Date(session.startsAt).getTime() > now,
+        squadChangedSincePublish: session.squadPublishedAt
+          ? (database.squadEntries ?? []).filter((entry) => entry.sessionId === session.id && Date.parse(entry.setAt) > Date.parse(session.squadPublishedAt!)).length
+          : 0,
       } satisfies CoachSession;
     });
 
@@ -387,8 +396,10 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
  */
 export function attendanceRateForPerson(database: LocalDatabase, personId: Id, teamId: Id): number | null {
   const now = Date.now();
+  // A game the player was not picked for does not count (piece 15).
   const pastSessions = database.sessions.filter(
-    (session) => session.teamId === teamId && new Date(session.startsAt).getTime() < now,
+    (session) => session.teamId === teamId && new Date(session.startsAt).getTime() < now
+      && publishedSquadStatus(database, personId, session) !== 'not_selected',
   );
   if (pastSessions.length === 0) return null;
 

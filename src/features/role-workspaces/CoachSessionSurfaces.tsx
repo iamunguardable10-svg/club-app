@@ -5,7 +5,8 @@ import { formatDateRange, formatDay, formatTimeRange as formatSharedTimeRange } 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { SessionDetailSheet, type SessionDetailFacilityOption, type SessionDetailGroup } from '@/features/sessions/SessionDetailSheet';
 import type { CoachEntryReview, CoachSession } from '@/features/role-workspaces/CoachTypes';
-import { clearEntryReview, confirmAttendance, requestEntryReview } from '@/shared/data';
+import { clearEntryReview, confirmAttendance, publishSquad, requestEntryReview, setSquadStatus, type SquadStatus } from '@/shared/data';
+import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { PlayerLoadDetail, type PlayerLoadDetailPlayer } from '@/features/players/PlayerLoadDetail';
 import { SessionInfo } from '@/features/sessions/SessionInfo';
 
@@ -583,7 +584,8 @@ function AttendanceConfirmation({ session }: { session: CoachSession }) {
   const reportFor = (playerId: string) => session.availability.find((item) => item.userId === playerId && !item.confirmedByCoach);
   const initial = () => Object.fromEntries(session.players.map((player) => [
     player.id,
-    session.confirmations?.[player.id] ?? reportFor(player.id)?.status !== 'out',
+    // Not picked for the game (piece 15) or said no: starts as not there.
+    session.confirmations?.[player.id] ?? (reportFor(player.id)?.status !== 'out' && session.squad?.[player.id] !== 'not_selected'),
   ]));
   const [open, setOpen] = useState(confirmedCount === 0);
   const [present, setPresent] = useState<Record<string, boolean>>(initial);
@@ -612,6 +614,7 @@ function AttendanceConfirmation({ session }: { session: CoachSession }) {
   }
 
   function reportLabel(playerId: string) {
+    if (session.squad?.[playerId] === 'not_selected') return 'not in the squad';
     const report = reportFor(playerId);
     if (!report) return null;
     if (report.status === 'late') return report.lateMinutes ? `late · ${report.lateMinutes} min` : 'late';
@@ -694,6 +697,114 @@ function AttendanceConfirmation({ session }: { session: CoachSession }) {
           </button>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+const SQUAD_OPTIONS: { value: SquadStatus; label: string; on: string }[] = [
+  { value: 'squad', label: 'Squad', on: 'bg-emerald-300 text-slate-950' },
+  { value: 'reserve', label: 'Reserve', on: 'bg-sky-300 text-slate-950' },
+  { value: 'not_selected', label: 'Out', on: 'bg-slate-600 text-white' },
+];
+
+/**
+ * Picking the squad for a game (piece 15). Players who said they are out or
+ * are away are listed apart, not hidden. Nothing reaches players until the
+ * coach publishes; then each gets a notification with their own status, and
+ * after changes only those whose status changed.
+ */
+function SquadPicker({ session }: { session: CoachSession }) {
+  const [confirm, setConfirm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const squad = session.squad ?? {};
+  const editable = Boolean(session.canPickSquad);
+  const reportFor = (playerId: string) => session.availability.find((item) => item.userId === playerId && !item.confirmedByCoach);
+  const available = session.players.filter((player) => reportFor(player.id)?.status !== 'out');
+  const unavailable = session.players.filter((player) => reportFor(player.id)?.status === 'out');
+  const count = (status: SquadStatus) => session.players.filter((player) => squad[player.id] === status).length;
+  const unpicked = session.players.filter((player) => !squad[player.id]).length;
+
+  function run(action: () => void) {
+    try {
+      action();
+      setError(null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    }
+  }
+
+  function row(player: CoachSession['players'][number], muted: boolean) {
+    const report = reportFor(player.id);
+    const hint = report?.status === 'late' ? `late${report.lateMinutes ? ` · ${report.lateMinutes} min` : ''}` : report?.status === 'out' ? report.reason ?? 'out' : null;
+    const current = squad[player.id] ?? null;
+    return (
+      <div key={player.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 px-2.5 py-1.5 ${muted ? 'opacity-70' : 'bg-slate-950/55'}`}>
+        <span className="min-w-0 text-xs font-black text-slate-100">
+          {player.name}{hint ? <span className="font-bold text-slate-500"> · {hint}</span> : null}
+        </span>
+        {editable ? (
+          <div className="flex shrink-0 overflow-hidden rounded-lg border border-slate-700 text-[11px] font-black" role="group" aria-label={`Squad status of ${player.name}`}>
+            {SQUAD_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={current === option.value}
+                onClick={() => run(() => setSquadStatus(session.id, player.id, current === option.value ? null : option.value))}
+                className={`px-2.5 py-1 ${current === option.value ? option.on : 'text-slate-300'}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <span className="text-[11px] font-black text-slate-400">{current ? SQUAD_OPTIONS.find((option) => option.value === current)?.label : '—'}</span>
+        )}
+      </div>
+    );
+  }
+
+  const changed = session.squadChangedSincePublish ?? 0;
+  return (
+    <div className="mb-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.05] p-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">Squad</p>
+          <p className="mt-0.5 text-xs font-bold text-slate-300">
+            {count('squad')} squad · {count('reserve')} reserve{count('reserve') === 1 ? '' : 's'} · {count('not_selected')} out{unpicked > 0 ? ` · ${unpicked} not picked yet` : ''}
+          </p>
+          <p className="mt-0.5 text-[11px] font-bold text-slate-500">
+            {session.squadPublishedAt
+              ? changed > 0 ? `Published · ${changed} change${changed === 1 ? '' : 's'} visible in the app, not notified yet` : 'Published · players know their status'
+              : 'Not published yet · players do not see it'}
+          </p>
+        </div>
+        {editable && available.some((player) => !squad[player.id]) ? (
+          <button type="button" onClick={() => run(() => { for (const player of available) if (!squad[player.id]) setSquadStatus(session.id, player.id, 'squad'); })} className="rounded-full border border-emerald-200/40 px-3 py-1.5 text-[11px] font-black text-emerald-100">
+            Everyone available → squad
+          </button>
+        ) : null}
+      </div>
+      <div className="mt-3 grid gap-1.5">
+        {available.map((player) => row(player, false))}
+        {unavailable.length > 0 ? <p className="mt-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Said no or away · {unavailable.length}</p> : null}
+        {unavailable.map((player) => row(player, true))}
+      </div>
+      {error ? <p role="alert" className="mt-2 text-xs font-bold text-red-200">{error}</p> : null}
+      {editable && (!session.squadPublishedAt || changed > 0) ? (
+        <button type="button" onClick={() => setConfirm(true)} className="mt-3 w-full rounded-xl bg-emerald-300 px-3 py-2.5 text-xs font-black text-slate-950">
+          {session.squadPublishedAt ? 'Notify players about the changes' : 'Publish squad'}
+        </button>
+      ) : null}
+      <AppConfirmDialog
+        isOpen={confirm}
+        title={session.squadPublishedAt ? 'Notify about the changes?' : 'Publish the squad?'}
+        description={session.squadPublishedAt
+          ? 'Players whose status changed get a notification with their new status.'
+          : `${unpicked > 0 ? `${unpicked} player${unpicked === 1 ? ' is' : 's are'} not picked yet and will be "not in the squad". ` : ''}Every player gets a notification with their own status.`}
+        confirmLabel={session.squadPublishedAt ? 'Send' : 'Publish'}
+        onCancel={() => setConfirm(false)}
+        onConfirm={() => { setConfirm(false); run(() => publishSquad(session.id)); }}
+      />
     </div>
   );
 }
@@ -821,7 +932,7 @@ export function CoachSessionDetailOverlay({
         departmentName={session.departmentName}
         facilityName={session.homeAway === 'away' ? null : session.facilityName}
         facilityId={session.facilityId}
-        info={<SessionInfo info={{ ...session, facilityName: null }} />}
+        info={<SessionInfo info={{ ...session, facilityName: null, squad: null }} />}
         facilityOptions={facilityOptions}
         canEditFacility={canEditFacility}
         isSavingFacility={isSavingFacility}
@@ -841,7 +952,9 @@ export function CoachSessionDetailOverlay({
           })),
         }}
         loadRisks={isPast ? [] : summary.risks.map((player) => ({ id: player.id, name: player.name, status: player.risk as 'high' | 'low', detail: player.acwr !== null ? `${player.acwr.toFixed(2)} ACWR` : null }))}
-        insights={isPast ? (<>
+        insights={!isPast && session.sessionType === 'game' && (session.canPickSquad || session.squadPublishedAt) ? (
+          <SquadPicker key={session.id} session={session} />
+        ) : isPast ? (<>
         {session.canConfirmAttendance && session.attendanceShared !== false && session.players.length > 0 ? (
           <AttendanceConfirmation key={session.id} session={session} />
         ) : null}

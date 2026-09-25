@@ -47,6 +47,7 @@ import {
   type AttendanceConfirmation,
   type Absence,
   type AbsenceKind,
+  type SquadStatus,
   type Availability,
   type AvailabilityStatus,
   type Facility,
@@ -1594,7 +1595,7 @@ function optionalText(value: string | null | undefined, max: number, what: strin
  * Notes, meeting and game details as stored (piece 14): trimmed, empty is
  * none, game fields only on games. Same limits as the database.
  */
-export function cleanSessionDetails(sessionType: SessionType, input: SessionDetails & GameDetails): Required<SessionDetails> & Required<GameDetails> {
+export function cleanSessionDetails(sessionType: SessionType, input: SessionDetails & GameDetails): Required<SessionDetails> & Required<Omit<GameDetails, 'squadPublishedAt'>> {
   const meet = input.meetMinutesBefore ?? null;
   if (meet !== null && (!Number.isInteger(meet) || meet < 0 || meet > 240)) {
     throw new LocalDataError('The meeting time can be at most 4 hours before the start.');
@@ -1988,6 +1989,69 @@ export function deleteAbsence(absenceId: Id): void {
     if (!absence) return;
     if (!mayEditAbsences(database, absence.personId)) throw new LocalDataError('You may not remove this absence.');
     database.absences = database.absences.filter((candidate) => candidate.id !== absenceId);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Squads for games (piece 15)
+// ---------------------------------------------------------------------------
+
+/** Picks for a game, by player. */
+export function squadForSession(database: LocalDatabase, sessionId: Id): Map<Id, SquadStatus> {
+  return new Map((database.squadEntries ?? []).filter((entry) => entry.sessionId === sessionId).map((entry) => [entry.personId, entry.status]));
+}
+
+/** A player's status once the squad is published (null before, or if not picked). */
+export function publishedSquadStatus(database: LocalDatabase, personId: Id, session: Pick<Session, 'id' | 'squadPublishedAt'>): SquadStatus | null {
+  if (!session.squadPublishedAt) return null;
+  return (database.squadEntries ?? []).find((entry) => entry.sessionId === session.id && entry.personId === personId)?.status ?? null;
+}
+
+function requireSquadRights(database: LocalDatabase, sessionId: Id): Session {
+  const session = database.sessions.find((candidate) => candidate.id === sessionId);
+  if (!session) throw new LocalDataError('This session no longer exists.');
+  if (session.sessionType !== 'game') throw new LocalDataError('A squad can only be picked for a game.');
+  const coachId = database.activeIdentity?.role === 'coach' ? database.activeIdentity.personId : null;
+  if (!coachPermissions(database, coachId, session.teamId).has('editSessions')) {
+    throw new LocalDataError('Your role may not pick the squad.');
+  }
+  return session;
+}
+
+/** Sets (or with null clears) one player's pick. Players see it once published. */
+export function setSquadStatus(sessionId: Id, personId: Id, status: SquadStatus | null): void {
+  mutate((database) => {
+    const session = requireSquadRights(database, sessionId);
+    if (!database.memberships.some((m) => m.teamId === session.teamId && m.personId === personId && m.role === 'athlete')) {
+      throw new LocalDataError('Only players of the team can be picked.');
+    }
+    database.squadEntries = (database.squadEntries ?? []).filter((entry) => !(entry.sessionId === sessionId && entry.personId === personId));
+    if (status) {
+      database.squadEntries.push({
+        sessionId, personId, status,
+        setBy: database.activeIdentity?.personId ?? null, setAt: new Date().toISOString(),
+      });
+    }
+  });
+}
+
+/**
+ * Publishes the squad: every player of the team not picked yet is "not
+ * selected", and each player is told their status (on the server, a push to
+ * those whose status is new to them).
+ */
+export function publishSquad(sessionId: Id): void {
+  mutate((database) => {
+    const session = requireSquadRights(database, sessionId);
+    database.squadEntries = database.squadEntries ?? [];
+    const picked = new Set(database.squadEntries.filter((entry) => entry.sessionId === sessionId).map((entry) => entry.personId));
+    const now = new Date().toISOString();
+    const me = database.activeIdentity?.personId ?? null;
+    for (const membership of database.memberships) {
+      if (membership.teamId !== session.teamId || membership.role !== 'athlete' || picked.has(membership.personId)) continue;
+      database.squadEntries.push({ sessionId, personId: membership.personId, status: 'not_selected', setBy: me, setAt: now });
+    }
+    session.squadPublishedAt = now;
   });
 }
 

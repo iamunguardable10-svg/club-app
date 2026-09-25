@@ -37,6 +37,7 @@ import {
   absenceOn,
   athletesForTeam,
   awayForSession,
+  publishedSquadStatus,
   coachPermissions,
   coachesForTeam,
   deleteSession,
@@ -90,7 +91,9 @@ function toWorkspaceSession(session: {
 function attendanceForPlayer(database: LocalDatabase, personId: Id, teamId: Id) {
   const now = Date.now();
   const pastSessions = database.sessions
-    .filter((session) => session.teamId === teamId && new Date(session.startsAt).getTime() < now)
+    // A game the player was not picked for does not count (piece 15).
+    .filter((session) => session.teamId === teamId && new Date(session.startsAt).getTime() < now
+      && publishedSquadStatus(database, personId, session) !== 'not_selected')
     .sort((a, b) => b.startsAt.localeCompare(a.startsAt));
 
   const reports = database.availability.filter((entry) => entry.personId === personId);

@@ -7,12 +7,20 @@
  */
 
 import { formatTime } from '@/shared/format';
-import type { GameDetails, SessionDetails } from '@/shared/data';
+import type { GameDetails, SessionDetails, SquadStatus } from '@/shared/data';
 
 export type SessionInfoData = SessionDetails & GameDetails & {
   startsAt: string;
   sessionType?: string | null;
   facilityName?: string | null;
+  /** The viewer's own place in the squad, once published (piece 15). */
+  squad?: SquadStatus | null;
+};
+
+export const SQUAD_LINE: Record<SquadStatus, string> = {
+  squad: "You're in the squad",
+  reserve: "You're a reserve",
+  not_selected: 'Not in the squad this time',
 };
 
 /** "vs TSV Neustadt (away)" or null. */
@@ -37,11 +45,17 @@ function mapsUrl(address: string) {
 
 export function SessionInfo({ info, className = '' }: { info: SessionInfoData; className?: string }) {
   const game = gameLine(info);
-  const meet = meetLine(info);
+  // Not picked: the meeting is not for them.
+  const meet = info.squad === 'not_selected' ? null : meetLine(info);
   const place = info.homeAway === 'away' && info.venueAddress ? info.venueAddress : info.facilityName ?? null;
-  if (!game && !meet && !place && !info.notes) return null;
+  if (!game && !meet && !place && !info.notes && !info.squad) return null;
   return (
     <div className={`grid gap-1.5 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm ${className}`}>
+      {info.squad ? (
+        <p className={`justify-self-start rounded-full px-2.5 py-0.5 text-xs font-black ${info.squad === 'squad' ? 'bg-emerald-300 text-slate-950' : info.squad === 'reserve' ? 'bg-sky-300 text-slate-950' : 'bg-slate-700 text-slate-100'}`}>
+          {SQUAD_LINE[info.squad]}
+        </p>
+      ) : null}
       {game ? <p className="font-black text-white">{game}</p> : null}
       {place ? (
         <p className="font-bold text-slate-300">

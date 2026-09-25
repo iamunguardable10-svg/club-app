@@ -571,6 +571,44 @@ async function main() {
   data.deleteAbsence(benAway);
   await data.flushRemote();
 
+  // --- Squads for games (piece 15) ------------------------------------------
+  store = await actAs(U.martin);
+  const squadGame = data.createSession({
+    teamId: TEAM, title: 'Game', sessionType: 'game', facilityId: HALL, opponent: 'TSV Neustadt', homeAway: 'home',
+    startsAt: new Date(Date.now() + 6 * 86_400_000).toISOString(), endsAt: new Date(Date.now() + 6 * 86_400_000 + 7_200_000).toISOString(),
+  });
+  data.setSquadStatus(squadGame, P.ben, 'squad');
+  await data.flushRemote();
+  check('Martin: picked Ben for the game', (await count("select 1 from squad_entries where session_id = $1 and person_id = $2 and status = 'squad'", [squadGame, P.ben])) === 1, store.getStatus().rejected);
+  data.publishSquad(squadGame);
+  await data.flushRemote();
+  check('… published: Jonas (not picked) is "not selected", the game is marked published',
+    (await count("select 1 from squad_entries where session_id = $1 and person_id = $2 and status = 'not_selected'", [squadGame, P.jonas])) === 1
+      && (await count('select 1 from sessions where id = $1 and squad_published_at is not null', [squadGame])) === 1,
+    store.getStatus().rejected);
+  check('… nothing changed since publishing (times from the server compare right)',
+    buildCoachData(db(), P.martin).sessions.find((session) => session.id === squadGame)?.squadChangedSincePublish === 0);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  data.setSquadStatus(squadGame, P.jonas, 'reserve');
+  await data.flushRemote();
+  check('… one change not sent yet after moving Jonas to reserve',
+    buildCoachData(db(), P.martin).sessions.find((session) => session.id === squadGame)?.squadChangedSincePublish === 1, store.getStatus().rejected);
+  store = await actAs(U.ben);
+  const benGame = db().sessions.find((session) => session.id === squadGame)!;
+  check('Ben sees he is in the squad', data.publishedSquadStatus(db(), P.ben, benGame) === 'squad');
+  check('… and only his own entry', db().squadEntries.filter((entry) => entry.sessionId === squadGame).length === 1);
+  store = await actAs(U.uwe);
+  let uweSquadRefused = '';
+  try {
+    data.setSquadStatus(squadGame, P.ben, 'reserve');
+  } catch (error) {
+    uweSquadRefused = error instanceof Error ? error.message : String(error);
+  }
+  check('Uwe (Team Manager, no editSessions) may not pick', uweSquadRefused.includes('may not pick'), uweSquadRefused);
+  store = await actAs(U.martin);
+  data.deleteSession(squadGame);
+  await data.flushRemote();
+
   // --- Founding a club and running it (piece 8a) ---------------------------
   const foundingCode = (await pool.query(`select app.create_founding_code('e2e') as code`)).rows[0].code as string;
   store = await actAs(U.founder);

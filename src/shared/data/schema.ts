@@ -235,6 +235,19 @@ export type GameDetails = {
   opponent?: string | null;
   homeAway?: 'home' | 'away' | null;
   venueAddress?: string | null;
+  /** When the coach last published the squad (piece 15); players see their status from then on. */
+  squadPublishedAt?: Timestamp | null;
+};
+
+/** A player's place in a game's squad (piece 15). */
+export type SquadStatus = 'squad' | 'reserve' | 'not_selected';
+
+export type SquadEntry = {
+  sessionId: Id;
+  personId: Id;
+  status: SquadStatus;
+  setBy: Id | null;
+  setAt: Timestamp;
 };
 
 export type SessionSeries = {
@@ -473,6 +486,7 @@ export type LocalDatabase = {
   loadEntryReviews: LoadEntryReview[];
   attendanceConfirmations: AttendanceConfirmation[];
   absences: Absence[];
+  squadEntries: SquadEntry[];
   /** The last load link an athlete shared with a coach, per person. */
   shareLinks: Record<Id, string>;
   activeIdentity: ActiveIdentity | null;

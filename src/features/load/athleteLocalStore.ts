@@ -19,6 +19,7 @@
 
 import {
   awayForSession,
+  publishedSquadStatus,
   mutate,
   newId,
   reportAvailability,
@@ -28,6 +29,7 @@ import {
   type Id,
   type LocalDatabase,
   type Session,
+  type SquadStatus,
 } from '@/shared/data';
 import type { AthleteLoadPlan, AthletePendingSession } from './loadTypes';
 import { awayUntilLabel } from '@/features/absences/absenceText';
@@ -70,10 +72,11 @@ export function readTeamSessions(database: LocalDatabase, personId: Id): Athlete
       teamById.get(session.teamId)?.name ?? null,
       teamById.get(session.teamId)?.features.includes('load') ?? false,
       session.facilityId ? database.facilities.find((facility) => facility.id === session.facilityId)?.name ?? null : null,
+      publishedSquadStatus(database, personId, session),
     ));
 }
 
-function toPendingSession(session: Session, teamName: string | null, loadTracked: boolean, facilityName: string | null = null): AthletePendingSession {
+function toPendingSession(session: Session, teamName: string | null, loadTracked: boolean, facilityName: string | null = null, squad: SquadStatus | null = null): AthletePendingSession {
   const startsAt = new Date(session.startsAt);
   return {
     id: session.id,
@@ -94,6 +97,7 @@ function toPendingSession(session: Session, teamName: string | null, loadTracked
       opponent: session.opponent ?? null,
       homeAway: session.homeAway ?? null,
       venueAddress: session.venueAddress ?? null,
+      squad,
     },
   };
 }
@@ -232,9 +236,9 @@ export function readSessionsToRate(database: LocalDatabase, personId: Id, now = 
   for (const confirmation of database.attendanceConfirmations) {
     if (confirmation.personId === personId && !confirmation.present) answered.add(confirmation.sessionId);
   }
-  // Away for a period (piece 16): nothing to rate either.
+  // Away for a period (piece 16), or not in the squad (piece 15): nothing to rate either.
   for (const session of database.sessions) {
-    if (awayForSession(database, personId, session)) answered.add(session.id);
+    if (awayForSession(database, personId, session) || publishedSquadStatus(database, personId, session) === 'not_selected') answered.add(session.id);
   }
   const dismissed = new Set(readAcknowledged(database, personId));
 

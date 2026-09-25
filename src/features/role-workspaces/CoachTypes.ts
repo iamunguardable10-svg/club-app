@@ -1,6 +1,6 @@
 import type { AthleteLoadEntry } from '@/features/load/loadTypes';
 import type { LoadAccess, LoadSummary } from '@/features/load/loadAccess';
-import type { CoachPermission, GameDetails, SessionDetails } from '@/shared/data';
+import type { CoachPermission, GameDetails, SessionDetails, SquadStatus } from '@/shared/data';
 
 export type CoachMode = 'today' | 'team' | 'sessions' | 'attendance' | 'load' | 'history' | 'facilities';
 
@@ -75,6 +75,12 @@ export type CoachSession = {
   canConfirmAttendance?: boolean;
   /** The active coach may ask players to check entries (viewLoadDetails). */
   canRequestReview?: boolean;
+  /** Games: picks by player id (piece 15), for roles that plan or see attendance. */
+  squad?: Record<string, SquadStatus>;
+  /** The active coach may pick the squad (editSessions, before the start). */
+  canPickSquad?: boolean;
+  /** Picks changed after the last publish (players were not told yet). */
+  squadChangedSincePublish?: number;
 } & SessionDetails & GameDetails;
 
 export type CoachFacility = { id: string; name: string; departmentIds: string[] };
