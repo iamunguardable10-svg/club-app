@@ -13,7 +13,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
   return (
     <html lang="en">
       <body>
-        <main className="os-page grid min-h-screen place-items-center px-4">
+        <main className="os-page grid place-items-center px-4">
           <section className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-950/80 p-6 text-white">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-red-300">Something went wrong</p>
             <h1 className="mt-1 text-2xl font-black">Club OS stopped working</h1>

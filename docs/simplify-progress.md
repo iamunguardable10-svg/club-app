@@ -1933,3 +1933,26 @@ Konto, zweiter Versuch 404, CORS ok; Browser: installierte App mit abgelaufenem 
 im Server-Modus, im Browser bleibt der Code; Typecheck, Build. Auf dem echten iPhone noch zu
 prüfen: App von einer angemeldeten Seite aus hinzufügen und öffnen.
 
+## Run 31 — Feinschliff nach dem ersten Test auf dem iPhone (erledigt)
+
+Gemeldet (2026-09-25, eigenes Konto „Pro B“, App vom Home-Bildschirm):
+- **Team-Reiter scrollten seitwärts** (und sollen auch nicht umbrechen): Jetzt eine Zeile in
+  gleich breiten Feldern; auf dem Handy Symbol mit kurzer Beschriftung (Overview, Players,
+  Groups, Messages, Settings), ab Tablet-Breite der Text wie bisher. Passt ab 320 px.
+- **Seiten scrollten, obwohl nichts zu scrollen war:** `.os-page` nahm 100vh (auf Handys höher
+  als sichtbar); jetzt die sichtbare Höhe (`dvh`), und kein Nachfedern mehr
+  (`overscroll-behavior-y: none`).
+- **„Turn on notifications“ trotz erteilter Erlaubnis:** Die Karte kam, wenn die Erlaubnis da
+  war, das Gerät aber kein Abo hatte (z. B. App neu zum Home-Bildschirm hinzugefügt: neuer
+  Speicher). Jetzt wird das Abo dann still erneuert, ohne Karte und ohne Frage.
+- **Profilbild → „Add a role“:** Wer Trainer eines Teams ist, tippt „Also play in <Team>“ und ist
+  mit demselben Konto zusätzlich Spieler (über den Beitrittscode des Teams); oben wie bisher
+  zwischen den Rollen wechseln. Dazu „Join a team as a player“ (Code oder Link) und der Hinweis
+  auf den Einladungslink für Trainer-Rollen in anderen Teams.
+- Erkennen, dass die App bereits auf dem Home-Bildschirm liegt (um den Hinweis in Safari
+  auszublenden): iOS verrät das Safari nicht; bewusst zurückgestellt (entschieden 2026-09-25).
+
+Geprüft: Datenschicht (neu: Trainer tritt dem eigenen Team als Spieler bei, dieselbe Person,
+beide Rollen); Typecheck, Build; Browser 320/390/1280: Reiter in einer Zeile, passen, kein
+seitliches Scrollen; leere Seite ohne Überhöhe; keine Fehler.
+

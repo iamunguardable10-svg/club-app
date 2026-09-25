@@ -94,6 +94,26 @@ function addMinutes(date: Date, minutes: number) {
   return new Date(date.getTime() + minutes * 60_000);
 }
 
+function shortSectionLabel(section: TeamWorkspaceSection) {
+  if (section === 'dashboard') return 'Overview';
+  if (section === 'settings') return 'Settings';
+  return sectionLabel(section);
+}
+
+/** Phones only: the tab's symbol above its short label. */
+function SectionIcon({ section }: { section: TeamWorkspaceSection }) {
+  const common = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5 sm:hidden">
+      {section === 'dashboard' ? <path d="M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-3H4zM14 7h6V4h-6z" {...common} /> : null}
+      {section === 'players' ? <><circle cx="9" cy="8" r="3.2" {...common} /><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5M16 11a2.8 2.8 0 1 0 0-5.6M17.5 14.2c1.8.6 2.8 2.2 3 4.8" {...common} /></> : null}
+      {section === 'groups' ? <><circle cx="7.5" cy="8" r="2.6" {...common} /><circle cx="16.5" cy="8" r="2.6" {...common} /><path d="M3 18c.5-2.6 2.2-4 4.5-4s4 1.4 4.5 4M12 18c.5-2.6 2.2-4 4.5-4s4 1.4 4.5 4" {...common} /></> : null}
+      {section === 'messages' ? <path d="M4 5h16v11H9l-5 4V5z" {...common} /> : null}
+      {section === 'settings' ? <><circle cx="12" cy="12" r="3" {...common} /><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M5.6 18.4l1.6-1.6M16.8 7.2l1.6-1.6" {...common} /></> : null}
+    </svg>
+  );
+}
+
 function sectionLabel(section: TeamWorkspaceSection) {
   if (section === 'dashboard') return 'Overview';
   if (section === 'players') return 'Players';
@@ -450,23 +470,25 @@ export function TeamWorkspaceView({
 
   return (
     <div className="space-y-4">
-      {/* Sections of this team. Scrolls sideways on narrow phones instead of wrapping. */}
-      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <div role="tablist" aria-label="Team sections" className="flex w-max gap-1 rounded-2xl border border-slate-800 bg-slate-950/70 p-1">
-          {sections.map((section) => (
-            <button
-              key={section}
-              type="button"
-              role="tab"
-              aria-selected={activeSection === section}
-              onClick={() => setActiveSection(section)}
-              className={`whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-black transition ${activeSection === section ? 'bg-sky-300 text-slate-950' : 'text-slate-300 hover:bg-slate-900 hover:text-white'}`}
-            >
-              {sectionLabel(section)}
-              {section === 'players' ? <span className={`ml-1.5 text-xs ${activeSection === section ? 'text-slate-800' : 'text-slate-500'}`}>{data.playerCount}</span> : null}
-            </button>
-          ))}
-        </div>
+      {/* Sections of this team: one row, never sideways scrolling. Phones get
+          an icon with a short label, wider screens the full text. */}
+      <div role="tablist" aria-label="Team sections" className="grid auto-cols-fr grid-flow-col gap-1 rounded-2xl border border-slate-800 bg-slate-950/70 p-1 sm:flex sm:w-max">
+        {sections.map((section) => (
+          <button
+            key={section}
+            type="button"
+            role="tab"
+            aria-selected={activeSection === section}
+            aria-label={sectionLabel(section)}
+            onClick={() => setActiveSection(section)}
+            className={`flex min-w-0 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-black transition sm:flex-row sm:gap-0 sm:whitespace-nowrap sm:px-3.5 sm:py-2 sm:text-sm ${activeSection === section ? 'bg-sky-300 text-slate-950' : 'text-slate-300 hover:bg-slate-900 hover:text-white'}`}
+          >
+            <SectionIcon section={section} />
+            <span className="max-w-full truncate sm:hidden">{shortSectionLabel(section)}</span>
+            <span className="hidden sm:inline">{sectionLabel(section)}</span>
+            {section === 'players' ? <span className={`hidden text-xs sm:ml-1.5 sm:inline ${activeSection === section ? 'text-slate-800' : 'text-slate-500'}`}>{data.playerCount}</span> : null}
+          </button>
+        ))}
       </div>
 
       {activeSection === 'dashboard' ? (

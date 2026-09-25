@@ -26,6 +26,8 @@ html,
 body {
   min-height: 100%;
   margin: 0;
+  /* No rubber-band scrolling when there is nothing to scroll (iPhone). */
+  overscroll-behavior-y: none;
   background: var(--background);
   color: var(--foreground);
 }
@@ -50,7 +52,8 @@ a {
 
 @layer components {
   .os-page {
-    @apply min-h-screen bg-[#050712] text-white;
+    /* The visible height (dvh), not 100vh, which on phones is taller than what shows. */
+    @apply min-h-screen min-h-dvh bg-[#050712] text-white;
     background-image:
       radial-gradient(circle at 18% -10%, rgba(56, 189, 248, 0.16), transparent 34rem),
       radial-gradient(circle at 85% 8%, rgba(139, 92, 246, 0.1), transparent 30rem),
