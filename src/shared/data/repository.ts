@@ -30,7 +30,7 @@
 import { calculateACWR, getLatestACWR, loadZone, sevenDayLoad, summarizeLoadEntries } from './loadCalculations';
 import { DATABASE_KEY, LEGACY_KEY_PREFIXES, SCHEMA_VERSION, isCurrent } from './migrations';
 import { COACH_ROLE_TEMPLATES, createSeedDatabase } from './seed';
-import type { RemoteStore } from './remote/remoteStore';
+import type { OfflineCache, OfflineSnapshot, RemoteStore } from './remote/remoteStore';
 import {
   COACH_PERMISSIONS,
   COACH_PERMISSION_REQUIRES,
@@ -78,6 +78,36 @@ let remoteStarting = false;
 const BACKEND_CHOICE_KEY = 'club-app.backend';
 /** Server mode: which of your own roles this device last acted as. */
 const IDENTITY_KEY = 'club-app.identity';
+/** Server mode: the last server state and the changes waiting for the network (piece 18). Gone on sign-out. */
+const OFFLINE_KEY = 'club-app.offline';
+
+/** The device's copy of the server state, kept in localStorage like everything else. */
+function offlineCache(): OfflineCache {
+  return {
+    read() {
+      try {
+        const raw = window.localStorage.getItem(OFFLINE_KEY);
+        return raw ? (JSON.parse(raw) as OfflineSnapshot) : null;
+      } catch {
+        return null;
+      }
+    },
+    write(snapshot) {
+      try {
+        window.localStorage.setItem(OFFLINE_KEY, JSON.stringify(snapshot));
+      } catch {
+        // Full storage: the app still works online, it just cannot show this state offline.
+      }
+    },
+    clear() {
+      try {
+        window.localStorage.removeItem(OFFLINE_KEY);
+      } catch {
+        // Nothing to clear.
+      }
+    },
+  };
+}
 
 function readRememberedIdentity(): ActiveIdentity | null {
   try {
@@ -326,7 +356,7 @@ function startRemote() {
   // Loaded on demand, so the local test mode never ships the server client.
   import('./remote/supabaseBackend')
     .then(async ({ createSupabaseStore, authStorage }) => {
-      const store = createSupabaseStore(SCHEMA_VERSION, authStorage(window.localStorage), readRememberedIdentity());
+      const store = createSupabaseStore(SCHEMA_VERSION, authStorage(window.localStorage), readRememberedIdentity(), offlineCache());
       connectRemoteStore(store);
       await store.load();
       ensureFreshLoadSummary();
@@ -345,14 +375,21 @@ export type BackendStatus = {
   error: string | null;
   /** The last change the server did not (fully) accept. */
   rejected: string | null;
+  /** Changes not yet answered by the server (offline: waiting for the network). */
   pending: number;
+  /** No network: the screen shows the state kept on this device. */
+  offline: boolean;
+  /** When the shown state last came from the server. */
+  savedAt: string | null;
 };
+
+const QUIET = { rejected: null, pending: 0, offline: false, savedAt: null } as const;
 
 /** Where the data comes from and whether it is there yet. */
 export function getBackendStatus(): BackendStatus {
-  if (!isRemoteMode()) return { mode: 'local', phase: 'ready', error: null, rejected: null, pending: 0 };
-  if (remoteLoadError) return { mode: 'remote', phase: 'error', error: remoteLoadError, rejected: null, pending: 0 };
-  if (!remote) return { mode: 'remote', phase: 'loading', error: null, rejected: null, pending: 0 };
+  if (!isRemoteMode()) return { mode: 'local', phase: 'ready', error: null, ...QUIET };
+  if (remoteLoadError) return { mode: 'remote', phase: 'error', error: remoteLoadError, ...QUIET };
+  if (!remote) return { mode: 'remote', phase: 'loading', error: null, ...QUIET };
   return { mode: 'remote', ...remote.getStatus() };
 }
 
@@ -517,6 +554,8 @@ export async function signOut(options: { everywhere?: boolean } = {}): Promise<v
     // Signing out must not fail over notifications.
   }
   await supabase.auth.signOut({ scope: options.everywhere ? 'global' : 'local' });
+  // Nothing of the account stays on the device, changes still waiting included.
+  offlineCache().clear();
 }
 
 // ---------------------------------------------------------------------------

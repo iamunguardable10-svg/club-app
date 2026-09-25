@@ -1749,3 +1749,35 @@ Push-Titel, gelesen nur für eigene und nur als Empfänger, Lesestand nur für T
 Erinnerung an Ungelesene, Schließen beim Lesen, wichtige nicht stummschaltbar); Datenschicht
 143; Typecheck, Build, Browser Handy/Desktop (Zähler 2 → 0 nach dem Ansehen, Trainer schreibt,
 Lesestand, Namen der Ungelesenen, Erinnerung; kein Überlauf, keine Fehler).
+
+## Run 24 — Stück 18: Offline (erledigt)
+
+Entschieden (2026-09-25): ohne Netz **anzeigen und Änderungen später senden**.
+
+- **App ohne Netz öffnen:** Der Service Worker (`public/sw.js`) legt beim Installieren die
+  Seiten der App und ihre Dateien auf dem Gerät ab. Seiten kommen immer zuerst aus dem Netz
+  (online nie etwas Veraltetes), nur ohne Netz oder nach 4 s ohne Antwort vom Gerät; die
+  Build-Dateien vom Gerät. Seiten, die noch nie offen waren, zeigen „You're offline“. Jeder
+  Deploy installiert eine neue Kopie (`/sw.js?v=<commit>`) und löscht die alte. Im Worker
+  liegen keine persönlichen Daten.
+- **Letzter Datenstand je Konto** (Server-Modus): Nach jedem Laden hält das Gerät den Stand
+  (`club-app.offline`, nur über `repository.ts`). Ohne Netz zeigt die App ihn mit dem Hinweis
+  „Offline · as of 14:32 · 2 changes waiting to send“. Beim Abmelden, bei einem anderen Konto
+  oder wenn der Server sagt „nicht angemeldet“ wird er gelöscht. Eine abgelaufene Anmeldung
+  ohne Netz gilt nicht als Abmeldung.
+- **Änderungen ohne Netz** (Zu-/Absage, Bewertung, Einträge, gelesen, alles über die
+  Datenschicht) warten in Reihenfolge auf dem Gerät, auch über einen Neustart der App. Wieder
+  online (Ereignis `online`, Fokus, alle 30 s) gehen sie raus. Danach wird neu geladen und
+  wie bisher geprüft, was der Server abgelehnt hat. Eine Änderung, die der Server schon hatte,
+  deren Antwort aber verloren ging, ist beim zweiten Senden keine Ablehnung. Aufrufe wie
+  „Team beitreten“ brauchen weiter Netz und sagen das.
+- **Abmelden** mit wartenden Änderungen fragt einmal nach („Sign out anyway? 2 changes not
+  sent yet will be lost“).
+
+Geprüft: Datenschicht 151 (neu: offline zeigen und warten, Neustart offline mit
+abgelaufener Anmeldung, drei wartende Änderungen, verlorene Antwort und zweites Senden,
+abgelehnte Offline-Änderung wird gemeldet, anderes Konto, Abmelden löscht, offline ohne Stand
+gibt eine klare Meldung); Load-Tests; Typecheck, Build. Im Browser (Produktions-Build, Server
+gestoppt): Today, Messages, Calendar öffnen offline, Wechsel über die untere Leiste, unbekannte
+Seite zeigt die Offline-Seite. Im Server-Modus mit gespeichertem Stand und ohne Netz erscheint
+der Hinweis mit Uhrzeit und wartender Änderung. Keine Fehler.

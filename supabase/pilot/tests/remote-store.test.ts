@@ -18,7 +18,13 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
 import * as data from '../../../src/shared/data';
-import { RemoteStore, type RemoteClient } from '../../../src/shared/data/remote/remoteStore';
+import {
+  OfflineError,
+  RemoteStore,
+  type OfflineCache,
+  type OfflineSnapshot,
+  type RemoteClient,
+} from '../../../src/shared/data/remote/remoteStore';
 import * as rateStore from '../../../src/features/load/athleteLocalStore';
 import { buildCoachData } from '../../../src/features/role-workspaces/coachData';
 import type { Row, TableName } from '../../../src/shared/data/remote/tables';
@@ -747,6 +753,124 @@ async function main() {
     leftForOther = error instanceof Error ? error.message : String(error);
   }
   check('… and cannot take Ben out', leftForOther.includes('yourself') && (await count("select 1 from memberships where person_id = $1 and team_id = $2", [P.ben, TEAM])) === 1, leftForOther);
+
+  // --- Offline (piece 18) ------------------------------------------------------
+  const net = { online: true, tokenValid: true, loseNextInsertAnswer: false };
+  const kept: { snapshot: OfflineSnapshot | null } = { snapshot: null };
+  const deviceCache: OfflineCache = {
+    read: () => (kept.snapshot ? JSON.parse(JSON.stringify(kept.snapshot)) : null),
+    write: (snapshot) => {
+      kept.snapshot = JSON.parse(JSON.stringify(snapshot));
+    },
+    clear: () => {
+      kept.snapshot = null;
+    },
+  };
+  // The real connection, cut off at will: no network, an expired sign-in that
+  // cannot be renewed offline, or an answer lost after the server saved it.
+  function flaky(userId: string): RemoteClient {
+    const real = pgClient(userId);
+    const gate = <T,>(run: () => Promise<T>) => (net.online ? run() : Promise.reject(new OfflineError()));
+    return {
+      userId: () => (net.online || net.tokenValid ? real.userId() : Promise.reject(new OfflineError())),
+      selectAll: (table) => gate(() => real.selectAll(table)),
+      insert: (table, rows) =>
+        gate(async () => {
+          await real.insert(table, rows);
+          if (net.loseNextInsertAnswer) {
+            net.loseNextInsertAnswer = false;
+            throw new OfflineError();
+          }
+        }),
+      update: (table, key, changes) => gate(() => real.update(table, key, changes)),
+      delete: (table, key) => gate(() => real.delete(table, key)),
+      rpc: (name, args) => gate(() => real.rpc(name, args)),
+    };
+  }
+  const availabilityOnServer = async () =>
+    (await pool.query('select status from availability where session_id = $1 and person_id = $2', [FUTURE, P.ben])).rows[0]?.status ?? null;
+
+  store = new RemoteStore(flaky(U.ben), data.SCHEMA_VERSION, null, deviceCache);
+  data.connectRemoteStore(store);
+  await store.load();
+  check('online: the device keeps Ben\'s state', kept.snapshot?.userId === U.ben && kept.snapshot.outbox.length === 0 && Boolean(store.getStatus().savedAt));
+  const serverBefore = await availabilityOnServer();
+
+  net.online = false;
+  data.reportAvailability({ sessionId: FUTURE, personId: P.ben, status: 'late', reason: null, lateMinutes: 5 });
+  await data.flushRemote();
+  const shownLate = db().availability.find((row) => row.sessionId === FUTURE && row.personId === P.ben)?.status;
+  check(
+    'offline: the change is shown, waits on the device, not refused',
+    shownLate === 'late' && store.getStatus().offline && store.getStatus().pending === 1 && !store.getStatus().rejected && kept.snapshot?.outbox.length === 1,
+    store.getStatus(),
+  );
+  check('… and has not reached the server', (await availabilityOnServer()) === serverBefore);
+
+  // The app is closed and opened again, still offline, with an expired sign-in.
+  net.tokenValid = false;
+  store = new RemoteStore(flaky(U.ben), data.SCHEMA_VERSION, null, deviceCache);
+  data.connectRemoteStore(store);
+  await store.load();
+  check(
+    'reopened offline: the kept state with the waiting change',
+    store.getStatus().phase === 'ready' && store.getStatus().offline && store.getStatus().pending === 1
+      && db().availability.find((row) => row.sessionId === FUTURE && row.personId === P.ben)?.status === 'late',
+    store.getStatus(),
+  );
+  data.reportAvailability({ sessionId: FUTURE, personId: P.ben, status: 'in', reason: null });
+  const unreadForBen = data.unreadMessagesFor(db(), P.ben).map((message) => message.id);
+  data.markMessagesRead(P.ben, unreadForBen);
+  await data.flushRemote();
+  check('… two more changes wait', store.getStatus().pending === 3 && kept.snapshot?.outbox.length === 3, store.getStatus());
+
+  // Back online. The server saves the first insert, but its answer is lost.
+  net.online = true;
+  net.tokenValid = true;
+  net.loseNextInsertAnswer = true;
+  await store.refresh();
+  check('back online: still offline after the lost answer, nothing refused', store.getStatus().offline && !store.getStatus().rejected, store.getStatus());
+  await store.refresh();
+  check(
+    '… sent again: in order (late, then in = no row), the repeat is not a refusal',
+    !store.getStatus().offline && store.getStatus().pending === 0 && !store.getStatus().rejected && (await availabilityOnServer()) === null,
+    store.getStatus(),
+  );
+  check(
+    '… the reads arrived once',
+    unreadForBen.length > 0 && (await count('select 1 from message_reads where person_id = $1 and message_id = any($2)', [P.ben, unreadForBen])) === unreadForBen.length,
+  );
+  check('… the device keeps the new state with nothing waiting', kept.snapshot?.outbox.length === 0);
+
+  // A change made offline that the server then refuses is reported as before.
+  net.online = false;
+  const before = db();
+  void store.write(before, { ...before, teams: before.teams.map((team) => (team.id === TEAM ? { ...team, name: 'Renamed offline' } : team)) });
+  await data.flushRemote();
+  net.online = true;
+  await store.refresh();
+  check('a refused offline change is reported once online', store.getStatus().rejected?.includes('team settings') === true && db().teams.find((team) => team.id === TEAM)?.name !== 'Renamed offline', store.getStatus().rejected);
+  store.clearRejected();
+
+  // Another account on this device: nothing of Ben's is shown or kept.
+  store = new RemoteStore(flaky(U.martin), data.SCHEMA_VERSION, null, deviceCache);
+  data.connectRemoteStore(store);
+  await store.load();
+  check('another account: its own state only', kept.snapshot?.userId === U.martin && db().activeIdentity?.personId === P.martin);
+
+  // Signed out: the kept state is gone.
+  const signedOutHere = new RemoteStore({ ...flaky(U.martin), userId: async () => null }, data.SCHEMA_VERSION, null, deviceCache);
+  await signedOutHere.load();
+  check('signed out: the device keeps nothing', kept.snapshot === null && signedOutHere.read() === null);
+
+  // No network and nothing kept: a clear message instead of an empty club.
+  net.online = false;
+  net.tokenValid = false;
+  const fresh = new RemoteStore(flaky(U.martin), data.SCHEMA_VERSION, null, deviceCache);
+  await fresh.load();
+  check('offline, nothing kept: an error that says so', fresh.getStatus().phase === 'error' && fresh.getStatus().error?.includes('offline') === true, fresh.getStatus());
+  net.online = true;
+  net.tokenValid = true;
 
   // --- Not signed in ------------------------------------------------------
   const anonymous = new RemoteStore({ ...pgClient(U.martin), userId: async () => null }, data.SCHEMA_VERSION);
