@@ -32,6 +32,7 @@ import {
   type SquadStatus,
 } from '@/shared/data';
 import type { AthleteLoadPlan, AthletePendingSession } from './loadTypes';
+import { todayISO } from './loadCalculations';
 import { awayUntilLabel } from '@/features/absences/absenceText';
 
 export type AthleteAvailabilityMark = {
@@ -218,6 +219,43 @@ export function saveMissedSession(personId: Id, sessionId: Id) {
  * neither rated, cancelled beforehand, said they missed nor dismissed.
  * Oldest first, no time limit.
  */
+/**
+ * Own plans that are over (piece 22): planned with a length only, so after the
+ * session "How hard was it?" asks effort and the real length, like for team
+ * sessions. Timed plans once their planned end has passed, plans without a
+ * time from the next day. Own "games" stay on Today (they bring a warmup).
+ */
+export function readPlansToRate(database: LocalDatabase, personId: Id, now = Date.now()): AthletePendingSession[] {
+  const today = todayISO();
+  return database.athletePlans
+    .filter((plan) => plan.personId === personId && plan.trainingType !== 'game')
+    .filter((plan) => (plan.startsAt
+      ? new Date(plan.startsAt).getTime() + plan.expectedDurationMinutes * 60_000 <= now
+      : plan.date < today))
+    .map((plan): AthletePendingSession => {
+      const startsAt = plan.startsAt ?? new Date(`${plan.date}T12:00:00`).toISOString();
+      return {
+        id: plan.id,
+        title: plan.title,
+        teamId: plan.teamId,
+        teamName: plan.teamName ?? null,
+        date: plan.date,
+        startsAt,
+        endsAt: new Date(new Date(startsAt).getTime() + plan.expectedDurationMinutes * 60_000).toISOString(),
+        trainingType: plan.trainingType,
+        expectedRpe: plan.expectedRpe,
+        expectedDurationMinutes: plan.expectedDurationMinutes,
+        source: 'athlete_plan',
+      };
+    })
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+}
+
+/** How many sessions wait for "How hard was it?": team sessions and own plans. */
+export function countToRate(database: LocalDatabase, personId: Id, now = Date.now()): number {
+  return readSessionsToRate(database, personId, now).length + readPlansToRate(database, personId, now).length;
+}
+
 export function readSessionsToRate(database: LocalDatabase, personId: Id, now = Date.now()): AthletePendingSession[] {
   const joinedAtByTeam = new Map(
     database.memberships

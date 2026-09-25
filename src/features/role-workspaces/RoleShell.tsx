@@ -19,6 +19,7 @@ import { InstallHint } from '@/features/install/InstallHint';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
 import { athleteHasLoad, getActivePerson, unreadMessagesFor, useLocalDatabase } from '@/shared/data';
 import { UnreadMessagesCard } from '@/features/messages/UnreadMessagesCard';
+import { countToRate } from '@/features/load/athleteLocalStore';
 
 export type CoachNavItem = 'today' | 'calendar' | 'team' | 'halls' | 'history';
 export type AthleteNavItem = 'today' | 'calendar' | 'load' | 'messages';
@@ -110,9 +111,20 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
   const columns = nav.length === 2 ? 'grid-cols-2' : nav.length === 3 ? 'grid-cols-3' : nav.length === 4 ? 'grid-cols-4' : 'grid-cols-5';
   // Unread messages for a player (piece 17), as a count on the tab.
   const unread = database && person && database.activeIdentity?.role === 'athlete' ? unreadMessagesFor(database, person.id).length : 0;
-  const badge = (item: NavItem) => item === 'messages' && unread > 0
-    ? <span aria-label={`${unread} unread`} className="absolute -right-1.5 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-400 px-1 text-[10px] font-black text-slate-950">{unread}</span>
-    : null;
+  // Sessions waiting for "How hard was it?" (team and own), on the Today tab,
+  // so "Later" in the prompt never loses them.
+  const toRate = database && person && database.activeIdentity?.role === 'athlete' && athleteHasLoad(database, person.id)
+    ? countToRate(database, person.id)
+    : 0;
+  const badge = (item: NavItem) => {
+    if (item === 'messages' && unread > 0) {
+      return <span aria-label={`${unread} unread`} className="absolute -right-1.5 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-400 px-1 text-[10px] font-black text-slate-950">{unread}</span>;
+    }
+    if (item === 'today' && toRate > 0) {
+      return <span aria-label={`${toRate} to rate`} className="absolute -right-1.5 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-amber-300 px-1 text-[10px] font-black text-slate-950">{toRate}</span>;
+    }
+    return null;
+  };
   // A single destination needs no tab bar on phones.
   const tabBar = nav.length > 1;
 
