@@ -315,6 +315,11 @@ weiteren Teams oder Vereinen aber nötig:
 - Konto löschen und eigene Daten herunterladen (DSGVO). (Team selbst verlassen: vorgezogen, Stück 12.)
 - Supabase-Tarif (Pausieren nach Inaktivität, Backups) prüfen.
 - Ziel: eigene iPhone-App (App Store), u. a. für den Kalender direkt auf dem Gerät.
+- **Mehrere Vereine pro Konto** (gemerkt 2026-09-25; für den Pilot reicht ein Verein, entschieden):
+  z. B. Spieler in einem Verein, Trainer in einem anderen. Braucht: `people.user_id` nicht mehr
+  eindeutig (eine Person je Verein und Konto), Zugriffsregeln je Verein, die App lädt einen
+  Verein nach dem anderen und bietet einen Vereinswechsel im Profilmenü; „Add a role“ und
+  Gründen dann auch für weitere Vereine.
 
 Annahme für den Pilot: alle Spieler haben die App (kein Eintragen durch den Trainer für
 Spieler ohne Konto nötig).
