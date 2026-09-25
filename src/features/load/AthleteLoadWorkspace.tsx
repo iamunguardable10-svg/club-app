@@ -86,7 +86,8 @@ type AthleteCalendarItem = {
   trainingType: LoadTrainingType;
   teamName: string | null;
   status: 'planned' | 'reported' | 'missing' | 'cancelled' | 'late';
-  source: 'team_session' | 'athlete_plan' | 'load_entry';
+  /** private_event: from the person's own Apple calendars (piece 20), read-only. */
+  source: 'team_session' | 'athlete_plan' | 'load_entry' | 'private_event';
   session?: AthletePendingSession;
   entry?: AthleteLoadEntry;
 };
@@ -1050,6 +1051,7 @@ function AthleteCalendar({
   function itemClass(item: AthleteCalendarItem) {
     const base = 'absolute left-1 right-1 overflow-hidden rounded-xl border px-2 py-1 text-left shadow-sm transition-[top,height,left,right,filter,box-shadow,transform] duration-100 ease-out hover:brightness-110';
     const dragClass = drag?.item.id === item.id ? ' z-20 scale-[1.035] ring-2 ring-sky-200 brightness-125 shadow-[0_22px_60px_rgba(56,189,248,0.34)]' : '';
+    if (item.source === 'private_event') return `${base} border-slate-600/70 bg-slate-800/55 text-slate-300`;
     if (item.status === 'reported') return `${base} bg-slate-950/95 text-white${dragClass}`;
     if (item.status === 'missing') return `${base} border-amber-300/70 bg-amber-300/12 text-amber-50${dragClass}`;
     if (item.status === 'cancelled') return `${base} border-rose-400/80 bg-rose-500/15 text-rose-100 opacity-90${dragClass}`;
@@ -1059,6 +1061,7 @@ function AthleteCalendar({
 
   function itemBorderStyle(item: AthleteCalendarItem) {
     const color = LOAD_TYPE_COLORS[item.trainingType];
+    if (item.source === 'private_event') return { borderColor: 'rgba(148,163,184,0.45)', cursor: 'default', touchAction: 'auto' as const };
     return {
       borderColor: item.status === 'cancelled' ? 'rgba(251,113,133,0.82)' : item.status === 'late' ? 'rgba(125,211,252,0.82)' : item.status === 'missing' ? 'rgba(252,211,77,0.75)' : color,
       boxShadow: item.status === 'reported' ? `inset 3px 0 0 ${color}` : undefined,
@@ -1105,7 +1108,7 @@ function AthleteCalendar({
         className={`${itemClass(item)} ${compact ? 'left-0.5 right-0.5 px-0.5 text-[8px] leading-tight' : ''}`}
         style={{ ...style, ...itemBorderStyle(item) }}
       >
-        <span className={`block font-black ${titleClass} ${compact ? 'overflow-hidden whitespace-nowrap' : 'truncate'}`}>{compact ? compactLoadLabel(item.trainingType) : item.title}</span>
+        <span className={`block font-black ${titleClass} ${compact ? 'overflow-hidden whitespace-nowrap' : 'truncate'}`}>{compact ? (item.source === 'private_event' ? item.title : compactLoadLabel(item.trainingType)) : item.title}</span>
         {preview ? (
           <span className={`absolute right-1 top-1 rounded-md bg-slate-950/85 px-1 font-black text-sky-100 ring-1 ring-sky-200/40 ${compact ? 'text-[7px]' : 'text-[9px]'}`}>
             {preview.duration}m
@@ -1117,7 +1120,7 @@ function AthleteCalendar({
               ? `Out · ${formatTime(displayStartsAt)}`
               : item.status === 'late'
                 ? `Late · ${formatTime(displayStartsAt)}`
-              : compact ? formatTime(displayStartsAt) : `${formatTime(displayStartsAt)}${displayEndsAt ? ` - ${formatTime(displayEndsAt)}` : ''} · ${item.teamName ?? LOAD_TYPE_LABELS[item.trainingType]}`}
+              : compact ? formatTime(displayStartsAt) : `${formatTime(displayStartsAt)}${displayEndsAt ? ` - ${formatTime(displayEndsAt)}` : ''} · ${item.source === 'private_event' ? 'Private' : item.teamName ?? LOAD_TYPE_LABELS[item.trainingType]}`}
           </span>
         ) : null}
         {manageable ? <span aria-hidden="true" onPointerDown={(event) => startDrag(item, 'resize', event)} className={resizeClass} /> : null}
@@ -1409,8 +1412,23 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         source: 'load_entry',
         entry,
       }));
-    return [...fromSessions, ...fromEntries].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  }, [availabilityBySessionId, calendarSessions, cancelledSessionIds, sortedEntries]);
+    // Imported Apple calendar events: grey, read-only. All-day ones would cover
+    // the whole day in the hour grid, so only timed ones show here.
+    const fromPrivate: AthleteCalendarItem[] = (database?.privateEvents ?? [])
+      .filter((event) => !event.allDay)
+      .map((event) => ({
+        id: `private_event-${event.sourceUrl}-${event.key}`,
+        title: event.title,
+        date: isoDate(new Date(event.startsAt)),
+        startsAt: event.startsAt,
+        endsAt: event.endsAt,
+        trainingType: 'recovery',
+        teamName: null,
+        status: 'planned',
+        source: 'private_event',
+      }));
+    return [...fromSessions, ...fromEntries, ...fromPrivate].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  }, [availabilityBySessionId, calendarSessions, cancelledSessionIds, sortedEntries, database?.privateEvents]);
   const averageDurationByType = useMemo(() => {
     const map = new Map<LoadTrainingType, number>();
     for (const type of LOAD_TRAINING_TYPES) {
@@ -1863,6 +1881,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   }
 
   function openCalendarItem(item: AthleteCalendarItem, intent: 'view' | 'edit' = 'view') {
+    // Private Apple events are only shown; they are changed in Apple Calendar.
+    if (item.source === 'private_event') return;
     setRepeat('once');
     setSeriesScope('one');
     if (intent === 'view' && item.status === 'reported') {

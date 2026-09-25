@@ -1970,3 +1970,34 @@ führen, um anderen Teams oder Organisationen beizutreten.
   Vereins gehen; mehrere Vereine/Organisationen pro Konto wären ein eigenes, größeres Stück
   (Datenmodell, Zugriffsregeln, Vereinswechsel in der App) – als Frage an Ben offen.
 
+## Run 33 — Apple-Kalender verbinden, optional (erledigt)
+
+Gewünscht (2026-09-25): Stück 20; **die Verbindung ist nur optional, die App kommt komplett
+ohne aus.** Ohne Verbindung ändert sich nichts; im Demo-Modus ist der Bereich ausgeblendet.
+
+- **Settings → Apple Calendar** (Spieler, Trainer, Abteilung; nur mit Konto): kurze Liste, was
+  die Verbindung macht, dann „Connect Apple Calendar“ mit geführter Anleitung in drei Schritten:
+  was sie macht und nicht macht → app-spezifisches Passwort bei account.apple.com anlegen
+  (Anmeldung und Sicherheit → App-spezifische Passwörter → „Club OS“) → Apple-ID und Passwort
+  eingeben. Das Passwort wird zuerst bei iCloud geprüft (klare Meldung bei falschem Passwort),
+  dann verschlüsselt in Supabase Vault gespeichert; nur die Abgleich-Funktion liest es.
+- **App → Apple:** Kalender „Club OS“ in iCloud mit denselben Terminen wie der Kalender-Link
+  (Teameinheiten mit Halle, Notiz, Treffpunkt, Kader; eigenes Training). Nur Änderungen werden
+  gesendet; gelöschte Termine verschwinden; wird „Club OS“ in iCloud gelöscht, legt der nächste
+  Abgleich ihn neu an.
+- **Apple → App:** Liste der eigenen Apple-Kalender, je Kalender „Read“/„Off“ (Standard: Off).
+  Gelesene Termine (7 Tage zurück bis 60 voraus, Serien aufgelöst, abgesagte und „frei“
+  ausgenommen) erscheinen grau im eigenen Kalender in Club OS, nur für einen selbst. „Off“
+  löscht sie sofort. Andere Kalender werden nie gelesen, keiner wird verändert.
+- Abgleich alle 15 Minuten (pg_cron → Edge Function `apple-calendar`) und mit „Sync now“.
+  Schlägt er fehl (z. B. Passwort bei Apple widerrufen), steht es im Bereich mit „Enter the
+  password again“. „Disconnect“ löscht Passwort, Kalenderliste und gelesene Termine.
+- Migration 0026 eingespielt, Function deployt (4 Dateien, geprüft), Cron-Job aktiv; Vault im
+  Projekt mit einem zurückgerollten Probelauf geprüft (speichern, lesen, löschen).
+
+Geprüft: CalDAV-Client und Abgleich gegen einen lokalen CalDAV-Server (Radicale, 21 Checks,
+auch zweimal hintereinander); Zugriffsregeln (SQL-Test 15: nur eigene Kalender und Termine,
+Passwort nie für die App lesbar, Trennen löscht alles); Datenschicht; Typecheck, Build;
+Browser: Einstellungen und Kalender im Demo-Modus unverändert, ohne Fehler. Nebenbei: der
+Abwesenheits-Test schlug kurz nach Mitternacht fehl (Einheit „gerade vorbei“ lag am Vortag);
+die Test-Abwesenheit beginnt jetzt gestern. Mit echtem iCloud noch zu prüfen (Bens Konto).

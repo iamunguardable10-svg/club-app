@@ -17,7 +17,8 @@
     "test:pilot": "tsx supabase/pilot/tests/remote-store.test.ts",
     "test:load": "tsx src/shared/data/loadCalculations.test.ts",
     "test:calendar": "tsx supabase/pilot/tests/calendar-ics.test.ts",
-    "test:series": "tsx src/features/load/planSeries.test.ts"
+    "test:series": "tsx src/features/load/planSeries.test.ts",
+    "test:caldav": "tsx supabase/pilot/tests/caldav.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.1",
