@@ -1,3 +1,5 @@
+import type { GameDetails, SessionDetails } from './schema';
+
 export type LoadTrainingType =
   | 'team_training'
   | 'strength'
@@ -71,6 +73,8 @@ export type AthletePendingSession = {
   source?: 'team_session' | 'athlete_plan';
   /** `false` for sessions of a team without load tracking: no RPE is asked. */
   loadTracked?: boolean;
+  /** Team sessions: where, meeting, opponent and the coach's note (piece 14). */
+  info?: SessionDetails & GameDetails & { facilityName?: string | null };
 };
 
 export type AthleteLoadPlan = {

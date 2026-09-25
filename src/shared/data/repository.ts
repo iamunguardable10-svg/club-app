@@ -57,6 +57,8 @@ import {
   type Person,
   type Session,
   type SessionSeries,
+  type SessionDetails,
+  type GameDetails,
   type StaffInvite,
   type SessionType,
   type Team,
@@ -1577,7 +1579,35 @@ export type SessionInput = {
   endsAt: string;
   facilityId: Id | null;
   groupIds?: Id[];
-};
+} & SessionDetails & GameDetails;
+
+function optionalText(value: string | null | undefined, max: number, what: string): string | null {
+  const clean = (value ?? '').trim();
+  if (!clean) return null;
+  if (clean.length > max) throw new LocalDataError(`${what} can be at most ${max} characters.`);
+  return clean;
+}
+
+/**
+ * Notes, meeting and game details as stored (piece 14): trimmed, empty is
+ * none, game fields only on games. Same limits as the database.
+ */
+export function cleanSessionDetails(sessionType: SessionType, input: SessionDetails & GameDetails): Required<SessionDetails> & Required<GameDetails> {
+  const meet = input.meetMinutesBefore ?? null;
+  if (meet !== null && (!Number.isInteger(meet) || meet < 0 || meet > 240)) {
+    throw new LocalDataError('The meeting time can be at most 4 hours before the start.');
+  }
+  const game = sessionType === 'game';
+  const homeAway = game ? input.homeAway ?? null : null;
+  return {
+    notes: optionalText(input.notes, 1000, 'The note'),
+    meetMinutesBefore: meet === 0 ? null : meet,
+    meetPoint: optionalText(input.meetPoint, 120, 'The meeting point'),
+    opponent: game ? optionalText(input.opponent, 80, 'The opponent') : null,
+    homeAway,
+    venueAddress: game && homeAway === 'away' ? optionalText(input.venueAddress, 200, 'The address') : null,
+  };
+}
 
 export function createSession(input: SessionInput): Id {
   const id = newId();
@@ -1598,16 +1628,23 @@ export function createSession(input: SessionInput): Id {
       seriesId: null,
       seriesWeekStart: null,
       createdAt: new Date().toISOString(),
+      ...cleanSessionDetails(input.sessionType, input),
     });
   });
   return id;
 }
+
+const DETAIL_KEYS = ['notes', 'meetMinutesBefore', 'meetPoint', 'opponent', 'homeAway', 'venueAddress'] as const;
 
 export function updateSession(sessionId: Id, changes: Partial<SessionInput>): void {
   mutate((database) => {
     const session = database.sessions.find((candidate) => candidate.id === sessionId);
     if (!session) throw new LocalDataError(`Unknown session: ${sessionId}`);
     Object.assign(session, changes);
+    // Details are cleaned together: a game turned into training loses its opponent.
+    if (changes.sessionType !== undefined || DETAIL_KEYS.some((key) => key in changes)) {
+      Object.assign(session, cleanSessionDetails(session.sessionType, session));
+    }
   });
 }
 

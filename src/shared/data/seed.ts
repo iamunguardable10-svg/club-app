@@ -307,6 +307,26 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     createdAt,
   }));
 
+  // Piece 14: games get an opponent and a meeting, trainings sometimes a note.
+  function demoDetails(sessionType: SessionType, teamId: Id, offset: number): Partial<Session> {
+    const week = Math.floor((offset + SEED_HISTORY_DAYS) / 7);
+    if (sessionType === 'game') {
+      const away = week % 2 === 1;
+      const opponents = ['TSV Neustadt', 'SC Rotweiß', 'BG Essen-West', 'TuS Kray'];
+      return {
+        opponent: opponents[(week + (teamId === TEAM_U18 ? 2 : 0)) % opponents.length],
+        homeAway: away ? 'away' : 'home',
+        venueAddress: away ? 'Sportpark 3, 45127 Essen' : null,
+        ...(away ? { facilityId: null } : {}),
+        meetMinutesBefore: away ? 90 : 45,
+        meetPoint: away ? 'Club car park (bus)' : 'Changing room 2',
+        notes: away ? 'Bring both kits and a packed lunch.' : null,
+      };
+    }
+    if (sessionType === 'training' && week % 3 === 0) return { notes: 'Indoor shoes. Short video analysis after the session.', meetMinutesBefore: 15 };
+    return {};
+  }
+
   // Materialise the series across the whole window so both past history and
   // upcoming sessions exist without anyone having to confirm a week first.
   const sessions: Session[] = [];
@@ -328,6 +348,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
         seriesId: template.id,
         seriesWeekStart: dateOnly(mondayOf(day)),
         createdAt,
+        ...demoDetails(template.sessionType, template.teamId, offset),
       });
     }
   }

@@ -93,6 +93,7 @@ export function SessionDetailSheet({
   canEditTime = false,
   onTimeChange,
   actions,
+  info,
   onClose,
 }: {
   title: string;
@@ -122,6 +123,8 @@ export function SessionDetailSheet({
   canEditTime?: boolean;
   onTimeChange?: (startsAt: string, endsAt: string) => void | Promise<void>;
   actions?: ReactNode;
+  /** Notes, meeting, opponent (piece 14), under the header. */
+  info?: ReactNode;
   onClose: () => void;
 }) {
   useBodyScrollLock(true);
@@ -197,6 +200,7 @@ export function SessionDetailSheet({
             Close
           </button>
         </div>
+        {info ? <div className="mt-3">{info}</div> : null}
 
         <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">

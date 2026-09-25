@@ -24,6 +24,7 @@ import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEd
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { WeeklySeriesBoard } from '@/features/sessions/WeeklySeriesBoard';
 import { SeriesTemplateEditSheet, type SeriesTemplateInput } from '@/features/sessions/SeriesTemplateEditSheet';
+import { gameLine, meetLine } from '@/features/sessions/SessionInfo';
 import { buildSeriesWeekItems, getIsoWeekStart, type SeriesTemplate, type SeriesWeekItem, type SeriesWeekState } from '@/features/sessions/sessionSeriesPlanner';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
@@ -152,7 +153,8 @@ function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDet
         <div className="min-w-0">
           <p className="text-2xl font-black tabular-nums">{formatTimeRange(session.startsAt, session.endsAt)}</p>
           <h3 className="mt-1 text-base font-black">{session.title}</h3>
-          <p className="mt-0.5 text-sm font-bold text-slate-400">{session.teamName}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+          <p className="mt-0.5 text-sm font-bold text-slate-400">{session.teamName}{session.homeAway !== 'away' && session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+          {gameLine(session) || meetLine(session) ? <p className="mt-0.5 text-sm font-bold text-amber-100/90">{[gameLine(session), meetLine(session)].filter(Boolean).join(' · ')}</p> : null}
         </div>
         <span aria-hidden className="text-lg font-black text-slate-500">›</span>
       </div>
@@ -192,7 +194,7 @@ function UpcomingSessionRow({ session, showTeam, onOpen }: { session: CoachSessi
         <p className="text-lg font-black leading-tight text-white">{start.getDate()}</p>
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-black text-white">{session.title}</p>
+        <p className="truncate text-sm font-black text-white">{session.title}{session.opponent ? ` ${gameLine(session)}` : ''}</p>
         <p className="truncate text-xs font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt)}{showTeam ? ` · ${session.teamName}` : ''}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1 text-[11px] font-black">
@@ -734,7 +736,7 @@ export function CoachCalendarSurface({
   }, [activeDayIndex, days, desktopHourHeight, drag, mobileCalendarView]);
 
   const editingSession = editor?.kind === 'session' ? localSessions.find((session) => session.id === editor.sessionId) ?? null : null;
-  const editorInitial = editingSession ? { startsAt: editingSession.startsAt, endsAt: editingSession.endsAt ?? addMinutes(new Date(editingSession.startsAt), 90).toISOString(), teamId: editingSession.teamId, facilityId: editingSession.facilityId, groupIds: editingSession.groupIds, sessionType: normalizeCoachSessionType(editingSession.sessionType) } : draft;
+  const editorInitial = editingSession ? { startsAt: editingSession.startsAt, endsAt: editingSession.endsAt ?? addMinutes(new Date(editingSession.startsAt), 90).toISOString(), teamId: editingSession.teamId, facilityId: editingSession.facilityId, groupIds: editingSession.groupIds, sessionType: normalizeCoachSessionType(editingSession.sessionType), details: { notes: editingSession.notes, meetMinutesBefore: editingSession.meetMinutesBefore, meetPoint: editingSession.meetPoint, opponent: editingSession.opponent, homeAway: editingSession.homeAway, venueAddress: editingSession.venueAddress } } : draft;
   const pendingConflictFacilityId = pendingConflictSave ? coachCandidateForSave(pendingConflictSave).facilityId ?? null : null;
   const pendingSeriesConflictFacilityId = pendingSeriesConflict?.item.facilityId ?? null;
   const pendingConflictFacilityHref = pendingConflictFacilityId && facilityCalendarHrefForFacility ? facilityCalendarHrefForFacility(pendingConflictFacilityId) : null;
@@ -952,6 +954,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         endsAt: input.endsAt,
         facilityId: input.facilityId || null,
         groupIds: input.groupIds,
+        ...input.details,
       });
       setError(null);
     } catch (error) {
@@ -977,8 +980,10 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         sessionType: normalizeCoachSessionType(input.sessionType) as SessionType,
         startsAt: input.startsAt,
         endsAt: input.endsAt,
-        ...(input.facilityId ? { facilityId: input.facilityId } : {}),
+        // An away game may have no hall (piece 14); otherwise an empty hall keeps the old one.
+        ...(input.facilityId ? { facilityId: input.facilityId } : input.details?.homeAway === 'away' ? { facilityId: null } : {}),
         groupIds: input.groupIds,
+        ...input.details,
       });
       setError(null);
     } catch (error) {
@@ -1034,6 +1039,9 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           activeFrom: null,
           activeUntil: null,
           createdAt: new Date().toISOString(),
+          notes: input.notes,
+          meetMinutesBefore: input.meetMinutesBefore,
+          meetPoint: input.meetPoint,
         });
       });
       setError(null);
@@ -1062,6 +1070,9 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         series.startTime = input.startTime;
         series.endTime = input.endTime;
         series.groupIds = input.groupIds ?? [];
+        series.notes = input.notes;
+        series.meetMinutesBefore = input.meetMinutesBefore;
+        series.meetPoint = input.meetPoint;
       });
       setError(null);
     } catch (error) {
@@ -1084,6 +1095,11 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     } catch (error) {
       reportError(error, 'The series could not be deleted.');
     }
+  }
+
+  function seriesDetails(seriesId: string) {
+    const series = database?.sessionSeries.find((candidate) => candidate.id === seriesId);
+    return { notes: series?.notes ?? null, meetMinutesBefore: series?.meetMinutesBefore ?? null, meetPoint: series?.meetPoint ?? null };
   }
 
   function handleCoachSeriesWeekToggle(seriesId: string, weekStart: string, checked: boolean) {
@@ -1140,6 +1156,8 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           endsAt: item.endsAt,
           facilityId: item.facilityId ?? null,
           groupIds: item.groupIds ?? [],
+          // Notes and meeting of the series go with each week's session (piece 14).
+          ...seriesDetails(item.id),
         });
         createdSessionIds.push(sessionId);
         mutate((draft) => {
@@ -1330,6 +1348,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
               facilityId: editingSession.facilityId,
               groupIds: editingSession.groupIds,
               sessionType: normalizeCoachSessionType(editingSession.sessionType),
+              details: { notes: editingSession.notes, meetMinutesBefore: editingSession.meetMinutesBefore, meetPoint: editingSession.meetPoint, opponent: editingSession.opponent, homeAway: editingSession.homeAway, venueAddress: editingSession.venueAddress },
             }}
             allowTeamChange={false}
             isSaving={isSavingSessionEdit}

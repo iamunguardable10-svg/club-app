@@ -148,11 +148,14 @@ export function toServerRows(database: LocalDatabase): ServerRows {
       id: s.id, club_id: s.clubId, department_id: s.departmentId, team_id: s.teamId, title: s.title, session_type: s.sessionType,
       weekday: s.weekday, start_time: s.startTime, end_time: s.endTime, facility_id: s.facilityId, group_ids: s.groupIds,
       active_from: s.activeFrom, active_until: s.activeUntil, created_at: s.createdAt,
+      notes: s.notes ?? null, meet_minutes_before: s.meetMinutesBefore ?? null, meet_point: s.meetPoint ?? null,
     })),
     sessions: database.sessions.map((s) => ({
       id: s.id, club_id: s.clubId, department_id: s.departmentId, team_id: s.teamId, title: s.title, session_type: s.sessionType,
       starts_at: s.startsAt, ends_at: s.endsAt, facility_id: s.facilityId, group_ids: s.groupIds, series_id: s.seriesId,
       series_week_start: s.seriesWeekStart, created_at: s.createdAt,
+      notes: s.notes ?? null, meet_minutes_before: s.meetMinutesBefore ?? null, meet_point: s.meetPoint ?? null,
+      opponent: s.opponent ?? null, home_away: s.homeAway ?? null, venue_address: s.venueAddress ?? null,
     })),
     session_series_week_states: database.sessionSeriesWeekStates.map((w) => ({
       series_id: w.seriesId, week_start: w.weekStart, checked: w.checked, committed_session_id: w.committedSessionId, updated_at: w.updatedAt,
@@ -258,6 +261,8 @@ export function fromServerRows(
         id: s(x.id), clubId: s(x.club_id), departmentId: s(x.department_id), teamId: s(x.team_id), title: s(x.title),
         sessionType: x.session_type as SessionType, startsAt: s(x.starts_at), endsAt: s(x.ends_at), facilityId: sn(x.facility_id),
         groupIds: (x.group_ids as string[]) ?? [], seriesId: sn(x.series_id), seriesWeekStart: sn(x.series_week_start), createdAt: s(x.created_at),
+        notes: sn(x.notes), meetMinutesBefore: x.meet_minutes_before === null || x.meet_minutes_before === undefined ? null : Number(x.meet_minutes_before),
+        meetPoint: sn(x.meet_point), opponent: sn(x.opponent), homeAway: (sn(x.home_away) as 'home' | 'away' | null), venueAddress: sn(x.venue_address),
       }))
       .sort((a, b) => a.startsAt.localeCompare(b.startsAt)),
     sessionSeries: rows.session_series.map((x) => ({
@@ -265,6 +270,8 @@ export function fromServerRows(
       sessionType: x.session_type as SessionType, weekday: Number(x.weekday), startTime: s(x.start_time), endTime: s(x.end_time),
       facilityId: sn(x.facility_id), groupIds: (x.group_ids as string[]) ?? [], activeFrom: sn(x.active_from), activeUntil: sn(x.active_until),
       createdAt: s(x.created_at),
+      notes: sn(x.notes), meetMinutesBefore: x.meet_minutes_before === null || x.meet_minutes_before === undefined ? null : Number(x.meet_minutes_before),
+      meetPoint: sn(x.meet_point),
     })),
     sessionSeriesWeekStates: rows.session_series_week_states.map((w) => ({
       seriesId: s(w.series_id), weekStart: s(w.week_start), checked: Boolean(w.checked), committedSessionId: sn(w.committed_session_id),
