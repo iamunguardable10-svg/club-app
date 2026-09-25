@@ -23,6 +23,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
 import { WhoAreYou } from '@/features/onboarding/WhoAreYou';
+import { QuickPlayerRoles } from '@/features/identity/QuickPlayerRoles';
 import {
   clubRoleLabel,
   coachRolesForTeam,
@@ -152,6 +153,8 @@ function roleLabel(database: LocalDatabase, personId: string, role: IdentityRole
 function ServerStart() {
   const router = useRouter();
   const status = useBackendStatus();
+  // "Add a role" from the account menu: every way in, also when signed in.
+  const addRole = useSearchParams().get('add') === '1';
   // Reading starts the connection to the server.
   useLocalDatabase();
   const database = status.phase === 'ready' ? readDatabase() : null;
@@ -239,9 +242,16 @@ function ServerStart() {
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           {signOutButton}
-          <Link href="/join" className="text-xs font-bold text-slate-400 underline">Join another team with a code</Link>
+          {addRole ? null : <Link href="/?add=1" className="text-xs font-bold text-slate-400 underline">Add a role</Link>}
         </div>
       </Card>
+      {addRole ? (
+        <>
+          <QuickPlayerRoles database={database} />
+          <WhoAreYou signedIn />
+          <p className="text-xs text-slate-500">One account belongs to one club for now; roles in other teams of {database.club.name} work with the code or link.</p>
+        </>
+      ) : null}
       <DemoCard prominent={false} onStart={startDemoFromServer} />
     </Page>
   );
