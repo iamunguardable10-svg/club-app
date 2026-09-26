@@ -87,7 +87,8 @@ function walk(dir, out = []) {
   return out;
 }
 const used = new Set();
-for (const file of walk(path.join(root, 'src'))) {
+// The push dispatcher builds its texts from the same keys (area 6b).
+for (const file of [...walk(path.join(root, 'src')), ...walk(path.join(root, 'supabase/functions'))]) {
   const source = fs.readFileSync(file, 'utf8');
   for (const match of source.matchAll(/\b(?:t|tr)\(\s*'([^']+)'/g)) {
     used.add(match[1]);
@@ -96,7 +97,8 @@ for (const file of walk(path.join(root, 'src'))) {
   // Keys kept in maps (`'start.continueAs.coach'`) count as used too.
   for (const match of source.matchAll(/['"]([a-z][A-Za-z0-9]*(?:\.[A-Za-z0-9]+)+)['"]/g)) if (enBases.has(match[1])) used.add(match[1]);
 }
-const unused = [...enBases].filter((key) => !used.has(key));
+// The mail templates take every `mail.*` text (scripts/mail-templates.ts).
+const unused = [...enBases].filter((key) => !used.has(key) && !key.startsWith('mail.'));
 if (unused.length > 0) warnings.push(`en.json: ${unused.length} key(s) not used in the code: ${unused.join(', ')}`);
 
 for (const warning of warnings) console.log(`warn  ${warning}`);

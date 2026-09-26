@@ -12,7 +12,7 @@
 import { useState } from 'react';
 
 import { requestPasswordReset, setBackendChoice, signInWithPassword, signUpWithPassword } from '@/shared/data';
-import { errorText, useT, type MessageKey } from '@/shared/i18n';
+import { currentLocale, errorText, useT, type MessageKey } from '@/shared/i18n';
 
 type Mode = 'signIn' | 'signUp' | 'reset';
 
@@ -55,7 +55,7 @@ export function AuthForm({
         await requestPasswordReset(email);
         setMailSent({ to: email.trim(), kind: 'reset' });
       } else {
-        const { confirmationNeeded } = await signUpWithPassword(email, password, returnTo);
+        const { confirmationNeeded } = await signUpWithPassword(email, password, returnTo, currentLocale());
         // The confirmation link comes back to this device in server mode.
         setBackendChoice('server');
         if (!confirmationNeeded) {
