@@ -94,7 +94,7 @@ for (const file of walk(path.join(root, 'src'))) {
     if (!enBases.has(match[1])) errors.push(`${path.relative(root, file)}: t('${match[1]}') is not in en.json`);
   }
   // Keys kept in maps (`'start.continueAs.coach'`) count as used too.
-  for (const match of source.matchAll(/'([a-z][A-Za-z0-9]*(?:\.[A-Za-z0-9]+)+)'/g)) if (enBases.has(match[1])) used.add(match[1]);
+  for (const match of source.matchAll(/['"]([a-z][A-Za-z0-9]*(?:\.[A-Za-z0-9]+)+)['"]/g)) if (enBases.has(match[1])) used.add(match[1]);
 }
 const unused = [...enBases].filter((key) => !used.has(key));
 if (unused.length > 0) warnings.push(`en.json: ${unused.length} key(s) not used in the code: ${unused.join(', ')}`);

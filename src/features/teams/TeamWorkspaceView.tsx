@@ -13,10 +13,11 @@ import { acwrDisplayLabel, playerLoadSummary, type PlayerLoadInput } from '@/fea
 import { loadZone } from '@/features/load/loadCalculations';
 import { PlayerLoadDetail } from '@/features/players/PlayerLoadDetail';
 import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
-import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
+import { displayTitle, labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
 import type { CoachFacility, CoachGroup, CoachSession, CoachTeam } from '@/features/role-workspaces/CoachTypes';
-import { formatSessionTime, plural } from '@/shared/format';
+import { formatDecimal, formatSessionTime } from '@/shared/format';
+import { tr, useT } from '@/shared/i18n';
 
 export type TeamWorkspaceRole = 'admin' | 'department_lead' | 'coach' | 'viewer';
 export type TeamWorkspaceSection = 'dashboard' | 'players' | 'groups' | 'messages' | 'settings';
@@ -95,8 +96,8 @@ function addMinutes(date: Date, minutes: number) {
 }
 
 function shortSectionLabel(section: TeamWorkspaceSection) {
-  if (section === 'dashboard') return 'Overview';
-  if (section === 'settings') return 'Settings';
+  if (section === 'dashboard') return tr('team.section.overview');
+  if (section === 'settings') return tr('team.section.settingsShort');
   return sectionLabel(section);
 }
 
@@ -115,11 +116,11 @@ function SectionIcon({ section }: { section: TeamWorkspaceSection }) {
 }
 
 function sectionLabel(section: TeamWorkspaceSection) {
-  if (section === 'dashboard') return 'Overview';
-  if (section === 'players') return 'Players';
-  if (section === 'groups') return 'Groups';
-  if (section === 'messages') return 'Messages';
-  return 'Staff & settings';
+  if (section === 'dashboard') return tr('team.section.overview');
+  if (section === 'players') return tr('team.section.players');
+  if (section === 'groups') return tr('team.section.groups');
+  if (section === 'messages') return tr('team.section.messages');
+  return tr('team.section.settings');
 }
 
 function EmptyCard({ title, description }: { title: string; description?: string }) {
@@ -145,7 +146,7 @@ function loadRiskLine(player: TeamWorkspacePlayer) {
     id: player.id,
     name: player.name,
     status: summary.zone.tone,
-    detail: summary.acwr !== null ? `${summary.acwr.toFixed(2)} ACWR` : null,
+    detail: summary.acwr !== null ? tr('team.acwrValue', { value: formatDecimal(summary.acwr) }) : null,
   };
 }
 
@@ -199,6 +200,7 @@ function TeamDashboardSessionCard({
   attendanceShared?: boolean;
   onOpen: () => void;
 }) {
+  const t = useT();
   const out = session.availability.filter((entry) => entry.status === 'out');
   const late = session.availability.filter((entry) => entry.status === 'late');
 
@@ -206,7 +208,7 @@ function TeamDashboardSessionCard({
     <button type="button" onClick={onOpen} className="mt-4 block w-full rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-left text-white transition hover:border-emerald-300/45 hover:bg-slate-900/70">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-xl font-black">{session.title}</h3>
+          <h3 className="text-xl font-black">{displayTitle(session.title)}</h3>
           <p className="mt-1 text-sm font-bold text-slate-400">{formatSessionTime(session.startsAt, session.endsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
         </div>
         <span aria-hidden className="text-lg font-black text-slate-500">›</span>
@@ -214,17 +216,17 @@ function TeamDashboardSessionCard({
       {attendanceShared ? <div className="mt-4 grid grid-cols-2 gap-2">
         <div className={`rounded-xl border p-3 ${out.length > 0 ? 'border-rose-400/35 bg-rose-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black text-slate-400">Out</p>
+            <p className="text-xs font-black text-slate-400">{t('team.card.out')}</p>
             <span className="text-lg font-black text-white">{out.length}</span>
           </div>
           {out.slice(0, 3).map((item) => <p key={item.id} className="mt-1.5 text-xs font-bold text-slate-300">{item.playerName}{item.reason ? ` · ${item.reason}` : ''}</p>)}
         </div>
         <div className={`rounded-xl border p-3 ${late.length > 0 ? 'border-amber-400/35 bg-amber-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black text-slate-400">Late</p>
+            <p className="text-xs font-black text-slate-400">{t('team.card.late')}</p>
             <span className="text-lg font-black text-white">{late.length}</span>
           </div>
-          {late.slice(0, 3).map((item) => <p key={item.id} className="mt-1.5 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${item.lateMinutes} min` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>)}
+          {late.slice(0, 3).map((item) => <p key={item.id} className="mt-1.5 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${t('team.card.lateMinutes', { count: item.lateMinutes })}` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>)}
         </div>
       </div> : null}
     </button>
@@ -237,12 +239,13 @@ function TeamDashboardSessionCard({
  * their buttons had become controls that did nothing.
  */
 function StaffRoleGrid({ roles }: { roles: TeamWorkspaceStaffRole[] }) {
+  const t = useT();
   return (
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       {roles.map((role) => (
         <div key={role.id} className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{role.label}</p>
-          <p className="mt-2 text-sm text-slate-200">{role.status === 'accepted' ? role.value ?? 'Assigned' : <span className="text-slate-500">Not assigned</span>}</p>
+          <p className="mt-2 text-sm text-slate-200">{role.status === 'accepted' ? role.value ?? t('team.assigned') : <span className="text-slate-500">{t('team.notAssigned')}</span>}</p>
         </div>
       ))}
     </div>
@@ -290,6 +293,7 @@ export function TeamWorkspaceView({
   /** Replaces the read-only staff overview in settings, e.g. with role management. */
   staffPanel?: ReactNode;
 }) {
+  const t = useT();
   const [activeSection, setActiveSection] = useState<TeamWorkspaceSection>(initialSection);
   const [isSavingDefault, setIsSavingDefault] = useState(false);
   const [activePlayer, setActivePlayer] = useState<TeamWorkspacePlayer | null>(null);
@@ -336,7 +340,7 @@ export function TeamWorkspaceView({
   // team, next to an invite button that could not do anything.
   const allCoaches = [...data.staff.headCoaches, ...data.staff.assistantCoaches];
   const staffRoles = [
-    { id: 'coaches', label: 'Coaches', status: allCoaches.length > 0 ? 'accepted' : 'missing', value: allCoaches.join(', ') || null },
+    { id: 'coaches', label: t('team.coaches'), status: allCoaches.length > 0 ? 'accepted' : 'missing', value: allCoaches.join(', ') || null },
   ] satisfies TeamWorkspaceStaffRole[];
   const [newGroupName, setNewGroupName] = useState('');
   const [isGroupEditMode, setIsGroupEditMode] = useState(false);
@@ -356,13 +360,13 @@ export function TeamWorkspaceView({
 
   const setupActions = [
     data.staff.headCoaches.length === 0
-      ? { id: 'head-coach', label: 'No coach assigned', action: 'none' as const }
+      ? { id: 'head-coach', label: t('team.setup.noCoach'), action: 'none' as const }
       : null,
     !data.defaultFacilityName
-      ? { id: 'default-facility', label: 'Set a default hall', action: 'settings' as const }
+      ? { id: 'default-facility', label: t('team.setup.defaultHall'), action: 'settings' as const }
       : null,
     data.playerCount === 0
-      ? { id: 'players', label: 'No players yet: share the join code', action: 'players' as const }
+      ? { id: 'players', label: t('team.setup.noPlayers'), action: 'players' as const }
       : null,
   ].filter(Boolean) as { id: string; label: string; action: 'settings' | 'players' | 'none' }[];
 
@@ -472,7 +476,7 @@ export function TeamWorkspaceView({
     <div className="space-y-4">
       {/* Sections of this team: one row, never sideways scrolling. Phones get
           an icon with a short label, wider screens the full text. */}
-      <div role="tablist" aria-label="Team sections" className="grid auto-cols-fr grid-flow-col gap-1 rounded-2xl border border-slate-800 bg-slate-950/70 p-1 sm:flex sm:w-max">
+      <div role="tablist" aria-label={t('team.sectionsLabel')} className="grid auto-cols-fr grid-flow-col gap-1 rounded-2xl border border-slate-800 bg-slate-950/70 p-1 sm:flex sm:w-max">
         {sections.map((section) => (
           <button
             key={section}
@@ -496,25 +500,25 @@ export function TeamWorkspaceView({
           <div className="min-w-0 space-y-4">
             <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-lg font-black">{nextSession && isSessionRunning(nextSession) ? 'Now' : 'Next session'}</h2>
-                <Link href={data.calendarHref} className="text-xs font-black text-sky-300 hover:text-sky-200">Team calendar ›</Link>
+                <h2 className="text-lg font-black">{nextSession && isSessionRunning(nextSession) ? t('team.now') : t('team.nextSession')}</h2>
+                <Link href={data.calendarHref} className="text-xs font-black text-sky-300 hover:text-sky-200">{t('team.calendarLink')}</Link>
               </div>
               {nextSession ? (
                 <TeamDashboardSessionCard session={coachSessionFor(nextSession)} attendanceShared={data.attendanceShared !== false} onOpen={() => setDashboardSession(nextSession)} />
               ) : (
-                <div className="mt-4"><EmptyCard title="No upcoming session" description="Plan the next one in the team calendar." /></div>
+                <div className="mt-4"><EmptyCard title={t('team.noUpcoming')} description={t('team.noUpcomingDetail')} /></div>
               )}
             </section>
 
             {upcomingSessions.length > 0 ? (
               <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 sm:p-5">
-                <h2 className="text-lg font-black">After that</h2>
+                <h2 className="text-lg font-black">{t('team.afterThat')}</h2>
                 <ul className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2">
                   {upcomingSessions.map((session) => (
                     <li key={session.id}>
                       <button type="button" onClick={() => setDashboardSession(session)} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 px-3 py-2.5 text-left transition hover:border-sky-300/50">
                         <span className="min-w-0">
-                          <span className="block truncate text-sm font-black text-white">{session.title}</span>
+                          <span className="block truncate text-sm font-black text-white">{displayTitle(session.title)}</span>
                           <span className="block truncate text-xs font-bold text-slate-400">{formatSessionTime(session.startsAt, session.endsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</span>
                         </span>
                         <span aria-hidden className="text-slate-500">›</span>
@@ -528,7 +532,7 @@ export function TeamWorkspaceView({
 
           {setupActions.length > 0 ? (
             <section className="rounded-3xl border border-amber-500/30 bg-amber-950/10 p-4 sm:p-5">
-              <h2 className="text-lg font-black text-amber-100">Still to set up</h2>
+              <h2 className="text-lg font-black text-amber-100">{t('team.stillToSetUp')}</h2>
               <div className="mt-3 grid gap-2">
                 {setupActions.map((item) => {
                   const className = 'rounded-xl border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-left text-sm font-bold text-amber-100 transition hover:border-amber-300/60';
@@ -545,16 +549,16 @@ export function TeamWorkspaceView({
       {activeSection === 'players' ? (
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-black">{plural(data.playerCount, 'player')}</h2>
+            <h2 className="text-lg font-black">{t('team.playerCount', { count: data.playerCount })}</h2>
             {players.length > 1 && data.loadTracked !== false ? (
               <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1">
-                <button type="button" onClick={() => setPlayerSort('risk')} className={`rounded-full px-3 py-1.5 text-xs font-black ${playerSort === 'risk' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Needs attention</button>
-                <button type="button" onClick={() => setPlayerSort('az')} className={`rounded-full px-3 py-1.5 text-xs font-black ${playerSort === 'az' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>A–Z</button>
+                <button type="button" onClick={() => setPlayerSort('risk')} className={`rounded-full px-3 py-1.5 text-xs font-black ${playerSort === 'risk' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>{t('team.sort.attention')}</button>
+                <button type="button" onClick={() => setPlayerSort('az')} className={`rounded-full px-3 py-1.5 text-xs font-black ${playerSort === 'az' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>{t('team.sort.az')}</button>
               </div>
             ) : null}
           </div>
           {players.length === 0 ? (
-            <div className="mt-4"><EmptyCard title="No players yet" description="Players join with the team's join code (Staff & settings)." /></div>
+            <div className="mt-4"><EmptyCard title={t('team.noPlayers')} description={t('team.noPlayersDetail')} /></div>
           ) : (
             <div className="mt-4 grid gap-2 md:grid-cols-2 lg:grid-cols-3">
               {sortedPlayers.map((player) => {
@@ -565,14 +569,14 @@ export function TeamWorkspaceView({
                   <button key={player.id} type="button" onClick={() => setActivePlayer(player)} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 text-left transition hover:border-emerald-300/55 hover:bg-slate-900">
                     <div className="flex items-center justify-between gap-3">
                       <p className="truncate font-black text-white">{player.name}</p>
-                      {data.loadTracked !== false && summary.access !== 'none' && summary.acwr !== null ? <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-black ${acwrToneClass(summary.zone.tone)}`}>ACWR {summary.acwr.toFixed(2)}</span> : null}
+                      {data.loadTracked !== false && summary.access !== 'none' && summary.acwr !== null ? <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-black ${acwrToneClass(summary.zone.tone)}`}>{t('team.acwrBadge', { value: formatDecimal(summary.acwr) })}</span> : null}
                     </div>
                     {groupNames.length > 0 ? <p className="mt-1 truncate text-xs font-bold text-slate-500">{groupNames.join(' · ')}</p> : null}
                     <div className="mt-3 flex items-center justify-between gap-2 text-xs font-bold text-slate-400">
                       <span>{data.loadTracked === false ? '' : acwrDisplayLabel(summary)}</span>
-                      {player.attendanceShared !== false ? <span>{attendanceFlags > 0 ? `${attendanceFlags}× out or late` : 'Always there'}</span> : null}
+                      {player.attendanceShared !== false ? <span>{attendanceFlags > 0 ? t('team.outOrLate', { count: attendanceFlags }) : t('team.alwaysThere')}</span> : null}
                     </div>
-                    {player.awayUntil ? <p className="mt-2 inline-flex rounded-full border border-amber-300/40 bg-amber-300/10 px-2 py-0.5 text-[11px] font-black text-amber-100">Away until {shortDate(player.awayUntil)}</p> : null}
+                    {player.awayUntil ? <p className="mt-2 inline-flex rounded-full border border-amber-300/40 bg-amber-300/10 px-2 py-0.5 text-[11px] font-black text-amber-100">{t('team.awayUntil', { date: shortDate(player.awayUntil) })}</p> : null}
                   </button>
                 );
               })}
@@ -583,8 +587,8 @@ export function TeamWorkspaceView({
 
       {activeSection === 'messages' && canMessage ? (
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 sm:p-5">
-          <h2 className="text-lg font-black">Messages</h2>
-          <p className="mb-4 mt-0.5 text-sm text-slate-400">Announcements to the team or some groups. Players see them in the app and get a notification.</p>
+          <h2 className="text-lg font-black">{t('team.messagesTitle')}</h2>
+          <p className="mb-4 mt-0.5 text-sm text-slate-400">{t('team.messagesDetail')}</p>
           <TeamMessagesPanel teamId={data.id} />
         </section>
       ) : null}
@@ -593,8 +597,8 @@ export function TeamWorkspaceView({
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-lg font-black">Groups</h2>
-              <p className="mt-0.5 text-sm text-slate-400">Plan sessions for part of the team, e.g. rehab or starters.</p>
+              <h2 className="text-lg font-black">{t('team.groupsTitle')}</h2>
+              <p className="mt-0.5 text-sm text-slate-400">{t('team.groupsDetail')}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {(onAddGroup || onRemoveGroup || onTogglePlayerGroup) ? (
@@ -603,7 +607,7 @@ export function TeamWorkspaceView({
                   onClick={() => setIsGroupEditMode((current) => !current)}
                   className={`rounded-xl border px-4 py-2 text-xs font-black transition ${isGroupEditMode ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-200 hover:bg-slate-900'}`}
                 >
-                  {isGroupEditMode ? 'Done' : 'Edit groups'}
+                  {isGroupEditMode ? t('team.done') : t('team.editGroups')}
                 </button>
               ) : null}
             </div>
@@ -613,11 +617,11 @@ export function TeamWorkspaceView({
               <input
                 value={newGroupName}
                 onChange={(event) => setNewGroupName(event.target.value)}
-                placeholder="e.g. Starting Five"
+                placeholder={t('team.groupPlaceholder')}
                 className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm font-bold text-slate-100 outline-none focus:border-sky-300"
               />
               <button type="button" onClick={handleAddGroup} className="rounded-xl border border-sky-500/50 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/35">
-                Add
+                {t('team.add')}
               </button>
             </div>
           ) : null}
@@ -634,19 +638,19 @@ export function TeamWorkspaceView({
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-black">{group.name}</p>
-                    <p className="mt-1 text-xs font-black text-slate-500">{plural(group.playerCount, 'player')} · {plural(loadFlags.length, 'load flag', 'load flags', 'no load flags')}</p>
+                    <p className="mt-1 text-xs font-black text-slate-500">{t('team.playerCount', { count: group.playerCount })} · {t('team.loadFlags', { count: loadFlags.length })}</p>
                   </div>
                   {isGroupEditMode && onRemoveGroup ? (
                     <button type="button" onClick={() => onRemoveGroup(group.id)} className="rounded-lg border border-red-500/40 px-2 py-1 text-[10px] font-black text-red-100 hover:bg-red-950/30">
-                      Remove
+                      {t('team.remove')}
                     </button>
                   ) : null}
                 </div>
                 <div className="mt-3 space-y-2 text-xs font-bold">
                   {loadFlags.slice(0, 3).map((flag) => (
-                    <p key={flag.id} className={flag.status === 'high' ? 'text-rose-200' : 'text-sky-200'}>{flag.status === 'high' ? 'High load' : 'Low load'} · {flag.name}{flag.detail ? ` · ${flag.detail}` : ''}</p>
+                    <p key={flag.id} className={flag.status === 'high' ? 'text-rose-200' : 'text-sky-200'}>{flag.status === 'high' ? t('team.highLoad') : t('team.lowLoad')} · {flag.name}{flag.detail ? ` · ${flag.detail}` : ''}</p>
                   ))}
-                  {!loadFlags.length ? <p className="text-slate-400">{isGroupEditMode ? 'Select team members for this group.' : 'Tap for details.'}</p> : null}
+                  {!loadFlags.length ? <p className="text-slate-400">{isGroupEditMode ? t('team.selectMembers') : t('team.tapForDetails')}</p> : null}
                 </div>
                 {groupPlayers.length > 0 ? (
                   <div className="mt-3 flex flex-wrap gap-1.5">
@@ -658,7 +662,7 @@ export function TeamWorkspaceView({
                 ) : null}
                 {isGroupEditMode && players.length > 0 && onTogglePlayerGroup ? (
                   <div className="mt-4 border-t border-slate-800 pt-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Members</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('team.members')}</p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {players.map((player) => {
                         const selected = Boolean(group.playerIds?.includes(player.id) || player.groups?.includes(group.id) || player.groups?.includes(group.name));
@@ -679,7 +683,7 @@ export function TeamWorkspaceView({
               </article>
               );
             })}
-            {data.groups.length === 0 ? <EmptyCard title="No groups yet" /> : null}
+            {data.groups.length === 0 ? <EmptyCard title={t('team.noGroups')} /> : null}
           </div>
         </section>
       ) : null}
@@ -689,31 +693,31 @@ export function TeamWorkspaceView({
           <section className="w-full max-w-lg rounded-3xl border border-slate-800 bg-slate-950 p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Group insight</p>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">{t('team.groupInsight')}</p>
                 <h3 className="mt-2 text-2xl font-black text-white">{activeGroup.name}</h3>
               </div>
-              <button type="button" onClick={() => setActiveGroupId(null)} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Close</button>
+              <button type="button" onClick={() => setActiveGroupId(null)} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">{t('team.close')}</button>
             </div>
             <div className="mt-5 grid gap-3">
               <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Load flags</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('team.loadFlagsTitle')}</p>
                 <div className="mt-3 space-y-2">
-                  {activeGroupLoadFlags.length === 0 ? <p className="text-sm font-bold text-slate-500">No current load flags.</p> : null}
+                  {activeGroupLoadFlags.length === 0 ? <p className="text-sm font-bold text-slate-500">{t('team.noLoadFlags')}</p> : null}
                   {activeGroupLoadFlags.map((flag) => (
-                    <p key={flag.id} className={`text-sm font-bold ${flag.status === 'high' ? 'text-rose-200' : 'text-sky-200'}`}>{flag.name} · {flag.status === 'high' ? 'High' : 'Low'}{flag.detail ? ` · ${flag.detail}` : ''}</p>
+                    <p key={flag.id} className={`text-sm font-bold ${flag.status === 'high' ? 'text-rose-200' : 'text-sky-200'}`}>{flag.name} · {flag.status === 'high' ? t('team.high') : t('team.low')}{flag.detail ? ` · ${flag.detail}` : ''}</p>
                   ))}
                 </div>
               </div>
             </div>
             <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
-              <p className="text-sm font-black text-slate-100">Players</p>
+              <p className="text-sm font-black text-slate-100">{t('team.players')}</p>
               {activeGroupPlayers.length > 0 ? (
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {activeGroupPlayers.map((player) => (
                     <span key={player.id} className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-bold text-slate-300">{player.name}</span>
                   ))}
                 </div>
-              ) : <p className="mt-2 text-sm font-bold text-slate-500">No players in this group yet.</p>}
+              ) : <p className="mt-2 text-sm font-bold text-slate-500">{t('team.noGroupPlayers')}</p>}
             </div>
           </section>
         </div>
@@ -721,13 +725,13 @@ export function TeamWorkspaceView({
 
       {activeSection === 'settings' ? (
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-          <h2 className="text-lg font-black">Staff & settings</h2>
+          <h2 className="text-lg font-black">{t('team.section.settings')}</h2>
           <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-3">
             <div
               className="max-w-sm rounded-2xl border border-slate-800 bg-slate-950/70 p-3"
               style={selectedFacilityAccent ? { borderColor: selectedFacilityAccent.hex, backgroundColor: selectedFacilityAccent.softHex } : undefined}
             >
-              <p className="text-sm font-black text-slate-100">Default hall</p>
+              <p className="text-sm font-black text-slate-100">{t('team.defaultHall')}</p>
               {data.availableFacilities && data.availableFacilities.length > 0 ? (
                 <select
                   value={data.defaultFacilityId ?? ''}
@@ -736,15 +740,15 @@ export function TeamWorkspaceView({
                   className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-950/90 px-3 py-2 text-xs font-black text-slate-100 outline-none focus:border-sky-300 disabled:opacity-60"
                   style={selectedFacilityAccent ? { borderColor: selectedFacilityAccent.hex, color: selectedFacilityAccent.textHex } : undefined}
                 >
-                  <option value="">No default hall</option>
+                  <option value="">{t('team.noDefaultHall')}</option>
                   {data.availableFacilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
                 </select>
               ) : (
-                <p className="mt-1 text-sm text-slate-400">Assign a hall to this department before setting a team default.</p>
+                <p className="mt-1 text-sm text-slate-400">{t('team.assignHallFirst')}</p>
               )}
             </div>
             <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-              <p className="text-sm font-black text-slate-100">Staff roles</p>
+              <p className="text-sm font-black text-slate-100">{t('team.staffRoles')}</p>
               <div className="mt-4">
                 {staffPanel ?? <StaffRoleGrid roles={staffRoles} />}
               </div>
@@ -767,7 +771,7 @@ export function TeamWorkspaceView({
             onFacilityChange={handleDashboardSessionFacilityChange}
             onEdit={data.role !== 'viewer' && (onSessionTimeChange || onSessionFacilityChange || onSessionGroupsChange || onSessionTypeChange) ? () => setDashboardEditingSession(dashboardSession) : undefined}
             onDelete={data.role !== 'viewer' && onSessionDelete ? () => setDashboardDeleteTargetId(dashboardSession.id) : undefined}
-            extraActions={<Link href={data.calendarHref} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</Link>}
+            extraActions={<Link href={data.calendarHref} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">{t('team.openCalendar')}</Link>}
             onClose={() => setDashboardSession(null)}
           />
         );
@@ -776,7 +780,7 @@ export function TeamWorkspaceView({
       {dashboardEditingSession ? (
         <CoachSessionEditSheet
           key={`dashboard-session-${dashboardEditingSession.id}-${dashboardEditingSession.startsAt}`}
-          title={dashboardEditingSession.title}
+          title={displayTitle(dashboardEditingSession.title)}
           teams={coachEditorTeams}
           facilities={coachEditorFacilities}
           groups={coachEditorGroups}
@@ -798,10 +802,10 @@ export function TeamWorkspaceView({
 
       <AppConfirmDialog
         isOpen={Boolean(dashboardDeleteTargetId)}
-        title="Delete session?"
-        description="This removes the session from the team calendar and the affected athlete calendars."
-        confirmLabel="Delete session"
-        cancelLabel="Keep session"
+        title={t('coach.delete.title')}
+        description={t('team.deleteDetail')}
+        confirmLabel={t('coach.delete.confirm')}
+        cancelLabel={t('coach.delete.keep')}
         tone="danger"
         isConfirming={isDeletingDashboardSession}
         onConfirm={() => { void confirmDashboardDeleteSession(); }}
@@ -818,22 +822,22 @@ export function TeamWorkspaceView({
             <div className="grid gap-4">
               {activePlayerOwnTraining ? (
                 <div>
-                  <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Own training · next 2 weeks</p>
+                  <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('team.ownTraining')}</p>
                   <OwnTrainingList items={activePlayerOwnTraining} />
                 </div>
               ) : null}
               {/* Piece 16: roles that see attendance can mark a player away for a period. */}
               {activePlayer.attendanceShared !== false ? (
                 <div>
-                  <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Away</p>
+                  <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('team.away')}</p>
                   <AbsencePanel personId={activePlayer.id} viewer="coach" showReasons={Boolean(activePlayer.absenceReasonsShared)} />
                 </div>
               ) : null}
               {onRemovePlayer ? (
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-xs font-bold text-slate-500">Joined the wrong team, or left the club?</p>
+                  <p className="text-xs font-bold text-slate-500">{t('team.wrongTeam')}</p>
                   <button type="button" onClick={() => setRemovePlayerTarget(activePlayer)} className="rounded-xl border border-red-500/50 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">
-                    Remove from team
+                    {t('team.removeFromTeam')}
                   </button>
                 </div>
               ) : null}
@@ -844,10 +848,10 @@ export function TeamWorkspaceView({
 
       <AppConfirmDialog
         isOpen={Boolean(removePlayerTarget)}
-        title={removePlayerTarget ? `Remove ${removePlayerTarget.name} from ${data.name}?` : 'Remove player?'}
-        description="They leave the team and its groups and no longer see its sessions. Their past reports and load stay. They can rejoin with the join code until you replace it (Staff & settings)."
-        confirmLabel="Remove from team"
-        cancelLabel="Keep"
+        title={removePlayerTarget ? t('team.removeTitle', { name: removePlayerTarget.name, team: data.name }) : t('team.removePlayer')}
+        description={t('team.removeDetail')}
+        confirmLabel={t('team.removeFromTeam')}
+        cancelLabel={t('team.keep')}
         tone="danger"
         isConfirming={isRemovingPlayer}
         onConfirm={async () => {

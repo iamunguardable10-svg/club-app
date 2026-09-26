@@ -5,6 +5,8 @@
  * department scope fields went, since nothing in the app reads them.
  */
 
+import { tr } from '@/shared/i18n';
+
 export type FacilityMatchCandidate = {
   id: string;
   name: string;
@@ -84,12 +86,12 @@ export function findBestFacilityLocationMatch(params: {
 }
 
 export function getFacilityMatchWarning(match: FacilityLocationMatch) {
-  const locationText = match.candidate.address ? ` at ${match.candidate.address}` : '';
-  const nameText = match.nameRelation === 'same_name' ? 'with the same name' : 'with a different name';
+  const hall = match.candidate.address ? tr('facility.match.hallAt', { name: match.candidate.name, address: match.candidate.address }) : match.candidate.name;
+  const sameName = match.nameRelation === 'same_name';
 
   if (match.reason === 'exact_address') {
-    return `Possible same facility: ${match.candidate.name}${locationText} already exists ${nameText}. Check carefully before creating another hall.`;
+    return tr(sameName ? 'facility.match.sameAddress.sameName' : 'facility.match.sameAddress.otherName', { hall });
   }
 
-  return `Possible same street: ${match.candidate.name}${locationText} already exists ${nameText}. Check whether this is the same facility before continuing.`;
+  return tr(sameName ? 'facility.match.sameStreet.sameName' : 'facility.match.sameStreet.otherName', { hall });
 }

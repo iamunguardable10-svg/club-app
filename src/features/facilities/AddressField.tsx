@@ -12,13 +12,14 @@
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { fetchGeoapifyAddressSuggestions, getGeoapifyApiKey, type GeoapifyAddressSuggestion } from '@/features/facilities/addressAutocomplete';
+import { useT } from '@/shared/i18n';
 
 const DEBOUNCE_MS = 250;
 
 export function AddressField({
   value,
   onChange,
-  label = 'Address',
+  label,
   className = '',
 }: {
   value: string;
@@ -26,6 +27,7 @@ export function AddressField({
   label?: string;
   className?: string;
 }) {
+  const t = useT();
   const listId = useId();
   const [suggestions, setSuggestions] = useState<GeoapifyAddressSuggestion[]>([]);
   const [open, setOpen] = useState(false);
@@ -54,8 +56,8 @@ export function AddressField({
         onChange={(event) => { typedRef.current = true; onChange(event.target.value); }}
         onFocus={() => setOpen(true)}
         onBlur={() => window.setTimeout(() => setOpen(false), 150)}
-        placeholder="Street, city"
-        aria-label={label}
+        placeholder={t('address.placeholder')}
+        aria-label={label ?? t('address.label')}
         autoComplete="off"
         role={enabled ? 'combobox' : undefined}
         aria-expanded={enabled ? open && suggestions.length > 0 : undefined}

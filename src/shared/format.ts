@@ -28,6 +28,7 @@ const FORMATS = {
   entryDate: { weekday: 'short', day: '2-digit', month: 'short' },
   dayMonth: { day: '2-digit', month: '2-digit' },
   dayNumber: { day: '2-digit' },
+  dayShortMonth: { day: '2-digit', month: 'short' },
   weekdayDay: { weekday: 'short', day: '2-digit' },
   dateTime: { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' },
 } satisfies Record<string, Intl.DateTimeFormatOptions>;
@@ -66,7 +67,17 @@ export function formatEntryDate(date: string) {
 
 /** "25/09" (English), "25.09." (German): chart axes. */
 export function formatDayMonth(date: string) {
-  return formatter('dayMonth').format(new Date(`${date}T00:00:00`));
+  return formatNumericDayMonth(`${date}T00:00:00`);
+}
+
+/** The same for a date or timestamp. */
+export function formatNumericDayMonth(value: DateInput) {
+  return formatter('dayMonth').format(toDate(value));
+}
+
+/** "05 Oct" */
+export function formatDayShortMonth(value: DateInput) {
+  return formatter('dayShortMonth').format(toDate(value));
 }
 
 /** "05" */

@@ -10,6 +10,9 @@ import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { PlayerLoadDetail, type PlayerLoadDetailPlayer } from '@/features/players/PlayerLoadDetail';
 import { SessionInfo } from '@/features/sessions/SessionInfo';
 import { HIGH_RISK_ACWR, acwrAfter, todayISO } from '@/shared/data/loadCalculations';
+import { errorText, tr, useT, type MessageKey } from '@/shared/i18n';
+import { formatDecimal, formatWeekday } from '@/shared/format';
+import { displayTitle } from '@/features/sessions/sessionTypeLabels';
 import { sessionTypeToLoadType, type AthletePendingSession } from '@/shared/data/loadTypes';
 
 type HistoryTeamOption = { id: string; name: string; departmentName?: string };
@@ -125,10 +128,10 @@ function sortLoadReportsDescending(a: CoachSessionLoadReport, b: CoachSessionLoa
 }
 
 function insightTitle(insight: CoachSessionInsight) {
-  if (insight === 'expected') return 'Expected players';
-  if (insight === 'rpe') return 'RPE reports';
-  if (insight === 'au') return 'AU load';
-  return 'Completion';
+  if (insight === 'expected') return tr('coach.insight.expected');
+  if (insight === 'rpe') return tr('coach.insight.rpe');
+  if (insight === 'au') return tr('coach.insight.au');
+  return tr('coach.insight.completion');
 }
 
 function availabilityRank(status: 'late' | 'out' | 'expected' | 'present') {
@@ -157,7 +160,7 @@ function weekWindowStart(weeks: number) {
 
 function formatPercent(value: number | null) {
   if (value === null || !Number.isFinite(value)) return '—';
-  return `${Math.round(value * 100)}%`;
+  return tr('coach.history.percent', { value: Math.round(value * 100) });
 }
 
 function weekStartLocal(date: Date) {
@@ -186,7 +189,7 @@ function formatHistoryWeekLabel(key: string) {
 }
 
 function formatHistoryDayLabel(date: Date) {
-  return formatDay(date).split(' ')[0];
+  return formatWeekday(date);
 }
 
 function isoWeekNumber(date: Date) {
@@ -262,7 +265,7 @@ function buildCoachHistoryGraph(sessions: CoachSession[], rangeWeeks: number): C
 
   return Array.from(buckets.entries()).map(([key, bucket]) => ({
     key,
-    label: `Wk ${isoWeekNumber(new Date(`${key}T00:00:00`))}`,
+    label: tr('coach.history.weekLabel', { week: isoWeekNumber(new Date(`${key}T00:00:00`)) }),
     dateRange: formatHistoryWeekLabel(key),
     sessionCount: bucket.sessionCount,
     expectedPlayers: bucket.expectedPlayers,
@@ -318,11 +321,11 @@ function TrendValue({ label, value, colorClass }: { label: string; value: string
   );
 }
 
-const HISTORY_METRIC_META: Record<CoachHistoryMetric, { label: string; color: string; tone: string; dot: string }> = {
-  rpe: { label: 'RPE', color: '#34d399', tone: 'border-emerald-300 bg-emerald-300 text-slate-950', dot: 'bg-emerald-300' },
-  au: { label: 'AU', color: '#a78bfa', tone: 'border-violet-300 bg-violet-300 text-slate-950', dot: 'bg-violet-300' },
-  attendance: { label: 'Attendance', color: '#38bdf8', tone: 'border-sky-300 bg-sky-300 text-slate-950', dot: 'bg-sky-300' },
-  completion: { label: 'Completion', color: '#fbbf24', tone: 'border-amber-300 bg-amber-300 text-slate-950', dot: 'bg-amber-300' },
+const HISTORY_METRIC_META: Record<CoachHistoryMetric, { label: MessageKey; color: string; tone: string; dot: string }> = {
+  rpe: { label: 'coach.history.metric.rpe', color: '#34d399', tone: 'border-emerald-300 bg-emerald-300 text-slate-950', dot: 'bg-emerald-300' },
+  au: { label: 'coach.history.metric.au', color: '#a78bfa', tone: 'border-violet-300 bg-violet-300 text-slate-950', dot: 'bg-violet-300' },
+  attendance: { label: 'coach.history.metric.attendance', color: '#38bdf8', tone: 'border-sky-300 bg-sky-300 text-slate-950', dot: 'bg-sky-300' },
+  completion: { label: 'coach.history.metric.completion', color: '#fbbf24', tone: 'border-amber-300 bg-amber-300 text-slate-950', dot: 'bg-amber-300' },
 };
 
 function valueForHistoryMetric(point: Pick<CoachHistoryGraphPoint, 'avgRpe' | 'avgAu' | 'attendanceRate' | 'completionRate'>, metric: CoachHistoryMetric) {
@@ -334,9 +337,9 @@ function valueForHistoryMetric(point: Pick<CoachHistoryGraphPoint, 'avgRpe' | 'a
 
 function formatHistoryMetricValue(metric: CoachHistoryMetric, value: number | null) {
   if (value === null || !Number.isFinite(value)) return '-';
-  if (metric === 'rpe') return value.toFixed(1);
-  if (metric === 'au') return `${Math.round(value)} AU`;
-  return `${Math.round(value)}%`;
+  if (metric === 'rpe') return formatDecimal(value, 1);
+  if (metric === 'au') return tr('coach.history.auValue', { value: Math.round(value) });
+  return tr('coach.history.percent', { value: Math.round(value) });
 }
 
 function historyMetricMax(points: Array<Pick<CoachHistoryGraphPoint, 'avgRpe' | 'avgAu' | 'attendanceRate' | 'completionRate'>>, metric: CoachHistoryMetric) {
@@ -361,6 +364,7 @@ function CoachHistoryTrendGraph({
   selectedPeriodKey: string | null;
   onPeriodSelect: (periodKey: string | null) => void;
 }) {
+  const t = useT();
   const [activeMetric, setActiveMetric] = useState<CoachHistoryMetric>('au');
   const activePoint = selectedPeriodKey === null ? null : points.find((point) => point.key === selectedPeriodKey) ?? null;
   const maxValue = historyMetricMax(points, activeMetric);
@@ -407,8 +411,8 @@ function CoachHistoryTrendGraph({
     <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/70 p-3 shadow-[0_18px_70px_rgba(0,0,0,0.18)] sm:p-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h3 className="text-base font-black text-white">By week</h3>
-          <p className="text-xs text-slate-400">Tap a week to see its sessions.</p>
+          <h3 className="text-base font-black text-white">{t('coach.history.byWeek')}</h3>
+          <p className="text-xs text-slate-400">{t('coach.history.tapWeek')}</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(HISTORY_METRIC_META) as CoachHistoryMetric[]).map((metric) => {
@@ -420,7 +424,7 @@ function CoachHistoryTrendGraph({
                 onClick={() => setActiveMetric(metric)}
                 className={`rounded-full border px-3 py-1.5 text-[11px] font-black transition ${active ? HISTORY_METRIC_META[metric].tone : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
               >
-                {HISTORY_METRIC_META[metric].label}
+                {t(HISTORY_METRIC_META[metric].label)}
               </button>
             );
           })}
@@ -491,7 +495,7 @@ function CoachHistoryTrendGraph({
                   className={`shrink-0 rounded-xl border px-2.5 py-2 text-left transition ${selected ? 'border-violet-300 bg-violet-300/15 text-violet-100' : 'border-slate-800 bg-slate-950/55 text-slate-400 hover:border-slate-600'}`}
                 >
                   <p className="text-[11px] font-black">{point.label}</p>
-                  <p className="mt-0.5 text-[10px] font-bold opacity-70">{point.dateRange} / {point.sessionCount} TE</p>
+                  <p className="mt-0.5 text-[10px] font-bold opacity-70">{t('coach.history.rangeSessions', { range: point.dateRange, count: point.sessionCount })}</p>
                 </button>
               );
             })}
@@ -504,12 +508,12 @@ function CoachHistoryTrendGraph({
           <section className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-950 p-4 text-white shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:rounded-[2rem] sm:p-5" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">Week detail</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">{t('coach.history.weekDetail')}</p>
                 <h3 id="coach-history-week-detail-title" className="mt-1 text-2xl font-black">{activePoint.label}</h3>
-                <p className="mt-1 text-sm font-bold text-slate-500">{activePoint.dateRange} · {activePoint.sessionCount} TE</p>
+                <p className="mt-1 text-sm font-bold text-slate-500">{t('coach.history.detailSessions', { range: activePoint.dateRange, count: activePoint.sessionCount })}</p>
               </div>
               <button type="button" onClick={() => onPeriodSelect(null)} className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200 transition hover:border-violet-300/50">
-                Close
+                {t('coach.history.close')}
               </button>
             </div>
             <div className="mt-4 flex flex-wrap gap-1.5">
@@ -520,7 +524,7 @@ function CoachHistoryTrendGraph({
                   onClick={() => setActiveMetric(metric)}
                   className={`rounded-full border px-3 py-1.5 text-[11px] font-black transition ${historyMetricButtonClass(metric, activeMetric)}`}
                 >
-                  {HISTORY_METRIC_META[metric].label}
+                  {t(HISTORY_METRIC_META[metric].label)}
                 </button>
               ))}
             </div>
@@ -547,12 +551,12 @@ function CoachHistoryTrendGraph({
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <TrendValue label={HISTORY_METRIC_META[activeMetric].label} value={activePoint ? formatHistoryMetricValue(activeMetric, valueForHistoryMetric(activePoint, activeMetric)) : ''} colorClass={HISTORY_METRIC_META[activeMetric].dot} />
-          {activePoint ? <span className="text-[11px] font-black text-slate-500">{activePoint.lateCount} late / {activePoint.outCount} out</span> : null}
+          <TrendValue label={t(HISTORY_METRIC_META[activeMetric].label)} value={activePoint ? formatHistoryMetricValue(activeMetric, valueForHistoryMetric(activePoint, activeMetric)) : ''} colorClass={HISTORY_METRIC_META[activeMetric].dot} />
+          {activePoint ? <span className="text-[11px] font-black text-slate-500">{t('coach.history.lateOut', { late: activePoint.lateCount, out: activePoint.outCount })}</span> : null}
         </div>
         {selectedPeriodKey !== null ? (
           <button type="button" onClick={() => onPeriodSelect(null)} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 transition hover:border-violet-300/50 hover:bg-slate-900">
-            Clear week
+            {t('coach.history.clearWeek')}
           </button>
         ) : null}
       </div>
@@ -565,6 +569,7 @@ function CoachHistoryTrendGraph({
  * the player gets a hint and a push; the coach can withdraw it again.
  */
 function EntryReviewControl({ entryId, review, playerName }: { entryId: string; review: CoachEntryReview | null; playerName: string }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -575,21 +580,21 @@ function EntryReviewControl({ entryId, review, playerName }: { entryId: string; 
       setOpen(false);
       setNote('');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(errorText(t, caught));
     }
   };
   if (review) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 px-2.5 py-1.5 text-[11px] font-bold text-amber-200">
-        <span>Check requested{review.note ? ` · “${review.note}”` : ''}</span>
-        <button type="button" onClick={() => run(() => clearEntryReview(entryId))} className="text-slate-400 underline">Withdraw</button>
+        <span>{t('coach.review.requested')}{review.note ? ` · “${review.note}”` : ''}</span>
+        <button type="button" onClick={() => run(() => clearEntryReview(entryId))} className="text-slate-400 underline">{t('coach.review.withdraw')}</button>
       </div>
     );
   }
   if (!open) {
     return (
       <div className="flex justify-end border-t border-slate-800 px-2.5 py-1">
-        <button type="button" onClick={() => setOpen(true)} className="text-[11px] font-black text-sky-300 hover:text-sky-200">Ask to check</button>
+        <button type="button" onClick={() => setOpen(true)} className="text-[11px] font-black text-sky-300 hover:text-sky-200">{t('coach.review.ask')}</button>
       </div>
     );
   }
@@ -599,14 +604,14 @@ function EntryReviewControl({ entryId, review, playerName }: { entryId: string; 
         value={note}
         onChange={(event) => setNote(event.target.value)}
         maxLength={300}
-        placeholder={`Note for ${playerName.split(' ')[0]} (optional), e.g. 75 min? We did 60.`}
-        aria-label={`Note for ${playerName}`}
+        placeholder={t('coach.review.notePlaceholder', { name: playerName.split(' ')[0] })}
+        aria-label={t('coach.review.noteAria', { name: playerName })}
         className="min-w-0 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs font-bold text-slate-100 outline-none focus:border-sky-300"
       />
       {error ? <p role="alert" className="text-[11px] font-bold text-red-200">{error}</p> : null}
       <div className="flex gap-2">
-        <button type="button" onClick={() => run(() => requestEntryReview(entryId, note))} className="rounded-lg bg-sky-300 px-3 py-1.5 text-[11px] font-black text-slate-950">Send</button>
-        <button type="button" onClick={() => { setOpen(false); setNote(''); }} className="rounded-lg border border-slate-700 px-3 py-1.5 text-[11px] font-black text-slate-300">Cancel</button>
+        <button type="button" onClick={() => run(() => requestEntryReview(entryId, note))} className="rounded-lg bg-sky-300 px-3 py-1.5 text-[11px] font-black text-slate-950">{t('coach.review.send')}</button>
+        <button type="button" onClick={() => { setOpen(false); setNote(''); }} className="rounded-lg border border-slate-700 px-3 py-1.5 text-[11px] font-black text-slate-300">{t('coach.review.cancel')}</button>
       </div>
     </div>
   );
@@ -620,6 +625,7 @@ function EntryReviewControl({ entryId, review, playerName }: { entryId: string; 
  * confirmations win over the players' own reports in every count.
  */
 function AttendanceConfirmation({ session }: { session: CoachSession }) {
+  const t = useT();
   const confirmedCount = session.players.filter((player) => session.confirmations?.[player.id] !== undefined).length;
   const reportFor = (playerId: string) => session.availability.find((item) => item.userId === playerId && !item.confirmedByCoach);
   const initial = () => Object.fromEntries(session.players.map((player) => [
@@ -649,49 +655,49 @@ function AttendanceConfirmation({ session }: { session: CoachSession }) {
       setSaved(true);
       setOpen(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(errorText(t, caught));
     }
   }
 
   function reportLabel(playerId: string) {
-    if (session.squad?.[playerId] === 'not_selected') return 'not in the squad';
+    if (session.squad?.[playerId] === 'not_selected') return t('attendance.notInSquad');
     const report = reportFor(playerId);
     if (!report) return null;
-    if (report.status === 'late') return report.lateMinutes ? `late · ${report.lateMinutes} min` : 'late';
-    if (report.awayUntil) return report.reason ?? 'away';
-    return report.missed ? 'did not take part' : 'said no';
+    if (report.status === 'late') return report.lateMinutes ? t('attendance.lateMinutes', { count: report.lateMinutes }) : t('attendance.late');
+    if (report.awayUntil) return report.reason ?? t('attendance.away');
+    return report.missed ? t('attendance.didNotTakePart') : t('attendance.saidNo');
   }
 
   return (
     <div className="mb-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.06] p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">Who was there?</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">{t('attendance.title')}</p>
           <p className="mt-0.5 text-xs font-bold text-slate-300">
             {confirmedCount === 0
-              ? `Not confirmed yet · ${there.length} said they would come`
-              : `Confirmed · ${thereCount} of ${session.players.length} there`}
-            {saved ? ' · saved' : ''}
+              ? t('attendance.notConfirmed', { count: there.length })
+              : t('attendance.confirmed', { there: thereCount, total: session.players.length })}
+            {saved ? t('attendance.saved') : ''}
           </p>
         </div>
         {confirmedCount > 0 || !open ? (
           <button type="button" onClick={() => { setPresent(initial()); setAsking(null); setOpen((value) => !value); setSaved(false); }} aria-expanded={open} className="rounded-full border border-emerald-200/40 px-3 py-1.5 text-xs font-black text-emerald-100">
-            {open ? 'Close' : confirmedCount === 0 ? 'Confirm' : 'Change'}
+            {open ? t('attendance.close') : confirmedCount === 0 ? t('attendance.confirm') : t('attendance.change')}
           </button>
         ) : null}
       </div>
       {open ? (
         <div className="mt-3 grid gap-1.5">
-          <p className="text-[11px] font-bold text-slate-400">Tap a player who did not come. Then confirm the list.</p>
+          <p className="text-[11px] font-bold text-slate-400">{t('attendance.tapHint')}</p>
           {there.map((player) => {
             const label = reportLabel(player.id);
             if (asking === player.id) {
               return (
                 <div key={player.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-300/50 bg-rose-300/[0.08] px-2.5 py-1.5">
-                  <span className="min-w-0 text-xs font-black text-rose-100">{player.name} was not there?</span>
+                  <span className="min-w-0 text-xs font-black text-rose-100">{t('attendance.wasNotThere', { name: player.name })}</span>
                   <div className="flex shrink-0 gap-1.5 text-[11px] font-black">
-                    <button type="button" onClick={() => mark(player.id, false)} className="rounded-lg bg-rose-300 px-2.5 py-1 text-slate-950">Not there</button>
-                    <button type="button" onClick={() => setAsking(null)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-slate-300">Cancel</button>
+                    <button type="button" onClick={() => mark(player.id, false)} className="rounded-lg bg-rose-300 px-2.5 py-1 text-slate-950">{t('attendance.notThereButton')}</button>
+                    <button type="button" onClick={() => setAsking(null)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-slate-300">{t('attendance.cancel')}</button>
                   </div>
                 </div>
               );
@@ -701,7 +707,7 @@ function AttendanceConfirmation({ session }: { session: CoachSession }) {
                 key={player.id}
                 type="button"
                 onClick={() => setAsking(player.id)}
-                aria-label={`${player.name} was there. Tap to mark as not there.`}
+                aria-label={t('attendance.wasThereAria', { name: player.name })}
                 className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-left hover:border-rose-300/50"
               >
                 <span className="flex min-w-0 items-center gap-2">
@@ -717,7 +723,7 @@ function AttendanceConfirmation({ session }: { session: CoachSession }) {
           })}
           {notThere.length > 0 ? (
             <>
-              <p className="mt-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Not there · {notThere.length}</p>
+              <p className="mt-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{t('attendance.notThereCount', { count: notThere.length })}</p>
               {notThere.map((player) => {
                 const label = reportLabel(player.id);
                 return (
@@ -725,7 +731,7 @@ function AttendanceConfirmation({ session }: { session: CoachSession }) {
                     <span className="min-w-0 truncate text-xs font-bold text-slate-400">
                       {player.name}{label ? <span className="text-slate-500"> · {label}</span> : null}
                     </span>
-                    <button type="button" onClick={() => mark(player.id, true)} className="shrink-0 rounded-lg border border-emerald-200/40 px-2.5 py-1 text-[11px] font-black text-emerald-100">Was there</button>
+                    <button type="button" onClick={() => mark(player.id, true)} className="shrink-0 rounded-lg border border-emerald-200/40 px-2.5 py-1 text-[11px] font-black text-emerald-100">{t('attendance.wasThere')}</button>
                   </div>
                 );
               })}
@@ -733,7 +739,7 @@ function AttendanceConfirmation({ session }: { session: CoachSession }) {
           ) : null}
           {error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null}
           <button type="button" onClick={save} className="mt-1 rounded-xl bg-emerald-300 px-3 py-2.5 text-xs font-black text-slate-950">
-            {notThere.length === 0 ? `All there · confirm ${there.length}` : `Confirm · ${there.length} of ${session.players.length} there`}
+            {notThere.length === 0 ? t('attendance.allThere', { count: there.length }) : t('attendance.confirmCount', { there: there.length, total: session.players.length })}
           </button>
         </div>
       ) : null}
@@ -741,10 +747,10 @@ function AttendanceConfirmation({ session }: { session: CoachSession }) {
   );
 }
 
-const SQUAD_OPTIONS: { value: SquadStatus; label: string; on: string }[] = [
-  { value: 'squad', label: 'Squad', on: 'bg-emerald-300 text-slate-950' },
-  { value: 'reserve', label: 'Reserve', on: 'bg-sky-300 text-slate-950' },
-  { value: 'not_selected', label: 'Out', on: 'bg-slate-600 text-white' },
+const SQUAD_OPTIONS: { value: SquadStatus; label: MessageKey; on: string }[] = [
+  { value: 'squad', label: 'squad.option.squad', on: 'bg-emerald-300 text-slate-950' },
+  { value: 'reserve', label: 'squad.option.reserve', on: 'bg-sky-300 text-slate-950' },
+  { value: 'not_selected', label: 'squad.option.out', on: 'bg-slate-600 text-white' },
 ];
 
 /**
@@ -754,6 +760,7 @@ const SQUAD_OPTIONS: { value: SquadStatus; label: string; on: string }[] = [
  * after changes only those whose status changed.
  */
 function SquadPicker({ session }: { session: CoachSession }) {
+  const t = useT();
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const squad = session.squad ?? {};
@@ -769,13 +776,13 @@ function SquadPicker({ session }: { session: CoachSession }) {
       action();
       setError(null);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(errorText(t, caught));
     }
   }
 
   function row(player: CoachSession['players'][number], muted: boolean) {
     const report = reportFor(player.id);
-    const hint = report?.status === 'late' ? `late${report.lateMinutes ? ` · ${report.lateMinutes} min` : ''}` : report?.status === 'out' ? report.reason ?? 'out' : null;
+    const hint = report?.status === 'late' ? (report.lateMinutes ? t('squad.hint.lateMinutes', { count: report.lateMinutes }) : t('squad.hint.late')) : report?.status === 'out' ? report.reason ?? t('squad.hint.out') : null;
     const current = squad[player.id] ?? null;
     return (
       <div key={player.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 px-2.5 py-1.5 ${muted ? 'opacity-70' : 'bg-slate-950/55'}`}>
@@ -783,7 +790,7 @@ function SquadPicker({ session }: { session: CoachSession }) {
           {player.name}{hint ? <span className="font-bold text-slate-500"> · {hint}</span> : null}
         </span>
         {editable ? (
-          <div className="flex shrink-0 overflow-hidden rounded-lg border border-slate-700 text-[11px] font-black" role="group" aria-label={`Squad status of ${player.name}`}>
+          <div className="flex shrink-0 overflow-hidden rounded-lg border border-slate-700 text-[11px] font-black" role="group" aria-label={t('squad.statusAria', { name: player.name })}>
             {SQUAD_OPTIONS.map((option) => (
               <button
                 key={option.value}
@@ -792,12 +799,12 @@ function SquadPicker({ session }: { session: CoachSession }) {
                 onClick={() => run(() => setSquadStatus(session.id, player.id, current === option.value ? null : option.value))}
                 className={`px-2.5 py-1 ${current === option.value ? option.on : 'text-slate-300'}`}
               >
-                {option.label}
+                {t(option.label)}
               </button>
             ))}
           </div>
         ) : (
-          <span className="text-[11px] font-black text-slate-400">{current ? SQUAD_OPTIONS.find((option) => option.value === current)?.label : '—'}</span>
+          <span className="text-[11px] font-black text-slate-400">{current ? t(SQUAD_OPTIONS.find((option) => option.value === current)!.label) : '—'}</span>
         )}
       </div>
     );
@@ -808,40 +815,40 @@ function SquadPicker({ session }: { session: CoachSession }) {
     <div className="mb-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.05] p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">Squad</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">{t('squad.title')}</p>
           <p className="mt-0.5 text-xs font-bold text-slate-300">
-            {count('squad')} squad · {count('reserve')} reserve{count('reserve') === 1 ? '' : 's'} · {count('not_selected')} out{unpicked > 0 ? ` · ${unpicked} not picked yet` : ''}
+            {t('squad.count.squad', { count: count('squad') })} · {t('squad.count.reserve', { count: count('reserve') })} · {t('squad.count.out', { count: count('not_selected') })}{unpicked > 0 ? ` · ${t('squad.count.notPicked', { count: unpicked })}` : ''}
           </p>
           <p className="mt-0.5 text-[11px] font-bold text-slate-500">
             {session.squadPublishedAt
-              ? changed > 0 ? `Published · ${changed} change${changed === 1 ? '' : 's'} visible in the app, not notified yet` : 'Published · players know their status'
-              : 'Not published yet · players do not see it'}
+              ? changed > 0 ? t('squad.published.changes', { count: changed }) : t('squad.published.known')
+              : t('squad.notPublished')}
           </p>
         </div>
         {editable && available.some((player) => !squad[player.id]) ? (
           <button type="button" onClick={() => run(() => { for (const player of available) if (!squad[player.id]) setSquadStatus(session.id, player.id, 'squad'); })} className="rounded-full border border-emerald-200/40 px-3 py-1.5 text-[11px] font-black text-emerald-100">
-            Everyone available → squad
+            {t('squad.everyoneAvailable')}
           </button>
         ) : null}
       </div>
       <div className="mt-3 grid gap-1.5">
         {available.map((player) => row(player, false))}
-        {unavailable.length > 0 ? <p className="mt-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Said no or away · {unavailable.length}</p> : null}
+        {unavailable.length > 0 ? <p className="mt-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('squad.saidNoOrAway', { count: unavailable.length })}</p> : null}
         {unavailable.map((player) => row(player, true))}
       </div>
       {error ? <p role="alert" className="mt-2 text-xs font-bold text-red-200">{error}</p> : null}
       {editable && (!session.squadPublishedAt || changed > 0) ? (
         <button type="button" onClick={() => setConfirm(true)} className="mt-3 w-full rounded-xl bg-emerald-300 px-3 py-2.5 text-xs font-black text-slate-950">
-          {session.squadPublishedAt ? 'Notify players about the changes' : 'Publish squad'}
+          {session.squadPublishedAt ? t('squad.notifyChanges') : t('squad.publish')}
         </button>
       ) : null}
       <AppConfirmDialog
         isOpen={confirm}
-        title={session.squadPublishedAt ? 'Notify about the changes?' : 'Publish the squad?'}
+        title={session.squadPublishedAt ? t('squad.confirm.notifyTitle') : t('squad.confirm.publishTitle')}
         description={session.squadPublishedAt
-          ? 'Players whose status changed get a notification with their new status.'
-          : `${unpicked > 0 ? `${unpicked} player${unpicked === 1 ? ' is' : 's are'} not picked yet and will be "not in the squad". ` : ''}Every player gets a notification with their own status.`}
-        confirmLabel={session.squadPublishedAt ? 'Send' : 'Publish'}
+          ? t('squad.confirm.notifyDetail')
+          : `${unpicked > 0 ? `${t('squad.confirm.unpicked', { count: unpicked })} ` : ''}${t('squad.confirm.everyone')}`}
+        confirmLabel={session.squadPublishedAt ? t('squad.confirm.send') : t('squad.confirm.publish')}
         onCancel={() => setConfirm(false)}
         onConfirm={() => { setConfirm(false); run(() => publishSquad(session.id)); }}
       />
@@ -880,6 +887,7 @@ export function CoachSessionDetailOverlay({
   hidePastActions?: boolean;
   onClose: () => void;
 }) {
+  const t = useT();
   const summary = useMemo(() => summarizeCoachSession(session), [session]);
   const isPast = isPastSession(session);
   const loadRisks = useMemo(() => (isPast ? [] : sessionLoadRisks(session)), [isPast, session]);
@@ -908,7 +916,7 @@ export function CoachSessionDetailOverlay({
       .map((player) => {
         const flag = availabilityByPlayerId.get(player.id);
         const status: 'late' | 'out' | 'expected' = flag?.status ?? 'expected';
-        const detail = flag?.status === 'late' && flag.lateMinutes ? `${flag.lateMinutes} min late` : flag?.reason ?? 'Expected';
+        const detail = flag?.status === 'late' && flag.lateMinutes ? t('insight.minLate', { count: flag.lateMinutes }) : flag?.reason ?? t('insight.expected');
         return { id: player.id, name: player.name, status, detail };
       })
       .sort((a, b) => availabilityRank(a.status) - availabilityRank(b.status) || a.name.localeCompare(b.name)),
@@ -955,7 +963,7 @@ export function CoachSessionDetailOverlay({
           .filter((item) => item.userId === activePlayer.id)
           .map((item) => ({
             sessionId: session.id,
-            title: session.title,
+            title: displayTitle(session.title),
             startsAt: session.startsAt,
             status: item.status,
             reason: item.reason,
@@ -966,7 +974,7 @@ export function CoachSessionDetailOverlay({
   return (
     <>
       <SessionDetailSheet
-        title={session.title}
+        title={displayTitle(session.title)}
         startsAt={session.startsAt}
         endsAt={session.endsAt}
         teamName={session.teamName}
@@ -989,7 +997,7 @@ export function CoachSessionDetailOverlay({
             id: item.userId,
             name: item.playerName,
             status: item.status,
-            detail: item.status === 'late' && item.lateMinutes ? `${item.lateMinutes} min` : item.reason,
+            detail: item.status === 'late' && item.lateMinutes ? t('insight.minutes', { count: item.lateMinutes }) : item.reason,
           })),
         }}
         loadRisks={loadRisks}
@@ -1000,45 +1008,45 @@ export function CoachSessionDetailOverlay({
           <AttendanceConfirmation key={session.id} session={session} />
         ) : null}
         {!sessionLoadDetailsShared(session) ? (
-          <p className="rounded-2xl border border-slate-800 bg-slate-950/55 p-3 text-xs font-bold text-slate-400">{session.loadTracked === false ? `${session.teamName} does not track training load.` : 'Load reports for this session are not shared with your role.'}</p>
+          <p className="rounded-2xl border border-slate-800 bg-slate-950/55 p-3 text-xs font-bold text-slate-400">{session.loadTracked === false ? t('insight.noTracking', { team: session.teamName }) : t('insight.notShared')}</p>
         ) : isPast ? (
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-300">Session insights</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-300">{t('insight.title')}</p>
               <span className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-black text-slate-300">
-                {summary.loadReports.length}/{session.players.length} load reports
+                {t('insight.reportCount', { done: summary.loadReports.length, total: session.players.length })}
               </span>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <InsightMetricCard label="Load signal" value={summary.avgRpe !== null && summary.avgLoad !== null ? `${summary.avgRpe.toFixed(1)} / ${Math.round(summary.avgLoad)} AU` : '-'} detail={summary.reportRate >= 0.8 ? 'team signal ready' : 'waiting for inputs'} active={activeInsight === 'au'} onClick={() => setActiveInsight((current) => current === 'au' ? null : 'au')} />
-              <InsightMetricCard label="Completion" value={formatPercent(summary.reportRate)} detail={`${summary.loadReports.length}/${session.players.length} reports`} active={activeInsight === 'completion'} onClick={() => setActiveInsight((current) => current === 'completion' ? null : 'completion')} />
+              <InsightMetricCard label={t('insight.loadSignal')} value={summary.avgRpe !== null && summary.avgLoad !== null ? t('insight.loadSignalValue', { rpe: formatDecimal(summary.avgRpe, 1), load: Math.round(summary.avgLoad) }) : '-'} detail={summary.reportRate >= 0.8 ? t('insight.signalReady') : t('insight.waiting')} active={activeInsight === 'au'} onClick={() => setActiveInsight((current) => current === 'au' ? null : 'au')} />
+              <InsightMetricCard label={t('insight.completion')} value={formatPercent(summary.reportRate)} detail={t('insight.reports', { done: summary.loadReports.length, total: session.players.length })} active={activeInsight === 'completion'} onClick={() => setActiveInsight((current) => current === 'completion' ? null : 'completion')} />
             </div>
             {activeInsight ? (
               <div className="mt-3 rounded-2xl border border-violet-300/25 bg-violet-300/10 p-3">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-violet-200">{insightTitle(activeInsight)}</p>
-                  <button type="button" onClick={() => setActiveInsight(null)} className="rounded-full border border-violet-200/35 px-2 py-1 text-[11px] font-black text-violet-100 hover:bg-violet-200/10">Hide</button>
+                  <button type="button" onClick={() => setActiveInsight(null)} className="rounded-full border border-violet-200/35 px-2 py-1 text-[11px] font-black text-violet-100 hover:bg-violet-200/10">{t('insight.hide')}</button>
                 </div>
                 <div className="mt-2 grid gap-1.5">
                   {activeInsight === 'expected' ? expectedInsightRows.map((row) => (
                     <button key={row.id} type="button" onClick={() => setActivePlayerId(row.id)} className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-left text-xs font-black text-slate-100 transition hover:border-violet-200/50">
                       <span>{row.name}</span>
-                      <span className={statusClassName(row.status)}>{row.status}{row.detail ? ` · ${row.detail}` : ''}</span>
+                      <span className={statusClassName(row.status)}>{t(row.status === 'late' ? 'insight.status.late' : row.status === 'out' ? 'insight.status.out' : 'insight.status.expected')}{row.detail ? ` · ${row.detail}` : ''}</span>
                     </button>
                   )) : null}
                   {activeInsight === 'rpe' ? (
                     rpeInsightRows.length > 0 ? rpeInsightRows.map(({ player, entry }) => (
                       <button key={`${player.id}-${entry.id}`} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-left text-xs font-black text-slate-100 transition hover:border-violet-200/50">
                         <span>{player.name}</span>
-                        <span>RPE {entry.rpe} · {entry.load} AU</span>
+                        <span>{t('insight.rpeLoad', { rpe: entry.rpe, load: entry.load })}</span>
                       </button>
-                    )) : <p className="rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-xs font-bold text-slate-500">No RPE reports yet.</p>
+                    )) : <p className="rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-xs font-bold text-slate-500">{t('insight.noRpe')}</p>
                   ) : null}
                   {activeInsight === 'au' ? auInsightRows.map(({ player, report }) => (
                     <div key={player.id} className="rounded-xl border border-slate-800 bg-slate-950/55">
                       <button type="button" onClick={() => setActivePlayerId(player.id)} className="flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-black text-slate-100 transition hover:bg-slate-900/60">
                         <span>{player.name}</span>
-                        <span>{report ? `${report.entry.load} AU · RPE ${report.entry.rpe} · ${report.entry.durationMinutes} min` : 'Missing report'}</span>
+                        <span>{report ? t('insight.auRow', { load: report.entry.load, rpe: report.entry.rpe, minutes: report.entry.durationMinutes }) : t('insight.missingReport')}</span>
                       </button>
                       {report && session.canRequestReview ? (
                         <EntryReviewControl entryId={report.entry.id} review={player.reviews?.[report.entry.id] ?? null} playerName={player.name} />
@@ -1048,7 +1056,7 @@ export function CoachSessionDetailOverlay({
                   {activeInsight === 'completion' ? completionInsightRows.map(({ player, report }) => (
                     <button key={player.id} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-left text-xs font-black text-slate-100 transition hover:border-violet-200/50">
                       <span>{player.name}</span>
-                      <span className={report ? 'text-emerald-200' : 'text-amber-200'}>{report ? `Completed · RPE ${report.entry.rpe} · ${report.entry.load} AU` : 'Missing input'}</span>
+                      <span className={report ? 'text-emerald-200' : 'text-amber-200'}>{report ? t('insight.completed', { rpe: report.entry.rpe, load: report.entry.load }) : t('insight.missingInput')}</span>
                     </button>
                   )) : null}
                 </div>
@@ -1059,10 +1067,10 @@ export function CoachSessionDetailOverlay({
                 {hardReports.length > 0 ? (
                   <div className="rounded-2xl border border-rose-400/25 bg-rose-400/10 p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-rose-200">Felt hardest</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-rose-200">{t('insight.hardest')}</p>
                       {hardReports.length > 4 ? (
                         <button type="button" onClick={() => setShowAllHardReports((current) => !current)} className="rounded-full border border-rose-200/35 px-2 py-1 text-[11px] font-black text-rose-100 hover:bg-rose-200/10">
-                          {showAllHardReports ? 'Show less' : 'Show all'}
+                          {showAllHardReports ? t('insight.showLess') : t('insight.showAll')}
                         </button>
                       ) : null}
                     </div>
@@ -1070,7 +1078,7 @@ export function CoachSessionDetailOverlay({
                       {visibleHardReports.map(({ player, entry }) => (
                         <button key={`${player.id}-${entry.id}`} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl border border-rose-300/20 bg-slate-950/45 px-2.5 py-1.5 text-left text-xs font-black text-rose-50">
                           <span>{player.name}</span>
-                          <span>RPE {entry.rpe} · {entry.load} AU</span>
+                          <span>{t('insight.rpeLoad', { rpe: entry.rpe, load: entry.load })}</span>
                         </button>
                       ))}
                     </div>
@@ -1078,12 +1086,12 @@ export function CoachSessionDetailOverlay({
                 ) : null}
                 {lightReports.length > 0 ? (
                   <div className="rounded-2xl border border-sky-400/25 bg-sky-400/10 p-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-sky-200">Felt lightest</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-sky-200">{t('insight.lightest')}</p>
                     <div className="mt-2 grid gap-1.5">
                       {lightReports.map(({ player, entry }) => (
                         <button key={`${player.id}-${entry.id}`} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl border border-sky-300/20 bg-slate-950/45 px-2.5 py-1.5 text-left text-xs font-black text-sky-50">
                           <span>{player.name}</span>
-                          <span>RPE {entry.rpe} · {entry.load} AU</span>
+                          <span>{t('insight.rpeLoad', { rpe: entry.rpe, load: entry.load })}</span>
                         </button>
                       ))}
                     </div>
@@ -1100,15 +1108,15 @@ export function CoachSessionDetailOverlay({
             id: player.id,
             name: player.name,
             status: flag?.status ?? 'expected',
-            detail: flag?.status === 'late' && flag.lateMinutes ? `${flag.lateMinutes} min` : flag?.reason ?? null,
+            detail: flag?.status === 'late' && flag.lateMinutes ? t('insight.minutes', { count: flag.lateMinutes }) : flag?.reason ?? null,
           };
         })}
         showExpectedParticipants={!isPast}
         onParticipantSelect={setActivePlayerId}
         actions={<>
-          {onEdit && !hideSessionActions ? <button type="button" onClick={onEdit} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Edit session</button> : null}
-          {onDelete && !hideSessionActions ? <button type="button" onClick={onDelete} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">Delete session</button> : null}
-          {calendarHref ? <Link href={calendarHref} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">Open calendar</Link> : null}
+          {onEdit && !hideSessionActions ? <button type="button" onClick={onEdit} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">{t('insight.editSession')}</button> : null}
+          {onDelete && !hideSessionActions ? <button type="button" onClick={onDelete} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">{t('insight.deleteSession')}</button> : null}
+          {calendarHref ? <Link href={calendarHref} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">{t('insight.openCalendar')}</Link> : null}
           {extraActions}
         </>}
         onClose={onClose}
@@ -1117,8 +1125,8 @@ export function CoachSessionDetailOverlay({
         <PlayerLoadDetail
           player={activePlayerDetail}
           teamName={session.teamName}
-          attendanceContextLabel="From this session"
-          emptyAttendanceLabel="No late/out flag for this session."
+          attendanceContextLabel={t('insight.fromSession')}
+          emptyAttendanceLabel={t('insight.noFlag')}
           showAttendanceRange={false}
           onClose={() => setActivePlayerId(null)}
         />
@@ -1136,6 +1144,7 @@ export function CoachHistoryInsights({
   teams: HistoryTeamOption[];
   onDetails: (session: CoachSession, initialInsight?: CoachSessionInsight | null) => void;
 }) {
+  const t = useT();
   const [rangeWeeks, setRangeWeeks] = useState(8);
   const [teamId, setTeamId] = useState('all');
   const [selectedPeriodKey, setSelectedPeriodKey] = useState<string | null>(null);
@@ -1163,7 +1172,7 @@ export function CoachHistoryInsights({
   return (
     <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-white sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-black">Last {rangeWeeks} weeks</h2>
+        <h2 className="text-lg font-black">{t('history.lastWeeks', { count: rangeWeeks })}</h2>
         <div className="flex flex-wrap gap-1.5">
           {[4, 8, 12].map((weeks) => (
             <button
@@ -1172,7 +1181,7 @@ export function CoachHistoryInsights({
               onClick={() => setRangeWeeks(weeks)}
               className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${rangeWeeks === weeks ? 'border-violet-300 bg-violet-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
             >
-              {weeks} wk
+              {t('history.weeksShort', { count: weeks })}
             </button>
           ))}
         </div>
@@ -1180,7 +1189,7 @@ export function CoachHistoryInsights({
 
       {teams.length > 1 ? (
         <div className="mt-4 flex gap-1.5 overflow-x-auto pb-1">
-          <button type="button" onClick={() => setTeamId('all')} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-black ${teamId === 'all' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>All teams</button>
+          <button type="button" onClick={() => setTeamId('all')} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-black ${teamId === 'all' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('history.allTeams')}</button>
           {teams.map((team) => (
             <button key={team.id} type="button" onClick={() => setTeamId(team.id)} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-black ${teamId === team.id ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>
               {team.name}
@@ -1197,7 +1206,7 @@ export function CoachHistoryInsights({
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-bold text-slate-500">
-          {filteredSessions.length === 1 ? '1 session' : `${filteredSessions.length} sessions`}{selectedPeriodKey !== null ? ` · ${formatHistoryWeekLabel(selectedPeriodKey)}` : ''}
+          {t('history.sessionCount', { count: filteredSessions.length })}{selectedPeriodKey !== null ? ` · ${formatHistoryWeekLabel(selectedPeriodKey)}` : ''}
         </p>
       </div>
 
@@ -1207,13 +1216,13 @@ export function CoachHistoryInsights({
             <CoachHistorySessionCard key={session.id} session={session} onDetails={() => onDetails(session)} onInsight={(selectedSession, insight) => onDetails(selectedSession, insight)} />
           ))
         ) : (
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No completed sessions in this window.</div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">{t('history.none')}</div>
         )}
       </div>
       {filteredSessions.length > visibleSessions.length ? (
         <div className="mt-4 flex justify-center">
           <button type="button" onClick={() => setVisibleCount((count) => count + 12)} className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-black text-slate-200 transition hover:border-violet-300/50 hover:bg-slate-900">
-            Show more ({filteredSessions.length - visibleSessions.length})
+            {t('history.showMore', { count: filteredSessions.length - visibleSessions.length })}
           </button>
         </div>
       ) : null}
@@ -1240,6 +1249,7 @@ export function CoachHistorySessionCard({
   onDetails: () => void;
   onInsight?: (session: CoachSession, insight: CoachSessionInsight) => void;
 }) {
+  const t = useT();
   const summary = summarizeCoachSession(session);
   const presentCount = Math.max(0, session.players.length - summary.out.length);
   const completionLabel = formatPercent(summary.reportRate);
@@ -1249,18 +1259,18 @@ export function CoachHistorySessionCard({
       <button type="button" onClick={onDetails} className="flex w-full items-start justify-between gap-3 text-left">
         <div className="min-w-0">
           <p className="truncate text-xs font-bold text-slate-400">{formatDay(session.startsAt)} · {formatTimeRange(session.startsAt, session.endsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
-          <h3 className="mt-0.5 truncate text-base font-black text-white">{session.title} <span className="text-sm font-bold text-slate-500">{session.teamName}</span></h3>
+          <h3 className="mt-0.5 truncate text-base font-black text-white">{displayTitle(session.title)} <span className="text-sm font-bold text-slate-500">{session.teamName}</span></h3>
         </div>
         <span aria-hidden className="text-lg font-black text-slate-500">›</span>
       </button>
 
       <div className="mt-3 grid grid-cols-4 gap-1.5">
-        <HistoryStat label="There" value={`${presentCount}/${session.players.length}`} detail={`${summary.out.length} out · ${summary.late.length} late`} onClick={() => onInsight?.(session, 'expected')} />
+        <HistoryStat label={t('history.there')} value={`${presentCount}/${session.players.length}`} detail={t('history.outLate', { out: summary.out.length, late: summary.late.length })} onClick={() => onInsight?.(session, 'expected')} />
         {loadShared ? (
           <>
-            <HistoryStat label="RPE" value={summary.avgRpe !== null ? summary.avgRpe.toFixed(1) : '—'} detail={summary.loadReports.length === 1 ? '1 report' : `${summary.loadReports.length} reports`} onClick={() => onInsight?.(session, 'rpe')} />
-            <HistoryStat label="Load" value={summary.avgLoad !== null ? `${Math.round(summary.avgLoad)}` : '—'} detail="avg AU" onClick={() => onInsight?.(session, 'au')} />
-            <HistoryStat label="Reported" value={completionLabel} detail={`${session.players.length - summary.loadReports.length} missing`} onClick={() => onInsight?.(session, 'completion')} />
+            <HistoryStat label={t('history.rpe')} value={summary.avgRpe !== null ? formatDecimal(summary.avgRpe, 1) : '—'} detail={t('history.reportCount', { count: summary.loadReports.length })} onClick={() => onInsight?.(session, 'rpe')} />
+            <HistoryStat label={t('history.load')} value={summary.avgLoad !== null ? `${Math.round(summary.avgLoad)}` : '—'} detail={t('history.avgAu')} onClick={() => onInsight?.(session, 'au')} />
+            <HistoryStat label={t('history.reported')} value={completionLabel} detail={t('history.missing', { count: session.players.length - summary.loadReports.length })} onClick={() => onInsight?.(session, 'completion')} />
           </>
         ) : null}
       </div>

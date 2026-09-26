@@ -13,6 +13,7 @@
  */
 
 import { getLatestACWR, loadZone, type AthleteLoadEntry, type CoachPermission } from '@/shared/data';
+import { tr } from '@/shared/i18n';
 
 export { summarizeLoadEntries } from '@/shared/data';
 
@@ -49,10 +50,10 @@ export function playerLoadSummary(player: PlayerLoadInput) {
 export type PlayerLoadSummary = ReturnType<typeof playerLoadSummary>;
 
 export function acwrDisplayLabel(summary: PlayerLoadSummary) {
-  if (summary.access === 'none') return 'Load not shared';
-  if (summary.acwr === null) return 'No ACWR yet';
-  if (summary.zone.tone === 'low') return 'Load low';
-  if (summary.zone.tone === 'high') return 'Load high';
-  if (summary.zone.tone === 'ready') return 'Load in range';
-  return 'Building trend';
+  if (summary.access === 'none') return tr('playerLoad.label.notShared');
+  if (summary.acwr === null) return tr('playerLoad.label.noAcwr');
+  if (summary.zone.tone === 'low') return tr('playerLoad.label.low');
+  if (summary.zone.tone === 'high') return tr('playerLoad.label.high');
+  if (summary.zone.tone === 'ready') return tr('playerLoad.label.ready');
+  return tr('playerLoad.label.building');
 }

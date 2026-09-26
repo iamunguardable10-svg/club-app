@@ -11,6 +11,8 @@ import { hasCoachPermission, ownTrainingForTeam, useLocalDatabase, type OwnTrain
 import { formatDay, formatTime } from '@/shared/format';
 import { todayISO } from './loadCalculations';
 import { addDays } from './planSeries';
+import { tr, useT } from '@/shared/i18n';
+import { displayTitle } from '@/features/sessions/sessionTypeLabels';
 
 /** The player's own training in the next `days` days, or null when this role may not see it. */
 export function useOwnTraining(personId: string | null, teamId: string, days = 14): OwnTrainingItem[] | null {
@@ -24,11 +26,13 @@ export function useOwnTraining(personId: string | null, teamId: string, days = 1
 
 /** "18:00–19:00 Strength" or "Run (no time)". */
 export function ownTrainingLine(item: OwnTrainingItem): string {
-  return item.startsAt && item.endsAt ? `${formatTime(item.startsAt)}–${formatTime(item.endsAt)} ${item.title}` : `${item.title} (no time)`;
+  const title = displayTitle(item.title);
+  return item.startsAt && item.endsAt ? `${formatTime(item.startsAt)}–${formatTime(item.endsAt)} ${title}` : tr('ownTraining.noTime', { title });
 }
 
 export function OwnTrainingList({ items }: { items: OwnTrainingItem[] }) {
-  if (items.length === 0) return <p className="text-sm text-slate-400">No own training planned in the next two weeks.</p>;
+  const t = useT();
+  if (items.length === 0) return <p className="text-sm text-slate-400">{t('ownTraining.none')}</p>;
   return (
     <ul className="grid gap-1.5">
       {items.map((item) => (

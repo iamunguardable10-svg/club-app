@@ -45,6 +45,11 @@ const STORED_TITLES: Record<string, MessageKey> = {
   Warmup: 'loadType.warmup',
   School: 'loadType.school',
   Prehab: 'loadType.prehab',
+  // The hall calendar's type names.
+  'S&C': 'sessionType.sAndC',
+  Session: 'sessionType.session',
+  Video: 'sessionType.video',
+  Meeting: 'sessionType.meeting',
 };
 
 export function displayTitle(title: string): string {

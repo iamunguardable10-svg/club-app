@@ -2244,3 +2244,17 @@ statt fest `en-GB`. Nur `en.json`; Übersetzungen macht Ben am Ende.
 Geprüft: sichtbarer englischer Text aller Demo-Seiten (Spieler, Trainer, Verein; Handy und
 Desktop; alle Reiter, 75 Aufnahmen) vorher und nachher identisch, keine Konsolenfehler.
 Nebenbei: In der Wochen-Detailansicht stand „TE“ (deutsch) – jetzt „sessions“.
+
+## Run 46 — App-Sprachen, Bereich 4: Trainer (erledigt)
+
+Alle Trainer-Seiten über `t()`/`tr()`: Today, Kalender und Wochenserien, Einheit anlegen/bearbeiten,
+Einheiten-Details und Rückblick, Team (Kader, Gruppen, Nachrichten, Staff und Rollenrechte),
+Verlauf, Load je Spieler, Anwesenheit, Hallen (`FacilitiesManager`, Adressfeld, Doppel-Warnung) und
+der Hallenkalender (auch für Vereins-Rollen). Neu: `displayRoleName()` für die eingebauten
+Staff-Rollen, `LoadingPage` als übersetzbarer Suspense-Platzhalter der Trainer-Seiten; der
+Hallenkalender zeigt gespeicherte Typ-Titel (S&C, Session, Video, Meeting) über `displayTitle()`.
+Nur `en.json`.
+
+Geprüft: sichtbarer englischer Text aller Demo-Seiten vorher und nachher gleich (75 Aufnahmen), bis
+auf das gewollte „TE“ → „sessions“ im Trainer-Verlauf; Hallenkalender auf Handy und Desktop ohne
+Konsolenfehler. Nebenbei: „Andere Buchung“ (deutsch, im Konflikt-Hinweis) heißt jetzt „Other booking“.
