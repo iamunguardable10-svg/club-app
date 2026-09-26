@@ -29,7 +29,7 @@ import {
   sessionTypeToLoadType,
 } from './loadTypes';
 import { BASELINE_DAYS, acwrAfter, aggregateDailyLoads, backFromBreak, baselineAgeDays, calculateACWR, fillMissingDays, firstHighRiskDay, getLatestACWR, HIGH_RISK_ACWR, loadRoom, loadZone, projectFutureACWR, todayISO, weekChangePercent } from './loadCalculations';
-import { LoadInfoButton, LoadRiskBadge } from './LoadHints';
+import { LoadInfoButton, LoadLandingChip, LoadRiskBadge } from './LoadHints';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
 import { athleteHasLoad, clearEntryReview, displayName, getActivePerson, newId, reviewsForPerson, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
@@ -1391,6 +1391,21 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const todayRisk = todayForecast && todayForecast.after > HIGH_RISK_ACWR ? todayForecast : null;
   // A warmup belongs to its game; the game is what comes next.
   const nextSession = activePendingSessions.find((session) => session.date >= todayISO() && session.trainingType !== 'warmup') ?? activePendingSessions[0] ?? null;
+  // Where the ratio lands after each session shown on Today ("~1.05"), with
+  // everything planned before it done as estimated (same forecast as the chart).
+  // Only for what Today shows: long series would make this slow otherwise.
+  const landingAfter = useMemo(() => {
+    const result = new Map<string, number>();
+    if (!hasLoad) return result;
+    const shown = new Set([nextSession?.id, ...plans.slice(0, 4).map((plan) => plan.id)].filter((id): id is string => Boolean(id)));
+    const ordered = [...loadPendingSessions].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+    ordered.forEach((session, index) => {
+      if (!shown.has(session.id)) return;
+      const forecast = acwrAfter(sortedEntries, ordered.slice(0, index + 1));
+      if (forecast) result.set(session.id, forecast.after);
+    });
+    return result;
+  }, [hasLoad, nextSession?.id, plans, loadPendingSessions, sortedEntries]);
   /** What the player told the coach about a session, in one line. */
   function availabilityLabelFor(session: AthletePendingSession) {
     if (session.source === 'athlete_plan') return t('athlete.availability.ownPlan');
@@ -2120,7 +2135,10 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               </div>
               {nextSession ? (
                 <button type="button" onClick={() => openCalendarItem({ id: nextSession.id, title: nextSession.title, date: nextSession.date, startsAt: nextSession.startsAt, endsAt: nextSession.endsAt, trainingType: nextSession.trainingType, teamName: nextSession.teamName, status: nextSession.date < todayISO() ? 'missing' : 'planned', source: nextSession.source ?? 'team_session', session: nextSession })} className="mt-4 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.06] p-5 text-left transition hover:border-emerald-300/55">
-                  <p className="text-2xl font-black tracking-tight">{displayTitle(nextSession.title)}</p>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="min-w-0 text-2xl font-black tracking-tight">{displayTitle(nextSession.title)}</p>
+                    {landingAfter.has(nextSession.id) ? <span className="mt-1.5"><LoadLandingChip value={landingAfter.get(nextSession.id)!} /></span> : null}
+                  </div>
                   <p className="mt-1 text-sm font-bold text-slate-300">{formatDay(nextSession.startsAt)} · {formatTime(nextSession.startsAt)}{nextSession.endsAt ? `–${formatTime(nextSession.endsAt)}` : ''} · {nextSession.teamName ?? t('athlete.ownPlan')}</p>
                   {nextSession.info ? (() => {
                     const info = { ...nextSession.info, startsAt: nextSession.startsAt };
@@ -2136,11 +2154,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 <div className="mt-4 space-y-2">
                   {plans.slice(0, 4).map((plan) => (
                     <div key={plan.id} className="flex items-center justify-between gap-3 rounded-2xl border border-violet-300/20 bg-violet-300/[0.06] px-3 py-2">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-black text-white">{displayTitle(plan.title)}</p>
-                        <p className="mt-0.5 text-xs font-bold text-slate-500">{formatEntryDate(plan.date)} · {plan.startsAt ? formatTime(plan.startsAt) : t('athlete.noTime')} · {t('athlete.expected', { load: plan.expectedRpe * plan.expectedDurationMinutes })}</p>
+                        <p className="mt-0.5 text-xs font-bold text-slate-500">
+                          {formatEntryDate(plan.date)} · {plan.startsAt ? formatTime(plan.startsAt) : t('athlete.noTime')} · {t('athlete.expected', { load: plan.expectedRpe * plan.expectedDurationMinutes })}
+                          {landingAfter.has(plan.id) ? <span className="ml-1.5 inline-block align-middle"><LoadLandingChip value={landingAfter.get(plan.id)!} /></span> : null}
+                        </p>
                       </div>
-                      <button type="button" onClick={() => setDeleteTarget({ kind: 'plan', id: plan.id, title: plan.title })} className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:border-rose-400 hover:text-rose-200">
+                      <button type="button" onClick={() => setDeleteTarget({ kind: 'plan', id: plan.id, title: plan.title })} className="shrink-0 rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:border-rose-400 hover:text-rose-200">
                         {t('athlete.delete')}
                       </button>
                     </div>
