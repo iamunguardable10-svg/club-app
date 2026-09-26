@@ -589,7 +589,7 @@ export async function deletePushSubscription(endpoint: string): Promise<void> {
 }
 
 /** Kinds of message that can be switched off; "How hard was it?" cannot (piece 12). */
-export type MutablePushKind = 'changed' | 'cancelled' | 'reminder' | 'summary' | 'review' | 'message';
+export type MutablePushKind = 'changed' | 'cancelled' | 'reminder' | 'summary' | 'review' | 'message' | 'joined';
 
 /** Per account: switched-off kinds and quiet hours (club time, whole hours; null = none). */
 export type NotificationSettings = { mutedKinds: MutablePushKind[]; quietFrom: number | null; quietTo: number | null };
