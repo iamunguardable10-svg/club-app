@@ -274,6 +274,7 @@ const PLAYER_KINDS: KindOption[] = [
 ];
 const COACH_KINDS: KindOption[] = [
   { kinds: ['summary'], label: 'Who is coming', detail: '2 hours before a session: in, late, out, no answer.' },
+  { kinds: ['joined'], label: 'New players', detail: 'When someone joins your team with the team code, so you can remove anyone you don’t know.' },
 ];
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);

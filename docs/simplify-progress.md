@@ -2040,3 +2040,19 @@ wieder frei, App darf nicht zählen), Datenschicht, CalDAV, Kalender-Dateien, Se
 Demo-Modus (390/1280 px, keine Fehler). Server-Modus prüft der Durchlauf mit Wegwerf-Konten.
 Bekannt: ein Belastungs-Test hängt vom Wochentag ab (samstags rot) – wird mit „Tests in die CI“
 robust gemacht.
+
+## Run 36 — Trainer erfährt, wenn jemand dem Team beitritt (erledigt)
+
+Aus der Durchsicht (2026-09-26): Wer den Beitrittscode hat, ist sofort im Team und sieht Namen,
+Termine, Hallen und Nachrichten. Ein weitergeleiteter Code fiel bisher niemandem auf.
+
+- Tritt jemand selbst mit dem Code bei (oder „Also play in <Team>“), bekommen die Trainer, die
+  Spieler entfernen dürfen (Cheftrainer oder `manageStaff`), eine Push: „U16 · New player – Mia
+  Muster joined with the team code. Not someone you know? Remove them under Team → Players.“
+  Nicht an die Person selbst, nicht wenn ein Trainer jemanden selbst hinzufügt.
+- In den Einstellungen für Trainer abschaltbar: „New players“. Ruhezeiten gelten wie immer.
+- Neuer Code: gibt es schon (Team → Settings → „New code“).
+
+Geprüft: SQL-Test 16 (Cheftrainer ja, Helfer ohne Recht nein, die Person selbst nein, vom Trainer
+angelegt nein, abschaltbar), alle SQL-Tests, Datenschicht, Typecheck, Build. Migration 0028
+eingespielt.
