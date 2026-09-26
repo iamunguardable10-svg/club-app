@@ -21,32 +21,33 @@ import { CalendarHint } from '@/features/calendar/CalendarHint';
 import { athleteHasLoad, getActivePerson, unreadMessagesFor, useLocalDatabase } from '@/shared/data';
 import { UnreadMessagesCard } from '@/features/messages/UnreadMessagesCard';
 import { countToRate } from '@/features/load/athleteLocalStore';
+import { useT, type MessageKey } from '@/shared/i18n';
 
 export type CoachNavItem = 'today' | 'calendar' | 'team' | 'halls' | 'history';
 export type AthleteNavItem = 'today' | 'calendar' | 'load' | 'messages';
 export type ClubNavItem = 'club' | 'halls';
 type NavItem = CoachNavItem | AthleteNavItem | ClubNavItem;
-type NavEntry = { item: NavItem; label: string; href: string };
+type NavEntry = { item: NavItem; label: MessageKey; href: string };
 
 const ATHLETE_NAV: NavEntry[] = [
-  { item: 'today', label: 'Today', href: '/athlete/home' },
-  { item: 'calendar', label: 'Calendar', href: '/athlete/calendar' },
-  { item: 'load', label: 'Load', href: '/athlete/load' },
+  { item: 'today', label: 'nav.today', href: '/athlete/home' },
+  { item: 'calendar', label: 'nav.calendar', href: '/athlete/calendar' },
+  { item: 'load', label: 'nav.load', href: '/athlete/load' },
   // Piece 17: announcements from the staff.
-  { item: 'messages', label: 'Messages', href: '/athlete/messages' },
+  { item: 'messages', label: 'nav.messages', href: '/athlete/messages' },
 ];
 
 const COACH_NAV: NavEntry[] = [
-  { item: 'today', label: 'Today', href: '/coach/today' },
-  { item: 'calendar', label: 'Calendar', href: '/coach/sessions' },
-  { item: 'team', label: 'Team', href: '/coach/team' },
-  { item: 'halls', label: 'Halls', href: '/coach/facilities' },
-  { item: 'history', label: 'History', href: '/coach/history' },
+  { item: 'today', label: 'nav.today', href: '/coach/today' },
+  { item: 'calendar', label: 'nav.calendar', href: '/coach/sessions' },
+  { item: 'team', label: 'nav.team', href: '/coach/team' },
+  { item: 'halls', label: 'nav.halls', href: '/coach/facilities' },
+  { item: 'history', label: 'nav.history', href: '/coach/history' },
 ];
 
 const CLUB_NAV: NavEntry[] = [
-  { item: 'club', label: 'Club', href: '/club' },
-  { item: 'halls', label: 'Halls', href: '/club/halls' },
+  { item: 'club', label: 'nav.club', href: '/club' },
+  { item: 'halls', label: 'nav.halls', href: '/club/halls' },
 ];
 
 function NavIcon({ item }: { item: NavItem }) {
@@ -102,13 +103,14 @@ export function ActiveRoleShell(props: ShellProps) {
 }
 
 function RoleShell({ nav, active, title, subtitle, back, actions, children }: ShellProps & { nav: NavEntry[]; active: NavItem | null }) {
+  const t = useT();
   const { database } = useLocalDatabase();
   const person = database ? getActivePerson(database) : null;
   // "Team" or "Teams", depending on what the tab opens.
   const teamCount = database && person
     ? new Set(database.memberships.filter((m) => m.personId === person.id && m.role === 'coach').map((m) => m.teamId)).size
     : 1;
-  const labelFor = (item: NavItem, label: string) => (item === 'team' && teamCount > 1 ? 'Teams' : label);
+  const labelFor = (item: NavItem, label: MessageKey) => t(item === 'team' && teamCount > 1 ? 'nav.teams' : label);
   const columns = nav.length === 2 ? 'grid-cols-2' : nav.length === 3 ? 'grid-cols-3' : nav.length === 4 ? 'grid-cols-4' : 'grid-cols-5';
   // Unread messages for a player (piece 17), as a count on the tab.
   const unread = database && person && database.activeIdentity?.role === 'athlete' ? unreadMessagesFor(database, person.id).length : 0;
@@ -119,10 +121,10 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
     : 0;
   const badge = (item: NavItem) => {
     if (item === 'messages' && unread > 0) {
-      return <span aria-label={`${unread} unread`} className="absolute -right-1.5 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-400 px-1 text-[10px] font-black text-slate-950">{unread}</span>;
+      return <span aria-label={t('nav.unread', { count: unread })} className="absolute -right-1.5 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-400 px-1 text-[10px] font-black text-slate-950">{unread}</span>;
     }
     if (item === 'today' && toRate > 0) {
-      return <span aria-label={`${toRate} to rate`} className="absolute -right-1.5 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-amber-300 px-1 text-[10px] font-black text-slate-950">{toRate}</span>;
+      return <span aria-label={t('nav.toRate', { count: toRate })} className="absolute -right-1.5 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-amber-300 px-1 text-[10px] font-black text-slate-950">{toRate}</span>;
     }
     return null;
   };
@@ -131,9 +133,9 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
 
   return (
     <main className={`os-page md:pb-10 md:pl-64 ${tabBar ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))]' : 'pb-10'}`}>
-      <aside className="fixed bottom-3 left-3 top-3 z-[70] hidden w-56 flex-col rounded-3xl border border-white/10 bg-slate-950/85 p-2 text-white shadow-[0_24px_100px_rgba(0,0,0,0.34)] backdrop-blur-xl md:flex" aria-label="Main navigation">
+      <aside className="fixed bottom-3 left-3 top-3 z-[70] hidden w-56 flex-col rounded-3xl border border-white/10 bg-slate-950/85 p-2 text-white shadow-[0_24px_100px_rgba(0,0,0,0.34)] backdrop-blur-xl md:flex" aria-label={t('nav.main')}>
         <div className="px-3 pb-3 pt-2">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Club OS</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">{t('start.kicker')}</p>
           {database ? <p className="mt-1 truncate text-sm font-black text-white">{database.club.name}</p> : null}
         </div>
         <nav className="grid gap-1">
@@ -157,7 +159,7 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
             aria-current={active === null ? 'page' : undefined}
             className={`rounded-2xl px-3 py-2 text-xs font-black transition ${active === null ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900 hover:text-white'}`}
           >
-            Settings
+            {t('nav.settings')}
           </Link>
           <IdentitySwitcher className="w-full" />
         </div>
@@ -186,7 +188,7 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
         {children}
       </div>
 
-      {tabBar ? <nav className="fixed inset-x-0 bottom-0 z-[70] border-t border-slate-800 bg-slate-950/95 px-2 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 text-white backdrop-blur-xl md:hidden" aria-label="Main navigation">
+      {tabBar ? <nav className="fixed inset-x-0 bottom-0 z-[70] border-t border-slate-800 bg-slate-950/95 px-2 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 text-white backdrop-blur-xl md:hidden" aria-label={t('nav.main')}>
         <div className={`mx-auto grid max-w-lg ${columns} gap-1`}>
           {nav.map(({ item, label, href }) => (
             <Link

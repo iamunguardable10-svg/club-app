@@ -66,6 +66,10 @@ for (const file of files) {
     // A plural form may leave out {count} ("a team"), never add new names.
     const ok = plural ? [...actual].every((name) => expected.has(name)) : same(actual, expected);
     if (!ok) errors.push(`${file}: "${key}" has {${[...actual].join('}, {')}} but English has {${[...expected].join('}, {')}}`);
+    // Emphasis tags (`<b>…</b>`, see rich.tsx) must stay as many as in English.
+    const tags = (value) => (String(value).match(/<\/?b>/g) ?? []).length;
+    const englishText = en[key] ?? en[`${base(key)}_other`] ?? '';
+    if (tags(text) !== tags(englishText)) errors.push(`${file}: "${key}" has ${tags(text)} <b>/</b> tag(s) but English has ${tags(englishText)}`);
   }
   const translatedBases = new Set(Object.keys(messages).map(base));
   const missing = [...enBases].filter((key) => !translatedBases.has(key));
@@ -85,7 +89,7 @@ function walk(dir, out = []) {
 const used = new Set();
 for (const file of walk(path.join(root, 'src'))) {
   const source = fs.readFileSync(file, 'utf8');
-  for (const match of source.matchAll(/\bt\(\s*'([^']+)'/g)) {
+  for (const match of source.matchAll(/\b(?:t|tr)\(\s*'([^']+)'/g)) {
     used.add(match[1]);
     if (!enBases.has(match[1])) errors.push(`${path.relative(root, file)}: t('${match[1]}') is not in en.json`);
   }

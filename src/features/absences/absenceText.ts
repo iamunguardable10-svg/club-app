@@ -1,18 +1,32 @@
 /** Words for absences (piece 16), shared by player and coach views. */
 
 import type { Absence, AbsenceKind } from '@/shared/data';
+import { formatShortDate } from '@/shared/format';
+import { tr, type MessageKey } from '@/shared/i18n';
 
-export const ABSENCE_KIND_LABEL: Record<AbsenceKind, string> = {
-  injured: 'Injured',
-  sick: 'Sick',
-  holiday: 'Holiday',
-  school_work: 'School / work',
-  other: 'Away',
+const ABSENCE_KIND_KEY: Record<AbsenceKind, MessageKey> = {
+  injured: 'absence.kind.injured',
+  sick: 'absence.kind.sick',
+  holiday: 'absence.kind.holiday',
+  school_work: 'absence.kind.schoolWork',
+  other: 'absence.kind.other',
 };
+
+const UNTIL_KEY: Record<AbsenceKind, MessageKey> = {
+  injured: 'absence.until.injured',
+  sick: 'absence.until.sick',
+  holiday: 'absence.until.holiday',
+  school_work: 'absence.until.schoolWork',
+  other: 'absence.until.away',
+};
+
+export function absenceKindLabel(kind: AbsenceKind): string {
+  return tr(ABSENCE_KIND_KEY[kind]);
+}
 
 /** "2 Oct" */
 export function shortDate(date: string): string {
-  return new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return formatShortDate(new Date(`${date}T12:00:00`));
 }
 
 /** "24 Sep – 2 Oct", or one day. */
@@ -25,6 +39,6 @@ export function absenceRange(absence: Pick<Absence, 'fromDate' | 'toDate'>): str
  * "away until 2 Oct" (the kind is health information).
  */
 export function awayUntilLabel(absence: Pick<Absence, 'kind' | 'toDate'>, showReason: boolean): string {
-  const kind = showReason && absence.kind && absence.kind !== 'other' ? ABSENCE_KIND_LABEL[absence.kind].toLowerCase() : 'away';
-  return `${kind} until ${shortDate(absence.toDate)}`;
+  const kind: AbsenceKind = showReason && absence.kind ? absence.kind : 'other';
+  return tr(UNTIL_KEY[kind], { date: shortDate(absence.toDate) });
 }

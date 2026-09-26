@@ -2231,3 +2231,16 @@ Geprüft im Browser (Browsersprache Deutsch, echter Server): falsches Passwort �
 Passwort ist falsch.“, Passwort vergessen, unbekannter Beitrittscode, ungültiger Gründungscode,
 ungültige Einladung, abgelaufener Link zum neuen Passwort – alles deutsch, keine Fehler außer der
 erwarteten Absage des Servers beim falschen Passwort.
+
+## Run 45 — App-Sprachen, Bereich 3: Spieler (erledigt)
+
+Alle Spieler-Seiten über `t()`/`tr()`: Today, Kalender, Load (Kennzahlen, Diagramm, Wochenprofil,
+Room and risk), RPE-Abfrage, eigenes Training, Abwesenheit, Nachrichten, Navigation,
+Rollenwechsel, Hinweiskarten (Installieren, Benachrichtigungen, Kalender), geteilte Load-Ansicht.
+Neu: `tr()` für Beschriftungs-Tabellen, `rich()` für fett gesetzte Wörter (`<b>…</b>`, von der CI
+geprüft), `displayTitle()` für gespeicherte englische Titel, Datums-/Zahlformate in `format.ts`
+statt fest `en-GB`. Nur `en.json`; Übersetzungen macht Ben am Ende.
+
+Geprüft: sichtbarer englischer Text aller Demo-Seiten (Spieler, Trainer, Verein; Handy und
+Desktop; alle Reiter, 75 Aufnahmen) vorher und nachher identisch, keine Konsolenfehler.
+Nebenbei: In der Wochen-Detailansicht stand „TE“ (deutsch) – jetzt „sessions“.

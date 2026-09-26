@@ -18,9 +18,12 @@ import {
   useLocalDatabase,
 } from '@/shared/data';
 
+import { useT } from '@/shared/i18n';
+
 import { authorName, teamName, whenPosted } from './messageText';
 
 export function PlayerMessagesPage() {
+  const t = useT();
   const { database } = useLocalDatabase();
   const person = database ? getActivePerson(database) : null;
   const isPlayer = database?.activeIdentity?.role === 'athlete';
@@ -45,11 +48,11 @@ export function PlayerMessagesPage() {
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-400">
         <span>
           <span className="font-black text-slate-200">{authorName(database, message)}</span> · {teamName(database, message.teamId)}
-          {message.groupIds.length > 0 ? ` · ${message.groupIds.map((id) => database.playerGroups.find((group) => group.id === id)?.name ?? 'group').join(', ')}` : ''}
+          {message.groupIds.length > 0 ? ` · ${message.groupIds.map((id) => database.playerGroups.find((group) => group.id === id)?.name ?? t('messages.group')).join(', ')}` : ''}
         </span>
         <span className="flex items-center gap-2">
-          {message.important ? <span className="rounded-full bg-rose-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">Important</span> : null}
-          {unread.has(message.id) ? <span className="rounded-full bg-sky-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">New</span> : null}
+          {message.important ? <span className="rounded-full bg-rose-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('messages.important')}</span> : null}
+          {unread.has(message.id) ? <span className="rounded-full bg-sky-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('messages.new')}</span> : null}
           {whenPosted(message.createdAt)}
         </span>
       </div>
@@ -58,11 +61,11 @@ export function PlayerMessagesPage() {
   );
 
   return (
-    <AthleteShell active="messages" title="Messages" subtitle="From your coaches" showLoad={person ? athleteHasLoad(database, person.id) : true}>
+    <AthleteShell active="messages" title={t('messages.title')} subtitle={t('messages.subtitle')} showLoad={person ? athleteHasLoad(database, person.id) : true}>
       {!isPlayer ? (
-        <p className="text-sm text-slate-400">Switch to a player to see their messages.</p>
+        <p className="text-sm text-slate-400">{t('messages.switchToPlayer')}</p>
       ) : messages.length === 0 ? (
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-sm text-slate-400">No messages yet. Announcements from your coaches show up here.</section>
+        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-sm text-slate-400">{t('messages.empty')}</section>
       ) : (
         <div className="grid gap-4">
           {pinned.length > 0 ? <ul className="grid gap-2">{pinned.map(card)}</ul> : null}
