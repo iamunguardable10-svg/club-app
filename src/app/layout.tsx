@@ -5,6 +5,7 @@ import { AccessGate } from '@/features/access/AccessGate';
 import { ServiceWorkerRegistration } from '@/features/install/ServiceWorkerRegistration';
 import { LoginHandoff } from '@/features/install/LoginHandoff';
 import { ErrorReporter } from '@/features/errors/ErrorReporter';
+import { AccountLocaleSync } from '@/shared/i18n/AccountLocaleSync';
 
 export const metadata: Metadata = {
   title: 'Club OS',
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <AccessGate />
         <ServiceWorkerRegistration />
         <LoginHandoff />
+        <AccountLocaleSync />
         <ErrorReporter />
       </body>
     </html>

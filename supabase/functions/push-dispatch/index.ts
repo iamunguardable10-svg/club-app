@@ -5,8 +5,15 @@
 // hands out the due messages with the VAPID keys (push_take_due) and takes
 // the results back (push_report), removing devices that are gone. Nothing
 // is stored here; JWT verification is off because the secret is the guard.
+//
+// Title and body come in English from the database; for an account in
+// another language they are written again from push-texts.json (render.ts,
+// App languages 6b). Deploy with all three files.
 
 import webpush from 'npm:web-push@3.6.7';
+
+import { renderPush, type PushTexts } from './render.ts';
+import pushTexts from './push-texts.json' with { type: 'json' };
 
 type Item = {
   outbox_id: string;
@@ -14,6 +21,9 @@ type Item = {
   p256dh: string;
   auth: string;
   payload: { title: string; body: string; url: string; tag: string };
+  locale?: string | null;
+  text_key?: string | null;
+  text_params?: Record<string, unknown> | null;
 };
 type Batch = { vapid: { public_key: string | null; private_key: string | null; subject: string | null }; items: Item[] };
 
@@ -40,6 +50,12 @@ async function reportFailure(message: string) {
   await rpc<null>('report_error', { p_kind: 'server', p_message: `push-dispatch: ${message}`.slice(0, 500), p_page: 'push-dispatch' }).catch(() => undefined);
 }
 
+/** The payload in the recipient's language, or as the database wrote it. */
+function localized(item: Item) {
+  const text = renderPush(pushTexts as PushTexts, item.locale, item.text_key, item.text_params, item.payload);
+  return text ? { ...item.payload, title: text.title, body: text.body } : item.payload;
+}
+
 Deno.serve(async (request) => {
   if (request.method !== 'POST') return json({ error: 'POST only' }, 405);
   const secret = request.headers.get('x-dispatch-secret') ?? '';
@@ -62,7 +78,7 @@ Deno.serve(async (request) => {
     try {
       const response = await webpush.sendNotification(
         { endpoint: item.endpoint, keys: { p256dh: item.p256dh, auth: item.auth } },
-        JSON.stringify(item.payload),
+        JSON.stringify(localized(item)),
         // Kept up to 12 hours if the phone is offline; after that it is stale.
         { TTL: 12 * 3600, urgency: 'normal' },
       );

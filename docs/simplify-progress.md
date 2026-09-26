@@ -2285,3 +2285,20 @@ not exist.“ …, Apple-Kalender: „Apple did not accept …“), haben jetzt 
 Server. Geprüft: `test:i18n` (englischer Eintrag = Servertext), Zugriffstests und Server-Store-Test
 gegen lokales Postgres 16 (neu: falscher Beitrittscode kommt mit Schlüssel, abgelehnte Änderung mit
 `rejectedNotice`).
+
+## Run 49 — App-Sprachen, Bereich 6b: Push und Mails in der Sprache des Kontos (erledigt)
+
+- **Sprache am Konto:** Die App speichert die gewählte Sprache in den Konto-Metadaten (`locale`),
+  beim Registrieren gleich mit (für die Bestätigungsmail) und danach bei jedem Wechsel.
+- **Push:** Migration 0031 (live eingespielt) — jede Nachricht trägt neben dem englischen Text
+  Schlüssel und Werte; `push_take_due` gibt die Sprache des Kontos mit. `push-dispatch` (Version 3,
+  deployt) baut Titel und Text daraus neu (`render.ts`, Texte aus `push-texts.json` =
+  `npm run push-texts`). Ohne Übersetzung bleibt es beim englischen Text. Operator-Meldungen bleiben
+  Englisch.
+- **Mails:** `npm run mail-templates` erzeugt Vorlagen für Bestätigen, Passwort und E-Mail-Wechsel,
+  die nach Sprache wählen (`docs/mail-templates/`). **Offen für Ben:** einmal in Supabase einfügen.
+- Geprüft: alle 18 Zugriffstests und der Server-Store-Test gegen lokales Postgres 16 (neu: Schlüssel
+  und Werte bei geänderter Einheit und Übersicht, Sprache in `push_take_due`); `test:i18n` baut alle
+  Push-Arten auf Englisch genau wie die Datenbank nach und prüft Deutsch mit Rückfall; die Function
+  mit `deno check` geprüft und nach dem Deploy aufgerufen (ohne Secret: 401 wie erwartet). Vor dem
+  Einspielen verglichen: die Live-Funktionen entsprachen dem Repo (nur ohne Kommentare).

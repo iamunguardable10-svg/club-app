@@ -19,7 +19,9 @@
     "test:calendar": "tsx supabase/pilot/tests/calendar-ics.test.ts",
     "test:series": "tsx src/features/load/planSeries.test.ts",
     "test:caldav": "tsx supabase/pilot/tests/caldav.test.ts",
-    "check:i18n": "node scripts/check-i18n.mjs",
+    "check:i18n": "node scripts/check-i18n.mjs && tsx scripts/push-texts.ts --check && tsx scripts/mail-templates.ts --check",
+    "push-texts": "tsx scripts/push-texts.ts",
+    "mail-templates": "tsx scripts/mail-templates.ts",
     "test:i18n": "tsx src/shared/i18n/translate.test.ts"
   },
   "dependencies": {

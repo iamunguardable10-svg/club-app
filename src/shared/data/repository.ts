@@ -540,15 +540,35 @@ export async function signInWithPassword(email: string, password: string): Promi
  * Creates an account. When the project asks for e-mail confirmation there is
  * no session yet and the person has to click the link in the mail first.
  */
-export async function signUpWithPassword(email: string, password: string, returnTo: string): Promise<{ confirmationNeeded: boolean }> {
+export async function signUpWithPassword(email: string, password: string, returnTo: string, locale?: string): Promise<{ confirmationNeeded: boolean }> {
   const supabase = await authClient();
   const { data, error } = await supabase.auth.signUp({
     email: email.trim(),
     password,
-    options: { emailRedirectTo: `${window.location.origin}${returnTo}` },
+    // The language goes with the account from the start, so the confirmation mail can use it.
+    options: { emailRedirectTo: `${window.location.origin}${returnTo}`, data: locale ? { locale } : undefined },
   });
   if (error) throw authError(error.message);
   return { confirmationNeeded: !data.session };
+}
+
+/**
+ * Keeps the app language with the account (auth user metadata `locale`), so
+ * push messages and mails come in it (docs/i18n.md, 6b). Only when signed in
+ * to the club server and only when it changed; a failure is not worth a
+ * message (the next start tries again).
+ */
+export async function saveAccountLocale(locale: string): Promise<void> {
+  if (!isRemoteMode()) return;
+  try {
+    const supabase = await authClient();
+    const { data } = await supabase.auth.getSession();
+    const user = data.session?.user;
+    if (!user || user.user_metadata?.locale === locale) return;
+    await supabase.auth.updateUser({ data: { locale } });
+  } catch {
+    // Offline or signed out meanwhile.
+  }
 }
 
 /** Sends a link to choose a new password; it leads to /reset-password. */

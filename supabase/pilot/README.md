@@ -39,6 +39,7 @@ migrations below are applied there (2026-09-24).
 | `migrations/0028_pilot_join_notice.sql` | A player joining with the team code: push "<team> · New player" to the coaches who can remove players (head coach or `manageStaff`), not for players a coach adds; push kind `joined`, can be switched off ("New players") |
 | `migrations/0029_pilot_delete_account.sql` | Deleting one's own account: `delete_my_account()` removes the person (everything cascades from `people`), the Apple password in the Vault and the account (`auth.users`, cascading settings, devices, calendar link, Apple connection); refused for the only admin of a club that has other people |
 | `migrations/0030_pilot_quiet_error_reports.sql` | Quieter error reports: "Script error." without detail (the browser hid the real error) is not stored; the morning summary moves to 07:00 UTC (09:00 in summer, 08:00 in winter) |
+| `migrations/0031_pilot_push_languages.sql` | Push messages in the recipient's language: every outbox row also carries `text_key` and `text_params`; `push_take_due` hands them out with the account's language (`auth.users.raw_user_meta_data ->> 'locale'`, set by the app). The English title and body stay the fallback |
 | `tests/00_supabase_shim.sql` | Stand-in for Supabase's `auth` schema and roles, **local tests only** |
 | `tests/01_rls_test.sql` | 105 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
 | `tests/02_access_test.sql` | 35 checks for join codes, invitations and club setup |
@@ -187,9 +188,13 @@ client and sync are tested against a local Radicale server with
 
 ## Push notifications (piece 7)
 
-The Edge Function source is `supabase/functions/push-dispatch/index.ts`
+The Edge Function source is `supabase/functions/push-dispatch/` —
+`index.ts`, `render.ts` and `push-texts.json`, always deployed together
 (deployed as `push-dispatch`, JWT verification off: the dispatch secret is
-the guard). Setting it up on a project, once, in the SQL editor:
+the guard). `render.ts` writes a message in the account's language from
+`push-texts.json`; that file comes from the app's language files
+(`npm run push-texts`), so after a translation: regenerate, commit, deploy
+the function again. A language without push texts gets the English message. Setting it up on a project, once, in the SQL editor:
 
 ```sql
 -- VAPID keys: generate with `npx web-push generate-vapid-keys`.

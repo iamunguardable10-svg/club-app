@@ -107,6 +107,8 @@ select test.expect_count('… bundled: sent at the earliest 2 minutes later',
 update public.sessions set starts_at = starts_at + interval '30 minutes', ends_at = ends_at + interval '30 minutes' where id = '57000000-0000-0000-0000-000000000001';
 select test.expect_count('moved again: still one message each, with the new time',
   'select 1 from app.push_outbox where kind = ''changed'' and body like ''%'' || to_char((' || quote_literal(:'noon') || '::timestamptz + interval ''21 hours 30 minutes'') at time zone ''Europe/Berlin'', ''HH24:MI'') || ''%''', 2);
+select test.expect_count('… with the text key and values for other languages (0031)',
+  $q$select 1 from app.push_outbox where kind = 'changed' and text_key = 'push.changed' and text_params ->> 'team' = 'U20' and text_params ? 'at'$q$, 2);
 update public.sessions set title = 'Training (ball)' where id = '57000000-0000-0000-0000-000000000001';
 select test.expect_count('a new title alone sends nothing new', $q$select 1 from app.push_outbox where kind = 'changed'$q$, 2);
 update public.sessions set starts_at = starts_at + interval '1 hour', ends_at = ends_at + interval '1 hour' where id = '57000000-0000-0000-0000-000000000002';
@@ -136,6 +138,8 @@ select test.expect_count('coach overview: Carla (Head Coach), not Tim (no attend
 select test.expect_count('… one message only', $q$select 1 where test.outbox('summary', '57000000-0000-0000-0000-000000000004') = 1$q$, 1);
 select test.expect_count('… with the counts',
   $q$select 1 from app.push_outbox where kind = 'summary' and body = '1 in · 1 out · 1 no answer'$q$, 1);
+select test.expect_count('… and the counts as values for other languages',
+  $q$select 1 from app.push_outbox where kind = 'summary' and text_key = 'push.summary' and text_params ->> 'in' = '1' and text_params ->> 'open' = '1'$q$, 1);
 select test.expect_count('rating: Pia (Paul already rated, Pete has no device)',
   $q$select 1 from app.push_outbox where kind = 'rate' and session_id = '57000000-0000-0000-0000-000000000003' and user_id = '10000000-0000-0000-0000-000000000071'$q$, 1);
 select test.expect_count('… nobody else for that session', $q$select 1 where test.outbox('rate', '57000000-0000-0000-0000-000000000003') = 1$q$, 1);
@@ -177,11 +181,15 @@ update app.push_outbox set send_after = now() + interval '1 day' where kind in (
 update app.push_outbox set send_after = now() - interval '1 minute' where kind in ('rate', 'reminder') and session_id in ('57000000-0000-0000-0000-000000000003', '57000000-0000-0000-0000-000000000001');
 insert into public.availability (session_id, person_id, status) values ('57000000-0000-0000-0000-000000000001', 'a7000000-0000-0000-0000-000000000072', 'late');
 
+-- Pia uses the app in German (the app keeps the language with the account).
+update auth.users set raw_user_meta_data = '{"locale": "de"}' where id = '10000000-0000-0000-0000-000000000071';
 set role service_role;
 select public.push_take_due('test-secret-0123456789abcdef0123456789abcdef') as batch \gset
 reset role;
 select test.expect_count('handed out: the rating for Pia, not the reminder Paul answered meanwhile',
   'select 1 from jsonb_array_elements(' || quote_literal(:'batch') || '::jsonb -> ''items'') i where i ->> ''endpoint'' = ''https://push.test/pia'' and i -> ''payload'' ->> ''title'' = ''How hard was it?''', 1);
+select test.expect_count('… with her language, the text key and the values (0031)',
+  'select 1 from jsonb_array_elements(' || quote_literal(:'batch') || '::jsonb -> ''items'') i where i ->> ''locale'' = ''de'' and i ->> ''text_key'' = ''push.rate'' and i -> ''text_params'' ? ''team''', 1);
 select test.expect_count('… one item in total', 'select 1 from jsonb_array_elements(' || quote_literal(:'batch') || '::jsonb -> ''items'')', 1);
 select test.expect_count('… with the keys to sign it', 'select 1 where (' || quote_literal(:'batch') || '::jsonb -> ''vapid'' ->> ''private_key'') = ''PRIVATE''', 1);
 select test.expect_count('… the answered reminder is closed', $q$select 1 where test.outbox('reminder', '57000000-0000-0000-0000-000000000001') = 0$q$, 1);

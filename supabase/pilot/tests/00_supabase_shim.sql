@@ -15,7 +15,9 @@ create schema if not exists auth;
 
 create table if not exists auth.users (
   id uuid primary key default gen_random_uuid(),
-  email text unique
+  email text unique,
+  -- What the app keeps with the account (the app language, area 6b).
+  raw_user_meta_data jsonb
 );
 
 -- Supabase reads the user id from the request's JWT claims; the tests set
