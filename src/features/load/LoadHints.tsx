@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { HIGH_RISK_ACWR } from '@/shared/data/loadCalculations';
 import { ACWR_ZONES } from '@/shared/data/loadTypes';
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
+import { formatDecimal } from '@/shared/format';
+import { useT } from '@/shared/i18n';
 
 /**
  * Load hints (2026-09-26): numbers and one symbol instead of sentences. A
@@ -23,20 +25,24 @@ export function WarningIcon({ className = 'h-4 w-4' }: { className?: string }) {
 /** "1.30 → 1.52 ⚠" (or just "1.62 ⚠" without a forecast), tappable; `label` goes in front. */
 export function LoadRiskBadge({ before, after = null, label }: { before: number; after?: number | null; label?: string }) {
   const [open, setOpen] = useState(false);
+  const t = useT();
+  const description = after === null
+    ? t('load.risk.ariaNow', { value: formatDecimal(before) })
+    : t('load.risk.ariaForecast', { before: formatDecimal(before), after: formatDecimal(after) });
   return (
     <>
       <button
         type="button"
         onClick={(event) => { event.stopPropagation(); setOpen(true); }}
-        aria-label={`${label ? `${label}: ` : ''}ACWR ${after === null ? before.toFixed(2) : `${before.toFixed(2)} to ${after.toFixed(2)}`}, higher injury risk. What does this mean?`}
+        aria-label={label ? `${label}: ${description}` : description}
         className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/45 bg-rose-400/10 px-2.5 py-1 text-xs font-black tabular-nums text-rose-100 transition hover:border-rose-300"
       >
         {label ? <span className="text-slate-300">{label}</span> : null}
-        {after === null ? <span>{before.toFixed(2)}</span> : (
+        {after === null ? <span>{formatDecimal(before)}</span> : (
           <>
-            <span className="text-slate-300">{before.toFixed(2)}</span>
+            <span className="text-slate-300">{formatDecimal(before)}</span>
             <span aria-hidden="true" className="text-slate-500">→</span>
-            <span>{after.toFixed(2)}</span>
+            <span>{formatDecimal(after)}</span>
           </>
         )}
         <WarningIcon className="h-3.5 w-3.5 text-rose-300" />
@@ -47,8 +53,10 @@ export function LoadRiskBadge({ before, after = null, label }: { before: number;
 }
 
 /** A small "i" that opens the explainer. */
-export function LoadInfoButton({ label = 'What does load mean?' }: { label?: string }) {
+export function LoadInfoButton() {
   const [open, setOpen] = useState(false);
+  const t = useT();
+  const label = t('load.info.open');
   return (
     <>
       <button
@@ -69,6 +77,7 @@ const SCALE_MAX = 2;
 const percent = (value: number) => `${(value / SCALE_MAX) * 100}%`;
 
 function ZoneScale() {
+  const t = useT();
   return (
     <div className="mt-4">
       <div className="relative flex h-3 overflow-hidden rounded-full">
@@ -79,20 +88,21 @@ function ZoneScale() {
       </div>
       <div className="relative mt-1 h-4 text-[10px] font-black tabular-nums text-slate-400">
         {[ACWR_ZONES.low, 1, ACWR_ZONES.high, HIGH_RISK_ACWR].map((tick) => (
-          <span key={tick} className="absolute -translate-x-1/2" style={{ left: percent(tick) }}>{tick.toFixed(1)}</span>
+          <span key={tick} className="absolute -translate-x-1/2" style={{ left: percent(tick) }}>{formatDecimal(tick, 1)}</span>
         ))}
       </div>
       <div className="mt-1 grid grid-cols-4 gap-1 text-center text-[10px] font-black uppercase tracking-[0.08em]">
-        <span className="text-sky-200">Low</span>
-        <span className="text-emerald-200">Sweet spot</span>
-        <span className="text-amber-200">High</span>
-        <span className="inline-flex items-center justify-center gap-1 text-rose-200"><WarningIcon className="h-3 w-3" />Risk</span>
+        <span className="text-sky-200">{t('load.explainer.zoneLow')}</span>
+        <span className="text-emerald-200">{t('load.explainer.zoneSweetSpot')}</span>
+        <span className="text-amber-200">{t('load.explainer.zoneHigh')}</span>
+        <span className="inline-flex items-center justify-center gap-1 text-rose-200"><WarningIcon className="h-3 w-3" />{t('load.explainer.zoneRisk')}</span>
       </div>
     </div>
   );
 }
 
 export function LoadExplainer({ onClose }: { onClose: () => void }) {
+  const t = useT();
   useBodyScrollLock(true);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
@@ -104,32 +114,26 @@ export function LoadExplainer({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-[130] flex items-end justify-center bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="load-explainer-title" onClick={onClose}>
       <div className="max-h-full w-full max-w-md overflow-y-auto rounded-3xl border border-slate-700 bg-slate-950 p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
-          <h2 id="load-explainer-title" className="text-xl font-black text-white">Training load, briefly</h2>
-          <button type="button" onClick={onClose} className="rounded-full border border-slate-700 px-3 py-1 text-xs font-black text-slate-300">Close</button>
+          <h2 id="load-explainer-title" className="text-xl font-black text-white">{t('load.explainer.title')}</h2>
+          <button type="button" onClick={onClose} className="rounded-full border border-slate-700 px-3 py-1 text-xs font-black text-slate-300">{t('load.explainer.close')}</button>
         </div>
 
-        <p className="mt-3 text-sm font-bold text-slate-300">
-          Load = RPE × minutes. <span className="text-white">ACWR</span> = your last week against your last four weeks. 1.0 means as much as you are used to.
-        </p>
+        <p className="mt-3 text-sm font-bold text-slate-300">{t('load.explainer.intro')}</p>
 
         <ZoneScale />
 
         <div className="mt-5 rounded-2xl border border-rose-400/30 bg-rose-400/[0.07] p-4">
-          <p className="flex items-center gap-2 text-sm font-black text-rose-100"><WarningIcon className="h-4 w-4 text-rose-300" />Above {HIGH_RISK_ACWR.toFixed(1)}: clearly higher injury risk</p>
-          <blockquote className="mt-2 border-l-2 border-rose-300/40 pl-3 text-sm text-slate-300">
-            In team sports, injuries became much more likely once the ratio rose above about 1.5. The lowest risk was between 0.8 and 1.3.
-          </blockquote>
+          <p className="flex items-center gap-2 text-sm font-black text-rose-100"><WarningIcon className="h-4 w-4 text-rose-300" />{t('load.explainer.riskTitle', { value: formatDecimal(HIGH_RISK_ACWR, 1) })}</p>
+          <blockquote className="mt-2 border-l-2 border-rose-300/40 pl-3 text-sm text-slate-300">{t('load.explainer.riskSummary')}</blockquote>
           <p className="mt-2 text-[11px] font-bold text-slate-500">
-            Summary of Gabbett TJ (2016), <a className="underline hover:text-slate-300" href="https://doi.org/10.1136/bjsports-2015-095788" target="_blank" rel="noreferrer">Br J Sports Med 50:273–280</a>
+            {t('load.explainer.summaryOf')} Gabbett TJ (2016), <a className="underline hover:text-slate-300" href="https://doi.org/10.1136/bjsports-2015-095788" target="_blank" rel="noreferrer">Br J Sports Med 50:273–280</a>
           </p>
         </div>
 
-        <p className="mt-4 text-sm font-bold text-slate-300">
-          Risk climbs with sudden jumps: a much bigger week than the one before, or full training right after a break. Building up step by step keeps the ratio in the sweet spot.
-        </p>
+        <p className="mt-4 text-sm font-bold text-slate-300">{t('load.explainer.jumps')}</p>
 
         <p className="mt-4 text-xs font-bold text-slate-500">
-          An indicator, not a prediction: the ratio alone cannot tell whether one person gets injured. How you feel counts too.{' '}
+          {t('load.explainer.caveat')}{' '}
           <a className="underline hover:text-slate-300" href="https://doi.org/10.1123/ijspp.2019-0864" target="_blank" rel="noreferrer">Impellizzeri et al. (2020), Int J Sports Physiol Perform 15:907–913</a>
         </p>
       </div>

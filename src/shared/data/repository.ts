@@ -181,6 +181,37 @@ export function dismissHint(name: HintName): void {
   }
 }
 
+const LOCALE_KEY = 'club-app.locale';
+const localeListeners = new Set<() => void>();
+
+/**
+ * The app language picked on this device (a code like "de"), or null when
+ * none was picked yet. Validated by `@/shared/i18n`, not here.
+ */
+export function readStoredLocale(): string | null {
+  if (!isBrowser()) return null;
+  try {
+    return window.localStorage.getItem(LOCALE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function storeLocale(code: string): void {
+  if (!isBrowser()) return;
+  try {
+    window.localStorage.setItem(LOCALE_KEY, code);
+  } catch {
+    // Not remembered: the language follows the browser again next time.
+  }
+  for (const listener of localeListeners) listener();
+}
+
+export function subscribeLocale(listener: () => void): () => void {
+  localeListeners.add(listener);
+  return () => localeListeners.delete(listener);
+}
+
 /** Whether this page talks to the pilot database instead of localStorage. */
 export function isRemoteMode(): boolean {
   return remote !== null || getBackendChoice() === 'server';

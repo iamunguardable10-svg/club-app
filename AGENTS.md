@@ -58,6 +58,7 @@ For feature, auth, role, Supabase, invite, facility, calendar or load work, also
 - Do not expose sensitive athlete load data to club admins by accident. Still applies: coach views scope load data to the coach's own teams through memberships.
 - Explain security impact when changing Supabase, Auth or RLS behavior. **(suspended while there is no backend)** Without row-level security, permission checks in the data layer and views are the only guard — do not derive rights from URL parameters.
 - Keep diffs small and scoped to the concrete task.
+- New visible text goes through `t()` with a key in `src/shared/i18n/messages/en.json`, dates and numbers through `@/shared/format` (see `docs/i18n.md`). Areas not extracted yet keep their literal English until their PR.
 
 ## Validation
 

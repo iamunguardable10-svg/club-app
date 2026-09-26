@@ -23,6 +23,7 @@ import { InstallHint } from '@/features/install/InstallHint';
 import { SignOutButton } from '@/features/access/SignOutButton';
 import { plural } from '@/shared/format';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
+import { LanguagePicker } from '@/shared/i18n/LanguagePicker';
 import { ActiveRoleShell, CoachSection } from '@/features/role-workspaces/RoleShell';
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
@@ -76,6 +77,7 @@ export function SettingsPage() {
           {role === 'club' && person ? <ClubSection database={database} person={person} /> : null}
           <CoachSection title="This device">
             <div className="grid gap-5">
+              <LanguagePicker />
               {remote
                 ? <NotificationsHint variant="settings" />
                 : <p className="text-sm text-slate-400">Demo club: notifications only work when you are signed in to your club.</p>}

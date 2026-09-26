@@ -26,6 +26,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: App languages
+        run: npm run check:i18n && npm run test:i18n
+
       - name: Build
         run: npm run build
 

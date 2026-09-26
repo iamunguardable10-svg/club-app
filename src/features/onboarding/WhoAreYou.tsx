@@ -17,14 +17,15 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useT, type MessageKey } from '@/shared/i18n';
 
 type Persona = 'player' | 'staff' | 'lead' | 'founder';
 
-const PERSONAS: { id: Persona; label: string; hint: string }[] = [
-  { id: 'player', label: 'Player', hint: 'I play in a team' },
-  { id: 'staff', label: 'Coach or staff', hint: 'I coach or help a team' },
-  { id: 'lead', label: 'Department lead', hint: 'I run a department' },
-  { id: 'founder', label: 'Starting a club', hint: 'I set up our club' },
+const PERSONAS: { id: Persona; label: MessageKey; hint: MessageKey }[] = [
+  { id: 'player', label: 'onboarding.who.player', hint: 'onboarding.who.playerHint' },
+  { id: 'staff', label: 'onboarding.who.staff', hint: 'onboarding.who.staffHint' },
+  { id: 'lead', label: 'onboarding.who.lead', hint: 'onboarding.who.leadHint' },
+  { id: 'founder', label: 'onboarding.who.founder', hint: 'onboarding.who.founderHint' },
 ];
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
@@ -43,6 +44,7 @@ export function joinCodeFrom(text: string): string {
 const fieldClass = 'os-field min-w-0';
 
 export function WhoAreYou({ signedIn = false }: { signedIn?: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [persona, setPersona] = useState<Persona | null>(null);
   const [value, setValue] = useState('');
@@ -58,42 +60,42 @@ export function WhoAreYou({ signedIn = false }: { signedIn?: boolean }) {
     event.preventDefault();
     if (persona === 'player') {
       const code = joinCodeFrom(value);
-      if (code.length < 6) return setError('Enter the code from your coach, e.g. ABCD-EFGH.');
+      if (code.length < 6) return setError(t('onboarding.who.errorJoinCode'));
       router.push(`/join?code=${encodeURIComponent(code)}`);
     } else if (persona === 'founder') {
       const code = value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-      if (code.length < 6) return setError('Enter your founding code.');
+      if (code.length < 6) return setError(t('onboarding.who.errorFoundingCode'));
       router.push(`/found?code=${encodeURIComponent(code)}`);
     } else {
       const token = inviteTokenFrom(value);
-      if (!token) return setError('This does not look like an invitation link. Paste the whole link you were sent.');
+      if (!token) return setError(t('onboarding.who.errorInvite'));
       router.push(`/join?invite=${token}`);
     }
   }
 
   const detail: Record<Persona, { text: string; field: string; placeholder: string; note?: string }> = {
     player: {
-      text: 'Your coach sends you a join link or shows you a QR code. Open or scan it, or enter the code here.',
-      field: 'Join code',
+      text: t('onboarding.who.playerText'),
+      field: t('onboarding.who.joinCode'),
       placeholder: 'ABCD-EFGH',
     },
     staff: {
-      text: 'Your Head Coach adds you to the team and sends you a personal invitation link. Open it on this phone, or paste it here.',
-      field: 'Invitation link',
+      text: t('onboarding.who.staffText'),
+      field: t('onboarding.who.inviteLink'),
       placeholder: 'https://…/join?invite=…',
-      note: 'No link yet? Ask your Head Coach. Head Coach of a new team: ask your department lead or the club admin.',
+      note: t('onboarding.who.staffNote'),
     },
     lead: {
-      text: 'The club admin adds you as department lead and sends you a personal invitation link. Open it on this phone, or paste it here.',
-      field: 'Invitation link',
+      text: t('onboarding.who.leadText'),
+      field: t('onboarding.who.inviteLink'),
       placeholder: 'https://…/join?invite=…',
-      note: 'No link yet? Ask your club admin.',
+      note: t('onboarding.who.leadNote'),
     },
     founder: {
-      text: 'You set up the club and become its admin; then you invite department leads and coaches. During the pilot this needs a founding code from the Club OS team.',
-      field: 'Founding code',
+      text: t('onboarding.who.founderText'),
+      field: t('onboarding.who.foundingCode'),
       placeholder: 'ABCDE-FGHJK',
-      note: 'No code yet? Ask the person who introduced you to Club OS.',
+      note: t('onboarding.who.founderNote'),
     },
   };
 
@@ -102,10 +104,10 @@ export function WhoAreYou({ signedIn = false }: { signedIn?: boolean }) {
   return (
     <section className="os-panel grid gap-4 p-5 sm:p-6">
       <div>
-        <p className="text-lg font-black text-white">{signedIn ? 'How do you want to join?' : 'New here? Who are you?'}</p>
-        <p className="mt-1 text-sm text-slate-400">Pick what fits; you can take on more roles later.</p>
+        <p className="text-lg font-black text-white">{signedIn ? t('onboarding.who.titleSignedIn') : t('onboarding.who.title')}</p>
+        <p className="mt-1 text-sm text-slate-400">{t('onboarding.who.detail')}</p>
       </div>
-      <div className="grid grid-cols-2 gap-2" role="group" aria-label="Who are you?">
+      <div className="grid grid-cols-2 gap-2" role="group" aria-label={t('onboarding.who.groupLabel')}>
         {PERSONAS.map((entry) => (
           <button
             key={entry.id}
@@ -116,8 +118,8 @@ export function WhoAreYou({ signedIn = false }: { signedIn?: boolean }) {
               persona === entry.id ? 'border-emerald-300 bg-emerald-300/10' : 'border-slate-700 bg-slate-950/60 hover:border-slate-500'
             }`}
           >
-            <span className="block text-sm font-black text-white">{entry.label}</span>
-            <span className="block text-xs text-slate-400">{entry.hint}</span>
+            <span className="block text-sm font-black text-white">{t(entry.label)}</span>
+            <span className="block text-xs text-slate-400">{t(entry.hint)}</span>
           </button>
         ))}
       </div>
@@ -137,7 +139,7 @@ export function WhoAreYou({ signedIn = false }: { signedIn?: boolean }) {
             />
           </label>
           {error ? <p role="alert" className="text-sm font-bold text-red-200">{error}</p> : null}
-          <button type="submit" className="os-success justify-center">Continue</button>
+          <button type="submit" className="os-success justify-center">{t('onboarding.who.continue')}</button>
           {current.note ? <p className="text-xs text-slate-400">{current.note}</p> : null}
         </form>
       ) : null}
