@@ -138,7 +138,7 @@ export function FacilitiesManager({
         ))}
         {facilities.length === 0 ? (
           <p className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">
-            {isManager ? 'No halls yet. Use “Edit halls” to add the first one.' : 'No halls are shared with your teams yet.'}
+            {!isManager ? 'No halls are shared with your teams yet.' : editMode ? 'No halls yet. Add the first one above.' : 'No halls yet. Use “Edit halls” to add the first one.'}
           </p>
         ) : null}
       </div>

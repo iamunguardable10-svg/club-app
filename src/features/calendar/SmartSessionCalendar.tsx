@@ -28,6 +28,8 @@ export type SmartCalendarDraft = {
 type SmartSessionCalendarProps = {
   mode: SmartCalendarMode;
   canCreateSessions: boolean;
+  /** Why sessions cannot be added yet (e.g. no hall), shown instead of a silent grey button. */
+  createBlockedHint?: ReactNode;
   days: Date[];
   hours: number[];
   firstHour: number;
@@ -112,6 +114,7 @@ function toneClassFor(tone: SmartCalendarTone, density: 'compact' | 'regular') {
 export function SmartSessionCalendar({
   mode,
   canCreateSessions,
+  createBlockedHint,
   days,
   hours,
   firstHour,
@@ -188,6 +191,9 @@ export function SmartSessionCalendar({
           </button>
         </div>
       </div>
+      {!canCreateSessions && createBlockedHint ? (
+        <div className="mb-2 rounded-xl border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs font-bold text-amber-100">{createBlockedHint}</div>
+      ) : null}
       {mode === 'edit' ? (
         <p className="mb-2 rounded-xl border border-sky-300/30 bg-sky-300/10 px-3 py-2 text-xs font-bold text-sky-100">
           Tap a free slot to add a session. Drag a session to move it, its lower edge to change the length, tap it to edit.

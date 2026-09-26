@@ -882,6 +882,21 @@ async function main() {
   );
   check('… the device keeps the new state with nothing waiting', kept.snapshot?.outbox.length === 0);
 
+  // Read on the phone first, then on the laptop that did not know yet: the
+  // receipt is there with another time. That is not a refusal (found in the
+  // walkthrough on the real server, 2026-09-26).
+  const secondMessage = (await pool.query(
+    "insert into team_messages (team_id, author_id, body) values ($1, $2, 'Read on two devices') returning id",
+    [TEAM, P.martin],
+  )).rows[0].id as string;
+  await store.refresh();
+  await pool.query("insert into message_reads (message_id, person_id, read_at) values ($1, $2, now() - interval '1 minute')", [secondMessage, P.ben]);
+  data.markMessagesRead(P.ben, [secondMessage]);
+  await data.flushRemote();
+  await store.refresh();
+  check('a read receipt already made on another device is not reported as refused', !store.getStatus().rejected, store.getStatus().rejected);
+  store.clearRejected();
+
   // A change made offline that the server then refuses is reported as before.
   net.online = false;
   const before = db();

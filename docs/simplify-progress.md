@@ -2115,3 +2115,33 @@ Ben am Samstag geweckt.
 
 Geprüft: SQL-Test 18 (ohne Details verworfen, mit Stack behalten), alle SQL-Tests, Typecheck;
 Migration 0030 eingespielt, Cron-Job auf 07:00 UTC umgestellt.
+
+## Run 40 — Durchlauf auf dem echten Server, gefundene Fehler behoben (erledigt)
+
+Durchlauf (2026-09-26) in Bens TEST CLUB mit zwei Wegwerf-Konten, im Browser gegen das echte
+Supabase-Projekt (App lokal gebaut; ein lokales Weiterleitungsprogramm reicht die Anfragen mit
+normaler TLS-Prüfung weiter, weil der Test-Browser dem Proxy dieser Umgebung nicht vertraut).
+Trainerin per Einladung (Head Coach), Spieler per Team-Code.
+
+Geprüft und in Ordnung: Einladung annehmen; Halle anlegen; Einheiten anlegen; Beitritt per Code
+(Push „New player“ kam bei Ben an); Zusage „late“ mit Grund, Trainerin sieht Grund und Minuten;
+Team-Nachricht (Karte auf Today, Messages, Push, Gelesen-Zähler); eigenes Training als
+Wochenserie (8 Termine, ohne RPE-Abfrage); Trainerin sieht es in der Spieler-Detailansicht;
+„How hard was it?“ nach der Einheit, Eintrag mit 35 AU auf dem Server; Phone calendar in den
+Einstellungen (Apple zuerst auf dem iPhone); Kalender-Link liefert die Einheiten mit Halle und
+Adresse; Kalender-Karte; Datenschutz-Seite; beide Konten über „Delete account“ gelöscht, alles
+weg. Pushes an Ben: „Are you in?“, „New player“, „Session changed“, zwei Nachrichten, „How hard
+was it?“ – alle verschickt. Danach Test-Einheiten, Halle und Nachrichten gelöscht.
+
+Gefunden und behoben:
+- **Ohne Halle keine Einheit, ohne Erklärung:** Ein neuer Verein hat keine Halle; der Kalender
+  sperrte „Edit“ still. Jetzt: „Sessions need a hall. Add your first hall under Halls …“ mit Link.
+- **„Late“/„Out“ ohne Grund: nichts passiert:** Die Meldung stand hinter dem offenen Fenster.
+  Jetzt steht sie unter „Save availability“, das Feld heißt „Reason · for your coach“.
+- **Falsches „Not saved (read receipts)“:** Eine Lesebestätigung, die schon da war (auf einem
+  anderen Gerät gelesen oder doppelt gesendet), wurde wegen der abweichenden Uhrzeit als
+  abgelehnt gemeldet. Lesebestätigungen und „gesehen“-Markierungen werden jetzt nur auf „da“
+  geprüft. Neuer Datenschicht-Test (zwei Geräte), vorher rot, jetzt grün.
+- Hallen-Seite im Bearbeiten-Modus: „No halls yet. Add the first one above.“
+
+Kein Fehler: „How hard was it?“ kam erst nach dem Ende der Einheit (Uhrzeit im Test nur knapp).
