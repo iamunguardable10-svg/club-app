@@ -1648,5 +1648,6 @@
   "mail.change.text": "Tap the button to change the email of your Club OS account from {email} to {newEmail}.",
   "mail.change.button": "Confirm the new email",
   "mail.ignore": "If you did not ask for this, you can ignore this mail.",
-  "athlete.loading": "Loading …"
+  "athlete.loading": "Loading …",
+  "load.landing.aria": "Load ratio (ACWR) after this session: about {value}"
 }

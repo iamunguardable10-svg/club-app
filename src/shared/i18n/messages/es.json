@@ -1648,5 +1648,6 @@
   "mail.change.text": "Pulsa el botón para cambiar el correo de tu cuenta de Club OS de {email} a {newEmail}.",
   "mail.change.button": "Confirmar el nuevo correo electrónico",
   "mail.ignore": "Si no has solicitado esto, puedes ignorar este correo.",
-  "athlete.loading": "Cargando…"
+  "athlete.loading": "Cargando…",
+  "load.landing.aria": "Ratio de carga (ACWR) después de esta sesión: aproximadamente {value}"
 }
