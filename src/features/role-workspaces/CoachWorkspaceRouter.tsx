@@ -1200,7 +1200,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   // A broken document is shown as such rather than silently replaced with
   // fresh test data, which would look like the app losing work at random.
   if (dataError) {
-    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-red-500/40 bg-red-950/30 p-6 text-red-100">{dataError.message}</section></div></main>;
+    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-red-500/40 bg-red-950/30 p-6 text-red-100">{errorText(t, dataError)}</section></div></main>;
   }
 
   if (!activePerson) {

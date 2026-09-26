@@ -21,14 +21,14 @@ import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { PhoneCalendarSection } from '@/features/calendar/PhoneCalendarSection';
 import { InstallHint } from '@/features/install/InstallHint';
 import { SignOutButton } from '@/features/access/SignOutButton';
-import { plural } from '@/shared/format';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
 import { LanguagePicker } from '@/shared/i18n/LanguagePicker';
+import { errorText, useT, type MessageKey } from '@/shared/i18n';
+import { displayRoleName } from '@/features/teams/roleLabels';
 import { ActiveRoleShell, CoachSection } from '@/features/role-workspaces/RoleShell';
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
   changeEmail,
-  clubRoleLabel,
   currentAccount,
   deleteMyAccount,
   displayName,
@@ -50,11 +50,13 @@ import {
   type NotificationSettings,
   type Person,
 } from '@/shared/data';
+import { clubRoleText } from '@/features/club/clubRoleText';
 
 const labelClass = 'text-xs font-black uppercase tracking-[0.18em] text-slate-400';
 const quietButtonClass = 'rounded-2xl border border-slate-700 px-4 py-2 text-xs font-black text-slate-200 disabled:opacity-50';
 
 export function SettingsPage() {
+  const t = useT();
   const { database } = useLocalDatabase();
   const [remote, setRemote] = useState(false);
   useEffect(() => setRemote(isRemoteMode()), []);
@@ -64,7 +66,7 @@ export function SettingsPage() {
   const role = database.activeIdentity?.role ?? null;
 
   return (
-    <ActiveRoleShell title="Settings" subtitle={person ? `${displayName(person)} · ${database.club.name}` : database.club.name}>
+    <ActiveRoleShell title={t('settings.title')} subtitle={person ? `${displayName(person)} · ${database.club.name}` : database.club.name}>
       <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         <div className="grid gap-5">
           <AccountSection person={person} remote={remote} />
@@ -75,12 +77,12 @@ export function SettingsPage() {
           {role === 'athlete' && person ? <PlayerTeamsSection database={database} person={person} /> : null}
           {role === 'coach' && person ? <CoachTeamsSection database={database} person={person} /> : null}
           {role === 'club' && person ? <ClubSection database={database} person={person} /> : null}
-          <CoachSection title="This device">
+          <CoachSection title={t('settings.thisDevice')}>
             <div className="grid gap-5">
               <LanguagePicker />
               {remote
                 ? <NotificationsHint variant="settings" />
-                : <p className="text-sm text-slate-400">Demo club: notifications only work when you are signed in to your club.</p>}
+                : <p className="text-sm text-slate-400">{t('settings.demoNotifications')}</p>}
               <InstallHint variant="settings" />
             </div>
           </CoachSection>
@@ -101,15 +103,16 @@ function isPlayerAccount(database: LocalDatabase) {
 // ---------------------------------------------------------------------------
 
 function AccountSection({ person, remote }: { person: Person | null; remote: boolean }) {
+  const t = useT();
   return (
-    <CoachSection title="Account" description={remote ? undefined : 'Demo club, no account. Your name here is test data.'}>
+    <CoachSection title={t('settings.account')} description={remote ? undefined : t('settings.accountDemo')}>
       <div className="grid gap-5">
         {person ? <NameForm key={person.id} person={person} /> : null}
         {remote ? <EmailForm /> : null}
         {remote ? <PasswordForm /> : null}
         {remote ? <SignOutButtons /> : null}
         {remote ? <DeleteAccount /> : null}
-        <Link href="/privacy" className="justify-self-start text-xs font-bold text-sky-300 underline">How Club OS handles your data</Link>
+        <Link href="/privacy" className="justify-self-start text-xs font-bold text-sky-300 underline">{t('settings.privacyLink')}</Link>
       </div>
     </CoachSection>
   );
@@ -122,15 +125,16 @@ function Message({ text, error }: { text: string | null; error?: boolean }) {
 
 /** Runs a form action and turns the outcome into one line of text. */
 function useFormResult() {
+  const t = useT();
   const [result, setResult] = useState<{ text: string; error: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
-  async function run(action: () => void | Promise<void>, success: string) {
+  async function run(action: () => void | Promise<void>, success: MessageKey) {
     setBusy(true);
     try {
       await action();
-      setResult({ text: success, error: false });
+      setResult({ text: t(success), error: false });
     } catch (caught) {
-      setResult({ text: caught instanceof Error ? caught.message : String(caught), error: true });
+      setResult({ text: errorText(t, caught), error: true });
     } finally {
       setBusy(false);
     }
@@ -139,20 +143,21 @@ function useFormResult() {
 }
 
 function NameForm({ person }: { person: Person }) {
+  const t = useT();
   const [first, setFirst] = useState(person.firstName);
   const [last, setLast] = useState(person.lastName);
   const { result, run, clear } = useFormResult();
   const dirty = first.trim() !== person.firstName || last.trim() !== person.lastName;
   return (
-    <form className="grid gap-2" onSubmit={(event) => { event.preventDefault(); void run(() => renameOwnPerson(person.id, first, last), 'Name saved.'); }}>
-      <p className={labelClass}>Your name</p>
+    <form className="grid gap-2" onSubmit={(event) => { event.preventDefault(); void run(() => renameOwnPerson(person.id, first, last), 'settings.nameSaved'); }}>
+      <p className={labelClass}>{t('settings.yourName')}</p>
       <div className="grid grid-cols-2 gap-2">
-        <input value={first} onChange={(event) => { setFirst(event.target.value); clear(); }} aria-label="First name" autoComplete="given-name" className="os-field" />
-        <input value={last} onChange={(event) => { setLast(event.target.value); clear(); }} aria-label="Last name" autoComplete="family-name" className="os-field" />
+        <input value={first} onChange={(event) => { setFirst(event.target.value); clear(); }} aria-label={t('settings.firstName')} autoComplete="given-name" className="os-field" />
+        <input value={last} onChange={(event) => { setLast(event.target.value); clear(); }} aria-label={t('settings.lastName')} autoComplete="family-name" className="os-field" />
       </div>
-      <p className="text-xs text-slate-500">As your team and club see it.</p>
+      <p className="text-xs text-slate-500">{t('settings.nameHint')}</p>
       <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" disabled={!dirty} className={quietButtonClass}>Save name</button>
+        <button type="submit" disabled={!dirty} className={quietButtonClass}>{t('settings.saveName')}</button>
         <Message text={result?.text ?? null} error={result?.error} />
       </div>
     </form>
@@ -160,6 +165,7 @@ function NameForm({ person }: { person: Person }) {
 }
 
 function EmailForm() {
+  const t = useT();
   const [current, setCurrent] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [email, setEmail] = useState('');
@@ -167,10 +173,10 @@ function EmailForm() {
   useEffect(() => { void currentAccount().then((account) => setCurrent(account?.email ?? null)); }, []);
   return (
     <div className="grid gap-2">
-      <p className={labelClass}>Email</p>
+      <p className={labelClass}>{t('settings.email')}</p>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="min-w-0 truncate text-sm font-bold text-slate-100">{current ?? '…'}</span>
-        {!editing ? <button type="button" onClick={() => { setEditing(true); clear(); }} className="text-xs font-bold text-sky-300 underline">Change email</button> : null}
+        {!editing ? <button type="button" onClick={() => { setEditing(true); clear(); }} className="text-xs font-bold text-sky-300 underline">{t('settings.changeEmail')}</button> : null}
       </div>
       {editing ? (
         <form
@@ -181,13 +187,13 @@ function EmailForm() {
               await changeEmail(email);
               setEditing(false);
               setEmail('');
-            }, 'Almost done: we sent a link to the new address. Your email changes once you open it.');
+            }, 'settings.emailSent');
           }}
         >
-          <input type="email" value={email} onChange={(event) => { setEmail(event.target.value); clear(); }} aria-label="New email address" placeholder="New email address" autoComplete="email" className="os-field" required />
+          <input type="email" value={email} onChange={(event) => { setEmail(event.target.value); clear(); }} aria-label={t('settings.newEmail')} placeholder={t('settings.newEmail')} autoComplete="email" className="os-field" required />
           <div className="flex flex-wrap gap-2">
-            <button type="submit" disabled={busy || !email.trim()} className={quietButtonClass}>{busy ? 'Sending …' : 'Send confirmation link'}</button>
-            <button type="button" onClick={() => { setEditing(false); setEmail(''); clear(); }} className="text-xs font-bold text-slate-400 underline">Cancel</button>
+            <button type="submit" disabled={busy || !email.trim()} className={quietButtonClass}>{busy ? t('settings.sending') : t('settings.sendConfirmation')}</button>
+            <button type="button" onClick={() => { setEditing(false); setEmail(''); clear(); }} className="text-xs font-bold text-slate-400 underline">{t('settings.cancel')}</button>
           </div>
         </form>
       ) : null}
@@ -197,6 +203,7 @@ function EmailForm() {
 }
 
 function PasswordForm() {
+  const t = useT();
   const [editing, setEditing] = useState(false);
   const [password, setPassword] = useState('');
   const [repeat, setRepeat] = useState('');
@@ -204,8 +211,8 @@ function PasswordForm() {
   return (
     <div className="grid gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className={labelClass}>Password</p>
-        {!editing ? <button type="button" onClick={() => { setEditing(true); clear(); }} className="text-xs font-bold text-sky-300 underline">Change password</button> : null}
+        <p className={labelClass}>{t('settings.password')}</p>
+        {!editing ? <button type="button" onClick={() => { setEditing(true); clear(); }} className="text-xs font-bold text-sky-300 underline">{t('settings.changePassword')}</button> : null}
       </div>
       {editing ? (
         <form
@@ -213,20 +220,20 @@ function PasswordForm() {
           onSubmit={(event) => {
             event.preventDefault();
             void run(async () => {
-              if (password.length < 8) throw new Error('Use at least 8 characters.');
-              if (password !== repeat) throw new Error('The two passwords are not the same.');
+              if (password.length < 8) throw new Error(t('settings.passwordTooShort'));
+              if (password !== repeat) throw new Error(t('settings.passwordMismatch'));
               await updatePassword(password);
               setEditing(false);
               setPassword('');
               setRepeat('');
-            }, 'Password changed.');
+            }, 'settings.passwordChanged');
           }}
         >
-          <input type="password" value={password} onChange={(event) => { setPassword(event.target.value); clear(); }} aria-label="New password" placeholder="New password (at least 8 characters)" autoComplete="new-password" className="os-field" />
-          <input type="password" value={repeat} onChange={(event) => { setRepeat(event.target.value); clear(); }} aria-label="Repeat new password" placeholder="Repeat new password" autoComplete="new-password" className="os-field" />
+          <input type="password" value={password} onChange={(event) => { setPassword(event.target.value); clear(); }} aria-label={t('settings.newPassword')} placeholder={t('settings.newPasswordPlaceholder')} autoComplete="new-password" className="os-field" />
+          <input type="password" value={repeat} onChange={(event) => { setRepeat(event.target.value); clear(); }} aria-label={t('settings.repeatPassword')} placeholder={t('settings.repeatPassword')} autoComplete="new-password" className="os-field" />
           <div className="flex flex-wrap gap-2">
-            <button type="submit" disabled={busy || !password} className={quietButtonClass}>{busy ? 'Saving …' : 'Save password'}</button>
-            <button type="button" onClick={() => { setEditing(false); setPassword(''); setRepeat(''); clear(); }} className="text-xs font-bold text-slate-400 underline">Cancel</button>
+            <button type="submit" disabled={busy || !password} className={quietButtonClass}>{busy ? t('settings.saving') : t('settings.savePassword')}</button>
+            <button type="button" onClick={() => { setEditing(false); setPassword(''); setRepeat(''); clear(); }} className="text-xs font-bold text-slate-400 underline">{t('settings.cancel')}</button>
           </div>
         </form>
       ) : null}
@@ -236,6 +243,7 @@ function PasswordForm() {
 }
 
 function SignOutButtons() {
+  const t = useT();
   const [confirmAll, setConfirmAll] = useState(false);
   const [busy, setBusy] = useState(false);
   const { pending } = useBackendStatus();
@@ -250,12 +258,12 @@ function SignOutButtons() {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-800 pt-4">
       <SignOutButton className={quietButtonClass} />
-      <button type="button" disabled={busy} onClick={() => setConfirmAll(true)} className="text-xs font-bold text-slate-400 underline">Sign out on all devices</button>
+      <button type="button" disabled={busy} onClick={() => setConfirmAll(true)} className="text-xs font-bold text-slate-400 underline">{t('settings.signOutAll')}</button>
       <AppConfirmDialog
         isOpen={confirmAll}
-        title="Sign out on all devices?"
-        description={`Every phone and computer signed in to your account is signed out, this one too. Useful if you lost a phone.${pending > 0 ? ` ${plural(pending, 'change')} on this device not sent yet will be lost.` : ''}`}
-        confirmLabel="Sign out everywhere"
+        title={t('settings.signOutAllTitle')}
+        description={pending > 0 ? `${t('settings.signOutAllDetail')} ${t('settings.signOutAllPending', { count: pending })}` : t('settings.signOutAllDetail')}
+        confirmLabel={t('settings.signOutEverywhere')}
         tone="danger"
         isConfirming={busy}
         onCancel={() => setConfirmAll(false)}
@@ -267,6 +275,7 @@ function SignOutButtons() {
 
 /** Deleting the account: everything about the person goes, on the server and this device. */
 function DeleteAccount() {
+  const t = useT();
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -277,20 +286,20 @@ function DeleteAccount() {
       await deleteMyAccount();
       window.location.assign('/');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(errorText(t, caught));
       setConfirm(false);
       setBusy(false);
     }
   }
   return (
     <div className="grid gap-2 border-t border-slate-800 pt-4">
-      <button type="button" disabled={busy} onClick={() => setConfirm(true)} className="justify-self-start text-xs font-bold text-red-300 underline">Delete account</button>
+      <button type="button" disabled={busy} onClick={() => setConfirm(true)} className="justify-self-start text-xs font-bold text-red-300 underline">{t('settings.deleteAccount')}</button>
       {error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null}
       <AppConfirmDialog
         isOpen={confirm}
-        title="Delete your account?"
-        description="This deletes your account and everything about you in the club: your teams, answers, training load, absences, own training, settings, calendar link and Apple Calendar connection. It cannot be undone. Messages you wrote to a team stay, without your name."
-        confirmLabel="Delete for good"
+        title={t('settings.deleteAccountTitle')}
+        description={t('settings.deleteAccountDetail')}
+        confirmLabel={t('settings.deleteForGood')}
         tone="danger"
         isConfirming={busy}
         onCancel={() => setConfirm(false)}
@@ -304,32 +313,34 @@ function DeleteAccount() {
 // Notifications
 // ---------------------------------------------------------------------------
 
-type KindOption = { kinds: MutablePushKind[]; label: string; detail: string };
+type KindOption = { kinds: MutablePushKind[]; label: MessageKey; detail: MessageKey };
 
 const PLAYER_KINDS: KindOption[] = [
-  { kinds: ['changed', 'cancelled'], label: 'Session changed or cancelled', detail: 'When the time or hall changes, or a session is called off.' },
-  { kinds: ['reminder'], label: '“Are you in?”', detail: 'The day before, if you have not answered yet.' },
-  { kinds: ['review'], label: 'Please check an entry', detail: 'When a coach asks you to check a load entry.' },
-  { kinds: ['message'], label: 'Team messages', detail: 'Announcements from your coaches. Important ones always come through.' },
+  { kinds: ['changed', 'cancelled'], label: 'settings.kind.changed', detail: 'settings.kind.changedDetail' },
+  { kinds: ['reminder'], label: 'settings.kind.reminder', detail: 'settings.kind.reminderDetail' },
+  { kinds: ['review'], label: 'settings.kind.review', detail: 'settings.kind.reviewDetail' },
+  { kinds: ['message'], label: 'settings.kind.message', detail: 'settings.kind.messageDetail' },
 ];
 const COACH_KINDS: KindOption[] = [
-  { kinds: ['summary'], label: 'Who is coming', detail: '2 hours before a session: in, late, out, no answer.' },
-  { kinds: ['joined'], label: 'New players', detail: 'When someone joins your team with the team code, so you can remove anyone you don’t know.' },
+  { kinds: ['summary'], label: 'settings.kind.summary', detail: 'settings.kind.summaryDetail' },
+  { kinds: ['joined'], label: 'settings.kind.joined', detail: 'settings.kind.joinedDetail' },
 ];
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 const hourLabel = (hour: number) => `${String(hour).padStart(2, '0')}:00`;
 
 function NotificationSection({ database }: { database: LocalDatabase }) {
+  const t = useT();
   const [saved, setSaved] = useState<NotificationSettings | null>(null);
   const [draft, setDraft] = useState<NotificationSettings>(DEFAULT_NOTIFICATION_SETTINGS);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  // Kept as caught, turned into text while rendering (docs/i18n.md, rule 9).
+  const [loadError, setLoadError] = useState<unknown>(null);
   const { result, busy, run, clear } = useFormResult();
 
   useEffect(() => {
     getNotificationSettings()
       .then((settings) => { setSaved(settings); setDraft(settings); })
-      .catch((caught) => setLoadError(caught instanceof Error ? caught.message : String(caught)));
+      .catch((caught: unknown) => setLoadError(caught ?? new Error('unknown')));
   }, []);
 
   // Settings are per account; show what concerns any of your roles.
@@ -352,31 +363,31 @@ function NotificationSection({ database }: { database: LocalDatabase }) {
   const dirty = saved !== null && JSON.stringify({ ...saved, mutedKinds: [...saved.mutedKinds].sort() }) !== JSON.stringify({ ...draft, mutedKinds: [...draft.mutedKinds].sort() });
 
   return (
-    <CoachSection title="Notifications" description="Which messages you get on your phone, and when not.">
-      {loadError ? <Message text={loadError} error /> : saved === null ? <p className="text-sm text-slate-400">Loading …</p> : (
+    <CoachSection title={t('settings.notifications')} description={t('settings.notificationsDetail')}>
+      {loadError ? <Message text={errorText(t, loadError)} error /> : saved === null ? <p className="text-sm text-slate-400">{t('settings.loading')}</p> : (
         <div className="grid gap-5">
           <div className="grid gap-2">
             {options.map((option) => (
-              <Switch key={option.label} label={option.label} detail={option.detail} checked={isOn(option)} onChange={() => toggle(option)} />
+              <Switch key={option.label} label={t(option.label)} detail={t(option.detail)} checked={isOn(option)} onChange={() => toggle(option)} />
             ))}
-            {isPlayer ? <Switch label="“How hard was it?”" detail="Right after each session. Always on: your load depends on it." checked disabled onChange={() => undefined} /> : null}
+            {isPlayer ? <Switch label={t('settings.kind.rpe')} detail={t('settings.kind.rpeDetail')} checked disabled onChange={() => undefined} /> : null}
           </div>
 
           <div className="grid gap-2">
             <Switch
-              label="Quiet hours"
-              detail="Messages wait until the end. “How hard was it?” still comes right away."
+              label={t('settings.quietHours')}
+              detail={t('settings.quietHoursDetail')}
               checked={quiet}
               onChange={() => { clear(); setDraft((current) => quiet ? { ...current, quietFrom: null, quietTo: null } : { ...current, quietFrom: 22, quietTo: 7 }); }}
             />
             {quiet ? (
               <div className="flex flex-wrap items-center gap-2 pl-1 text-sm font-bold text-slate-300">
-                <label className="flex items-center gap-2">From
+                <label className="flex items-center gap-2">{t('settings.quietFrom')}
                   <select value={draft.quietFrom ?? 22} onChange={(event) => { clear(); setDraft((current) => ({ ...current, quietFrom: Number(event.target.value) })); }} className="os-field w-auto py-1.5">
                     {HOURS.map((hour) => <option key={hour} value={hour}>{hourLabel(hour)}</option>)}
                   </select>
                 </label>
-                <label className="flex items-center gap-2">to
+                <label className="flex items-center gap-2">{t('settings.quietTo')}
                   <select value={draft.quietTo ?? 7} onChange={(event) => { clear(); setDraft((current) => ({ ...current, quietTo: Number(event.target.value) })); }} className="os-field w-auto py-1.5">
                     {HOURS.map((hour) => <option key={hour} value={hour}>{hourLabel(hour)}</option>)}
                   </select>
@@ -389,10 +400,10 @@ function NotificationSection({ database }: { database: LocalDatabase }) {
             <button
               type="button"
               disabled={!dirty || busy}
-              onClick={() => void run(async () => { await saveNotificationSettings(draft); setSaved(draft); }, 'Saved.')}
+              onClick={() => void run(async () => { await saveNotificationSettings(draft); setSaved(draft); }, 'settings.saved')}
               className={quietButtonClass}
             >
-              {busy ? 'Saving …' : 'Save notifications'}
+              {busy ? t('settings.saving') : t('settings.saveNotifications')}
             </button>
             <Message text={result?.text ?? null} error={result?.error} />
           </div>
@@ -452,29 +463,30 @@ function departmentName(database: LocalDatabase, departmentId: string) {
 }
 
 function PlayerTeamsSection({ database, person }: { database: LocalDatabase; person: Person }) {
+  const t = useT();
   const [leaving, setLeaving] = useState<{ id: string; name: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const teams = teamsOf(database, person.id, 'athlete');
   return (
-    <CoachSection title="Your teams">
+    <CoachSection title={t('settings.yourTeams')}>
       <div className="grid gap-3">
-        {teams.length === 0 ? <p className="text-sm text-slate-400">You are in no team right now.</p> : (
+        {teams.length === 0 ? <p className="text-sm text-slate-400">{t('settings.noPlayerTeams')}</p> : (
           <ul className="grid gap-2">
             {teams.map(({ team }) => (
               <TeamRow key={team.id} name={team.name} detail={departmentName(database, team.departmentId)}>
-                <button type="button" onClick={() => { setError(null); setLeaving({ id: team.id, name: team.name }); }} className="text-xs font-bold text-slate-400 underline">Leave team</button>
+                <button type="button" onClick={() => { setError(null); setLeaving({ id: team.id, name: team.name }); }} className="text-xs font-bold text-slate-400 underline">{t('settings.leaveTeam')}</button>
               </TeamRow>
             ))}
           </ul>
         )}
         <Message text={error} error />
-        <Link href="/join" className="justify-self-start text-xs font-bold text-sky-300 underline">Join another team with a code</Link>
+        <Link href="/join" className="justify-self-start text-xs font-bold text-sky-300 underline">{t('settings.joinAnother')}</Link>
       </div>
       <AppConfirmDialog
         isOpen={leaving !== null}
-        title={`Leave ${leaving?.name ?? ''}?`}
-        description="You no longer see its sessions and its coaches no longer see you. Your past answers and load entries stay yours. You can join again with the team's code."
-        confirmLabel="Leave team"
+        title={t('settings.leaveTitle', { name: leaving?.name ?? '' })}
+        description={t('settings.leaveDetail')}
+        confirmLabel={t('settings.leaveTeam')}
         tone="danger"
         onCancel={() => setLeaving(null)}
         onConfirm={() => {
@@ -484,7 +496,7 @@ function PlayerTeamsSection({ database, person }: { database: LocalDatabase; per
             // No team left: nothing to act as here any more.
             if (teams.length === 1) window.location.assign('/');
           } catch (caught) {
-            setError(caught instanceof Error ? caught.message : String(caught));
+            setError(errorText(t, caught));
           }
           setLeaving(null);
         }}
@@ -494,15 +506,19 @@ function PlayerTeamsSection({ database, person }: { database: LocalDatabase; per
 }
 
 function CoachTeamsSection({ database, person }: { database: LocalDatabase; person: Person }) {
+  const t = useT();
   const teams = teamsOf(database, person.id, 'coach');
-  const roleName = (coachRoleId: string | null) => database.coachRoles.find((role) => role.id === coachRoleId)?.name ?? 'Coach';
+  const roleName = (coachRoleId: string | null) => {
+    const role = database.coachRoles.find((candidate) => candidate.id === coachRoleId);
+    return role ? displayRoleName(role.name) : t('settings.coachRoleFallback');
+  };
   return (
-    <CoachSection title="Your teams" description="Join code, default hall, staff and what each role may see.">
-      {teams.length === 0 ? <p className="text-sm text-slate-400">You coach no team right now.</p> : (
+    <CoachSection title={t('settings.yourTeams')} description={t('settings.coachTeamsDetail')}>
+      {teams.length === 0 ? <p className="text-sm text-slate-400">{t('settings.noCoachTeams')}</p> : (
         <ul className="grid gap-2">
           {teams.map(({ team, membership }) => (
             <TeamRow key={team.id} name={team.name} detail={`${departmentName(database, team.departmentId)} · ${roleName(membership.coachRoleId)}`}>
-              <Link href={`/coach/team?teamId=${team.id}&section=settings`} className="text-xs font-bold text-sky-300 underline">Team settings</Link>
+              <Link href={`/coach/team?teamId=${team.id}&section=settings`} className="text-xs font-bold text-sky-300 underline">{t('settings.teamSettings')}</Link>
             </TeamRow>
           ))}
         </ul>
@@ -512,26 +528,27 @@ function CoachTeamsSection({ database, person }: { database: LocalDatabase; pers
 }
 
 function ClubSection({ database, person }: { database: LocalDatabase; person: Person }) {
+  const t = useT();
   const admin = isClubAdmin(database, person.id);
   const [name, setName] = useState(database.club.name);
   const { result, run, clear } = useFormResult();
   return (
-    <CoachSection title="Club" description={clubRoleLabel(database, person.id)}>
+    <CoachSection title={t('settings.club')} description={clubRoleText(database, person.id)}>
       <div className="grid gap-4">
         {admin ? (
-          <form className="grid gap-2" onSubmit={(event) => { event.preventDefault(); void run(() => renameClub(name), 'Club name saved.'); }}>
-            <p className={labelClass}>Club name</p>
-            <input value={name} onChange={(event) => { setName(event.target.value); clear(); }} maxLength={80} aria-label="Club name" className="os-field" />
+          <form className="grid gap-2" onSubmit={(event) => { event.preventDefault(); void run(() => renameClub(name), 'settings.clubNameSaved'); }}>
+            <p className={labelClass}>{t('settings.clubName')}</p>
+            <input value={name} onChange={(event) => { setName(event.target.value); clear(); }} maxLength={80} aria-label={t('settings.clubName')} className="os-field" />
             <div className="flex flex-wrap items-center gap-3">
-              <button type="submit" disabled={name.trim() === database.club.name || !name.trim()} className={quietButtonClass}>Save club name</button>
+              <button type="submit" disabled={name.trim() === database.club.name || !name.trim()} className={quietButtonClass}>{t('settings.saveClubName')}</button>
               <Message text={result?.text ?? null} error={result?.error} />
             </div>
           </form>
         ) : null}
         <div className="grid gap-1 text-sm text-slate-300">
-          <p>Departments, teams, leads and admins are managed in the club area.</p>
-          {admin ? <p className="text-xs text-slate-400">To hand over the admin role: add the new admin under Club admins, send them their link, and once they have joined, remove yourself.</p> : null}
-          <Link href="/club" className="mt-1 justify-self-start text-xs font-bold text-sky-300 underline">Open the club area</Link>
+          <p>{t('settings.clubAreaNote')}</p>
+          {admin ? <p className="text-xs text-slate-400">{t('settings.handOver')}</p> : null}
+          <Link href="/club" className="mt-1 justify-self-start text-xs font-bold text-sky-300 underline">{t('settings.openClubArea')}</Link>
         </div>
       </div>
     </CoachSection>

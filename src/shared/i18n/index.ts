@@ -54,8 +54,13 @@ export function useT(): Translate {
  * data layer gave one (`LocalDataError.messageKey`), else its message.
  */
 export function errorText(t: Translate, caught: unknown): string {
-  const key = caught && typeof caught === 'object' && 'messageKey' in caught ? (caught as { messageKey?: unknown }).messageKey : undefined;
-  if (typeof key === 'string' && isMessageKey(key)) return t(key);
+  const { messageKey: key, messageParams } = caught && typeof caught === 'object' ? (caught as { messageKey?: unknown; messageParams?: MessageParams }) : {};
+  if (typeof key === 'string' && isMessageKey(key)) {
+    if (!messageParams) return t(key);
+    // A param may name a text of its own (`{message}` in `data.withDetail`).
+    const params = Object.fromEntries(Object.entries(messageParams).map(([name, value]) => [name, typeof value === 'string' && isMessageKey(value) ? t(value) : value]));
+    return t(key, params);
+  }
   return caught instanceof Error ? caught.message : String(caught);
 }
 

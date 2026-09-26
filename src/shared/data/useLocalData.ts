@@ -25,10 +25,10 @@ type LocalDataState = {
 };
 
 /** What the pages show instead of data while the server has none for this person. */
-const BACKEND_MESSAGES: Partial<Record<BackendStatus['phase'], string>> = {
-  signedOut: 'Not signed in.',
-  unlinked: 'Your account is not part of a team yet.',
-  error: 'Could not load the data from the server.',
+const BACKEND_MESSAGES: Partial<Record<BackendStatus['phase'], { text: string; key: string }>> = {
+  signedOut: { text: 'Not signed in.', key: 'data.signedOut' },
+  unlinked: { text: 'Your account is not part of a team yet.', key: 'data.unlinked' },
+  error: { text: 'Could not load the data from the server.', key: 'data.loadFailed' },
 };
 
 export function useLocalDatabase(): LocalDataState {
@@ -44,7 +44,10 @@ export function useLocalDatabase(): LocalDataState {
       }
       const message = BACKEND_MESSAGES[backend.phase];
       if (message) {
-        setState({ database: null, error: new LocalDataError(backend.error ? `${message} (${backend.error})` : message), ready: true });
+        const error = backend.error
+          ? new LocalDataError(`${message.text} (${backend.error})`, undefined, 'data.withDetail', { message: message.key, detail: backend.error })
+          : new LocalDataError(message.text, undefined, message.key);
+        setState({ database: null, error, ready: true });
         return;
       }
       setState({ database, error: null, ready: true });
@@ -53,7 +56,7 @@ export function useLocalDatabase(): LocalDataState {
       // empty club.
       setState({
         database: null,
-        error: error instanceof LocalDataError ? error : new LocalDataError('Could not read the local database.', error),
+        error: error instanceof LocalDataError ? error : new LocalDataError('Could not read the local database.', error, 'data.readFailed'),
         ready: true,
       });
     }

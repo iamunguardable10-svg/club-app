@@ -30,7 +30,7 @@ import {
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { CoachShell } from '@/features/role-workspaces/RoleShell';
 import { missedLabel, buildCoachData } from '@/features/role-workspaces/coachData';
-import { useT } from '@/shared/i18n';
+import { errorText, useT } from '@/shared/i18n';
 import { awayUntilLabel } from '@/features/absences/absenceText';
 import { loadAccessFor } from '@/features/load/loadAccess';
 import { TeamStaffPanel } from '@/features/teams/TeamStaffPanel';
@@ -312,7 +312,7 @@ export function TeamWorkspace({
   }
 
   if (error) {
-    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-red-500/40 bg-red-950/30 p-6 text-red-100">{error.message}</section></div></main>;
+    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-red-500/40 bg-red-950/30 p-6 text-red-100">{errorText(t, error)}</section></div></main>;
   }
 
   if (!data) {

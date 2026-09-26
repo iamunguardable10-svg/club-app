@@ -21,9 +21,12 @@ import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { ShareLink } from '@/features/onboarding/ShareLink';
 import { ClubShell, CoachSection } from '@/features/role-workspaces/RoleShell';
 import { TeamStaffPanel } from '@/features/teams/TeamStaffPanel';
+import { displayRoleName } from '@/features/teams/roleLabels';
+import { clubRoleText } from '@/features/club/clubRoleText';
+import { formatShortDate } from '@/shared/format';
+import { errorText, useT } from '@/shared/i18n';
 import {
   addClubRolePerson,
-  clubRoleLabel,
   clubRolesOf,
   coachRolesForTeam,
   createClubRoleInvite,
@@ -69,6 +72,7 @@ function Badge({ children, tone = 'default' }: { children: React.ReactNode; tone
 
 /** A name field and a button, for renaming in place. */
 function RenameForm({ label, current, onSave }: { label: string; current: string; onSave: (name: string) => boolean }) {
+  const t = useT();
   const [name, setName] = useState(current);
   return (
     <form
@@ -76,13 +80,14 @@ function RenameForm({ label, current, onSave }: { label: string; current: string
       onSubmit={(event) => { event.preventDefault(); onSave(name); }}
     >
       <input value={name} onChange={(event) => setName(event.target.value)} aria-label={label} className={`${inputClass} flex-1`} />
-      <button type="submit" disabled={name.trim() === current || !name.trim()} className={`${smallButtonClass} border-slate-700 text-slate-200`}>Rename</button>
+      <button type="submit" disabled={name.trim() === current || !name.trim()} className={`${smallButtonClass} border-slate-700 text-slate-200`}>{t('club.rename')}</button>
     </form>
   );
 }
 
 /** First and last name, then one button: adds someone before they have an account. */
 function AddPersonForm({ submitLabel, onAdd }: { submitLabel: string; onAdd: (firstName: string, lastName: string) => boolean }) {
+  const t = useT();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   return (
@@ -93,8 +98,8 @@ function AddPersonForm({ submitLabel, onAdd }: { submitLabel: string; onAdd: (fi
         if (onAdd(firstName, lastName)) { setFirstName(''); setLastName(''); }
       }}
     >
-      <input value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="First name" aria-label="First name" className={inputClass} />
-      <input value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="Last name" aria-label="Last name" className={inputClass} />
+      <input value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder={t('club.firstName')} aria-label={t('club.firstName')} className={inputClass} />
+      <input value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder={t('club.lastName')} aria-label={t('club.lastName')} className={inputClass} />
       <button type="submit" className={`${smallButtonClass} border-sky-500/50 text-sky-100 hover:bg-sky-950/35`}>{submitLabel}</button>
     </form>
   );
@@ -102,25 +107,26 @@ function AddPersonForm({ submitLabel, onAdd }: { submitLabel: string; onAdd: (fi
 
 /** Account status of a club role holder, with their invitation link (server only). */
 function RoleHolderAccess({ database, clubRole, onRun }: { database: LocalDatabase; clubRole: ClubRole; onRun: Run }) {
+  const t = useT();
   const person = database.people.find((candidate) => candidate.id === clubRole.personId);
   if (!person) return null;
-  if (person.userId) return <p className="text-[11px] font-bold text-emerald-300">Account connected</p>;
+  if (person.userId) return <p className="text-[11px] font-bold text-emerald-300">{t('staff.accountConnected')}</p>;
   // Links only work with the club server; in the demo club nobody signs in.
-  if (!isRemoteMode()) return <p className="text-[11px] font-bold text-slate-500">No account (demo club)</p>;
+  if (!isRemoteMode()) return <p className="text-[11px] font-bold text-slate-500">{t('club.noAccountDemo')}</p>;
   const invite = openClubRoleInviteFor(database, clubRole.id);
   if (!invite) {
     return (
       <button type="button" onClick={() => onRun(() => { createClubRoleInvite(clubRole.id); })} className={`${smallButtonClass} justify-self-start border-sky-500/50 text-sky-100`}>
-        Create invitation link
+        {t('staff.createInvite')}
       </button>
     );
   }
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
   return (
     <div className="grid gap-1">
-      <p className="text-[11px] font-bold text-amber-200">Invited, not accepted yet · valid until {new Date(invite.expiresAt).toLocaleDateString('en-GB')}</p>
-      <ShareLink label={`Invitation link for ${displayName(person)}`} url={`${origin}/join?invite=${invite.token}`} shareText={`${person.firstName}, your invitation to Club OS`} />
-      <button type="button" onClick={() => onRun(() => revokeClubRoleInvite(invite.token))} className="justify-self-start text-[11px] font-bold text-slate-400 underline">Revoke link</button>
+      <p className="text-[11px] font-bold text-amber-200">{t('staff.invitedUntil', { date: formatShortDate(invite.expiresAt) })}</p>
+      <ShareLink label={t('staff.inviteLinkLabel', { name: displayName(person) })} url={`${origin}/join?invite=${invite.token}`} shareText={t('staff.inviteShareText', { name: person.firstName })} />
+      <button type="button" onClick={() => onRun(() => revokeClubRoleInvite(invite.token))} className="justify-self-start text-[11px] font-bold text-slate-400 underline">{t('staff.revokeLink')}</button>
     </div>
   );
 }
@@ -141,28 +147,28 @@ function RoleHolders({
   selfId: Id;
   onRun: Run;
 }) {
+  const t = useT();
   const [confirmRemove, setConfirmRemove] = useState<ClubRole | null>(null);
   const [adding, setAdding] = useState(false);
   const holders = database.clubRoles.filter((clubRole) => clubRole.role === role && clubRole.departmentId === departmentId);
   const nameOf = (clubRole: ClubRole) => {
     const person = database.people.find((candidate) => candidate.id === clubRole.personId);
-    return person ? displayName(person) : 'Unknown';
+    return person ? displayName(person) : t('club.unknown');
   };
-  const what = role === 'admin' ? 'club admin' : 'department lead';
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
-      {holders.length === 0 ? <p className="text-sm font-bold text-amber-200">No {what} yet.</p> : null}
+      {holders.length === 0 ? <p className="text-sm font-bold text-amber-200">{t(role === 'admin' ? 'club.noAdmin' : 'club.noLead')}</p> : null}
       {holders.map((clubRole) => (
         <div key={clubRole.id} className="grid gap-2 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
           <div className="flex items-center justify-between gap-2">
             <p className="min-w-0 truncate text-sm font-black text-slate-100">
               {nameOf(clubRole)}
-              {clubRole.personId === selfId ? <span className="ml-2 text-xs font-bold text-slate-500">you</span> : null}
+              {clubRole.personId === selfId ? <span className="ml-2 text-xs font-bold text-slate-500">{t('club.you')}</span> : null}
             </p>
             {canManage ? (
               <button type="button" onClick={() => setConfirmRemove(clubRole)} className="shrink-0 text-xs font-bold text-slate-400 underline">
-                Remove
+                {t('club.remove')}
               </button>
             ) : null}
           </div>
@@ -171,12 +177,12 @@ function RoleHolders({
       ))}
       {canManage && holders.length > 0 && !adding ? (
         <button type="button" onClick={() => setAdding(true)} className="justify-self-start text-xs font-bold text-sky-300 underline">
-          {role === 'admin' ? 'Add another admin' : 'Add another lead'}
+          {role === 'admin' ? t('club.addAnotherAdmin') : t('club.addAnotherLead')}
         </button>
       ) : null}
       {canManage && (holders.length === 0 || adding) ? (
         <AddPersonForm
-          submitLabel={role === 'admin' ? 'Add admin' : 'Add lead'}
+          submitLabel={role === 'admin' ? t('club.addAdmin') : t('club.addLead')}
           onAdd={(firstName, lastName) => onRun(() => {
             const clubRoleId = addClubRolePerson({ firstName, lastName, role, departmentId });
             // With the server the link is what they need next; create it right away.
@@ -187,11 +193,11 @@ function RoleHolders({
       ) : null}
       <AppConfirmDialog
         isOpen={confirmRemove !== null}
-        title={`Remove ${confirmRemove ? nameOf(confirmRemove) : ''} as ${what}?`}
+        title={t(role === 'admin' ? 'club.removeAdminTitle' : 'club.removeLeadTitle', { name: confirmRemove ? nameOf(confirmRemove) : '' })}
         description={confirmRemove?.personId === selfId
-          ? 'You lose this role yourself. Your other roles stay.'
-          : 'They lose the rights of this role. Their other roles, if any, stay.'}
-        confirmLabel="Remove"
+          ? t('club.removeSelf')
+          : t('club.removeOther')}
+        confirmLabel={t('club.remove')}
         tone="danger"
         onCancel={() => setConfirmRemove(null)}
         onConfirm={() => {
@@ -232,6 +238,7 @@ function TeamCard({
   onToggle: () => void;
   onRun: Run;
 }) {
+  const t = useT();
   const [confirmArchive, setConfirmArchive] = useState(false);
   const staff = staffSummary(database, team);
   const hasHeadCoach = staff.some((entry) => entry.role?.locked);
@@ -242,34 +249,37 @@ function TeamCard({
         <span className="min-w-0">
           <span className="flex flex-wrap items-center gap-2">
             <span className="min-w-0 truncate text-sm font-black text-white">{team.name}</span>
-            {teamHasFeature(database, team.id, 'load') ? <Badge tone="emerald">Load</Badge> : null}
-            {!hasHeadCoach ? <Badge tone="amber">No Head Coach</Badge> : null}
+            {teamHasFeature(database, team.id, 'load') ? <Badge tone="emerald">{t('club.badge.load')}</Badge> : null}
+            {!hasHeadCoach ? <Badge tone="amber">{t('club.badge.noHeadCoach')}</Badge> : null}
           </span>
           <span className="mt-1 block text-xs text-slate-400">
             {staff.length === 0
-              ? 'No staff yet'
-              : staff.map((entry) => `${displayName(entry.person)}${entry.role ? ` (${entry.role.name})` : ''}${entry.invited ? ' · invited' : ''}`).join(', ')}
+              ? t('club.noStaff')
+              : staff.map((entry) => {
+                  const name = entry.role ? t('club.staffWithRole', { name: displayName(entry.person), role: displayRoleName(entry.role.name) }) : displayName(entry.person);
+                  return entry.invited ? t('club.staffInvited', { name }) : name;
+                }).join(', ')}
           </span>
         </span>
         <span aria-hidden className="shrink-0 text-lg font-black text-slate-500">{open ? '−' : '+'}</span>
       </button>
       {open ? (
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4 border-t border-slate-800 p-4">
-          <RenameForm label={`Name of team ${team.name}`} current={team.name} onSave={(name) => onRun(() => renameTeam(team.id, name))} />
+          <RenameForm label={t('club.teamName', { name: team.name })} current={team.name} onSave={(name) => onRun(() => renameTeam(team.id, name))} />
           {!hasHeadCoach ? (
             <p className="rounded-xl border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs font-bold text-amber-100">
-              Add the Head Coach by name below{isRemoteMode() ? ', then create and send their invitation link' : ''}. The Head Coach builds the rest of the staff and invites the players.
+              {isRemoteMode() ? t('club.addHeadCoachServer') : t('club.addHeadCoach')}
             </p>
           ) : null}
           <TeamStaffPanel database={database} teamId={team.id} canManage={hasCoachPermission(database, personId, team.id, 'manageStaff')} />
           <button type="button" onClick={() => setConfirmArchive(true)} className="justify-self-start text-xs font-bold text-slate-400 underline">
-            Archive team
+            {t('club.archiveTeam')}
           </button>
           <AppConfirmDialog
             isOpen={confirmArchive}
-            title={`Archive ${team.name}?`}
-            description="The team leaves every list and its join code stops working. Sessions, players and history are kept; you can restore it here any time."
-            confirmLabel="Archive"
+            title={t('club.archiveTitle', { name: team.name })}
+            description={t('club.archiveDetail')}
+            confirmLabel={t('club.archive')}
             tone="danger"
             onCancel={() => setConfirmArchive(false)}
             onConfirm={() => { onRun(() => setTeamArchived(team.id, true)); setConfirmArchive(false); }}
@@ -293,6 +303,7 @@ function DepartmentSection({
   admin: boolean;
   onRun: Run;
 }) {
+  const t = useT();
   const [openTeamId, setOpenTeamId] = useState<Id | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -305,31 +316,31 @@ function DepartmentSection({
   return (
     <CoachSection
       title={department.name}
-      description={`${active.length === 1 ? '1 team' : `${active.length} teams`}`}
+      description={t('club.teamCount', { count: active.length })}
       actions={admin ? (
         <button type="button" onClick={() => setEditing((value) => !value)} aria-expanded={editing} className={`${smallButtonClass} border-slate-700 text-slate-200`}>
-          {editing ? 'Done' : 'Department settings'}
+          {editing ? t('club.done') : t('club.departmentSettings')}
         </button>
       ) : null}
     >
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
         {editing ? (
           <div className="grid gap-3">
-            <RenameForm label={`Name of department ${department.name}`} current={department.name} onSave={(name) => onRun(() => renameDepartment(department.id, name))} />
+            <RenameForm label={t('club.departmentName', { name: department.name })} current={department.name} onSave={(name) => onRun(() => renameDepartment(department.id, name))} />
             {teams.length === 0 ? (
               <button type="button" onClick={() => setConfirmDelete(true)} className="justify-self-start text-xs font-bold text-red-300 underline">
-                Delete department
+                {t('club.deleteDepartment')}
               </button>
             ) : (
-              <p className="text-xs text-slate-500">A department can be deleted once it has no teams, archived ones included.</p>
+              <p className="text-xs text-slate-500">{t('club.deleteDepartmentHint')}</p>
             )}
           </div>
         ) : null}
         <AppConfirmDialog
           isOpen={confirmDelete}
-          title={`Delete ${department.name}?`}
-          description="The department and its leads' role go. Halls shared with it stay in the club."
-          confirmLabel="Delete department"
+          title={t('club.deleteDepartmentTitle', { name: department.name })}
+          description={t('club.deleteDepartmentDetail')}
+          confirmLabel={t('club.deleteDepartment')}
           tone="danger"
           onCancel={() => setConfirmDelete(false)}
           onConfirm={() => {
@@ -339,13 +350,13 @@ function DepartmentSection({
         />
 
         <div className="grid gap-2">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Department lead</p>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('club.departmentLead')}</p>
           <RoleHolders database={database} role="department_lead" departmentId={department.id} canManage={admin} selfId={personId} onRun={onRun} />
         </div>
 
         <div className="grid gap-2">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Teams</p>
-          {active.length === 0 ? <p className="text-sm text-slate-400">No teams yet.</p> : null}
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('club.teams')}</p>
+          {active.length === 0 ? <p className="text-sm text-slate-400">{t('club.noTeams')}</p> : null}
           <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
             {active.map((team) => (
               <TeamCard
@@ -370,13 +381,13 @@ function DepartmentSection({
               }
             }}
           >
-            <input value={newTeam} onChange={(event) => setNewTeam(event.target.value)} placeholder="New team, e.g. U14" aria-label={`New team in ${department.name}`} className={`${inputClass} flex-1`} />
-            <button type="submit" disabled={!newTeam.trim()} className={`${smallButtonClass} border-sky-500/50 text-sky-100 hover:bg-sky-950/35`}>Add team</button>
+            <input value={newTeam} onChange={(event) => setNewTeam(event.target.value)} placeholder={t('club.newTeamPlaceholder')} aria-label={t('club.newTeamIn', { name: department.name })} className={`${inputClass} flex-1`} />
+            <button type="submit" disabled={!newTeam.trim()} className={`${smallButtonClass} border-sky-500/50 text-sky-100 hover:bg-sky-950/35`}>{t('club.addTeam')}</button>
           </form>
           {archived.length > 0 ? (
             <div className="grid gap-2">
               <button type="button" onClick={() => setShowArchived((value) => !value)} aria-expanded={showArchived} className="justify-self-start text-xs font-bold text-slate-400 underline">
-                {showArchived ? 'Hide archived teams' : `Archived teams (${archived.length})`}
+                {showArchived ? t('club.hideArchived') : t('club.showArchived', { count: archived.length })}
               </button>
               {showArchived ? (
                 <ul className="grid gap-2">
@@ -384,7 +395,7 @@ function DepartmentSection({
                     <li key={team.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 px-3 py-2">
                       <span className="min-w-0 truncate text-sm font-bold text-slate-400">{team.name}</span>
                       <button type="button" onClick={() => onRun(() => setTeamArchived(team.id, false))} className={`${smallButtonClass} border-slate-700 text-slate-200`}>
-                        Restore
+                        {t('club.restore')}
                       </button>
                     </li>
                   ))}
@@ -399,6 +410,7 @@ function DepartmentSection({
 }
 
 export function ClubOverview() {
+  const t = useT();
   const { database, error } = useLocalDatabase();
   const person = database ? getActivePerson(database) : null;
   const [actionError, setActionError] = useState<string | null>(null);
@@ -410,26 +422,26 @@ export function ClubOverview() {
       setActionError(null);
       return true;
     } catch (caught) {
-      setActionError(caught instanceof Error ? caught.message : String(caught));
+      setActionError(errorText(t, caught));
       return false;
     }
   };
 
   if (error) {
     return (
-      <ClubShell active="club" title="Club">
-        <section className="rounded-3xl border border-red-500/40 bg-red-950/30 p-5 text-sm text-red-100">{error.message}</section>
+      <ClubShell active="club" title={t('club.title')}>
+        <section className="rounded-3xl border border-red-500/40 bg-red-950/30 p-5 text-sm text-red-100">{errorText(t, error)}</section>
       </ClubShell>
     );
   }
-  if (!database) return <ClubShell active="club" title="Club"><p className="text-sm text-slate-400">Loading …</p></ClubShell>;
+  if (!database) return <ClubShell active="club" title={t('club.title')}><p className="text-sm text-slate-400">{t('club.loading')}</p></ClubShell>;
 
   const roles = clubRolesOf(database, person?.id ?? null);
   if (!person || roles.length === 0) {
     return (
       <ClubShell active="club" title={database.club.name}>
         <CoachSection>
-          <p className="text-sm text-slate-300">This area is for the club admin and department leads. Switch your role from the account menu.</p>
+          <p className="text-sm text-slate-300">{t('club.notForYou')}</p>
         </CoachSection>
       </ClubShell>
     );
@@ -442,12 +454,12 @@ export function ClubOverview() {
   const withoutHeadCoach = managedTeams.filter((team) => !staffSummary(database, team).some((entry) => entry.role?.locked)).length;
 
   return (
-    <ClubShell active="club" title={database.club.name} subtitle={clubRoleLabel(database, person.id)}>
+    <ClubShell active="club" title={database.club.name} subtitle={clubRoleText(database, person.id)}>
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         {[
-          { label: 'Departments', value: departments.length, warn: false },
-          { label: 'Teams', value: managedTeams.length, warn: false },
-          { label: 'Without Head Coach', value: withoutHeadCoach, warn: withoutHeadCoach > 0 },
+          { label: t('club.tile.departments'), value: departments.length, warn: false },
+          { label: t('club.tile.teams'), value: managedTeams.length, warn: false },
+          { label: t('club.tile.withoutHeadCoach'), value: withoutHeadCoach, warn: withoutHeadCoach > 0 },
         ].map((tile) => (
           <div key={tile.label} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-3 sm:p-4">
             <p className="text-[10px] font-black uppercase leading-tight tracking-normal text-slate-400 sm:text-xs sm:tracking-[0.12em]">{tile.label}</p>
@@ -465,7 +477,7 @@ export function ClubOverview() {
       ))}
 
       {admin ? (
-        <CoachSection title="New department" description="For example Basketball or Volleyball. Then add its lead and its teams.">
+        <CoachSection title={t('club.newDepartment')} description={t('club.newDepartmentDetail')}>
           <form
             className="flex gap-2"
             onSubmit={(event) => {
@@ -473,14 +485,14 @@ export function ClubOverview() {
               if (run(() => { createDepartment(newDepartment); })) setNewDepartment('');
             }}
           >
-            <input value={newDepartment} onChange={(event) => setNewDepartment(event.target.value)} placeholder="Department name" aria-label="New department name" className={`${inputClass} flex-1`} />
-            <button type="submit" disabled={!newDepartment.trim()} className={`${smallButtonClass} border-sky-500/50 text-sky-100 hover:bg-sky-950/35`}>Add department</button>
+            <input value={newDepartment} onChange={(event) => setNewDepartment(event.target.value)} placeholder={t('club.departmentNamePlaceholder')} aria-label={t('club.newDepartmentName')} className={`${inputClass} flex-1`} />
+            <button type="submit" disabled={!newDepartment.trim()} className={`${smallButtonClass} border-sky-500/50 text-sky-100 hover:bg-sky-950/35`}>{t('club.addDepartment')}</button>
           </form>
         </CoachSection>
       ) : null}
 
       {admin ? (
-        <CoachSection title="Club admins" description="Admins manage the whole club: departments, leads, teams and halls.">
+        <CoachSection title={t('club.admins')} description={t('club.adminsDetail')}>
           <RoleHolders database={database} role="admin" departmentId={null} canManage selfId={person.id} onRun={run} />
         </CoachSection>
       ) : null}

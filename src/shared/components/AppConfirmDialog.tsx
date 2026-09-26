@@ -1,6 +1,7 @@
 'use client';
 
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
+import { useT } from '@/shared/i18n';
 
 type AppConfirmDialogProps = {
   isOpen: boolean;
@@ -18,13 +19,14 @@ export function AppConfirmDialog({
   isOpen,
   title,
   description,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   tone = 'default',
   isConfirming = false,
   onConfirm,
   onCancel,
 }: AppConfirmDialogProps) {
+  const t = useT();
   useBodyScrollLock(isOpen);
 
   if (!isOpen) return null;
@@ -38,7 +40,7 @@ export function AppConfirmDialog({
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm" role="dialog" aria-modal="true">
       <div className="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-950 p-5 shadow-2xl">
         <p className={tone === 'danger' ? 'text-xs font-black uppercase tracking-[0.18em] text-red-300' : 'text-xs font-black uppercase tracking-[0.18em] text-emerald-300'}>
-          Please confirm
+          {t('dialog.pleaseConfirm')}
         </p>
         <h2 className="mt-3 text-2xl font-black text-white">{title}</h2>
         {description ? <p className="mt-3 text-sm font-bold leading-6 text-slate-300">{description}</p> : null}
@@ -49,7 +51,7 @@ export function AppConfirmDialog({
             disabled={isConfirming}
             className="rounded-xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-200 transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {cancelLabel}
+            {cancelLabel ?? t('dialog.cancel')}
           </button>
           <button
             type="button"
@@ -57,7 +59,7 @@ export function AppConfirmDialog({
             disabled={isConfirming}
             className={`rounded-xl px-4 py-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${confirmClass}`}
           >
-            {isConfirming ? 'Working...' : confirmLabel}
+            {isConfirming ? t('dialog.working') : confirmLabel ?? t('dialog.confirm')}
           </button>
         </div>
       </div>

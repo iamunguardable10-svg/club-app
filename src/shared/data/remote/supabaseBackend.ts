@@ -107,9 +107,9 @@ export function supabaseRemoteClient(supabase: SupabaseClient): RemoteClient {
       return count ?? 0;
     },
     async rpc(name, args) {
-      if (knownOffline()) throw new OfflineError("You're offline. Try again when you have a connection.");
+      if (knownOffline()) throw new OfflineError("You're offline. Try again when you have a connection.", 'data.offlineTryAgain');
       const { data, error, status } = await supabase.rpc(name, args);
-      if (error && status === 0) throw new OfflineError("You're offline. Try again when you have a connection.");
+      if (error && status === 0) throw new OfflineError("You're offline. Try again when you have a connection.", 'data.offlineTryAgain');
       // Database functions raise messages meant for the person.
       if (error) throw new Error(error.message);
       return data;
