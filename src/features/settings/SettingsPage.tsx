@@ -60,6 +60,18 @@ export function SettingsPage() {
   const { database } = useLocalDatabase();
   const [remote, setRemote] = useState(false);
   useEffect(() => setRemote(isRemoteMode()), []);
+  // Links like "/settings#phone-calendar" jump to their section. The page only
+  // draws once the data is there, after the browser's own jump found nothing.
+  const loaded = database !== null;
+  useEffect(() => {
+    if (!loaded || !window.location.hash) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(decodeURIComponent(window.location.hash.slice(1)));
+      // The whole card, so its heading shows below the page header.
+      (target?.closest('section') ?? target)?.scrollIntoView({ block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [loaded]);
 
   if (!database) return null;
   const person = getActivePerson(database);
