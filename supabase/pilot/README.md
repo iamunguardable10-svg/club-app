@@ -35,6 +35,7 @@ migrations below are applied there (2026-09-24).
 | `migrations/0024_pilot_plan_series.sql` | Own training as a weekly series (piece 22): `athlete_plans.series_id` marks the plans made together, so they can be changed or deleted "this and following"; access rules unchanged |
 | `migrations/0025_pilot_login_handoff.sql` | Staying signed in when the app is added to the home screen: `app.login_handoffs` (one-time code, 256 bits, 10 minutes, used once), `create_login_handoff()` for the signed-in account, `consume_login_handoff(code)` for the Edge Function `login-handoff` only |
 | `migrations/0026_pilot_apple_calendar.sql` | Apple Calendar via CalDAV, optional (piece 20): `app.calendar_connections` (Apple ID, Vault id of the app-specific password), `app.calendar_pushed` (what the iCloud calendar "Club OS" holds), `calendar_sources` (own Apple calendars; `import` off by default, `coach_sees` for 21b), `private_events` (imported events, owner only); `app.calendar_events_for` shared with the calendar link; `apple_calendar_status()`, `disconnect_apple_calendar()` for the account; `apple_sync_*` for the Edge Function only; pg_cron `club-os-apple-calendar` every 15 minutes |
+| `migrations/0027_pilot_apple_rate_limit.sql` | Limits on the Apple Calendar function: `app.apple_calendar_calls`, `apple_calendar_allow(user, kind)` for the Edge Function only; 5 connection attempts and 60 syncs per hour and account (the 15-minute sync is not counted), so the function cannot be used to try out Apple passwords |
 | `tests/00_supabase_shim.sql` | Stand-in for Supabase's `auth` schema and roles, **local tests only** |
 | `tests/01_rls_test.sql` | 105 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
 | `tests/02_access_test.sql` | 35 checks for join codes, invitations and club setup |
@@ -170,7 +171,7 @@ The app works fully without it. The Edge Function source is
 `supabase/functions/apple-calendar/` (`index.ts`, `caldav.ts`, `ical.ts`,
 `sync.ts`; deployed as `apple-calendar`, JWT verification off: user calls are
 checked in the function with `auth.getUser`, the 15-minute call with the
-dispatch secret). Connecting checks the Apple ID and app-specific password
+dispatch secret; 5 connection attempts and 60 syncs per hour and account). Connecting checks the Apple ID and app-specific password
 with iCloud before storing the password in Supabase Vault; only
 `apple_sync_load` (service key) reads it back, and "Disconnect" deletes it.
 Each sync keeps the iCloud calendar "Club OS" current (only changed events

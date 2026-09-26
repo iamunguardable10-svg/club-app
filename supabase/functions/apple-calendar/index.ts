@@ -5,9 +5,11 @@
 //   POST { action: 'tick' }                          every 15 minutes, x-dispatch-secret
 //
 // The password is checked against iCloud before it is stored (Vault, via
-// apple_sync_connect); it is never sent back. JWT verification is off at the
-// gateway because the 15-minute call has no user; user calls are checked
-// here with auth.getUser.
+// apple_sync_connect); it is never sent back. Each account gets 5
+// connection attempts and 60 syncs per hour (apple_calendar_allow), so the
+// function cannot be used to try out Apple passwords. JWT verification is
+// off at the gateway because the 15-minute call has no user; user calls are
+// checked here with auth.getUser.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -55,6 +57,11 @@ async function syncUser(userId: string) {
   return 'error' in result ? { error: result.error } : { written: result.written, deleted: result.deleted, calendars: result.calendars.length };
 }
 
+async function allowed(userId: string, kind: 'connect' | 'sync') {
+  const { data, error } = await admin.rpc('apple_calendar_allow', { p_user: userId, p_kind: kind });
+  return !error && data === true;
+}
+
 async function signedInUser(request: Request): Promise<string | null> {
   const token = (request.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
   if (!token) return null;
@@ -84,6 +91,9 @@ Deno.serve(async (request) => {
   if (!userId) return json({ error: 'Please sign in again.' }, 401);
 
   if (body.action === 'connect') {
+    if (!(await allowed(userId, 'connect'))) {
+      return json({ error: 'Too many tries. Wait an hour, then check the Apple ID and make a new app-specific password.' }, 429);
+    }
     const appleId = (body.appleId ?? '').trim();
     const password = (body.password ?? '').replace(/\s+/g, '');
     if (!appleId || !password) return json({ error: 'Enter your Apple ID and the app-specific password.' }, 400);
@@ -100,6 +110,9 @@ Deno.serve(async (request) => {
     return json(await syncUser(userId));
   }
 
-  if (body.action === 'sync') return json(await syncUser(userId));
+  if (body.action === 'sync') {
+    if (!(await allowed(userId, 'sync'))) return json({ error: 'Synced a lot just now. Try again in a few minutes.' }, 429);
+    return json(await syncUser(userId));
+  }
   return json({ error: 'Unknown action.' }, 400);
 });

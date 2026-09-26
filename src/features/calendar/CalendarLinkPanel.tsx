@@ -1,15 +1,16 @@
 'use client';
 
 /**
- * The personal calendar link (piece 19) in Settings: team sessions (and for
- * players their own training) in Apple Calendar, Google Calendar or Outlook.
- * The link is secret; a new one replaces it, "Stop" switches it off.
+ * Settings → Phone calendar → calendar link (piece 19): team sessions (and
+ * for players their own training) in Google Calendar, Outlook or any app
+ * that subscribes to a link. The link is secret; a new one replaces it,
+ * "Stop" switches it off. With Apple Calendar connected no link is needed,
+ * and using both would show every session twice, so the panel says so.
  */
 
 import { useEffect, useState } from 'react';
 
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
-import { CoachSection } from '@/features/role-workspaces/RoleShell';
 import {
   createCalendarLink,
   getCalendarLink,
@@ -21,9 +22,7 @@ import { formatShortDate, formatTime } from '@/shared/format';
 const buttonClass = 'rounded-2xl border border-slate-700 px-4 py-2 text-xs font-black text-slate-200 disabled:opacity-50';
 const primaryClass = 'rounded-2xl bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950 disabled:opacity-50';
 
-const WHAT = 'Your team sessions with hall, meeting point, opponent and notes, kept up to date; players also get their own training. Cancelled sessions disappear.';
-
-export function CalendarLinkSection({ remote, role }: { remote: boolean; role: 'athlete' | 'coach' | 'club' | null }) {
+export function CalendarLinkPanel({ remote, appleConnected }: { remote: boolean; appleConnected: boolean }) {
   const [link, setLink] = useState<CalendarLink | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -48,13 +47,14 @@ export function CalendarLinkSection({ remote, role }: { remote: boolean; role: '
     };
   }, [remote]);
 
-  if (role === 'club') return null;
+  const heading = <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Calendar link · Google, Outlook, Android and others</p>;
 
   if (!remote) {
     return (
-      <CoachSection title="Calendar" description={WHAT}>
-        <p id="calendar" className="text-sm text-slate-400">Demo club: the calendar link works when you are signed in to your club.</p>
-      </CoachSection>
+      <div id="calendar" className="grid scroll-mt-24 gap-3">
+        {heading}
+        <p className="text-sm text-slate-400">Demo club: the calendar link works when you are signed in to your club.</p>
+      </div>
     );
   }
 
@@ -80,13 +80,18 @@ export function CalendarLinkSection({ remote, role }: { remote: boolean; role: '
   }
 
   return (
-    <CoachSection title="Calendar" description={WHAT} className="scroll-mt-24">
-      <div id="calendar" className="grid gap-4">
+    <div id="calendar" className="grid scroll-mt-24 gap-3">
+      {heading}
+      <div className="grid gap-4">
         {!loaded ? <p className="text-sm text-slate-400">Loading…</p> : null}
         {loaded && !link ? (
           <div className="grid gap-3">
-            <p className="text-sm text-slate-300">Get a private link and subscribe to it in your calendar app.</p>
-            <button type="button" disabled={busy} className={`justify-self-start ${primaryClass}`} onClick={() => void run(async () => setLink(await createCalendarLink()), null)}>
+            <p className="text-sm text-slate-300">
+              {appleConnected
+                ? 'Not needed: Apple Calendar is connected. Only get a link for another calendar app (e.g. Google), not for the same one, or every session shows twice.'
+                : 'Get a private link and subscribe to it in your calendar app.'}
+            </p>
+            <button type="button" disabled={busy} className={`justify-self-start ${appleConnected ? buttonClass : primaryClass}`} onClick={() => void run(async () => setLink(await createCalendarLink()), null)}>
               Get my calendar link
             </button>
           </div>
@@ -106,6 +111,9 @@ export function CalendarLinkSection({ remote, role }: { remote: boolean; role: '
               {link.lastFetchedAt ? ` Last fetched ${formatShortDate(link.lastFetchedAt)} ${formatTime(link.lastFetchedAt)}.` : ''}
             </p>
             <p className="text-xs font-bold text-amber-200">Anyone with this link can see these sessions. Don’t share it.</p>
+            {appleConnected ? (
+              <p className="text-xs font-bold text-amber-200">Apple Calendar is connected too. If this link is in the same calendar app, every session shows twice; then stop the link.</p>
+            ) : null}
             <div className="flex flex-wrap gap-x-4 gap-y-2">
               <button type="button" disabled={busy} onClick={() => setConfirm('renew')} className="text-xs font-bold text-slate-400 underline">New link</button>
               <button type="button" disabled={busy} onClick={() => setConfirm('stop')} className="text-xs font-bold text-slate-400 underline">Stop the link</button>
@@ -136,6 +144,6 @@ export function CalendarLinkSection({ remote, role }: { remote: boolean; role: '
           setLink(null);
         }, 'The link is switched off.')}
       />
-    </CoachSection>
+    </div>
   );
 }

@@ -1,21 +1,22 @@
 'use client';
 
 /**
- * Settings → Apple Calendar (piece 20). Optional: Club OS works fully
- * without it, and nothing happens until the person connects.
+ * Settings → Phone calendar → Apple Calendar (piece 20). Optional: Club OS
+ * works fully without it, and nothing happens until the person connects.
  *
  * Connecting is guided: what it does and does not do, how to make an
  * app-specific password at Apple (the normal password is never asked for),
  * then Apple ID + that password, checked with iCloud before anything is
- * stored. Connected: which calendars Club OS may read (none by default),
- * "Sync now", "Disconnect".
+ * stored. Connected: "Sync now", "Disconnect" and, for players, which of
+ * their calendars show next to their sessions (none by default). Those
+ * events only appear in the player calendar, so coach-only accounts do not
+ * get the choice.
  */
 
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
-import { CoachSection } from '@/features/role-workspaces/RoleShell';
 import {
   connectAppleCalendar,
   disconnectAppleCalendar,
@@ -37,7 +38,7 @@ function when(value: string) {
   return new Date().toDateString() === date.toDateString() ? formatTime(date) : `${formatShortDate(date)} ${formatTime(date)}`;
 }
 
-export function AppleCalendarSection({ remote }: { remote: boolean }) {
+export function AppleCalendarPanel({ canRead, onConnectedChange }: { canRead: boolean; onConnectedChange: (connected: boolean) => void }) {
   const [status, setStatus] = useState<AppleCalendarStatus | null | undefined>(undefined);
   const [sources, setSources] = useState<CalendarSource[]>([]);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -48,14 +49,13 @@ export function AppleCalendarSection({ remote }: { remote: boolean }) {
   const load = useCallback(async () => {
     const next = await getAppleCalendarStatus();
     setStatus(next);
-    setSources(next ? await listCalendarSources() : []);
-  }, []);
+    onConnectedChange(next !== null);
+    setSources(next && canRead ? await listCalendarSources() : []);
+  }, [canRead, onConnectedChange]);
 
   useEffect(() => {
-    if (remote) void load().catch((error) => setMessage({ text: error instanceof Error ? error.message : String(error), error: true }));
-  }, [remote, load]);
-
-  if (!remote) return null;
+    void load().catch((error) => setMessage({ text: error instanceof Error ? error.message : String(error), error: true }));
+  }, [load]);
 
   async function run(action: () => Promise<void>, success: string | null) {
     setBusy(true);
@@ -80,15 +80,16 @@ export function AppleCalendarSection({ remote }: { remote: boolean }) {
   }
 
   return (
-    <CoachSection title="Apple Calendar" description="Optional. Club OS works fully without it.">
-      <div id="apple-calendar" className="grid scroll-mt-24 gap-4">
+    <div id="apple-calendar" className="grid scroll-mt-24 gap-3">
+      <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Apple Calendar · iPhone, iPad, Mac</p>
+      <div className="grid gap-4">
         {status === undefined ? <p className="text-sm text-slate-400">Loading…</p> : null}
 
         {status === null ? (
           <div className="grid gap-3">
             <ul className="grid gap-1.5 text-sm text-slate-300">
               <li>• Your sessions appear in a calendar “Club OS” in iCloud, always up to date.</li>
-              <li>• You choose which of your calendars Club OS may read. None until you say so.</li>
+              {canRead ? <li>• If you like, your own appointments (school, work) show next to your sessions in Club OS, so you can plan training around them.</li> : null}
               <li>• Club OS never changes your own calendars. Disconnect any time.</li>
             </ul>
             <button type="button" onClick={() => setGuideOpen(true)} className={`justify-self-start ${primaryClass}`}>Connect Apple Calendar</button>
@@ -109,8 +110,9 @@ export function AppleCalendarSection({ remote }: { remote: boolean }) {
               )}
             </div>
 
-            <div className="grid gap-2">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Your calendars · what Club OS may read</p>
+            {canRead ? <div className="grid gap-2">
+              <p className="text-sm font-black text-white">Show your own appointments here</p>
+              <p className="text-xs text-slate-400">Pick calendars, e.g. school or work: their events show grey next to your sessions in your Club OS calendar, so you can plan training around them. Only you see them; your coach does not.</p>
               {sources.length === 0 ? <p className="text-sm text-slate-400">No other calendars found.</p> : null}
               {sources.map((source) => (
                 <label key={source.url} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-3 py-2.5">
@@ -119,13 +121,12 @@ export function AppleCalendarSection({ remote }: { remote: boolean }) {
                     <span className="truncate text-sm font-black text-slate-100">{source.name}</span>
                   </span>
                   <span className="flex shrink-0 items-center gap-2 text-xs font-bold text-slate-400">
-                    {source.import ? 'Read' : 'Off'}
+                    {source.import ? 'Shown' : 'Off'}
                     <input type="checkbox" role="switch" checked={source.import} disabled={busy} onChange={() => void toggle(source)} className="h-5 w-5 accent-emerald-300" />
                   </span>
                 </label>
               ))}
-              <p className="text-xs text-slate-400">Read calendars show up as private events in your own calendar in Club OS. Your coach does not see them.</p>
-            </div>
+            </div> : null}
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <button type="button" disabled={busy} onClick={() => void run(syncAppleCalendar, 'Synced.')} className={buttonClass}>{busy ? 'One moment …' : 'Sync now'}</button>
@@ -144,7 +145,7 @@ export function AppleCalendarSection({ remote }: { remote: boolean }) {
           onConnected={async () => {
             setGuideOpen(false);
             await load();
-            setMessage({ text: 'Connected. Your sessions are now in the calendar “Club OS”. Choose below which calendars Club OS may read.', error: false });
+            setMessage({ text: `Connected. Your sessions are now in the calendar “Club OS”.${canRead ? ' Below you can show your own appointments next to them.' : ''}`, error: false });
           }}
         />
       ) : null}
@@ -152,7 +153,7 @@ export function AppleCalendarSection({ remote }: { remote: boolean }) {
       <AppConfirmDialog
         isOpen={confirmDisconnect}
         title="Disconnect Apple Calendar?"
-        description="Club OS forgets your app-specific password and the imported events. The calendar “Club OS” stays in iCloud; delete it there if you like. To be thorough, also remove the password at Apple (account.apple.com → Sign-In and Security → App-Specific Passwords)."
+        description="Club OS forgets your app-specific password and the appointments it showed. The calendar “Club OS” stays in iCloud; delete it there if you like. To be thorough, also remove the password at Apple (account.apple.com → Sign-In and Security → App-Specific Passwords)."
         confirmLabel="Disconnect"
         tone="danger"
         isConfirming={busy}
@@ -162,7 +163,7 @@ export function AppleCalendarSection({ remote }: { remote: boolean }) {
           setConfirmDisconnect(false);
         }, 'Disconnected.')}
       />
-    </CoachSection>
+    </div>
   );
 }
 
@@ -203,7 +204,7 @@ export function ConnectGuide({ initialAppleId, onClose, onConnected }: { initial
 
         {step === 1 ? (
           <div className="mt-4 grid gap-3 text-sm text-slate-300">
-            <p><span className="font-black text-white">What it does:</span> Club OS puts your team sessions (and your own training) into a new calendar “Club OS” in iCloud and keeps it up to date. If you like, it also reads calendars you pick, so your plans show up in Club OS.</p>
+            <p><span className="font-black text-white">What it does:</span> Club OS puts your team sessions (and your own training) into a new calendar “Club OS” in iCloud and keeps it up to date. If you like, it also shows appointments from calendars you pick next to your sessions.</p>
             <p><span className="font-black text-white">What it doesn’t:</span> it never changes or deletes your own calendars, and never reads calendars you did not pick.</p>
             <p><span className="font-black text-white">Your password:</span> Apple lets other apps in only with a separate <em>app-specific password</em>, never your normal one. Club OS keeps it encrypted, and you can switch it off at Apple any time.</p>
             <button type="button" onClick={() => setStep(2)} className={`mt-1 ${primaryClass}`}>Next</button>
