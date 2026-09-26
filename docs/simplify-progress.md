@@ -2145,3 +2145,31 @@ Gefunden und behoben:
 - Hallen-Seite im Bearbeiten-Modus: „No halls yet. Add the first one above.“
 
 Kein Fehler: „How hard was it?“ kam erst nach dem Ende der Einheit (Uhrzeit im Test nur knapp).
+
+## Run 41 — Belastung aus Spielersicht auf dem echten Server geprüft (erledigt)
+
+Wegwerf-Verein mit Trainerin und Spieler (danach gelöscht), 6 Wochen Vorgeschichte (Mo/Mi/Fr
+Team RPE 6 × 90, jedes zweite Wochenende Spiel RPE 10 × 60, die letzten 10 Tage zusätzlich Kraft
+Di/Do RPE 7 × 60), zwei Wochen geplante Einheiten und eigenes Krafttraining als Serie.
+
+- ACWR heute 1,02 („Optimal“, „Ready“) – gleich im Nacht-Job des Servers, in der App-Bibliothek,
+  in einer unabhängig geschriebenen EWMA und in der App bei Spieler und Trainerin.
+- „Room to high“ 558 AU, Monotony 1,54, Strain 3796 AU, Mix der letzten 28 Tage 8340 AU
+  (78/15/7 %) – von Hand nachgerechnet, stimmt.
+- Vorschau mit dem Spiel heute Abend: 1,32, knapp über der Grenze (passt zu 558 AU Spielraum bei
+  ~600 AU Spiel); danach 0,78–1,21.
+
+**Entschieden (2026-09-26):** Das Sonntags-„Low“ bei 3 Einheiten pro Woche bleibt; nicht glätten.
+Wer nur 2–3-mal trainiert, bekommt später die Amateur-Methode (7 Tage gegen 4 Wochen, je Team).
+
+Kalender aus Spielersicht (derselbe Wegwerf-Verein, danach gelöscht): diese, vorige und nächste
+Woche zeigen genau die Einträge und Pläne der Daten; bewertete Einheit antippen zeigt Load/RPE/
+Dauer mit „Edit load“/„Delete load“; Plan antippen zeigt Datum, Zeit, Länge (ohne RPE) und bei
+Serien „Only this one / This and following“. „Only this one“ auf 08:00 verschoben (nur dieser
+Termin auf dem Server), „This and following“ gelöscht (die drei folgenden weg, mit Nachfrage),
+am Desktop per Ziehen auf 10:00 verschoben (Länge bleibt). Aufwärmen vor dem Spiel als eigener
+Block: gewollt (Ben, 2026-09-26). Kleinigkeit: Im Bestätigungsfenster heißt der Knopf „Delete
+plan“, auch wenn er „this and following“ löscht.
+
+Idee (offen): Auf „Today“ sagen, wenn eine geplante Einheit heute über die Grenze führt („Das Spiel
+heute Abend bringt dich auf ~1,32“); heute steht dort nur „Ready“ und „Room to high 558 AU“.
