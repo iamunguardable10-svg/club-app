@@ -29,6 +29,7 @@ function LoginContent() {
         </header>
         <AuthForm initialMode={params.get('mode') === 'signUp' ? 'signUp' : 'signIn'} returnTo={next} />
         <LocalModeLink />
+        <a href="/privacy" className="block text-center text-xs font-bold text-slate-400 underline">How Club OS handles your data</a>
       </div>
     </main>
   );

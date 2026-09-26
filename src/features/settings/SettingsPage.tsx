@@ -29,6 +29,7 @@ import {
   changeEmail,
   clubRoleLabel,
   currentAccount,
+  deleteMyAccount,
   displayName,
   getActivePerson,
   getNotificationSettings,
@@ -105,6 +106,8 @@ function AccountSection({ person, remote }: { person: Person | null; remote: boo
         {remote ? <EmailForm /> : null}
         {remote ? <PasswordForm /> : null}
         {remote ? <SignOutButtons /> : null}
+        {remote ? <DeleteAccount /> : null}
+        <Link href="/privacy" className="justify-self-start text-xs font-bold text-sky-300 underline">How Club OS handles your data</Link>
       </div>
     </CoachSection>
   );
@@ -255,6 +258,41 @@ function SignOutButtons() {
         isConfirming={busy}
         onCancel={() => setConfirmAll(false)}
         onConfirm={() => void leave(true)}
+      />
+    </div>
+  );
+}
+
+/** Deleting the account: everything about the person goes, on the server and this device. */
+function DeleteAccount() {
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function remove() {
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteMyAccount();
+      window.location.assign('/');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+      setConfirm(false);
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="grid gap-2 border-t border-slate-800 pt-4">
+      <button type="button" disabled={busy} onClick={() => setConfirm(true)} className="justify-self-start text-xs font-bold text-red-300 underline">Delete account</button>
+      {error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null}
+      <AppConfirmDialog
+        isOpen={confirm}
+        title="Delete your account?"
+        description="This deletes your account and everything about you in the club: your teams, answers, training load, absences, own training, settings, calendar link and Apple Calendar connection. It cannot be undone. Messages you wrote to a team stay, without your name."
+        confirmLabel="Delete for good"
+        tone="danger"
+        isConfirming={busy}
+        onCancel={() => setConfirm(false)}
+        onConfirm={() => void remove()}
       />
     </div>
   );
