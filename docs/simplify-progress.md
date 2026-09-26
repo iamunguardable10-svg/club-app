@@ -2302,3 +2302,17 @@ gegen lokales Postgres 16 (neu: falscher Beitrittscode kommt mit Schlüssel, abg
   Push-Arten auf Englisch genau wie die Datenbank nach und prüft Deutsch mit Rückfall; die Function
   mit `deno check` geprüft und nach dem Deploy aufgerufen (ohne Secret: 401 wie erwartet). Vor dem
   Einspielen verglichen: die Live-Funktionen entsprachen dem Repo (nur ohne Kommentare).
+
+## Run 50 — Übersetzungen DE/FR/ES geprüft, Hydration-Fehler auf Spieler-Seiten behoben
+
+PR #48 (Deutsch vervollständigt, Französisch und Spanisch neu, je 1 593 Texte) geprüft und gemergt:
+Prüfungen grün, Stichproben gut (du/tu/tú, Platzhalter und `<b>` erhalten, Vereinssprache), auf dem
+Handy keine Seite breiter als der Bildschirm.
+
+Dabei gefunden (aus Bereich 3, nicht aus #48): Spieler-Seiten (Today, Kalender) formatierten Datumswerte
+schon beim Vorab-Rendern auf dem Server (Build-Tag, Englisch). Im Browser kam das Datum in der
+App-Sprache bzw. an jedem anderen Tag anders heraus → React-Hydration-Fehler #418 bei jedem Laden
+(auch auf Englisch ab dem Tag nach einem Deploy). Jetzt zeigen die Spieler-Seiten bis zum ersten
+Lesen im Browser nur „Loading …“ (`athlete.loading`, in allen vier Sprachen). Geprüft: FR/ES/DE ohne
+Fehler, Englisch mit um 3 Tage vorgestellter Uhr auf allen Spieler-, Trainer- und Vereinsseiten ohne
+Fehler.

@@ -1615,10 +1615,10 @@
   "push.vs": "{title} gegen {opponent}",
   "push.changed.title": "Einheit geändert: {team}",
   "push.changed.when": "{what} · jetzt {when}–{end}",
-  "push.away": "abwesend",
-  "push.meet.time": "Treffpunkt: {time}",
+  "push.away": "auswärts",
+  "push.meet.time": "Treffen um {time}",
   "push.meet.point": "Treffpunkt: {point}",
-  "push.meet.timePoint": "Treffpunkt: {time} bei {point}",
+  "push.meet.timePoint": "Treffen um {time} bei {point}",
   "push.cancelled.title": "Einheit abgesagt: {team}",
   "push.cancelled.body": "{what} am {when} fällt aus.",
   "push.review.title": "Bitte prüfe einen Eintrag",
@@ -1647,5 +1647,6 @@
   "mail.change.heading": "Neue E-Mail-Adresse",
   "mail.change.text": "Tippe auf die Schaltfläche, um die E-Mail-Adresse deines Club-OS-Kontos von {email} in {newEmail} zu ändern.",
   "mail.change.button": "Neue E-Mail-Adresse bestätigen",
-  "mail.ignore": "Falls du das nicht angefordert hast, kannst du diese E-Mail ignorieren."
+  "mail.ignore": "Falls du das nicht angefordert hast, kannst du diese E-Mail ignorieren.",
+  "athlete.loading": "Wird geladen …"
 }

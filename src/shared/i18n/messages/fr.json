@@ -1615,7 +1615,7 @@
   "push.vs": "{title} contre {opponent}",
   "push.changed.title": "Séance modifiée : {team}",
   "push.changed.when": "{what} · maintenant {when}–{end}",
-  "push.away": "absent(e)",
+  "push.away": "à l’extérieur",
   "push.meet.time": "Rendez-vous à {time}",
   "push.meet.point": "Rendez-vous à {point}",
   "push.meet.timePoint": "Rendez-vous à {time} à {point}",
@@ -1633,7 +1633,7 @@
   "push.message.important": "Important · {title}",
   "push.message.reminder": "Rappel : {title}",
   "push.joined.title": "{team} · Nouveau joueur",
-  "push.joined.body": "{name} a rejoint l’équipe avec le code du club. Tu ne le connais pas ? Retire-le dans Équipe → Joueurs.",
+  "push.joined.body": "{name} a rejoint l’équipe avec le code de l’équipe. Tu ne le connais pas ? Retire-le dans Équipe → Joueurs.",
 
   "mail.confirm.subject": "Confirme ton compte Club OS",
   "mail.confirm.heading": "Bienvenue sur Club OS",
@@ -1647,5 +1647,6 @@
   "mail.change.heading": "Nouvelle adresse e-mail",
   "mail.change.text": "Appuie sur le bouton pour modifier l’adresse e-mail de ton compte Club OS : de {email} à {newEmail}.",
   "mail.change.button": "Confirmer la nouvelle adresse e-mail",
-  "mail.ignore": "Si tu n’as pas demandé cette modification, tu peux ignorer cet e-mail."
+  "mail.ignore": "Si tu n’as pas demandé cette modification, tu peux ignorer cet e-mail.",
+  "athlete.loading": "Chargement…"
 }
