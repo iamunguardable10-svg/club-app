@@ -7,7 +7,7 @@
 
 import assert from 'node:assert/strict';
 
-import { BASELINE_DAYS, calculateACWR, getLatestACWR, loadRoom, loadZone, projectFutureACWR, summarizeLoadEntries, todayISO } from './loadCalculations';
+import { BASELINE_DAYS, HIGH_RISK_ACWR, acwrAfter, backFromBreak, calculateACWR, firstHighRiskDay, getLatestACWR, loadRoom, loadZone, projectFutureACWR, summarizeLoadEntries, todayISO, weekChangePercent } from './loadCalculations';
 import type { AthleteLoadEntry, AthletePendingSession, LoadTrainingType } from './loadTypes';
 
 let failures = 0;
@@ -149,6 +149,48 @@ check('forecast: a session from yesterday that is not rated yet still counts', (
   const without = projectFutureACWR(entries, [], 1)[0];
   const withUnrated = projectFutureACWR(entries, [session(-1, 'team_training', 100)], 1)[0];
   assert.ok((withUnrated.acuteLoad ?? 0) > (without.acuteLoad ?? 0), `${withUnrated.acuteLoad} vs ${without.acuteLoad}`);
+});
+
+check('acwrAfter: a steady athlete stays under the warning line with a normal session today', () => {
+  const result = acwrAfter(steadyWeeks(8), [session(0)]);
+  assert.ok(result, 'expected a result');
+  assert.ok(result.after < HIGH_RISK_ACWR, `after ${result.after}`);
+  assert.equal(result.date, iso(day(0)));
+});
+
+check('acwrAfter: a heavy week plus a long game today crosses the warning line', () => {
+  const heavy = [...steadyWeeks(8, 400, -8)];
+  for (let offset = -7; offset <= -1; offset += 1) heavy.push(entry(offset, 900));
+  const result = acwrAfter(heavy, [session(0, 'game', 120)]);
+  assert.ok(result, 'expected a result');
+  assert.ok(result.after > HIGH_RISK_ACWR, `after ${result.after}`);
+  assert.ok(result.after > result.before, `${result.before} -> ${result.after}`);
+  assert.equal(result.date, iso(day(0)));
+});
+
+check('acwrAfter: nothing without a full baseline or without a plan', () => {
+  assert.equal(acwrAfter([entry(-3, 500), entry(-1, 500)], [session(0)]), null);
+  assert.equal(acwrAfter(steadyWeeks(8), []), null);
+});
+
+check('firstHighRiskDay: none for a steady rhythm, found after a heavy week', () => {
+  assert.equal(firstHighRiskDay(steadyWeeks(8), [session(0), session(2)]), null);
+  const heavy = [...steadyWeeks(8, 400, -8)];
+  for (let offset = -7; offset <= -1; offset += 1) heavy.push(entry(offset, 900));
+  const found = firstHighRiskDay(heavy, [session(0, 'game', 120)]);
+  assert.ok(found, 'expected a risky day');
+  assert.ok(found.acwr > HIGH_RISK_ACWR, `acwr ${found.acwr}`);
+});
+
+check('weekChangePercent: this week against the week before', () => {
+  assert.equal(weekChangePercent([entry(-10, 500), entry(-8, 500), entry(-2, 600), entry(0, 600)]), 20);
+  assert.equal(weekChangePercent([entry(-2, 600)]), null);
+});
+
+check('backFromBreak: a gap of 10+ days that ended recently', () => {
+  assert.equal(backFromBreak([entry(-30, 500), entry(-26, 500), entry(-13, 500), entry(-6, 500)]), true);
+  assert.equal(backFromBreak(steadyWeeks(8)), false);
+  assert.equal(backFromBreak([entry(-40, 500), entry(-20, 500)]), false);
 });
 
 console.log(failures === 0 ? 'all load maths checks passed' : `${failures} load maths check(s) failed`);

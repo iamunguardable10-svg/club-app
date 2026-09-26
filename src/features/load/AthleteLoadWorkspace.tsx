@@ -28,7 +28,8 @@ import {
   type LoadTrainingType,
   sessionTypeToLoadType,
 } from './loadTypes';
-import { BASELINE_DAYS, aggregateDailyLoads, baselineAgeDays, calculateACWR, fillMissingDays, formatLoadDate, getLatestACWR, loadRoom, loadZone, projectFutureACWR, todayISO } from './loadCalculations';
+import { BASELINE_DAYS, acwrAfter, aggregateDailyLoads, backFromBreak, baselineAgeDays, calculateACWR, fillMissingDays, firstHighRiskDay, formatLoadDate, getLatestACWR, HIGH_RISK_ACWR, loadRoom, loadZone, projectFutureACWR, todayISO, weekChangePercent } from './loadCalculations';
+import { LoadInfoButton, LoadRiskBadge } from './LoadHints';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
 import { athleteHasLoad, clearEntryReview, displayName, getActivePerson, newId, reviewsForPerson, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
@@ -1368,6 +1369,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const todayPending = allToRate.slice(0, 3);
   // Forecasts and planned load only count sessions that are rated afterwards.
   const loadPendingSessions = activePendingSessions.filter((session) => session.loadTracked !== false);
+  // Today's warning: only when today's sessions would take the ratio above 1.5.
+  const todayForecast = hasLoad ? acwrAfter(sortedEntries, loadPendingSessions.filter((session) => session.date === todayISO())) : null;
+  const todayRisk = todayForecast && todayForecast.after > HIGH_RISK_ACWR ? todayForecast : null;
   // A warmup belongs to its game; the game is what comes next.
   const nextSession = activePendingSessions.find((session) => session.date >= todayISO() && session.trainingType !== 'warmup') ?? activePendingSessions[0] ?? null;
   /** What the player told the coach about a session, in one line. */
@@ -1986,6 +1990,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           </div>
         ) : null}
 
+        {activeView === 'home' && todayRisk ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl border border-rose-400/30 bg-rose-400/[0.06] px-3 py-2.5">
+            <LoadRiskBadge before={todayRisk.before} after={todayRisk.after} label="Today" />
+            <span className="text-xs font-bold text-slate-300">Consider a lower intensity</span>
+          </div>
+        ) : null}
+
         {activeView === 'load' && hasLoad && !isBaselineReady ? (
           <section className="rounded-2xl border border-amber-300/25 bg-amber-300/[0.08] p-4 text-sm font-bold text-amber-100">
             Load guidance gets reliable after about 30 recorded days.
@@ -2022,6 +2033,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         {activeView === 'load' && hasLoad ? (
           <LoadDetailsPanel
             entries={sortedEntries}
+            pendingSessions={loadPendingSessions}
             latestEwma={latest}
             baselineDays={baselineDays}
           />
@@ -2758,10 +2770,12 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
 
 function LoadDetailsPanel({
   entries,
+  pendingSessions,
   latestEwma,
   baselineDays,
 }: {
   entries: AthleteLoadEntry[];
+  pendingSessions: AthletePendingSession[];
   latestEwma: ReturnType<typeof getLatestACWR>;
   baselineDays: number;
 }) {
@@ -2775,6 +2789,10 @@ function LoadDetailsPanel({
   const currentAcwr = latestEwma?.acwr ?? null;
   const zone = loadZone(currentAcwr, baselineReady);
   const roomSummary = buildLoadRoomSummary(latestEwma, entries, baselineReady);
+  const riskDay = firstHighRiskDay(entries, pendingSessions);
+  const afterBreak = backFromBreak(entries);
+  // Right after a break any week is a big jump; the break chip says it better.
+  const weekChange = afterBreak ? null : weekChangePercent(entries);
   const monotony = latestEwma?.monotony ?? null;
   const strain = latestEwma?.strain ?? null;
   const stabilityReady = monotony !== null && strain !== null;
@@ -2813,8 +2831,9 @@ function LoadDetailsPanel({
     <section className="grid items-start gap-5 xl:grid-cols-[1fr_0.75fr]">
       <div className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
+          <div className="flex items-center gap-2">
             <h2 className="text-lg font-black">Room and risk</h2>
+            <LoadInfoButton />
           </div>
           <span className={`rounded-full border px-3 py-1.5 text-xs font-black ${zone.tone === 'high' ? 'border-rose-400/45 bg-rose-400/10 text-rose-100' : zone.tone === 'low' ? 'border-sky-400/45 bg-sky-400/10 text-sky-100' : zone.tone === 'ready' ? 'border-emerald-400/45 bg-emerald-400/10 text-emerald-100' : 'border-slate-700 text-slate-300'}`}>
             {currentAcwr !== null && baselineReady ? `${currentAcwr.toFixed(2)} ACWR` : 'Building'}
@@ -2836,6 +2855,22 @@ function LoadDetailsPanel({
             <span>High</span>
           </div>
         </div>
+
+        {riskDay || weekChange !== null || afterBreak ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {riskDay && currentAcwr !== null ? (
+              <LoadRiskBadge before={currentAcwr} after={riskDay.acwr} label={riskDay.date === today ? 'Today' : new Date(`${riskDay.date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' })} />
+            ) : null}
+            {weekChange !== null ? (
+              <span title="Load of the last 7 days against the 7 days before" className={`rounded-full border px-2.5 py-1 text-xs font-black tabular-nums ${weekChange >= 15 ? 'border-amber-300/45 bg-amber-300/10 text-amber-100' : 'border-slate-700 text-slate-300'}`}>
+                {weekChange > 0 ? '+' : ''}{weekChange}% vs last week
+              </span>
+            ) : null}
+            {afterBreak ? (
+              <span className="rounded-full border border-sky-400/40 bg-sky-400/10 px-2.5 py-1 text-xs font-black text-sky-100">Back after a break · build up gradually</span>
+            ) : null}
+          </div>
+        ) : null}
 
         {baselineDays < 30 ? (
           <div className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-300/[0.08] p-3 text-sm font-bold text-amber-100">

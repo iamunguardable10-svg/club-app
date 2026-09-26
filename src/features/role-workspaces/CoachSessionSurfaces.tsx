@@ -9,8 +9,9 @@ import { clearEntryReview, confirmAttendance, publishSquad, requestEntryReview, 
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { PlayerLoadDetail, type PlayerLoadDetailPlayer } from '@/features/players/PlayerLoadDetail';
 import { SessionInfo } from '@/features/sessions/SessionInfo';
+import { HIGH_RISK_ACWR, acwrAfter, todayISO } from '@/shared/data/loadCalculations';
+import { sessionTypeToLoadType, type AthletePendingSession } from '@/shared/data/loadTypes';
 
-type LoadRiskPlayer = { risk: string; acwr: number | null };
 type HistoryTeamOption = { id: string; name: string; departmentName?: string };
 export type CoachSessionInsight = 'expected' | 'rpe' | 'au' | 'completion';
 type CoachHistoryMetric = 'au' | 'rpe' | 'attendance' | 'completion';
@@ -47,10 +48,50 @@ type CoachHistoryGraphPoint = {
   days: CoachHistoryDayPoint[];
 };
 
-export function sortCoachLoadRisks<T extends LoadRiskPlayer>(players: T[]) {
-  return [...players]
-    .filter((player) => player.risk === 'high' || player.risk === 'low')
-    .sort((a, b) => (b.acwr ?? -Infinity) - (a.acwr ?? -Infinity));
+function localDateISO(value: string) {
+  const date = new Date(value);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/** Forecasts reach a week ahead; further out the numbers would be guesses. */
+const RISK_FORECAST_DAYS = 7;
+
+/**
+ * Players this session would take above an ACWR of 1.5, with the ratio now
+ * and after it (same forecast the athlete sees). Players the coach may only
+ * see the traffic light for have no entries: they show when already above
+ * 1.5. Players who are out are left out.
+ */
+function sessionLoadRisks(session: CoachSession) {
+  if (session.loadTracked === false) return [];
+  const date = localDateISO(session.startsAt);
+  const today = todayISO();
+  const ahead = (new Date(`${date}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86_400_000;
+  if (ahead < 0 || ahead > RISK_FORECAST_DAYS) return [];
+  const trainingType = sessionTypeToLoadType(session.sessionType);
+  const planned: AthletePendingSession = {
+    id: session.id, title: session.title, teamId: session.teamId, teamName: session.teamName, date,
+    startsAt: session.startsAt, endsAt: session.endsAt, trainingType, source: 'team_session',
+  };
+  // Every game comes with a warmup (as on the athlete side).
+  const warmup: AthletePendingSession | null = trainingType === 'game'
+    ? { ...planned, id: `${session.id}-warmup`, title: 'Warmup', trainingType: 'warmup', expectedRpe: 3, expectedDurationMinutes: 20 }
+    : null;
+  const out = new Set(session.availability.filter((item) => item.status === 'out').map((item) => item.userId));
+  return session.players
+    .filter((player) => !out.has(player.id))
+    .map((player) => {
+      if ((player.loadAccess ?? 'full') !== 'full') {
+        return player.acwr !== null && player.acwr > HIGH_RISK_ACWR ? { id: player.id, name: player.name, before: player.acwr, after: null } : null;
+      }
+      // Already rated: the session is in the entries, not still to come.
+      const rated = new Set(player.loadEntries.map((entry) => entry.sessionId));
+      const pending = [planned, warmup].filter((item): item is AthletePendingSession => item !== null && !rated.has(item.id));
+      const forecast = acwrAfter(player.loadEntries, pending);
+      return forecast && forecast.after > HIGH_RISK_ACWR ? { id: player.id, name: player.name, before: forecast.before, after: forecast.after } : null;
+    })
+    .filter((risk): risk is NonNullable<typeof risk> => risk !== null)
+    .sort((a, b) => (b.after ?? b.before) - (a.after ?? a.before));
 }
 
 function formatTimeRange(startsAt: string, endsAt: string | null) {
@@ -74,8 +115,7 @@ function summarizeCoachSession(session: CoachSession) {
   const reportRate = session.players.length > 0 ? loadReports.length / session.players.length : 0;
   const avgRpe = loadReports.length > 0 ? loadReports.reduce((sum, item) => sum + item.entry.rpe, 0) / loadReports.length : null;
   const avgLoad = loadReports.length > 0 ? loadReports.reduce((sum, item) => sum + item.entry.load, 0) / loadReports.length : null;
-  const risks = sortCoachLoadRisks(session.players);
-  return { late, out, loadReports, reportRate, avgRpe, avgLoad, risks };
+  return { late, out, loadReports, reportRate, avgRpe, avgLoad };
 }
 
 type CoachSessionLoadReport = ReturnType<typeof summarizeCoachSession>['loadReports'][number];
@@ -842,6 +882,7 @@ export function CoachSessionDetailOverlay({
 }) {
   const summary = useMemo(() => summarizeCoachSession(session), [session]);
   const isPast = isPastSession(session);
+  const loadRisks = useMemo(() => (isPast ? [] : sessionLoadRisks(session)), [isPast, session]);
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
   const normalizedInitialInsight = initialInsight === 'rpe' ? 'au' : initialInsight;
   const [activeInsight, setActiveInsight] = useState<CoachSessionInsight | null>(normalizedInitialInsight);
@@ -951,7 +992,7 @@ export function CoachSessionDetailOverlay({
             detail: item.status === 'late' && item.lateMinutes ? `${item.lateMinutes} min` : item.reason,
           })),
         }}
-        loadRisks={isPast ? [] : summary.risks.map((player) => ({ id: player.id, name: player.name, status: player.risk as 'high' | 'low', detail: player.acwr !== null ? `${player.acwr.toFixed(2)} ACWR` : null }))}
+        loadRisks={loadRisks}
         insights={!isPast && session.sessionType === 'game' && (session.canPickSquad || session.squadPublishedAt) ? (
           <SquadPicker key={session.id} session={session} />
         ) : isPast ? (<>

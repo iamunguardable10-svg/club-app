@@ -3,6 +3,7 @@
 import { formatSessionTime } from '@/shared/format';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
+import { LoadInfoButton, LoadRiskBadge } from '@/features/load/LoadHints';
 
 export type SessionDetailGroup = {
   id: string;
@@ -36,11 +37,12 @@ export type SessionDetailLoad = {
   status?: string;
 };
 
+/** A player this session would take above an ACWR of 1.5 (`after` null: already above, no forecast). */
 export type SessionDetailLoadRisk = {
   id: string;
   name: string;
-  status: 'high' | 'low';
-  detail?: string | null;
+  before: number;
+  after: number | null;
 };
 
 export type SessionDetailParticipant = {
@@ -294,22 +296,19 @@ export function SessionDetailSheet({
 
         {loadRisks.length > 0 ? (
           <div className="mt-2.5 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Load risks</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Load risk with this session</p>
+              <LoadInfoButton />
+            </div>
             <div className="mt-2.5 grid gap-2">
-              {loadRisks.map((risk) => {
-                const className = `flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm font-bold transition ${risk.status === 'high' ? 'border-rose-400/30 bg-rose-400/10' : 'border-sky-400/30 bg-sky-400/10'} ${onParticipantSelect ? 'hover:border-white/35 hover:bg-slate-900/65' : ''}`;
-                const content = (
-                  <>
-                    <span className="text-slate-100">{risk.name}</span>
-                    <span className={risk.status === 'high' ? 'text-rose-200' : 'text-sky-200'}>{risk.status === 'high' ? 'High load' : 'Low load'}{risk.detail ? ` · ${risk.detail}` : ''}</span>
-                  </>
-                );
-                return onParticipantSelect ? (
-                  <button key={risk.id} type="button" onClick={() => onParticipantSelect(risk.id)} className={className}>{content}</button>
-                ) : (
-                  <div key={risk.id} className={className}>{content}</div>
-                );
-              })}
+              {loadRisks.map((risk) => (
+                <div key={risk.id} className="flex items-center justify-between gap-3 rounded-xl border border-rose-400/25 bg-rose-400/[0.06] px-3 py-2 text-sm font-bold">
+                  {onParticipantSelect ? (
+                    <button type="button" onClick={() => onParticipantSelect(risk.id)} className="min-w-0 truncate text-left text-slate-100 underline-offset-2 hover:underline">{risk.name}</button>
+                  ) : <span className="min-w-0 truncate text-slate-100">{risk.name}</span>}
+                  <LoadRiskBadge before={risk.before} after={risk.after} />
+                </div>
+              ))}
             </div>
           </div>
         ) : null}
