@@ -57,7 +57,8 @@ export function LoadRiskBadge({ before, after = null, label }: { before: number;
  * zones (under 0.8 blue, up to 1.3 green, up to 1.5 amber, above red with ⚠).
  * Not a button: it sits inside cards that are buttons themselves.
  */
-export function LoadLandingChip({ value }: { value: number }) {
+/** `large` matches a big title (the next session on Today). */
+export function LoadLandingChip({ value, large = false }: { value: number; large?: boolean }) {
   const t = useT();
   const label = t('load.landing.aria', { value: formatDecimal(value) });
   const tone = value > HIGH_RISK_ACWR
@@ -68,10 +69,10 @@ export function LoadLandingChip({ value }: { value: number }) {
         ? 'border-emerald-300/35 bg-emerald-300/10 text-emerald-100'
         : 'border-sky-300/35 bg-sky-300/10 text-sky-100';
   return (
-    <span title={label} aria-label={label} role="img" className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-black tabular-nums ${tone}`}>
+    <span title={label} aria-label={label} role="img" className={`inline-flex shrink-0 items-center gap-1 rounded-full border font-black tabular-nums ${large ? 'px-2.5 py-0.5 text-base' : 'px-2 py-0.5 text-[11px]'} ${tone}`}>
       <span aria-hidden="true" className="opacity-60">→</span>
       <span aria-hidden="true">~{formatDecimal(value)}</span>
-      {value > HIGH_RISK_ACWR ? <WarningIcon className="h-3 w-3 text-rose-300" /> : null}
+      {value > HIGH_RISK_ACWR ? <WarningIcon className={`${large ? 'h-4 w-4' : 'h-3 w-3'} text-rose-300`} /> : null}
     </span>
   );
 }

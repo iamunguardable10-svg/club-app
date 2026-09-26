@@ -453,7 +453,6 @@
   "athlete.check.edit": "Edit entry",
   "athlete.check.correct": "It's correct",
   "athlete.rate.title": "How hard was it?",
-  "athlete.rate.detail": "Rate your past sessions so your load stays accurate.",
   "athlete.rate.now_one": "Rate it now",
   "athlete.rate.now_other": "Rate {count} sessions now",
   "athlete.solo": "Solo",

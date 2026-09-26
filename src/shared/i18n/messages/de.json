@@ -453,7 +453,6 @@
   "athlete.check.edit": "Eintrag bearbeiten",
   "athlete.check.correct": "Stimmt so",
   "athlete.rate.title": "Wie anstrengend war es?",
-  "athlete.rate.detail": "Bewerte vergangene Einheiten, damit deine Belastung stimmt.",
   "athlete.rate.now_one": "Jetzt bewerten",
   "athlete.rate.now_other": "Jetzt {count} Einheiten bewerten",
   "athlete.solo": "Solo",
