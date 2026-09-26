@@ -1,9 +1,11 @@
 'use client';
 
 import { setBackendChoice } from '@/shared/data';
+import { useT } from '@/shared/i18n';
 
 /** Leaves the server for the local test mode on this device (and back to the start page). */
 export function LocalModeLink({ className = '' }: { className?: string }) {
+  const t = useT();
   return (
     <button
       type="button"
@@ -13,7 +15,7 @@ export function LocalModeLink({ className = '' }: { className?: string }) {
       }}
       className={`text-xs font-bold text-slate-400 underline ${className}`}
     >
-      Try the demo club without an account
+      {t('auth.demoLink')}
     </button>
   );
 }

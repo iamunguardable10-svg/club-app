@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { readStoredLocale, storeLocale, subscribeLocale } from '@/shared/data/repository';
 import { DEFAULT_LOCALE, isLocale, matchLocale, type Locale } from './locales';
-import { translate, type MessageKey, type MessageParams } from './translate';
+import { isMessageKey, translate, type MessageKey, type MessageParams } from './translate';
 
 export { LOCALES, intlLocale, type Locale } from './locales';
 export type { MessageKey, MessageParams } from './translate';
@@ -47,4 +47,14 @@ export type Translate = (key: MessageKey, params?: MessageParams) => string;
 export function useT(): Translate {
   const locale = useLocale();
   return useCallback((key, params) => translate(locale, key, params), [locale]);
+}
+
+/**
+ * What to show for a caught error: its text key in the app language when the
+ * data layer gave one (`LocalDataError.messageKey`), else its message.
+ */
+export function errorText(t: Translate, caught: unknown): string {
+  const key = caught && typeof caught === 'object' && 'messageKey' in caught ? (caught as { messageKey?: unknown }).messageKey : undefined;
+  if (typeof key === 'string' && isMessageKey(key)) return t(key);
+  return caught instanceof Error ? caught.message : String(caught);
 }

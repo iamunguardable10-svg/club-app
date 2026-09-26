@@ -7,10 +7,12 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useT } from '@/shared/i18n';
 
 const buttonClass = 'shrink-0 rounded-lg border px-2 py-1.5 text-[11px] font-black transition';
 
 export function ShareLink({ label, url, shareText, qr = false }: { label: string; url: string; shareText?: string; qr?: boolean }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const [canShare, setCanShare] = useState(false);
   const [showQr, setShowQr] = useState(false);
@@ -25,7 +27,7 @@ export function ShareLink({ label, url, shareText, qr = false }: { label: string
           onClick={() => navigator.clipboard?.writeText(url).then(() => setCopied(true)).catch(() => undefined)}
           className={`${buttonClass} border-sky-500/50 text-sky-100`}
         >
-          {copied ? 'Copied' : 'Copy'}
+          {copied ? t('share.copied') : t('share.copy')}
         </button>
         {canShare ? (
           <button
@@ -34,12 +36,12 @@ export function ShareLink({ label, url, shareText, qr = false }: { label: string
             onClick={() => navigator.share({ title: 'Club OS', text: shareText, url }).catch(() => undefined)}
             className={`${buttonClass} border-emerald-400/50 text-emerald-100`}
           >
-            Share
+            {t('share.share')}
           </button>
         ) : null}
         {qr ? (
           <button type="button" onClick={() => setShowQr((value) => !value)} aria-expanded={showQr} className={`${buttonClass} border-slate-600 text-slate-200`}>
-            QR
+            {t('share.qr')}
           </button>
         ) : null}
       </div>
@@ -50,6 +52,7 @@ export function ShareLink({ label, url, shareText, qr = false }: { label: string
 
 /** The library is only loaded when a code is actually shown. */
 function QrCode({ value, label }: { value: string; label: string }) {
+  const t = useT();
   const [svg, setSvg] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -64,11 +67,11 @@ function QrCode({ value, label }: { value: string; label: string }) {
     <div className="grid justify-items-center gap-2 rounded-xl bg-white p-4">
       {svg ? (
         // Generated locally from our own URL, not user HTML.
-        <div role="img" aria-label={`QR code: ${label}`} className="h-56 w-56 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />
+        <div role="img" aria-label={t('share.qrLabel', { label })} className="h-56 w-56 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />
       ) : (
-        <div className="grid h-56 w-56 place-items-center text-xs font-bold text-slate-500">Creating QR code …</div>
+        <div className="grid h-56 w-56 place-items-center text-xs font-bold text-slate-500">{t('share.creatingQr')}</div>
       )}
-      <p className="text-center text-xs font-bold text-slate-700">Scan with the phone camera</p>
+      <p className="text-center text-xs font-bold text-slate-700">{t('share.scan')}</p>
     </div>
   );
 }

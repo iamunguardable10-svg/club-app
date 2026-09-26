@@ -12,13 +12,14 @@
 import { useState } from 'react';
 
 import { requestPasswordReset, setBackendChoice, signInWithPassword, signUpWithPassword } from '@/shared/data';
+import { errorText, useT, type MessageKey } from '@/shared/i18n';
 
 type Mode = 'signIn' | 'signUp' | 'reset';
 
-const SUBMIT_LABEL: Record<Mode, string> = {
-  signIn: 'Sign in',
-  signUp: 'Create account',
-  reset: 'Send reset link',
+const SUBMIT_LABEL: Record<Mode, MessageKey> = {
+  signIn: 'auth.submit.signIn',
+  signUp: 'auth.submit.signUp',
+  reset: 'auth.submit.reset',
 };
 
 export function AuthForm({
@@ -31,6 +32,7 @@ export function AuthForm({
   returnTo: string;
   intro?: string;
 }) {
+  const t = useT();
   const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -63,7 +65,7 @@ export function AuthForm({
         setMailSent({ to: email.trim(), kind: 'confirm' });
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(errorText(t, caught));
     }
     setBusy(false);
   }
@@ -71,13 +73,13 @@ export function AuthForm({
   if (mailSent) {
     return (
       <section className="os-panel p-5 text-sm text-slate-200">
-        <p className="text-lg font-black text-white">Check your inbox</p>
+        <p className="text-lg font-black text-white">{t('auth.mail.title')}</p>
         <p className="mt-2">
-          We sent a mail to <span className="font-bold">{mailSent.to}</span>.{' '}
-          {mailSent.kind === 'confirm' ? 'Open the link in it to confirm your account; it brings you back here.' : 'Open the link in it to choose a new password.'}
+          {t('auth.mail.sentTo', { email: mailSent.to })}{' '}
+          {mailSent.kind === 'confirm' ? t('auth.mail.confirm') : t('auth.mail.reset')}
         </p>
         <button type="button" onClick={() => { setMailSent(null); setMode('signIn'); }} className="mt-4 text-xs font-bold text-slate-400 underline">
-          Back to sign in
+          {t('auth.backToSignIn')}
         </button>
       </section>
     );
@@ -87,23 +89,23 @@ export function AuthForm({
     <form onSubmit={submit} className="os-panel grid gap-4 p-5">
       {mode !== 'reset' ? (
         <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1 text-xs font-black" role="tablist">
-          <button type="button" role="tab" aria-selected={mode === 'signIn'} onClick={() => setMode('signIn')} className={`flex-1 rounded-full px-3 py-2 ${mode === 'signIn' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Sign in</button>
-          <button type="button" role="tab" aria-selected={mode === 'signUp'} onClick={() => setMode('signUp')} className={`flex-1 rounded-full px-3 py-2 ${mode === 'signUp' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Create account</button>
+          <button type="button" role="tab" aria-selected={mode === 'signIn'} onClick={() => setMode('signIn')} className={`flex-1 rounded-full px-3 py-2 ${mode === 'signIn' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>{t('auth.tab.signIn')}</button>
+          <button type="button" role="tab" aria-selected={mode === 'signUp'} onClick={() => setMode('signUp')} className={`flex-1 rounded-full px-3 py-2 ${mode === 'signUp' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>{t('auth.tab.signUp')}</button>
         </div>
       ) : (
         <div>
-          <p className="text-lg font-black text-white">Forgot your password?</p>
-          <p className="mt-1 text-sm text-slate-400">Enter your email and we send you a link to choose a new one.</p>
+          <p className="text-lg font-black text-white">{t('auth.reset.title')}</p>
+          <p className="mt-1 text-sm text-slate-400">{t('auth.reset.detail')}</p>
         </div>
       )}
       {intro && mode !== 'reset' ? <p className="text-sm text-slate-400">{intro}</p> : null}
       <label className="grid gap-1.5 text-sm font-bold text-slate-200">
-        Email
+        {t('auth.email')}
         <input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} className="os-field" />
       </label>
       {mode !== 'reset' ? (
         <label className="grid gap-1.5 text-sm font-bold text-slate-200">
-          Password
+          {t('auth.password')}
           <input
             type="password"
             autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
@@ -113,27 +115,27 @@ export function AuthForm({
             onChange={(event) => setPassword(event.target.value)}
             className="os-field"
           />
-          {mode === 'signUp' ? <span className="text-xs font-medium text-slate-500">At least 8 characters.</span> : null}
+          {mode === 'signUp' ? <span className="text-xs font-medium text-slate-500">{t('auth.passwordHint')}</span> : null}
         </label>
       ) : null}
       {error ? <p role="alert" className="rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-bold text-red-100">{error}</p> : null}
       <button type="submit" disabled={busy} className="os-success justify-center disabled:opacity-60">
-        {busy ? 'One moment …' : SUBMIT_LABEL[mode]}
+        {busy ? t('common.oneMoment') : t(SUBMIT_LABEL[mode])}
       </button>
       {mode === 'signUp' ? (
         <p className="text-xs text-slate-400">
-          Club OS keeps what you enter so your team can use it: no ads, nothing sold. Under 16? Ask a parent first.{' '}
-          <a href="/privacy" className="font-bold text-sky-300 underline">How Club OS handles your data</a>
+          {t('auth.signUpNote')}{' '}
+          <a href="/privacy" className="font-bold text-sky-300 underline">{t('auth.privacyLink')}</a>
         </p>
       ) : null}
       {mode === 'signIn' ? (
         <button type="button" onClick={() => { setMode('reset'); setError(null); }} className="justify-self-start text-xs font-bold text-slate-400 underline">
-          Forgot password?
+          {t('auth.forgotPassword')}
         </button>
       ) : null}
       {mode === 'reset' ? (
         <button type="button" onClick={() => { setMode('signIn'); setError(null); }} className="justify-self-start text-xs font-bold text-slate-400 underline">
-          Back to sign in
+          {t('auth.backToSignIn')}
         </button>
       ) : null}
     </form>

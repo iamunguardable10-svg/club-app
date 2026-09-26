@@ -537,10 +537,13 @@ export type LocalDatabase = {
 /** Raised when stored data exists but cannot be read. Never swallowed. */
 export class LocalDataError extends Error {
   readonly cause?: unknown;
+  /** A text key (`src/shared/i18n`) the interface shows instead of `message`, in the app language. */
+  readonly messageKey?: string;
 
-  constructor(message: string, cause?: unknown) {
+  constructor(message: string, cause?: unknown, messageKey?: string) {
     super(message);
     this.name = 'LocalDataError';
     this.cause = cause;
+    this.messageKey = messageKey;
   }
 }

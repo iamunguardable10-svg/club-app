@@ -9,9 +9,10 @@
 import { useState } from 'react';
 
 import { signOut, useBackendStatus } from '@/shared/data';
-import { plural } from '@/shared/format';
+import { useT } from '@/shared/i18n';
 
 export function SignOutButton({ className }: { className: string }) {
+  const t = useT();
   const status = useBackendStatus();
   const [armed, setArmed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -31,7 +32,7 @@ export function SignOutButton({ className }: { className: string }) {
 
   return (
     <button type="button" disabled={busy} onClick={() => void leave()} className={className}>
-      {armed ? `Sign out anyway? ${plural(status.pending, 'change')} not sent yet will be lost` : 'Sign out'}
+      {armed ? t('auth.signOutAnyway', { count: status.pending }) : t('auth.signOut')}
     </button>
   );
 }
