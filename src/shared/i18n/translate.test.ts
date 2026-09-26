@@ -24,12 +24,16 @@ function check(label: string, run: () => void) {
 check('placeholders are filled', () => {
   assert.equal(translate('en', 'start.welcomeBackName', { name: 'Mia' }), 'Welcome back, Mia');
   assert.equal(translate('de', 'start.welcomeBackName', { name: 'Mia' }), 'Willkommen zurück, Mia');
+  assert.equal(translate('fr', 'start.title'), 'Ton équipe, au même endroit.');
+  assert.equal(translate('es', 'start.title'), 'Tu equipo, en un solo sitio.');
 });
 
 check('plural forms follow the language rules', () => {
   assert.equal(translate('en', 'start.local.summary', { club: 'C', count: 1, players: 5 }), 'Demo: C, 1 team, 5 players.');
   assert.equal(translate('en', 'start.local.summary', { club: 'C', count: 3, players: 5 }), 'Demo: C, 3 teams, 5 players.');
   assert.equal(translate('de', 'start.local.summary', { club: 'C', count: 3, players: 5 }), 'Demo: C, 3 Teams, 5 Spieler.');
+  assert.equal(translate('fr', 'start.local.summary', { club: 'C', count: 3, players: 5 }), 'Démo : C, 3 équipes, 5 joueurs.');
+  assert.equal(translate('es', 'start.local.summary', { club: 'C', count: 1, players: 5 }), 'Demo: C, 1 equipo, 5 jugadores.');
 });
 
 check('an unknown placeholder stays visible instead of vanishing', () => {
@@ -38,8 +42,9 @@ check('an unknown placeholder stays visible instead of vanishing', () => {
 
 check('the browser language picks a known app language, else English', () => {
   assert.equal(matchLocale(['de-AT', 'en']), 'de');
-  assert.equal(matchLocale(['fr-FR', 'de']), 'de');
-  assert.equal(matchLocale(['fr-FR']), 'en');
+  assert.equal(matchLocale(['fr-FR', 'de']), 'fr');
+  assert.equal(matchLocale(['es-MX', 'en']), 'es');
+  assert.equal(matchLocale(['it-IT']), 'en');
   assert.equal(matchLocale([]), 'en');
 });
 

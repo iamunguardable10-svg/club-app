@@ -12,7 +12,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { fetchGeoapifyAddressSuggestions, getGeoapifyApiKey, type GeoapifyAddressSuggestion } from '@/features/facilities/addressAutocomplete';
-import { useT } from '@/shared/i18n';
+import { useLocale, useT } from '@/shared/i18n';
 
 const DEBOUNCE_MS = 250;
 
@@ -28,6 +28,7 @@ export function AddressField({
   className?: string;
 }) {
   const t = useT();
+  const locale = useLocale();
   const listId = useId();
   const [suggestions, setSuggestions] = useState<GeoapifyAddressSuggestion[]>([]);
   const [open, setOpen] = useState(false);
@@ -42,12 +43,12 @@ export function AddressField({
     }
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      fetchGeoapifyAddressSuggestions(value, { signal: controller.signal })
+      fetchGeoapifyAddressSuggestions(value, { signal: controller.signal, lang: locale })
         .then((results) => { setSuggestions(results); setOpen(true); })
         .catch(() => setSuggestions([]));
     }, DEBOUNCE_MS);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [enabled, value]);
+  }, [enabled, value, locale]);
 
   return (
     <div className={`relative ${className}`}>

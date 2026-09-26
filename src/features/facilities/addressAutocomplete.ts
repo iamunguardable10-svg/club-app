@@ -36,7 +36,7 @@ export function getGeoapifyApiKey() {
   return process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY?.trim() ?? '';
 }
 
-export async function fetchGeoapifyAddressSuggestions(query: string, options?: { limit?: number; signal?: AbortSignal }) {
+export async function fetchGeoapifyAddressSuggestions(query: string, options?: { limit?: number; signal?: AbortSignal; lang?: string }) {
   const apiKey = getGeoapifyApiKey();
   const text = query.trim();
 
@@ -48,7 +48,7 @@ export async function fetchGeoapifyAddressSuggestions(query: string, options?: {
     text,
     format: 'json',
     limit: String(options?.limit ?? 5),
-    lang: 'de',
+    lang: options?.lang ?? 'en',
     apiKey,
   });
 

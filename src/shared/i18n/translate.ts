@@ -12,11 +12,13 @@
 
 import de from './messages/de.json';
 import en from './messages/en.json';
+import es from './messages/es.json';
+import fr from './messages/fr.json';
 import { intlLocale, type Locale } from './locales';
 
 type Catalog = Record<string, string>;
 
-const CATALOGS: Record<Locale, Catalog> = { en, de };
+const CATALOGS: Record<Locale, Catalog> = { en, de, fr, es };
 
 const PLURAL_SUFFIXES = ['zero', 'one', 'two', 'few', 'many', 'other'] as const;
 
