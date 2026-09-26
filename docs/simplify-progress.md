@@ -2336,3 +2336,15 @@ Fehler.
   dem Laden gezeichnet wird; Hinweis von Ben).
 - **Deutsch:** „Apple Calendar“ heißt jetzt „Apple-Kalender“.
 - Der Knopf „Delete plan“ bei „This and following“ (Notiz aus Run 41) war schon in #39 behoben.
+
+## Run 52 — Today: wo die Belastung nach jeder Einheit landet (erledigt)
+
+Wunsch (Ben, 2026-09-26): auf „Today“ bei allen kommenden Einheiten kurz zeigen, wo man vom Load her
+ungefähr landet, zusätzlich zum Graphen. Neu: ein kleines Kästchen „→ ~1,18“ (`LoadLandingChip`,
+in der Farbe der Zone: unter 0,8 blau, bis 1,3 grün, bis 1,5 gelb, darüber rot mit ⚠). Es rechnet
+den ACWR am Ende des Tages der Einheit, wenn alles davor Geplante wie geschätzt stattfindet (dieselbe
+Vorschau wie der Graph). Bei „Next up“ rechts neben dem Titel, bei eigenen Plänen am Ende der
+Detailzeile („420 AU erwartet → ~1,18“), damit keine Zeile dazukommt. Nur für Teams mit Load und
+wenn die Grundlinie steht; nur für die auf Today sichtbaren Einheiten (lange Serien bremsen sonst).
+Geprüft: Handy 390/360 px in EN/DE/FR und Desktop; auf 360 px auf Französisch rutscht das Kästchen in
+eine dritte Zeile, sonst keine zusätzlichen Zeilen; Rundgang (`test:smoke`) ohne Fehler.
