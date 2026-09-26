@@ -23,6 +23,7 @@ import {
   getAppleCalendarStatus,
   listCalendarSources,
   setCalendarImport,
+  serverError,
   syncAppleCalendar,
   type AppleCalendarStatus,
   type CalendarSource,
@@ -108,7 +109,7 @@ export function AppleCalendarPanel({ canRead, onConnectedChange }: { canRead: bo
               <p className="text-sm font-black text-white">{t('apple.connectedAs', { appleId: status.appleId })}</p>
               {status.status === 'error' ? (
                 <p role="alert" className="text-xs font-bold text-amber-200">
-                  {t('apple.lastSyncFailed', { error: status.lastError ?? t('apple.unknownError') })}{' '}
+                  {t('apple.lastSyncFailed', { error: status.lastError ? errorText(t, serverError(status.lastError)) : t('apple.unknownError') })}{' '}
                   <button type="button" onClick={() => setGuideOpen(true)} className="underline">{t('apple.enterAgain')}</button>
                 </p>
               ) : (

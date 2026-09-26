@@ -5,6 +5,7 @@
 
 import assert from 'node:assert/strict';
 import { translate } from './translate';
+import { SERVER_MESSAGES, serverMessageKey } from '../data/serverMessages';
 import { matchLocale } from './locales';
 
 let failures = 0;
@@ -38,6 +39,14 @@ check('the browser language picks a known app language, else English', () => {
   assert.equal(matchLocale(['fr-FR', 'de']), 'de');
   assert.equal(matchLocale(['fr-FR']), 'en');
   assert.equal(matchLocale([]), 'en');
+});
+
+check('server texts: the English entry is the server text itself', () => {
+  for (const [text, key] of Object.entries(SERVER_MESSAGES)) assert.equal(translate('en', key), text);
+  assert.deepEqual(serverMessageKey('Could not save an event (503).'), { key: 'server.couldNotSaveEvent', params: { status: '503' } });
+  assert.equal(translate('en', 'server.couldNotSaveEvent', { status: '503' }), 'Could not save an event (503).');
+  assert.equal(serverMessageKey('Inserting sessions: new row violates row-level security policy for table "sessions"')?.key, 'server.rlsRefused');
+  assert.equal(serverMessageKey('Something new'), null);
 });
 
 console.log(failures === 0 ? 'all i18n checks passed' : `${failures} i18n check(s) failed`);

@@ -30,7 +30,8 @@
 import { calculateACWR, getLatestACWR, loadZone, sevenDayLoad, summarizeLoadEntries } from './loadCalculations';
 import { DATABASE_KEY, LEGACY_KEY_PREFIXES, SCHEMA_VERSION, isCurrent } from './migrations';
 import { COACH_ROLE_TEMPLATES, createSeedDatabase } from './seed';
-import type { OfflineCache, OfflineSnapshot, RemoteStore } from './remote/remoteStore';
+import type { OfflineCache, OfflineSnapshot, RejectedNotice, RemoteStore } from './remote/remoteStore';
+import { serverError } from './serverMessages';
 import {
   COACH_PERMISSIONS,
   COACH_PERMISSION_REQUIRES,
@@ -407,8 +408,10 @@ export type BackendStatus = {
   mode: 'local' | 'remote';
   phase: 'loading' | 'ready' | 'signedOut' | 'unlinked' | 'error';
   error: string | null;
-  /** The last change the server did not (fully) accept. */
+  /** The last change the server did not (fully) accept, in English (error reports). */
   rejected: string | null;
+  /** The same for the interface: `errorText(t, rejectedNotice)`. */
+  rejectedNotice: RejectedNotice | null;
   /** Changes not yet answered by the server (offline: waiting for the network). */
   pending: number;
   /** No network: the screen shows the state kept on this device. */
@@ -417,7 +420,7 @@ export type BackendStatus = {
   savedAt: string | null;
 };
 
-const QUIET = { rejected: null, pending: 0, offline: false, savedAt: null } as const;
+const QUIET = { rejected: null, rejectedNotice: null, pending: 0, offline: false, savedAt: null } as const;
 
 /** Where the data comes from and whether it is there yet. */
 export function getBackendStatus(): BackendStatus {
@@ -603,7 +606,7 @@ export async function signOut(options: { everywhere?: boolean } = {}): Promise<v
 export async function deleteMyAccount(): Promise<void> {
   const supabase = await authClient();
   const { error } = await supabase.rpc('delete_my_account');
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
   // The account is gone on the server; this only tidies the device.
   await signOut().catch(() => undefined);
   offlineCache().clear();
@@ -617,7 +620,7 @@ export async function deleteMyAccount(): Promise<void> {
 export async function getPushPublicKey(): Promise<string | null> {
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('push_public_key');
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
   return typeof data === 'string' && data ? data : null;
 }
 
@@ -627,13 +630,13 @@ export async function savePushSubscription(subscription: { endpoint: string; p25
   const { error } = await supabase.rpc('save_push_subscription', {
     p_endpoint: subscription.endpoint, p_p256dh: subscription.p256dh, p_auth: subscription.auth,
   });
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
 }
 
 export async function deletePushSubscription(endpoint: string): Promise<void> {
   const supabase = await authClient();
   const { error } = await supabase.rpc('delete_push_subscription', { p_endpoint: endpoint });
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
 }
 
 /** Kinds of message that can be switched off; "How hard was it?" cannot (piece 12). */
@@ -647,7 +650,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = { mutedKinds:
 export async function getNotificationSettings(): Promise<NotificationSettings> {
   const supabase = await authClient();
   const { data, error } = await supabase.from('notification_settings').select('muted_kinds, quiet_from, quiet_to').maybeSingle();
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
   if (!data) return DEFAULT_NOTIFICATION_SETTINGS;
   return { mutedKinds: data.muted_kinds ?? [], quietFrom: data.quiet_from, quietTo: data.quiet_to };
 }
@@ -667,7 +670,7 @@ export async function saveNotificationSettings(settings: NotificationSettings): 
     quiet_to: quietTo,
     updated_at: new Date().toISOString(),
   });
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
 }
 
 // ---------------------------------------------------------------------------
@@ -678,7 +681,7 @@ export async function saveNotificationSettings(settings: NotificationSettings): 
 export async function createLoginHandoff(): Promise<string> {
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('create_login_handoff');
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
   return data as string;
 }
 
@@ -730,7 +733,7 @@ function calendarLink(token: string, lastFetchedAt: string | null): CalendarLink
 export async function getCalendarLink(): Promise<CalendarLink | null> {
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('calendar_feed_status');
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
   const status = data as { token: string; last_fetched_at: string | null } | null;
   return status?.token ? calendarLink(status.token, status.last_fetched_at) : null;
 }
@@ -739,7 +742,7 @@ export async function getCalendarLink(): Promise<CalendarLink | null> {
 export async function createCalendarLink(renew = false): Promise<CalendarLink> {
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('calendar_feed_token', { p_new: renew });
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
   return calendarLink(data as string, null);
 }
 
@@ -747,7 +750,7 @@ export async function createCalendarLink(renew = false): Promise<CalendarLink> {
 export async function stopCalendarLink(): Promise<void> {
   const supabase = await authClient();
   const { error } = await supabase.rpc('calendar_feed_stop');
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
 }
 
 // ---------------------------------------------------------------------------
@@ -761,7 +764,7 @@ export type CalendarSource = { url: string; name: string; color: string | null; 
 export async function getAppleCalendarStatus(): Promise<AppleCalendarStatus | null> {
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('apple_calendar_status');
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
   const row = data as { apple_id: string; status: 'ok' | 'error'; last_error: string | null; last_sync_at: string | null } | null;
   return row ? { appleId: row.apple_id, status: row.status, lastError: row.last_error, lastSyncAt: row.last_sync_at } : null;
 }
@@ -770,7 +773,7 @@ async function callAppleCalendar(body: Record<string, string>): Promise<Record<s
   const supabase = await authClient();
   const { data: session } = await supabase.auth.getSession();
   const token = session.session?.access_token;
-  if (!token) throw new LocalDataError('Please sign in again.');
+  if (!token) throw serverError('Please sign in again.');
   const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/apple-calendar`, {
     method: 'POST',
     headers: {
@@ -780,9 +783,9 @@ async function callAppleCalendar(body: Record<string, string>): Promise<Record<s
     },
     body: JSON.stringify(body),
   }).catch(() => null);
-  if (!response) throw new LocalDataError("You're offline. Try again when you have a connection.");
+  if (!response) throw new LocalDataError("You're offline. Try again when you have a connection.", undefined, 'data.offlineTryAgain');
   const result = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!response.ok || typeof result.error === 'string') throw new LocalDataError(typeof result.error === 'string' ? result.error : 'Apple Calendar is not available right now.');
+  if (!response.ok || typeof result.error === 'string') throw serverError(typeof result.error === 'string' ? result.error : 'Apple Calendar is not available right now.');
   return result;
 }
 
@@ -801,14 +804,14 @@ export async function syncAppleCalendar(): Promise<void> {
 export async function disconnectAppleCalendar(): Promise<void> {
   const supabase = await authClient();
   const { error } = await supabase.rpc('disconnect_apple_calendar');
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
   await refreshFromServer();
 }
 
 export async function listCalendarSources(): Promise<CalendarSource[]> {
   const supabase = await authClient();
   const { data, error } = await supabase.from('calendar_sources').select('url, name, color, import, coach_sees').order('name');
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
   return (data ?? []).map((row) => ({ url: row.url, name: row.name, color: row.color, import: row.import, coachSees: row.coach_sees }));
 }
 
@@ -816,7 +819,7 @@ export async function listCalendarSources(): Promise<CalendarSource[]> {
 export async function setCalendarImport(url: string, value: boolean): Promise<void> {
   const supabase = await authClient();
   const { error } = await supabase.from('calendar_sources').update({ import: value }).eq('url', url);
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
   if (!value) await refreshFromServer();
 }
 
@@ -852,7 +855,7 @@ export async function sendProblemReport(text: string, context: ReportContext): P
     p_text: text, p_page: context.page, p_role: context.role, p_mode: context.mode,
     p_version: context.version, p_device: context.device,
   });
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
 }
 
 export type ErrorReport = {
@@ -883,7 +886,7 @@ export async function isOperator(): Promise<boolean> {
 export async function listErrorReports(includeResolved: boolean): Promise<ErrorReport[]> {
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('list_error_reports', { p_include_resolved: includeResolved });
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
   return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
     id: String(row.id), kind: row.kind as ErrorReport['kind'], message: String(row.message),
     detail: (row.detail as string | null) ?? null, page: (row.page as string | null) ?? null,
@@ -897,7 +900,7 @@ export async function listErrorReports(includeResolved: boolean): Promise<ErrorR
 export async function resolveErrorReport(id: string, resolved: boolean): Promise<void> {
   const supabase = await authClient();
   const { error } = await supabase.rpc('resolve_error_report', { p_id: id, p_resolved: resolved });
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
 }
 
 /** The signed-in account, or null. */
@@ -923,7 +926,7 @@ export type InvitePreview = {
 export async function previewInvite(token: string): Promise<InvitePreview | null> {
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('invite_preview', { p_token: token });
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
   const row = (data as Record<string, unknown>[] | null)?.[0];
   if (!row) return null;
   return {
@@ -939,7 +942,7 @@ export type JoinCodePreview = { clubName: string; teamName: string; usable: bool
 export async function previewJoinCode(code: string): Promise<JoinCodePreview | null> {
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('join_code_preview', { p_code: code });
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
   const row = (data as Record<string, unknown>[] | null)?.[0];
   if (!row) return null;
   return { clubName: String(row.club_name), teamName: String(row.team_name), usable: Boolean(row.usable) };
@@ -949,7 +952,7 @@ export async function previewJoinCode(code: string): Promise<JoinCodePreview | n
 export async function isFoundingCodeUsable(code: string): Promise<boolean> {
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('founding_code_usable', { p_code: code });
-  if (error) throw new LocalDataError(error.message);
+  if (error) throw serverError(error.message, error);
   return Boolean(data);
 }
 
