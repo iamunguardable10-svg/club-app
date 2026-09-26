@@ -251,7 +251,7 @@ dorthin (die Auswahl wird dann übersprungen):
 **Entschieden (2026-09-25):** Die Ampel rechnet mit dem **EWMA-Tageswert** (ein Wert für
 Trainer und Spieler, Literatur-Standard). Später je Team wählbar, gekoppelt ans Abo: kein
 Load / 7 Tage gegen die 4 Wochen davor (Amateure, ruhiger bei 2–3 Einheiten pro Woche) /
-EWMA (Profis). Hintergrund und Zahlen in `docs/simplify-progress.md`, Run 16.
+EWMA (Profis). Hintergrund und Zahlen in `docs/simplify-progress.md`, Run 16. Bestätigt 2026-09-26: das wöchentliche Auf und Ab (z. B. sonntags „Low“ bei Mo/Mi/Fr) wird nicht geglättet.
 
 ## Stücke 13–21 (geplant 2026-09-25, Entscheidungen siehe unten)
 
