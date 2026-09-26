@@ -69,10 +69,14 @@ check(`the baseline is full after ${BASELINE_DAYS} days, not before`, () => {
   assert.equal(series[BASELINE_DAYS - 1].chronicFull, true);
 });
 
-check('EWMA starts from the mean, not the first day: a steady athlete is not "Low" on day 28', () => {
-  const series = calculateACWR(steadyWeeks(8));
+check('EWMA starts from the mean, not the first day: day 28 already matches the settled weeks', () => {
+  // Same weekday eight weeks later, when the start no longer matters. (The
+  // ratio moves within the week – lowest after the two rest days – so the
+  // comparison is with the same weekday, whatever weekday today is.)
+  const series = calculateACWR(steadyWeeks(13));
   const day28 = series[BASELINE_DAYS - 1];
-  assert.ok((day28.acwr ?? 0) > 0.85, `day 28: ${day28.acwr} (was 0.78 with the old start value)`);
+  const settled = series[BASELINE_DAYS - 1 + 56];
+  assert.ok(Math.abs((day28.acwr ?? 0) - (settled.acwr ?? 0)) < 0.05, `day 28: ${day28.acwr}, same weekday settled: ${settled.acwr}`);
   const firstWeeks = series.slice(BASELINE_DAYS - 1, BASELINE_DAYS + 13).map((point) => point.acwr ?? 0);
   const mean = firstWeeks.reduce((a, b) => a + b, 0) / firstWeeks.length;
   assert.ok(mean > 0.95 && mean < 1.05, `mean over days 28–41: ${mean.toFixed(3)}`);
