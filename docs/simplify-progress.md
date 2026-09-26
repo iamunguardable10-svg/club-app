@@ -2354,7 +2354,7 @@ eine dritte Zeile, sonst keine zusätzlichen Zeilen; Rundgang (`test:smoke`) ohn
 Wunsch (Ben, 2026-09-26): weniger Text auf dem Handy. „Wie anstrengend war es?“ steht jetzt in einer
 Zeile, der Erklärsatz darunter ist weg (Text `athlete.rate.detail` gelöscht; auf Französisch und
 Spanisch kürzere Überschrift, damit sie in eine Zeile passt). Die Load-Kästchen („→ ~1,18“) gibt es nur
-noch für Einheiten in den nächsten 7 Tagen, weiter hinten ist die Schätzung zu ungenau. Sie stehen
-direkt neben dem Titel; bei „Als Nächstes“ so groß wie der Titel (`LoadLandingChip large`). Statt des
+noch für die nächsten 4 Einheiten, weiter hinten ist die Schätzung zu ungenau. Sie stehen rechtsbündig
+in der Titelzeile; bei „Als Nächstes“ so groß wie der Titel (`LoadLandingChip large`). Statt des
 Knopfs „Löschen“ hat jeder eigene Plan ein kleines × oben rechts, das wie vorher erst nachfragt.
 Geprüft: Handy 390 px in DE/FR/ES, Desktop, × öffnet die Nachfrage; Rundgang (`test:smoke`) ohne Fehler.

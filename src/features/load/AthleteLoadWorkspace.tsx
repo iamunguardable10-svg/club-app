@@ -1393,16 +1393,15 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const nextSession = activePendingSessions.find((session) => session.date >= todayISO() && session.trainingType !== 'warmup') ?? activePendingSessions[0] ?? null;
   // Where the ratio lands after each session shown on Today ("~1.05"), with
   // everything planned before it done as estimated (same forecast as the chart).
-  // Only for what Today shows (long series would make this slow otherwise),
-  // and only for the coming week: further out the estimates are too rough.
+  // Only for the next four sessions Today shows: further out the estimates are
+  // too rough (and long series would make this slow).
   const landingAfter = useMemo(() => {
     const result = new Map<string, number>();
     if (!hasLoad) return result;
     const shown = new Set([nextSession?.id, ...plans.slice(0, 4).map((plan) => plan.id)].filter((id): id is string => Boolean(id)));
-    const weekAhead = isoDate(addDays(new Date(), 7));
     const ordered = [...loadPendingSessions].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
     ordered.forEach((session, index) => {
-      if (!shown.has(session.id) || session.date > weekAhead) return;
+      if (!shown.has(session.id) || result.size >= 4) return;
       const forecast = acwrAfter(sortedEntries, ordered.slice(0, index + 1));
       if (forecast) result.set(session.id, forecast.after);
     });
@@ -2134,7 +2133,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               </div>
               {nextSession ? (
                 <button type="button" onClick={() => openCalendarItem({ id: nextSession.id, title: nextSession.title, date: nextSession.date, startsAt: nextSession.startsAt, endsAt: nextSession.endsAt, trainingType: nextSession.trainingType, teamName: nextSession.teamName, status: nextSession.date < todayISO() ? 'missing' : 'planned', source: nextSession.source ?? 'team_session', session: nextSession })} className="mt-4 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.06] p-5 text-left transition hover:border-emerald-300/55">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between gap-3">
                     <p className="min-w-0 text-2xl font-black tracking-tight">{displayTitle(nextSession.title)}</p>
                     {landingAfter.has(nextSession.id) ? <LoadLandingChip value={landingAfter.get(nextSession.id)!} large /> : null}
                   </div>
@@ -2154,7 +2153,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   {plans.slice(0, 4).map((plan) => (
                     <div key={plan.id} className="relative rounded-2xl border border-violet-300/20 bg-violet-300/[0.06] py-2 pl-3 pr-9">
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between gap-2">
                           <p className="min-w-0 text-sm font-black text-white">{displayTitle(plan.title)}</p>
                           {landingAfter.has(plan.id) ? <span className="shrink-0"><LoadLandingChip value={landingAfter.get(plan.id)!} /></span> : null}
                         </div>
