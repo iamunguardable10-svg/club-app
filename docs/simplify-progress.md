@@ -2077,3 +2077,27 @@ Datenschicht, Belastungs-Rechnung, Kalender und Apple-Abgleich liefen nur lokal.
 0,77, Grenze 0,8), an allen anderen Tagen auf „Ready“. So rechnet die tägliche EWMA grundsätzlich
 (nach zwei Ruhetagen ist die akute Last am niedrigsten). Offen, ob wir das glätten (z. B. Zone
 aus dem Mittel der letzten 7 Tage) oder so lassen.
+
+## Run 38 — Datenschutz-Seite und Konto löschen (erledigt)
+
+Aus der Durchsicht (2026-09-26): Die App speichert Daten von Minderjährigen, Belastung,
+Abwesenheitsgründe und Apple-Passwörter, hatte aber weder einen Datenschutz-Hinweis noch
+„Konto löschen“.
+
+- **`/privacy` „Your data“** in einfachen Worten: was gespeichert wird, wer was sieht (nach den
+  Zugriffsregeln geprüft: andere Spieler sehen einen weder mit Namen noch mit Zusagen,
+  Abwesenheiten oder Belastung), wo (Supabase EU/Paris, Vercel, Apple/Google-Push, iCloud bei
+  Apple-Verbindung), unter 16 Eltern fragen, was man selbst tun kann. Pilot-Zusammenfassung,
+  keine vollständige Datenschutzerklärung. Verlinkt bei der Registrierung, auf der Anmeldeseite
+  und in den Einstellungen.
+- **Settings → Account → „Delete account“** (nur mit Konto): Bestätigung, dann ist alles weg –
+  Person mit Teams, Antworten, Belastung, Abwesenheiten, eigenem Training, Einstellungen, Geräten,
+  Kalender-Link, Apple-Verbindung samt Passwort im Vault, Anmeldung. Nachrichten an ein Team
+  bleiben ohne Namen. Der einzige Admin eines Vereins mit weiteren Leuten muss zuerst einen
+  weiteren Admin hinzufügen.
+- Bei der Registrierung: „Under 16? Ask a parent first.“
+
+Geprüft: SQL-Test 17 (alles gelöscht, Vault-Passwort weg, andere bleiben, einziger Admin wird
+aufgehalten), alle SQL-Tests, Typecheck, Build; im Projekt ein zurückgerollter Probelauf (Nutzer
+anlegen, löschen: Konto und Person weg); Browser: Seite 390 px ohne seitliches Scrollen,
+Hinweis bei der Registrierung, Link in den Einstellungen, Löschen im Demo-Modus ausgeblendet.

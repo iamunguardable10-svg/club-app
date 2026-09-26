@@ -120,6 +120,12 @@ export function AuthForm({
       <button type="submit" disabled={busy} className="os-success justify-center disabled:opacity-60">
         {busy ? 'One moment …' : SUBMIT_LABEL[mode]}
       </button>
+      {mode === 'signUp' ? (
+        <p className="text-xs text-slate-400">
+          Club OS keeps what you enter so your team can use it: no ads, nothing sold. Under 16? Ask a parent first.{' '}
+          <a href="/privacy" className="font-bold text-sky-300 underline">How Club OS handles your data</a>
+        </p>
+      ) : null}
       {mode === 'signIn' ? (
         <button type="button" onClick={() => { setMode('reset'); setError(null); }} className="justify-self-start text-xs font-bold text-slate-400 underline">
           Forgot password?

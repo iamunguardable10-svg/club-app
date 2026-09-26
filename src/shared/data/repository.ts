@@ -561,6 +561,19 @@ export async function signOut(options: { everywhere?: boolean } = {}): Promise<v
   offlineCache().clear();
 }
 
+/**
+ * Deletes the account and everything about the person in the club
+ * (Settings → Account), then clears this device like signing out.
+ */
+export async function deleteMyAccount(): Promise<void> {
+  const supabase = await authClient();
+  const { error } = await supabase.rpc('delete_my_account');
+  if (error) throw new LocalDataError(error.message);
+  // The account is gone on the server; this only tidies the device.
+  await signOut().catch(() => undefined);
+  offlineCache().clear();
+}
+
 // ---------------------------------------------------------------------------
 // Push notifications (piece 7): devices of the signed-in account
 // ---------------------------------------------------------------------------
