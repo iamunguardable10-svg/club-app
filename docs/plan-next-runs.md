@@ -329,3 +329,7 @@ Spieler ohne Konto nötig).
 - Supabase: E-Mail-Bestätigung / SMTP, Site URL und Redirect-URLs.
 - Vercel-Projekt und Adresse.
 - Gründungs-Code für den eigenen Verein (kommt mit Stück 8).
+- **Mail-Vorlagen in vier Sprachen (zurückgestellt, Ben 2026-09-26):** Die Mails von Supabase
+  (Bestätigen, Passwort zurücksetzen, E-Mail ändern) bleiben vorerst Englisch. Später einmal die drei
+  Vorlagen aus `docs/mail-templates/` in Supabase → Authentication → Emails einfügen (Inhalt `.html`,
+  Betreff `.subject.txt`); Anleitung in `docs/i18n.md`, Abschnitt „Mails (6b)“. Bis dahin nichts tun.
