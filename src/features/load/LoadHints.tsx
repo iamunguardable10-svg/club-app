@@ -69,7 +69,7 @@ export function LoadLandingChip({ value, large = false }: { value: number; large
         ? 'border-emerald-300/35 bg-emerald-300/10 text-emerald-100'
         : 'border-sky-300/35 bg-sky-300/10 text-sky-100';
   return (
-    <span title={label} aria-label={label} role="img" className={`inline-flex shrink-0 items-center gap-1 rounded-full border font-black tabular-nums ${large ? 'px-2.5 py-0.5 text-base' : 'px-2 py-0.5 text-[11px]'} ${tone}`}>
+    <span title={label} aria-label={label} role="img" className={`inline-flex shrink-0 items-center gap-1 rounded-full border font-black tabular-nums ${large ? '-translate-y-0.5 px-2.5 py-0.5 text-base' : '-translate-y-px px-2 py-0.5 text-[11px]'} ${tone}`}>
       <span aria-hidden="true" className="opacity-60">→</span>
       <span aria-hidden="true">~{formatDecimal(value)}</span>
       {value > HIGH_RISK_ACWR ? <WarningIcon className={`${large ? 'h-4 w-4' : 'h-3 w-3'} text-rose-300`} /> : null}
