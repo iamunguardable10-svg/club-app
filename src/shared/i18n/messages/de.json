@@ -1647,5 +1647,6 @@
   "mail.change.heading": "Neue E-Mail-Adresse",
   "mail.change.text": "Tippe auf die Schaltfläche, um die E-Mail-Adresse deines Club-OS-Kontos von {email} in {newEmail} zu ändern.",
   "mail.change.button": "Neue E-Mail-Adresse bestätigen",
-  "mail.ignore": "Falls du das nicht angefordert hast, kannst du diese E-Mail ignorieren."
+  "mail.ignore": "Falls du das nicht angefordert hast, kannst du diese E-Mail ignorieren.",
+  "athlete.loading": "Wird geladen …"
 }

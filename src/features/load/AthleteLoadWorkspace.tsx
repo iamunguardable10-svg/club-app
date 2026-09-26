@@ -1977,6 +1977,21 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     );
   }
 
+  // Until the first read in the browser: no dates yet. The server renders this
+  // page ahead of time (build day, English); dates formatted now would differ
+  // from the browser's (today, app language) and break hydration.
+  if (!ready) {
+    return (
+      <AthleteShell
+        active={activeView === 'home' ? 'today' : activeView}
+        showLoad={false}
+        title={activeView === 'home' ? t('athlete.title.today') : activeView === 'calendar' ? t('athlete.title.calendar') : t('athlete.title.load')}
+      >
+        <p className="text-sm text-slate-400">{t('athlete.loading')}</p>
+      </AthleteShell>
+    );
+  }
+
   return (
     <AthleteShell
       active={activeView === 'home' ? 'today' : activeView}
