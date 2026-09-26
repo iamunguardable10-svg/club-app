@@ -2413,13 +2413,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
       <AppConfirmDialog
         isOpen={Boolean(deleteTarget)}
-        title={deleteTarget?.kind === 'entry' ? 'Delete load entry?' : 'Delete planned load?'}
+        title={deleteTarget?.kind === 'entry' ? 'Delete load entry?' : deleteTarget?.kind === 'plan' && editingSeriesPlan && seriesScope === 'following' ? 'Delete this and the following?' : 'Delete planned load?'}
         description={deleteTarget
           ? deleteTarget.kind === 'plan' && editingSeriesPlan && seriesScope === 'following'
             ? `${deleteTarget.title} and the later sessions of this weekly series will be removed from your calendar.`
             : `${deleteTarget.title} will be removed from your calendar and load history.`
           : undefined}
-        confirmLabel={deleteTarget?.kind === 'entry' ? 'Delete load' : 'Delete plan'}
+        confirmLabel={deleteTarget?.kind === 'entry' ? 'Delete load' : editingSeriesPlan && seriesScope === 'following' ? 'Delete this and following' : 'Delete plan'}
         cancelLabel="Cancel"
         tone="danger"
         isConfirming={isDeleting}
