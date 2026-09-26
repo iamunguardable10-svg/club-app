@@ -164,6 +164,9 @@ export function netOperations(operations: Operation[]): Operation[] {
 }
 
 /** Human-readable names for the message when the server refuses something. */
+/** Rows that only mark that something happened (read, seen); their time is not compared. */
+const MARK_TABLES = new Set<TableName>(['message_reads', 'acknowledged_sessions']);
+
 const TABLE_LABEL: Partial<Record<TableName, string>> = {
   facilities: 'halls',
   teams: 'team settings',
@@ -500,6 +503,10 @@ export class RemoteStore {
         if (operation.kind === 'insert') return operation.table;
         continue;
       }
+      // "Read" and "seen" marks only say that it happened. When the row is
+      // there, its time does not matter: read on another device first, or
+      // sent twice (found in the walkthrough, 2026-09-26).
+      if (operation.kind === 'insert' && MARK_TABLES.has(operation.table)) continue;
       const sent = normalizeRow(operation.table, operation.kind === 'update' ? operation.changes : operation.row);
       for (const [column, value] of Object.entries(sent)) {
         if (!sameValue(value, found[column])) return operation.table;

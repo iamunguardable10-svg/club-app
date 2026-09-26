@@ -2308,7 +2308,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                           </div>
                           {availabilityDraft === 'late' || availabilityDraft === 'out' ? (
                             <label className="block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                              Reason
+                              Reason · for your coach
                               <textarea value={availabilityReason} onChange={(event) => setAvailabilityReason(event.target.value)} placeholder="e.g. school, injury, traffic" className="mt-2 min-h-20 w-full resize-y rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold normal-case tracking-normal text-white outline-none placeholder:text-slate-600 focus:border-emerald-300" />
                             </label>
                           ) : null}
@@ -2331,6 +2331,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                           >
                             Save availability
                           </button>
+                          {/* Shown here too: the page's own message is hidden behind this sheet. */}
+                          {error ? <p role="alert" className="text-xs font-bold text-rose-200">{error}</p> : null}
                         </div>
                       ) : null}
                     </>
