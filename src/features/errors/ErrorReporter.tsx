@@ -16,7 +16,12 @@ export function ErrorReporter() {
   const lastRejected = useRef<string | null>(null);
 
   useEffect(() => {
-    const onError = (event: ErrorEvent) => reportError('error', event.error ?? event.message);
+    const onError = (event: ErrorEvent) => {
+      // "Script error." without an error object: the browser hid what happened
+      // (another origin, an extension). Nothing anyone could act on.
+      if (!event.error && /^Script error\.?$/.test(event.message ?? '')) return;
+      reportError('error', event.error ?? event.message);
+    };
     const onRejection = (event: PromiseRejectionEvent) => reportError('error', event.reason);
     window.addEventListener('error', onError);
     window.addEventListener('unhandledrejection', onRejection);

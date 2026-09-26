@@ -38,6 +38,7 @@ migrations below are applied there (2026-09-24).
 | `migrations/0027_pilot_apple_rate_limit.sql` | Limits on the Apple Calendar function: `app.apple_calendar_calls`, `apple_calendar_allow(user, kind)` for the Edge Function only; 5 connection attempts and 60 syncs per hour and account (the 15-minute sync is not counted), so the function cannot be used to try out Apple passwords |
 | `migrations/0028_pilot_join_notice.sql` | A player joining with the team code: push "<team> · New player" to the coaches who can remove players (head coach or `manageStaff`), not for players a coach adds; push kind `joined`, can be switched off ("New players") |
 | `migrations/0029_pilot_delete_account.sql` | Deleting one's own account: `delete_my_account()` removes the person (everything cascades from `people`), the Apple password in the Vault and the account (`auth.users`, cascading settings, devices, calendar link, Apple connection); refused for the only admin of a club that has other people |
+| `migrations/0030_pilot_quiet_error_reports.sql` | Quieter error reports: "Script error." without detail (the browser hid the real error) is not stored; the morning summary moves to 07:00 UTC (09:00 in summer, 08:00 in winter) |
 | `tests/00_supabase_shim.sql` | Stand-in for Supabase's `auth` schema and roles, **local tests only** |
 | `tests/01_rls_test.sql` | 105 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
 | `tests/02_access_test.sql` | 35 checks for join codes, invitations and club setup |
