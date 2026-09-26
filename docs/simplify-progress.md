@@ -2258,3 +2258,19 @@ Nur `en.json`.
 Geprüft: sichtbarer englischer Text aller Demo-Seiten vorher und nachher gleich (75 Aufnahmen), bis
 auf das gewollte „TE“ → „sessions“ im Trainer-Verlauf; Hallenkalender auf Handy und Desktop ohne
 Konsolenfehler. Nebenbei: „Andere Buchung“ (deutsch, im Konflikt-Hinweis) heißt jetzt „Other booking“.
+
+## Run 47 — App-Sprachen, Bereich 5: Verein, Settings, Rest (erledigt)
+
+Über `t()`/`tr()`: Vereinsbereich (Abteilungen, Leitungen, Admins, Teams archivieren), Vereins-Hallen,
+Settings (Konto, E-Mail, Passwort, Abmelden überall, Konto löschen, Benachrichtigungen und Ruhezeiten,
+eigene Teams, Vereinsname), Handy-Kalender (Kalender-Link, Apple-Kalender mit Anleitung),
+„Problem melden“, Fehlerberichte, Absturzseiten, Datenschutzseite, Bestätigungsdialog (Standardtexte),
+Offline-Hinweis, Anmelde-Übergabe, „Auch im Team spielen“. Die Datenschicht gibt ihre Ladefehler
+(nicht angemeldet, kein Team, Server nicht erreichbar, offline) als Schlüssel mit; `errorText`
+füllt dabei auch Werte (`messageParams`). `clubRoleLabel` (Datenschicht, Englisch) ist ersetzt
+durch `clubRoleText` in der Oberfläche. Nur `en.json` (jetzt 1 436 Texte).
+
+Geprüft: englischer Text aller Demo-Seiten vorher/nachher gleich bis auf „Lauf“ → „Run“ (deutsche
+Demo-Daten im eigenen Training, jetzt „Run“/„Shooting practice“) und „TE“ → „sessions“; ein
+Probe-Build mit markierten Texten fand keinen übersehenen Oberflächentext; mit Deutsch gewählt laufen
+Verein, Settings, Datenschutz und Fehlerberichte ohne Konsolenfehler.

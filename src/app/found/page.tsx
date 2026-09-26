@@ -117,7 +117,7 @@ function FoundForm({ code, account }: { code: string; account: { email: string }
       <section className="os-panel grid grid-cols-[minmax(0,1fr)] gap-3 p-5">
         <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('onboarding.found.whereToStart')}</p>
         <p className="text-sm text-slate-400">{t('onboarding.found.whereToStartDetail')}</p>
-        <Field label={t('onboarding.found.firstDepartment')} value={departmentName} onChange={setDepartmentName} placeholder="Basketball" />
+        <Field label={t('onboarding.found.firstDepartment')} value={departmentName} onChange={setDepartmentName} placeholder={t('onboarding.found.departmentPlaceholder')} />
         <Field label={t('onboarding.found.firstTeam')} value={teamName} onChange={setTeamName} placeholder="U16" />
         <label className="flex items-start gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-200">
           <input type="checkbox" checked={coachTeam} onChange={(event) => setCoachTeam(event.target.checked)} className="mt-1 h-4 w-4" />

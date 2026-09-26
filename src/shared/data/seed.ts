@@ -486,7 +486,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
         teamName: teamNameById.get(membership.teamId) ?? null,
         date: dateOnly(day),
         startsAt: null,
-        title: index % 2 === 0 ? 'Lauf' : 'Wurftraining',
+        title: index % 2 === 0 ? 'Run' : 'Shooting practice',
         trainingType: index % 2 === 0 ? 'individual' : 'individual',
         rpe,
         durationMinutes,

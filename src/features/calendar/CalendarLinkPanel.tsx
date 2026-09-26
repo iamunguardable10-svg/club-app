@@ -18,15 +18,20 @@ import {
   type CalendarLink,
 } from '@/shared/data';
 import { formatShortDate, formatTime } from '@/shared/format';
+import { errorText, useT, type MessageKey } from '@/shared/i18n';
 
 const buttonClass = 'rounded-2xl border border-slate-700 px-4 py-2 text-xs font-black text-slate-200 disabled:opacity-50';
 const primaryClass = 'rounded-2xl bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950 disabled:opacity-50';
 
+/** A line under the panel; a caught error is turned into text while rendering (docs/i18n.md, rule 9). */
+type Note = { key: MessageKey } | { caught: unknown };
+
 export function CalendarLinkPanel({ remote, appleConnected }: { remote: boolean; appleConnected: boolean }) {
+  const t = useT();
   const [link, setLink] = useState<CalendarLink | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
+  const [message, setMessage] = useState<Note | null>(null);
   const [confirm, setConfirm] = useState<'renew' | 'stop' | null>(null);
 
   useEffect(() => {
@@ -37,7 +42,7 @@ export function CalendarLinkPanel({ remote, appleConnected }: { remote: boolean;
         if (!cancelled) setLink(found);
       })
       .catch((error) => {
-        if (!cancelled) setMessage({ text: error instanceof Error ? error.message : String(error), error: true });
+        if (!cancelled) setMessage({ caught: error });
       })
       .finally(() => {
         if (!cancelled) setLoaded(true);
@@ -47,25 +52,25 @@ export function CalendarLinkPanel({ remote, appleConnected }: { remote: boolean;
     };
   }, [remote]);
 
-  const heading = <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Calendar link · Google, Outlook, Android and others</p>;
+  const heading = <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{t('calendarLink.heading')}</p>;
 
   if (!remote) {
     return (
       <div id="calendar" className="grid scroll-mt-24 gap-3">
         {heading}
-        <p className="text-sm text-slate-400">Demo club: the calendar link works when you are signed in to your club.</p>
+        <p className="text-sm text-slate-400">{t('calendarLink.demo')}</p>
       </div>
     );
   }
 
-  async function run(action: () => Promise<void>, success: string | null) {
+  async function run(action: () => Promise<void>, success: MessageKey | null) {
     setBusy(true);
     setMessage(null);
     try {
       await action();
-      if (success) setMessage({ text: success, error: false });
+      if (success) setMessage({ key: success });
     } catch (error) {
-      setMessage({ text: error instanceof Error ? error.message : String(error), error: true });
+      setMessage({ caught: error });
     } finally {
       setBusy(false);
       setConfirm(null);
@@ -76,73 +81,73 @@ export function CalendarLinkPanel({ remote, appleConnected }: { remote: boolean;
     if (!link) return;
     await run(async () => {
       await navigator.clipboard.writeText(link.url);
-    }, 'Link copied.');
+    }, 'calendarLink.copied');
   }
 
   return (
     <div id="calendar" className="grid scroll-mt-24 gap-3">
       {heading}
       <div className="grid gap-4">
-        {!loaded ? <p className="text-sm text-slate-400">Loading…</p> : null}
+        {!loaded ? <p className="text-sm text-slate-400">{t('calendarLink.loading')}</p> : null}
         {loaded && !link ? (
           <div className="grid gap-3">
             <p className="text-sm text-slate-300">
               {appleConnected
-                ? 'Not needed: Apple Calendar is connected. Only get a link for another calendar app (e.g. Google), not for the same one, or every session shows twice.'
-                : 'Get a private link and subscribe to it in your calendar app.'}
+                ? t('calendarLink.notNeeded')
+                : t('calendarLink.intro')}
             </p>
             <button type="button" disabled={busy} className={`justify-self-start ${appleConnected ? buttonClass : primaryClass}`} onClick={() => void run(async () => setLink(await createCalendarLink()), null)}>
-              Get my calendar link
+              {t('calendarLink.get')}
             </button>
           </div>
         ) : null}
         {link ? (
           <div className="grid gap-3">
             <div className="flex flex-wrap gap-2">
-              <a href={link.webcalUrl} className={primaryClass}>Add to Apple Calendar</a>
+              <a href={link.webcalUrl} className={primaryClass}>{t('calendarLink.addApple')}</a>
               <a href={`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(link.webcalUrl)}`} target="_blank" rel="noreferrer" className={buttonClass}>
-                Add to Google Calendar
+                {t('calendarLink.addGoogle')}
               </a>
-              <button type="button" disabled={busy} onClick={() => void copy()} className={buttonClass}>Copy link</button>
+              <button type="button" disabled={busy} onClick={() => void copy()} className={buttonClass}>{t('calendarLink.copy')}</button>
             </div>
             <p className="break-all rounded-2xl border border-slate-800 bg-slate-950/60 px-3 py-2 font-mono text-[11px] text-slate-400">{link.url}</p>
             <p className="text-xs text-slate-400">
-              Outlook and others: add a calendar “from the internet” and paste the link. Calendar apps check for changes every hour or so.
-              {link.lastFetchedAt ? ` Last fetched ${formatShortDate(link.lastFetchedAt)} ${formatTime(link.lastFetchedAt)}.` : ''}
+              {t('calendarLink.howTo')}
+              {link.lastFetchedAt ? ` ${t('calendarLink.lastFetched', { date: formatShortDate(link.lastFetchedAt), time: formatTime(link.lastFetchedAt) })}` : ''}
             </p>
-            <p className="text-xs font-bold text-amber-200">Anyone with this link can see these sessions. Don’t share it.</p>
+            <p className="text-xs font-bold text-amber-200">{t('calendarLink.secret')}</p>
             {appleConnected ? (
-              <p className="text-xs font-bold text-amber-200">Apple Calendar is connected too. If this link is in the same calendar app, every session shows twice; then stop the link.</p>
+              <p className="text-xs font-bold text-amber-200">{t('calendarLink.appleToo')}</p>
             ) : null}
             <div className="flex flex-wrap gap-x-4 gap-y-2">
-              <button type="button" disabled={busy} onClick={() => setConfirm('renew')} className="text-xs font-bold text-slate-400 underline">New link</button>
-              <button type="button" disabled={busy} onClick={() => setConfirm('stop')} className="text-xs font-bold text-slate-400 underline">Stop the link</button>
+              <button type="button" disabled={busy} onClick={() => setConfirm('renew')} className="text-xs font-bold text-slate-400 underline">{t('calendarLink.newLink')}</button>
+              <button type="button" disabled={busy} onClick={() => setConfirm('stop')} className="text-xs font-bold text-slate-400 underline">{t('calendarLink.stopLink')}</button>
             </div>
           </div>
         ) : null}
-        {message ? <p role={message.error ? 'alert' : 'status'} className={`text-xs font-bold ${message.error ? 'text-red-200' : 'text-emerald-200'}`}>{message.text}</p> : null}
+        {message ? <p role={'caught' in message ? 'alert' : 'status'} className={`text-xs font-bold ${'caught' in message ? 'text-red-200' : 'text-emerald-200'}`}>{'caught' in message ? errorText(t, message.caught) : t(message.key)}</p> : null}
       </div>
       <AppConfirmDialog
         isOpen={confirm === 'renew'}
-        title="Make a new link?"
-        description="The old link stops working at once. Calendars subscribed to it stop getting sessions until you subscribe to the new one."
-        confirmLabel="New link"
+        title={t('calendarLink.renewTitle')}
+        description={t('calendarLink.renewDetail')}
+        confirmLabel={t('calendarLink.newLink')}
         isConfirming={busy}
         onCancel={() => setConfirm(null)}
-        onConfirm={() => void run(async () => setLink(await createCalendarLink(true)), 'New link ready. Subscribe to it again in your calendar app.')}
+        onConfirm={() => void run(async () => setLink(await createCalendarLink(true)), 'calendarLink.renewed')}
       />
       <AppConfirmDialog
         isOpen={confirm === 'stop'}
-        title="Stop the calendar link?"
-        description="Calendars subscribed to it stop getting sessions. You can get a new link any time."
-        confirmLabel="Stop"
+        title={t('calendarLink.stopTitle')}
+        description={t('calendarLink.stopDetail')}
+        confirmLabel={t('calendarLink.stop')}
         tone="danger"
         isConfirming={busy}
         onCancel={() => setConfirm(null)}
         onConfirm={() => void run(async () => {
           await stopCalendarLink();
           setLink(null);
-        }, 'The link is switched off.')}
+        }, 'calendarLink.stopped')}
       />
     </div>
   );

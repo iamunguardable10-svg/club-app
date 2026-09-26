@@ -8,9 +8,12 @@
 
 import { useEffect, useState } from 'react';
 
+import { useT } from '@/shared/i18n';
+
 import { finishLoginHandoff, hasLoginHandoff } from './installHandoff';
 
 export function LoginHandoff() {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!hasLoginHandoff()) return;
@@ -22,7 +25,7 @@ export function LoginHandoff() {
   if (!busy) return null;
   return (
     <div className="fixed inset-0 z-[200] grid place-items-center bg-slate-950 text-sm font-black text-slate-200" role="status">
-      Signing you in…
+      {t('handoff.signingIn')}
     </div>
   );
 }

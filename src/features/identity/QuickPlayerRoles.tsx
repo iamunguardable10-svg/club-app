@@ -16,8 +16,10 @@ import {
   ownPersonIds,
   type LocalDatabase,
 } from '@/shared/data';
+import { errorText, useT } from '@/shared/i18n';
 
 export function QuickPlayerRoles({ database }: { database: LocalDatabase }) {
+  const t = useT();
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const own = ownPersonIds(database);
@@ -36,9 +38,9 @@ export function QuickPlayerRoles({ database }: { database: LocalDatabase }) {
     setMessage(null);
     try {
       await joinTeamWithCode(code, me.firstName, me.lastName);
-      setMessage({ text: `You are now also a player in ${teamName}. Continue as player above, or switch in the menu.`, error: false });
+      setMessage({ text: t('quickRoles.joined', { team: teamName }), error: false });
     } catch (error) {
-      setMessage({ text: error instanceof Error ? error.message : String(error), error: true });
+      setMessage({ text: errorText(t, error), error: true });
     } finally {
       setBusy(null);
     }
@@ -55,7 +57,7 @@ export function QuickPlayerRoles({ database }: { database: LocalDatabase }) {
           onClick={() => void joinAsPlayer(team.id, team.name)}
           className="flex items-center justify-between rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-left text-sm font-black text-slate-100 hover:border-emerald-300/60 disabled:opacity-60"
         >
-          {busy === team.id ? 'One moment …' : `Also play in ${team.name}`}
+          {busy === team.id ? t('quickRoles.oneMoment') : t('quickRoles.alsoPlay', { team: team.name })}
           <span aria-hidden className="text-emerald-300">+</span>
         </button>
       ))}

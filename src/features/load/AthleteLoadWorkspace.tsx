@@ -1318,7 +1318,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   useEffect(() => {
     if (!ready) return;
     if (dataError) {
-      setError(dataError.message);
+      setError(errorText(tr, dataError));
       setSource('local');
       return;
     }

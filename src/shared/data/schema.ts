@@ -539,11 +539,14 @@ export class LocalDataError extends Error {
   readonly cause?: unknown;
   /** A text key (`src/shared/i18n`) the interface shows instead of `message`, in the app language. */
   readonly messageKey?: string;
+  /** `{name}` values for `messageKey`. */
+  readonly messageParams?: Record<string, string | number>;
 
-  constructor(message: string, cause?: unknown, messageKey?: string) {
+  constructor(message: string, cause?: unknown, messageKey?: string, messageParams?: Record<string, string | number>) {
     super(message);
     this.name = 'LocalDataError';
     this.cause = cause;
     this.messageKey = messageKey;
+    this.messageParams = messageParams;
   }
 }

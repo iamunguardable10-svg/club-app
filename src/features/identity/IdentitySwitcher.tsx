@@ -26,7 +26,6 @@ import { SignOutButton } from '@/features/access/SignOutButton';
 import { ReportProblemDialog } from '@/features/errors/ReportProblemDialog';
 
 import {
-  clubRoleLabel,
   displayName,
   peopleWithRole,
   isOperator,
@@ -40,6 +39,7 @@ import {
   type IdentityRole,
   type Person,
 } from '@/shared/data';
+import { clubRoleText } from '@/features/club/clubRoleText';
 import { useT, type MessageKey } from '@/shared/i18n';
 
 const ROLE_LABEL: Record<IdentityRole, MessageKey> = {
@@ -125,7 +125,7 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
         <ul className="space-y-1.5">
           {people.map((person) => {
             // Coaches see their role per team, since that decides what they may see.
-            const teams = role === 'club' ? clubRoleLabel(database!, person.id) : teamsForPerson(database!, person.id)
+            const teams = role === 'club' ? clubRoleText(database!, person.id) : teamsForPerson(database!, person.id)
               .map((team) => {
                 if (role !== 'coach') return team.name;
                 const membership = database!.memberships.find((m) => m.personId === person.id && m.teamId === team.id && m.role === 'coach');

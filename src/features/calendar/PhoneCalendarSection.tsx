@@ -14,11 +14,13 @@ import { useEffect, useState } from 'react';
 
 import { CoachSection } from '@/features/role-workspaces/RoleShell';
 import { isAppleDevice } from '@/features/install/installPrompt';
+import { useT } from '@/shared/i18n';
 
 import { AppleCalendarPanel } from './AppleCalendarPanel';
 import { CalendarLinkPanel } from './CalendarLinkPanel';
 
 export function PhoneCalendarSection({ remote, canRead }: { remote: boolean; canRead: boolean }) {
+  const t = useT();
   const [apple, setApple] = useState(false);
   const [appleConnected, setAppleConnected] = useState(false);
   useEffect(() => setApple(isAppleDevice()), []);
@@ -29,8 +31,8 @@ export function PhoneCalendarSection({ remote, canRead }: { remote: boolean; can
 
   return (
     <CoachSection
-      title="Phone calendar"
-      description="Optional: your team sessions (and your own training) in your phone’s calendar, always up to date. Pick one way."
+      title={t('phoneCalendar.title')}
+      description={t('phoneCalendar.detail')}
       className="scroll-mt-24"
     >
       <div id="phone-calendar" className="grid gap-5">

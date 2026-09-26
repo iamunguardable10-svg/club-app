@@ -1139,16 +1139,6 @@ export function hasIdentityRole(database: LocalDatabase, personId: Id, role: Ide
 }
 
 /** "Club admin", or "Department lead · Handball" (several joined with commas). */
-export function clubRoleLabel(database: LocalDatabase, personId: Id): string {
-  return clubRolesOf(database, personId)
-    .map((clubRole) => {
-      if (clubRole.role === 'admin') return 'Club admin';
-      const department = database.departments.find((candidate) => candidate.id === clubRole.departmentId);
-      return department ? `Department lead · ${department.name}` : 'Department lead';
-    })
-    .join(', ');
-}
-
 export function teamsForPerson(database: LocalDatabase, personId: Id): Team[] {
   const teamIds = new Set(
     database.memberships.filter((membership) => membership.personId === personId).map((membership) => membership.teamId),

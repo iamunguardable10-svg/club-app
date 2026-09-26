@@ -27,6 +27,7 @@ import {
 } from '../../../src/shared/data/remote/remoteStore';
 import * as rateStore from '../../../src/features/load/athleteLocalStore';
 import { buildCoachData } from '../../../src/features/role-workspaces/coachData';
+import { clubRoleText } from '../../../src/features/club/clubRoleText';
 import type { Row, TableName } from '../../../src/shared/data/remote/tables';
 
 const DB = process.env.PILOT_TEST_DB ?? 'pilot_app_test';
@@ -681,7 +682,7 @@ async function main() {
     (await count("select 1 from club_roles cr join people p on p.id = cr.person_id where p.user_id = $1 and cr.role = 'department_lead'", [U.lead])) === 1);
   // Piece 8b: a club role without a team is an identity of its own.
   check('lead: loaded as "club" (no team), not as unlinked',
-    store.getStatus().phase === 'ready' && db().activeIdentity?.role === 'club' && data.clubRoleLabel(db(), db().activeIdentity!.personId) === 'Department lead · Handball',
+    store.getStatus().phase === 'ready' && db().activeIdentity?.role === 'club' && clubRoleText(db(), db().activeIdentity!.personId) === 'Department lead · Handball',
     { status: store.getStatus(), identity: db().activeIdentity });
   check('… he sees the Handball teams, not the others', data.managedDepartmentIds(db(), db().activeIdentity!.personId).length === 1);
   // Piece 8c: the lead runs his department from the club area.

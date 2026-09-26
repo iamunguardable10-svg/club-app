@@ -58,9 +58,13 @@ export interface RemoteClient {
 
 /** No network: nothing reached the server. The change waits; reading shows the saved state. */
 export class OfflineError extends Error {
-  constructor(message = "You're offline.") {
+  /** The text key the interface shows (see `LocalDataError.messageKey`). */
+  readonly messageKey: string;
+
+  constructor(message = "You're offline.", messageKey = 'data.offline') {
     super(message);
     this.name = 'OfflineError';
+    this.messageKey = messageKey;
   }
 }
 
@@ -405,7 +409,7 @@ export class RemoteStore {
   async call(name: string, args: Row): Promise<unknown> {
     await this.queue;
     // Changes still waiting for the network go first, so this waits too.
-    if (this.outbox.length > 0) throw new OfflineError("You're offline. Try again when you have a connection.");
+    if (this.outbox.length > 0) throw new OfflineError("You're offline. Try again when you have a connection.", 'data.offlineTryAgain');
     const result = await this.client.rpc(name, args);
     await this.load();
     return result;

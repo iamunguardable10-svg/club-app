@@ -25,7 +25,6 @@ import { Suspense, useEffect, useState } from 'react';
 import { WhoAreYou } from '@/features/onboarding/WhoAreYou';
 import { QuickPlayerRoles } from '@/features/identity/QuickPlayerRoles';
 import {
-  clubRoleLabel,
   coachRolesForTeam,
   displayName,
   hasIdentityRole,
@@ -43,8 +42,9 @@ import {
   type IdentityRole,
   type LocalDatabase,
 } from '@/shared/data';
+import { clubRoleText } from '@/features/club/clubRoleText';
 import { HOME_FOR_ROLE } from '@/features/identity/IdentitySwitcher';
-import { useT, type MessageKey } from '@/shared/i18n';
+import { errorText, useT, type MessageKey } from '@/shared/i18n';
 import { LanguagePicker } from '@/shared/i18n/LanguagePicker';
 
 type DemoRole = IdentityRole;
@@ -144,7 +144,7 @@ function startDemoFromServer(role: DemoRole) {
 // ---------------------------------------------------------------------------
 
 function roleLabel(database: LocalDatabase, personId: string, role: IdentityRole) {
-  if (role === 'club') return clubRoleLabel(database, personId);
+  if (role === 'club') return clubRoleText(database, personId);
   const memberships = database.memberships.filter((m) => m.personId === personId && m.role === role);
   return memberships
     .map((membership) => {
@@ -300,7 +300,7 @@ function LocalStart() {
       <Page>
         <section className="rounded-3xl border border-red-500/40 bg-red-950/30 p-5 text-sm text-red-100">
           <p className="font-bold">{t('start.local.readError')}</p>
-          <p className="mt-2">{error.message}</p>
+          <p className="mt-2">{errorText(t, error)}</p>
         </section>
       </Page>
     );

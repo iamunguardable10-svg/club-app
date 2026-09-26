@@ -10,11 +10,13 @@ import { createPortal } from 'react-dom';
 
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 
+import { errorText, useT, type MessageKey } from '@/shared/i18n';
 import { reportContext, reportProblem } from './errorReporting';
 
-const ROLE_LABEL = { coach: 'Coach', athlete: 'Player', club: 'Club' } as const;
+const ROLE_LABEL = { coach: 'report.role.coach', athlete: 'report.role.athlete', club: 'report.role.club' } as const satisfies Record<string, MessageKey>;
 
 export function ReportProblemDialog({ isOpen, onClose, prefill = '' }: { isOpen: boolean; onClose: () => void; prefill?: string }) {
+  const t = useT();
   useBodyScrollLock(isOpen);
   const [text, setText] = useState(prefill);
   const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle');
@@ -42,7 +44,7 @@ export function ReportProblemDialog({ isOpen, onClose, prefill = '' }: { isOpen:
       await reportProblem(text);
       setState('sent');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(errorText(t, caught));
       setState('idle');
     }
   }
@@ -50,36 +52,42 @@ export function ReportProblemDialog({ isOpen, onClose, prefill = '' }: { isOpen:
   return createPortal(
     <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/80 p-3 backdrop-blur-sm sm:items-center" role="dialog" aria-modal="true" aria-labelledby="report-title">
       <div className="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-950 p-5 text-white shadow-2xl">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">Feedback</p>
-        <h2 id="report-title" className="mt-1 text-xl font-black">Report a problem</h2>
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">{t('report.kicker')}</p>
+        <h2 id="report-title" className="mt-1 text-xl font-black">{t('report.title')}</h2>
         {state === 'sent' ? (
           <div className="mt-4 grid gap-4">
-            <p className="text-sm text-slate-300">Thanks! Your report is on its way and will be looked at.</p>
-            <button type="button" onClick={close} className="os-success justify-center px-4 py-2 text-sm">Close</button>
+            <p className="text-sm text-slate-300">{t('report.thanks')}</p>
+            <button type="button" onClick={close} className="os-success justify-center px-4 py-2 text-sm">{t('report.close')}</button>
           </div>
         ) : (
           <form className="mt-4 grid gap-3" onSubmit={(event) => { event.preventDefault(); void send(); }}>
             <label className="grid gap-1.5 text-sm font-bold text-slate-300">
-              What happened? What did you expect?
+              {t('report.question')}
               <textarea
                 value={text}
                 onChange={(event) => { setText(event.target.value); setError(null); }}
                 maxLength={4000}
                 rows={5}
                 autoFocus
-                placeholder="e.g. I tapped Save on the session, but the time did not change."
+                placeholder={t('report.placeholder')}
                 className="os-field min-h-28 resize-y"
               />
             </label>
             <p className="text-xs text-slate-500">
-              Sent along: page {context.page || '/'}{context.role ? ` · ${ROLE_LABEL[context.role]}` : ''} · {context.mode === 'demo' ? 'demo club' : 'your account'} · {context.device} · version {context.version}.
+              {t('report.sentAlong', {
+                page: context.page || '/',
+                role: context.role ? ` · ${t(ROLE_LABEL[context.role])}` : '',
+                mode: context.mode === 'demo' ? t('report.modeDemo') : t('report.modeAccount'),
+                device: context.device,
+                version: context.version,
+              })}
             </p>
             {error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null}
             <div className="flex flex-wrap gap-2">
               <button type="submit" disabled={state === 'sending' || text.trim().length < 3} className="os-success justify-center px-4 py-2 text-sm disabled:opacity-60">
-                {state === 'sending' ? 'Sending …' : 'Send report'}
+                {state === 'sending' ? t('report.sending') : t('report.send')}
               </button>
-              <button type="button" onClick={close} className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-300">Cancel</button>
+              <button type="button" onClick={close} className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-300">{t('report.cancel')}</button>
             </div>
           </form>
         )}
