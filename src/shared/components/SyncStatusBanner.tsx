@@ -14,7 +14,7 @@
 
 import { dismissRejectedChange, useBackendStatus } from '@/shared/data';
 import { formatShortDate, formatTime } from '@/shared/format';
-import { useT } from '@/shared/i18n';
+import { errorText, useT } from '@/shared/i18n';
 
 function since(savedAt: string) {
   const saved = new Date(savedAt);
@@ -40,7 +40,7 @@ export function SyncStatusBanner() {
       {status.rejected ? (
         <div role="alert" className="pointer-events-auto w-full rounded-2xl border border-red-500/50 bg-red-950/95 p-3 text-sm font-bold text-red-100 shadow-2xl">
           <div className="flex items-start justify-between gap-3">
-            <p>{status.rejected}</p>
+            <p>{status.rejectedNotice ? errorText(t, status.rejectedNotice) : status.rejected}</p>
             <button type="button" onClick={dismissRejectedChange} className="shrink-0 rounded-full border border-red-300/40 px-2 py-1 text-xs font-black">{t('sync.ok')}</button>
           </div>
         </div>

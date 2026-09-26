@@ -2274,3 +2274,14 @@ Geprüft: englischer Text aller Demo-Seiten vorher/nachher gleich bis auf „Lau
 Demo-Daten im eigenen Training, jetzt „Run“/„Shooting practice“) und „TE“ → „sessions“; ein
 Probe-Build mit markierten Texten fand keinen übersehenen Oberflächentext; mit Deutsch gewählt laufen
 Verein, Settings, Datenschutz und Fehlerberichte ohne Konsolenfehler.
+
+## Run 48 — App-Sprachen, Bereich 6a: Server-Meldungen in der App (erledigt)
+
+Die rund 60 Meldungen, die der Server selbst formuliert (Datenbank-Funktionen: „This join code does
+not exist.“ …, Apple-Kalender: „Apple did not accept …“), haben jetzt Schlüssel (`server.*`,
+`serverMessages.ts`). Alle Datenbank-Aufrufe der App (über den Store und direkt) werfen sie als
+`LocalDataError` mit Schlüssel; abgelehnte Änderungen zeigt der Hinweis als „Not saved: …“ mit
+übersetztem Grund, Zeilenschutz-Ablehnungen als „Your role may not change this.“ Kein Eingriff am
+Server. Geprüft: `test:i18n` (englischer Eintrag = Servertext), Zugriffstests und Server-Store-Test
+gegen lokales Postgres 16 (neu: falscher Beitrittscode kommt mit Schlüssel, abgelehnte Änderung mit
+`rejectedNotice`).

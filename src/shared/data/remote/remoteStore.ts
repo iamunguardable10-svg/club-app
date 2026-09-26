@@ -31,6 +31,8 @@
  */
 
 import type { LocalDatabase } from '../schema';
+import { serverError, serverMessageKey } from '../serverMessages';
+import { isMessageKey, translate, type MessageKey } from '@/shared/i18n/translate';
 import {
   TABLES,
   fromServerRows,
@@ -90,14 +92,19 @@ export interface OfflineCache {
   clear(): void;
 }
 
+/** A refused change for the interface: `errorText(t, notice)` shows it in the app language. */
+export type RejectedNotice = { messageKey: MessageKey; messageParams: Record<string, string> };
+
 export type RemotePhase = 'loading' | 'ready' | 'signedOut' | 'unlinked' | 'error';
 
 export type RemoteStatus = {
   phase: RemotePhase;
   /** Loading failed. */
   error: string | null;
-  /** The last change the server did not (fully) accept. */
+  /** The last change the server did not (fully) accept, in English (error reports). */
   rejected: string | null;
+  /** The same as a text key with values, for the interface. */
+  rejectedNotice: RejectedNotice | null;
   /** Changes still on their way (or waiting for the network). */
   pending: number;
   /** The last request found no network; the screen shows the saved state. */
@@ -171,36 +178,37 @@ export function netOperations(operations: Operation[]): Operation[] {
 /** Rows that only mark that something happened (read, seen); their time is not compared. */
 const MARK_TABLES = new Set<TableName>(['message_reads', 'acknowledged_sessions']);
 
-const TABLE_LABEL: Partial<Record<TableName, string>> = {
-  facilities: 'halls',
-  teams: 'team settings',
-  department_facilities: 'hall sharing',
-  people: 'people',
-  coach_roles: 'coach roles',
-  memberships: 'staff',
-  player_groups: 'groups',
-  player_group_members: 'groups',
-  session_series: 'weekly series',
-  sessions: 'sessions',
-  session_series_week_states: 'weekly series',
-  availability: 'availability',
-  availability_reasons: 'absence reasons',
-  load_entries: 'load',
-  load_summaries: 'load traffic light',
-  athlete_plans: 'training plans',
-  acknowledged_sessions: 'dismissed sessions',
-  load_entry_reviews: 'check requests',
-  attendance_confirmations: 'attendance',
-  absences: 'absences',
-  absence_reasons: 'absence reasons',
-  squad_entries: 'squad',
-  team_messages: 'messages',
-  message_reads: 'read receipts',
+/** What a table is called in "Not saved (…)"; text keys (docs/i18n.md). */
+const TABLE_KEY: Partial<Record<TableName, MessageKey>> = {
+  facilities: 'sync.table.facilities',
+  teams: 'sync.table.teams',
+  department_facilities: 'sync.table.departmentFacilities',
+  people: 'sync.table.people',
+  coach_roles: 'sync.table.coachRoles',
+  memberships: 'sync.table.memberships',
+  player_groups: 'sync.table.playerGroups',
+  player_group_members: 'sync.table.playerGroupMembers',
+  session_series: 'sync.table.sessionSeries',
+  sessions: 'sync.table.sessions',
+  session_series_week_states: 'sync.table.sessionSeriesWeekStates',
+  availability: 'sync.table.availability',
+  availability_reasons: 'sync.table.availabilityReasons',
+  load_entries: 'sync.table.loadEntries',
+  load_summaries: 'sync.table.loadSummaries',
+  athlete_plans: 'sync.table.athletePlans',
+  acknowledged_sessions: 'sync.table.acknowledgedSessions',
+  load_entry_reviews: 'sync.table.loadEntryReviews',
+  attendance_confirmations: 'sync.table.attendanceConfirmations',
+  absences: 'sync.table.absences',
+  absence_reasons: 'sync.table.absenceReasons',
+  squad_entries: 'sync.table.squadEntries',
+  team_messages: 'sync.table.teamMessages',
+  message_reads: 'sync.table.messageReads',
 };
 
 export class RemoteStore {
   private document: LocalDatabase | null = null;
-  private status: RemoteStatus = { phase: 'loading', error: null, rejected: null, pending: 0, offline: false, savedAt: null };
+  private status: RemoteStatus = { phase: 'loading', error: null, rejected: null, rejectedNotice: null, pending: 0, offline: false, savedAt: null };
   private queue: Promise<void> = Promise.resolve();
   private listeners = new Set<() => void>();
   private userId: string | null = null;
@@ -252,7 +260,7 @@ export class RemoteStore {
   }
 
   clearRejected() {
-    this.setStatus({ rejected: null });
+    this.setStatus({ rejected: null, rejectedNotice: null });
     this.notify();
   }
 
@@ -410,7 +418,14 @@ export class RemoteStore {
     await this.queue;
     // Changes still waiting for the network go first, so this waits too.
     if (this.outbox.length > 0) throw new OfflineError("You're offline. Try again when you have a connection.", 'data.offlineTryAgain');
-    const result = await this.client.rpc(name, args);
+    let result: unknown;
+    try {
+      result = await this.client.rpc(name, args);
+    } catch (error) {
+      // Database functions raise texts meant for the person; known ones get their text key.
+      if (error instanceof OfflineError || !(error instanceof Error) || 'messageKey' in error) throw error;
+      throw serverError(error.message, error);
+    }
     await this.load();
     return result;
   }
@@ -451,10 +466,14 @@ export class RemoteStore {
       this.unchecked = [];
       this.uncheckedFailure = null;
       if (failure || mismatch) {
+        // Kept as a text key for the banner (app language) and in English for error reports.
+        const notice: RejectedNotice = failure
+          ? { messageKey: 'sync.notSaved', messageParams: { reason: serverMessageKey(failure)?.key ?? failure } }
+          : { messageKey: 'sync.notSavedTable', messageParams: { table: TABLE_KEY[mismatch!] ?? mismatch! } };
+        const english = Object.fromEntries(Object.entries(notice.messageParams).map(([name, value]) => [name, isMessageKey(value) ? translate('en', value) : value]));
         this.setStatus({
-          rejected: failure
-            ? `Not saved: ${failure}`
-            : `Not saved (${TABLE_LABEL[mismatch!] ?? mismatch}): your role may not change this, or someone else just changed it.`,
+          rejected: failure ? `Not saved: ${failure}` : translate('en', notice.messageKey, english),
+          rejectedNotice: notice,
         });
       }
     }

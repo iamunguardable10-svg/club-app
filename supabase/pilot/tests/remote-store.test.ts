@@ -466,6 +466,7 @@ async function main() {
   });
   await data.flushRemote();
   check('… and by the server, with a message', (await count('select 1 from load_entries where person_id = $1', [P.jonas])) === entriesBefore && store.getStatus().rejected !== null, store.getStatus());
+  check('… the message also as a text key for the banner', store.getStatus().rejectedNotice?.messageKey.startsWith('sync.notSaved') === true, store.getStatus().rejectedNotice);
   await pool.query(`update public.teams set features = array['load'] where id = $1`, [TEAM]);
   store = await actAs(U.martin);
   check('load back on: Martin sees the traffic lights again', db().loadSummaries.length > 0);
@@ -490,12 +491,15 @@ async function main() {
   store = await actAs(U.mia);
   check('Mia (new account): not linked yet', store.getStatus().phase === 'unlinked', store.getStatus());
   let wrongCode = '';
+  let wrongCodeKey: unknown;
   try {
     await data.joinTeamWithCode('WRONG234', 'Mia', 'Neu');
   } catch (error) {
     wrongCode = error instanceof Error ? error.message : String(error);
+    wrongCodeKey = (error as { messageKey?: unknown }).messageKey;
   }
   check('Mia: a wrong code is refused with a clear message', wrongCode.includes('does not exist'), wrongCode);
+  check('… with its text key, so the app can show it in its language', wrongCodeKey === 'server.thisJoinCodeDoesNot', wrongCodeKey);
   await data.joinTeamWithCode(code.toLowerCase(), 'Mia', 'Neu');
   check('Mia: joined, now an athlete of U16', store.getStatus().phase === 'ready' && db().activeIdentity?.role === 'athlete', store.getStatus());
   check('Mia: sees the team sessions', data.sessionsForTeam(db(), TEAM).length > 0);
