@@ -2030,7 +2030,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         {activeView === 'calendar' ? (
           <div id="athlete-calendar" className="scroll-mt-24">
             <AthleteCalendar items={calendarItems} onEmptySlot={hasLoad ? openComposer : undefined} onItemSelect={openCalendarItem} onPlanTimeChange={updatePlanTimeFromCalendar} />
-            <Link href="/settings#calendar" className="mt-3 inline-block text-xs font-bold text-sky-300 underline">Show these sessions in your phone’s calendar ›</Link>
+            <Link href="/settings#phone-calendar" className="mt-3 inline-block text-xs font-bold text-sky-300 underline">Show these sessions in your phone’s calendar ›</Link>
           </div>
         ) : activeView === 'home' ? (
           <section className={`grid min-w-0 items-stretch gap-5 ${todayPending.length > 0 ? 'lg:grid-cols-[0.9fr_1.1fr]' : ''}`}>

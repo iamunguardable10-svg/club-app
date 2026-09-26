@@ -73,3 +73,8 @@ export function installPlatform(): InstallPlatform {
   if (/Android/.test(ua)) return 'android';
   return 'desktop';
 }
+
+/** iPhone, iPad or Mac: where Apple Calendar is the calendar (piece 20). */
+export function isAppleDevice(): boolean {
+  return installPlatform() === 'ios' || (typeof navigator !== 'undefined' && /Macintosh/.test(navigator.userAgent));
+}

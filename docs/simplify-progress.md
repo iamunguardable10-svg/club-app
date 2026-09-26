@@ -2018,3 +2018,25 @@ Trainer beim ersten Öffnen des Kalenders, bevor er nur noch in den Einstellunge
 Geprüft: Typecheck, Build; Browser mit vorübergehend freigeschalteter Karte (nicht committet):
 iPhone 390 px, Android 390 px, Desktop 1280 px (Trainer), kein seitliches Scrollen, Anleitung
 öffnet, „Not now“ bleibt nach Neuladen weg; im Demo-Modus keine Karte.
+
+## Run 35 — Kalender-Bereich aufräumen, Apple-Verbinden begrenzt (erledigt)
+
+Aus der Durchsicht (2026-09-26):
+- **Ein Bereich „Phone calendar“** in den Einstellungen statt zwei nebeneinander: auf iPhone,
+  iPad und Mac zuerst Apple Calendar, darunter der Kalender-Link („Google, Outlook, Android and
+  others“); auf anderen Geräten umgekehrt. Ist Apple verbunden, sagt der Link-Teil „Not needed“
+  und warnt, dass beides in derselben Kalender-App jede Einheit doppelt zeigt.
+- **Eigene Termine anzeigen nur für Spieler:** Die gelesenen Apple-Termine erscheinen nur im
+  Spieler-Kalender, deshalb sehen reine Trainer-Konten die Auswahl nicht mehr (vorher versprach
+  der Text etwas, das beim Trainer nicht passierte). Der Nutzen steht jetzt dabei: „Show your own
+  appointments here … so you can plan training around them. Only you see them; your coach does
+  not.“ Schalter „Shown“/„Off“.
+- Der Link unter dem Spieler-Kalender führt zum ganzen Bereich (`#phone-calendar`).
+- **Begrenzung** (Migration 0027, Function v2): je Konto 5 Verbindungsversuche und 60 Abgleiche
+  pro Stunde; sonst hätte jedes Konto über uns beliebig Apple-Passwörter durchprobieren können.
+
+Geprüft: Typecheck, Build, SQL-Tests (neu: Grenze, Zählung je Konto und Art, nach einer Stunde
+wieder frei, App darf nicht zählen), Datenschicht, CalDAV, Kalender-Dateien, Serien; Browser im
+Demo-Modus (390/1280 px, keine Fehler). Server-Modus prüft der Durchlauf mit Wegwerf-Konten.
+Bekannt: ein Belastungs-Test hängt vom Wochentag ab (samstags rot) – wird mit „Tests in die CI“
+robust gemacht.

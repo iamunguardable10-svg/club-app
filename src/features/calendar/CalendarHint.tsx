@@ -13,13 +13,9 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import { dismissHint, getAppleCalendarStatus, isHintDismissed, isRemoteMode } from '@/shared/data';
-import { installPlatform } from '@/features/install/installPrompt';
+import { isAppleDevice } from '@/features/install/installPrompt';
 
-import { ConnectGuide } from './AppleCalendarSection';
-
-function isAppleDevice() {
-  return installPlatform() === 'ios' || (typeof navigator !== 'undefined' && /Macintosh/.test(navigator.userAgent));
-}
+import { ConnectGuide } from './AppleCalendarPanel';
 
 export function CalendarHint() {
   const [show, setShow] = useState(false);

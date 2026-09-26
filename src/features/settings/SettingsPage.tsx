@@ -18,8 +18,7 @@ import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
 
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
-import { AppleCalendarSection } from '@/features/calendar/AppleCalendarSection';
-import { CalendarLinkSection } from '@/features/calendar/CalendarLinkSection';
+import { PhoneCalendarSection } from '@/features/calendar/PhoneCalendarSection';
 import { InstallHint } from '@/features/install/InstallHint';
 import { SignOutButton } from '@/features/access/SignOutButton';
 import { plural } from '@/shared/format';
@@ -68,8 +67,7 @@ export function SettingsPage() {
         <div className="grid gap-5">
           <AccountSection person={person} remote={remote} />
           {remote ? <NotificationSection database={database} /> : null}
-          <CalendarLinkSection remote={remote} role={role} />
-          {role !== 'club' ? <AppleCalendarSection remote={remote} /> : null}
+          {role !== 'club' ? <PhoneCalendarSection remote={remote} canRead={isPlayerAccount(database)} /> : null}
         </div>
         <div className="grid gap-5">
           {role === 'athlete' && person ? <PlayerTeamsSection database={database} person={person} /> : null}
@@ -87,6 +85,12 @@ export function SettingsPage() {
       </div>
     </ActiveRoleShell>
   );
+}
+
+/** Whether the account plays in a team (its Apple appointments show in the player calendar). */
+function isPlayerAccount(database: LocalDatabase) {
+  const own = new Set(ownPersonIds(database));
+  return database.memberships.some((membership) => own.has(membership.personId) && membership.role === 'athlete');
 }
 
 // ---------------------------------------------------------------------------
