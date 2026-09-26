@@ -2218,3 +2218,16 @@ und Plan für die weiteren Bereiche: `docs/i18n.md`.
 Geprüft im Browser: Browsersprache Deutsch → Startseite deutsch, Umschalten auf English und zurück,
 Französisch → Englisch, Erklärblatt „Trainingsbelastung, kurz erklärt“ mit „1,5“, `<html lang>`
 folgt; keine Fehler in der Konsole.
+
+## Run 44 — App-Sprachen, Bereich 2: Einstieg (erledigt)
+
+Anmelden, Konto erstellen, Passwort vergessen/neu setzen, Team beitreten (Code und Einladung),
+Verein gründen, Teilen-Link mit QR, Abmelden-Knopf: alles über `t()`, Deutsch dabei. Sprachauswahl
+auch oben auf /login, /join und /found (wer einen Link bekommt, landet nicht auf der Startseite).
+Bekannte Anmeldefehler von Supabase bekommen in der Datenschicht einen Schlüssel
+(`LocalDataError.messageKey`), die Oberfläche zeigt sie mit `errorText(t, …)` in der Sprache.
+
+Geprüft im Browser (Browsersprache Deutsch, echter Server): falsches Passwort → „E-Mail oder
+Passwort ist falsch.“, Passwort vergessen, unbekannter Beitrittscode, ungültiger Gründungscode,
+ungültige Einladung, abgelaufener Link zum neuen Passwort – alles deutsch, keine Fehler außer der
+erwarteten Absage des Servers beim falschen Passwort.

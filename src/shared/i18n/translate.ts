@@ -46,6 +46,13 @@ function lookup(catalog: Catalog, locale: Locale, key: string, count: number | u
   return catalog[key];
 }
 
+const ENGLISH_BASES = new Set(Object.keys(en).map((key) => key.replace(/_(zero|one|two|few|many|other)$/, '')));
+
+/** Whether a string from elsewhere (an error, a stored value) names an English text. */
+export function isMessageKey(value: string): value is MessageKey {
+  return ENGLISH_BASES.has(value);
+}
+
 export function translate(locale: Locale, key: MessageKey, params?: MessageParams): string {
   const count = typeof params?.count === 'number' ? params.count : undefined;
   const text = lookup(CATALOGS[locale], locale, key, count) ?? lookup(CATALOGS.en, 'en', key, count) ?? key;

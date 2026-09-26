@@ -509,24 +509,28 @@ async function authClient() {
   return getSupabase(authStorage(window.localStorage));
 }
 
-/** Supabase answers in English; these are the messages people actually meet. */
-function authMessage(message: string): string {
-  const known: [RegExp, string][] = [
-    [/invalid login credentials/i, 'Email or password is incorrect.'],
-    [/email not confirmed/i, 'Please confirm your email address first, using the link we sent you.'],
-    [/already registered|already exists/i, 'There is already an account with this email. Please sign in.'],
-    [/password should be at least (\d+)/i, 'The password is too short.'],
-    [/rate limit|too many/i, 'Too many attempts. Please wait a moment and try again.'],
-    [/not authorized/i, 'The server cannot send mail to this address right now.'],
-    [/unable to validate email|invalid format|invalid email/i, 'This email address does not look valid.'],
+/**
+ * Supabase answers in English; these are the messages people actually meet.
+ * The key lets the interface show them in the app language.
+ */
+function authError(message: string): LocalDataError {
+  const known: [RegExp, string, string][] = [
+    [/invalid login credentials/i, 'Email or password is incorrect.', 'auth.error.wrongPassword'],
+    [/email not confirmed/i, 'Please confirm your email address first, using the link we sent you.', 'auth.error.notConfirmed'],
+    [/already registered|already exists/i, 'There is already an account with this email. Please sign in.', 'auth.error.alreadyRegistered'],
+    [/password should be at least (\d+)/i, 'The password is too short.', 'auth.error.passwordTooShort'],
+    [/rate limit|too many/i, 'Too many attempts. Please wait a moment and try again.', 'auth.error.tooManyAttempts'],
+    [/not authorized/i, 'The server cannot send mail to this address right now.', 'auth.error.cannotSendMail'],
+    [/unable to validate email|invalid format|invalid email/i, 'This email address does not look valid.', 'auth.error.invalidEmail'],
   ];
-  return known.find(([pattern]) => pattern.test(message))?.[1] ?? message;
+  const match = known.find(([pattern]) => pattern.test(message));
+  return match ? new LocalDataError(match[1], undefined, match[2]) : new LocalDataError(message);
 }
 
 export async function signInWithPassword(email: string, password: string): Promise<void> {
   const supabase = await authClient();
   const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-  if (error) throw new LocalDataError(authMessage(error.message));
+  if (error) throw authError(error.message);
 }
 
 /**
@@ -540,7 +544,7 @@ export async function signUpWithPassword(email: string, password: string, return
     password,
     options: { emailRedirectTo: `${window.location.origin}${returnTo}` },
   });
-  if (error) throw new LocalDataError(authMessage(error.message));
+  if (error) throw authError(error.message);
   return { confirmationNeeded: !data.session };
 }
 
@@ -550,14 +554,14 @@ export async function requestPasswordReset(email: string): Promise<void> {
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
     redirectTo: `${window.location.origin}/reset-password`,
   });
-  if (error) throw new LocalDataError(authMessage(error.message));
+  if (error) throw authError(error.message);
 }
 
 /** Sets a new password for the signed-in account (after the reset link). */
 export async function updatePassword(password: string): Promise<void> {
   const supabase = await authClient();
   const { error } = await supabase.auth.updateUser({ password });
-  if (error) throw new LocalDataError(authMessage(error.message));
+  if (error) throw authError(error.message);
 }
 
 /**
@@ -569,7 +573,7 @@ export async function changeEmail(email: string): Promise<void> {
   if (!clean) throw new LocalDataError('Enter the new email address.');
   const supabase = await authClient();
   const { error } = await supabase.auth.updateUser({ email: clean }, { emailRedirectTo: `${window.location.origin}/settings` });
-  if (error) throw new LocalDataError(authMessage(error.message));
+  if (error) throw authError(error.message);
 }
 
 /** Signs out on this device, or with `everywhere` on every device of the account. */

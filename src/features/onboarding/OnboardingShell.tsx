@@ -3,14 +3,20 @@
 import { LocalModeLink } from '@/features/access/LocalModeLink';
 import { HOME_FOR_ROLE } from '@/features/identity/IdentitySwitcher';
 import { ownPersonIds, readDatabase, setActiveIdentity, signOut, type IdentityRole } from '@/shared/data';
+import { useT } from '@/shared/i18n';
+import { LanguagePicker } from '@/shared/i18n/LanguagePicker';
 
 /** The frame of the onboarding pages (/join, /found). */
 export function OnboardingShell({ title, children }: { title: string; children: React.ReactNode }) {
+  const t = useT();
   return (
     <main className="os-page">
       <div className="os-container max-w-md space-y-5 pb-12">
         <header className="os-hero p-6">
-          <p className="os-kicker">Club OS</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="os-kicker">{t('start.kicker')}</p>
+            <LanguagePicker compact />
+          </div>
           <h1 className="os-title mt-2">{title}</h1>
         </header>
         {children}
@@ -25,10 +31,11 @@ export function ErrorLine({ message }: { message: string | null }) {
 }
 
 export function AccountLine({ account }: { account: { email: string } }) {
+  const t = useT();
   return (
     <p className="text-xs text-slate-400">
-      Signed in as {account.email} ·{' '}
-      <button type="button" className="underline" onClick={async () => { await signOut(); window.location.reload(); }}>use another account</button>
+      {t('auth.signedInAs', { email: account.email })} ·{' '}
+      <button type="button" className="underline" onClick={async () => { await signOut(); window.location.reload(); }}>{t('auth.useAnotherAccount')}</button>
     </p>
   );
 }

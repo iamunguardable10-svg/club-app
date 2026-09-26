@@ -16,12 +16,14 @@ import { AuthForm } from '@/features/access/AuthForm';
 import { AccountLine, ErrorLine, OnboardingShell as Shell, continueAs } from '@/features/onboarding/OnboardingShell';
 import { useAccount, type Account } from '@/features/onboarding/useAccount';
 import { foundClub, isFoundingCodeUsable, useBackendStatus, useLocalDatabase } from '@/shared/data';
+import { errorText, useT } from '@/shared/i18n';
 
 function normalize(code: string) {
   return code.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
 }
 
 function EnterCode({ initial, message }: { initial: string; message?: string }) {
+  const t = useT();
   const [value, setValue] = useState(initial);
   return (
     <form
@@ -33,15 +35,12 @@ function EnterCode({ initial, message }: { initial: string; message?: string }) 
       }}
     >
       {message ? <ErrorLine message={message} /> : null}
-      <p className="text-sm text-slate-400">
-        You set up your club and become its admin; then you invite department leads and coaches. During the pilot this
-        needs a founding code from the Club OS team.
-      </p>
+      <p className="text-sm text-slate-400">{t('onboarding.who.founderText')}</p>
       <label className="grid gap-1 text-sm font-bold text-slate-200">
-        Founding code
+        {t('onboarding.who.foundingCode')}
         <input required value={value} onChange={(event) => setValue(event.target.value.toUpperCase())} placeholder="ABCDE-FGHJK" autoCapitalize="characters" autoComplete="off" spellCheck={false} className="os-field font-mono tracking-[0.2em]" />
       </label>
-      <button type="submit" className="os-success justify-center">Continue</button>
+      <button type="submit" className="os-success justify-center">{t('common.continue')}</button>
     </form>
   );
 }
@@ -56,6 +55,7 @@ function Field({ label, value, onChange, placeholder, autoComplete }: { label: s
 }
 
 function FoundForm({ code, account }: { code: string; account: { email: string } }) {
+  const t = useT();
   const status = useBackendStatus();
   // Asking for the data starts the connection to the server store, which
   // founding goes through.
@@ -76,8 +76,8 @@ function FoundForm({ code, account }: { code: string; account: { email: string }
     return (
       <section className="os-panel grid gap-3 p-5 text-sm text-slate-300">
         <AccountLine account={account} />
-        <p>This account already belongs to a club. To found another club, use another account.</p>
-        <a href="/" className="os-secondary justify-center text-center">Back to my club</a>
+        <p>{t('onboarding.found.alreadyInClub')}</p>
+        <a href="/" className="os-secondary justify-center text-center">{t('onboarding.found.backToClub')}</a>
       </section>
     );
   }
@@ -93,81 +93,85 @@ function FoundForm({ code, account }: { code: string; account: { email: string }
           await foundClub({ code, clubName, city, firstName, lastName, departmentName, teamName, coachTeam });
           continueAs('club');
         } catch (caught) {
-          setError(caught instanceof Error ? caught.message : String(caught));
+          setError(errorText(t, caught));
           setBusy(false);
         }
       }}
     >
       <section className="os-panel grid grid-cols-[minmax(0,1fr)] gap-3 p-5">
         <AccountLine account={account} />
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Your club</p>
-        <Field label="Club name" value={clubName} onChange={setClubName} placeholder="SV Example" />
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('onboarding.found.yourClub')}</p>
+        <Field label={t('onboarding.found.clubName')} value={clubName} onChange={setClubName} placeholder={t('onboarding.found.clubNamePlaceholder')} />
         <label className="grid min-w-0 gap-1 text-sm font-bold text-slate-200">
-          <span>City <span className="text-xs font-normal text-slate-500">optional</span></span>
+          <span>{t('onboarding.found.city')} <span className="text-xs font-normal text-slate-500">{t('common.optional')}</span></span>
           <input value={city} onChange={(event) => setCity(event.target.value)} autoComplete="address-level2" className="os-field min-w-0" />
         </label>
       </section>
       <section className="os-panel grid grid-cols-[minmax(0,1fr)] gap-3 p-5">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">You</p>
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('onboarding.found.you')}</p>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2">
-          <Field label="First name" value={firstName} onChange={setFirstName} autoComplete="given-name" />
-          <Field label="Last name" value={lastName} onChange={setLastName} autoComplete="family-name" />
+          <Field label={t('common.firstName')} value={firstName} onChange={setFirstName} autoComplete="given-name" />
+          <Field label={t('common.lastName')} value={lastName} onChange={setLastName} autoComplete="family-name" />
         </div>
       </section>
       <section className="os-panel grid grid-cols-[minmax(0,1fr)] gap-3 p-5">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Where to start</p>
-        <p className="text-sm text-slate-400">One department and one team to begin with; you add more later.</p>
-        <Field label="First department" value={departmentName} onChange={setDepartmentName} placeholder="Basketball" />
-        <Field label="First team" value={teamName} onChange={setTeamName} placeholder="U16" />
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('onboarding.found.whereToStart')}</p>
+        <p className="text-sm text-slate-400">{t('onboarding.found.whereToStartDetail')}</p>
+        <Field label={t('onboarding.found.firstDepartment')} value={departmentName} onChange={setDepartmentName} placeholder="Basketball" />
+        <Field label={t('onboarding.found.firstTeam')} value={teamName} onChange={setTeamName} placeholder="U16" />
         <label className="flex items-start gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-200">
           <input type="checkbox" checked={coachTeam} onChange={(event) => setCoachTeam(event.target.checked)} className="mt-1 h-4 w-4" />
           <span>
-            <span className="block font-black">I coach this team myself</span>
-            <span className="block text-xs text-slate-400">You become its Head Coach as well. Otherwise you invite the Head Coach afterwards.</span>
+            <span className="block font-black">{t('onboarding.found.coachTeam')}</span>
+            <span className="block text-xs text-slate-400">{t('onboarding.found.coachTeamDetail')}</span>
           </span>
         </label>
       </section>
       <ErrorLine message={error} />
       <button type="submit" disabled={busy || status.phase === 'loading'} className="os-success justify-center disabled:opacity-60">
-        {busy ? 'One moment …' : 'Found club'}
+        {busy ? t('common.oneMoment') : t('onboarding.found.submit')}
       </button>
     </form>
   );
 }
 
 function FoundFlow({ code, account }: { code: string; account: Account }) {
+  const t = useT();
   const [usable, setUsable] = useState<boolean | undefined>(undefined);
-  const [error, setError] = useState<string | null>(null);
+  // Kept as caught and put into words when shown: it can arrive before the language is applied.
+  const [error, setError] = useState<unknown>(null);
 
   useEffect(() => {
     if (!code) return;
-    isFoundingCodeUsable(code).then(setUsable).catch((caught) => { setUsable(false); setError(caught instanceof Error ? caught.message : String(caught)); });
+    isFoundingCodeUsable(code).then(setUsable).catch((caught) => { setUsable(false); setError(caught); });
   }, [code]);
 
-  if (!code) return <Shell title="Found your club"><EnterCode initial="" /></Shell>;
-  if (usable === undefined) return <Shell title="Found your club"><p className="text-sm text-slate-400">Checking the code …</p></Shell>;
+  const title = t('onboarding.found.title');
+  if (!code) return <Shell title={title}><EnterCode initial="" /></Shell>;
+  if (usable === undefined) return <Shell title={title}><p className="text-sm text-slate-400">{t('common.checkingCode')}</p></Shell>;
   if (!usable) {
-    return <Shell title="Found your club"><EnterCode initial={code} message={error ?? 'This founding code is not valid or has already been used.'} /></Shell>;
+    return <Shell title={title}><EnterCode initial={code} message={error ? errorText(t, error) : t('onboarding.found.invalid')} /></Shell>;
   }
   return (
-    <Shell title="Found your club">
+    <Shell title={title}>
       <section className="os-panel p-5 text-sm text-slate-300">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">Founding code accepted</p>
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">{t('onboarding.found.accepted')}</p>
         <p className="mt-1 font-mono text-lg font-black tracking-[0.2em] text-white">{code}</p>
       </section>
       {account ? (
         <FoundForm code={code} account={account} />
       ) : (
-        <AuthForm initialMode="signUp" returnTo={`/found?code=${encodeURIComponent(code)}`} intro="Create your account (or sign in); then you set up the club." />
+        <AuthForm initialMode="signUp" returnTo={`/found?code=${encodeURIComponent(code)}`} intro={t('onboarding.found.accountIntro')} />
       )}
     </Shell>
   );
 }
 
 function FoundContent() {
+  const t = useT();
   const params = useSearchParams();
   const account = useAccount();
-  if (account === undefined) return <Shell title="Club OS"><p className="text-sm text-slate-400">One moment …</p></Shell>;
+  if (account === undefined) return <Shell title={t('start.kicker')}><p className="text-sm text-slate-400">{t('common.oneMoment')}</p></Shell>;
   return <FoundFlow code={normalize(params.get('code') ?? '')} account={account} />;
 }
 
