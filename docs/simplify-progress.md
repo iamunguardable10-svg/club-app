@@ -2162,5 +2162,14 @@ Di/Do RPE 7 × 60), zwei Wochen geplante Einheiten und eigenes Krafttraining als
 **Entschieden (2026-09-26):** Das Sonntags-„Low“ bei 3 Einheiten pro Woche bleibt; nicht glätten.
 Wer nur 2–3-mal trainiert, bekommt später die Amateur-Methode (7 Tage gegen 4 Wochen, je Team).
 
+Kalender aus Spielersicht (derselbe Wegwerf-Verein, danach gelöscht): diese, vorige und nächste
+Woche zeigen genau die Einträge und Pläne der Daten; bewertete Einheit antippen zeigt Load/RPE/
+Dauer mit „Edit load“/„Delete load“; Plan antippen zeigt Datum, Zeit, Länge (ohne RPE) und bei
+Serien „Only this one / This and following“. „Only this one“ auf 08:00 verschoben (nur dieser
+Termin auf dem Server), „This and following“ gelöscht (die drei folgenden weg, mit Nachfrage),
+am Desktop per Ziehen auf 10:00 verschoben (Länge bleibt). Aufwärmen vor dem Spiel als eigener
+Block: gewollt (Ben, 2026-09-26). Kleinigkeit: Im Bestätigungsfenster heißt der Knopf „Delete
+plan“, auch wenn er „this and following“ löscht.
+
 Idee (offen): Auf „Today“ sagen, wenn eine geplante Einheit heute über die Grenze führt („Das Spiel
 heute Abend bringt dich auf ~1,32“); heute steht dort nur „Ready“ und „Room to high 558 AU“.
