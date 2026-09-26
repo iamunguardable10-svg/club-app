@@ -4,6 +4,14 @@ import { formatSessionTime } from '@/shared/format';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 import { LoadInfoButton, LoadRiskBadge } from '@/features/load/LoadHints';
+import { useT, type MessageKey } from '@/shared/i18n';
+
+const STATUS_KEY: Record<string, MessageKey> = {
+  late: 'sessionSheet.status.late',
+  out: 'sessionSheet.status.out',
+  expected: 'sessionSheet.status.expected',
+  present: 'sessionSheet.status.present',
+};
 
 export type SessionDetailGroup = {
   id: string;
@@ -129,6 +137,8 @@ export function SessionDetailSheet({
   info?: ReactNode;
   onClose: () => void;
 }) {
+  const t = useT();
+  const statusLabel = (status?: string) => (status && STATUS_KEY[status] ? t(STATUS_KEY[status]) : status ?? t('sessionSheet.status.expected'));
   useBodyScrollLock(true);
 
   const wholeTeamSelected = selectedGroupIds.length === 0;
@@ -144,7 +154,7 @@ export function SessionDetailSheet({
   const attendanceExpected = attendance?.expected ?? participants.length;
   const attendanceOut = attendance?.out ?? participants.filter((player) => player.status === 'out').length;
   const attendanceLate = attendance?.late ?? participants.filter((player) => player.status === 'late').length;
-  const expectedLabel = attendanceExpected > 0 ? `${Math.max(0, attendanceExpected - attendanceOut)}/${attendanceExpected} expected` : null;
+  const expectedLabel = attendanceExpected > 0 ? t('sessionSheet.expected', { there: Math.max(0, attendanceExpected - attendanceOut), total: attendanceExpected }) : null;
 
   useEffect(() => {
     if (editOpenKey) setShowEditDetails(true);
@@ -156,7 +166,7 @@ export function SessionDetailSheet({
     try {
       await onGroupsChange(groupIds);
     } catch {
-      setMutationError('Could not save session changes.');
+      setMutationError(t('sessionSheet.saveFailed'));
     }
   }
 
@@ -193,23 +203,23 @@ export function SessionDetailSheet({
       <section className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950 p-3.5 text-white shadow-2xl sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-300">Session</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-300">{t('sessionSheet.kicker')}</p>
             <h3 className="mt-1.5 truncate text-xl font-black text-white sm:text-2xl">{title}</h3>
             <p className="mt-1 text-sm font-bold text-slate-400">{formatTimeRange(startsAt, endsAt)}</p>
             {contextLine ? <p className="mt-1 truncate text-xs font-bold text-slate-500">{contextLine}</p> : null}
           </div>
           <button type="button" onClick={onClose} className="shrink-0 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200 hover:bg-slate-900 sm:text-sm">
-            Close
+            {t('sessionSheet.close')}
           </button>
         </div>
         {info ? <div className="mt-3">{info}</div> : null}
 
         <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Participants</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('sessionSheet.participants')}</p>
             {expectedLabel ? (
               <span className="rounded-full border border-slate-700 bg-slate-950/60 px-2.5 py-1 text-[11px] font-black text-slate-300">
-                {expectedLabel}{attendanceLate > 0 ? ` / ${attendanceLate} late` : ''}
+                {expectedLabel}{attendanceLate > 0 ? t('sessionSheet.lateSuffix', { count: attendanceLate }) : ''}
               </span>
             ) : null}
           </div>
@@ -221,7 +231,7 @@ export function SessionDetailSheet({
                 onClick={() => { void saveGroupSelection([]); }}
                 className={`rounded-full border px-2.5 py-1 text-xs font-black ${wholeTeamSelected ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:text-white'} disabled:opacity-70`}
               >
-                Whole team
+                {t('sessionSheet.wholeTeam')}
               </button>
               {groups.map((group) => {
                 const selected = selectedGroupIds.includes(group.id);
@@ -247,20 +257,20 @@ export function SessionDetailSheet({
               ))}
             </div>
           ) : (
-            <p className="mt-2.5 text-sm font-bold text-slate-400">Whole team</p>
+            <p className="mt-2.5 text-sm font-bold text-slate-400">{t('sessionSheet.wholeTeam')}</p>
           )}
         </div>
 
         {attendance?.notes && attendance.notes.length > 0 ? (
           <div className="mt-2.5 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Attendance flags</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('sessionSheet.attendanceFlags')}</p>
             <div className="mt-2.5 grid gap-2">
               {attendance.notes.map((note) => {
                 const className = `flex w-full items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-left text-sm font-bold transition ${onParticipantSelect ? 'hover:border-emerald-300/50 hover:bg-slate-900' : ''}`;
                 const content = (
                   <>
                     <span className="text-slate-100">{note.name}</span>
-                    <span className={statusClass(note.status)}>{note.status}{note.detail ? ` · ${note.detail}` : ''}</span>
+                    <span className={statusClass(note.status)}>{statusLabel(note.status)}{note.detail ? ` · ${note.detail}` : ''}</span>
                   </>
                 );
                 return onParticipantSelect ? (
@@ -283,13 +293,13 @@ export function SessionDetailSheet({
         {load ? (
           <div className="mt-2.5 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Load</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('sessionSheet.load')}</p>
               {load.status ? <span className="rounded-full border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-200">{load.status}</span> : null}
             </div>
             <div className="mt-2.5 grid grid-cols-3 gap-2 text-center">
-              {typeof load.reported === 'number' ? <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-2"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Reported</p><p className="mt-1 text-lg font-black text-emerald-200">{load.reported}</p></div> : null}
-              {typeof load.missing === 'number' ? <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-2"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Missing</p><p className="mt-1 text-lg font-black text-amber-200">{load.missing}</p></div> : null}
-              {typeof load.planned === 'number' ? <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-2"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Planned</p><p className="mt-1 text-lg font-black text-slate-100">{load.planned}</p></div> : null}
+              {typeof load.reported === 'number' ? <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-2"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t('sessionSheet.reported')}</p><p className="mt-1 text-lg font-black text-emerald-200">{load.reported}</p></div> : null}
+              {typeof load.missing === 'number' ? <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-2"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t('sessionSheet.missing')}</p><p className="mt-1 text-lg font-black text-amber-200">{load.missing}</p></div> : null}
+              {typeof load.planned === 'number' ? <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-2"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t('sessionSheet.planned')}</p><p className="mt-1 text-lg font-black text-slate-100">{load.planned}</p></div> : null}
             </div>
           </div>
         ) : null}
@@ -297,7 +307,7 @@ export function SessionDetailSheet({
         {loadRisks.length > 0 ? (
           <div className="mt-2.5 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Load risk with this session</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('sessionSheet.loadRisk')}</p>
               <LoadInfoButton />
             </div>
             <div className="mt-2.5 grid gap-2">
@@ -320,22 +330,22 @@ export function SessionDetailSheet({
               onClick={() => setShowEditDetails((current) => !current)}
               className="rounded-lg border border-sky-500/55 px-2.5 py-1.5 text-xs font-black text-sky-100 hover:bg-sky-950/35"
             >
-              {showEditDetails ? 'Hide time edit' : editDetails ? 'Edit session' : 'Edit time'}
+              {showEditDetails ? t('sessionSheet.hideTimeEdit') : editDetails ? t('sessionSheet.editSession') : t('sessionSheet.editTime')}
             </button>
             {showEditDetails ? (
               <div className="mt-3 space-y-3">
                 {canEditTime && onTimeChange ? (
                   <div className="grid min-w-0 grid-cols-[4.35rem_4.35rem_auto] gap-2 sm:grid-cols-[7rem_7rem_auto] sm:items-end">
                     <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
-                      Start
+                      {t('sessionSheet.start')}
                       <input value={timeValue} onChange={(event) => setTimeValue(event.target.value)} type="time" className="mt-1 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2 sm:text-sm [color-scheme:dark]" />
                     </label>
                     <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
-                      End
+                      {t('sessionSheet.end')}
                       <input value={endTimeValue} onChange={(event) => setEndTimeValue(event.target.value)} type="time" className="mt-1 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2 sm:text-sm [color-scheme:dark]" />
                     </label>
                     <button type="button" onClick={() => { void saveTimeChange(); }} disabled={isSavingTime} className="h-9 w-fit rounded-lg border border-emerald-300 bg-emerald-300 px-3 text-xs font-black text-slate-950 disabled:opacity-60">
-                      Save
+                      {t('sessionSheet.save')}
                     </button>
                   </div>
                 ) : null}
@@ -348,7 +358,7 @@ export function SessionDetailSheet({
         {showExpectedParticipants && expectedParticipants.length > 0 ? (
           <div className="mt-2.5 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
             <button type="button" onClick={() => setShowParticipants((current) => !current)} className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200 hover:bg-slate-900">
-              {showParticipants ? 'Hide expected players' : `Expected players (${expectedParticipants.length})`}
+              {showParticipants ? t('sessionSheet.hideExpected') : t('sessionSheet.expectedPlayers', { count: expectedParticipants.length })}
             </button>
             {showParticipants ? (
               <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
@@ -357,7 +367,7 @@ export function SessionDetailSheet({
                   const content = (
                     <>
                       <span className="text-slate-100">{player.name}</span>
-                      <span className={statusClass(player.status)}>{player.status ?? 'expected'}{player.detail ? ` · ${player.detail}` : ''}</span>
+                      <span className={statusClass(player.status)}>{statusLabel(player.status)}{player.detail ? ` · ${player.detail}` : ''}</span>
                     </>
                   );
                   return onParticipantSelect ? (

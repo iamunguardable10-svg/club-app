@@ -5,7 +5,12 @@ import type {
   SeriesTemplate,
   SeriesWeekItem,
 } from './sessionSeriesPlanner';
-import { labelForCoachSessionType } from './sessionTypeLabels';
+import { coachSessionTypeLabel } from './sessionTypeLabels';
+import { formatDayMonth, formatDayShortMonth, formatTime } from '@/shared/format';
+import { tr, useT, type MessageKey } from '@/shared/i18n';
+
+/** Monday first, as the board shows the week. */
+const WEEKDAY_SHORT_KEYS: MessageKey[] = ['weekday.short.0', 'weekday.short.1', 'weekday.short.2', 'weekday.short.3', 'weekday.short.4', 'weekday.short.5', 'weekday.short.6'];
 
 const weekdayOrder = [
   { key: 'monday', index: 1, short: 'Mo', label: 'Monday' },
@@ -60,13 +65,12 @@ function sameDate(first: Date, second: Date) {
 
 function formatWeekRange(weekStart: Date) {
   const weekEnd = addDays(weekStart, 6);
-  const formatter = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short' });
-  return `${formatter.format(weekStart)} - ${formatter.format(weekEnd)}`;
+  return `${formatDayShortMonth(weekStart)} - ${formatDayShortMonth(weekEnd)}`;
 }
 
 function formatDayDate(weekStart: Date, dayIndex: number) {
   const date = addDays(weekStart, dayIndex);
-  return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: '2-digit' }).format(date);
+  return formatDayMonth(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`);
 }
 
 function templateId(template: WeeklySeriesBoardTemplate) {
@@ -93,9 +97,9 @@ function templateTime(template: WeeklySeriesBoardTemplate, key: 'start' | 'end')
   const value: unknown = key === 'start'
     ? view.startTime ?? view.startsAt ?? view.start_at ?? view.start
     : view.endTime ?? view.endsAt ?? view.end_at ?? view.end;
-  if (value instanceof Date) return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(value);
+  if (value instanceof Date) return formatTime(value);
   if (typeof value !== 'string') return key === 'start' ? '—' : '';
-  if (value.includes('T')) return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  if (value.includes('T')) return formatTime(value);
   return value.slice(0, 5);
 }
 
@@ -123,15 +127,15 @@ function participantsSummary(template: WeeklySeriesBoardTemplate) {
   }
 
   const count = view.participantCount ?? view.playerCount ?? view.expectedParticipants;
-  if (typeof count === 'number') return `${count} participants`;
-  if (Array.isArray(view.groupIds) && view.groupIds.length > 0) return `${view.groupIds.length} groups`;
-  return 'All team';
+  if (typeof count === 'number') return tr('seriesBoard.participants', { count });
+  if (Array.isArray(view.groupIds) && view.groupIds.length > 0) return tr('seriesBoard.groups', { count: view.groupIds.length });
+  return tr('seriesBoard.allTeam');
 }
 
 function sessionTypeLabel(template: WeeklySeriesBoardTemplate) {
   const view = template as ViewTemplate;
   const value = view.sessionType ?? view.type ?? view.session_type;
-  return labelForCoachSessionType(typeof value === 'string' ? value : 'training');
+  return coachSessionTypeLabel(typeof value === 'string' ? value : 'training');
 }
 
 function templateHasCreatedSession(template: WeeklySeriesBoardTemplate) {
@@ -162,6 +166,7 @@ export function WeeklySeriesBoard({
   onConfirmWeek,
   onWeekChange,
 }: WeeklySeriesBoardProps) {
+  const t = useT();
   const monday = useMemo(() => startOfMondayWeek(weekStart), [weekStart]);
   const selectedIds = useMemo(() => new Set(selectedTemplateIds ?? []), [selectedTemplateIds]);
   const hasControlledSelection = selectedTemplateIds !== undefined;
@@ -202,12 +207,12 @@ export function WeeklySeriesBoard({
     <section className="rounded-2xl border border-slate-800/90 bg-slate-950/70 p-2.5 text-slate-100 shadow-2xl shadow-slate-950/30 ring-1 ring-white/[0.03] sm:p-3">
       <div className="flex flex-col gap-2.5 border-b border-slate-800/80 pb-2.5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Weekly series</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{t('seriesBoard.title')}</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <button type="button" onClick={() => changeWeek('previous')} disabled={!onWeekChange} className="grid h-7 w-7 place-items-center rounded-full border border-slate-700 bg-slate-950/70 text-sm font-black text-slate-200 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Previous week">‹</button>
+            <button type="button" onClick={() => changeWeek('previous')} disabled={!onWeekChange} className="grid h-7 w-7 place-items-center rounded-full border border-slate-700 bg-slate-950/70 text-sm font-black text-slate-200 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-40" aria-label={t('seriesBoard.previousWeek')}>‹</button>
             <span className="rounded-full border border-slate-800 bg-slate-950/80 px-2.5 py-1 text-xs font-black text-slate-200">{formatWeekRange(monday)}</span>
-            <button type="button" onClick={() => changeWeek('next')} disabled={!onWeekChange} className="grid h-7 w-7 place-items-center rounded-full border border-slate-700 bg-slate-950/70 text-sm font-black text-slate-200 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Next week">›</button>
-            <button type="button" onClick={() => changeWeek('current')} disabled={!onWeekChange || isCurrentWeek} className="rounded-full border border-slate-700 bg-slate-950/70 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-emerald-300/70 disabled:cursor-not-allowed disabled:opacity-40">Current</button>
+            <button type="button" onClick={() => changeWeek('next')} disabled={!onWeekChange} className="grid h-7 w-7 place-items-center rounded-full border border-slate-700 bg-slate-950/70 text-sm font-black text-slate-200 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-40" aria-label={t('seriesBoard.nextWeek')}>›</button>
+            <button type="button" onClick={() => changeWeek('current')} disabled={!onWeekChange || isCurrentWeek} className="rounded-full border border-slate-700 bg-slate-950/70 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-emerald-300/70 disabled:cursor-not-allowed disabled:opacity-40">{t('seriesBoard.current')}</button>
           </div>
         </div>
 
@@ -217,7 +222,7 @@ export function WeeklySeriesBoard({
           disabled={!onConfirmWeek || actionableCount === 0 || isConfirming}
           className="w-full rounded-xl bg-emerald-300 px-3.5 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-50 sm:w-fit"
         >
-          {isConfirming ? 'Creating sessions' : 'Confirm week'}
+          {isConfirming ? t('seriesBoard.creating') : t('seriesBoard.confirmWeek')}
         </button>
       </div>
 
@@ -228,11 +233,11 @@ export function WeeklySeriesBoard({
             <section key={day.key} className="min-w-0 border-b border-slate-800/80 py-2.5 last:border-b-0 lg:rounded-xl lg:border lg:border-slate-800/90 lg:bg-slate-950/45 lg:p-2 lg:ring-1 lg:ring-white/[0.03]">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-black text-white">{day.short}</p>
+                  <p className="text-sm font-black text-white">{t(WEEKDAY_SHORT_KEYS[dayIndex])}</p>
                   <p className="mt-0.5 text-[11px] font-bold text-slate-500">{formatDayDate(monday, dayIndex)}</p>
                 </div>
                 {onAddTemplate ? (
-                  <button type="button" onClick={() => onAddTemplate(day.index)} className="shrink-0 rounded-full border border-slate-700 px-2 py-1 text-[11px] font-black text-slate-200 transition hover:border-sky-300/70">Add</button>
+                  <button type="button" onClick={() => onAddTemplate(day.index)} className="shrink-0 rounded-full border border-slate-700 px-2 py-1 text-[11px] font-black text-slate-200 transition hover:border-sky-300/70">{t('seriesBoard.add')}</button>
                 ) : null}
               </div>
 
@@ -250,23 +255,23 @@ export function WeeklySeriesBoard({
                           disabled={hasCreatedSession || !onToggleSeriesForWeek || !id}
                           onChange={(event) => onToggleSeriesForWeek?.(id, event.target.checked)}
                           className="mt-1 h-4 w-4 shrink-0 rounded border-slate-600 bg-slate-950 text-emerald-300 accent-emerald-300 disabled:cursor-not-allowed"
-                          aria-label={`Use ${sessionTypeLabel(template)} at ${templateTime(template, 'start')}`}
+                          aria-label={t('seriesBoard.useAt', { type: sessionTypeLabel(template), time: templateTime(template, 'start') })}
                         />
                         <button type="button" onClick={() => onEditTemplate?.(template)} disabled={!onEditTemplate} className="min-w-0 flex-1 text-left disabled:cursor-default">
                           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                             <span className="max-w-full truncate rounded-full border border-slate-700 bg-slate-900/80 px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-slate-300">{sessionTypeLabel(template)}</span>
-                            {hasCreatedSession ? <span className="max-w-full truncate rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-[10px] font-black text-emerald-100">Created</span> : null}
+                            {hasCreatedSession ? <span className="max-w-full truncate rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-[10px] font-black text-emerald-100">{t('seriesBoard.created')}</span> : null}
                           </div>
                           <p className="mt-1.5 truncate text-sm font-black text-white">{templateTime(template, 'start')} - {templateTime(template, 'end')}</p>
                           <p className="mt-0.5 truncate text-xs font-bold text-slate-300">{stringFrom(template, ['teamName', 'team'])}</p>
-                          <p className="mt-1 truncate text-xs text-slate-500">{stringFrom(template, ['facilityName', 'facility'], 'No hall')}</p>
+                          <p className="mt-1 truncate text-xs text-slate-500">{stringFrom(template, ['facilityName', 'facility'], t('seriesBoard.noHall'))}</p>
                           <p className="mt-1.5 truncate text-xs font-bold text-slate-400">{participantsSummary(template)}</p>
                         </button>
                       </div>
                     </article>
                   );
                 }) : (
-                  <p className="px-1 py-2 text-xs font-bold text-slate-600 lg:rounded-xl lg:border lg:border-dashed lg:border-slate-800 lg:px-2 lg:py-3">No templates</p>
+                  <p className="px-1 py-2 text-xs font-bold text-slate-600 lg:rounded-xl lg:border lg:border-dashed lg:border-slate-800 lg:px-2 lg:py-3">{t('seriesBoard.noTemplates')}</p>
                 )}
               </div>
             </section>

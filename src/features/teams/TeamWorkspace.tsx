@@ -29,7 +29,8 @@ import {
 } from '@/features/teams/TeamWorkspaceView';
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { CoachShell } from '@/features/role-workspaces/RoleShell';
-import { MISSED_LABEL, buildCoachData } from '@/features/role-workspaces/coachData';
+import { missedLabel, buildCoachData } from '@/features/role-workspaces/coachData';
+import { useT } from '@/shared/i18n';
 import { awayUntilLabel } from '@/features/absences/absenceText';
 import { loadAccessFor } from '@/features/load/loadAccess';
 import { TeamStaffPanel } from '@/features/teams/TeamStaffPanel';
@@ -116,7 +117,7 @@ function attendanceForPlayer(database: LocalDatabase, personId: Id, teamId: Id) 
         title: session.title,
         startsAt: session.startsAt,
         status: report.status === 'missed' ? ('out' as const) : report.status,
-        reason: report.status === 'missed' ? MISSED_LABEL : report.reason,
+        reason: report.status === 'missed' ? missedLabel() : report.reason,
         lateMinutes: report.lateMinutes,
         missed: report.status === 'missed',
       };
@@ -140,6 +141,7 @@ export function TeamWorkspace({
   back?: { href: string; label: string };
   initialSection?: TeamWorkspaceSection;
 }) {
+  const t = useT();
   const { database, error, ready } = useLocalDatabase();
 
   const activePersonId = database?.activeIdentity?.role === 'coach' ? database.activeIdentity.personId : null;
@@ -161,7 +163,7 @@ export function TeamWorkspace({
     const attendanceShared = permissions.has('viewAttendance');
     const reasonsShared = permissions.has('viewAbsenceReasons');
 
-    const departmentName = database.departments.find((department) => department.id === team.departmentId)?.name ?? 'Department';
+    const departmentName = database.departments.find((department) => department.id === team.departmentId)?.name ?? t('team.department');
     const facilityNameById = new Map(database.facilities.map((facility) => [facility.id, facility.name]));
 
     const availableFacilityIds = new Set(
@@ -306,7 +308,7 @@ export function TeamWorkspace({
   }, []);
 
   if (!ready) {
-    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">Loading team …</section></div></main>;
+    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">{t('team.loading')}</section></div></main>;
   }
 
   if (error) {
@@ -314,7 +316,7 @@ export function TeamWorkspace({
   }
 
   if (!data) {
-    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">This team does not exist.</section></div></main>;
+    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">{t('team.notFound')}</section></div></main>;
   }
 
   const canEditSessions = permissions.has('editSessions');

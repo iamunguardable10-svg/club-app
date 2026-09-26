@@ -1,3 +1,7 @@
+import { formatTime } from '@/shared/format';
+import { tr } from '@/shared/i18n';
+import { displayTitle } from '@/features/sessions/sessionTypeLabels';
+
 export type ConflictSession = {
   id: string;
   title: string;
@@ -41,7 +45,7 @@ function addMinutes(date: Date, minutes: number) {
 }
 
 function ownerLabel(session: ConflictSession) {
-  return session.teamName ?? session.departmentName ?? session.title;
+  return session.teamName ?? session.departmentName ?? displayTitle(session.title);
 }
 
 function candidateFromSlot(candidate: ConflictCandidate, startsAt: Date, endsAt: Date): ConflictCandidate {
@@ -79,8 +83,8 @@ export function suggestFacilityConflictMoves(candidate: ConflictCandidate, sessi
   for (const conflict of conflicts) {
     const conflictStart = new Date(conflict.startsAt);
     const conflictEnd = endDate(conflict.startsAt, conflict.endsAt);
-    addSuggestion('before', `Before ${ownerLabel(conflict)}`, addMinutes(conflictStart, -duration), conflictStart);
-    addSuggestion('after', `After ${ownerLabel(conflict)}`, conflictEnd, addMinutes(conflictEnd, duration));
+    addSuggestion('before', tr('conflict.before', { owner: ownerLabel(conflict) }), addMinutes(conflictStart, -duration), conflictStart);
+    addSuggestion('after', tr('conflict.after', { owner: ownerLabel(conflict) }), conflictEnd, addMinutes(conflictEnd, duration));
   }
 
   for (let index = 0; index < sameFacilitySameDay.length - 1; index += 1) {
@@ -90,7 +94,7 @@ export function suggestFacilityConflictMoves(candidate: ConflictCandidate, sessi
     const nextStart = new Date(next.startsAt);
     const gapMinutes = Math.round((nextStart.getTime() - previousEnd.getTime()) / 60_000);
     if (gapMinutes < duration + BETWEEN_SLOT_BUFFER_MINUTES) continue;
-    addSuggestion('between', `Between ${ownerLabel(previous)} and ${ownerLabel(next)}`, previousEnd, addMinutes(previousEnd, duration));
+    addSuggestion('between', tr('conflict.between', { first: ownerLabel(previous), second: ownerLabel(next) }), previousEnd, addMinutes(previousEnd, duration));
   }
 
   return suggestions.slice(0, maxSuggestions);
@@ -116,11 +120,11 @@ export function findFacilityConflicts(candidate: ConflictCandidate, sessions: Co
 
 export function formatConflictDescription(conflicts: ConflictSession[]) {
   const first = conflicts[0];
-  if (!first) return 'This hall is already booked at this time.';
+  if (!first) return tr('conflict.booked');
   const start = new Date(first.startsAt);
   const end = endDate(first.startsAt, first.endsAt);
-  const time = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
   const owner = [first.teamName, first.departmentName].filter(Boolean).join(' / ');
-  const rest = conflicts.length > 1 ? ` + ${conflicts.length - 1} more` : '';
-  return `${first.facilityName ?? 'This hall'} already has ${first.title}${owner ? ` (${owner})` : ''} from ${time.format(start)} to ${time.format(end)}${rest}.`;
+  const more = conflicts.length > 1 ? tr('conflict.more', { count: conflicts.length - 1 }) : '';
+  const params = { hall: first.facilityName ?? tr('conflict.thisHall'), title: displayTitle(first.title), owner, start: formatTime(start), end: formatTime(end), more };
+  return owner ? tr('conflict.descriptionOwner', params) : tr('conflict.description', params);
 }

@@ -6,6 +6,7 @@ import type { SeriesTemplate } from '@/features/sessions/sessionSeriesPlanner';
 import { coachSessionTypes, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
+import { useT } from '@/shared/i18n';
 
 export type SeriesTemplateInput = {
   teamId: string;
@@ -54,6 +55,7 @@ function SeriesTemplateEditorForm({
   onClose,
   compact = false,
 }: Omit<SeriesTemplateEditorBaseProps, 'title'> & { compact?: boolean }) {
+  const t = useT();
   const [teamId, setTeamId] = useState(initial?.teamId ?? teams[0]?.id ?? '');
   const selectedTeam = teams.find((team) => team.id === teamId) ?? null;
   const facilityOptions = selectedTeam ? facilities.filter((facility) => facility.departmentIds.includes(selectedTeam.departmentId)) : [];
@@ -117,13 +119,13 @@ function SeriesTemplateEditorForm({
     <div className={compact ? 'space-y-2.5' : 'mt-4 space-y-3'}>
       <div className="grid grid-cols-2 gap-2">
         <label className={labelClass}>
-          Team
+          {t('sessionForm.team')}
           <select value={teamId} onChange={(event) => setTeamId(event.target.value)} className={inputClass}>
             {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
           </select>
         </label>
         <label className={labelClass}>
-          Hall
+          {t('sessionForm.hall')}
           <select value={facilityId} onChange={(event) => setFacilityId(event.target.value)} className={inputClass}>
             {facilityOptions.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
           </select>
@@ -132,25 +134,25 @@ function SeriesTemplateEditorForm({
 
       <div className="grid grid-cols-[minmax(0,1fr)_4.25rem_4.25rem] gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_7rem]">
         <label className={labelClass}>
-          Type
+          {t('sessionForm.type')}
           <select value={sessionType} onChange={(event) => setSessionType(event.target.value)} className={inputClass}>
-            {coachSessionTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+            {coachSessionTypes.map((type) => <option key={type.value} value={type.value}>{t(type.key)}</option>)}
           </select>
         </label>
         <label className={labelClass}>
-          Start
+          {t('sessionForm.start')}
           <input value={startTime} onChange={(event) => setStartTime(event.target.value)} type="time" className={timeInputClass} />
         </label>
         <label className={labelClass}>
-          End
+          {t('sessionForm.end')}
           <input value={endTime} onChange={(event) => setEndTime(event.target.value)} type="time" className={timeInputClass} />
         </label>
       </div>
 
       <div className="border-t border-slate-800/80 pt-3">
-        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Participants</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t('sessionForm.participants')}</p>
         <div className="mt-2 flex flex-wrap gap-1.5">
-          <button type="button" onClick={() => setGroupIds([])} className={`rounded-full border px-2.5 py-1 text-xs font-black ${groupIds.length === 0 ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:text-white'}`}>Whole team</button>
+          <button type="button" onClick={() => setGroupIds([])} className={`rounded-full border px-2.5 py-1 text-xs font-black ${groupIds.length === 0 ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:text-white'}`}>{t('sessionForm.wholeTeam')}</button>
           {teamGroups.map((group) => (
             <button key={group.id} type="button" onClick={() => toggleGroup(group.id)} className={`rounded-full border px-2.5 py-1 text-xs font-black ${groupIds.includes(group.id) ? 'border-sky-300 bg-sky-950/50 text-sky-100' : 'border-slate-700 text-slate-300 hover:text-white'}`}>{group.name}{group.playerCount ? ` · ${group.playerCount}` : ''}</button>
           ))}
@@ -158,39 +160,39 @@ function SeriesTemplateEditorForm({
       </div>
 
       <div className="grid gap-2 border-t border-slate-800/80 pt-3">
-        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">For the players · every week</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t('series.forPlayersWeekly')}</p>
         <div className="grid grid-cols-[9.5rem_minmax(0,1fr)] gap-2">
           <label className={labelClass}>
-            Meet
+            {t('sessionForm.meet')}
             <select value={meetMinutesBefore} onChange={(event) => setMeetMinutesBefore(Number(event.target.value))} className={inputClass}>
-              <option value={0}>At the start</option>
-              {[15, 30, 45, 60, 90, 120].map((minutes) => <option key={minutes} value={minutes}>{minutes < 60 ? `${minutes} min before` : `${minutes / 60} h before`}</option>)}
+              <option value={0}>{t('sessionForm.atStart')}</option>
+              {[15, 30, 45, 60, 90, 120].map((minutes) => <option key={minutes} value={minutes}>{minutes < 60 ? t('sessionForm.minutesBefore', { count: minutes }) : t('sessionForm.hoursBefore', { count: minutes / 60 })}</option>)}
             </select>
           </label>
           <label className={labelClass}>
-            Meeting point
-            <input value={meetPoint} onChange={(event) => setMeetPoint(event.target.value)} maxLength={120} placeholder="e.g. Changing room 2" className={inputClass} />
+            {t('sessionForm.meetingPoint')}
+            <input value={meetPoint} onChange={(event) => setMeetPoint(event.target.value)} maxLength={120} placeholder={t('sessionForm.meetingPointHome')} className={inputClass} />
           </label>
         </div>
         <label className={labelClass}>
-          Note
-          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} rows={2} placeholder="e.g. Indoor shoes" className="mt-1 w-full min-w-0 resize-y rounded-lg border border-slate-700/90 bg-slate-950 px-2 py-1.5 text-[13px] font-bold normal-case tracking-normal text-slate-100 outline-none transition focus:border-sky-300 sm:text-sm" />
+          {t('sessionForm.note')}
+          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} rows={2} placeholder={t('series.notePlaceholder')} className="mt-1 w-full min-w-0 resize-y rounded-lg border border-slate-700/90 bg-slate-950 px-2 py-1.5 text-[13px] font-bold normal-case tracking-normal text-slate-100 outline-none transition focus:border-sky-300 sm:text-sm" />
         </label>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-        {onDelete ? <button type="button" onClick={() => setConfirmDelete(true)} className="rounded-xl border border-red-500/60 px-3 py-2 text-sm font-black text-red-100 hover:bg-red-950/35">Delete</button> : <span />}
+        {onDelete ? <button type="button" onClick={() => setConfirmDelete(true)} className="rounded-xl border border-red-500/60 px-3 py-2 text-sm font-black text-red-100 hover:bg-red-950/35">{t('sessionForm.delete')}</button> : <span />}
         <div className="flex gap-2">
-          <button type="button" onClick={onClose} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Cancel</button>
-          <button type="button" onClick={() => { void submit(); }} disabled={isSaving || !canSave} className="rounded-xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950 disabled:opacity-60">{isSaving ? 'Saving...' : compact ? 'Save' : 'Save template'}</button>
+          <button type="button" onClick={onClose} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">{t('series.cancel')}</button>
+          <button type="button" onClick={() => { void submit(); }} disabled={isSaving || !canSave} className="rounded-xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950 disabled:opacity-60">{isSaving ? t('sessionForm.saving') : compact ? t('series.save') : t('series.saveTemplate')}</button>
         </div>
       </div>
       <AppConfirmDialog
         isOpen={confirmDelete}
-        title="Delete series template?"
-        description="This removes the repeating template. Already created calendar sessions stay unchanged."
-        confirmLabel="Delete template"
-        cancelLabel="Keep template"
+        title={t('series.deleteTitle')}
+        description={t('series.deleteDetail')}
+        confirmLabel={t('series.deleteConfirm')}
+        cancelLabel={t('series.deleteKeep')}
         tone="danger"
         isConfirming={Boolean(isSaving)}
         onConfirm={() => { setConfirmDelete(false); void onDelete?.(); }}
@@ -201,6 +203,7 @@ function SeriesTemplateEditorForm({
 }
 
 export function SeriesTemplateEditSheet(props: SeriesTemplateEditorBaseProps) {
+  const t = useT();
   useBodyScrollLock(true);
 
   return (
@@ -208,10 +211,10 @@ export function SeriesTemplateEditSheet(props: SeriesTemplateEditorBaseProps) {
       <section className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950 p-3.5 text-white shadow-2xl sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Series template</p>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">{t('series.kicker')}</p>
             <h3 className="mt-2 text-2xl font-black">{props.title}</h3>
           </div>
-          <button type="button" onClick={props.onClose} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">Close</button>
+          <button type="button" onClick={props.onClose} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">{t('sessionForm.close')}</button>
         </div>
         <SeriesTemplateEditorForm {...props} />
       </section>

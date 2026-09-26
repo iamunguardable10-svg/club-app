@@ -29,6 +29,7 @@ import {
 import { loadAccessFor, summarizeLoadEntries, type LoadAccess } from '@/features/load/loadAccess';
 import { awayUntilLabel } from '@/features/absences/absenceText';
 import type { ConflictSession } from '@/features/calendar/sessionConflicts';
+import { tr } from '@/shared/i18n';
 import type { SeriesTemplate, SeriesWeekState } from '@/features/sessions/sessionSeriesPlanner';
 import type {
   CoachAvailability,
@@ -91,7 +92,7 @@ function toCoachPlayer(database: LocalDatabase, personId: Id, teamId: Id, access
 
   return {
     id: personId,
-    name: person ? displayName(person) : 'Player',
+    name: person ? displayName(person) : tr('coach.data.player'),
     reviews,
     loadEntries: access === 'full' ? entries : [],
     loadAccess: access,
@@ -110,9 +111,9 @@ function toCoachPlayer(database: LocalDatabase, personId: Id, teamId: Id, access
  * accounts there is nothing to enforce it for us, so it is enforced here.
  */
 /** How a report of "I didn't take part" reads for coaches. */
-export const MISSED_LABEL = 'did not take part';
+export const missedLabel = () => tr('attendance.reason.missed');
 /** A coach confirmed afterwards that the player was not there (piece 11). */
-export const CONFIRMED_ABSENT_LABEL = 'not there (confirmed by coach)';
+export const confirmedAbsentLabel = () => tr('attendance.reason.confirmedAbsent');
 
 export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null): CoachData {
   if (!coachPersonId) return EMPTY_COACH_DATA;
@@ -138,7 +139,7 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
       clubId: team.clubId,
       name: team.name,
       departmentId: team.departmentId,
-      departmentName: departmentNameById.get(team.departmentId) ?? 'Department',
+      departmentName: departmentNameById.get(team.departmentId) ?? tr('coach.data.department'),
       defaultFacilityId: team.defaultFacilityId,
       role: 'coach',
       loadTracked: teamHasFeature(database, team.id, 'load'),
@@ -218,10 +219,10 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
       {
         id: entry.id,
         userId: entry.personId,
-        playerName: personNameById.get(entry.personId) ?? 'Player',
+        playerName: personNameById.get(entry.personId) ?? tr('coach.data.player'),
         // "Did not take part" is an absence for every count, with its own label.
         status: entry.status === 'missed' ? 'out' : entry.status,
-        reason: entry.status === 'missed' ? MISSED_LABEL : entry.reason,
+        reason: entry.status === 'missed' ? missedLabel() : entry.reason,
         lateMinutes: entry.lateMinutes,
         missed: entry.status === 'missed',
       },
@@ -279,9 +280,9 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
           .map(([personId]) => ({
             id: `confirmed-${session.id}-${personId}`,
             userId: personId,
-            playerName: personNameById.get(personId) ?? 'Player',
+            playerName: personNameById.get(personId) ?? tr('coach.data.player'),
             status: 'out' as const,
-            reason: CONFIRMED_ABSENT_LABEL,
+            reason: confirmedAbsentLabel(),
             lateMinutes: null,
             confirmedByCoach: true,
           })),
@@ -375,7 +376,7 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
       endsAt: session.endsAt,
       facilityId: session.facilityId,
       facilityName: session.facilityId ? facilityNameById.get(session.facilityId) ?? null : null,
-      teamName: teamNameById.get(session.teamId) ?? 'Andere Buchung',
+      teamName: teamNameById.get(session.teamId) ?? tr('coach.data.otherBooking'),
       departmentName: departmentNameById.get(session.departmentId) ?? null,
     }));
 

@@ -31,7 +31,10 @@ import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/cale
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
 import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
 import { CoachSection, CoachShell, type CoachNavItem } from '@/features/role-workspaces/RoleShell';
-import { formatDateRange, formatDay, formatLongDay, formatSessionTime, formatTimeRange, plural } from '@/shared/format';
+import { formatDateRange, formatDay, formatLongDay, formatSessionTime, formatTimeRange, formatWeekday } from '@/shared/format';
+import { errorText, useT } from '@/shared/i18n';
+import { displayTitle } from '@/features/sessions/sessionTypeLabels';
+import { displayRoleName } from '@/features/teams/roleLabels';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 export type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 export { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
@@ -147,13 +150,14 @@ function summarizeAvailability(session: CoachSession) {
 
 
 function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDetails: () => void }) {
+  const t = useT();
   const { out, late } = summarizeAvailability(session);
   return (
     <button type="button" onClick={onDetails} className="block w-full rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-left text-white transition hover:border-emerald-300/45 hover:bg-slate-900/70">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-2xl font-black tabular-nums">{formatTimeRange(session.startsAt, session.endsAt)}</p>
-          <h3 className="mt-1 text-base font-black">{session.title}</h3>
+          <h3 className="mt-1 text-base font-black">{displayTitle(session.title)}</h3>
           <p className="mt-0.5 text-sm font-bold text-slate-400">{session.teamName}{session.homeAway !== 'away' && session.facilityName ? ` · ${session.facilityName}` : ''}</p>
           {gameLine(session) || meetLine(session) ? <p className="mt-0.5 text-sm font-bold text-amber-100/90">{[gameLine(session), meetLine(session)].filter(Boolean).join(' · ')}</p> : null}
         </div>
@@ -163,7 +167,7 @@ function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDet
       <div className="mt-4 grid grid-cols-2 gap-2">
         <div className={`rounded-xl border p-3 ${out.length > 0 ? 'border-rose-400/35 bg-rose-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black text-slate-400">Out</p>
+            <p className="text-xs font-black text-slate-400">{t('coach.card.out')}</p>
             <span className="text-lg font-black text-white">{out.length}</span>
           </div>
           {out.slice(0, 3).map((item) => (
@@ -172,11 +176,11 @@ function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDet
         </div>
         <div className={`rounded-xl border p-3 ${late.length > 0 ? 'border-amber-400/35 bg-amber-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black text-slate-400">Late</p>
+            <p className="text-xs font-black text-slate-400">{t('coach.card.late')}</p>
             <span className="text-lg font-black text-white">{late.length}</span>
           </div>
           {late.slice(0, 3).map((item) => (
-            <p key={item.id} className="mt-1.5 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${item.lateMinutes} min` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>
+            <p key={item.id} className="mt-1.5 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${t('coach.card.lateMinutes', { count: item.lateMinutes })}` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>
           ))}
         </div>
       </div>
@@ -186,21 +190,22 @@ function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDet
 
 /** One line per upcoming session: when, what, who is missing. */
 function UpcomingSessionRow({ session, showTeam, onOpen }: { session: CoachSession; showTeam: boolean; onOpen: () => void }) {
+  const t = useT();
   const { out, late } = summarizeAvailability(session);
   const start = new Date(session.startsAt);
   return (
     <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 px-3 py-3 text-left transition hover:border-sky-300/50 hover:bg-slate-900/70">
       <div className="w-12 shrink-0 text-center">
-        <p className="text-[11px] font-black uppercase text-slate-400">{formatDay(start).split(' ')[0]}</p>
+        <p className="text-[11px] font-black uppercase text-slate-400">{formatWeekday(start)}</p>
         <p className="text-lg font-black leading-tight text-white">{start.getDate()}</p>
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-black text-white">{session.title}{session.opponent ? ` ${gameLine(session)}` : ''}</p>
+        <p className="truncate text-sm font-black text-white">{displayTitle(session.title)}{session.opponent ? ` ${gameLine(session)}` : ''}</p>
         <p className="truncate text-xs font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt)}{showTeam ? ` · ${session.teamName}` : ''}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1 text-[11px] font-black">
-        {out.length > 0 ? <span className="rounded-full bg-rose-400/15 px-2 py-0.5 text-rose-200">{out.length} out</span> : null}
-        {late.length > 0 ? <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-amber-200">{late.length} late</span> : null}
+        {out.length > 0 ? <span className="rounded-full bg-rose-400/15 px-2 py-0.5 text-rose-200">{t('coach.row.out', { count: out.length })}</span> : null}
+        {late.length > 0 ? <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-amber-200">{t('coach.row.late', { count: late.length })}</span> : null}
       </div>
     </button>
   );
@@ -262,6 +267,7 @@ export function CoachCalendarSurface({
   /** Show only this team at first (coming from a team's page). */
   initialTeamId?: string | null;
 }) {
+  const t = useT();
   const canEditTeam = (teamId: string) => !editableTeamIds || editableTeamIds.has(teamId);
   const editableTeams = teams.filter((team) => canEditTeam(team.id));
   const seriesTeams = teams.filter((team) => !seriesTeamIds || seriesTeamIds.has(team.id));
@@ -582,7 +588,7 @@ export function CoachCalendarSurface({
     } catch (error) {
       setAllowedConflictKey(null);
       setPendingConflictSave(save);
-      setConflictDescription(error instanceof Error ? `Could not save this session: ${error.message}` : previousDescription);
+      setConflictDescription(error instanceof Error ? t('coach.conflict.couldNotSave', { message: errorText(t, error) }) : previousDescription);
       setConflictSuggestions(previousSuggestions);
     }
   }, [coachSaveKey, conflictDescription, conflictSuggestions, pendingConflictSave, persistCoachCalendarSave]);
@@ -748,8 +754,8 @@ export function CoachCalendarSurface({
     <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-white sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         {teams.length > 1 ? (
-          <div className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1" role="group" aria-label="Show team">
-            {[{ id: null as string | null, name: 'All teams' }, ...teams].map((team) => (
+          <div className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1" role="group" aria-label={t('coach.calendar.showTeam')}>
+            {[{ id: null as string | null, name: t('coach.calendar.allTeams') }, ...teams].map((team) => (
               <button
                 key={team.id ?? 'all'}
                 type="button"
@@ -762,13 +768,13 @@ export function CoachCalendarSurface({
             ))}
           </div>
         ) : <span />}
-        <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1" role="group" aria-label="Calendar view">
-          <button type="button" onClick={showWeekSurface} aria-pressed={surfaceMode === 'week'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'week' ? 'bg-sky-300 text-slate-950' : 'text-slate-400'}`}>Sessions</button>
-          <button type="button" onClick={showSeriesSurface} aria-pressed={surfaceMode === 'series'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Weekly plan</button>
+        <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1" role="group" aria-label={t('coach.calendar.view')}>
+          <button type="button" onClick={showWeekSurface} aria-pressed={surfaceMode === 'week'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'week' ? 'bg-sky-300 text-slate-950' : 'text-slate-400'}`}>{t('coach.calendar.sessions')}</button>
+          <button type="button" onClick={showSeriesSurface} aria-pressed={surfaceMode === 'series'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>{t('coach.calendar.weeklyPlan')}</button>
         </div>
       </div>
       {surfaceMode === 'week' ? (
-        <SmartSessionCalendar mode={mode} canCreateSessions={editableTeams.length > 0 && facilities.length > 0} createBlockedHint={editableTeams.length > 0 && facilities.length === 0 ? <>Sessions need a hall. <Link href="/coach/facilities" className="underline">Add your first hall under Halls</Link>, then tap Edit here to plan sessions.</> : undefined} days={days} hours={calendarHours} firstHour={firstHour} lastHour={lastHour} mobileVisibleHours={mobileVisibleHours} mobileFirstHour={mobileFirstHour} mobileHourHeight={mobileHourHeight} mobileGridHeight={mobileGridHeight} desktopHourHeight={desktopHourHeight} activeDayIndex={activeDayIndex} mobileCalendarView={mobileCalendarView} dayTransitionDirection={dayTransitionDirection} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null} weekLabel={weekLabel} isCurrentWeek={weekOffset === 0} calendarScrollRef={calendarScrollRef} setDayRef={(index, element) => { dayRefs.current[index] = element; }} onSetMode={setMode} onClearDraft={() => setDraft(null)} onPreviousWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onResetWeek={resetWeek} onMobileDaySelect={switchMobileDay} onMobileCalendarViewChange={setMobileCalendarView} onMobileDaySwipeStart={handleMobileDaySwipeStart} onMobileDaySwipeEnd={handleMobileDaySwipeEnd} onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }} onSlotPointerDown={handleSlotPointerDown} onSessionPointerDown={startSessionDrag} onSessionClick={handleSessionClick} onSessionKeyDown={handleSessionKeyDown} onDraftPointerDown={startDraftDrag} onDraftClick={() => setEditor({ kind: 'draft' })} onDraftCancel={() => setDraft(null)} />
+        <SmartSessionCalendar mode={mode} canCreateSessions={editableTeams.length > 0 && facilities.length > 0} createBlockedHint={editableTeams.length > 0 && facilities.length === 0 ? <>{t('coach.calendar.needsHall')} <Link href="/coach/facilities" className="underline">{t('coach.calendar.addFirstHall')}</Link>{t('coach.calendar.thenEdit')}</> : undefined} days={days} hours={calendarHours} firstHour={firstHour} lastHour={lastHour} mobileVisibleHours={mobileVisibleHours} mobileFirstHour={mobileFirstHour} mobileHourHeight={mobileHourHeight} mobileGridHeight={mobileGridHeight} desktopHourHeight={desktopHourHeight} activeDayIndex={activeDayIndex} mobileCalendarView={mobileCalendarView} dayTransitionDirection={dayTransitionDirection} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null} weekLabel={weekLabel} isCurrentWeek={weekOffset === 0} calendarScrollRef={calendarScrollRef} setDayRef={(index, element) => { dayRefs.current[index] = element; }} onSetMode={setMode} onClearDraft={() => setDraft(null)} onPreviousWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onResetWeek={resetWeek} onMobileDaySelect={switchMobileDay} onMobileCalendarViewChange={setMobileCalendarView} onMobileDaySwipeStart={handleMobileDaySwipeStart} onMobileDaySwipeEnd={handleMobileDaySwipeEnd} onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }} onSlotPointerDown={handleSlotPointerDown} onSessionPointerDown={startSessionDrag} onSessionClick={handleSessionClick} onSessionKeyDown={handleSessionKeyDown} onDraftPointerDown={startDraftDrag} onDraftClick={() => setEditor({ kind: 'draft' })} onDraftCancel={() => setDraft(null)} />
       ) : (
         <div className="mt-7 sm:mt-5">
           <WeeklySeriesBoard
@@ -787,7 +793,7 @@ export function CoachCalendarSurface({
         seriesEditor.kind === 'new' ? (
           <SeriesTemplateEditSheet
             key={`series-new-${seriesEditor.weekday}`}
-            title="New weekly template"
+            title={t('coach.series.newTemplate')}
             teams={seriesTeams}
             facilities={facilities}
             groups={groups}
@@ -800,7 +806,7 @@ export function CoachCalendarSurface({
         ) : (
           <SeriesTemplateEditSheet
             key={`series-edit-${seriesEditor.template.id}`}
-            title="Edit weekly template"
+            title={t('coach.series.editTemplate')}
             teams={seriesTeams}
             facilities={facilities}
             groups={groups}
@@ -820,11 +826,11 @@ export function CoachCalendarSurface({
           />
         )
       ) : null}
-      {editor && editorInitial ? <CoachSessionEditSheet key={editor.kind === 'session' ? `session-${editor.sessionId}` : `draft-${editorInitial.startsAt}`} title={editor.kind === 'draft' ? 'New training' : editingSession?.title ?? 'Training'} teams={editableTeams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { if (editor.kind === 'draft') { await requestCoachCalendarSave({ kind: 'create', input: value }); } else if (editingSession) { await requestCoachCalendarSave({ kind: 'update', input: { sessionId: editingSession.id, ...value } }); } }} onDraftUpdate={editor.kind === 'draft' ? (value) => setDraft((current) => current ? { ...current, ...value } : current) : undefined} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : undefined} onClose={() => setEditor(null)} /> : null}
+      {editor && editorInitial ? <CoachSessionEditSheet key={editor.kind === 'session' ? `session-${editor.sessionId}` : `draft-${editorInitial.startsAt}`} title={editor.kind === 'draft' ? t('coach.session.newTraining') : editingSession ? displayTitle(editingSession.title) : t('coach.session.training')} teams={editableTeams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { if (editor.kind === 'draft') { await requestCoachCalendarSave({ kind: 'create', input: value }); } else if (editingSession) { await requestCoachCalendarSave({ kind: 'update', input: { sessionId: editingSession.id, ...value } }); } }} onDraftUpdate={editor.kind === 'draft' ? (value) => setDraft((current) => current ? { ...current, ...value } : current) : undefined} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : undefined} onClose={() => setEditor(null)} /> : null}
 
       <FacilityConflictDialog
         isOpen={Boolean(pendingConflictSave)}
-        description={conflictDescription ?? 'This hall already has another session at this time.'}
+        description={conflictDescription ?? t('coach.conflict.default')}
         suggestions={conflictSuggestions}
         facilityCalendarHref={pendingConflictFacilityHref}
         facilityCalendarLabel={pendingConflictFacilityLabel}
@@ -836,7 +842,7 @@ export function CoachCalendarSurface({
       />
       <FacilityConflictDialog
         isOpen={Boolean(pendingSeriesConflict)}
-        description={pendingSeriesConflict?.description ?? 'This hall already has another session at this time.'}
+        description={pendingSeriesConflict?.description ?? t('coach.conflict.default')}
         suggestions={pendingSeriesConflict?.suggestions ?? []}
         facilityCalendarHref={pendingSeriesConflictFacilityHref}
         facilityCalendarLabel={pendingSeriesConflictFacilityLabel}
@@ -861,6 +867,7 @@ export function CoachCalendarSurface({
 }
 
 export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedTeamId = searchParams.get('teamId');
@@ -934,14 +941,14 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   }, [sessions]);
 
   function reportError(error: unknown, fallback: string) {
-    setError(error instanceof Error ? error.message : fallback);
+    setError(error instanceof Error ? errorText(t, error) : fallback);
   }
 
   function handleCoachSessionCreate(input: CoachSessionCreateInput) {
     const team = teams.find((item) => item.id === input.teamId);
     if (!team) return;
     if (!editableTeamIds.has(team.id)) {
-      setError('Your role may not create sessions in this team.');
+      setError(t('coach.error.createNotAllowed'));
       return;
     }
     try {
@@ -957,7 +964,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       });
       setError(null);
     } catch (error) {
-      reportError(error, 'The session could not be created.');
+      reportError(error, t('coach.error.createFailed'));
     }
   }
 
@@ -965,12 +972,12 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     // Scope check, previously enforced by row-level security: a coach may only
     // touch sessions of the teams they actually coach.
     if (!sessions.some((session) => session.id === input.sessionId)) {
-      setError('You can only edit sessions of your own teams.');
+      setError(t('coach.error.ownTeamsEdit'));
       return;
     }
     const sessionTeamId = teamOfSession(input.sessionId);
     if (!sessionTeamId || !editableTeamIds.has(sessionTeamId)) {
-      setError('Your role may not edit this session.');
+      setError(t('coach.error.editNotAllowed'));
       return;
     }
     try {
@@ -986,18 +993,18 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       });
       setError(null);
     } catch (error) {
-      reportError(error, 'The session could not be saved.');
+      reportError(error, t('coach.error.saveFailed'));
     }
   }
 
   function handleCoachSessionDelete(sessionId: string) {
     if (!sessions.some((session) => session.id === sessionId)) {
-      setError('You can only delete sessions of your own teams.');
+      setError(t('coach.error.ownTeamsDelete'));
       return;
     }
     const sessionTeamId = teamOfSession(sessionId);
     if (!sessionTeamId || !editableTeamIds.has(sessionTeamId)) {
-      setError('Your role may not delete this session.');
+      setError(t('coach.error.deleteNotAllowed'));
       return;
     }
     setIsDeletingSession(true);
@@ -1008,7 +1015,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       setDeleteSessionId(null);
       setError(null);
     } catch (error) {
-      reportError(error, 'The session could not be deleted.');
+      reportError(error, t('coach.error.deleteFailed'));
     } finally {
       setIsDeletingSession(false);
     }
@@ -1018,7 +1025,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     const team = teams.find((item) => item.id === input.teamId);
     if (!team) return;
     if (!seriesTeamIds.has(team.id)) {
-      setError('Your role may not plan series for this team.');
+      setError(t('coach.error.seriesNotAllowed'));
       return;
     }
     try {
@@ -1045,7 +1052,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       });
       setError(null);
     } catch (error) {
-      reportError(error, 'The series could not be created.');
+      reportError(error, t('coach.error.seriesCreateFailed'));
     }
   }
 
@@ -1054,7 +1061,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     if (!team) return;
     const currentTeamId = teamOfSeries(seriesId);
     if (!seriesTeamIds.has(team.id) || !currentTeamId || !seriesTeamIds.has(currentTeamId)) {
-      setError('Your role may not change this series.');
+      setError(t('coach.error.seriesChangeNotAllowed'));
       return;
     }
     try {
@@ -1075,14 +1082,14 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       });
       setError(null);
     } catch (error) {
-      reportError(error, 'The series could not be saved.');
+      reportError(error, t('coach.error.seriesSaveFailed'));
     }
   }
 
   function handleCoachSeriesDelete(seriesId: string) {
     const series = seriesTemplates.find((item) => item.id === seriesId);
     if (!series || !series.teamId || !seriesTeamIds.has(series.teamId)) {
-      setError('Your role may not delete this series.');
+      setError(t('coach.error.seriesDeleteNotAllowed'));
       return;
     }
     try {
@@ -1092,7 +1099,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       });
       setError(null);
     } catch (error) {
-      reportError(error, 'The series could not be deleted.');
+      reportError(error, t('coach.error.seriesDeleteFailed'));
     }
   }
 
@@ -1104,7 +1111,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   function handleCoachSeriesWeekToggle(seriesId: string, weekStart: string, checked: boolean) {
     const seriesTeamId = teamOfSeries(seriesId);
     if (!seriesTeamId || !seriesTeamIds.has(seriesTeamId)) {
-      setError('Your role may not plan this series.');
+      setError(t('coach.error.seriesPlanNotAllowed'));
       return;
     }
     try {
@@ -1114,7 +1121,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       setSeriesWeekState(seriesId, weekStart, checked, existing?.committedSessionId ?? null);
       setError(null);
     } catch (error) {
-      reportError(error, 'The week could not be saved.');
+      reportError(error, t('coach.error.weekSaveFailed'));
     }
   }
 
@@ -1128,7 +1135,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
    */
   function handleCoachSeriesWeekConfirm(items: SeriesWeekItem[]) {
     if (items.some((item) => !item.teamId || !seriesTeamIds.has(item.teamId))) {
-      setError('Your role may not plan this series.');
+      setError(t('coach.error.seriesPlanNotAllowed'));
       return;
     }
     const createdSessionIds: string[] = [];
@@ -1171,7 +1178,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       setError(null);
     } catch (error) {
       for (const sessionId of createdSessionIds) deleteSession(sessionId);
-      const message = error instanceof Error ? error.message : 'Confirming the series week failed.';
+      const message = error instanceof Error ? errorText(t, error) : t('coach.error.confirmWeekFailed');
       setError(message);
       throw error;
     }
@@ -1187,7 +1194,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   }
 
   if (!ready) {
-    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">Loading …</section></div></main>;
+    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">{t('coach.loading')}</section></div></main>;
   }
 
   // A broken document is shown as such rather than silently replaced with
@@ -1201,8 +1208,8 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
       <main className="os-page">
         <div className="os-container">
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">
-            <p className="mb-4">No coach is selected.</p>
-            <Link className="underline" href="/">Choose a role</Link>
+            <p className="mb-4">{t('coach.noCoach')}</p>
+            <Link className="underline" href="/">{t('coach.chooseRole')}</Link>
           </section>
         </div>
       </main>
@@ -1214,18 +1221,18 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
 
   if (workspaceTeam) {
     // Several teams: back to the list. One team: the tab itself is the team.
-    return <TeamWorkspace teamId={workspaceTeam.id} back={teams.length > 1 ? { href: '/coach/team', label: 'All teams' } : undefined} initialSection={initialSection} />;
+    return <TeamWorkspace teamId={workspaceTeam.id} back={teams.length > 1 ? { href: '/coach/team', label: t('coach.calendar.allTeams') } : undefined} initialSection={initialSection} />;
   }
 
   const calendarTeam = mode === 'sessions' && selectedTeam ? selectedTeam : null;
   const header = {
-    today: { title: 'Today', subtitle: formatLongDay(today) },
-    sessions: { title: 'Calendar', subtitle: teams.length === 1 ? teams[0]?.name : calendarTeam ? calendarTeam.name : 'All your teams' },
-    team: { title: 'Teams', subtitle: plural(teams.length, 'team') },
-    attendance: { title: 'Teams', subtitle: plural(teams.length, 'team') },
-    load: { title: 'Teams', subtitle: plural(teams.length, 'team') },
-    facilities: { title: 'Halls', subtitle: 'Where your teams train' },
-    history: { title: 'History', subtitle: 'Past sessions, attendance and load' },
+    today: { title: t('coach.header.today'), subtitle: formatLongDay(today) },
+    sessions: { title: t('coach.header.calendar'), subtitle: teams.length === 1 ? teams[0]?.name : calendarTeam ? calendarTeam.name : t('coach.header.allYourTeams') },
+    team: { title: t('coach.header.teams'), subtitle: t('coach.header.teamCount', { count: teams.length }) },
+    attendance: { title: t('coach.header.teams'), subtitle: t('coach.header.teamCount', { count: teams.length }) },
+    load: { title: t('coach.header.teams'), subtitle: t('coach.header.teamCount', { count: teams.length }) },
+    facilities: { title: t('coach.header.halls'), subtitle: t('coach.header.hallsSubtitle') },
+    history: { title: t('coach.header.history'), subtitle: t('coach.header.historySubtitle') },
   }[mode];
 
   return (
@@ -1233,31 +1240,31 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         {error ? (
           <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-500/40 bg-red-950/30 p-4 text-sm text-red-100">
             <span>{error}</span>
-            <button type="button" onClick={() => setError(null)} className="text-xs font-black underline">Dismiss</button>
+            <button type="button" onClick={() => setError(null)} className="text-xs font-black underline">{t('coach.dismiss')}</button>
           </div>
         ) : null}
 
         {teams.length === 0 ? (
           <section className="rounded-3xl border border-amber-500/35 bg-amber-950/20 p-5 text-amber-100">
-            <h2 className="text-xl font-black">No team yet</h2>
-            <p className="mt-2 text-sm font-bold text-amber-100/80">You are not part of a team's staff yet. Open the invitation link your Head Coach sent you.</p>
+            <h2 className="text-xl font-black">{t('coach.noTeam.title')}</h2>
+            <p className="mt-2 text-sm font-bold text-amber-100/80">{t('coach.noTeam.detail')}</p>
           </section>
         ) : null}
 
         {mode === 'today' && teams.length > 0 ? (
           <>
-            <CoachSection title={todaySessions.length > 0 ? plural(todaySessions.length, 'session') + ' today' : 'No sessions today'}>
+            <CoachSection title={todaySessions.length > 0 ? t('coach.today.count', { count: todaySessions.length }) : t('coach.today.none')}>
               {todaySessions.length > 0 ? (
                 <div className="grid gap-3 lg:grid-cols-2">
                   {todaySessions.map((session) => <CoachSessionCard key={session.id} session={session} onDetails={() => openSessionDetails(session)} />)}
                 </div>
               ) : (
-                <p className="text-sm text-slate-400">{upcomingSessions[0] ? `Next up: ${upcomingSessions[0].title}, ${formatSessionTime(upcomingSessions[0].startsAt, upcomingSessions[0].endsAt)}.` : 'Nothing planned yet. Plan sessions in the calendar.'}</p>
+                <p className="text-sm text-slate-400">{upcomingSessions[0] ? t('coach.today.nextUp', { title: displayTitle(upcomingSessions[0].title), time: formatSessionTime(upcomingSessions[0].startsAt, upcomingSessions[0].endsAt) }) : t('coach.today.nothing')}</p>
               )}
             </CoachSection>
 
             {upcomingSessions.length > 0 ? (
-              <CoachSection title="Coming up" actions={<Link href="/coach/sessions" className="text-xs font-black text-sky-300 hover:text-sky-200">Calendar ›</Link>}>
+              <CoachSection title={t('coach.today.comingUp')} actions={<Link href="/coach/sessions" className="text-xs font-black text-sky-300 hover:text-sky-200">{t('coach.today.calendarLink')}</Link>}>
                 <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
                   {upcomingSessions.map((session) => (
                     <li key={session.id}>
@@ -1336,7 +1343,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
 
         {editingSession ? (
           <CoachSessionEditSheet
-            title={editingSession.title}
+            title={displayTitle(editingSession.title)}
             teams={teams}
             facilities={facilities}
             groups={groups}
@@ -1377,10 +1384,10 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
 
         <AppConfirmDialog
           isOpen={Boolean(deleteSessionId)}
-          title="Delete session?"
-          description="This removes the session from coach, team and athlete calendars."
-          confirmLabel="Delete session"
-          cancelLabel="Keep session"
+          title={t('coach.delete.title')}
+          description={t('coach.delete.detail')}
+          confirmLabel={t('coach.delete.confirm')}
+          cancelLabel={t('coach.delete.keep')}
           tone="danger"
           isConfirming={isDeletingSession}
           onConfirm={() => { if (deleteSessionId) void handleCoachSessionDelete(deleteSessionId); }}
@@ -1393,11 +1400,11 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
               const nextSession = nextSessionByTeamId.get(team.id);
               return (
                 <Link key={team.id} href={`/coach/team?teamId=${team.id}`} className="block rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white transition hover:border-emerald-300/50 hover:bg-slate-900/70">
-                  <p className="text-xs font-bold text-slate-400">{team.departmentName}{team.roleName ? ` · ${team.roleName}` : ''}</p>
+                  <p className="text-xs font-bold text-slate-400">{team.departmentName}{team.roleName ? ` · ${displayRoleName(team.roleName)}` : ''}</p>
                   <h3 className="mt-1 text-xl font-black">{team.name}</h3>
                   <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
-                    <p className="text-xs font-bold text-slate-500">Next session</p>
-                    <p className="mt-1 text-sm font-black text-slate-200">{nextSession ? nextSession.title : 'None planned'}</p>
+                    <p className="text-xs font-bold text-slate-500">{t('coach.team.nextSession')}</p>
+                    <p className="mt-1 text-sm font-black text-slate-200">{nextSession ? displayTitle(nextSession.title) : t('coach.team.nonePlanned')}</p>
                     {nextSession ? <p className="mt-0.5 text-xs font-bold text-slate-400">{formatSessionTime(nextSession.startsAt, nextSession.endsAt)}</p> : null}
                   </div>
                 </Link>

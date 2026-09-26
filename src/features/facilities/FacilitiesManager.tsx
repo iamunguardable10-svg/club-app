@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
+import { errorText, useT } from '@/shared/i18n';
 import { AddressField } from '@/features/facilities/AddressField';
 import { getFacilityAccent } from '@/features/facilities/facilityAccent';
 import { findBestFacilityLocationMatch, getFacilityMatchWarning } from '@/features/facilities/facilityMatching';
@@ -55,6 +56,7 @@ export function FacilitiesManager({
   /** The teams whose halls are shown; default: the teams this person coaches (club area: the managed teams). */
   teams?: Team[];
 }) {
+  const t = useT();
   const [editMode, setEditMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<Id | null>(null);
@@ -92,7 +94,7 @@ export function FacilitiesManager({
       setError(null);
       return true;
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(errorText(t, caught));
       return false;
     }
   };
@@ -103,14 +105,14 @@ export function FacilitiesManager({
   return (
     <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-white sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-black">{facilities.length === 1 ? '1 hall' : `${facilities.length} halls`}</h2>
+        <h2 className="text-lg font-black">{t('facilities.count', { count: facilities.length })}</h2>
         {isManager ? (
           <button
             type="button"
             onClick={() => { setEditMode((current) => !current); setError(null); }}
             className={`${smallButtonClass} ${editMode ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-200 hover:bg-slate-900'}`}
           >
-            {editMode ? 'Done' : 'Edit halls'}
+            {editMode ? t('facilities.done') : t('facilities.edit')}
           </button>
         ) : null}
       </div>
@@ -138,20 +140,20 @@ export function FacilitiesManager({
         ))}
         {facilities.length === 0 ? (
           <p className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">
-            {!isManager ? 'No halls are shared with your teams yet.' : editMode ? 'No halls yet. Add the first one above.' : 'No halls yet. Use “Edit halls” to add the first one.'}
+            {!isManager ? t('facilities.empty.notShared') : editMode ? t('facilities.empty.editing') : t('facilities.empty.reading')}
           </p>
         ) : null}
       </div>
 
       <AppConfirmDialog
         isOpen={Boolean(deleting)}
-        title={deleting ? `Delete ${deleting.name}?` : 'Delete hall?'}
+        title={deleting ? t('facilities.delete.titleNamed', { name: deleting.name }) : t('facilities.delete.title')}
         description={deletingUsage ? [
-          `${deletingUsage.upcomingSessions} upcoming and ${deletingUsage.pastSessions} past sessions and ${deletingUsage.series} weekly series stay, without a hall.`,
-          deletingUsage.defaultForTeams.length > 0 ? `Default hall of ${deletingUsage.defaultForTeams.map((team) => team.name).join(', ')} is cleared.` : '',
-          'This cannot be undone.',
+          t('facilities.delete.usage', { upcoming: deletingUsage.upcomingSessions, past: deletingUsage.pastSessions, series: deletingUsage.series }),
+          deletingUsage.defaultForTeams.length > 0 ? t('facilities.delete.defaultCleared', { teams: deletingUsage.defaultForTeams.map((team) => team.name).join(', ') }) : '',
+          t('facilities.delete.final'),
         ].filter(Boolean).join(' ') : undefined}
-        confirmLabel="Delete hall"
+        confirmLabel={t('facilities.delete.confirm')}
         tone="danger"
         onConfirm={() => { if (deleteId) run(() => deleteFacility(deleteId)); setDeleteId(null); }}
         onCancel={() => setDeleteId(null)}
@@ -169,6 +171,7 @@ function NewFacilityForm({
   managedDepartmentIds: ReadonlySet<Id>;
   onRun: (action: () => void) => boolean;
 }) {
+  const t = useT();
   const managedDepartments = database.departments.filter((department) => managedDepartmentIds.has(department.id));
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
@@ -192,13 +195,13 @@ function NewFacilityForm({
         if (ok) { setName(''); setAddress(''); }
       }}
     >
-      <p className="text-sm font-black text-slate-100">Add hall</p>
-      <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Hall name" aria-label="Hall name" className={inputClass} />
-      <AddressField value={address} onChange={setAddress} label="Hall address" />
+      <p className="text-sm font-black text-slate-100">{t('facilities.add')}</p>
+      <input value={name} onChange={(event) => setName(event.target.value)} placeholder={t('facilities.hallName')} aria-label={t('facilities.hallName')} className={inputClass} />
+      <AddressField value={address} onChange={setAddress} label={t('facilities.hallAddress')} />
       {match ? <p className="rounded-xl border border-amber-400/35 bg-amber-400/10 px-3 py-2 text-xs font-bold text-amber-100">{getFacilityMatchWarning(match)}</p> : null}
       {managedDepartments.length > 1 ? (
         <fieldset className="grid gap-1">
-          <legend className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Bookable for</legend>
+          <legend className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('facilities.bookableFor')}</legend>
           {managedDepartments.map((department) => (
             <label key={department.id} className="flex items-center gap-2 text-sm font-bold text-slate-200">
               <input
@@ -212,7 +215,7 @@ function NewFacilityForm({
           ))}
         </fieldset>
       ) : null}
-      <button type="submit" className={`${smallButtonClass} border-sky-500/50 text-sky-100 hover:bg-sky-950/35`}>Add hall</button>
+      <button type="submit" className={`${smallButtonClass} border-sky-500/50 text-sky-100 hover:bg-sky-950/35`}>{t('facilities.add')}</button>
     </form>
   );
 }
@@ -238,6 +241,7 @@ function FacilityCard({
   onRun: (action: () => void) => boolean;
   onDelete: () => void;
 }) {
+  const t = useT();
   const accent = getFacilityAccent(facility.id);
   const linkedDepartmentIds = facilityDepartmentIds(database, facility.id);
   const defaultFor = database.teams.filter((team) => team.defaultFacilityId === facility.id);
@@ -254,10 +258,10 @@ function FacilityCard({
   const summary = (
     <>
       <p className="text-lg font-black text-white">{facility.name}</p>
-      {facility.address ? <p className="mt-1 text-xs font-bold text-slate-400">{facility.address}</p> : <p className="mt-1 text-xs font-bold text-slate-600">No address yet</p>}
+      {facility.address ? <p className="mt-1 text-xs font-bold text-slate-400">{facility.address}</p> : <p className="mt-1 text-xs font-bold text-slate-600">{t('facilities.noAddress')}</p>}
       <p className="mt-3 text-xs font-bold text-slate-500">
-        {defaultFor.length > 0 ? `Default for ${defaultFor.map((team) => team.name).join(', ')} · ` : ''}
-        {usage.upcomingSessions === 1 ? '1 upcoming session' : `${usage.upcomingSessions} upcoming sessions`}
+        {defaultFor.length > 0 ? t('facilities.defaultFor', { teams: defaultFor.map((team) => team.name).join(', ') }) : ''}
+        {t('facilities.upcoming', { count: usage.upcomingSessions })}
       </p>
     </>
   );
@@ -269,7 +273,7 @@ function FacilityCard({
         <Link href={href} className="block p-5">{summary}</Link>
         {facility.address ? (
           <a href={mapsHref(facility.address)} target="_blank" rel="noreferrer" className="mx-5 mb-4 inline-block text-xs font-black text-sky-300 hover:text-sky-200">
-            Open in maps ↗
+            {t('facilities.openMaps')}
           </a>
         ) : null}
       </div>
@@ -281,22 +285,22 @@ function FacilityCard({
       {!manageable ? (
         <>
           {summary}
-          <p className="mt-3 text-xs font-bold text-slate-500">Shared with another department — only its hall managers can change it.</p>
+          <p className="mt-3 text-xs font-bold text-slate-500">{t('facilities.sharedReadOnly')}</p>
         </>
       ) : (
         <form
           className="grid gap-2"
           onSubmit={(event) => { event.preventDefault(); onRun(() => updateFacility(facility.id, { name, address })); }}
         >
-          <input value={name} onChange={(event) => setName(event.target.value)} aria-label={`Name of ${facility.name}`} className={inputClass} />
-          <AddressField value={address} onChange={setAddress} label={`Address of ${facility.name}`} />
-          <button type="submit" disabled={!dirty} className={`${smallButtonClass} border-slate-700 text-slate-200`}>Save</button>
+          <input value={name} onChange={(event) => setName(event.target.value)} aria-label={t('facilities.nameOf', { name: facility.name })} className={inputClass} />
+          <AddressField value={address} onChange={setAddress} label={t('facilities.addressOf', { name: facility.name })} />
+          <button type="submit" disabled={!dirty} className={`${smallButtonClass} border-slate-700 text-slate-200`}>{t('facilities.save')}</button>
         </form>
       )}
 
       {manageable && database.departments.some((department) => managedDepartmentIds.has(department.id)) ? (
         <fieldset className="mt-3 grid gap-1">
-          <legend className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Bookable for</legend>
+          <legend className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('facilities.bookableFor')}</legend>
           {database.departments.filter((department) => managedDepartmentIds.has(department.id)).map((department) => (
             <label key={department.id} className="flex items-center gap-2 text-sm font-bold text-slate-200">
               <input
@@ -313,7 +317,7 @@ function FacilityCard({
 
       {defaultableTeams.length > 0 ? (
         <div className="mt-3 grid gap-1">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Default hall of</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('facilities.defaultHallOf')}</p>
           {defaultableTeams.map((team) => {
             const isDefault = team.defaultFacilityId === facility.id;
             return (
@@ -332,7 +336,7 @@ function FacilityCard({
       ) : null}
 
       {manageable ? (
-        <button type="button" onClick={onDelete} className={`${smallButtonClass} mt-3 border-red-500/50 text-red-100 hover:bg-red-950/35`}>Delete hall</button>
+        <button type="button" onClick={onDelete} className={`${smallButtonClass} mt-3 border-red-500/50 text-red-100 hover:bg-red-950/35`}>{t('facilities.delete.confirm')}</button>
       ) : null}
     </div>
   );

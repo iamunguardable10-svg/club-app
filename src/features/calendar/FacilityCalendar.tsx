@@ -7,7 +7,7 @@ import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDial
 import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictCandidate, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
 import { ClubShell, CoachShell } from '@/features/role-workspaces/RoleShell';
 import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
-import { normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
+import { displayTitle, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
 import type { CoachFacility, CoachGroup, CoachSession, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 import {
@@ -20,6 +20,8 @@ import {
   useLocalDatabase,
   type SessionType,
 } from '@/shared/data';
+import { formatNumericDayMonth } from '@/shared/format';
+import { errorText, tr, useT } from '@/shared/i18n';
 
 type Facility = { id: string; club_id: string; name: string; address: string | null };
 type Department = { id: string; name: string };
@@ -92,7 +94,7 @@ function formatWeekLabel(days: Date[]) {
   const first = days[0];
   const last = days[6];
   if (!first || !last) return '';
-  return `${first.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })} - ${last.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}`;
+  return `${formatNumericDayMonth(first)} - ${formatNumericDayMonth(last)}`;
 }
 
 function isMissingAuthSessionError(message?: string) {
@@ -159,6 +161,7 @@ function sessionTone(session: Session, departmentId?: string, teamId?: string, d
 }
 
 export function FacilityCalendar({ facilityId, from, departmentId, teamId, departmentIds, teamIds }: FacilityCalendarProps) {
+  const t = useT();
   const router = useRouter();
   const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
   const calendarScrollRef = useRef<HTMLDivElement | null>(null);
@@ -226,7 +229,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     if (!ready) return;
     if (dataError) {
       setState('error');
-      setError(dataError.message);
+      setError(errorText(tr, dataError));
       return;
     }
     if (!database) return;
@@ -234,7 +237,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     const loadedFacility = database.facilities.find((candidate) => candidate.id === facilityId);
     if (!loadedFacility) {
       setState('error');
-      setError('This hall does not exist.');
+      setError(tr('hallCalendar.notFound'));
       return;
     }
 
@@ -349,7 +352,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       clubId: facility?.club_id ?? '',
       name: team.name,
       departmentId: team.department_id,
-      departmentName: departmentById.get(team.department_id)?.name ?? 'Department',
+      departmentName: departmentById.get(team.department_id)?.name ?? tr('coach.data.department'),
       defaultFacilityId: team.default_facility_id,
       role: isClubAdmin ? 'club_admin' : managedDepartmentIds.has(team.department_id) ? 'department_lead' : 'coach',
     })),
@@ -382,10 +385,10 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   const hasRoleManagedTeams = isClubAdmin || managedDepartmentIds.size > 0 || managedTeamIds.size > 0;
   const facilityAssignmentNotice = hasRoleManagedTeams && assignedDepartmentIds.size === 0
     ? isClubAdmin
-      ? 'Assign this hall to a department before creating sessions here.'
-      : 'This hall is not assigned to a department yet. Ask a club admin to set it up.'
+      ? t('hallCalendar.notice.assignAsAdmin')
+      : t('hallCalendar.notice.askAdmin')
     : hasRoleManagedTeams && manageableTeamIds.size === 0
-      ? 'No assigned team can use this hall yet.'
+      ? t('hallCalendar.notice.noTeam')
       : null;
 
   const calendarSessions = useMemo<SmartCalendarSession[]>(
@@ -395,8 +398,8 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
         title: session.title,
         startsAt: session.starts_at,
         endsAt: session.ends_at,
-        teamName: teamById.get(session.owner_team_id)?.name ?? 'Team',
-        departmentName: departmentById.get(session.department_id)?.name ?? 'Department',
+        teamName: teamById.get(session.owner_team_id)?.name ?? tr('hallCalendar.team'),
+        departmentName: departmentById.get(session.department_id)?.name ?? tr('coach.data.department'),
         tone: sessionTone(session, departmentId, teamId, highlightedDepartmentIds, highlightedTeamIds),
         canManage: canManageSession(session),
       })),
@@ -423,13 +426,13 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
 
   function assertWritableSessionValue(value: FacilitySessionEditValue) {
     const team = teams.find((item) => item.id === value.teamId);
-    if (!team) throw new Error('Choose a team first.');
-    if (!manageableTeamIds.has(team.id)) throw new Error('You can only schedule assigned teams in this hall.');
+    if (!team) throw new Error(tr('hallCalendar.error.chooseTeam'));
+    if (!manageableTeamIds.has(team.id)) throw new Error(tr('hallCalendar.error.assignedTeamsOnly'));
     const allowedDepartmentIds = new Set(departmentFacilityLinks.filter((link) => link.facility_id === value.facilityId).map((link) => link.department_id));
     if (value.facilityId === facilityId) {
       for (const department of assignedDepartmentIds) allowedDepartmentIds.add(department);
     }
-    if (!allowedDepartmentIds.has(team.department_id)) throw new Error('This hall is not assigned to the selected team department.');
+    if (!allowedDepartmentIds.has(team.department_id)) throw new Error(tr('hallCalendar.error.notForDepartment'));
     return team;
   }
 
@@ -597,12 +600,12 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   // no longer exists — a missing `from` would have led nowhere.
   const backTarget =
     from === 'club'
-      ? { href: '/club/halls', label: 'Halls' }
+      ? { href: '/club/halls', label: t('nav.halls') }
       : from === 'coachTeam' && teamId
-      ? { href: `/coach/team?teamId=${teamId}`, label: 'Team' }
+      ? { href: `/coach/team?teamId=${teamId}`, label: t('nav.team') }
       : from === 'coachCalendar'
-        ? { href: '/coach/sessions', label: 'Calendar' }
-        : { href: '/coach/facilities', label: 'Halls' };
+        ? { href: '/coach/sessions', label: t('nav.calendar') }
+        : { href: '/coach/facilities', label: t('nav.halls') };
 
   function handleSlotPointerDown(day: Date, event: PointerEvent<HTMLDivElement>) {
     if (mode !== 'edit' || !canCreateSessions) return;
@@ -718,7 +721,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     // write. Locally nothing else would stop it.
     const target = sessions.find((session) => session.id === save.sessionId);
     if (!target || !canManageSession(target)) {
-      setError('You can only move sessions of your own teams.');
+      setError(tr('hallCalendar.error.ownTeamsMove'));
       rollbackFacilitySave(save);
       return false;
     }
@@ -726,7 +729,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       updateSession(save.sessionId, { startsAt: save.startsAt, endsAt: save.endsAt });
       return true;
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'The session could not be moved.');
+      setError(saveError instanceof Error ? errorText(tr, saveError) : tr('hallCalendar.error.moveFailed'));
       rollbackFacilitySave(save);
       return false;
     }
@@ -776,7 +779,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     } catch (error) {
       setAllowedConflictKey(null);
       setPendingConflictSave(save);
-      setConflictDescription(error instanceof Error ? `Could not save this session: ${error.message}` : previousDescription);
+      setConflictDescription(error instanceof Error ? tr('coach.conflict.couldNotSave', { message: errorText(tr, error) }) : previousDescription);
       setConflictSuggestions(previousSuggestions);
     }
   }
@@ -800,7 +803,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   }
 
   async function persistCreateSession(value: FacilitySessionEditValue) {
-    if (!facility) throw new Error('The hall is missing.');
+    if (!facility) throw new Error(tr('hallCalendar.error.hallMissing'));
     assertWritableSessionValue(value);
     setIsSavingSession(true);
     try {
@@ -831,7 +834,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     const currentSession = originalSession ?? sessions.find((session) => session.id === sessionId);
     if (!currentSession) return;
     // The real permission check, kept from the Supabase version.
-    if (!canManageSession(currentSession)) throw new Error('You may not edit this session.');
+    if (!canManageSession(currentSession)) throw new Error(tr('hallCalendar.error.editNotAllowed'));
     assertWritableSessionValue(value);
     setIsSavingSession(true);
     try {
@@ -858,7 +861,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     try {
       updateSession(sessionId, { groupIds });
     } catch (changeError) {
-      setError(changeError instanceof Error ? changeError.message : 'The groups could not be saved.');
+      setError(changeError instanceof Error ? errorText(tr, changeError) : tr('hallCalendar.error.groupsFailed'));
       throw changeError;
     }
   }
@@ -869,7 +872,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       deleteSession(session.id);
       setSelectedSession(null);
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'The session could not be deleted.');
+      setError(deleteError instanceof Error ? errorText(tr, deleteError) : tr('coach.error.deleteFailed'));
     }
   }
 
@@ -909,8 +912,8 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       startsAt: session.starts_at,
       endsAt: session.ends_at,
       teamId: session.owner_team_id,
-      teamName: team?.name ?? 'Team',
-      departmentName: department?.name ?? 'Department',
+      teamName: team?.name ?? tr('hallCalendar.team'),
+      departmentName: department?.name ?? tr('coach.data.department'),
       facilityId: session.facility_id ?? facilityId,
       facilityName: facilities.find((item) => item.id === (session.facility_id ?? facilityId))?.name ?? facility?.name ?? null,
       groupIds: session.group_ids ?? [],
@@ -930,21 +933,21 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       }
     : null;
 
-  if (state === 'loading') return <main className="min-h-screen bg-slate-950 p-8 text-white">Loading calendar...</main>;
+  if (state === 'loading') return <main className="min-h-screen bg-slate-950 p-8 text-white">{t('hallCalendar.loading')}</main>;
   if (state === 'error') return <main className="min-h-screen bg-slate-950 p-8 text-white">{error}</main>;
 
   return (
     <HallShell
       club={database?.activeIdentity?.role === 'club'}
-      title={facility?.name ?? 'Hall'}
-      subtitle={facility?.address || 'No address set'}
+      title={facility?.name ?? t('hallCalendar.hall')}
+      subtitle={facility?.address || t('hallCalendar.noAddress')}
       back={backTarget}
     >
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2 text-xs font-black">
-          {highlightedTeam ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-200">Highlighted: {highlightedTeam.name}</span> : null}
-          {!highlightedTeam && highlightedDepartment ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-200">Highlighted: {highlightedDepartment.name}</span> : null}
-          <span className="rounded-full border border-slate-800 px-3 py-1 text-slate-400">Everything booked in this hall, from all teams</span>
+          {highlightedTeam ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-200">{t('hallCalendar.highlighted', { name: highlightedTeam.name })}</span> : null}
+          {!highlightedTeam && highlightedDepartment ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-200">{t('hallCalendar.highlighted', { name: highlightedDepartment.name })}</span> : null}
+          <span className="rounded-full border border-slate-800 px-3 py-1 text-slate-400">{t('hallCalendar.allBookings')}</span>
         </div>
         {facilityAssignmentNotice ? (
           <p className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm font-medium text-slate-300">{facilityAssignmentNotice}</p>
@@ -1014,7 +1017,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       {composerOpen && draftEditorInitial ? (
         <CoachSessionEditSheet
           key={`facility-draft-${draftEditorInitial.startsAt}`}
-          title="New training"
+          title={t('hallCalendar.newTraining')}
           teams={editorTeams}
           facilities={editorFacilities}
           groups={groups}
@@ -1037,7 +1040,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       {editingSession ? (
         <CoachSessionEditSheet
           key={`facility-session-${editingSession.id}-${editingSession.starts_at}`}
-          title={editingSession.title}
+          title={displayTitle(editingSession.title)}
           teams={editorTeams}
           facilities={editorFacilities}
           groups={groups}
@@ -1058,7 +1061,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       ) : null}
       <FacilityConflictDialog
         isOpen={Boolean(pendingConflictSave)}
-        description={conflictDescription ?? 'This hall already has another session at this time.'}
+        description={conflictDescription ?? t('hallCalendar.conflictFallback')}
         suggestions={conflictSuggestions}
         onSuggestion={applyFacilityConflictSuggestion}
         onReviewTime={reviewFacilityConflictSave}
