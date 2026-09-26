@@ -2101,3 +2101,17 @@ Geprüft: SQL-Test 17 (alles gelöscht, Vault-Passwort weg, andere bleiben, einz
 aufgehalten), alle SQL-Tests, Typecheck, Build; im Projekt ein zurückgerollter Probelauf (Nutzer
 anlegen, löschen: Konto und Person weg); Browser: Seite 390 px ohne seitliches Scrollen,
 Hinweis bei der Registrierung, Link in den Einstellungen, Löschen im Demo-Modus ausgeblendet.
+
+## Run 39 — Ruhigere Fehlermeldungen (erledigt)
+
+Gemeldet (2026-09-26): Die Morgen-Zusammenfassung kam um 07:30 mit nur „Script error.“ und hat
+Ben am Samstag geweckt.
+
+- „Script error.“ ohne Details ist das, was ein Browser meldet, wenn er den eigentlichen Fehler
+  verbirgt (Skript von einer anderen Adresse, Erweiterung). Damit kann niemand etwas anfangen:
+  Die App meldet es nicht mehr, der Server speichert es nicht mehr (auch von älteren App-
+  Versionen), der eine gespeicherte ist geschlossen.
+- Die Zusammenfassung für Betreiber kommt jetzt um 09:00 (im Winter 08:00) statt 07:30.
+
+Geprüft: SQL-Test 18 (ohne Details verworfen, mit Stack behalten), alle SQL-Tests, Typecheck;
+Migration 0030 eingespielt, Cron-Job auf 07:00 UTC umgestellt.
