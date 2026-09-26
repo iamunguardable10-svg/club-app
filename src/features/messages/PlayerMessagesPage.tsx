@@ -2,7 +2,7 @@
 
 /**
  * The player's messages (piece 17): announcements from the staff, important
- * ones pinned on top. Having this page open marks what is shown as read;
+ * ones on top as long as the staff pinned them (newest first). Having this page open marks what is shown as read;
  * there is no button for it.
  */
 
@@ -15,6 +15,7 @@ import {
   isMessageRead,
   markMessagesRead,
   messagesForPlayer,
+  pinnedMessagesFor,
   useLocalDatabase,
 } from '@/shared/data';
 
@@ -39,7 +40,7 @@ export function PlayerMessagesPage() {
   }, [person, unreadKey]);
 
   if (!database) return null;
-  const pinned = messages.filter((message) => message.important && Date.now() - Date.parse(message.createdAt) < 14 * 86_400_000);
+  const pinned = person ? pinnedMessagesFor(database, person.id).filter((message) => messages.includes(message)) : [];
   const rest = messages.filter((message) => !pinned.includes(message));
   const unread = new Set(unreadIds);
 

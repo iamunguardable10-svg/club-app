@@ -379,12 +379,12 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
   // one, the demo player (athlete-u16-1) has read neither.
   const teamMessages: TeamMessage[] = [
     {
-      id: 'message-demo-1', teamId: TEAM_U16, groupIds: [], authorId: 'coach-5', important: false,
+      id: 'message-demo-1', teamId: TEAM_U16, groupIds: [], authorId: 'coach-5', important: false, pinnedUntil: null,
       body: 'Kit collection on Monday after training. Please bring 20 € for the warm-up shirt.',
       createdAt: addDays(now, -3).toISOString(), remindedAt: null,
     },
     {
-      id: 'message-demo-2', teamId: TEAM_U16, groupIds: [], authorId: 'coach-1', important: true,
+      id: 'message-demo-2', teamId: TEAM_U16, groupIds: [], authorId: 'coach-1', important: true, pinnedUntil: addDays(now, 6).toISOString(),
       body: 'Game on Saturday: be at the hall by 10:15, warm-up starts 10:30. Bring both kits.',
       createdAt: addDays(now, -1).toISOString(), remindedAt: null,
     },

@@ -184,7 +184,7 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
         {/* On the first page of each role only, so it is seen once and not everywhere. */}
         {active === 'today' || active === 'club' ? <><InstallHint variant="card" /><NotificationsHint variant="card" /></> : null}
         {active === 'calendar' ? <CalendarHint /> : null}
-        {active === 'today' && unread > 0 && database && person ? <UnreadMessagesCard database={database} personId={person.id} /> : null}
+        {active === 'today' && database && person ? <UnreadMessagesCard database={database} personId={person.id} /> : null}
         {children}
       </div>
 

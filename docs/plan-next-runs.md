@@ -321,6 +321,19 @@ weiteren Teams oder Vereinen aber nötig:
   Verein nach dem anderen und bietet einen Vereinswechsel im Profilmenü; „Add a role“ und
   Gründen dann auch für weitere Vereine.
 
+- **Ideen (gemerkt 2026-09-26, noch nicht geplant):**
+  - *Fahrgemeinschaften bei Auswärtsspielen:* „Ich fahre, 3 Plätze frei“ / „Ich brauche einen Platz“
+    am Spiel, Mitfahrer tragen sich beim Fahrer ein, Push an den Fahrer. Offen: in der Jugend fahren
+    oft Eltern ohne Konto (zunächst über das Konto des Spielers). Mittelgroß; Vorschlag: zuerst.
+  - *Team-Ranglisten:* Anwesenheit und Trainingsminuten (keine Belastung/RPE, das sind
+    Gesundheitsdaten). Pro Team vom Trainer einschaltbar; bei Minderjährigen eher nur der eigene
+    Platz und die ersten drei. Daten sind schon da; klein.
+  - *Anbindung ans Internet (Spielpläne, Tabellen, Gegner), sportartunabhängig:* Es gibt keine
+    gemeinsame Quelle; jeder Verband hat ein eigenes System (fussball.de, basketball-bund.net,
+    handball.net, SAMS …), oft ohne offizielle Schnittstelle, und Auslesen der Webseiten ist meist
+    nicht erlaubt. Sportartunabhängig geht: Spielplan als Kalenderdatei (ICS) importieren → Spiele
+    mit Gegner, Ort, Heim/Auswärts. Tabellen danach je Verband mit offener Schnittstelle.
+
 Annahme für den Pilot: alle Spieler haben die App (kein Eintragen durch den Trainer für
 Spieler ohne Konto nötig).
 

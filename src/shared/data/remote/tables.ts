@@ -70,7 +70,7 @@ export const TABLES: readonly TableSpec[] = [
   // Kind and note live apart: shared only with viewAbsenceReasons (piece 16).
   { name: 'absence_reasons', key: ['absence_id'] },
   { name: 'squad_entries', key: ['session_id', 'person_id'], kinds: { set_at: 'timestamp' } },
-  { name: 'team_messages', key: ['id'], kinds: { created_at: 'timestamp', reminded_at: 'timestamp' } },
+  { name: 'team_messages', key: ['id'], kinds: { created_at: 'timestamp', reminded_at: 'timestamp', pinned_until: 'timestamp' } },
   { name: 'message_reads', key: ['message_id', 'person_id'], kinds: { read_at: 'timestamp' } },
   { name: 'load_summaries', key: ['person_id'], kinds: { acwr: 'number', updated_at: 'timestamp' } },
   { name: 'athlete_plans', key: ['id'], kinds: { starts_at: 'timestamp', created_at: 'timestamp', expected_rpe: 'number' } },
@@ -209,7 +209,7 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     })),
     team_messages: (database.teamMessages ?? []).map((m) => ({
       id: m.id, team_id: m.teamId, group_ids: m.groupIds, author_id: m.authorId, body: m.body, important: m.important,
-      created_at: m.createdAt, reminded_at: m.remindedAt,
+      pinned_until: m.pinnedUntil, created_at: m.createdAt, reminded_at: m.remindedAt,
     })),
     message_reads: (database.messageReads ?? []).map((r) => ({ message_id: r.messageId, person_id: r.personId, read_at: r.readAt })),
     private_events: (database.privateEvents ?? []).map((e) => ({
@@ -350,7 +350,7 @@ export function fromServerRows(
     teamMessages: rows.team_messages
       .map((m) => ({
         id: s(m.id), teamId: s(m.team_id), groupIds: (m.group_ids as string[]) ?? [], authorId: sn(m.author_id), body: s(m.body),
-        important: Boolean(m.important), createdAt: s(m.created_at), remindedAt: sn(m.reminded_at),
+        important: Boolean(m.important), pinnedUntil: sn(m.pinned_until), createdAt: s(m.created_at), remindedAt: sn(m.reminded_at),
       }))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     messageReads: rows.message_reads.map((r) => ({ messageId: s(r.message_id), personId: s(r.person_id), readAt: s(r.read_at) })),

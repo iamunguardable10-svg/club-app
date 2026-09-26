@@ -40,6 +40,7 @@ migrations below are applied there (2026-09-24).
 | `migrations/0029_pilot_delete_account.sql` | Deleting one's own account: `delete_my_account()` removes the person (everything cascades from `people`), the Apple password in the Vault and the account (`auth.users`, cascading settings, devices, calendar link, Apple connection); refused for the only admin of a club that has other people |
 | `migrations/0030_pilot_quiet_error_reports.sql` | Quieter error reports: "Script error." without detail (the browser hid the real error) is not stored; the morning summary moves to 07:00 UTC (09:00 in summer, 08:00 in winter) |
 | `migrations/0031_pilot_push_languages.sql` | Push messages in the recipient's language: every outbox row also carries `text_key` and `text_params`; `push_take_due` hands them out with the account's language (`auth.users.raw_user_meta_data ->> 'locale'`, set by the app). The English title and body stay the fallback |
+| `migrations/0032_pilot_message_pinning.sql` | How long an important team message stays pinned: `team_messages.pinned_until` (chosen by the staff, at most a month; a week when not given; fixed once written; never for normal messages) |
 | `tests/00_supabase_shim.sql` | Stand-in for Supabase's `auth` schema and roles, **local tests only** |
 | `tests/01_rls_test.sql` | 105 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
 | `tests/02_access_test.sql` | 35 checks for join codes, invitations and club setup |

@@ -2358,3 +2358,19 @@ noch für die nächsten 4 Einheiten, weiter hinten ist die Schätzung zu ungenau
 in der Titelzeile; bei „Als Nächstes“ so groß wie der Titel (`LoadLandingChip large`). Statt des
 Knopfs „Löschen“ hat jeder eigene Plan ein kleines × oben rechts, das wie vorher erst nachfragt.
 Geprüft: Handy 390 px in DE/FR/ES, Desktop, × öffnet die Nachfrage; Rundgang (`test:smoke`) ohne Fehler.
+
+## Run 54 — Wichtige Nachrichten: der Trainer bestimmt, wie lange sie oben bleiben (erledigt)
+
+Wunsch (Ben, 2026-09-26): der Trainer stellt bei einer wichtigen Nachricht ein, wie lange sie oben
+bleibt, und die Spieler sehen immer die neueste. Beim Schreiben wählt der Trainer „Oben für 1 Tag /
+3 Tage / 1 Woche / 2 Wochen“ (vorgewählt 1 Woche); in seiner Liste steht „oben bis 2. Okt.“. Solange
+eine Nachricht angepinnt ist, steht die neueste angepinnte auf „Heute“ (auch nachdem sie gelesen ist)
+und oben auf der Nachrichten-Seite; vorher verschwand die Karte auf „Heute“ nach dem Lesen und die
+Nachrichten-Seite pinnte fest 14 Tage.
+- **Server:** Migration 0032 (`team_messages.pinned_until`): nur bei wichtigen, höchstens ein Monat,
+  ohne Angabe eine Woche (für eine App, die das noch nicht schickt), danach nicht mehr änderbar;
+  bestehende wichtige behalten ihre 14 Tage. Live eingespielt (2026-09-26). Tests: `19_message_pinning_test.sql`, zwei neue Prüfungen
+  in `remote-store.test.ts`.
+- **App:** `MESSAGE_PIN_DAYS`, `messagePinnedUntil`, `pinnedMessagesFor`; `postTeamMessage` nimmt
+  `pinDays`. Geprüft: Handy 390 px DE/FR (Trainer schreibt, Spieler sieht sie vor und nach dem Lesen),
+  Rundgang (`test:smoke`) ohne Fehler.
