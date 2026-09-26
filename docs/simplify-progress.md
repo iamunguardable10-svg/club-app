@@ -2056,3 +2056,24 @@ Termine, Hallen und Nachrichten. Ein weitergeleiteter Code fiel bisher niemandem
 Geprüft: SQL-Test 16 (Cheftrainer ja, Helfer ohne Recht nein, die Person selbst nein, vom Trainer
 angelegt nein, abschaltbar), alle SQL-Tests, Datenschicht, Typecheck, Build. Migration 0028
 eingespielt.
+
+## Run 37 — Alle Tests laufen in der CI (erledigt)
+
+Aus der Durchsicht (2026-09-26): Die CI prüfte nur Typecheck und Build; Zugriffsregeln,
+Datenschicht, Belastungs-Rechnung, Kalender und Apple-Abgleich liefen nur lokal.
+
+- Neuer CI-Job `tests` bei jedem PR und auf main: Belastungs-Rechnung, Kalender-Dateien, Serien,
+  alle SQL-Tests der Zugriffsregeln auf einem frischen Postgres 16, die Datenschicht gegen diese
+  Datenbank und der Apple-Abgleich gegen einen lokalen CalDAV-Server (Radicale). Nie gegen das
+  Supabase-Projekt.
+- `run-local.sh` schluckte Fehler (`|| true`): Ein roter SQL-Test hätte die CI nie rot gemacht.
+  Jetzt laufen weiter alle Dateien durch, und ein Fehler macht den Lauf rot (geprüft mit einem
+  absichtlich roten Test).
+- Ein Belastungs-Test hing vom Wochentag ab (samstags rot). Er prüft jetzt, was er soll: Tag 28
+  entspricht schon dem eingeschwungenen Wert am selben Wochentag (geprüft für alle sieben
+  Wochentage, auch abends, mit verschobener Uhr).
+
+**Befund für Ben:** Wer gleichmäßig Mo/Mi/Fr trainiert, steht jeden Sonntag auf „Low“ (Verhältnis
+0,77, Grenze 0,8), an allen anderen Tagen auf „Ready“. So rechnet die tägliche EWMA grundsätzlich
+(nach zwei Ruhetagen ist die akute Last am niedrigsten). Offen, ob wir das glätten (z. B. Zone
+aus dem Mittel der letzten 7 Tage) oder so lassen.
