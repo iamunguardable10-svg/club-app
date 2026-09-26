@@ -1,7 +1,7 @@
 'use client';
 
 import { type MouseEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useState } from 'react';
-import { SQUAD_LINE, SessionInfo, gameLine, meetLine } from '@/features/sessions/SessionInfo';
+import { SessionInfo, gameLine, meetLine, squadLine } from '@/features/sessions/SessionInfo';
 import { AbsencePanel } from '@/features/absences/AbsencePanel';
 import Link from 'next/link';
 import {
@@ -28,15 +28,17 @@ import {
   type LoadTrainingType,
   sessionTypeToLoadType,
 } from './loadTypes';
-import { BASELINE_DAYS, acwrAfter, aggregateDailyLoads, backFromBreak, baselineAgeDays, calculateACWR, fillMissingDays, firstHighRiskDay, formatLoadDate, getLatestACWR, HIGH_RISK_ACWR, loadRoom, loadZone, projectFutureACWR, todayISO, weekChangePercent } from './loadCalculations';
+import { BASELINE_DAYS, acwrAfter, aggregateDailyLoads, backFromBreak, baselineAgeDays, calculateACWR, fillMissingDays, firstHighRiskDay, getLatestACWR, HIGH_RISK_ACWR, loadRoom, loadZone, projectFutureACWR, todayISO, weekChangePercent } from './loadCalculations';
 import { LoadInfoButton, LoadRiskBadge } from './LoadHints';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
 import { athleteHasLoad, clearEntryReview, displayName, getActivePerson, newId, reviewsForPerson, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
-import { formatDateRange, formatDay, formatLongDay, formatWeekday, plural } from '@/shared/format';
-import { useT } from '@/shared/i18n';
-import { WEEKDAY_LABELS, latestSeriesEnd, seriesDates, seriesEnd, thisAndFollowing, weekdayOf } from './planSeries';
+import { formatDateRange, formatDay, formatDayMonth, formatDayNumber, formatDecimal, formatEntryDate, formatInteger, formatLongDay, formatTime as formatSharedTime, formatWeekday, formatWeekdayDay } from '@/shared/format';
+import { errorText, tr, useT, type MessageKey } from '@/shared/i18n';
+import { loadTypeLabel, zoneLabel } from './loadLabels';
+import { displayTitle } from '@/features/sessions/sessionTypeLabels';
+import { latestSeriesEnd, seriesDates, seriesEnd, thisAndFollowing, weekdayOf } from './planSeries';
 import {
   readAcknowledged,
   readAvailability,
@@ -64,6 +66,9 @@ import { RatePrompt, WARMUP_MINUTES, WARMUP_RPE } from './RatePrompt';
  * app) starts empty and asks again.
  */
 const askedThisVisit = new Set<string>();
+
+/** Monday first, as `weekdayOf` counts. */
+const WEEKDAY_KEYS: MessageKey[] = ['weekday.short.0', 'weekday.short.1', 'weekday.short.2', 'weekday.short.3', 'weekday.short.4', 'weekday.short.5', 'weekday.short.6'];
 
 type AthleteView = 'home' | 'load' | 'calendar';
 
@@ -177,8 +182,15 @@ function withAutoWarmups(sessions: AthletePendingSession[]) {
 }
 
 function formatTime(value: string) {
-  return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  return formatSharedTime(value);
 }
+
+/** The data layer names the basis of a forecast day in English. */
+const FORECAST_BASIS_KEY: Record<string, MessageKey> = {
+  'Planned sessions': 'load.forecast.planned',
+  'Weekday pattern': 'load.forecast.weekday',
+  'Rest pattern': 'load.forecast.rest',
+};
 
 function timeInputFromISO(value: string) {
   const date = new Date(value);
@@ -201,20 +213,20 @@ function durationMinutesFromSession(session: AthletePendingSession) {
 }
 
 function compactLoadLabel(type: LoadTrainingType) {
-  if (type === 'team_training') return 'Team';
-  if (type === 'strength') return 'Gym';
-  if (type === 'individual') return 'Solo';
-  if (type === 'school_sport') return 'School';
-  if (type === 'recovery') return 'Rec';
-  if (type === 'prehab') return 'Pre';
-  return 'Game';
+  if (type === 'team_training') return tr('load.compact.team');
+  if (type === 'strength') return tr('load.compact.gym');
+  if (type === 'individual') return tr('load.compact.solo');
+  if (type === 'school_sport') return tr('load.compact.school');
+  if (type === 'recovery') return tr('load.compact.recovery');
+  if (type === 'prehab') return tr('load.compact.prehab');
+  return tr('load.compact.game');
 }
 
 function statusForPending(session: AthletePendingSession) {
   const today = todayISO();
-  if (session.date < today) return 'Overdue';
-  if (session.date === today) return 'Today';
-  return 'Planned';
+  if (session.date < today) return tr('load.pending.overdue');
+  if (session.date === today) return tr('load.pending.today');
+  return tr('load.pending.planned');
 }
 
 function Metric({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'ready' | 'high' | 'low' | 'neutral' }) {
@@ -265,9 +277,9 @@ function buildLoadRoomSummary(latest: ReturnType<typeof getLatestACWR>, entries:
 
   if (!latest || !baselineReady || currentAcwr === null) {
     return {
-      label: 'Load room',
+      label: tr('load.room.label'),
       value: '-',
-      detail: `${BASELINE_DAYS} days needed`,
+      detail: tr('load.room.daysNeeded', { count: BASELINE_DAYS }),
       tone: 'neutral' as const,
       mode: 'baseline' as LoadRoomMode,
       markerPercent,
@@ -288,9 +300,9 @@ function buildLoadRoomSummary(latest: ReturnType<typeof getLatestACWR>, entries:
 
   if (overloadDebtAu > 0) {
     return {
-      label: 'Overload',
-      value: `${overloadDebtAu} AU`,
-      detail: 'above safe lane',
+      label: tr('load.room.overload'),
+      value: tr('load.room.au', { value: overloadDebtAu }),
+      detail: tr('load.room.aboveSafe'),
       tone: 'high' as const,
       mode: 'overload' as LoadRoomMode,
       markerPercent,
@@ -303,8 +315,8 @@ function buildLoadRoomSummary(latest: ReturnType<typeof getLatestACWR>, entries:
 
   if (lowGapAu > 0) {
     return {
-      label: 'Underload gap',
-      value: `${lowGapAu} AU`,
+      label: tr('load.room.underloadGap'),
+      value: tr('load.room.au', { value: lowGapAu }),
       detail: sessionEstimateLabel(lowGapAu, averageSessionLoad),
       tone: 'low' as const,
       mode: 'underload' as LoadRoomMode,
@@ -317,8 +329,8 @@ function buildLoadRoomSummary(latest: ReturnType<typeof getLatestACWR>, entries:
   }
 
   return {
-    label: 'Room to high',
-    value: `${headroomAu} AU`,
+    label: tr('load.room.roomToHigh'),
+    value: tr('load.room.au', { value: headroomAu }),
     detail: sessionEstimateLabel(headroomAu, averageSessionLoad),
     tone: headroomAu < averageSessionLoad * 0.5 ? 'high' as const : 'ready' as const,
     mode: 'ready' as LoadRoomMode,
@@ -358,8 +370,8 @@ function LoadRoomGauge({ room, compact = false }: { room: LoadRoomSummary; compa
       </div>
       {!compact ? (
         <div className="relative h-4 text-[10px] font-black text-slate-500">
-          <span className="absolute -translate-x-1/2" style={{ left: `${room.lowPercent}%` }}>0.8</span>
-          <span className="absolute -translate-x-1/2" style={{ left: `${room.highPercent}%` }}>1.3</span>
+          <span className="absolute -translate-x-1/2" style={{ left: `${room.lowPercent}%` }}>{formatDecimal(ACWR_ZONES.low, 1)}</span>
+          <span className="absolute -translate-x-1/2" style={{ left: `${room.highPercent}%` }}>{formatDecimal(ACWR_ZONES.high, 1)}</span>
         </div>
       ) : null}
     </div>
@@ -394,8 +406,8 @@ function AcwrMetric({ latest, baselineReady, tone }: { latest: ReturnType<typeof
   const displayAcwr = acwr !== null && baselineReady ? acwr : null;
   const room = {
     label: 'ACWR',
-    value: displayAcwr !== null ? displayAcwr.toFixed(2) : '-',
-    detail: displayAcwr !== null ? (tone === 'high' ? 'High' : tone === 'low' ? 'Low' : 'Optimal') : `${BASELINE_DAYS} days needed`,
+    value: displayAcwr !== null ? formatDecimal(displayAcwr) : '-',
+    detail: displayAcwr !== null ? (tone === 'high' ? tr('load.zone.high') : tone === 'low' ? tr('load.zone.low') : tr('load.zone.optimal')) : tr('load.room.daysNeeded', { count: BASELINE_DAYS }),
     tone,
     mode: 'baseline' as LoadRoomMode,
     markerPercent: acwrPercent(displayAcwr),
@@ -448,6 +460,7 @@ type LoadTooltipProps = {
 };
 
 function LoadTooltip({ active, payload }: LoadTooltipProps) {
+  const t = useT();
   if (!active || !payload?.length) return null;
   const point = payload[0]?.payload;
   if (!point) return null;
@@ -458,8 +471,8 @@ function LoadTooltip({ active, payload }: LoadTooltipProps) {
     <div className="min-w-56 rounded-2xl border border-slate-700 bg-slate-950/95 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.45)] ring-1 ring-white/[0.04] backdrop-blur-xl">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-black text-white">{formatLoadDate(point.date)}</p>
-          <p className="mt-1 text-[11px] font-bold text-slate-500">{point.isProjected ? point.forecastBasis : `${point.entryCount} entries`}</p>
+          <p className="text-xs font-black text-white">{formatEntryDate(point.date)}</p>
+          <p className="mt-1 text-[11px] font-bold text-slate-500">{point.isProjected ? (point.forecastBasis && FORECAST_BASIS_KEY[point.forecastBasis] ? t(FORECAST_BASIS_KEY[point.forecastBasis]) : point.forecastBasis) : t('load.chart.entries', { count: point.entryCount })}</p>
         </div>
         <div className="text-right">
           <p className="text-lg font-black text-emerald-200">{point.isProjected ? point.forecastLoad : point.totalLoad}</p>
@@ -469,20 +482,20 @@ function LoadTooltip({ active, payload }: LoadTooltipProps) {
       <div className="mt-3 grid grid-cols-3 gap-2">
         <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-2">
           <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">ACWR</p>
-          <p className="mt-1 text-sm font-black text-white">{(point.acwr ?? point.projectedAcwr) ? (point.acwr ?? point.projectedAcwr)?.toFixed(2) : '—'}</p>
+          <p className="mt-1 text-sm font-black text-white">{(point.acwr ?? point.projectedAcwr) ? formatDecimal((point.acwr ?? point.projectedAcwr)!) : '—'}</p>
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-2">
-          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">Acute</p>
+          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">{t('load.chart.acute')}</p>
           <p className="mt-1 text-sm font-black text-white">{point.acuteLoad !== null && !point.isProjected ? Math.round(point.acuteLoad) : '—'}</p>
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-2">
-          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">Chronic</p>
+          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">{t('load.chart.chronic')}</p>
           <p className="mt-1 text-sm font-black text-white">{point.chronicLoad !== null && !point.isProjected ? Math.round(point.chronicLoad) : '—'}</p>
         </div>
       </div>
       {!point.chronicFull ? (
         <div className="mt-3 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-[11px] font-bold text-amber-100">
-          Baseline still building. The ratio shows after {BASELINE_DAYS} days of history.
+          {t('load.chart.baselineBuilding', { count: BASELINE_DAYS })}
         </div>
       ) : null}
       {segments.length > 0 ? (
@@ -491,9 +504,9 @@ function LoadTooltip({ active, payload }: LoadTooltipProps) {
             <div key={type} className="flex items-center justify-between gap-3 text-[11px] font-bold text-slate-300">
               <span className="inline-flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full" style={{ backgroundColor: LOAD_TYPE_COLORS[type] }} />
-                {LOAD_TYPE_LABELS[type]}
+                {loadTypeLabel(type)}
               </span>
-              <span>{point[type]} AU</span>
+              <span>{t('load.room.au', { value: Number(point[type]) })}</span>
             </div>
           ))}
         </div>
@@ -504,9 +517,9 @@ function LoadTooltip({ active, payload }: LoadTooltipProps) {
             <div key={`${type}_p`} className="flex items-center justify-between gap-3 text-[11px] font-bold text-slate-300">
               <span className="inline-flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full opacity-60" style={{ backgroundColor: LOAD_TYPE_COLORS[type] }} />
-                {LOAD_TYPE_LABELS[type]} forecast
+                {t('load.chart.typeForecast', { type: loadTypeLabel(type) })}
               </span>
-              <span>{Number(point[`${type}_p`])} AU</span>
+              <span>{t('load.room.au', { value: Number(point[`${type}_p`]) })}</span>
             </div>
           ))}
         </div>
@@ -530,6 +543,7 @@ function plannedProjectionLoad(point?: ACWRDataPoint) {
 }
 
 export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; pendingSessions: AthletePendingSession[] }) {
+  const t = useT();
   const [isMobile, setIsMobile] = useState(false);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -573,7 +587,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
     const projection = projectedByDate.get(day.date);
     return {
       date: day.date,
-      label: new Date(`${day.date}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }),
+      label: formatDayMonth(day.date),
       totalLoad: day.totalLoad,
       forecastLoad: plannedProjectionLoad(projection),
       acuteLoad: point?.acuteLoad ?? 0,
@@ -592,7 +606,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
   const projectedLimit = isMobile ? (range === 7 ? 2 : 3) : range === 7 ? 7 : 14;
   const projectedData: LoadChartDatum[] = projected.filter((point) => point.date > lastHistoricalDate).slice(0, projectedLimit).map((point) => ({
     date: point.date,
-    label: new Date(`${point.date}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }),
+    label: formatDayMonth(point.date),
     totalLoad: 0,
     forecastLoad: plannedProjectionLoad(point),
     acuteLoad: null,
@@ -674,7 +688,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
             maxBarSize={range === 7 ? 44 : range === 14 ? 34 : range === 30 ? 30 : 22}
             radius={index === LOAD_TRAINING_TYPES.length - 1 ? [8, 8, 2, 2] : [2, 2, 2, 2]}
             isAnimationActive={false}
-            name={LOAD_TYPE_LABELS[type]}
+            name={loadTypeLabel(type)}
           />
         ))}
         {LOAD_TRAINING_TYPES.map((type) => (
@@ -690,7 +704,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
             maxBarSize={range === 7 ? 44 : range === 14 ? 34 : range === 30 ? 30 : 22}
             radius={[8, 8, 2, 2]}
             isAnimationActive={false}
-            name={`${LOAD_TYPE_LABELS[type]} forecast`}
+            name={t('load.chart.typeForecast', { type: loadTypeLabel(type) })}
           />
         ))}
         {showLoadLines ? (
@@ -704,7 +718,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4, fill: '#fef3c7', stroke: '#facc15', strokeWidth: 2 }}
-              name="Acute load"
+              name={t('load.chart.acuteLoad')}
             />
             <Line
               yAxisId="load"
@@ -715,7 +729,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4, fill: '#d1fae5', stroke: '#34d399', strokeWidth: 2 }}
-              name="Chronic load"
+              name={t('load.chart.chronicLoad')}
             />
           </>
         ) : null}
@@ -740,7 +754,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
           dot={{ r: 3, fill: '#0f172a', stroke: '#a78bfa', strokeWidth: 2 }}
           activeDot={{ r: 5, fill: '#faf5ff', stroke: '#a78bfa', strokeWidth: 3 }}
           connectNulls={false}
-          name="Forecast ACWR"
+          name={t('load.chart.forecastAcwr')}
         />
       </ComposedChart>
     </ResponsiveContainer>
@@ -749,7 +763,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
   if (entries.length === 0) {
     return (
       <div className="flex min-h-64 items-center justify-center rounded-3xl border border-dashed border-slate-800 bg-slate-950/50 text-sm font-bold text-slate-500">
-        No load yet
+        {t('load.chart.noLoad')}
       </div>
     );
   }
@@ -766,7 +780,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
                 onClick={() => setRange(item)}
                 className={`rounded-full px-3 py-1.5 text-xs font-black transition ${range === item ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}
               >
-                {item}d
+                {t('load.chart.days', { count: item })}
               </button>
             ))}
           </div>
@@ -779,9 +793,9 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
           </button>
         </div>
         <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
-          <span className="hidden items-center gap-1.5 sm:inline-flex"><span className="h-px w-5 bg-sky-300" /> low 0.8</span>
-          <span className="hidden items-center gap-1.5 sm:inline-flex"><span className="h-px w-5 bg-rose-300" /> high 1.3</span>
-          <button type="button" onClick={openFullscreen} aria-label="Open chart fullscreen" className="inline-grid h-8 w-8 place-items-center bg-transparent text-lg font-black text-slate-300 transition hover:text-white sm:hidden">
+          <span className="hidden items-center gap-1.5 sm:inline-flex"><span className="h-px w-5 bg-sky-300" /> {t('load.chart.low', { value: formatDecimal(ACWR_ZONES.low, 1) })}</span>
+          <span className="hidden items-center gap-1.5 sm:inline-flex"><span className="h-px w-5 bg-rose-300" /> {t('load.chart.high', { value: formatDecimal(ACWR_ZONES.high, 1) })}</span>
+          <button type="button" onClick={openFullscreen} aria-label={t('load.chart.openFullscreen')} className="inline-grid h-8 w-8 place-items-center bg-transparent text-lg font-black text-slate-300 transition hover:text-white sm:hidden">
             ⛶
           </button>
         </div>
@@ -795,10 +809,10 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
         {LOAD_TRAINING_TYPES.slice(0, 5).map((type) => (
           <span key={type} className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: LOAD_TYPE_COLORS[type] }} />
-            {LOAD_TYPE_LABELS[type]}
+            {loadTypeLabel(type)}
           </span>
         ))}
-        <span className="ml-auto text-[11px] font-bold text-slate-500">Solid = reported · faded = forecast</span>
+        <span className="ml-auto text-[11px] font-bold text-slate-500">{t('load.chart.legend')}</span>
       </div>
       {isFullscreen ? (
         <div
@@ -810,20 +824,20 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
           {!isLandscape ? (
             <div className="flex min-h-dvh flex-col items-center justify-center gap-5 p-6 text-center">
               <div className="rounded-[2rem] border border-slate-800 bg-slate-950/80 p-6">
-                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">Fullscreen</p>
-                <h3 className="mt-2 text-2xl font-black">Turn your phone sideways</h3>
-                <p className="mt-2 text-sm font-bold text-slate-400">The load graph opens once the screen is in landscape.</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">{t('load.chart.fullscreen')}</p>
+                <h3 className="mt-2 text-2xl font-black">{t('load.chart.turnPhone')}</h3>
+                <p className="mt-2 text-sm font-bold text-slate-400">{t('load.chart.landscapeNote')}</p>
               </div>
               <button type="button" onClick={closeFullscreen} className="rounded-full border border-slate-700 bg-slate-950 px-4 py-2 text-xs font-black text-slate-100">
-                Close
+                {t('load.chart.close')}
               </button>
             </div>
           ) : (
             <div className="flex h-full min-h-0 flex-col gap-1.5 p-2">
               <div className="flex shrink-0 items-center justify-between gap-2 px-1">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Load chart</p>
-                  <p className="truncate text-sm font-black text-white">{range} days · EWMA</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">{t('load.chart.title')}</p>
+                  <p className="truncate text-sm font-black text-white">{t('load.chart.rangeEwma', { count: range })}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                   <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-0.5">
@@ -834,7 +848,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
                         onClick={() => setRange(item)}
                         className={`rounded-full px-2.5 py-1 text-[10px] font-black transition ${range === item ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}
                       >
-                        {item}d
+                        {t('load.chart.days', { count: item })}
                       </button>
                     ))}
                   </div>
@@ -850,7 +864,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
                     onClick={closeFullscreen}
                     className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1.5 text-[10px] font-black text-slate-100"
                   >
-                    Close
+                    {t('load.chart.close')}
                   </button>
                 </div>
               </div>
@@ -877,6 +891,7 @@ function AthleteCalendar({
   onItemSelect: (item: AthleteCalendarItem, intent: 'view' | 'edit') => void;
   onPlanTimeChange: (session: AthletePendingSession, startsAt: string, durationMinutes: number) => void;
 }) {
+  const t = useT();
   const firstHour = 8;
   const lastHour = 23;
   const desktopHourHeight = 48;
@@ -1110,19 +1125,19 @@ function AthleteCalendar({
         className={`${itemClass(item)} ${compact ? 'left-0.5 right-0.5 px-0.5 text-[8px] leading-tight' : ''}`}
         style={{ ...style, ...itemBorderStyle(item) }}
       >
-        <span className={`block font-black ${titleClass} ${compact ? 'overflow-hidden whitespace-nowrap' : 'truncate'}`}>{compact ? (item.source === 'private_event' ? item.title : compactLoadLabel(item.trainingType)) : item.title}</span>
+        <span className={`block font-black ${titleClass} ${compact ? 'overflow-hidden whitespace-nowrap' : 'truncate'}`}>{compact ? (item.source === 'private_event' ? item.title : compactLoadLabel(item.trainingType)) : item.source === 'private_event' ? item.title : displayTitle(item.title)}</span>
         {preview ? (
           <span className={`absolute right-1 top-1 rounded-md bg-slate-950/85 px-1 font-black text-sky-100 ring-1 ring-sky-200/40 ${compact ? 'text-[7px]' : 'text-[9px]'}`}>
-            {preview.duration}m
+            {t('calendar.minutesShort', { count: preview.duration })}
           </span>
         ) : null}
         {style.height > (compact ? 28 : 42) ? (
           <span className={`mt-0.5 block overflow-hidden whitespace-nowrap font-bold opacity-75 ${detailClass} ${compact ? '' : 'truncate'}`}>
             {item.status === 'cancelled'
-              ? `Out · ${formatTime(displayStartsAt)}`
+              ? t('calendar.outAt', { time: formatTime(displayStartsAt) })
               : item.status === 'late'
-                ? `Late · ${formatTime(displayStartsAt)}`
-              : compact ? formatTime(displayStartsAt) : `${formatTime(displayStartsAt)}${displayEndsAt ? ` - ${formatTime(displayEndsAt)}` : ''} · ${item.source === 'private_event' ? 'Private' : item.teamName ?? LOAD_TYPE_LABELS[item.trainingType]}`}
+                ? t('calendar.lateAt', { time: formatTime(displayStartsAt) })
+              : compact ? formatTime(displayStartsAt) : `${formatTime(displayStartsAt)}${displayEndsAt ? ` - ${formatTime(displayEndsAt)}` : ''} · ${item.source === 'private_event' ? t('calendar.private') : item.teamName ?? loadTypeLabel(item.trainingType)}`}
           </span>
         ) : null}
         {manageable ? <span aria-hidden="true" onPointerDown={(event) => startDrag(item, 'resize', event)} className={resizeClass} /> : null}
@@ -1148,30 +1163,30 @@ function AthleteCalendar({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {weekOffset !== 0 ? <button type="button" onClick={() => setWeekOffset(0)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">↺ Week</button> : null}
+          {weekOffset !== 0 ? <button type="button" onClick={() => setWeekOffset(0)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">{t('calendar.backToThisWeek')}</button> : null}
           {onEmptySlot ? (
             <button type="button" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'}`}>
-              {mode === 'edit' ? 'Done' : 'Add own session'}
+              {mode === 'edit' ? t('calendar.done') : t('calendar.addOwn')}
             </button>
           ) : null}
         </div>
       </div>
       {dragPreview ? (
         <div className="mb-3 rounded-2xl border border-sky-300/40 bg-sky-300/10 px-3 py-2 text-xs font-black text-sky-100 shadow-[0_16px_50px_rgba(56,189,248,0.14)]">
-          {new Date(`${dragPreview.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short' })} · {formatTime(dragPreview.startsAt)}
+          {formatWeekday(`${dragPreview.date}T12:00:00`)} · {formatTime(dragPreview.startsAt)}
           {' → '}
-          {dragPreview.duration} min
+          {t('calendar.minutes', { count: dragPreview.duration })}
         </div>
       ) : null}
 
       {mobileView === 'week' ? (
         <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden">
           <div className="grid grid-cols-[36px_repeat(7,minmax(0,1fr))] border-b border-slate-800 text-[9px] font-black uppercase tracking-[0.08em] text-slate-500">
-            <div className="bg-slate-950/95 p-1.5">Time</div>
+            <div className="bg-slate-950/95 p-1.5">{t('calendar.time')}</div>
             {days.map((day, index) => (
               <button key={day.toISOString()} type="button" onClick={() => { setActiveDayIndex(index); setMobileView('day'); }} className="border-l border-slate-800 p-1.5 text-center hover:bg-slate-900/80">
-                <span className="block">{day.toLocaleDateString('en-GB', { weekday: 'short' }).slice(0, 2)}</span>
-                <span className="block">{day.toLocaleDateString('en-GB', { day: '2-digit' })}</span>
+                <span className="block">{formatWeekday(day).slice(0, 2)}</span>
+                <span className="block">{formatDayNumber(day)}</span>
               </button>
             ))}
           </div>
@@ -1211,7 +1226,7 @@ function AthleteCalendar({
             </div>
             <div className="mt-1.5 flex items-center justify-between px-1">
               <span className="text-xs font-black text-slate-200">{formatLongDay(activeDay)}</span>
-              <button type="button" onClick={() => setMobileView('week')} className="rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-300">Whole week</button>
+              <button type="button" onClick={() => setMobileView('week')} className="rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-300">{t('calendar.wholeWeek')}</button>
             </div>
           </div>
           <div className="overflow-hidden">
@@ -1230,8 +1245,8 @@ function AthleteCalendar({
 
       <div className="hidden overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:block">
         <div className="grid grid-cols-[72px_repeat(7,minmax(120px,1fr))] border-b border-slate-800 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-          <div className="bg-slate-950/95 p-3">Time</div>
-          {days.map((day, index) => <button type="button" key={day.toISOString()} onClick={() => setActiveDayIndex(index)} className="border-l border-slate-800 p-3 text-left hover:bg-slate-900/70">{day.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit' })}</button>)}
+          <div className="bg-slate-950/95 p-3">{t('calendar.time')}</div>
+          {days.map((day, index) => <button type="button" key={day.toISOString()} onClick={() => setActiveDayIndex(index)} className="border-l border-slate-800 p-3 text-left hover:bg-slate-900/70">{formatWeekdayDay(day)}</button>)}
         </div>
         <div className="grid grid-cols-[72px_repeat(7,minmax(120px,1fr))]">
           <div className="bg-slate-950/95">
@@ -1378,11 +1393,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const nextSession = activePendingSessions.find((session) => session.date >= todayISO() && session.trainingType !== 'warmup') ?? activePendingSessions[0] ?? null;
   /** What the player told the coach about a session, in one line. */
   function availabilityLabelFor(session: AthletePendingSession) {
-    if (session.source === 'athlete_plan') return 'Your own plan · tap to edit';
-    if (session.trainingType === 'warmup') return 'Warmup before the game';
+    if (session.source === 'athlete_plan') return t('athlete.availability.ownPlan');
+    if (session.trainingType === 'warmup') return t('athlete.availability.warmup');
     const mark = availabilityForSession(session.id);
-    if (mark?.status === 'late') return `You told your coach: late${mark.lateMinutes ? ` (${mark.lateMinutes} min)` : ''} · tap to change`;
-    return 'You are in · tap if you cannot come or will be late';
+    if (mark?.status === 'late') return mark.lateMinutes ? t('athlete.availability.lateMinutes', { count: mark.lateMinutes }) : t('athlete.availability.late');
+    return t('athlete.availability.in');
   }
   const calendarItems = useMemo(() => {
     const reportedSessionIds = new Set(sortedEntries.map((entry) => entry.sessionId).filter(Boolean));
@@ -1486,7 +1501,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       ]);
       setError(null);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not save your rating.');
+      setError(caught instanceof Error ? errorText(t, caught) : t('athlete.error.saveRating'));
     }
   }
 
@@ -1500,7 +1515,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       saveMissedSession(activePersonId, session.id);
       setError(null);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not save your answer.');
+      setError(caught instanceof Error ? errorText(t, caught) : t('athlete.error.saveAnswer'));
     }
   }
 
@@ -1762,7 +1777,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     if (session.source !== 'team_session') return false;
     const trimmedReason = reason.trim();
     if ((status === 'late' || status === 'out') && !trimmedReason) {
-      setError('Please add a short reason so your coach has context.');
+      setError(t('athlete.error.reasonNeeded'));
       return false;
     }
     setError(null);
@@ -1934,14 +1949,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
   const shareActive = Boolean(activeShareUrl);
   const composerTitle = activeEntry
-    ? 'Edit load'
+    ? t('athlete.composer.editLoad')
     : activeComposerSession?.source === 'team_session'
     ? activeTeamSessionIsFuture
-      ? 'Session details'
-      : 'Report session'
+      ? t('athlete.composer.sessionDetails')
+      : t('athlete.composer.reportSession')
     : sessionMode === 'plan'
-      ? 'Plan training'
-      : 'Add load';
+      ? t('athlete.composer.planTraining')
+      : t('athlete.composer.addLoad');
   const activeView = initialView ?? 'home';
 
   // Placed after every hook, so the hook order stays stable across renders.
@@ -1950,11 +1965,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       <main className="os-page">
         <div className="os-container max-w-xl space-y-4">
           <section className="os-panel p-6 text-white">
-            <p className="font-bold">No athlete selected.</p>
-            <p className="mt-2 text-sm text-slate-400">Switch to an athlete to see this view.</p>
+            <p className="font-bold">{t('athlete.noAthlete')}</p>
+            <p className="mt-2 text-sm text-slate-400">{t('athlete.switchToAthlete')}</p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <IdentitySwitcher />
-              <Link href="/" className="text-sm underline">Start page</Link>
+              <Link href="/" className="text-sm underline">{t('athlete.startPage')}</Link>
             </div>
           </section>
         </div>
@@ -1966,11 +1981,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     <AthleteShell
       active={activeView === 'home' ? 'today' : activeView}
       showLoad={hasLoad}
-      title={activeView === 'home' ? 'Today' : activeView === 'calendar' ? 'Calendar' : 'Your load'}
-      subtitle={activeView === 'home' ? formatLongDay(new Date()) : activeView === 'calendar' ? (hasLoad ? 'Team sessions and your own plans' : 'Your team sessions') : 'Training load and ACWR, from your RPE entries'}
+      title={activeView === 'home' ? t('athlete.title.today') : activeView === 'calendar' ? t('athlete.title.calendar') : t('athlete.title.load')}
+      subtitle={activeView === 'home' ? formatLongDay(new Date()) : activeView === 'calendar' ? (hasLoad ? t('athlete.subtitle.calendarWithLoad') : t('athlete.subtitle.calendar')) : t('athlete.subtitle.load')}
       actions={hasLoad ? (
         <button type="button" onClick={copyTrainerShareLink} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${shareStatus === 'copied' ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100' : shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
-          {shareStatus === 'copied' ? 'Link copied' : shareStatus === 'error' ? 'Could not copy' : shareActive ? 'Share with coach: on' : 'Share with coach'}
+          {shareStatus === 'copied' ? t('athlete.share.copied') : shareStatus === 'error' ? t('athlete.share.error') : shareActive ? t('athlete.share.on') : t('athlete.share.off')}
         </button>
       ) : undefined}
     >
@@ -1978,9 +1993,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
         {activeView === 'load' && !hasLoad ? (
           <section className="rounded-3xl border border-slate-800 bg-slate-950/65 p-5">
-            <h2 className="text-lg font-black">No load tracking</h2>
-            <p className="mt-1 text-sm text-slate-400">Your team plans sessions and attendance here, without training load.</p>
-            <Link href="/athlete/home" className="mt-4 inline-block text-sm font-black text-sky-300">Back to Today ›</Link>
+            <h2 className="text-lg font-black">{t('athlete.noTracking.title')}</h2>
+            <p className="mt-1 text-sm text-slate-400">{t('athlete.noTracking.detail')}</p>
+            <Link href="/athlete/home" className="mt-4 inline-block text-sm font-black text-sky-300">{t('athlete.noTracking.back')}</Link>
           </section>
         ) : null}
 
@@ -1988,7 +2003,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           <div className="grid w-full min-w-0 grid-cols-3 gap-2 [&>*]:min-h-[92px]">
             <LoadRoomMetric latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} />
             <AcwrMetric latest={latest} baselineReady={isBaselineReady} tone={zone.tone} />
-            <Metric label="Status" value={zone.tone === 'neutral' ? 'Building' : zone.label} tone={zone.tone} />
+            <Metric label={t('athlete.metric.status')} value={zone.tone === 'neutral' ? t('athlete.metric.building') : zoneLabel(zone.tone)} tone={zone.tone} />
           </div>
         ) : null}
 
@@ -2001,30 +2016,30 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
         {activeView === 'load' && hasLoad && !isBaselineReady ? (
           <section className="rounded-2xl border border-amber-300/25 bg-amber-300/[0.08] p-4 text-sm font-bold text-amber-100">
-            Load guidance gets reliable after about 30 recorded days.
+            {t('athlete.baselineNote')}
           </section>
         ) : null}
 
         {activeView === 'load' && hasLoad ? (
           <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/65 p-4 sm:p-5">
-            <h2 className="mb-3 text-lg font-black">Trend</h2>
+            <h2 className="mb-3 text-lg font-black">{t('athlete.trend')}</h2>
             <LoadChart entries={sortedEntries} pendingSessions={loadPendingSessions} />
           </section>
         ) : null}
 
         {hasLoad && entriesToCheck.length > 0 && (activeView === 'home' || activeView === 'load') ? (
-          <section aria-label="Your coach asks you to check" className="rounded-3xl border border-amber-300/35 bg-amber-300/[0.07] p-4 sm:p-5">
-            <h2 className="text-lg font-black text-white">Your coach asks you to check</h2>
-            <p className="mt-1 text-sm text-slate-400">Something may be off in {entriesToCheck.length === 1 ? 'this entry' : 'these entries'}. Correct it, or tell your coach it is right.</p>
+          <section aria-label={t('athlete.check.title')} className="rounded-3xl border border-amber-300/35 bg-amber-300/[0.07] p-4 sm:p-5">
+            <h2 className="text-lg font-black text-white">{t('athlete.check.title')}</h2>
+            <p className="mt-1 text-sm text-slate-400">{t('athlete.check.detail', { count: entriesToCheck.length })}</p>
             <ul className="mt-3 grid gap-2">
               {entriesToCheck.map(({ entry, review, coachName }) => (
                 <li key={entry.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
-                  <p className="font-black text-white">{entry.title}</p>
-                  <p className="text-xs font-bold text-slate-400">{formatLoadDate(entry.date)} · RPE {entry.rpe} · {entry.durationMinutes} min · {entry.load} AU</p>
-                  {review.note ? <p className="mt-2 rounded-xl bg-slate-900 px-3 py-2 text-sm text-amber-100">“{review.note}”{coachName ? <span className="text-xs text-slate-400"> – {coachName}</span> : null}</p> : coachName ? <p className="mt-1 text-xs text-slate-400">Asked by {coachName}</p> : null}
+                  <p className="font-black text-white">{displayTitle(entry.title)}</p>
+                  <p className="text-xs font-bold text-slate-400">{t('athlete.entryLine', { date: formatEntryDate(entry.date), rpe: entry.rpe, minutes: entry.durationMinutes, load: entry.load })}</p>
+                  {review.note ? <p className="mt-2 rounded-xl bg-slate-900 px-3 py-2 text-sm text-amber-100">“{review.note}”{coachName ? <span className="text-xs text-slate-400"> – {coachName}</span> : null}</p> : coachName ? <p className="mt-1 text-xs text-slate-400">{t('athlete.check.askedBy', { name: coachName })}</p> : null}
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <button type="button" onClick={() => openEntryEditor(entry)} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-slate-950">Edit entry</button>
-                    <button type="button" onClick={() => clearEntryReview(entry.id)} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-200">It's correct</button>
+                    <button type="button" onClick={() => openEntryEditor(entry)} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-slate-950">{t('athlete.check.edit')}</button>
+                    <button type="button" onClick={() => clearEntryReview(entry.id)} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-200">{t('athlete.check.correct')}</button>
                   </div>
                 </li>
               ))}
@@ -2044,7 +2059,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         {activeView === 'calendar' ? (
           <div id="athlete-calendar" className="scroll-mt-24">
             <AthleteCalendar items={calendarItems} onEmptySlot={hasLoad ? openComposer : undefined} onItemSelect={openCalendarItem} onPlanTimeChange={updatePlanTimeFromCalendar} />
-            <Link href="/settings#phone-calendar" className="mt-3 inline-block text-xs font-bold text-sky-300 underline">Show these sessions in your phone’s calendar ›</Link>
+            <Link href="/settings#phone-calendar" className="mt-3 inline-block text-xs font-bold text-sky-300 underline">{t('athlete.phoneCalendarLink')}</Link>
           </div>
         ) : activeView === 'home' ? (
           <section className={`grid min-w-0 items-stretch gap-5 ${todayPending.length > 0 ? 'lg:grid-cols-[0.9fr_1.1fr]' : ''}`}>
@@ -2052,14 +2067,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             <div className="h-full min-w-0 rounded-3xl border border-amber-300/25 bg-slate-950/65 p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-black">How hard was it?</h2>
-                  <p className="text-sm text-slate-400">Rate your past sessions so your load stays accurate.</p>
+                  <h2 className="text-lg font-black">{t('athlete.rate.title')}</h2>
+                  <p className="text-sm text-slate-400">{t('athlete.rate.detail')}</p>
                 </div>
                 <span className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{allToRate.length}</span>
               </div>
               {rateQueue.length > 0 ? (
                 <button type="button" onClick={() => setRatePromptOpen(true)} className="mt-3 w-full rounded-2xl bg-emerald-300 px-4 py-2.5 text-sm font-black text-slate-950">
-                  {rateQueue.length === 1 ? 'Rate it now' : `Rate ${rateQueue.length} sessions now`}
+                  {t('athlete.rate.now', { count: rateQueue.length })}
                 </button>
               ) : null}
               <div className="mt-4 space-y-3">
@@ -2070,8 +2085,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                     <article key={session.id} className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-3">
                       <button type="button" onClick={() => setActivePendingId(active ? null : session.id)} className="flex w-full items-center justify-between gap-3 text-left">
                         <div>
-                          <p className="text-base font-black text-white">{session.title}</p>
-                          <p className="mt-1 text-xs font-bold text-slate-500">{formatLoadDate(session.date)} · {formatTime(session.startsAt)} · {session.teamName ?? 'Solo'}</p>
+                          <p className="text-base font-black text-white">{displayTitle(session.title)}</p>
+                          <p className="mt-1 text-xs font-bold text-slate-500">{formatEntryDate(session.date)} · {formatTime(session.startsAt)} · {session.teamName ?? t('athlete.solo')}</p>
                         </div>
                         <span className="rounded-full border border-amber-300/40 bg-amber-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-amber-100">{statusForPending(session)}</span>
                       </button>
@@ -2085,33 +2100,33 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
             <div className="h-full min-w-0 rounded-3xl border border-slate-800/80 bg-slate-950/65 p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-lg font-black">Next up</h2>
-                <Link href="/athlete/calendar" className="text-xs font-black text-sky-300 hover:text-sky-200">Calendar ›</Link>
+                <h2 className="text-lg font-black">{t('athlete.nextUp')}</h2>
+                <Link href="/athlete/calendar" className="text-xs font-black text-sky-300 hover:text-sky-200">{t('athlete.calendarLink')}</Link>
               </div>
               {nextSession ? (
                 <button type="button" onClick={() => openCalendarItem({ id: nextSession.id, title: nextSession.title, date: nextSession.date, startsAt: nextSession.startsAt, endsAt: nextSession.endsAt, trainingType: nextSession.trainingType, teamName: nextSession.teamName, status: nextSession.date < todayISO() ? 'missing' : 'planned', source: nextSession.source ?? 'team_session', session: nextSession })} className="mt-4 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.06] p-5 text-left transition hover:border-emerald-300/55">
-                  <p className="text-2xl font-black tracking-tight">{nextSession.title}</p>
-                  <p className="mt-1 text-sm font-bold text-slate-300">{formatDay(nextSession.startsAt)} · {formatTime(nextSession.startsAt)}{nextSession.endsAt ? `–${formatTime(nextSession.endsAt)}` : ''} · {nextSession.teamName ?? 'Own plan'}</p>
+                  <p className="text-2xl font-black tracking-tight">{displayTitle(nextSession.title)}</p>
+                  <p className="mt-1 text-sm font-bold text-slate-300">{formatDay(nextSession.startsAt)} · {formatTime(nextSession.startsAt)}{nextSession.endsAt ? `–${formatTime(nextSession.endsAt)}` : ''} · {nextSession.teamName ?? t('athlete.ownPlan')}</p>
                   {nextSession.info ? (() => {
                     const info = { ...nextSession.info, startsAt: nextSession.startsAt };
                     const place = info.homeAway === 'away' ? info.venueAddress : info.facilityName;
-                    const lines = [info.squad ? SQUAD_LINE[info.squad] : null, gameLine(info), place, info.squad === 'not_selected' ? null : meetLine(info)].filter(Boolean);
+                    const lines = [info.squad ? squadLine(info.squad) : null, gameLine(info), place, info.squad === 'not_selected' ? null : meetLine(info)].filter(Boolean);
                     return lines.length > 0 ? <p className="mt-1 text-sm font-bold text-amber-100/90">{lines.join(' · ')}</p> : null;
                   })() : null}
                   {nextSession.info?.notes ? <p className="mt-1 line-clamp-2 text-xs font-bold text-slate-400">{nextSession.info.notes}</p> : null}
                   <p className="mt-3 text-xs font-bold text-emerald-200">{availabilityLabelFor(nextSession)}</p>
                 </button>
-              ) : <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">No sessions planned</div>}
+              ) : <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">{t('athlete.noSessions')}</div>}
               {hasLoad && plans.length > 0 ? (
                 <div className="mt-4 space-y-2">
                   {plans.slice(0, 4).map((plan) => (
                     <div key={plan.id} className="flex items-center justify-between gap-3 rounded-2xl border border-violet-300/20 bg-violet-300/[0.06] px-3 py-2">
                       <div>
-                        <p className="text-sm font-black text-white">{plan.title}</p>
-                        <p className="mt-0.5 text-xs font-bold text-slate-500">{formatLoadDate(plan.date)} · {plan.startsAt ? formatTime(plan.startsAt) : 'No time'} · {plan.expectedRpe * plan.expectedDurationMinutes} AU expected</p>
+                        <p className="text-sm font-black text-white">{displayTitle(plan.title)}</p>
+                        <p className="mt-0.5 text-xs font-bold text-slate-500">{formatEntryDate(plan.date)} · {plan.startsAt ? formatTime(plan.startsAt) : t('athlete.noTime')} · {t('athlete.expected', { load: plan.expectedRpe * plan.expectedDurationMinutes })}</p>
                       </div>
                       <button type="button" onClick={() => setDeleteTarget({ kind: 'plan', id: plan.id, title: plan.title })} className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:border-rose-400 hover:text-rose-200">
-                        Delete
+                        {t('athlete.delete')}
                       </button>
                     </div>
                   ))}
@@ -2120,7 +2135,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               {/* Piece 16: away for a period (injured, sick, holiday …). */}
               {activePersonId ? (
                 <div className="mt-4 border-t border-slate-800/80 pt-4">
-                  <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Away</p>
+                  <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('athlete.away')}</p>
                   <AbsencePanel personId={activePersonId} viewer="self" showReasons />
                 </div>
               ) : null}
@@ -2132,35 +2147,35 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           <div className="w-full rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-md">
             <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4">
               <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">Session details</p>
-                <h2 className="mt-1 text-2xl font-black tracking-tight">{activeDetailItem.title}</h2>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">{t('athlete.detail.kicker')}</p>
+                <h2 className="mt-1 text-2xl font-black tracking-tight">{activeDetailItem.source === 'private_event' ? activeDetailItem.title : displayTitle(activeDetailItem.title)}</h2>
                 <p className="mt-1 text-sm font-bold text-slate-500">
-                  {formatLoadDate(activeDetailItem.date)} · {formatTime(activeDetailItem.startsAt)}{activeDetailItem.endsAt ? ` - ${formatTime(activeDetailItem.endsAt)}` : ''}
+                  {formatEntryDate(activeDetailItem.date)} · {formatTime(activeDetailItem.startsAt)}{activeDetailItem.endsAt ? ` - ${formatTime(activeDetailItem.endsAt)}` : ''}
                 </p>
               </div>
-              <button type="button" onClick={() => setActiveDetailItem(null)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">Close</button>
+              <button type="button" onClick={() => setActiveDetailItem(null)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">{t('athlete.close')}</button>
             </div>
             <div className="mt-4 grid grid-cols-3 gap-2">
               <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Load</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('athlete.detail.load')}</p>
                 <p className="mt-2 text-xl font-black text-amber-200">{activeDetailItem.entry?.load ?? '—'}</p>
               </div>
               <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 opacity-75">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">RPE</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('athlete.detail.rpe')}</p>
                 <p className="mt-2 text-xl font-black text-white">{activeDetailItem.entry?.rpe ?? '—'}</p>
               </div>
               <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 opacity-75">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Duration</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('athlete.detail.duration')}</p>
                 <p className="mt-2 text-xl font-black text-white">{activeDetailItem.entry?.durationMinutes ?? '—'}</p>
               </div>
             </div>
             {activeDetailItem.entry ? (
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <button type="button" onClick={() => { const item = activeDetailItem; setActiveDetailItem(null); openCalendarItem(item, 'edit'); }} className="rounded-2xl border border-sky-400/50 bg-sky-400/10 px-4 py-3 text-sm font-black text-sky-100">
-                  Edit load
+                  {t('athlete.detail.editLoad')}
                 </button>
                 <button type="button" onClick={() => setDeleteTarget({ kind: 'entry', id: activeDetailItem.entry!.id, title: activeDetailItem.title })} className="rounded-2xl border border-rose-400/45 bg-rose-400/10 px-4 py-3 text-sm font-black text-rose-100">
-                  Delete load
+                  {t('athlete.detail.deleteLoad')}
                 </button>
               </div>
             ) : null}
@@ -2173,11 +2188,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           <div className="max-h-[88vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-xl">
             <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4">
               <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-300">Session</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-300">{t('athlete.composer.kicker')}</p>
                 <h2 className="mt-1 text-2xl font-black tracking-tight">{composerTitle}</h2>
-                <p className="mt-1 text-sm font-bold text-slate-500">{formatLoadDate(planForm.date)}</p>
+                <p className="mt-1 text-sm font-bold text-slate-500">{formatEntryDate(planForm.date)}</p>
               </div>
-              <button type="button" onClick={() => { setComposerOpen(false); setActiveComposerSession(null); setActiveEntry(null); }} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">Close</button>
+              <button type="button" onClick={() => { setComposerOpen(false); setActiveComposerSession(null); setActiveEntry(null); }} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">{t('athlete.close')}</button>
             </div>
 
             {activeComposerSession?.source === 'team_session' && activeComposerSession.info ? (
@@ -2186,13 +2201,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
             {activeTeamSessionLocked ? (
               <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm font-black text-slate-200">
-                {LOAD_TYPE_LABELS[planForm.trainingType]} · locked by team session
+                {t('composer.lockedByTeam', { type: loadTypeLabel(planForm.trainingType) })}
               </div>
             ) : (
               <div className="mt-4 grid grid-cols-2 gap-2">
                 {LOAD_TRAINING_TYPES.slice(0, 6).map((type) => (
                   <button key={type} type="button" onClick={() => setSessionTrainingType(type)} className={`rounded-2xl border px-3 py-2 text-left text-xs font-black transition ${planForm.trainingType === type ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-300'}`}>
-                    {LOAD_TYPE_LABELS[type]}
+                    {loadTypeLabel(type)}
                   </button>
                 ))}
               </div>
@@ -2201,13 +2216,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             {activeTeamSessionLocked ? (
               <div className="mt-4 grid max-w-xs grid-cols-[minmax(0,1fr)_6rem] gap-2">
                 <div className="min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                  Date
+                  {t('composer.date')}
                   <div className="mt-2 h-10 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-center text-sm font-black normal-case tracking-normal text-white">
-                    {formatLoadDate(planForm.date)}
+                    {formatEntryDate(planForm.date)}
                   </div>
                 </div>
                 <div className="min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                  Time
+                  {t('composer.time')}
                   <div className="mt-2 h-10 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-center text-sm font-black normal-case tracking-normal text-white">
                     {planForm.time || '—'}
                   </div>
@@ -2216,11 +2231,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             ) : (
               <div className="mt-4 flex max-w-full flex-wrap gap-2">
                 <label className="w-[9rem] max-w-[calc(100vw-2rem)] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500 sm:w-[10rem]">
-                  Date
+                  {t('composer.date')}
                   <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value, expectedRpe: current.trainingType === 'game' ? 10 : averageRpeFor(current.trainingType, event.target.value) }))} className="mt-2 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-0 text-center text-[14px] font-black leading-normal text-white outline-none focus:border-emerald-300 sm:text-[15px] [color-scheme:dark] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:min-h-[2.25rem] [&::-webkit-date-and-time-value]:text-center [&::-webkit-date-and-time-value]:leading-[2.25rem]" />
                 </label>
                 <label className="w-[5.9rem] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500 sm:w-[7rem]">
-                  Time
+                  {t('composer.time')}
                   <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-0 text-center text-[14px] font-black leading-normal text-white outline-none focus:border-emerald-300 sm:text-[15px] [color-scheme:dark] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:min-h-[2.25rem] [&::-webkit-date-and-time-value]:text-center [&::-webkit-date-and-time-value]:leading-[2.25rem]" />
                 </label>
               </div>
@@ -2229,7 +2244,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             {!activeEntry && !activeComposerSession && sessionMode === 'plan' ? (
               <div className="mt-4 grid gap-2">
                 <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-1">
-                  <button type="button" onClick={() => setRepeat('once')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${repeat === 'once' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>Once</button>
+                  <button type="button" onClick={() => setRepeat('once')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${repeat === 'once' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.once')}</button>
                   <button
                     type="button"
                     onClick={() => {
@@ -2239,13 +2254,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                     }}
                     className={`rounded-xl px-3 py-2 text-xs font-black transition ${repeat === 'weekly' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}
                   >
-                    Weekly
+                    {t('composer.weekly')}
                   </button>
                 </div>
                 {repeat === 'weekly' ? (
                   <>
-                    <div className="flex flex-wrap gap-1.5" role="group" aria-label="Days">
-                      {WEEKDAY_LABELS.map((label, day) => (
+                    <div className="flex flex-wrap gap-1.5" role="group" aria-label={t('composer.days')}>
+                      {WEEKDAY_KEYS.map((label, day) => (
                         <button
                           key={label}
                           type="button"
@@ -2253,12 +2268,12 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                           onClick={() => setRepeatDays((current) => (current.includes(day) ? current.filter((item) => item !== day) : [...current, day]))}
                           className={`h-9 w-10 rounded-xl border text-xs font-black transition ${repeatDays.includes(day) ? 'border-violet-300 bg-violet-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-300'}`}
                         >
-                          {label}
+                          {t(label)}
                         </button>
                       ))}
                     </div>
                     <label className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                      Until
+                      {t('composer.until')}
                       <input
                         type="date"
                         value={repeatUntil}
@@ -2269,7 +2284,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                       />
                     </label>
                     <p className="text-xs font-bold text-slate-400">
-                      {seriesCount === 0 ? 'Pick at least one day.' : `${plural(seriesCount, 'session')}; each asks “How hard was it?” afterwards.`}
+                      {seriesCount === 0 ? t('composer.pickDay') : t('composer.seriesCount', { count: seriesCount })}
                     </p>
                   </>
                 ) : null}
@@ -2278,24 +2293,24 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
             {editingSeriesPlan ? (
               <div className="mt-4 grid gap-1.5">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Weekly series · change</p>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('composer.seriesChange')}</p>
                 <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-1">
-                  <button type="button" onClick={() => setSeriesScope('one')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${seriesScope === 'one' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>Only this one</button>
-                  <button type="button" onClick={() => setSeriesScope('following')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${seriesScope === 'following' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>This and following</button>
+                  <button type="button" onClick={() => setSeriesScope('one')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${seriesScope === 'one' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.onlyThis')}</button>
+                  <button type="button" onClick={() => setSeriesScope('following')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${seriesScope === 'following' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.thisAndFollowing')}</button>
                 </div>
               </div>
             ) : null}
 
             {!activeComposerSession && planForm.date === todayISO() ? (
               <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-1">
-                <button type="button" onClick={() => setTodayAction('plan')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${todayAction === 'plan' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>Plan later</button>
-                <button type="button" onClick={() => setTodayAction('report')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${todayAction === 'report' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>Already done</button>
+                <button type="button" onClick={() => setTodayAction('plan')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${todayAction === 'plan' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.planLater')}</button>
+                <button type="button" onClick={() => setTodayAction('report')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${todayAction === 'report' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.alreadyDone')}</button>
               </div>
             ) : null}
 
             {activeComposerSession?.loadTracked === false && !activeTeamSessionIsFuture ? (
               <p className="mt-5 rounded-2xl border border-slate-700 bg-slate-950/70 p-4 text-sm font-bold text-slate-300">
-                {activeComposerSession.teamName ?? 'This team'} does not track training load, so there is nothing to rate for this session.
+                {t('composer.noTracking', { team: activeComposerSession.teamName ?? t('composer.thisTeam') })}
               </p>
             ) : activeTeamSessionIsFuture ? (
               <div className="mt-5 space-y-3 rounded-2xl border border-slate-700 bg-slate-950/70 p-4 text-sm font-bold text-slate-300">
@@ -2306,31 +2321,31 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                     <>
                       <p>
                         {isWarmup
-                          ? 'Warmup is attached to the game. Change availability on the game session.'
+                          ? t('composer.warmupAttached')
                           : mark?.status === 'out'
-                            ? 'Marked out. Your coach can see the reason.'
+                            ? t('composer.markedOut')
                             : mark?.status === 'late'
-                              ? `Marked late${mark.lateMinutes ? ` by ${mark.lateMinutes} min` : ''}.`
-                              : 'This team session is scheduled. Load input opens after it is due.'}
+                              ? (mark.lateMinutes ? t('composer.markedLateBy', { count: mark.lateMinutes }) : t('composer.markedLate'))
+                              : t('composer.scheduled')}
                       </p>
                       {activeComposerSession && !isWarmup ? (
                         <div className="space-y-3">
                           <div className="grid grid-cols-3 gap-2">
-                            <button type="button" onClick={() => setAvailabilityDraft('expected')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'expected' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>Available</button>
-                            <button type="button" onClick={() => setAvailabilityDraft('late')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'late' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>Late</button>
-                            <button type="button" onClick={() => setAvailabilityDraft('out')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'out' ? 'border-rose-300 bg-rose-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>Out</button>
+                            <button type="button" onClick={() => setAvailabilityDraft('expected')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'expected' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.available')}</button>
+                            <button type="button" onClick={() => setAvailabilityDraft('late')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'late' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.late')}</button>
+                            <button type="button" onClick={() => setAvailabilityDraft('out')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'out' ? 'border-rose-300 bg-rose-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.out')}</button>
                           </div>
                           {availabilityDraft === 'late' || availabilityDraft === 'out' ? (
                             <label className="block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                              Reason · for your coach
-                              <textarea value={availabilityReason} onChange={(event) => setAvailabilityReason(event.target.value)} placeholder="e.g. school, injury, traffic" className="mt-2 min-h-20 w-full resize-y rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold normal-case tracking-normal text-white outline-none placeholder:text-slate-600 focus:border-emerald-300" />
+                              {t('composer.reason')}
+                              <textarea value={availabilityReason} onChange={(event) => setAvailabilityReason(event.target.value)} placeholder={t('composer.reasonPlaceholder')} className="mt-2 min-h-20 w-full resize-y rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold normal-case tracking-normal text-white outline-none placeholder:text-slate-600 focus:border-emerald-300" />
                             </label>
                           ) : null}
                           {availabilityDraft === 'late' ? (
                             <label className="block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                              Late minutes
+                              {t('composer.lateMinutes')}
                               <input type="range" min="5" max="60" step="5" value={lateMinutes} onChange={(event) => setLateMinutes(Number(event.target.value))} className="mt-2 w-full accent-sky-300" />
-                              <span className="mt-1 block text-sm font-black normal-case tracking-normal text-white">{lateMinutes} min</span>
+                              <span className="mt-1 block text-sm font-black normal-case tracking-normal text-white">{t('composer.minutes', { count: lateMinutes })}</span>
                             </label>
                           ) : null}
                           <button
@@ -2343,7 +2358,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                             }}
                             className="w-full rounded-2xl bg-emerald-300 px-4 py-3 text-sm font-black text-slate-950"
                           >
-                            Save availability
+                            {t('composer.saveAvailability')}
                           </button>
                           {/* Shown here too: the page's own message is hidden behind this sheet. */}
                           {error ? <p role="alert" className="text-xs font-bold text-rose-200">{error}</p> : null}
@@ -2359,15 +2374,15 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   {isPlanning ? null : planForm.trainingType === 'game' ? (
                     <div className="rounded-2xl border border-violet-300/25 bg-violet-300/[0.08] p-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">RPE</span>
+                        <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('composer.rpe')}</span>
                         <span className="text-2xl font-black text-white">10</span>
                       </div>
-                      <p className="mt-1 text-xs font-bold text-slate-400">Game load uses RPE 10. Enter playing minutes below.</p>
+                      <p className="mt-1 text-xs font-bold text-slate-400">{t('composer.gameRpe')}</p>
                     </div>
                   ) : (
                     <label className="block">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">RPE</span>
+                        <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('composer.rpe')}</span>
                         <span className="text-2xl font-black text-white">{planForm.expectedRpe}</span>
                       </div>
                       <input type="range" min="1" max="10" step="1" value={planForm.expectedRpe} onChange={(event) => setPlanForm((current) => ({ ...current, expectedRpe: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
@@ -2375,38 +2390,38 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   )}
                   <label className="block">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{isPlanning ? 'Planned length' : planForm.trainingType === 'game' ? 'Playing minutes' : 'Duration'}</span>
-                      <span className="text-xl font-black text-white">{planForm.expectedDurationMinutes} min</span>
+                      <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{isPlanning ? t('composer.plannedLength') : planForm.trainingType === 'game' ? t('composer.playingMinutes') : t('composer.duration')}</span>
+                      <span className="text-xl font-black text-white">{t('composer.minutes', { count: planForm.expectedDurationMinutes })}</span>
                     </div>
                     <input type="range" min={planForm.trainingType === 'game' ? '0' : '5'} max={planForm.trainingType === 'game' ? '120' : '240'} step={planForm.trainingType === 'game' ? '1' : '5'} value={planForm.expectedDurationMinutes} onChange={(event) => setPlanForm((current) => ({ ...current, expectedDurationMinutes: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
                   </label>
                 </div>
 
                 {isPlanning ? (
-                  <p className="mt-4 text-xs font-bold text-slate-400">After the session the app asks “How hard was it?”: effort and how long it really took.</p>
+                  <p className="mt-4 text-xs font-bold text-slate-400">{t('composer.planNote')}</p>
                 ) : (
                   <div className="mt-5 rounded-2xl border border-slate-700 bg-slate-950/70 p-4">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-bold text-slate-400">Training load</span>
-                      <span className="text-3xl font-black text-amber-200">{sessionLoadPreview} AU</span>
+                      <span className="text-sm font-bold text-slate-400">{t('composer.trainingLoad')}</span>
+                      <span className="text-3xl font-black text-amber-200">{t('composer.au', { value: sessionLoadPreview })}</span>
                     </div>
                   </div>
                 )}
 
                 <button type="button" onClick={submitUnifiedSession} disabled={sessionMode === 'plan' && !activeComposerSession && !activeEntry && seriesCount === 0} className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-black text-slate-950 transition disabled:opacity-50 ${sessionMode === 'plan' && !activeComposerSession && !activeEntry ? 'bg-violet-300' : 'bg-emerald-300'}`}>
                   {sessionMode === 'plan' && !activeComposerSession && !activeEntry
-                    ? (repeat === 'weekly' ? `Plan ${plural(seriesCount, 'session')}` : 'Plan it')
+                    ? (repeat === 'weekly' ? t('composer.planCount', { count: seriesCount }) : t('composer.planIt'))
                     : isPlanning
-                      ? (editingSeriesPlan && seriesScope === 'following' ? 'Save this and following' : 'Save plan')
-                      : `Save ${sessionLoadPreview} AU`}
+                      ? (editingSeriesPlan && seriesScope === 'following' ? t('composer.saveFollowing') : t('composer.savePlan'))
+                      : t('composer.saveLoad', { value: sessionLoadPreview })}
                 </button>
                 {activeEntry ? (
                   <button type="button" onClick={() => setDeleteTarget({ kind: 'entry', id: activeEntry.id, title: activeEntry.title })} className="mt-2 w-full rounded-2xl border border-rose-400/45 bg-rose-400/10 px-4 py-3 text-sm font-black text-rose-100">
-                    Delete load
+                    {t('composer.deleteLoad')}
                   </button>
                 ) : activeComposerSession?.source === 'athlete_plan' ? (
                   <button type="button" onClick={() => setDeleteTarget({ kind: 'plan', id: activeComposerSession.id, title: activeComposerSession.title })} className="mt-2 w-full rounded-2xl border border-rose-400/45 bg-rose-400/10 px-4 py-3 text-sm font-black text-rose-100">
-                    {editingSeriesPlan && seriesScope === 'following' ? 'Delete this and following' : 'Delete plan'}
+                    {editingSeriesPlan && seriesScope === 'following' ? t('composer.deleteFollowing') : t('composer.deletePlan')}
                   </button>
                 ) : null}
               </>
@@ -2427,14 +2442,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
       <AppConfirmDialog
         isOpen={Boolean(deleteTarget)}
-        title={deleteTarget?.kind === 'entry' ? 'Delete load entry?' : deleteTarget?.kind === 'plan' && editingSeriesPlan && seriesScope === 'following' ? 'Delete this and the following?' : 'Delete planned load?'}
+        title={deleteTarget?.kind === 'entry' ? t('delete.entryTitle') : deleteTarget?.kind === 'plan' && editingSeriesPlan && seriesScope === 'following' ? t('delete.followingTitle') : t('delete.planTitle')}
         description={deleteTarget
           ? deleteTarget.kind === 'plan' && editingSeriesPlan && seriesScope === 'following'
-            ? `${deleteTarget.title} and the later sessions of this weekly series will be removed from your calendar.`
-            : `${deleteTarget.title} will be removed from your calendar and load history.`
+            ? t('delete.followingDetail', { title: displayTitle(deleteTarget.title) })
+            : t('delete.detail', { title: displayTitle(deleteTarget.title) })
           : undefined}
-        confirmLabel={deleteTarget?.kind === 'entry' ? 'Delete load' : editingSeriesPlan && seriesScope === 'following' ? 'Delete this and following' : 'Delete plan'}
-        cancelLabel="Cancel"
+        confirmLabel={deleteTarget?.kind === 'entry' ? t('delete.load') : editingSeriesPlan && seriesScope === 'following' ? t('composer.deleteFollowing') : t('composer.deletePlan')}
+        cancelLabel={t('delete.cancel')}
         tone="danger"
         isConfirming={isDeleting}
         onConfirm={confirmDeleteTarget}
@@ -2445,14 +2460,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 }
 
 function sessionEstimateLabel(au: number, averageSessionLoad: number) {
-  if (au <= 0) return '0 sessions';
+  if (au <= 0) return tr('load.sessions.zero');
   const sessions = au / Math.max(averageSessionLoad, 1);
-  if (sessions < 0.75) return '< 1 session';
-  return `≈ ${sessions.toFixed(1)} sessions`;
+  if (sessions < 0.75) return tr('load.sessions.lessThanOne');
+  return tr('load.sessions.about', { value: formatDecimal(sessions, 1) });
 }
 
 function formatCompactNumber(value: number) {
-  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
+  return formatInteger(value);
 }
 
 type WeeklyLoadMetric = 'au' | 'rpe' | 'acwr' | 'minutes';
@@ -2468,11 +2483,11 @@ type WeeklyLoadProfilePoint = {
   sessions: number;
 };
 
-const WEEKLY_LOAD_METRICS: Record<WeeklyLoadMetric, { label: string; dataKey: keyof WeeklyLoadProfilePoint; color: string; unit: string; max?: number }> = {
-  au: { label: 'Avg AU', dataKey: 'au', color: '#c084fc', unit: 'AU' },
-  rpe: { label: 'Avg RPE', dataKey: 'rpe', color: '#fbbf24', unit: 'RPE', max: 10 },
-  acwr: { label: 'ACWR', dataKey: 'acwr', color: '#34d399', unit: 'ACWR', max: 2 },
-  minutes: { label: 'Minutes', dataKey: 'minutes', color: '#38bdf8', unit: 'min' },
+const WEEKLY_LOAD_METRICS: Record<WeeklyLoadMetric, { label: MessageKey; dataKey: keyof WeeklyLoadProfilePoint; color: string; unit: MessageKey; max?: number }> = {
+  au: { label: 'load.metric.au', dataKey: 'au', color: '#c084fc', unit: 'load.unit.au' },
+  rpe: { label: 'load.metric.rpe', dataKey: 'rpe', color: '#fbbf24', unit: 'load.unit.rpe', max: 10 },
+  acwr: { label: 'load.metric.acwr', dataKey: 'acwr', color: '#34d399', unit: 'load.unit.acwr', max: 2 },
+  minutes: { label: 'load.metric.minutes', dataKey: 'minutes', color: '#38bdf8', unit: 'load.unit.min' },
 };
 
 function loadProfileWeekKey(date: Date) {
@@ -2484,8 +2499,7 @@ function loadProfileWeekDateRange(key: string) {
   const start = new Date(`${key}T00:00:00`);
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
-  const short = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: '2-digit' });
-  return `${short.format(start)}-${short.format(end)}`;
+  return `${formatDayMonth(isoDate(start))}-${formatDayMonth(isoDate(end))}`;
 }
 
 function loadProfileWeekLabel(key: string) {
@@ -2495,7 +2509,7 @@ function loadProfileWeekLabel(key: string) {
   target.setUTCDate(target.getUTCDate() + 4 - day);
   const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
   const week = Math.ceil((((target.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7);
-  return `Wk ${week}`;
+  return tr('load.week.label', { week });
 }
 
 function buildWeeklyLoadProfile(entries: AthleteLoadEntry[], trailingWeeks = 8): WeeklyLoadProfilePoint[] {
@@ -2542,7 +2556,7 @@ function buildWeeklyLoadDayProfile(entries: AthleteLoadEntry[], weekKey: string)
     const date = addDays(weekStartDate, index);
     return {
       key: isoDate(date),
-      label: new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(date),
+      label: formatWeekday(date),
       au: null as number | null,
       minutes: null as number | null,
       rpe: null as number | null,
@@ -2591,7 +2605,8 @@ function weeklyLoadDomain(points: WeeklyLoadProfilePoint[], metric: WeeklyLoadMe
   return [0, Math.max(60, Math.ceil(max / 60) * 60)] as [number, number];
 }
 
-export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { entries: AthleteLoadEntry[]; title?: string }) {
+export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoadEntry[]; title?: string }) {
+  const t = useT();
   const [metric, setMetric] = useState<WeeklyLoadMetric>('au');
   const [selectedWeekKey, setSelectedWeekKey] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
@@ -2635,8 +2650,8 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
     <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{title}</p>
-          <p className="mt-1 text-sm font-bold text-slate-300">Tap a week for days.</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{title ?? t('load.week.defaultTitle')}</p>
+          <p className="mt-1 text-sm font-bold text-slate-300">{t('load.week.tapHint')}</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(WEEKLY_LOAD_METRICS) as WeeklyLoadMetric[]).map((item) => (
@@ -2646,7 +2661,7 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
               onClick={() => setMetric(item)}
               className={`rounded-full border px-2.5 py-1 text-[11px] font-black transition ${metric === item ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
             >
-              {WEEKLY_LOAD_METRICS[item].label}
+              {t(WEEKLY_LOAD_METRICS[item].label)}
             </button>
           ))}
         </div>
@@ -2672,7 +2687,7 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
               axisLine={false}
               tickLine={false}
               width={42}
-              tickFormatter={(value) => metric === 'acwr' ? Number(value).toFixed(1) : `${Math.round(Number(value))}`}
+              tickFormatter={(value) => metric === 'acwr' ? formatDecimal(Number(value), 1) : `${Math.round(Number(value))}`}
             />
             <Tooltip
               cursor={{ stroke: 'rgba(148,163,184,0.2)' }}
@@ -2684,7 +2699,7 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
               }}
               formatter={(value) => {
                 const numeric = typeof value === 'number' ? value : Number(value);
-                return [Number.isFinite(numeric) ? (metric === 'acwr' || metric === 'rpe' ? numeric.toFixed(1) : Math.round(numeric)) : '-', meta.unit];
+                return [Number.isFinite(numeric) ? (metric === 'acwr' || metric === 'rpe' ? formatDecimal(numeric, 1) : Math.round(numeric)) : '-', t(meta.unit)];
               }}
             />
             {metric === 'acwr' ? (
@@ -2718,12 +2733,12 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
           <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-950 p-4 text-white shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:rounded-[2rem] sm:p-5" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">Week detail</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">{t('load.week.detail')}</p>
                 <h3 id="weekly-load-detail-title" className="mt-1 text-2xl font-black">{selectedWeek.label}</h3>
-                <p className="mt-1 text-sm font-bold text-slate-500">{selectedWeek.dateRange} · {selectedWeek.sessions} TE</p>
+                <p className="mt-1 text-sm font-bold text-slate-500">{selectedWeek.dateRange} · {t('load.week.sessions', { count: selectedWeek.sessions })}</p>
               </div>
               <button type="button" onClick={() => setSelectedWeekKey(null)} className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200 transition hover:border-emerald-300/50">
-                Close
+                {t('load.week.close')}
               </button>
             </div>
             <div className="mt-4 flex flex-wrap gap-1.5">
@@ -2734,7 +2749,7 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
                   onClick={() => setMetric(item)}
                   className={`rounded-full border px-3 py-1.5 text-[11px] font-black transition ${metric === item ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
                 >
-                  {WEEKLY_LOAD_METRICS[item].label}
+                  {t(WEEKLY_LOAD_METRICS[item].label)}
                 </button>
               ))}
             </div>
@@ -2746,20 +2761,20 @@ export function WeeklyLoadProfileGraph({ entries, title = 'Weekly profile' }: { 
                   const max = dayDomain[1] || 1;
                   const height = value === null ? 4 : Math.max(10, Math.round((Math.min(value, max) / max) * 170));
                   return (
-                    <div key={day.key} className="min-w-0 text-center" title={`${day.label}: ${value === null ? '-' : metric === 'acwr' || metric === 'rpe' ? value.toFixed(1) : Math.round(value)}`}>
+                    <div key={day.key} className="min-w-0 text-center" title={`${day.label}: ${value === null ? '-' : metric === 'acwr' || metric === 'rpe' ? formatDecimal(value, 1) : Math.round(value)}`}>
                       <div className="flex h-44 items-end justify-center rounded-xl border border-slate-800 bg-slate-900/55 px-1 py-1.5">
                         <div className="w-full max-w-9 rounded-t-lg" style={{ height, backgroundColor: meta.color, opacity: value === null ? 0.16 : 0.86 }} />
                       </div>
                       <p className="mt-1 truncate text-[10px] font-black text-slate-300">{day.label}</p>
-                      <p className="text-[9px] font-bold text-slate-600">{value === null ? '-' : metric === 'acwr' || metric === 'rpe' ? value.toFixed(1) : Math.round(value)}</p>
+                      <p className="text-[9px] font-bold text-slate-600">{value === null ? '-' : metric === 'acwr' || metric === 'rpe' ? formatDecimal(value, 1) : Math.round(value)}</p>
                     </div>
                   );
                 })}
               </div>
               {metric === 'acwr' ? (
                 <div className="mt-3 flex items-center gap-3 text-[10px] font-black text-slate-500">
-                  <span className="inline-flex items-center gap-1"><span className="h-px w-5 border-t border-dashed border-sky-300" />{ACWR_ZONES.low} low</span>
-                  <span className="inline-flex items-center gap-1"><span className="h-px w-5 border-t border-dashed border-rose-300" />{ACWR_ZONES.high} high</span>
+                  <span className="inline-flex items-center gap-1"><span className="h-px w-5 border-t border-dashed border-sky-300" />{t('load.week.low', { value: formatDecimal(ACWR_ZONES.low, 1) })}</span>
+                  <span className="inline-flex items-center gap-1"><span className="h-px w-5 border-t border-dashed border-rose-300" />{t('load.week.high', { value: formatDecimal(ACWR_ZONES.high, 1) })}</span>
                 </div>
               ) : null}
             </div>
@@ -2800,12 +2815,12 @@ function LoadDetailsPanel({
   const strain = latestEwma?.strain ?? null;
   const stabilityReady = monotony !== null && strain !== null;
   const monotonyState = !stabilityReady
-    ? { label: 'Building', tone: 'neutral' as const, detail: 'needs varied 7d history' }
+    ? { label: t('load.stability.building'), tone: 'neutral' as const, detail: t('load.stability.buildingDetail') }
     : monotony >= 2
-      ? { label: 'High routine stress', tone: 'high' as const, detail: 'same load pattern repeated' }
+      ? { label: t('load.stability.high'), tone: 'high' as const, detail: t('load.stability.highDetail') }
       : monotony >= 1.5
-        ? { label: 'Watch monotony', tone: 'low' as const, detail: 'training rhythm is tight' }
-        : { label: 'Varied week', tone: 'ready' as const, detail: 'load is distributed' };
+        ? { label: t('load.stability.watch'), tone: 'low' as const, detail: t('load.stability.watchDetail') }
+        : { label: t('load.stability.varied'), tone: 'ready' as const, detail: t('load.stability.variedDetail') };
   const stabilityToneClass = monotonyState.tone === 'high'
     ? 'border-rose-400/35 bg-rose-400/10 text-rose-100'
     : monotonyState.tone === 'low'
@@ -2814,16 +2829,16 @@ function LoadDetailsPanel({
         ? 'border-emerald-400/35 bg-emerald-400/10 text-emerald-100'
         : 'border-slate-800 bg-slate-950/75 text-slate-300';
   const guidance = roomSummary.mode === 'overload'
-    ? 'Stay light until the red segment clears.'
+    ? t('load.guidance.overload')
     : roomSummary.mode === 'underload'
-      ? 'Add controlled load to re-enter the green lane.'
+      ? t('load.guidance.underload')
       : roomSummary.mode === 'ready'
-        ? 'Normal training room is available.'
-        : 'Keep logging sessions to build the baseline.';
+        ? t('load.guidance.ready')
+        : t('load.guidance.baseline');
   const trainingMix = LOAD_TRAINING_TYPES
     .map((type) => ({
       type,
-      label: LOAD_TYPE_LABELS[type],
+      label: loadTypeLabel(type),
       load: recentEntries.filter((entry) => entry.trainingType === type).reduce((sum, entry) => sum + entry.load, 0),
     }))
     .filter((item) => item.load > 0)
@@ -2835,27 +2850,27 @@ function LoadDetailsPanel({
       <div className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-black">Room and risk</h2>
+            <h2 className="text-lg font-black">{t('load.details.roomAndRisk')}</h2>
             <LoadInfoButton />
           </div>
           <span className={`rounded-full border px-3 py-1.5 text-xs font-black ${zone.tone === 'high' ? 'border-rose-400/45 bg-rose-400/10 text-rose-100' : zone.tone === 'low' ? 'border-sky-400/45 bg-sky-400/10 text-sky-100' : zone.tone === 'ready' ? 'border-emerald-400/45 bg-emerald-400/10 text-emerald-100' : 'border-slate-700 text-slate-300'}`}>
-            {currentAcwr !== null && baselineReady ? `${currentAcwr.toFixed(2)} ACWR` : 'Building'}
+            {currentAcwr !== null && baselineReady ? t('load.details.acwrValue', { value: formatDecimal(currentAcwr) }) : t('load.details.building')}
           </span>
         </div>
 
         <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">ACWR lane</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{t('load.details.lane')}</p>
               <p className="mt-1 text-sm font-bold text-slate-400">{guidance}</p>
             </div>
             <span className="text-2xl font-black text-white">{roomSummary.value}</span>
           </div>
           <LoadRoomGauge room={roomSummary} />
           <div className="mt-2 flex justify-between text-[10px] font-black uppercase tracking-[0.12em] text-slate-600">
-            <span>Low</span>
-            <span>0.8-1.3</span>
-            <span>High</span>
+            <span>{t('load.details.low')}</span>
+            <span>{formatDecimal(ACWR_ZONES.low, 1)}-{formatDecimal(ACWR_ZONES.high, 1)}</span>
+            <span>{t('load.details.high')}</span>
           </div>
         </div>
 
@@ -2865,37 +2880,37 @@ function LoadDetailsPanel({
               <LoadRiskBadge before={currentAcwr} after={riskDay.acwr} label={riskDay.date === today ? t('load.risk.today') : formatWeekday(`${riskDay.date}T00:00:00`)} />
             ) : null}
             {weekChange !== null ? (
-              <span title="Load of the last 7 days against the 7 days before" className={`rounded-full border px-2.5 py-1 text-xs font-black tabular-nums ${weekChange >= 15 ? 'border-amber-300/45 bg-amber-300/10 text-amber-100' : 'border-slate-700 text-slate-300'}`}>
-                {weekChange > 0 ? '+' : ''}{weekChange}% vs last week
+              <span title={t('load.details.weekChangeTitle')} className={`rounded-full border px-2.5 py-1 text-xs font-black tabular-nums ${weekChange >= 15 ? 'border-amber-300/45 bg-amber-300/10 text-amber-100' : 'border-slate-700 text-slate-300'}`}>
+                {t('load.details.weekChange', { value: `${weekChange > 0 ? '+' : ''}${weekChange}` })}
               </span>
             ) : null}
             {afterBreak ? (
-              <span className="rounded-full border border-sky-400/40 bg-sky-400/10 px-2.5 py-1 text-xs font-black text-sky-100">Back after a break · build up gradually</span>
+              <span className="rounded-full border border-sky-400/40 bg-sky-400/10 px-2.5 py-1 text-xs font-black text-sky-100">{t('load.details.backFromBreak')}</span>
             ) : null}
           </div>
         ) : null}
 
         {baselineDays < 30 ? (
           <div className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-300/[0.08] p-3 text-sm font-bold text-amber-100">
-            Reliable guidance starts after about 30 recorded days.
+            {t('load.details.reliableAfter')}
           </div>
         ) : null}
 
         <div className={`mt-4 rounded-2xl border p-4 ${stabilityToneClass}`}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Week stability</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{t('load.details.weekStability')}</p>
               <p className="mt-1 text-lg font-black text-white">{monotonyState.label}</p>
               <p className="mt-1 text-xs font-bold text-slate-400">{monotonyState.detail}</p>
             </div>
             <div className="grid grid-cols-2 gap-2 text-right">
               <div className="rounded-xl border border-white/10 bg-slate-950/45 px-3 py-2">
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">Monotony</p>
-                <p className="mt-1 text-base font-black text-white">{stabilityReady ? monotony.toFixed(2) : '-'}</p>
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">{t('load.details.monotony')}</p>
+                <p className="mt-1 text-base font-black text-white">{stabilityReady ? formatDecimal(monotony) : '-'}</p>
               </div>
               <div className="rounded-xl border border-white/10 bg-slate-950/45 px-3 py-2">
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">Strain</p>
-                <p className="mt-1 text-base font-black text-white">{stabilityReady ? `${formatCompactNumber(strain)} AU` : '-'}</p>
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">{t('load.details.strain')}</p>
+                <p className="mt-1 text-base font-black text-white">{stabilityReady ? t('load.room.au', { value: formatCompactNumber(strain) }) : '-'}</p>
               </div>
             </div>
           </div>
@@ -2905,9 +2920,9 @@ function LoadDetailsPanel({
       <div className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-black">Mix, last 28 days</h2>
+            <h2 className="text-lg font-black">{t('load.details.mix')}</h2>
           </div>
-          <span className="text-xs font-black text-slate-500">{recentLoad} AU</span>
+          <span className="text-xs font-black text-slate-500">{t('load.room.au', { value: recentLoad })}</span>
         </div>
         <div className="mt-5 space-y-3">
           {trainingMix.length > 0 ? trainingMix.slice(0, 6).map((item) => {
@@ -2924,31 +2939,31 @@ function LoadDetailsPanel({
               </div>
             );
           }) : (
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4 text-sm font-bold text-slate-500">No recent load.</div>
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4 text-sm font-bold text-slate-500">{t('load.details.noRecent')}</div>
           )}
         </div>
 
         <div className="mt-5">
-          <WeeklyLoadProfileGraph entries={entries} title="Weekly load profile" />
+          <WeeklyLoadProfileGraph entries={entries} title={t('load.details.weeklyProfile')} />
         </div>
 
         <div className="mt-5">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-black text-white">Completed sessions</p>
+            <p className="text-sm font-black text-white">{t('load.details.completed')}</p>
             <span className="text-xs font-black text-slate-500">{completedEntries.length}</span>
           </div>
           <div className="mt-3 grid gap-2">
-            {completedEntries.length === 0 ? <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4 text-sm font-bold text-slate-500">No completed entries.</div> : null}
+            {completedEntries.length === 0 ? <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4 text-sm font-bold text-slate-500">{t('load.details.noCompleted')}</div> : null}
             {completedEntries.map((entry) => (
               <div key={entry.id} className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-black text-white">{entry.title}</p>
-                    <p className="mt-1 text-xs font-bold text-slate-500">{formatLoadDate(entry.date)} · {LOAD_TYPE_LABELS[entry.trainingType]}</p>
+                    <p className="truncate text-sm font-black text-white">{displayTitle(entry.title)}</p>
+                    <p className="mt-1 text-xs font-bold text-slate-500">{formatEntryDate(entry.date)} · {loadTypeLabel(entry.trainingType)}</p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-sm font-black text-slate-100">{entry.durationMinutes} min</p>
-                    <p className="mt-1 text-xs font-black text-slate-500">RPE {entry.rpe} · {entry.load} AU</p>
+                    <p className="text-sm font-black text-slate-100">{t('load.details.minutes', { count: entry.durationMinutes })}</p>
+                    <p className="mt-1 text-xs font-black text-slate-500">{t('load.details.rpeLoad', { rpe: entry.rpe, load: entry.load })}</p>
                   </div>
                 </div>
               </div>
@@ -2961,6 +2976,7 @@ function LoadDetailsPanel({
 }
 
 function PendingInlineForm({ trainingType, defaultRpe, defaultDuration, onSubmit }: { trainingType: LoadTrainingType; defaultRpe: number; defaultDuration: number; onSubmit: (rpe: number, duration: number) => void }) {
+  const t = useT();
   const fixedGameRpe = trainingType === 'game';
   const [rpe, setRpe] = useState(fixedGameRpe ? 10 : defaultRpe);
   const [duration, setDuration] = useState(defaultDuration);
@@ -2970,27 +2986,27 @@ function PendingInlineForm({ trainingType, defaultRpe, defaultDuration, onSubmit
       {fixedGameRpe ? (
         <div className="rounded-xl border border-violet-300/25 bg-violet-300/[0.08] p-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">RPE</span>
+            <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('load.inline.rpe')}</span>
             <span className="text-xl font-black text-white">10</span>
           </div>
         </div>
       ) : (
         <label className="block">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">RPE</span>
+            <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('load.inline.rpe')}</span>
             <span className="text-xl font-black text-white">{rpe}</span>
           </div>
-          <input type="range" min="1" max="10" step="1" value={rpe} onChange={(event) => setRpe(Number(event.target.value))} className="mt-1 w-full accent-emerald-300" aria-label="RPE" />
+          <input type="range" min="1" max="10" step="1" value={rpe} onChange={(event) => setRpe(Number(event.target.value))} className="mt-1 w-full accent-emerald-300" aria-label={t('load.inline.rpe')} />
         </label>
       )}
       <label className="block">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{fixedGameRpe ? 'Playing minutes' : 'Duration'}</span>
-          <span className="text-sm font-black text-white">{duration} min</span>
+          <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{fixedGameRpe ? t('load.inline.playingMinutes') : t('load.inline.duration')}</span>
+          <span className="text-sm font-black text-white">{t('load.inline.minutes', { count: duration })}</span>
         </div>
-        <input type="range" min={fixedGameRpe ? '0' : '5'} max={fixedGameRpe ? '120' : '240'} step={fixedGameRpe ? '1' : '5'} value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="mt-1 w-full accent-emerald-300" aria-label="Duration minutes" />
+        <input type="range" min={fixedGameRpe ? '0' : '5'} max={fixedGameRpe ? '120' : '240'} step={fixedGameRpe ? '1' : '5'} value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="mt-1 w-full accent-emerald-300" aria-label={t('load.inline.durationAria')} />
       </label>
-      <button type="button" onClick={() => onSubmit(effectiveInlineRpe, duration)} className="w-full rounded-xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950">Save {effectiveInlineRpe * duration} AU</button>
+      <button type="button" onClick={() => onSubmit(effectiveInlineRpe, duration)} className="w-full rounded-xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950">{t('load.inline.save', { value: effectiveInlineRpe * duration })}</button>
     </div>
   );
 }

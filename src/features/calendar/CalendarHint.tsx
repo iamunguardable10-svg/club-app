@@ -16,8 +16,10 @@ import { dismissHint, getAppleCalendarStatus, isHintDismissed, isRemoteMode } fr
 import { isAppleDevice } from '@/features/install/installPrompt';
 
 import { ConnectGuide } from './AppleCalendarPanel';
+import { useT } from '@/shared/i18n';
 
 export function CalendarHint() {
+  const t = useT();
   const [show, setShow] = useState(false);
   const [apple, setApple] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -46,38 +48,38 @@ export function CalendarHint() {
 
   if (connected) {
     return (
-      <section role="status" aria-label="Apple Calendar connected" className="grid gap-2 rounded-3xl border border-emerald-300/30 bg-emerald-300/[0.06] p-4 text-sm text-slate-300">
-        <p className="font-black text-white">Apple Calendar connected</p>
-        <p className="text-xs text-slate-400">Your sessions are now in the calendar “Club OS”. In Settings you can choose which of your calendars Club OS may read.</p>
+      <section role="status" aria-label={t('calendarHint.connectedTitle')} className="grid gap-2 rounded-3xl border border-emerald-300/30 bg-emerald-300/[0.06] p-4 text-sm text-slate-300">
+        <p className="font-black text-white">{t('calendarHint.connectedTitle')}</p>
+        <p className="text-xs text-slate-400">{t('calendarHint.connectedDetail')}</p>
         <div className="flex flex-wrap items-center gap-3">
-          <Link href="/settings#apple-calendar" className="os-success justify-center px-4 py-2 text-sm">Choose calendars</Link>
-          <button type="button" onClick={() => setShow(false)} className="text-xs font-bold text-slate-400 underline">Done</button>
+          <Link href="/settings#apple-calendar" className="os-success justify-center px-4 py-2 text-sm">{t('calendarHint.chooseCalendars')}</Link>
+          <button type="button" onClick={() => setShow(false)} className="text-xs font-bold text-slate-400 underline">{t('calendarHint.done')}</button>
         </div>
       </section>
     );
   }
 
   return (
-    <section aria-label="Your sessions in your phone's calendar" className="grid gap-3 rounded-3xl border border-sky-300/30 bg-sky-300/[0.06] p-4 text-sm text-slate-300">
+    <section aria-label={t('calendarHint.title')} className="grid gap-3 rounded-3xl border border-sky-300/30 bg-sky-300/[0.06] p-4 text-sm text-slate-300">
       <div>
-        <p className="font-black text-white">Your sessions in your phone’s calendar</p>
+        <p className="font-black text-white">{t('calendarHint.title')}</p>
         <p className="mt-1 text-xs text-slate-400">
           {apple
-            ? 'Optional: connect Apple Calendar and your sessions appear in a calendar “Club OS”, always up to date. You can also show your own calendars here. Takes about two minutes.'
-            : 'Optional: add a calendar link to Google Calendar or your phone’s calendar, and your sessions show up there, always up to date.'}
+            ? t('calendarHint.appleDetail')
+            : t('calendarHint.otherDetail')}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">
         {apple ? (
-          <button type="button" onClick={() => setGuideOpen(true)} className="os-success justify-center px-4 py-2 text-sm">Connect Apple Calendar</button>
+          <button type="button" onClick={() => setGuideOpen(true)} className="os-success justify-center px-4 py-2 text-sm">{t('calendarHint.connectApple')}</button>
         ) : (
-          <Link href="/settings#calendar" onClick={() => dismissHint('calendar')} className="os-success justify-center px-4 py-2 text-sm">Get the calendar link</Link>
+          <Link href="/settings#calendar" onClick={() => dismissHint('calendar')} className="os-success justify-center px-4 py-2 text-sm">{t('calendarHint.getLink')}</Link>
         )}
-        <button type="button" onClick={putAway} className="text-xs font-bold text-slate-400 underline">Not now</button>
+        <button type="button" onClick={putAway} className="text-xs font-bold text-slate-400 underline">{t('common.notNow')}</button>
       </div>
       <p className="text-[11px] text-slate-500">
-        {apple ? <>Not using Apple Calendar? <Link href="/settings#calendar" className="underline">Use a calendar link</Link>. </> : null}
-        Both stay in Settings.
+        {apple ? <>{t('calendarHint.notApple')} <Link href="/settings#calendar" className="underline">{t('calendarHint.useLink')}</Link>. </> : null}
+        {t('calendarHint.bothInSettings')}
       </p>
 
       {guideOpen ? (

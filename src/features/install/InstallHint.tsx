@@ -15,6 +15,8 @@
 import { useEffect, useState } from 'react';
 
 import { dismissHint, isHintDismissed } from '@/shared/data';
+import { useT } from '@/shared/i18n';
+import { rich } from '@/shared/i18n/rich';
 
 import {
   canPromptInstall,
@@ -35,32 +37,35 @@ function ShareIcon() {
   );
 }
 
+const bold = (chunk: string) => <span className="font-black text-white">{chunk}</span>;
+
 function Steps({ platform, canPrompt }: { platform: InstallPlatform; canPrompt: boolean }) {
+  const t = useT();
   // iPhone: the app on the home screen has its own storage; a one-time code
   // in its start address keeps the person signed in (installHandoff.ts).
   useEffect(() => {
     if (platform === 'ios') void prepareLoginHandoff().catch(() => undefined);
   }, [platform]);
-  if (canPrompt) return <p>Install Club OS like an app: its own icon, full screen, one tap away.</p>;
+  if (canPrompt) return <p>{t('install.prompt')}</p>;
   if (platform === 'ios') {
     return (
       <ol className="grid list-decimal gap-1 pl-5">
-        <li>Open this page in <span className="font-black text-white">Safari</span>.</li>
-        <li>Tap <span className="font-black text-white">Share</span> <ShareIcon /> at the bottom (on iPad: at the top).</li>
-        <li>Choose <span className="font-black text-white">Add to Home Screen</span>, then <span className="font-black text-white">Add</span>.</li>
-        <li className="list-none text-xs text-slate-400">Signed in here? The app stays signed in if you add it within 10 minutes.</li>
+        <li>{rich(t('install.ios.safari'), bold)}</li>
+        <li>{rich(t('install.ios.share'), bold, { icon: <ShareIcon /> })}</li>
+        <li>{rich(t('install.ios.add'), bold)}</li>
+        <li className="list-none text-xs text-slate-400">{t('install.ios.signedIn')}</li>
       </ol>
     );
   }
   if (platform === 'android') {
     return (
       <ol className="grid list-decimal gap-1 pl-5">
-        <li>Open the browser menu <span className="font-black text-white">⋮</span> (Samsung Internet: <span className="font-black text-white">≡</span>).</li>
-        <li>Tap <span className="font-black text-white">Install app</span> or <span className="font-black text-white">Add to Home screen</span>.</li>
+        <li>{rich(t('install.android.menu'), bold)}</li>
+        <li>{rich(t('install.android.install'), bold)}</li>
       </ol>
     );
   }
-  return <p>On your phone, open this address and add it to the home screen: iPhone via Share → Add to Home Screen, Android via the browser menu → Install app.</p>;
+  return <p>{t('install.desktop')}</p>;
 }
 
 function useInstallState() {
@@ -76,6 +81,7 @@ function useInstallState() {
 }
 
 export function InstallHint({ variant }: { variant: 'card' | 'menu' | 'settings' }) {
+  const t = useT();
   const { ready, standalone, platform, canPrompt, installed } = useInstallState();
   const [dismissed, setDismissed] = useState(true);
   const [open, setOpen] = useState(false);
@@ -85,7 +91,7 @@ export function InstallHint({ variant }: { variant: 'card' | 'menu' | 'settings'
 
   const installButton = canPrompt ? (
     <button type="button" onClick={() => { void promptInstall(); }} className="os-success justify-center px-4 py-2 text-sm">
-      Install
+      {t('install.button')}
     </button>
   ) : null;
 
@@ -93,7 +99,7 @@ export function InstallHint({ variant }: { variant: 'card' | 'menu' | 'settings'
     return (
       <div className={`grid gap-2 text-sm text-slate-300 ${variant === 'menu' ? 'mt-6 border-t border-slate-800 pt-4' : ''}`}>
         <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="flex items-center justify-between text-left">
-          <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Install as app</span>
+          <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{t('install.asApp')}</span>
           <span aria-hidden className="text-lg font-black text-slate-500">{open ? '−' : '+'}</span>
         </button>
         {open ? (
@@ -109,13 +115,13 @@ export function InstallHint({ variant }: { variant: 'card' | 'menu' | 'settings'
   if (dismissed || platform === 'desktop') return null;
 
   return (
-    <section aria-label="Add Club OS to your home screen" className="grid gap-3 rounded-3xl border border-emerald-300/30 bg-emerald-300/[0.06] p-4 text-sm text-slate-300">
+    <section aria-label={t('install.cardTitle')} className="grid gap-3 rounded-3xl border border-emerald-300/30 bg-emerald-300/[0.06] p-4 text-sm text-slate-300">
       <div className="flex items-start gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/icons/icon-192.png" alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-xl" />
         <div className="min-w-0">
-          <p className="font-black text-white">Add Club OS to your home screen</p>
-          <p className="text-xs text-slate-400">Opens like an app, without the browser around it.</p>
+          <p className="font-black text-white">{t('install.cardTitle')}</p>
+          <p className="text-xs text-slate-400">{t('install.cardDetail')}</p>
         </div>
       </div>
       <Steps platform={platform} canPrompt={canPrompt} />
@@ -126,7 +132,7 @@ export function InstallHint({ variant }: { variant: 'card' | 'menu' | 'settings'
           onClick={() => { dismissHint('install'); setDismissed(true); }}
           className="text-xs font-bold text-slate-400 underline"
         >
-          Not now
+          {t('common.notNow')}
         </button>
       </div>
     </section>

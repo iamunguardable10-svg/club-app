@@ -25,6 +25,11 @@ const FORMATS = {
   shortDate: { day: 'numeric', month: 'short' },
   time: { hour: '2-digit', minute: '2-digit', hour12: false },
   weekday: { weekday: 'short' },
+  entryDate: { weekday: 'short', day: '2-digit', month: 'short' },
+  dayMonth: { day: '2-digit', month: '2-digit' },
+  dayNumber: { day: '2-digit' },
+  weekdayDay: { weekday: 'short', day: '2-digit' },
+  dateTime: { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' },
 } satisfies Record<string, Intl.DateTimeFormatOptions>;
 
 const formatters = new Map<string, Intl.DateTimeFormat>();
@@ -52,6 +57,31 @@ export function formatLongDay(value: DateInput) {
 /** "Fri" */
 export function formatWeekday(value: DateInput) {
   return formatter('weekday').format(toDate(value));
+}
+
+/** "Fri, 25 Sep" for a load entry's date ("2026-09-25"). */
+export function formatEntryDate(date: string) {
+  return formatter('entryDate').format(new Date(`${date}T00:00:00`));
+}
+
+/** "25/09" (English), "25.09." (German): chart axes. */
+export function formatDayMonth(date: string) {
+  return formatter('dayMonth').format(new Date(`${date}T00:00:00`));
+}
+
+/** "05" */
+export function formatDayNumber(value: DateInput) {
+  return formatter('dayNumber').format(toDate(value));
+}
+
+/** "Mon 28" */
+export function formatWeekdayDay(value: DateInput) {
+  return formatter('weekdayDay').format(toDate(value));
+}
+
+/** "26/09/2026, 13:45:12" */
+export function formatDateTime(value: DateInput) {
+  return formatter('dateTime').format(toDate(value));
 }
 
 /** "25 Sep" */
@@ -101,6 +131,18 @@ export function formatDecimal(value: number, digits = 2) {
   let result = numberFormatters.get(key);
   if (!result) {
     result = new Intl.NumberFormat(tag, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+    numberFormatters.set(key, result);
+  }
+  return result.format(value);
+}
+
+/** "6,698" (English), "6.698" (German). */
+export function formatInteger(value: number) {
+  const tag = intlLocale(currentLocale());
+  const key = `${tag}:int`;
+  let result = numberFormatters.get(key);
+  if (!result) {
+    result = new Intl.NumberFormat(tag, { maximumFractionDigits: 0 });
     numberFormatters.set(key, result);
   }
   return result.format(value);

@@ -58,3 +58,12 @@ export function errorText(t: Translate, caught: unknown): string {
   if (typeof key === 'string' && isMessageKey(key)) return t(key);
   return caught instanceof Error ? caught.message : String(caught);
 }
+
+/**
+ * `t` for code outside components: label tables, helpers that build a line
+ * of text. Reads the language when called, so call it while rendering, never
+ * at module load. Components use `useT()`.
+ */
+export function tr(key: MessageKey, params?: MessageParams): string {
+  return translate(currentLocale(), key, params);
+}

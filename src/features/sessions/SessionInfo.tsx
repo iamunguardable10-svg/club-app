@@ -8,6 +8,7 @@
 
 import { formatTime } from '@/shared/format';
 import type { GameDetails, SessionDetails, SquadStatus } from '@/shared/data';
+import { tr, useT, type MessageKey } from '@/shared/i18n';
 
 export type SessionInfoData = SessionDetails & GameDetails & {
   startsAt: string;
@@ -17,18 +18,23 @@ export type SessionInfoData = SessionDetails & GameDetails & {
   squad?: SquadStatus | null;
 };
 
-export const SQUAD_LINE: Record<SquadStatus, string> = {
-  squad: "You're in the squad",
-  reserve: "You're a reserve",
-  not_selected: 'Not in the squad this time',
+const SQUAD_KEY: Record<SquadStatus, MessageKey> = {
+  squad: 'squad.in',
+  reserve: 'squad.reserve',
+  not_selected: 'squad.notSelected',
 };
+
+/** "You're in the squad", in the app language. */
+export function squadLine(status: SquadStatus): string {
+  return tr(SQUAD_KEY[status]);
+}
 
 /** "vs TSV Neustadt (away)" or null. */
 export function gameLine(info: Pick<SessionInfoData, 'opponent' | 'homeAway'>): string | null {
   if (!info.opponent && !info.homeAway) return null;
-  const where = info.homeAway === 'home' ? 'home' : info.homeAway === 'away' ? 'away' : null;
-  if (!info.opponent) return where === 'home' ? 'Home game' : 'Away game';
-  return `vs ${info.opponent}${where ? ` (${where})` : ''}`;
+  const where = info.homeAway === 'home' ? tr('game.home') : info.homeAway === 'away' ? tr('game.away') : null;
+  if (!info.opponent) return info.homeAway === 'home' ? tr('game.homeGame') : tr('game.awayGame');
+  return where ? tr('game.vsWhere', { opponent: info.opponent, where }) : tr('game.vs', { opponent: info.opponent });
 }
 
 /** "Meet 17:15 at Car park" or null. */
@@ -36,7 +42,7 @@ export function meetLine(info: Pick<SessionInfoData, 'startsAt' | 'meetMinutesBe
   const point = info.meetPoint?.trim() || null;
   if (!info.meetMinutesBefore && !point) return null;
   const time = info.meetMinutesBefore ? formatTime(new Date(new Date(info.startsAt).getTime() - info.meetMinutesBefore * 60_000)) : null;
-  return ['Meet', time, point ? `at ${point}` : null].filter(Boolean).join(' ');
+  return [tr('game.meet'), time, point ? tr('game.meetAt', { point }) : null].filter(Boolean).join(' ');
 }
 
 function mapsUrl(address: string) {
@@ -44,6 +50,7 @@ function mapsUrl(address: string) {
 }
 
 export function SessionInfo({ info, className = '' }: { info: SessionInfoData; className?: string }) {
+  const t = useT();
   const game = gameLine(info);
   // Not picked: the meeting is not for them.
   const meet = info.squad === 'not_selected' ? null : meetLine(info);
@@ -53,13 +60,13 @@ export function SessionInfo({ info, className = '' }: { info: SessionInfoData; c
     <div className={`grid gap-1.5 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm ${className}`}>
       {info.squad ? (
         <p className={`justify-self-start rounded-full px-2.5 py-0.5 text-xs font-black ${info.squad === 'squad' ? 'bg-emerald-300 text-slate-950' : info.squad === 'reserve' ? 'bg-sky-300 text-slate-950' : 'bg-slate-700 text-slate-100'}`}>
-          {SQUAD_LINE[info.squad]}
+          {squadLine(info.squad)}
         </p>
       ) : null}
       {game ? <p className="font-black text-white">{game}</p> : null}
       {place ? (
         <p className="font-bold text-slate-300">
-          <span className="text-slate-500">Where </span>
+          <span className="text-slate-500">{t('session.where')}</span>
           {info.homeAway === 'away' && info.venueAddress
             ? <a href={mapsUrl(info.venueAddress)} target="_blank" rel="noreferrer" className="text-sky-300 underline">{info.venueAddress}</a>
             : place}

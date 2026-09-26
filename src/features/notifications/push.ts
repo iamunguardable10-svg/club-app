@@ -38,17 +38,17 @@ function keyBytes(base64Url: string): Uint8Array<ArrayBuffer> {
 
 function toSaved(subscription: PushSubscription) {
   const json = subscription.toJSON();
-  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) throw new LocalDataError('The browser returned an incomplete subscription.');
+  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) throw new LocalDataError('The browser returned an incomplete subscription.', undefined, 'notifications.error.incomplete');
   return { endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth };
 }
 
 /** Asks for permission and subscribes this device. Throws with a readable message when that is not possible. */
 export async function enablePush(): Promise<void> {
-  if (!isPushSupported()) throw new LocalDataError('This browser cannot show notifications.');
+  if (!isPushSupported()) throw new LocalDataError('This browser cannot show notifications.', undefined, 'notifications.unsupported');
   const permission = await Notification.requestPermission();
-  if (permission !== 'granted') throw new LocalDataError('Notifications were not allowed. You can allow them later in the browser settings for this site.');
+  if (permission !== 'granted') throw new LocalDataError('Notifications were not allowed. You can allow them later in the browser settings for this site.', undefined, 'notifications.error.notAllowed');
   const publicKey = await getPushPublicKey();
-  if (!publicKey) throw new LocalDataError('Notifications are not set up on the server yet.');
+  if (!publicKey) throw new LocalDataError('Notifications are not set up on the server yet.', undefined, 'notifications.error.notSetUp');
   const worker = await registration();
   await navigator.serviceWorker.ready;
   const subscription = (await worker.pushManager.getSubscription())

@@ -17,13 +17,12 @@ import { useEffect, useState } from 'react';
 import { dismissHint, isHintDismissed, isRemoteMode } from '@/shared/data';
 import { installPlatform, isStandalone } from '@/features/install/installPrompt';
 import { reportError } from '@/features/errors/errorReporting';
+import { errorText, useT } from '@/shared/i18n';
 
 import { currentPushSubscription, disablePush, enablePush, isPushSupported, pushPermission, syncPushSubscription } from './push';
 
 type State = 'loading' | 'unsupported' | 'needsInstall' | 'denied' | 'on' | 'off';
 
-const WHAT_IS_SENT =
-  'Changed or cancelled sessions, "Are you in?" the day before, "How hard was it?" right after a session; coaches get who is coming 2 hours before. Quiet from 22:00 to 07:00 unless you change it in Settings.';
 
 async function readState(): Promise<State> {
   const iosOutsideApp = installPlatform() === 'ios' && !isStandalone();
@@ -52,6 +51,7 @@ function usePushState() {
 }
 
 export function NotificationsHint({ variant }: { variant: 'card' | 'menu' | 'settings' }) {
+  const t = useT();
   const [remote, setRemote] = useState(false);
   const { state, refresh } = usePushState();
   const [busy, setBusy] = useState(false);
@@ -73,7 +73,7 @@ export function NotificationsHint({ variant }: { variant: 'card' | 'menu' | 'set
     try {
       await action();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(errorText(t, caught));
       reportError('push', caught);
     } finally {
       setBusy(false);
@@ -83,7 +83,7 @@ export function NotificationsHint({ variant }: { variant: 'card' | 'menu' | 'set
 
   const turnOn = (
     <button type="button" disabled={busy} onClick={() => run(enablePush)} className="os-success justify-center px-4 py-2 text-sm disabled:opacity-60">
-      {busy ? 'One moment …' : 'Turn on notifications'}
+      {busy ? t('common.oneMoment') : t('notifications.turnOn')}
     </button>
   );
   const errorLine = error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null;
@@ -91,20 +91,20 @@ export function NotificationsHint({ variant }: { variant: 'card' | 'menu' | 'set
   if (variant !== 'card') {
     return (
       <div className={`grid gap-2 text-sm text-slate-300 ${variant === 'menu' ? 'mt-6 border-t border-slate-800 pt-4' : ''}`}>
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{variant === 'menu' ? 'Notifications' : 'This device'}</p>
-        {variant === 'menu' ? <p className="text-xs text-slate-400">{WHAT_IS_SENT}</p> : null}
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{variant === 'menu' ? t('notifications.title') : t('notifications.thisDevice')}</p>
+        {variant === 'menu' ? <p className="text-xs text-slate-400">{t('notifications.whatIsSent')}</p> : null}
         {state === 'on' ? (
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-xs font-black text-emerald-300">On for this device</span>
+            <span className="text-xs font-black text-emerald-300">{t('notifications.onHere')}</span>
             <button type="button" disabled={busy} onClick={() => run(disablePush)} className="text-xs font-bold text-slate-400 underline disabled:opacity-60">
-              Turn off
+              {t('notifications.turnOff')}
             </button>
           </div>
         ) : null}
         {state === 'off' ? <div>{turnOn}</div> : null}
-        {state === 'denied' ? <p className="text-xs font-bold text-amber-200">Notifications are blocked for this site. Allow them in the browser or phone settings, then come back here.</p> : null}
-        {state === 'needsInstall' ? <p className="text-xs font-bold text-amber-200">On iPhone, first add Club OS to your home screen (see “Install as app”), open it from there and turn notifications on here.</p> : null}
-        {state === 'unsupported' ? <p className="text-xs font-bold text-slate-500">This browser cannot show notifications.</p> : null}
+        {state === 'denied' ? <p className="text-xs font-bold text-amber-200">{t('notifications.blocked')}</p> : null}
+        {state === 'needsInstall' ? <p className="text-xs font-bold text-amber-200">{t('notifications.needsInstall')}</p> : null}
+        {state === 'unsupported' ? <p className="text-xs font-bold text-slate-500">{t('notifications.unsupported')}</p> : null}
         {errorLine}
       </div>
     );
@@ -113,16 +113,16 @@ export function NotificationsHint({ variant }: { variant: 'card' | 'menu' | 'set
   if (state !== 'off' || dismissed) return null;
 
   return (
-    <section aria-label="Turn on notifications" className="grid gap-3 rounded-3xl border border-sky-300/30 bg-sky-300/[0.06] p-4 text-sm text-slate-300">
+    <section aria-label={t('notifications.turnOn')} className="grid gap-3 rounded-3xl border border-sky-300/30 bg-sky-300/[0.06] p-4 text-sm text-slate-300">
       <div>
-        <p className="font-black text-white">Turn on notifications</p>
-        <p className="mt-1 text-xs text-slate-400">{WHAT_IS_SENT}</p>
+        <p className="font-black text-white">{t('notifications.turnOn')}</p>
+        <p className="mt-1 text-xs text-slate-400">{t('notifications.whatIsSent')}</p>
       </div>
       {errorLine}
       <div className="flex flex-wrap items-center gap-3">
         {turnOn}
         <button type="button" onClick={() => { dismissHint('notifications'); setDismissed(true); }} className="text-xs font-bold text-slate-400 underline">
-          Not now
+          {t('common.notNow')}
         </button>
       </div>
     </section>

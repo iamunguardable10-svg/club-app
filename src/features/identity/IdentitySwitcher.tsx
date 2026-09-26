@@ -40,11 +40,12 @@ import {
   type IdentityRole,
   type Person,
 } from '@/shared/data';
+import { useT, type MessageKey } from '@/shared/i18n';
 
-const ROLE_LABEL: Record<IdentityRole, string> = {
-  coach: 'Coach',
-  athlete: 'Player',
-  club: 'Club',
+const ROLE_LABEL: Record<IdentityRole, MessageKey> = {
+  coach: 'role.coach',
+  athlete: 'role.athlete',
+  club: 'role.club',
 };
 
 /** Where each role lands when it is picked. */
@@ -55,6 +56,7 @@ export const HOME_FOR_ROLE: Record<IdentityRole, string> = {
 };
 
 export function IdentitySwitcher({ className = '', variant = 'card' }: { className?: string; variant?: 'card' | 'avatar' }) {
+  const t = useT();
   const { database } = useLocalDatabase();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -119,7 +121,7 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
     if (people.length === 0) return null;
     return (
       <div key={role} className="space-y-2">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{ROLE_LABEL[role]}</p>
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{t(ROLE_LABEL[role])}</p>
         <ul className="space-y-1.5">
           {people.map((person) => {
             // Coaches see their role per team, since that decides what they may see.
@@ -145,9 +147,9 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
                 >
                   <span>
                     <span className="block text-sm font-bold">{displayName(person)}</span>
-                    <span className="block text-xs text-slate-400">{teams || 'No team'}</span>
+                    <span className="block text-xs text-slate-400">{teams || t('identity.noTeam')}</span>
                   </span>
-                  {isCurrent ? <span className="text-xs font-black text-emerald-300">Active</span> : null}
+                  {isCurrent ? <span className="text-xs font-black text-emerald-300">{t('identity.active')}</span> : null}
                 </button>
               </li>
             );
@@ -158,7 +160,7 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
   }
 
   const initials = current ? `${current.firstName.charAt(0)}${current.lastName.charAt(0)}`.toUpperCase() : '?';
-  const label = current ? `${ROLE_LABEL[identity!.role]}: ${displayName(current)}` : 'Choose a role';
+  const label = current ? t('identity.current', { role: t(ROLE_LABEL[identity!.role]), name: displayName(current) }) : t('identity.chooseRole');
 
   return (
     <>
@@ -167,7 +169,7 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
         <button
           type="button"
           onClick={() => setOpen(true)}
-          aria-label={`${label}. ${remoteMode ? 'Account' : 'Switch role'}`}
+          aria-label={`${label}. ${remoteMode ? t('identity.account') : t('identity.switchRole')}`}
           className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-700 bg-slate-900 text-xs font-black text-slate-100 ${className}`}
         >
           {initials}
@@ -180,8 +182,8 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
         >
           <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-800 text-[11px] font-black text-slate-100">{initials}</span>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-black text-white">{current ? displayName(current) : 'Choose a role'}</span>
-            <span className="block truncate text-[11px] text-slate-400">{current ? ROLE_LABEL[identity!.role] : ''}{remoteMode ? ' · account' : ' · switch'}</span>
+            <span className="block truncate text-sm font-black text-white">{current ? displayName(current) : t('identity.chooseRole')}</span>
+            <span className="block truncate text-[11px] text-slate-400">{current ? t(ROLE_LABEL[identity!.role]) : ''}{remoteMode ? t('identity.accountSuffix') : t('identity.switchSuffix')}</span>
           </span>
         </button>
       )}
@@ -191,18 +193,18 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/70 p-0 sm:items-center sm:p-6">
           <button
             type="button"
-            aria-label="Close"
+            aria-label={t('identity.close')}
             className="absolute inset-0 h-full w-full cursor-default"
             onClick={() => setOpen(false)}
           />
           <div className="relative max-h-[85vh] w-full overflow-y-auto rounded-t-3xl border border-slate-800 bg-slate-950 p-5 sm:max-w-md sm:rounded-3xl">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-black text-white">{remoteMode ? 'Your roles' : 'Who do you want to test as?'}</h2>
-                <p className="mt-1 text-xs text-slate-400">{remoteMode ? 'Switch between your own roles.' : 'Demo club, no account. Everyone here shares the same test data.'}</p>
+                <h2 className="text-lg font-black text-white">{remoteMode ? t('identity.yourRoles') : t('identity.testAs')}</h2>
+                <p className="mt-1 text-xs text-slate-400">{remoteMode ? t('identity.yourRolesDetail') : t('identity.testAsDetail')}</p>
               </div>
               <button type="button" onClick={() => setOpen(false)} className="rounded-full border border-slate-700 px-3 py-1 text-xs font-bold text-slate-300">
-                Close
+                {t('identity.close')}
               </button>
             </div>
             <div className="space-y-5">
@@ -214,7 +216,7 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
             {/* The same account can hold more roles: the start page shows every way in (2026-09-25). */}
             {remoteMode ? (
               <Link href="/?add=1" onClick={() => setOpen(false)} className="mt-5 flex items-center justify-between rounded-2xl border border-emerald-300/40 px-4 py-3 text-sm font-black text-emerald-100 hover:border-emerald-300">
-                Add a role
+                {t('identity.addRole')}
                 <span aria-hidden className="text-emerald-300">+</span>
               </Link>
             ) : null}
@@ -222,7 +224,7 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
             {/* Name, email, password, notifications and the rest (piece 12). */}
             {current ? (
               <Link href="/settings" onClick={() => setOpen(false)} className="mt-6 flex items-center justify-between rounded-2xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-100 hover:border-slate-500">
-                Settings
+                {t('identity.settings')}
                 <span aria-hidden className="text-slate-500">›</span>
               </Link>
             ) : null}
@@ -232,12 +234,12 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
               onClick={() => { setOpen(false); setReporting(true); }}
               className={`${current ? 'mt-2' : 'mt-6'} flex w-full items-center justify-between rounded-2xl border border-slate-700 px-4 py-3 text-left text-sm font-black text-slate-100 hover:border-slate-500`}
             >
-              Report a problem
+              {t('identity.reportProblem')}
               <span aria-hidden className="text-slate-500">›</span>
             </button>
             {operator ? (
               <Link href="/reports" onClick={() => setOpen(false)} className="mt-2 flex items-center justify-between rounded-2xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-100 hover:border-slate-500">
-                Error reports
+                {t('identity.errorReports')}
                 <span aria-hidden className="text-slate-500">›</span>
               </Link>
             ) : null}
@@ -249,7 +251,7 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
                   <LocalModeLink />
                 </>
               ) : isServerAvailable() ? (
-                <Link href="/login" className="text-xs font-bold text-slate-400 underline">Sign in to your club</Link>
+                <Link href="/login" className="text-xs font-bold text-slate-400 underline">{t('identity.signIn')}</Link>
               ) : null}
             </div>
 
@@ -259,22 +261,19 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
             {remoteMode ? null : <div className="mt-4 border-t border-slate-800 pt-4">
               {confirmReset ? (
                 <div className="space-y-3">
-                  <p className="text-sm text-slate-300">
-                    All test data in this browser is deleted and the demo club starts over, including
-                    everything you entered yourself.
-                  </p>
+                  <p className="text-sm text-slate-300">{t('identity.resetWarning')}</p>
                   <div className="flex flex-wrap gap-2">
                     <button type="button" onClick={reset} className="rounded-2xl border border-red-400/60 bg-red-500/20 px-4 py-3 text-xs font-black text-red-100">
-                      Yes, reset
+                      {t('identity.resetConfirm')}
                     </button>
                     <button type="button" onClick={() => setConfirmReset(false)} className="rounded-2xl border border-slate-700 px-4 py-3 text-xs font-black text-slate-300">
-                      Cancel
+                      {t('identity.cancel')}
                     </button>
                   </div>
                 </div>
               ) : (
                 <button type="button" onClick={() => setConfirmReset(true)} className="text-xs font-bold text-slate-400 underline">
-                  Reset test data
+                  {t('identity.reset')}
                 </button>
               )}
             </div>}
