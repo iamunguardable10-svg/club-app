@@ -2197,3 +2197,24 @@ Wunsch (Ben, 2026-09-26): wenige Hinweise, grafisch statt Text, niemanden bevorm
 Geprüft: Rechentests (`test:load`, an allen 7 Wochentagen), auf dem echten Server mit Wegwerf-
 Verein (Spieler nach 10 Tagen Pause zurück, Spiel heute): Spieler und Trainerin sehen beide
 „1.31 → 1.67“, Erklärblatt öffnet über der Einheit. Daten danach gelöscht.
+
+## Run 43 — Gerüst für App-Sprachen (erledigt)
+
+Wunsch (Ben, 2026-09-26): mehrere App-Sprachen, wählbar am Anfang; Übersetzungen macht Ben mit
+einem günstigen Modell; nicht unstrukturiert bauen. Regeln, Aufbau, Prüfung, Übersetzungs-Prompt
+und Plan für die weiteren Bereiche: `docs/i18n.md`.
+
+- `src/shared/i18n`: `useT()`/`t('bereich.teil.was')`, Platzhalter `{name}`, Mehrzahl `_one`/
+  `_other` nach den Regeln der Sprache, fehlende Texte auf Englisch.
+- Sprache pro Gerät (über `repository.ts`), sonst Browsersprache; Auswahl oben rechts auf der
+  Startseite und in Settings → This device; Wechsel lädt neu, damit Datum/Zahlen folgen
+  (`format.ts` richtet sich jetzt nach der Sprache, neu `formatWeekday`, `formatDecimal`).
+- Schon umgestellt: Startseite inkl. „Wer bist du?“ und die Belastungs-Hinweise; Deutsch dafür
+  zum Prüfen dabei. Die anderen Bereiche folgen je in einem PR (bis dahin Englisch; Datum schon in
+  der gewählten Sprache).
+- CI: `check:i18n` (unbekannte Schlüssel, falsche Platzhalter, `t()` ohne Eintrag → Fehler;
+  fehlende Übersetzungen → Warnung) und `test:i18n`.
+
+Geprüft im Browser: Browsersprache Deutsch → Startseite deutsch, Umschalten auf English und zurück,
+Französisch → Englisch, Erklärblatt „Trainingsbelastung, kurz erklärt“ mit „1,5“, `<html lang>`
+folgt; keine Fehler in der Konsole.

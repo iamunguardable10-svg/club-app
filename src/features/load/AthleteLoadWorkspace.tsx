@@ -34,7 +34,8 @@ import { encodeAthleteLoadShare } from './athleteLoadShare';
 import { athleteHasLoad, clearEntryReview, displayName, getActivePerson, newId, reviewsForPerson, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
-import { formatDateRange, formatDay, formatLongDay, plural } from '@/shared/format';
+import { formatDateRange, formatDay, formatLongDay, formatWeekday, plural } from '@/shared/format';
+import { useT } from '@/shared/i18n';
 import { WEEKDAY_LABELS, latestSeriesEnd, seriesDates, seriesEnd, thisAndFollowing, weekdayOf } from './planSeries';
 import {
   readAcknowledged,
@@ -1253,6 +1254,7 @@ function AthleteCalendar({
 }
 
 export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorkspaceProps) {
+  const t = useT();
   const [entries, setEntries] = useState<AthleteLoadEntry[]>([]);
   const [plans, setPlans] = useState<AthleteLoadPlan[]>([]);
   const [pendingSessions, setPendingSessions] = useState<AthletePendingSession[]>([]);
@@ -1992,8 +1994,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
         {activeView === 'home' && todayRisk ? (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl border border-rose-400/30 bg-rose-400/[0.06] px-3 py-2.5">
-            <LoadRiskBadge before={todayRisk.before} after={todayRisk.after} label="Today" />
-            <span className="text-xs font-bold text-slate-300">Consider a lower intensity</span>
+            <LoadRiskBadge before={todayRisk.before} after={todayRisk.after} label={t('load.risk.today')} />
+            <span className="text-xs font-bold text-slate-300">{t('load.risk.lowerIntensity')}</span>
           </div>
         ) : null}
 
@@ -2779,6 +2781,7 @@ function LoadDetailsPanel({
   latestEwma: ReturnType<typeof getLatestACWR>;
   baselineDays: number;
 }) {
+  const t = useT();
   const today = todayISO();
   const last28Start = new Date(`${today}T00:00:00`);
   last28Start.setDate(last28Start.getDate() - 27);
@@ -2859,7 +2862,7 @@ function LoadDetailsPanel({
         {riskDay || weekChange !== null || afterBreak ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {riskDay && currentAcwr !== null ? (
-              <LoadRiskBadge before={currentAcwr} after={riskDay.acwr} label={riskDay.date === today ? 'Today' : new Date(`${riskDay.date}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' })} />
+              <LoadRiskBadge before={currentAcwr} after={riskDay.acwr} label={riskDay.date === today ? t('load.risk.today') : formatWeekday(`${riskDay.date}T00:00:00`)} />
             ) : null}
             {weekChange !== null ? (
               <span title="Load of the last 7 days against the 7 days before" className={`rounded-full border px-2.5 py-1 text-xs font-black tabular-nums ${weekChange >= 15 ? 'border-amber-300/45 bg-amber-300/10 text-amber-100' : 'border-slate-700 text-slate-300'}`}>

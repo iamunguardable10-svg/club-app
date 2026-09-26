@@ -1,13 +1,17 @@
 /**
  * Dates, times and counts as the interface shows them.
  *
- * The interface is English, the clubs are European: day before month and a
- * 24-hour clock ("Fri 25 Sep · 16:30–17:30"). Before, every screen passed
- * `undefined` as locale and got whatever the browser preferred, which mixed
- * "04:30 PM" and "Sep 25" into an otherwise consistent page.
+ * In the app language (docs/i18n.md); English keeps day before month and a
+ * 24-hour clock ("Fri 25 Sep · 16:30–17:30"), as the clubs are European.
+ * Before, every screen passed `undefined` as locale and got whatever the
+ * browser preferred, which mixed "04:30 PM" and "Sep 25" into one page.
+ *
+ * The language is read when formatting; changing it reloads the page. Dates
+ * only render after mounting (the data lives in the browser), so the English
+ * server render never has to match them.
  */
 
-const LOCALE = 'en-GB';
+import { currentLocale, intlLocale } from '@/shared/i18n';
 
 type DateInput = string | Date;
 
@@ -15,29 +19,49 @@ function toDate(value: DateInput) {
   return typeof value === 'string' ? new Date(value) : value;
 }
 
-const dayFormat = new Intl.DateTimeFormat(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' });
-const longDayFormat = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
-const shortDateFormat = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short' });
-const timeFormat = new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-digit', hour12: false });
+const FORMATS = {
+  day: { weekday: 'short', day: 'numeric', month: 'short' },
+  longDay: { weekday: 'long', day: 'numeric', month: 'long' },
+  shortDate: { day: 'numeric', month: 'short' },
+  time: { hour: '2-digit', minute: '2-digit', hour12: false },
+  weekday: { weekday: 'short' },
+} satisfies Record<string, Intl.DateTimeFormatOptions>;
+
+const formatters = new Map<string, Intl.DateTimeFormat>();
+function formatter(kind: keyof typeof FORMATS) {
+  const tag = intlLocale(currentLocale());
+  const key = `${tag}:${kind}`;
+  let result = formatters.get(key);
+  if (!result) {
+    result = new Intl.DateTimeFormat(tag, FORMATS[kind]);
+    formatters.set(key, result);
+  }
+  return result;
+}
 
 /** "Fri 25 Sep" */
 export function formatDay(value: DateInput) {
-  return dayFormat.format(toDate(value)).replace(',', '');
+  return formatter('day').format(toDate(value)).replace(',', '');
 }
 
 /** "Friday 25 September" */
 export function formatLongDay(value: DateInput) {
-  return longDayFormat.format(toDate(value)).replace(',', '');
+  return formatter('longDay').format(toDate(value)).replace(',', '');
+}
+
+/** "Fri" */
+export function formatWeekday(value: DateInput) {
+  return formatter('weekday').format(toDate(value));
 }
 
 /** "25 Sep" */
 export function formatShortDate(value: DateInput) {
-  return shortDateFormat.format(toDate(value));
+  return formatter('shortDate').format(toDate(value));
 }
 
 /** "16:30" */
 export function formatTime(value: DateInput) {
-  return timeFormat.format(toDate(value));
+  return formatter('time').format(toDate(value));
 }
 
 /** "16:30–17:30"; a missing end counts as one hour, as everywhere else. */
@@ -66,4 +90,18 @@ export function formatDateRange(first: DateInput, last: DateInput) {
 export function plural(count: number, singular: string, pluralForm = `${singular}s`, zero?: string) {
   if (count === 0 && zero) return zero;
   return `${count} ${count === 1 ? singular : pluralForm}`;
+}
+
+const numberFormatters = new Map<string, Intl.NumberFormat>();
+
+/** "1.31" (English) or "1,31" (German): a ratio or score with fixed decimals. */
+export function formatDecimal(value: number, digits = 2) {
+  const tag = intlLocale(currentLocale());
+  const key = `${tag}:${digits}`;
+  let result = numberFormatters.get(key);
+  if (!result) {
+    result = new Intl.NumberFormat(tag, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+    numberFormatters.set(key, result);
+  }
+  return result.format(value);
 }
