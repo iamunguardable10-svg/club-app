@@ -449,6 +449,8 @@ export type TeamMessage = {
   authorId: Id | null;
   body: string;
   important: boolean;
+  /** Important ones: on top for the players until then (chosen when written). */
+  pinnedUntil: Timestamp | null;
   createdAt: Timestamp;
   /** Set once: unread players were reminded. */
   remindedAt: Timestamp | null;

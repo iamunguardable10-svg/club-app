@@ -622,14 +622,16 @@ async function main() {
 
   // --- Team messages (piece 17) ---------------------------------------------
   store = await actAs(U.martin);
-  const messageId = data.postTeamMessage({ teamId: TEAM, body: 'Game on Saturday: meet 10:15.', important: true });
+  const messageId = data.postTeamMessage({ teamId: TEAM, body: 'Game on Saturday: meet 10:15.', important: true, pinDays: 3 });
   await data.flushRemote();
   check('Martin: message on the server', (await count('select 1 from team_messages where id = $1 and important and author_id = $2', [messageId, P.martin])) === 1, store.getStatus().rejected);
+  check('… pinned for three days', (await count("select 1 from team_messages where id = $1 and pinned_until between now() + interval '71 hours' and now() + interval '73 hours'", [messageId])) === 1);
   store = await actAs(U.ben);
   check('Ben: sees it, unread', data.unreadMessagesFor(db(), P.ben).some((message) => message.id === messageId));
   data.markMessagesRead(P.ben, [messageId]);
   await data.flushRemote();
   check('… having seen it, it counts as read on the server', (await count('select 1 from message_reads where message_id = $1 and person_id = $2', [messageId, P.ben])) === 1, store.getStatus().rejected);
+  check('… and it stays pinned for him', data.pinnedMessagesFor(db(), P.ben)[0]?.id === messageId);
   store = await actAs(U.martin);
   const stats = data.messageReadStats(db(), db().teamMessages.find((message) => message.id === messageId)!);
   check('Martin: read 1 of 2, Jonas unread', stats.read === 1 && stats.total === 2 && stats.unreadIds.includes(P.jonas), stats);

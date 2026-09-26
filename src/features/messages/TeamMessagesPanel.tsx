@@ -2,7 +2,8 @@
 
 /**
  * Team messages for the staff (piece 17): write to the team or some groups,
- * optionally as important (pinned, push cannot be switched off). Each
+ * optionally as important (pinned for 1 day to 2 weeks, push cannot be
+ * switched off). Each
  * message shows how many players have seen it, who has not, and a one-time
  * reminder for them.
  */
@@ -11,8 +12,11 @@ import { useState } from 'react';
 
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import {
+  DEFAULT_MESSAGE_PIN_DAYS,
   deleteTeamMessage,
   displayName,
+  MESSAGE_PIN_DAYS,
+  messagePinnedUntil,
   messageReadStats,
   messagesForTeam,
   postTeamMessage,
@@ -21,6 +25,7 @@ import {
   type TeamMessage,
 } from '@/shared/data';
 
+import { formatShortDate } from '@/shared/format';
 import { errorText, useT } from '@/shared/i18n';
 
 import { authorName, whenPosted } from './messageText';
@@ -31,6 +36,7 @@ export function TeamMessagesPanel({ teamId }: { teamId: string }) {
   const [body, setBody] = useState('');
   const [groupIds, setGroupIds] = useState<string[]>([]);
   const [important, setImportant] = useState(false);
+  const [pinDays, setPinDays] = useState<number>(DEFAULT_MESSAGE_PIN_DAYS);
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<TeamMessage | null>(null);
@@ -54,9 +60,10 @@ export function TeamMessagesPanel({ teamId }: { teamId: string }) {
 
   function send() {
     run(() => {
-      postTeamMessage({ teamId, groupIds, body, important });
+      postTeamMessage({ teamId, groupIds, body, important, pinDays });
       setBody('');
       setImportant(false);
+      setPinDays(DEFAULT_MESSAGE_PIN_DAYS);
       setGroupIds([]);
     });
   }
@@ -91,7 +98,16 @@ export function TeamMessagesPanel({ teamId }: { teamId: string }) {
             {t('teamMessages.important')}
           </label>
         </div>
-        {important ? <p className="text-xs text-slate-400">{t('teamMessages.importantHint')}</p> : null}
+        {important ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <select value={pinDays} onChange={(event) => setPinDays(Number(event.target.value))} aria-label={t('teamMessages.pinFor')} className="rounded-xl border border-rose-300/40 bg-slate-950 px-2.5 py-1.5 text-xs font-black text-rose-100">
+              {MESSAGE_PIN_DAYS.map((days) => (
+                <option key={days} value={days}>{t('teamMessages.pinFor')} {days % 7 === 0 ? t('teamMessages.pinWeeks', { count: days / 7 }) : t('teamMessages.pinDays', { count: days })}</option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-400">{t('teamMessages.importantHint')}</p>
+          </div>
+        ) : null}
         {error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null}
         <button type="submit" disabled={!body.trim()} className="justify-self-start rounded-xl bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950 disabled:opacity-50">{groupIds.length === 0 ? t('teamMessages.sendToTeam') : groupIds.length === 1 ? t('teamMessages.sendToGroup', { group: groups.find((group) => group.id === groupIds[0])?.name ?? '' }) : t('teamMessages.sendToGroups', { count: groupIds.length })}</button>
       </form>
@@ -101,6 +117,8 @@ export function TeamMessagesPanel({ teamId }: { teamId: string }) {
           {messages.map((message) => {
             const stats = messageReadStats(database, message);
             const open = openId === message.id;
+            const pinnedUntil = messagePinnedUntil(message);
+            const pinned = pinnedUntil !== null && Date.parse(pinnedUntil) > Date.now();
             return (
               <li key={message.id} className={`rounded-2xl border p-3 ${message.important ? 'border-rose-300/40 bg-rose-300/[0.05]' : 'border-slate-800 bg-slate-950/55'}`}>
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-400">
@@ -108,7 +126,12 @@ export function TeamMessagesPanel({ teamId }: { teamId: string }) {
                     <span className="font-black text-slate-200">{authorName(database, message)}</span> · {whenPosted(message.createdAt)}
                     {message.groupIds.length > 0 ? ` · ${message.groupIds.map((id) => groups.find((group) => group.id === id)?.name ?? t('teamMessages.group')).join(', ')}` : ''}
                   </span>
-                  {message.important ? <span className="rounded-full bg-rose-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('teamMessages.important')}</span> : null}
+                  {message.important ? (
+                    <span className="flex items-center gap-2">
+                      {pinned ? <span className="text-rose-200/80">{t('teamMessages.pinnedUntil', { date: formatShortDate(pinnedUntil) })}</span> : null}
+                      <span className="rounded-full bg-rose-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('teamMessages.important')}</span>
+                    </span>
+                  ) : null}
                 </div>
                 <p className="mt-1.5 whitespace-pre-wrap text-sm text-slate-100">{message.body}</p>
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs font-bold">

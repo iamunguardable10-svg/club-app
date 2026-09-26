@@ -2399,6 +2399,24 @@ export function unreadMessagesFor(database: LocalDatabase, personId: Id): TeamMe
   return messagesForPlayer(database, personId).filter((message) => !isMessageRead(database, message.id, personId));
 }
 
+/** How long the staff can pin an important message, in days. */
+export const MESSAGE_PIN_DAYS = [1, 3, 7, 14] as const;
+export const DEFAULT_MESSAGE_PIN_DAYS = 7;
+
+/** Until when a message stays on top; messages saved before this was chosen: two weeks. */
+export function messagePinnedUntil(message: TeamMessage): Timestamp | null {
+  if (!message.important) return null;
+  return message.pinnedUntil ?? new Date(Date.parse(message.createdAt) + 14 * 86_400_000).toISOString();
+}
+
+/** The player's important messages still pinned, newest first. */
+export function pinnedMessagesFor(database: LocalDatabase, personId: Id, now = Date.now()): TeamMessage[] {
+  return messagesForPlayer(database, personId).filter((message) => {
+    const until = messagePinnedUntil(message);
+    return until !== null && Date.parse(until) > now;
+  });
+}
+
 /** Who has read a message, for the staff. */
 export function messageReadStats(database: LocalDatabase, message: TeamMessage): { read: number; total: number; unreadIds: Id[] } {
   const recipients = messageRecipientIds(database, message);
@@ -2418,11 +2436,15 @@ function requireMessageRights(database: LocalDatabase, teamId: Id): Id {
   return coachId;
 }
 
-export function postTeamMessage(input: { teamId: Id; groupIds?: Id[]; body: string; important?: boolean }): Id {
+export function postTeamMessage(input: { teamId: Id; groupIds?: Id[]; body: string; important?: boolean; pinDays?: number }): Id {
   const body = input.body.trim();
   if (!body) throw new LocalDataError('Write a message first.');
   if (body.length > 2000) throw new LocalDataError('A message can be at most 2000 characters.');
+  const important = Boolean(input.important);
+  const pinDays = input.pinDays ?? DEFAULT_MESSAGE_PIN_DAYS;
+  if (important && !(MESSAGE_PIN_DAYS as readonly number[]).includes(pinDays)) throw new LocalDataError('Choose how long the message stays pinned.');
   const id = newId();
+  const createdAt = new Date();
   mutate((database) => {
     const authorId = requireMessageRights(database, input.teamId);
     const groupIds = input.groupIds ?? [];
@@ -2431,8 +2453,9 @@ export function postTeamMessage(input: { teamId: Id; groupIds?: Id[]; body: stri
     }
     database.teamMessages = database.teamMessages ?? [];
     database.teamMessages.push({
-      id, teamId: input.teamId, groupIds, authorId, body, important: Boolean(input.important),
-      createdAt: new Date().toISOString(), remindedAt: null,
+      id, teamId: input.teamId, groupIds, authorId, body, important,
+      pinnedUntil: important ? new Date(createdAt.getTime() + pinDays * 86_400_000).toISOString() : null,
+      createdAt: createdAt.toISOString(), remindedAt: null,
     });
   });
   return id;
