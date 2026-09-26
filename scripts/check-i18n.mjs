@@ -4,9 +4,9 @@
  * - a file that is not flat JSON with non-empty string values,
  * - a key in a translation that English does not have,
  * - a translation whose {placeholders} differ from English,
- * - a `t('key')` in the code that English does not have.
- * Missing translations only warn (they fall back to English); the report
- * shows how complete each language is.
+ * - a `t('key')` in the code that English does not have,
+ * - a text English has and another language lacks (all are complete since
+ *   2026-09-26; a new text gets every language in the same change).
  */
 
 import fs from 'node:fs';
@@ -74,7 +74,8 @@ for (const file of files) {
   const translatedBases = new Set(Object.keys(messages).map(base));
   const missing = [...enBases].filter((key) => !translatedBases.has(key));
   report.push(`${file.replace('.json', '')}: ${enBases.size - missing.length}/${enBases.size}`);
-  if (missing.length > 0) warnings.push(`${file}: ${missing.length} text(s) not translated yet (English shows), e.g. ${missing.slice(0, 3).join(', ')}`);
+  // Every language is complete (2026-09-26): a new text needs all of them.
+  if (missing.length > 0) errors.push(`${file}: ${missing.length} text(s) not translated: ${missing.slice(0, 10).join(', ')}${missing.length > 10 ? ' …' : ''}`);
 }
 
 // Keys the code asks for.

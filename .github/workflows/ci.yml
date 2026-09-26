@@ -32,6 +32,16 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Every page of the demo club as player, coach and club admin, all tabs:
+      # no crash or console error, nothing wider than a phone, no raw text
+      # keys (scripts/smoke.mjs).
+      - name: Browser smoke test
+        run: |
+          npx playwright install --with-deps chromium
+          npm run start -- -p 3100 > /tmp/next.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:3100 > /dev/null && break; sleep 1; done
+          npm run test:smoke || { echo '--- server log ---'; tail -50 /tmp/next.log; exit 1; }
+
   # The checks that used to run only locally: load maths, calendar files,
   # series, the access rules (all migrations on a plain Postgres), the data
   # layer against that database, and the Apple Calendar sync against a local

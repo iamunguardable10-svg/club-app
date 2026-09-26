@@ -2316,3 +2316,23 @@ App-Sprache bzw. an jedem anderen Tag anders heraus → React-Hydration-Fehler #
 Lesen im Browser nur „Loading …“ (`athlete.loading`, in allen vier Sprachen). Geprüft: FR/ES/DE ohne
 Fehler, Englisch mit um 3 Tage vorgestellter Uhr auf allen Spieler-, Trainer- und Vereinsseiten ohne
 Fehler.
+
+## Run 51 — Sicherheitsnetz für andere Modelle, Sprung in den Einstellungen (erledigt)
+
+- **Browser-Rundgang in der CI** (`scripts/smoke.mjs`, `npm run test:smoke`, Playwright 1.56.1):
+  jede Seite des Demo-Vereins als Spieler, Trainer und Vereins-Admin plus die Seiten ohne Rolle,
+  jeder Reiter angeklickt. Schlägt fehl bei Seitenfehlern oder Konsolenfehlern (auch
+  Hydration), bei Seiten breiter als ein Handy, bei rohen Text-Schlüsseln auf dem Bildschirm und
+  bei leeren Seiten. Die Browser-Uhr läuft 2 Tage vor (fängt Datumswerte vom Build-Tag).
+  Standard: Desktop Englisch + Handy Französisch (82 Seitenaufrufe, ~1¾ min); `SMOKE_FULL=1`
+  prüft alle vier Sprachen auf Handy und Desktop.
+- **`check:i18n` wertet fehlende Übersetzungen jetzt als Fehler** (alle vier Sprachen sind
+  vollständig; ein neuer Text braucht alle).
+- **`AGENTS.md` auf den heutigen Stand gebracht** (Demo-Verein und Vereins-Server hinter derselben
+  Datenschicht) und um „Working on a piece (for any model)“ ergänzt: Schritte, Prüfungen, was
+  ohne OK nie passieren darf (Live-Datenbank, Deploys, Tests abschwächen, Rechte ändern).
+- **Einstellungen:** Links wie „Diese Einheiten im Kalender deines Handys anzeigen ›“ springen
+  jetzt zum Abschnitt Handykalender (vorher landete man oben bei „Konto“, weil die Seite erst nach
+  dem Laden gezeichnet wird; Hinweis von Ben).
+- **Deutsch:** „Apple Calendar“ heißt jetzt „Apple-Kalender“.
+- Der Knopf „Delete plan“ bei „This and following“ (Notiz aus Run 41) war schon in #39 behoben.
