@@ -1,1 +1,1 @@
-{{ if eq .Data.locale "de" }}Confirm your Club OS account{{ else }}Confirm your Club OS account{{ end }}
+{{ if eq .Data.locale "de" }}Bestätige dein Club-OS-Konto{{ else }}Confirm your Club OS account{{ end }}
