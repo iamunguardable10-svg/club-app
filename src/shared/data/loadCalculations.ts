@@ -377,3 +377,71 @@ export function projectFutureACWR(entries: AthleteLoadEntry[], plannedSessions: 
       };
     });
 }
+
+// ---------------------------------------------------------------------------
+// Load hints (2026-09-26): only what is worth saying, shown as numbers.
+// ---------------------------------------------------------------------------
+
+/**
+ * From here the app shows a warning: injury risk rises clearly above an
+ * ACWR of 1.5 (Gabbett 2016). 1.3–1.5 is "High" but gets no warning.
+ */
+export const HIGH_RISK_ACWR = 1.5;
+
+function daysBetweenISO(from: string, to: string) {
+  return Math.round((new Date(`${to}T00:00:00`).getTime() - new Date(`${from}T00:00:00`).getTime()) / 86_400_000);
+}
+
+/**
+ * The ratio now and at the end of the day of the last planned session, with
+ * those sessions done as estimated (same forecast as the chart). Null while
+ * the baseline is still building or without planned sessions.
+ */
+export function acwrAfter(entries: AthleteLoadEntry[], planned: AthletePendingSession[]): { before: number; after: number; date: string } | null {
+  if (planned.length === 0) return null;
+  const latest = getLatestACWR(entries);
+  if (!latest?.chronicFull || latest.acwr === null) return null;
+  const date = planned.map((session) => session.date).sort().at(-1)!;
+  const days = Math.max(0, daysBetweenISO(todayISO(), date));
+  const point = projectFutureACWR(entries, planned, days).find((candidate) => candidate.date === date);
+  return point?.acwr != null ? { before: latest.acwr, after: point.acwr, date } : null;
+}
+
+/** The first day in the forecast above `HIGH_RISK_ACWR`, if any. */
+export function firstHighRiskDay(entries: AthleteLoadEntry[], planned: AthletePendingSession[], daysAhead = 7): { date: string; acwr: number } | null {
+  const latest = getLatestACWR(entries);
+  if (!latest?.chronicFull) return null;
+  const today = todayISO();
+  const point = projectFutureACWR(entries, planned, daysAhead).find((candidate) => candidate.date >= today && (candidate.acwr ?? 0) > HIGH_RISK_ACWR);
+  return point?.acwr != null ? { date: point.date, acwr: point.acwr } : null;
+}
+
+/**
+ * Load of the last 7 days (today included) against the 7 days before, in
+ * percent. Null without load in the week before.
+ */
+export function weekChangePercent(entries: AthleteLoadEntry[]): number | null {
+  const today = todayISO();
+  let current = 0;
+  let previous = 0;
+  for (const entry of entries) {
+    const age = daysBetweenISO(entry.date, today);
+    if (age >= 0 && age <= 6) current += entry.load;
+    else if (age >= 7 && age <= 13) previous += entry.load;
+  }
+  return previous > 0 ? Math.round(((current - previous) / previous) * 100) : null;
+}
+
+/**
+ * Back after a break: a gap of at least `gapDays` days without load that
+ * ended within the last `withinDays` days (and load before it).
+ */
+export function backFromBreak(entries: AthleteLoadEntry[], gapDays = 10, withinDays = 14): boolean {
+  const today = todayISO();
+  const dates = [...new Set(entries.map((entry) => entry.date).filter((date) => date <= today))].sort();
+  for (let index = dates.length - 1; index > 0; index -= 1) {
+    if (daysBetweenISO(dates[index], today) > withinDays) return false;
+    if (daysBetweenISO(dates[index - 1], dates[index]) - 1 >= gapDays) return true;
+  }
+  return false;
+}

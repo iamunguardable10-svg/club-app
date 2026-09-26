@@ -2173,3 +2173,27 @@ plan“, auch wenn er „this and following“ löscht.
 
 Idee (offen): Auf „Today“ sagen, wenn eine geplante Einheit heute über die Grenze führt („Das Spiel
 heute Abend bringt dich auf ~1,32“); heute steht dort nur „Ready“ und „Room to high 558 AU“.
+
+## Run 42 — Belastungs-Hinweise ab 1,5 (erledigt)
+
+Wunsch (Ben, 2026-09-26): wenige Hinweise, grafisch statt Text, niemanden bevormunden.
+
+- **Grenze 1,5** (`HIGH_RISK_ACWR`): Ab hier warnt die App; 1,3–1,5 bleibt „High“ ohne Warnung.
+  Quelle: Gabbett 2016 (Br J Sports Med 50:273–280), Einschränkung: Impellizzeri et al. 2020
+  (Int J Sports Physiol Perform 15:907–913) – Indikator, keine Vorhersage.
+- **Today (Spieler):** nur wenn die heutigen Einheiten den Wert laut Vorschau über 1,5 bringen:
+  „Today 1.31 → 1.67 ⚠“ und „Consider a lower intensity“ (die Länge gibt meist der Trainer vor).
+- **Load-Ansicht:** „i“ neben „Room and risk“, dazu kleine Chips: erster Tag über 1,5 in den
+  nächsten 7 Tagen, Wochensprung („+23% vs last week“, ab 15 % gelb), „Back after a break · build
+  up gradually“ (≥ 10 Tage ohne Load, in den letzten 14 Tagen beendet; dann kein Wochensprung).
+- **Trainer, Einheit-Details:** „Load risk with this session“ zeigt nur Spieler, die diese Einheit
+  (bis 7 Tage voraus, Spiel mit Aufwärmen) über 1,5 bringt, als „vorher → nachher ⚠“. Wer „out“
+  ist, fehlt. Rollen nur mit Ampel sehen Spieler, die schon über 1,5 sind. Die alte Liste „High
+  load/Low load“ (ab 1,3 bzw. unter 0,8) entfällt – zu viele Hinweise.
+- **Warnsymbol antippen** (Spieler und Trainer): kurzes Blatt „Training load, briefly“ mit Zonen-
+  Leiste 0,8/1,3/1,5, Zusammenfassung der Studie mit Quelle, Hinweis auf Sprünge/Pausen und die
+  Einschränkung.
+
+Geprüft: Rechentests (`test:load`, an allen 7 Wochentagen), auf dem echten Server mit Wegwerf-
+Verein (Spieler nach 10 Tagen Pause zurück, Spiel heute): Spieler und Trainerin sehen beide
+„1.31 → 1.67“, Erklärblatt öffnet über der Einheit. Daten danach gelöscht.
