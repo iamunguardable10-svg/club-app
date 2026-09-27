@@ -2405,3 +2405,15 @@ Wunsch (Ben, 2026-09-27):
 - **Spielerkarte:** der Erklärsatz unter der Belastungszone ist weg.
 Geprüft: Handy 390×844 (Trainer und Verein, ohne Scrollen), 360×740 und 390×664, eine Woche mit
 Training bis 22:45; Rundgang (`test:smoke`) ohne Fehler.
+
+## Run 57 — Adressvorschläge für Hallen ohne Schlüssel (erledigt)
+
+Wunsch (Ben, 2026-09-27): die Adresse einer Halle über eine kostenlose Schnittstelle ausfüllen. Bisher
+gab es Vorschläge nur mit einem Geoapify-Schlüssel, der nicht gesetzt war. Jetzt: Photon (komoot,
+OpenStreetMap-Daten; kostenlos, ohne Schlüssel), gefragt über `/api/address` auf unserem Server, damit
+nur der eingegebene Text weitergeht, nicht die IP der Person; gleiche Anfragen hält Vercel einen Tag
+vor. Photon findet auch Hallen über ihren Namen („Sporthalle Speyer“ → „PSD Bank - Halle Nord ·
+Birkenweg 10, 67346 Speyer“); in die Liste kommen Name und Adresse, ins Feld nur die Adresse (der
+Hallenname bleibt, wie er ist). `NEXT_PUBLIC_GEOAPIFY_API_KEY` entfällt; der Datenschutz-Hinweis nennt
+Photon. Test: `npm run test:address` (auch in der CI). Geprüft: im Formular „Halle hinzufügen“ auf dem
+Handy, Rundgang (`test:smoke`) ohne Fehler.

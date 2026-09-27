@@ -1500,7 +1500,7 @@
   "privacy.sees.apple": "Appointments from your own Apple calendars: only you.",
   "privacy.sees.outside": "Nobody outside your club.",
   "privacy.where.title": "Where it lives",
-  "privacy.where.text": "The data is stored with Supabase in the EU (Paris, France). The app itself is served by Vercel. Notifications go through Apple’s or Google’s push service to your phone. If you connect Apple Calendar, your sessions are written to your iCloud.",
+  "privacy.where.text": "The data is stored with Supabase in the EU (Paris, France). The app itself is served by Vercel. Notifications go through Apple’s or Google’s push service to your phone. If you connect Apple Calendar, your sessions are written to your iCloud. Address suggestions for halls come from Photon (komoot, OpenStreetMap data); only the text you type is sent, through our server.",
   "privacy.under16.title": "Under 16",
   "privacy.under16.text": "Please ask a parent before you create an account.",
   "privacy.choices.title": "Your choices",

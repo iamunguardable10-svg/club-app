@@ -87,9 +87,8 @@ Preferred stack:
 
 None are needed in the local test mode.
 
-Optional: `NEXT_PUBLIC_GEOAPIFY_API_KEY` turns on address suggestions in the hall
-form (`/coach/facilities`, “Edit halls”). Without it the address is a plain text
-field.
+Address suggestions in the hall form (`/coach/facilities`, “Edit halls”) need
+no key: they come from Photon (komoot, OpenStreetMap data) through `/api/address`.
 
 Club pilot (`docs/simplify-decisions.md`, point 8): with
 `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` set (see
@@ -107,7 +106,7 @@ Facility names and facility addresses are intentionally separate:
 
 - The facility name is the internal club or department name, for example `Main Hall` or `U18 Gym`.
 - The address field can search by official venue name, school name, hall name or street address.
-- Geoapify may fill the address, but it must not automatically overwrite the internal facility name.
+- Address suggestions may fill the address, but they must not automatically overwrite the internal facility name.
 - The hall form on `/coach/facilities` follows this: suggestions only fill the address (`src/features/facilities/AddressField.tsx`).
 
 ## Key principle

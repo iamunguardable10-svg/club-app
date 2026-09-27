@@ -1,81 +1,61 @@
 /**
- * Address suggestions from Geoapify, ported from
- * `src/shared/lib/geoapify/addressAutocomplete.ts` in `543775f`.
- *
- * Optional: without `NEXT_PUBLIC_GEOAPIFY_API_KEY` it returns nothing and the
- * address field stays a plain text field. The app needs no key to run.
+ * Address suggestions for halls: Photon (komoot, OpenStreetMap data; free,
+ * no key), asked through `/api/address`. It also finds halls by name
+ * ("Sporthalle Speyer" → "PSD Bank - Halle Nord, Birkenweg 10, 67346 Speyer").
  */
 
-export type GeoapifyAddressSuggestion = {
+export type AddressSuggestion = {
   placeId: string;
-  formatted: string;
+  /** What goes into the address field: "Birkenweg 10, 67346 Speyer". */
+  address: string;
+  /** The place's own name when it has one ("PSD Bank - Halle Nord"). */
   name: string | null;
-  city: string | null;
-  country: string | null;
-  lat: number | null;
-  lon: number | null;
 };
 
-type GeoapifyAutocompleteResult = {
-  place_id?: string;
-  formatted?: string;
-  name?: string;
-  city?: string;
-  country?: string;
-  lat?: number;
-  lon?: number;
+/** Languages Photon answers in; others get its default (local names). */
+export const PHOTON_LANGUAGES = ['de', 'en', 'fr'] as const;
+
+type PhotonFeature = {
+  properties?: {
+    osm_type?: string;
+    osm_id?: number;
+    name?: string;
+    street?: string;
+    housenumber?: string;
+    postcode?: string;
+    city?: string;
+    district?: string;
+    state?: string;
+    country?: string;
+  };
 };
 
-type GeoapifyAutocompleteResponse = {
-  results?: GeoapifyAutocompleteResult[];
-};
-
-const GEOAPIFY_AUTOCOMPLETE_URL = 'https://api.geoapify.com/v1/geocode/autocomplete';
-
-export function getGeoapifyApiKey() {
-  return process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY?.trim() ?? '';
+/** Photon's answer as suggestions; places without anything to put in the field are left out. */
+export function parsePhotonResults(data: unknown): AddressSuggestion[] {
+  const features = ((data as { features?: PhotonFeature[] } | null)?.features ?? []).slice(0, 5);
+  const seen = new Set<string>();
+  const results: AddressSuggestion[] = [];
+  features.forEach((feature, index) => {
+    const p = feature.properties ?? {};
+    const street = [p.street, p.housenumber].filter(Boolean).join(' ');
+    const town = [p.postcode, p.city ?? p.district].filter(Boolean).join(' ');
+    // A street, square or town itself has only a name: that name is the address.
+    const address = [street || (town ? null : p.name), town || p.state, street || town ? null : p.country].filter(Boolean).join(', ');
+    const name = p.name && p.name !== p.street && p.name !== (p.city ?? '') ? p.name : null;
+    const key = `${name ?? ''}|${address}`;
+    if (!address || seen.has(key)) return;
+    seen.add(key);
+    results.push({ placeId: p.osm_type && p.osm_id ? `${p.osm_type}${p.osm_id}` : `${address}-${index}`, address, name });
+  });
+  return results;
 }
 
-export async function fetchGeoapifyAddressSuggestions(query: string, options?: { limit?: number; signal?: AbortSignal; lang?: string }) {
-  const apiKey = getGeoapifyApiKey();
+export async function fetchAddressSuggestions(query: string, options?: { signal?: AbortSignal; lang?: string }): Promise<AddressSuggestion[]> {
   const text = query.trim();
-
-  if (!apiKey || text.length < 3) {
-    return [];
-  }
-
-  const params = new URLSearchParams({
-    text,
-    format: 'json',
-    limit: String(options?.limit ?? 5),
-    lang: options?.lang ?? 'en',
-    apiKey,
-  });
-
-  const response = await fetch(`${GEOAPIFY_AUTOCOMPLETE_URL}?${params.toString()}`, {
-    signal: options?.signal,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Geoapify autocomplete failed with status ${response.status}.`);
-  }
-
-  const data = (await response.json()) as GeoapifyAutocompleteResponse;
-
-  return (data.results ?? [])
-    .map((result, index): GeoapifyAddressSuggestion | null => {
-      const formatted = result.formatted?.trim();
-      if (!formatted) return null;
-
-      return {
-        placeId: result.place_id?.trim() || `${formatted}-${index}`,
-        formatted,
-        name: result.name?.trim() || null,
-        city: result.city?.trim() || null,
-        country: result.country?.trim() || null,
-        lat: typeof result.lat === 'number' ? result.lat : null,
-        lon: typeof result.lon === 'number' ? result.lon : null,
-      };
-    })
-    .filter((suggestion): suggestion is GeoapifyAddressSuggestion => Boolean(suggestion));
+  if (text.length < 3) return [];
+  const params = new URLSearchParams({ q: text, lang: options?.lang ?? 'en' });
+  const response = await fetch(`/api/address?${params.toString()}`, { signal: options?.signal });
+  if (!response.ok) return [];
+  const data = (await response.json()) as { results?: AddressSuggestion[] };
+  return data.results ?? [];
 }
