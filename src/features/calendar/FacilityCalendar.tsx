@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ComponentProps, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
@@ -64,9 +64,9 @@ const hours = Array.from({ length: 17 }, (_, index) => index + 7);
 const firstHour = hours[0] ?? 7;
 const lastHour = (hours.at(-1) ?? 23) + 1;
 const hourHeight = 72;
-// On a phone the day shrinks to fit above the tab bar, but not below 28 px an hour.
+// On a phone an hour is as tall as fits above the tab bar, at least 28 px (then the page scrolls).
 const MOBILE_HOUR_HEIGHT_MIN = 28;
-const MOBILE_HOUR_HEIGHT_MAX = 32;
+const MOBILE_HOUR_HEIGHT_MAX = 72;
 const minutesPerPixel = 60 / hourHeight;
 const slotMinutes = 15;
 const defaultDurationMinutes = 90;
@@ -418,8 +418,8 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     departmentName: departmentById.get(session.department_id)?.name ?? null,
   })), [departmentById, facility?.name, facilityId, sessions, teamById]);
 
-  // Phone: 08–22, and half an hour around anything this week that starts
-  // earlier or ends later (a session until 22:30 shows the day until 23:00).
+  // Phone: 08–22, or to the full hour around anything this week that starts
+  // earlier or ends later (until 22:30 → the day ends at 23:00; until 23:00 → 23:00).
   const mobileVisibleHours = useMemo(() => {
     const weekStart = days[0];
     const weekEnd = new Date(days[days.length - 1]);
@@ -432,8 +432,8 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       if (end <= weekStart || start >= weekEnd) continue;
       const startMinutes = start.getHours() * 60 + start.getMinutes();
       const endMinutes = sameDay(start, end) ? end.getHours() * 60 + end.getMinutes() : 24 * 60;
-      first = Math.min(first, Math.floor((startMinutes - 30) / 60));
-      last = Math.max(last, Math.ceil((endMinutes + 30) / 60));
+      first = Math.min(first, Math.floor(startMinutes / 60));
+      last = Math.max(last, Math.ceil(endMinutes / 60));
     }
     first = Math.max(0, first);
     last = Math.min(24, last);
@@ -446,17 +446,19 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   const mobileHourHeight = mobileFit.key === mobileFitKey ? mobileFit.height : MOBILE_HOUR_HEIGHT_MAX;
   const mobileGridHeight = mobileVisibleHours.length * mobileHourHeight;
 
-  // Phone: the whole day without scrolling the page where the screen allows.
-  useEffect(() => {
+  // Phone: the tallest hours that still fit without scrolling the page.
+  useLayoutEffect(() => {
     if (mobileFit.key === mobileFitKey) return;
     const grid = calendarScrollRef.current;
     if (window.innerWidth >= 768 || !grid) return;
-    // Drawn at full height now: what sits above the hours (header, week, day)
+    // Drawn at the largest height now: what sits above the hours (header, week, day)
     // and below them (card edge, room for the tab bar) stays, the hours get the rest.
     const rect = grid.getBoundingClientRect();
     const below = document.documentElement.scrollHeight - (rect.bottom + window.scrollY);
     const viewport = window.visualViewport?.height ?? window.innerHeight;
-    const available = viewport - (rect.top + window.scrollY) - below;
+    // Room inside the grid that is not hours (its padding and lines) stays too.
+    const extra = rect.height - mobileVisibleHours.length * MOBILE_HOUR_HEIGHT_MAX;
+    const available = viewport - (rect.top + window.scrollY) - below - extra;
     const height = Math.floor(clamp(available / mobileVisibleHours.length, MOBILE_HOUR_HEIGHT_MIN, MOBILE_HOUR_HEIGHT_MAX));
     setMobileFit({ key: mobileFitKey, height });
   }, [mobileFit.key, mobileFitKey, mobileVisibleHours.length]);

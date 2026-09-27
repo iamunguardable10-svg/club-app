@@ -1,7 +1,8 @@
 /**
- * Address suggestions for halls: Photon (komoot, OpenStreetMap data; free,
- * no key), asked through `/api/address`. It also finds halls by name
- * ("Sporthalle Speyer" → "PSD Bank - Halle Nord, Birkenweg 10, 67346 Speyer").
+ * Address suggestions for halls from Geoapify, asked through `/api/address`
+ * (the key, `GEOAPIFY_API_KEY`, stays on the server). It also finds halls by
+ * name ("Sporthalle Speyer" → "PSD Bank - Halle Nord, Birkenweg 10, 67346 Speyer").
+ * Without the key there are no suggestions and the field is plain text.
  */
 
 export type AddressSuggestion = {
@@ -12,31 +13,23 @@ export type AddressSuggestion = {
   name: string | null;
 };
 
-/** Languages Photon answers in; others get its default (local names). */
-export const PHOTON_LANGUAGES = ['de', 'en', 'fr'] as const;
-
-type PhotonFeature = {
-  properties?: {
-    osm_type?: string;
-    osm_id?: number;
-    name?: string;
-    street?: string;
-    housenumber?: string;
-    postcode?: string;
-    city?: string;
-    district?: string;
-    state?: string;
-    country?: string;
-  };
+type Place = {
+  id: string | null;
+  name?: string;
+  street?: string;
+  housenumber?: string;
+  postcode?: string;
+  city?: string;
+  district?: string;
+  state?: string;
+  country?: string;
 };
 
-/** Photon's answer as suggestions; places without anything to put in the field are left out. */
-export function parsePhotonResults(data: unknown): AddressSuggestion[] {
-  const features = ((data as { features?: PhotonFeature[] } | null)?.features ?? []).slice(0, 5);
+/** Places as suggestions; those without anything to put in the field are left out. */
+function toSuggestions(places: Place[]): AddressSuggestion[] {
   const seen = new Set<string>();
   const results: AddressSuggestion[] = [];
-  features.forEach((feature, index) => {
-    const p = feature.properties ?? {};
+  places.slice(0, 5).forEach((p, index) => {
     const street = [p.street, p.housenumber].filter(Boolean).join(' ');
     const town = [p.postcode, p.city ?? p.district].filter(Boolean).join(' ');
     // A street, square or town itself has only a name: that name is the address.
@@ -45,9 +38,17 @@ export function parsePhotonResults(data: unknown): AddressSuggestion[] {
     const key = `${name ?? ''}|${address}`;
     if (!address || seen.has(key)) return;
     seen.add(key);
-    results.push({ placeId: p.osm_type && p.osm_id ? `${p.osm_type}${p.osm_id}` : `${address}-${index}`, address, name });
+    results.push({ placeId: p.id ?? `${address}-${index}`, address, name });
   });
   return results;
+}
+
+type GeoapifyResult = Omit<Place, 'id'> & { place_id?: string };
+
+/** Geoapify's answer (`format=json`) as suggestions. */
+export function parseGeoapifyResults(data: unknown): AddressSuggestion[] {
+  const results = (data as { results?: GeoapifyResult[] } | null)?.results ?? [];
+  return toSuggestions(results.map(({ place_id: id, ...place }) => ({ ...place, id: id ?? null })));
 }
 
 export async function fetchAddressSuggestions(query: string, options?: { signal?: AbortSignal; lang?: string }): Promise<AddressSuggestion[]> {

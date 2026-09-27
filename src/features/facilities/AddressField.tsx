@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Address input with suggestions (Photon via `/api/address`, see
+ * Address input with suggestions (Geoapify via `/api/address`, see
  * `addressAutocomplete.ts`). An ordinary controlled field; offline, or when
  * the lookup fails, it simply stays a text field.
  */

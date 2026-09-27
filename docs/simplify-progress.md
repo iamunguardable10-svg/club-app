@@ -2417,3 +2417,18 @@ Birkenweg 10, 67346 Speyer“); in die Liste kommen Name und Adresse, ins Feld n
 Hallenname bleibt, wie er ist). `NEXT_PUBLIC_GEOAPIFY_API_KEY` entfällt; der Datenschutz-Hinweis nennt
 Photon. Test: `npm run test:address` (auch in der CI). Geprüft: im Formular „Halle hinzufügen“ auf dem
 Handy, Rundgang (`test:smoke`) ohne Fehler.
+
+## Run 58 — Hallenkalender: Uhrzeiten auf den Linien, Höhe passt genau; Adressen von Geoapify (erledigt)
+
+Wunsch (Ben, 2026-09-27):
+- **Zeitraum (Handy):** 08:00–22:00; geht in der gezeigten Woche etwas früher los oder länger, reicht
+  der Kalender bis zur vollen Stunde darum herum, ohne Puffer (bis 22:30 → 23:00, bis 23:00 → 23:00).
+- **Uhrzeiten auf den Linien** (wie in Kalender-Apps), auch die erste und die letzte, damit das Ende
+  (22:00) als eigene Uhrzeit dasteht; im Hallen- und Trainerkalender (`SmartSessionCalendar`).
+- **Höhe:** die größte Stundenhöhe, bei der der Tag ohne Scrollen passt (höchstens 72 px), mindestens
+  28 px; gemessen vor dem Zeichnen (`useLayoutEffect`), also ohne Flackern.
+- **Adressvorschläge:** Photon ist entfernt; es fragt nur noch Geoapify, mit dem Schlüssel
+  `GEOAPIFY_API_KEY` nur auf dem Server (bei Vercel als „sensitive“ hinterlegt, nicht im Repo, nicht im
+  Browser). Ohne Schlüssel bleibt das Feld ein Textfeld. Datenschutz-Hinweis nennt Geoapify.
+Geprüft: Handy 390×844 und 430×932 ohne Scrollen, 360×740 mit etwas Scrollen, eine Woche mit Training bis
+22:45; `/api/address` mit Schlüssel; Rundgang (`test:smoke`) ohne Fehler.
