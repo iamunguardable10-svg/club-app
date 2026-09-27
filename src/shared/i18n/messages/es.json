@@ -1500,7 +1500,7 @@
   "privacy.sees.apple": "Las citas de tus calendarios personales de Apple: solo tú.",
   "privacy.sees.outside": "Nadie ajeno a tu club.",
   "privacy.where.title": "Dónde se guardan",
-  "privacy.where.text": "Los datos se guardan en Supabase, en la UE (París, Francia). La aplicación se sirve desde Vercel. Las notificaciones llegan al móvil a través del servicio push de Apple o Google. Si conectas Apple Calendar, tus entrenamientos se añaden a tu iCloud.",
+  "privacy.where.text": "Los datos se guardan en Supabase, en la UE (París, Francia). La aplicación se sirve desde Vercel. Las notificaciones llegan al móvil a través del servicio push de Apple o Google. Si conectas Apple Calendar, tus entrenamientos se añaden a tu iCloud. Las sugerencias de dirección para los pabellones vienen de Photon (komoot, datos de OpenStreetMap); solo se envía el texto que escribes, a través de nuestro servidor.",
   "privacy.under16.title": "Menores de 16",
   "privacy.under16.text": "Pide permiso a uno de tus padres antes de crear una cuenta.",
   "privacy.choices.title": "Qué puedes hacer",
