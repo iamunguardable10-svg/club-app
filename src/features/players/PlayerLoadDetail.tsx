@@ -180,9 +180,6 @@ export function PlayerLoadDetail({
                   </div>
                   <div className="min-w-0">
                     <p className="text-xl font-black text-white">{acwrDisplayLabel(summary)}</p>
-                    <p className="mt-1 text-sm font-bold text-slate-300">
-                      {zone.tone === 'high' ? t('playerLoad.zone.high') : zone.tone === 'low' ? t('playerLoad.zone.low') : zone.tone === 'ready' ? t('playerLoad.zone.ready') : t('playerLoad.zone.building')}
-                    </p>
                   </div>
                 </div>
                 <TeamAcwrGauge acwr={acwr} />

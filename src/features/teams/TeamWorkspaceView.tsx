@@ -9,7 +9,7 @@ import { shortDate } from '@/features/absences/absenceText';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { getFacilityAccent } from '@/features/facilities/facilityAccent';
-import { acwrDisplayLabel, playerLoadSummary, type PlayerLoadInput } from '@/features/load/loadAccess';
+import { playerLoadSummary, type PlayerLoadInput } from '@/features/load/loadAccess';
 import { loadZone } from '@/features/load/loadCalculations';
 import { PlayerLoadDetail } from '@/features/players/PlayerLoadDetail';
 import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
@@ -563,7 +563,6 @@ export function TeamWorkspaceView({
             <div className="mt-4 grid gap-2 md:grid-cols-2 lg:grid-cols-3">
               {sortedPlayers.map((player) => {
                 const summary = playerLoadSummary(player);
-                const attendanceFlags = player.attendanceEvents?.filter((event) => event.status === 'out' || event.status === 'late').length ?? 0;
                 const groupNames = (player.groups ?? []).map((id) => groupNameById.get(id) ?? id);
                 return (
                   <button key={player.id} type="button" onClick={() => setActivePlayer(player)} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 text-left transition hover:border-emerald-300/55 hover:bg-slate-900">
@@ -572,10 +571,6 @@ export function TeamWorkspaceView({
                       {data.loadTracked !== false && summary.access !== 'none' && summary.acwr !== null ? <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-black ${acwrToneClass(summary.zone.tone)}`}>{t('team.acwrBadge', { value: formatDecimal(summary.acwr) })}</span> : null}
                     </div>
                     {groupNames.length > 0 ? <p className="mt-1 truncate text-xs font-bold text-slate-500">{groupNames.join(' · ')}</p> : null}
-                    <div className="mt-3 flex items-center justify-between gap-2 text-xs font-bold text-slate-400">
-                      <span>{data.loadTracked === false ? '' : acwrDisplayLabel(summary)}</span>
-                      {player.attendanceShared !== false ? <span>{attendanceFlags > 0 ? t('team.outOrLate', { count: attendanceFlags }) : t('team.alwaysThere')}</span> : null}
-                    </div>
                     {player.awayUntil ? <p className="mt-2 inline-flex rounded-full border border-amber-300/40 bg-amber-300/10 px-2 py-0.5 text-[11px] font-black text-amber-100">{t('team.awayUntil', { date: shortDate(player.awayUntil) })}</p> : null}
                   </button>
                 );
