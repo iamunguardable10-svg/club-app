@@ -7,6 +7,7 @@
 
 import { useEffect, useRef } from 'react';
 
+import { isStaleBuildError, reloadOnce } from '@/features/install/buildVersion';
 import { useBackendStatus } from '@/shared/data';
 
 import { reportError } from './errorReporting';
@@ -20,9 +21,14 @@ export function ErrorReporter() {
       // "Script error." without an error object: the browser hid what happened
       // (another origin, an extension). Nothing anyone could act on.
       if (!event.error && /^Script error\.?$/.test(event.message ?? '')) return;
+      // An old build meeting a new one: load the page again instead.
+      if (isStaleBuildError(event.error ?? event.message) && reloadOnce()) return;
       reportError('error', event.error ?? event.message);
     };
-    const onRejection = (event: PromiseRejectionEvent) => reportError('error', event.reason);
+    const onRejection = (event: PromiseRejectionEvent) => {
+      if (isStaleBuildError(event.reason) && reloadOnce()) return;
+      reportError('error', event.reason);
+    };
     window.addEventListener('error', onError);
     window.addEventListener('unhandledrejection', onRejection);
     return () => {

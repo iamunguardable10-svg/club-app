@@ -5,13 +5,18 @@
 import { useEffect, useState } from 'react';
 
 import { reportError } from '@/features/errors/errorReporting';
+import { isStaleBuildError, reloadOnce } from '@/features/install/buildVersion';
 import { ReportProblemDialog } from '@/features/errors/ReportProblemDialog';
 import { useT } from '@/shared/i18n';
 
 export default function PageError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const t = useT();
   const [reporting, setReporting] = useState(false);
-  useEffect(() => reportError('crash', error), [error]);
+  useEffect(() => {
+    // An old build meeting a new one after a deploy: a fresh load fixes it.
+    if (isStaleBuildError(error) && reloadOnce()) return;
+    reportError('crash', error);
+  }, [error]);
   return (
     <main className="os-page grid place-items-center px-4">
       <section className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-950/80 p-6 text-white">

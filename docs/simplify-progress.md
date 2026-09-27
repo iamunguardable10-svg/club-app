@@ -2374,3 +2374,21 @@ Nachrichten-Seite pinnte fest 14 Tage.
 - **App:** `MESSAGE_PIN_DAYS`, `messagePinnedUntil`, `pinnedMessagesFor`; `postTeamMessage` nimmt
   `pinDays`. Geprüft: Handy 390 px DE/FR (Trainer schreibt, Spieler sieht sie vor und nach dem Lesen),
   Rundgang (`test:smoke`) ohne Fehler.
+
+## Run 55 — Alte App nach einem Deploy: neu laden statt abstürzen (erledigt)
+
+Fehlerbericht (2026-09-26, iPhone, Safari, als App): „TypeError: undefined is not an object (evaluating
+'e[o].call')“ auf `/`, gemeldet von Version `e079479` (Stück 31, viele Deploys alt). Ursache: die App
+lief noch im alten Stand (im Hintergrund offen gelassen oder aus der Offline-Kopie geöffnet); beim
+nächsten Seitenwechsel lud sie Teile des neuen Builds nach, die nicht zu ihren passen. Next.js fängt das
+nicht ab (Vercels „Skew Protection“ nur in bezahlten Tarifen).
+- `/api/version` nennt den Build des Servers. Kommt die App nach vorn (oder startet) und der Server hat
+  einen neueren Build, lädt sie sich einmal neu (`src/features/install/buildVersion.ts`, in
+  `ServiceWorkerRegistration`; höchstens einmal pro Minute nachgefragt).
+- Tritt so ein Fehler trotzdem auf (Safari „e[o].call“, Chrome „reading 'call'“, ChunkLoadError), lädt
+  die App sich neu, statt die Fehlerseite zu zeigen und ihn zu melden (`ErrorReporter`, `error.tsx`,
+  `global-error.tsx`).
+- Gegen Schleifen: pro Tab und Build höchstens ein Neuladen in fünf Minuten.
+Geprüft: `npm run test:build` (neu, auch in der CI); im Browser mit einem Build „aaaaaaa“ und einem
+vorgetäuschten Server-Build „bbbbbbb“: einmal neu geladen, keine Schleife; der Safari-Fehler lädt einmal
+neu, ein zweiter gleich danach nicht; Rundgang (`test:smoke`) ohne Fehler.
