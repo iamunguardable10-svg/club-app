@@ -64,7 +64,9 @@ const hours = Array.from({ length: 17 }, (_, index) => index + 7);
 const firstHour = hours[0] ?? 7;
 const lastHour = (hours.at(-1) ?? 23) + 1;
 const hourHeight = 72;
-const mobileHourHeight = 32;
+// On a phone the day shrinks to fit above the tab bar, but not below 28 px an hour.
+const MOBILE_HOUR_HEIGHT_MIN = 28;
+const MOBILE_HOUR_HEIGHT_MAX = 32;
 const minutesPerPixel = 60 / hourHeight;
 const slotMinutes = 15;
 const defaultDurationMinutes = 90;
@@ -416,9 +418,54 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     departmentName: departmentById.get(session.department_id)?.name ?? null,
   })), [departmentById, facility?.name, facilityId, sessions, teamById]);
 
-  const mobileVisibleHours = useMemo(() => hours.filter((hour) => hour >= 8 && hour <= 23), []);
+  // Phone: 08–22, and half an hour around anything this week that starts
+  // earlier or ends later (a session until 22:30 shows the day until 23:00).
+  const mobileVisibleHours = useMemo(() => {
+    const weekStart = days[0];
+    const weekEnd = new Date(days[days.length - 1]);
+    weekEnd.setDate(weekEnd.getDate() + 1);
+    let first = 8;
+    let last = 22;
+    for (const session of calendarSessions) {
+      const start = new Date(session.startsAt);
+      const end = session.endsAt ? new Date(session.endsAt) : start;
+      if (end <= weekStart || start >= weekEnd) continue;
+      const startMinutes = start.getHours() * 60 + start.getMinutes();
+      const endMinutes = sameDay(start, end) ? end.getHours() * 60 + end.getMinutes() : 24 * 60;
+      first = Math.min(first, Math.floor((startMinutes - 30) / 60));
+      last = Math.max(last, Math.ceil((endMinutes + 30) / 60));
+    }
+    first = Math.max(0, first);
+    last = Math.min(24, last);
+    return Array.from({ length: last - first }, (_, index) => first + index);
+  }, [calendarSessions, days]);
   const mobileFirstHour = mobileVisibleHours[0] ?? firstHour;
+  // Measured for one layout (`key`); a new layout is drawn at full height first, then fitted.
+  const mobileFitKey = `${state}|${mobileCalendarView}|${mobileVisibleHours.length}`;
+  const [mobileFit, setMobileFit] = useState({ key: '', height: MOBILE_HOUR_HEIGHT_MAX });
+  const mobileHourHeight = mobileFit.key === mobileFitKey ? mobileFit.height : MOBILE_HOUR_HEIGHT_MAX;
   const mobileGridHeight = mobileVisibleHours.length * mobileHourHeight;
+
+  // Phone: the whole day without scrolling the page where the screen allows.
+  useEffect(() => {
+    if (mobileFit.key === mobileFitKey) return;
+    const grid = calendarScrollRef.current;
+    if (window.innerWidth >= 768 || !grid) return;
+    // Drawn at full height now: what sits above the hours (header, week, day)
+    // and below them (card edge, room for the tab bar) stays, the hours get the rest.
+    const rect = grid.getBoundingClientRect();
+    const below = document.documentElement.scrollHeight - (rect.bottom + window.scrollY);
+    const viewport = window.visualViewport?.height ?? window.innerHeight;
+    const available = viewport - (rect.top + window.scrollY) - below;
+    const height = Math.floor(clamp(available / mobileVisibleHours.length, MOBILE_HOUR_HEIGHT_MIN, MOBILE_HOUR_HEIGHT_MAX));
+    setMobileFit({ key: mobileFitKey, height });
+  }, [mobileFit.key, mobileFitKey, mobileVisibleHours.length]);
+
+  useEffect(() => {
+    const refit = () => setMobileFit((current) => ({ ...current, key: '' }));
+    window.addEventListener('resize', refit);
+    return () => window.removeEventListener('resize', refit);
+  }, []);
 
   function canManageSession(session: Session) {
     return isClubAdmin || managedDepartmentIds.has(session.department_id) || managedTeamIds.has(session.owner_team_id);
@@ -447,6 +494,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     window.addEventListener('resize', updateDesktopScale);
     return () => window.removeEventListener('resize', updateDesktopScale);
   }, []);
+
 
   useEffect(() => {
     return () => {
@@ -944,11 +992,11 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       back={backTarget}
     >
       <div className="space-y-4">
-        <div className="flex flex-wrap gap-2 text-xs font-black">
-          {highlightedTeam ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-200">{t('hallCalendar.highlighted', { name: highlightedTeam.name })}</span> : null}
-          {!highlightedTeam && highlightedDepartment ? <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-200">{t('hallCalendar.highlighted', { name: highlightedDepartment.name })}</span> : null}
-          <span className="rounded-full border border-slate-800 px-3 py-1 text-slate-400">{t('hallCalendar.allBookings')}</span>
-        </div>
+        {highlightedTeam || highlightedDepartment ? (
+          <div className="flex flex-wrap gap-2 text-xs font-black">
+            <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-200">{t('hallCalendar.highlighted', { name: (highlightedTeam ?? highlightedDepartment)!.name })}</span>
+          </div>
+        ) : null}
         {facilityAssignmentNotice ? (
           <p className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm font-medium text-slate-300">{facilityAssignmentNotice}</p>
         ) : null}

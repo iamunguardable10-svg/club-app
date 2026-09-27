@@ -2392,3 +2392,16 @@ nicht ab (Vercels „Skew Protection“ nur in bezahlten Tarifen).
 Geprüft: `npm run test:build` (neu, auch in der CI); im Browser mit einem Build „aaaaaaa“ und einem
 vorgetäuschten Server-Build „bbbbbbb“: einmal neu geladen, keine Schleife; der Safari-Fehler lädt einmal
 neu, ein zweiter gleich danach nicht; Rundgang (`test:smoke`) ohne Fehler.
+
+## Run 56 — Hallenkalender ohne Scrollen, weniger Text bei den Spielern (erledigt)
+
+Wunsch (Ben, 2026-09-27):
+- **Hallenkalender (Handy):** Der Tag zeigt 08–22 Uhr; beginnt oder endet in der gezeigten Woche etwas
+  früher oder später, reicht er eine halbe Stunde darüber hinaus (Training bis 22:30 → bis 23:00). Die
+  Stunde ist 32 px hoch und schrumpft bis 28 px, damit der Tag über die Leiste unten passt (auf kleinen
+  Handys bleibt ein wenig Scrollen). Die Zeile „Alle Buchungen dieser Halle aus allen Teams“ ist weg.
+- **Spielerliste (Trainer):** nur noch Name, Gruppe und ACWR; „Niedrige Belastung“ und „7× abwesend
+  oder verspätet“ sind weg (stehen in der Spielerkarte).
+- **Spielerkarte:** der Erklärsatz unter der Belastungszone ist weg.
+Geprüft: Handy 390×844 (Trainer und Verein, ohne Scrollen), 360×740 und 390×664, eine Woche mit
+Training bis 22:45; Rundgang (`test:smoke`) ohne Fehler.
