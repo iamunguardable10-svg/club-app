@@ -5,13 +5,18 @@
 import { useEffect } from 'react';
 
 import { reportError } from '@/features/errors/errorReporting';
+import { isStaleBuildError, reloadOnce } from '@/features/install/buildVersion';
 import { useT } from '@/shared/i18n';
 
 import './globals.css';
 
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const t = useT();
-  useEffect(() => reportError('crash', error), [error]);
+  useEffect(() => {
+    // An old build meeting a new one after a deploy: a fresh load fixes it.
+    if (isStaleBuildError(error) && reloadOnce()) return;
+    reportError('crash', error);
+  }, [error]);
   return (
     <html lang="en">
       <body>

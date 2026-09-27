@@ -23,6 +23,7 @@
     "push-texts": "tsx scripts/push-texts.ts",
     "mail-templates": "tsx scripts/mail-templates.ts",
     "test:i18n": "tsx src/shared/i18n/translate.test.ts",
+    "test:build": "tsx src/features/install/buildVersion.test.ts",
     "test:smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
