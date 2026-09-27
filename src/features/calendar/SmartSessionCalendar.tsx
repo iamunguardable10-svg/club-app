@@ -221,9 +221,15 @@ export function SmartSessionCalendar({
           ))}
         </div>
         <div ref={calendarScrollRef} className="overflow-hidden touch-pan-y">
-          <div className="grid grid-cols-[34px_repeat(7,minmax(0,1fr))]">
+          <div className="grid grid-cols-[34px_repeat(7,minmax(0,1fr))] py-2">
             <div className="bg-slate-950/95">
-              {mobileVisibleHours.map((hour) => <div key={hour} className="border-b border-slate-900 px-1 py-1 text-[9px] font-bold text-slate-500" style={{ height: mobileHourHeight }}>{String(hour).padStart(2, '0')}</div>)}
+              {mobileVisibleHours.map((hour, index) => (
+                <div key={hour} className={`relative border-b border-slate-900 ${index === 0 ? 'border-t' : ''} text-[9px] font-bold leading-none text-slate-500`} style={{ height: mobileHourHeight }}>
+                  {/* Each time on its line; the last line shows where the day ends. */}
+                  <span className="absolute left-1 top-0 -translate-y-1/2">{String(hour).padStart(2, '0')}</span>
+                  {index === mobileVisibleHours.length - 1 ? <span className="absolute bottom-0 left-1 translate-y-1/2">{String(hour + 1).padStart(2, '0')}</span> : null}
+                </div>
+              ))}
             </div>
             {days.map((day, dayIndex) => {
               const daySessions = sessions.filter((session) => smartSameDay(new Date(session.startsAt), day));
@@ -231,7 +237,7 @@ export function SmartSessionCalendar({
               const isDragPreviewDay = dragPreviewDate === smartIsoDate(day);
               return (
                 <div key={day.toISOString()} data-smart-day={smartIsoDate(day)} data-density="mobile" ref={(element) => setDayRef(dayIndex, element)} onPointerDown={(event) => onSlotPointerDown(day, event)} className={`relative border-l border-slate-900 transition-colors ${isDragPreviewDay ? 'bg-sky-300/[0.07] ring-1 ring-inset ring-sky-300/35' : ''}`} style={{ height: mobileGridHeight, touchAction: 'pan-y' }}>
-                  {mobileVisibleHours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: mobileHourHeight }} />)}
+                  {mobileVisibleHours.map((hour, index) => <div key={hour} className={`border-b border-slate-900 ${index === 0 ? 'border-t' : ''}`} style={{ height: mobileHourHeight }} />)}
                   {daySessions.map((session) => {
                     const start = new Date(session.startsAt);
                     const top = Math.max(0, ((start.getHours() - mobileFirstHour) * 60 + start.getMinutes()) * (mobileHourHeight / 60));
@@ -286,9 +292,15 @@ export function SmartSessionCalendar({
           </div>
         </div>
         <div ref={calendarScrollRef} onPointerDown={onMobileDaySwipeStart} onPointerUp={onMobileDaySwipeEnd} onPointerCancel={onMobileDaySwipeCancel} className={`overflow-hidden rounded-b-3xl touch-pan-y transition-all duration-200 ${dayTransitionDirection === 'next' ? 'translate-x-1 scale-[0.99] ring-2 ring-sky-300/40' : dayTransitionDirection === 'previous' ? '-translate-x-1 scale-[0.99] ring-2 ring-sky-300/40' : ''}`}>
-          <div className="grid grid-cols-[52px_minmax(0,1fr)]">
+          <div className="grid grid-cols-[52px_minmax(0,1fr)] py-2">
             <div className="bg-slate-950/95">
-              {mobileVisibleHours.map((hour) => <div key={hour} className="border-b border-slate-900 px-2 py-1 text-[10px] font-bold text-slate-500" style={{ height: mobileHourHeight }}>{String(hour).padStart(2, '0')}:00</div>)}
+              {mobileVisibleHours.map((hour, index) => (
+                <div key={hour} className={`relative border-b border-slate-900 ${index === 0 ? 'border-t' : ''} text-[10px] font-bold leading-none text-slate-500`} style={{ height: mobileHourHeight }}>
+                  {/* Each time on its line; the last line shows where the day ends. */}
+                  <span className="absolute left-2 top-0 -translate-y-1/2">{String(hour).padStart(2, '0')}:00</span>
+                  {index === mobileVisibleHours.length - 1 ? <span className="absolute bottom-0 left-2 translate-y-1/2">{String(hour + 1).padStart(2, '0')}:00</span> : null}
+                </div>
+              ))}
             </div>
             {(() => {
               const day = days[activeDayIndex];
@@ -297,7 +309,7 @@ export function SmartSessionCalendar({
               const isDragPreviewDay = dragPreviewDate === smartIsoDate(day);
               return (
                 <div data-smart-day={smartIsoDate(day)} data-density="mobile" ref={(element) => setDayRef(activeDayIndex, element)} onPointerDown={(event) => onSlotPointerDown(day, event)} className={`relative border-l border-slate-900 transition-colors ${isDragPreviewDay ? 'bg-sky-300/[0.07] ring-1 ring-inset ring-sky-300/35' : ''}`} style={{ height: mobileGridHeight, touchAction: 'pan-y' }}>
-                  {mobileVisibleHours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: mobileHourHeight }} />)}
+                  {mobileVisibleHours.map((hour, index) => <div key={hour} className={`border-b border-slate-900 ${index === 0 ? 'border-t' : ''}`} style={{ height: mobileHourHeight }} />)}
                   {daySessions.length === 0 && !draftIsOnDay && mode === 'view' ? (
                     <p className="pointer-events-none absolute inset-x-3 top-3 rounded-xl border border-slate-800 bg-slate-950/90 px-3 py-2 text-center text-xs font-bold text-slate-400">{t('calendar.noSessionsDay')}</p>
                   ) : null}

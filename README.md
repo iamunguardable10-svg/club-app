@@ -87,8 +87,9 @@ Preferred stack:
 
 None are needed in the local test mode.
 
-Address suggestions in the hall form (`/coach/facilities`, “Edit halls”) need
-no key: they come from Photon (komoot, OpenStreetMap data) through `/api/address`.
+Optional: `GEOAPIFY_API_KEY` (server only, set in Vercel) turns on address
+suggestions in the hall form (`/coach/facilities`, “Edit halls”), asked through
+`/api/address`. Without it the address is a plain text field.
 
 Club pilot (`docs/simplify-decisions.md`, point 8): with
 `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` set (see

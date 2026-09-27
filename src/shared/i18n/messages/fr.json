@@ -1500,7 +1500,7 @@
   "privacy.sees.apple": "Les rendez-vous de tes calendriers Apple personnels : toi seul les vois.",
   "privacy.sees.outside": "Personne en dehors de ton club.",
   "privacy.where.title": "Où les données sont conservées",
-  "privacy.where.text": "Les données sont conservées chez Supabase dans l’UE (Paris, France). L’application est hébergée par Vercel. Les notifications passent par le service push d’Apple ou de Google pour arriver sur ton téléphone. Si tu connectes Apple Calendar, tes séances sont ajoutées à ton iCloud. Les suggestions d’adresse pour les salles viennent de Photon (komoot, données OpenStreetMap) ; seul le texte saisi est envoyé, via notre serveur.",
+  "privacy.where.text": "Les données sont conservées chez Supabase dans l’UE (Paris, France). L’application est hébergée par Vercel. Les notifications passent par le service push d’Apple ou de Google pour arriver sur ton téléphone. Si tu connectes Apple Calendar, tes séances sont ajoutées à ton iCloud. Les suggestions d’adresse pour les salles viennent de Geoapify ; seul le texte saisi est envoyé, via notre serveur.",
   "privacy.under16.title": "Moins de 16 ans",
   "privacy.under16.text": "Demande l’accord d’un parent avant de créer un compte.",
   "privacy.choices.title": "Tes choix",
