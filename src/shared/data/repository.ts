@@ -158,8 +158,12 @@ export function setBackendChoice(choice: BackendChoice): void {
   backendChoice = choice;
 }
 
-/** Hints that can be put away with "Not now": installing the app, turning on notifications, the calendar (piece 20). */
-export type HintName = 'install' | 'notifications' | 'calendar';
+/**
+ * Hints that can be put away with "Not now": installing the app, turning on
+ * notifications, the calendar (piece 20), and each page's first-visit tip
+ * (`tip.<page>`, see `src/features/onboarding/PageTip.tsx`).
+ */
+export type HintName = 'install' | 'notifications' | 'calendar' | `tip.${string}`;
 
 const hintKey = (name: HintName) => `club-app.hint-dismissed.${name}`;
 
@@ -179,6 +183,18 @@ export function dismissHint(name: HintName): void {
     window.localStorage.setItem(hintKey(name), '1');
   } catch {
     // Not remembering is fine; the hint just shows again next time.
+  }
+}
+
+/** Shows every page's first-visit tip again (settings). */
+export function resetPageTips(): void {
+  if (!isBrowser()) return;
+  try {
+    const prefix = hintKey('tip.');
+    const keys = Array.from({ length: window.localStorage.length }, (_, index) => window.localStorage.key(index)).filter((key): key is string => Boolean(key?.startsWith(prefix)));
+    for (const key of keys) window.localStorage.removeItem(key);
+  } catch {
+    // Nothing kept, nothing to reset.
   }
 }
 

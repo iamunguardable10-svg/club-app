@@ -21,6 +21,7 @@ import { CalendarHint } from '@/features/calendar/CalendarHint';
 import { athleteHasLoad, getActivePerson, unreadMessagesFor, useLocalDatabase } from '@/shared/data';
 import { UnreadMessagesCard } from '@/features/messages/UnreadMessagesCard';
 import { countToRate } from '@/features/load/athleteLocalStore';
+import { PageTip, type TipId } from '@/features/onboarding/PageTip';
 import { useT, type MessageKey } from '@/shared/i18n';
 
 export type CoachNavItem = 'today' | 'calendar' | 'team' | 'halls' | 'history';
@@ -72,21 +73,27 @@ type ShellProps = {
   back?: { href: string; label: string };
   /** Buttons next to the title (right side on desktop, below it on phones). */
   actions?: ReactNode;
+  /** The page's first-visit tip; by default the one of the tab, `null` for none. */
+  tip?: TipId | null;
   children: ReactNode;
 };
 
-export function CoachShell({ active, ...props }: ShellProps & { active: CoachNavItem }) {
-  return <RoleShell nav={COACH_NAV} active={active} {...props} />;
+export function CoachShell({ active, tip, ...props }: ShellProps & { active: CoachNavItem }) {
+  return <RoleShell nav={COACH_NAV} active={active} tip={tip === undefined ? `coach.${active}` : tip} {...props} />;
 }
 
 /** `showLoad` is false for players whose teams do not track training load. */
-export function AthleteShell({ active, showLoad = true, ...props }: ShellProps & { active: AthleteNavItem; showLoad?: boolean }) {
-  return <RoleShell nav={showLoad ? ATHLETE_NAV : ATHLETE_NAV.filter((entry) => entry.item !== 'load')} active={active} {...props} />;
+export function AthleteShell({ active, showLoad = true, tip, ...props }: ShellProps & { active: AthleteNavItem; showLoad?: boolean }) {
+  // Without load tracking the tips leave out load and own plans.
+  const defaultTip: TipId = active === 'today' ? (showLoad ? 'athlete.today' : 'athlete.todayBasic')
+    : active === 'calendar' ? (showLoad ? 'athlete.calendar' : 'athlete.calendarBasic')
+    : `athlete.${active}`;
+  return <RoleShell nav={showLoad ? ATHLETE_NAV : ATHLETE_NAV.filter((entry) => entry.item !== 'load')} active={active} tip={tip === undefined ? defaultTip : tip} {...props} />;
 }
 
 /** Club admins and department leads (piece 8). */
-export function ClubShell({ active, ...props }: ShellProps & { active: ClubNavItem }) {
-  return <RoleShell nav={CLUB_NAV} active={active} {...props} />;
+export function ClubShell({ active, tip, ...props }: ShellProps & { active: ClubNavItem }) {
+  return <RoleShell nav={CLUB_NAV} active={active} tip={tip === undefined ? `club.${active}` : tip} {...props} />;
 }
 
 /**
@@ -102,7 +109,7 @@ export function ActiveRoleShell(props: ShellProps) {
   return <RoleShell nav={nav} active={null} {...props} />;
 }
 
-function RoleShell({ nav, active, title, subtitle, back, actions, children }: ShellProps & { nav: NavEntry[]; active: NavItem | null }) {
+function RoleShell({ nav, active, title, subtitle, back, actions, tip, children }: ShellProps & { nav: NavEntry[]; active: NavItem | null }) {
   const t = useT();
   const { database } = useLocalDatabase();
   const person = database ? getActivePerson(database) : null;
@@ -181,6 +188,7 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
       </header>
 
       <div className="mx-auto w-full max-w-6xl space-y-5 px-4 pt-4 sm:px-8 md:pt-6">
+        {tip ? <PageTip key={tip} id={tip} /> : null}
         {/* On the first page of each role only, so it is seen once and not everywhere. */}
         {active === 'today' || active === 'club' ? <><InstallHint variant="card" /><NotificationsHint variant="card" /></> : null}
         {active === 'calendar' ? <CalendarHint /> : null}
