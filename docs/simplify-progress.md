@@ -2432,3 +2432,18 @@ Wunsch (Ben, 2026-09-27):
   Browser). Ohne Schlüssel bleibt das Feld ein Textfeld. Datenschutz-Hinweis nennt Geoapify.
 Geprüft: Handy 390×844 und 430×932 ohne Scrollen, 360×740 mit etwas Scrollen, eine Woche mit Training bis
 22:45; `/api/address` mit Schlüssel; Rundgang (`test:smoke`) ohne Fehler.
+
+## Run 59 — Hinweise beim ersten Besuch jeder Seite (erledigt)
+
+Wunsch (Ben, 2026-09-28): kurzes Onboarding pro Seite, das sich wie eine hochwertige iOS-App anfühlt.
+`PageTip` (`src/features/onboarding/PageTip.tsx`) nach dem Vorbild der iOS-„Tipps“: eine schlanke Karte
+oben auf der Seite mit Symbol, Titel und ein bis zwei Sätzen, weg mit ×, danach auf diesem Gerät nie
+wieder (`dismissHint('tip.<seite>')`). Sie gleitet 0,45 s nach der Seite weich ein (Höhe, Versatz,
+Größe; iOS-Kurve) und klappt beim Schließen ohne Sprung zu; bei „Bewegung reduzieren“ ohne Animation.
+Eingehängt im Seitenrahmen (`RoleShell`), also eine pro Tab und Rolle: Spieler Heute, Kalender (mit und
+ohne Belastung je eigener Text), Belastung, Nachrichten; Trainer Heute, Kalender, Team, Hallen, Verlauf;
+Verein Übersicht, Hallen; Hallenkalender. Einstellungen → „Hinweise wieder anzeigen“ holt alle zurück.
+Texte in allen vier Sprachen, die genannten Knöpfe genau wie in der App. Geprüft: Handy DE/FR,
+Erscheinen, Schließen, Neuladen (bleibt weg), Zurückholen; Rundgang (`test:smoke`) ohne Fehler.
+Die Load-Kurve in der Spielerkarte des Trainers gab es schon (Trend mit ACWR-Linie, 7/14/30 Tage, plus
+Wochenprofil).

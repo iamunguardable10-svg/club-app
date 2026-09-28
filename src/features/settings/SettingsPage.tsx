@@ -40,6 +40,7 @@ import {
   ownPersonIds,
   renameClub,
   renameOwnPerson,
+  resetPageTips,
   saveNotificationSettings,
   signOut,
   updatePassword,
@@ -96,6 +97,7 @@ export function SettingsPage() {
                 ? <NotificationsHint variant="settings" />
                 : <p className="text-sm text-slate-400">{t('settings.demoNotifications')}</p>}
               <InstallHint variant="settings" />
+              <ShowTipsAgain />
             </div>
           </CoachSection>
         </div>
@@ -105,6 +107,20 @@ export function SettingsPage() {
 }
 
 /** Whether the account plays in a team (its Apple appointments show in the player calendar). */
+/** Brings back the first-visit tip of every page (`PageTip`). */
+function ShowTipsAgain() {
+  const t = useT();
+  const [done, setDone] = useState(false);
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <button type="button" onClick={() => { resetPageTips(); setDone(true); }} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-200 hover:border-slate-500">
+        {t('settings.showTipsAgain')}
+      </button>
+      {done ? <p role="status" className="text-xs font-bold text-emerald-200">{t('settings.tipsShown')}</p> : null}
+    </div>
+  );
+}
+
 function isPlayerAccount(database: LocalDatabase) {
   const own = new Set(ownPersonIds(database));
   return database.memberships.some((membership) => own.has(membership.personId) && membership.role === 'athlete');
