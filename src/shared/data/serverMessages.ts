@@ -38,6 +38,7 @@ export const SERVER_MESSAGES: Record<string, MessageKey> = {
   "This founding code has already been used.": 'server.thisFoundingCodeHasAlready',
   "This hall is not shared with the team": 'server.thisHallIsNotShared',
   "This invitation has already been accepted.": 'server.thisInvitationHasAlreadyBeen',
+  "This session has already started.": 'server.thisSessionHasAlreadyStarted',
   "This invitation is no longer valid.": 'server.thisInvitationIsNoLonger',
   "This is not a valid push subscription.": 'server.thisIsNotAValid',
   "This join code does not exist.": 'server.thisJoinCodeDoesNot',
@@ -65,6 +66,7 @@ export const SERVER_MESSAGES: Record<string, MessageKey> = {
   "Could not find the calendar account.": 'server.couldNotFindTheCalendar',
   "Could not find the calendars.": 'server.couldNotFindTheCalendars',
   "Apple Calendar is not available right now.": 'server.appleCalendarIsNotAvailable',
+  "Your role may not see attendance for this team.": 'server.yourRoleMayNotSeeAttendance',
 };
 
 const PATTERNS: [RegExp, MessageKey][] = [

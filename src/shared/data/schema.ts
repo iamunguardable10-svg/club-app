@@ -172,8 +172,16 @@ export type Person = {
   userId: Id | null;
   firstName: string;
   lastName: string;
+  /**
+   * How a player answers sessions (piece A): 'auto' (default) counts no answer
+   * as "in", so they only say when they cannot come; 'manual' counts no answer
+   * as open, and they say "in" themselves. Missing means 'auto'.
+   */
+  rsvpMode?: RsvpMode;
   createdAt: Timestamp;
 };
+
+export type RsvpMode = 'auto' | 'manual';
 
 /**
  * Roles come from memberships, never from a single global role on the person.

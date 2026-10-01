@@ -270,10 +270,12 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     { id: 'club-role-lead-1', clubId: CLUB_ID, personId: 'department-lead-1', role: 'department_lead', departmentId: DEPARTMENT_ID, createdAt },
   ];
 
+  // Piece A: two U16 players say yes themselves, so the coach sees open answers.
+  const saysYesThemselves = new Set(['athlete-u16-4', 'athlete-u16-7']);
   const addAthletes = (teamId: Id, names: [string, string][], prefix: string) => {
     names.forEach(([firstName, lastName], index) => {
       const id = `${prefix}-${index + 1}`;
-      people.push({ id, clubId: CLUB_ID, userId: null, firstName, lastName, createdAt });
+      people.push({ id, clubId: CLUB_ID, userId: null, firstName, lastName, rsvpMode: saysYesThemselves.has(id) ? 'manual' : 'auto', createdAt });
       memberships.push({ id: `m-${id}`, personId: id, teamId, role: 'athlete', coachRoleId: null, createdAt });
     });
   };

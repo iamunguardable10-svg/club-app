@@ -620,6 +620,29 @@ async function main() {
   data.deleteSession(squadGame);
   await data.flushRemote();
 
+  // --- Answering sessions: automatically or yourself (piece A) ---------------
+  store = await actAs(U.ben);
+  data.setOwnRsvpMode('manual');
+  await data.flushRemote();
+  check('Ben: says yes himself, on the server', (await count("select 1 from people where id = $1 and rsvp_mode = 'manual'", [P.ben])) === 1, store.getStatus().rejected);
+  check('… his next session is open', data.isAnswerOpen(db(), FUTURE, P.ben));
+  store = await actAs(U.martin);
+  check('Martin: sees Ben as open', data.isAnswerOpen(db(), FUTURE, P.ben));
+  const reminded = await data.remindOpenPlayers(FUTURE);
+  check('… "remind the open ones" works and queues as many pushes as it says',
+    (await count("select 1 from app.push_outbox where dedupe_key like 'reminder-open:' || $1 || ':%'", [FUTURE])) === reminded);
+  store = await actAs(U.ben);
+  data.reportAvailability({ sessionId: FUTURE, personId: P.ben, status: 'in', reason: null });
+  await data.flushRemote();
+  check('Ben: "I\'m in" is stored as a yes', (await count("select 1 from availability where session_id = $1 and person_id = $2 and status = 'in'", [FUTURE, P.ben])) === 1, store.getStatus().rejected);
+  check('… no longer open', !data.isAnswerOpen(db(), FUTURE, P.ben));
+  data.setOwnRsvpMode('auto');
+  data.reportAvailability({ sessionId: FUTURE, personId: P.ben, status: 'in', reason: null });
+  await data.flushRemote();
+  check('Ben: back to automatically in, the explicit yes is gone again',
+    (await count("select 1 from people where id = $1 and rsvp_mode = 'auto'", [P.ben])) === 1
+    && (await count('select 1 from availability where session_id = $1 and person_id = $2', [FUTURE, P.ben])) === 0, store.getStatus().rejected);
+
   // --- Team messages (piece 17) ---------------------------------------------
   store = await actAs(U.martin);
   const messageId = data.postTeamMessage({ teamId: TEAM, body: 'Game on Saturday: meet 10:15.', important: true, pinDays: 3 });

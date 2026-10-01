@@ -31,7 +31,7 @@ import {
 import { BASELINE_DAYS, acwrAfter, aggregateDailyLoads, backFromBreak, baselineAgeDays, calculateACWR, fillMissingDays, firstHighRiskDay, getLatestACWR, HIGH_RISK_ACWR, loadRoom, loadZone, projectFutureACWR, todayISO, weekChangePercent } from './loadCalculations';
 import { LoadInfoButton, LoadLandingChip, LoadRiskBadge } from './LoadHints';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
-import { athleteHasLoad, clearEntryReview, displayName, getActivePerson, newId, reviewsForPerson, useLocalDatabase } from '@/shared/data';
+import { athleteHasLoad, clearEntryReview, displayName, getActivePerson, newId, reviewsForPerson, rsvpModeOf, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
 import { formatDateRange, formatDay, formatDayMonth, formatDayNumber, formatDecimal, formatEntryDate, formatInteger, formatLongDay, formatTime as formatSharedTime, formatWeekday, formatWeekdayDay } from '@/shared/format';
@@ -92,7 +92,8 @@ type AthleteCalendarItem = {
   endsAt: string | null;
   trainingType: LoadTrainingType;
   teamName: string | null;
-  status: 'planned' | 'reported' | 'missing' | 'cancelled' | 'late';
+  /** `open`: the player says yes themselves and has not answered yet (piece A). */
+  status: 'planned' | 'reported' | 'missing' | 'cancelled' | 'late' | 'open';
   /** private_event: from the person's own Apple calendars (piece 20), read-only. */
   source: 'team_session' | 'athlete_plan' | 'load_entry' | 'private_event';
   session?: AthletePendingSession;
@@ -1071,6 +1072,7 @@ function AthleteCalendar({
     if (item.source === 'private_event') return `${base} border-slate-600/70 bg-slate-800/55 text-slate-300`;
     if (item.status === 'reported') return `${base} bg-slate-950/95 text-white${dragClass}`;
     if (item.status === 'missing') return `${base} border-amber-300/70 bg-amber-300/12 text-amber-50${dragClass}`;
+    if (item.status === 'open') return `${base} border-dashed border-amber-300/80 bg-amber-300/[0.07] text-amber-50${dragClass}`;
     if (item.status === 'cancelled') return `${base} border-rose-400/80 bg-rose-500/15 text-rose-100 opacity-90${dragClass}`;
     if (item.status === 'late') return `${base} border-sky-300/80 bg-sky-400/15 text-sky-100${dragClass}`;
     return `${base} border-dashed bg-slate-950/55 text-white${dragClass}`;
@@ -1080,7 +1082,7 @@ function AthleteCalendar({
     const color = LOAD_TYPE_COLORS[item.trainingType];
     if (item.source === 'private_event') return { borderColor: 'rgba(148,163,184,0.45)', cursor: 'default', touchAction: 'auto' as const };
     return {
-      borderColor: item.status === 'cancelled' ? 'rgba(251,113,133,0.82)' : item.status === 'late' ? 'rgba(125,211,252,0.82)' : item.status === 'missing' ? 'rgba(252,211,77,0.75)' : color,
+      borderColor: item.status === 'cancelled' ? 'rgba(251,113,133,0.82)' : item.status === 'late' ? 'rgba(125,211,252,0.82)' : item.status === 'missing' || item.status === 'open' ? 'rgba(252,211,77,0.75)' : color,
       boxShadow: item.status === 'reported' ? `inset 3px 0 0 ${color}` : undefined,
       cursor: mode === 'edit' && canManage(item) ? 'grab' : 'pointer',
       touchAction: mode === 'edit' && canManage(item) ? 'none' : 'auto',
@@ -1408,11 +1410,25 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     return result;
   }, [hasLoad, nextSession?.id, plans, loadPendingSessions, sortedEntries]);
   /** What the player told the coach about a session, in one line. */
+  // Piece A: a player who says yes themselves owes an answer for team
+  // sessions to come until they say "in" or "out".
+  const manualRsvp = database && activePersonId ? rsvpModeOf(database, activePersonId) === 'manual' : false;
+  const saidInIds = new Set((database?.availability ?? []).filter((entry) => entry.personId === activePersonId && entry.status === 'in').map((entry) => entry.sessionId));
+  function isOpenSession(session: AthletePendingSession) {
+    if (!manualRsvp || (session.source ?? 'team_session') !== 'team_session' || session.trainingType === 'warmup') return false;
+    if (new Date(session.startsAt).getTime() <= Date.now()) return false;
+    return !availabilityForSession(session.id) && !saidInIds.has(session.id);
+  }
+  /** The calendar item for a session shown on Today, to open its sheet. */
+  function nextSessionItem(session: AthletePendingSession): AthleteCalendarItem {
+    return { id: session.id, title: session.title, date: session.date, startsAt: session.startsAt, endsAt: session.endsAt, trainingType: session.trainingType, teamName: session.teamName, status: session.date < todayISO() ? 'missing' : 'planned', source: session.source ?? 'team_session', session };
+  }
   function availabilityLabelFor(session: AthletePendingSession) {
     if (session.source === 'athlete_plan') return t('athlete.availability.ownPlan');
     if (session.trainingType === 'warmup') return t('athlete.availability.warmup');
     const mark = availabilityForSession(session.id);
     if (mark?.status === 'late') return mark.lateMinutes ? t('athlete.availability.lateMinutes', { count: mark.lateMinutes }) : t('athlete.availability.late');
+    if (isOpenSession(session)) return t('athlete.availability.open');
     return t('athlete.availability.in');
   }
   const calendarItems = useMemo(() => {
@@ -1429,7 +1445,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         endsAt: session.endsAt,
         trainingType: session.trainingType,
         teamName: session.teamName,
-        status: isSessionCancelled(session.id) ? 'cancelled' : availabilityForSession(session.id)?.status === 'late' ? 'late' : reported ? 'reported' : session.date < todayISO() && session.loadTracked !== false ? 'missing' : 'planned',
+        status: isSessionCancelled(session.id) ? 'cancelled' : availabilityForSession(session.id)?.status === 'late' ? 'late' : reported ? 'reported' : session.date < todayISO() && session.loadTracked !== false ? 'missing' : isOpenSession(session) ? 'open' : 'planned',
         source: session.source ?? 'team_session',
         session,
         entry: entryBySessionId.get(session.id),
@@ -1465,7 +1481,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         source: 'private_event',
       }));
     return [...fromSessions, ...fromEntries, ...fromPrivate].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  }, [availabilityBySessionId, calendarSessions, cancelledSessionIds, sortedEntries, database?.privateEvents]);
+  }, [availabilityBySessionId, calendarSessions, cancelledSessionIds, sortedEntries, database?.privateEvents, database?.availability, manualRsvp]);
   const averageDurationByType = useMemo(() => {
     const map = new Map<LoadTrainingType, number>();
     for (const type of LOAD_TRAINING_TYPES) {
@@ -1806,7 +1822,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       if (activePersonId) {
         saveAvailability(activePersonId, next);
         // Coming anyway although away for a period (piece 16).
-        if (status === 'expected' && wasAway) sayInDuringAbsence(activePersonId, session.id);
+        // Saying yes out loud: coming anyway although away for a period (piece
+        // 16), or a player who answers every session themselves (piece A).
+        if (status === 'expected' && (wasAway || manualRsvp)) sayInDuringAbsence(activePersonId, session.id);
       }
       return next;
     });
@@ -2132,7 +2150,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 <Link href="/athlete/calendar" className="text-xs font-black text-sky-300 hover:text-sky-200">{t('athlete.calendarLink')}</Link>
               </div>
               {nextSession ? (
-                <button type="button" onClick={() => openCalendarItem({ id: nextSession.id, title: nextSession.title, date: nextSession.date, startsAt: nextSession.startsAt, endsAt: nextSession.endsAt, trainingType: nextSession.trainingType, teamName: nextSession.teamName, status: nextSession.date < todayISO() ? 'missing' : 'planned', source: nextSession.source ?? 'team_session', session: nextSession })} className="mt-4 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.06] p-5 text-left transition hover:border-emerald-300/55">
+                <>
+                <button type="button" onClick={() => openCalendarItem(nextSessionItem(nextSession))} className="mt-4 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.06] p-5 text-left transition hover:border-emerald-300/55">
                   <div className="flex items-center justify-between gap-3">
                     <p className="min-w-0 text-2xl font-black tracking-tight">{displayTitle(nextSession.title)}</p>
                     {landingAfter.has(nextSession.id) ? <LoadLandingChip value={landingAfter.get(nextSession.id)!} large /> : null}
@@ -2145,8 +2164,17 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                     return lines.length > 0 ? <p className="mt-1 text-sm font-bold text-amber-100/90">{lines.join(' · ')}</p> : null;
                   })() : null}
                   {nextSession.info?.notes ? <p className="mt-1 line-clamp-2 text-xs font-bold text-slate-400">{nextSession.info.notes}</p> : null}
-                  <p className="mt-3 text-xs font-bold text-emerald-200">{availabilityLabelFor(nextSession)}</p>
+                  <p className={`mt-3 text-xs font-bold ${isOpenSession(nextSession) ? 'text-amber-200' : 'text-emerald-200'}`}>{availabilityLabelFor(nextSession)}</p>
                 </button>
+                {/* Piece A: no answer yet from a player who says yes themselves. */}
+                {isOpenSession(nextSession) ? (
+                  <div className="mt-2 flex items-center gap-2 rounded-2xl border border-amber-300/40 bg-amber-300/[0.08] py-2 pl-4 pr-2">
+                    <p className="min-w-0 flex-1 text-sm font-black text-amber-100">{t('athlete.rsvp.question')}</p>
+                    <button type="button" onClick={() => { void setTeamSessionAvailability(nextSession, 'expected'); }} className="rounded-xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950 transition active:scale-95">{t('athlete.rsvp.yes')}</button>
+                    <button type="button" onClick={() => { openCalendarItem(nextSessionItem(nextSession)); setAvailabilityDraft('out'); }} className="rounded-xl border border-rose-300/50 px-3 py-2 text-sm font-black text-rose-100 transition active:scale-95">{t('athlete.rsvp.no')}</button>
+                  </div>
+                ) : null}
+                </>
               ) : <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">{t('athlete.noSessions')}</div>}
               {hasLoad && plans.length > 0 ? (
                 <div className="mt-4 space-y-2">
@@ -2358,6 +2386,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                       <p>
                         {isWarmup
                           ? t('composer.warmupAttached')
+                          : activeComposerSession && isOpenSession(activeComposerSession)
+                            ? t('composer.openAnswer')
                           : mark?.status === 'out'
                             ? t('composer.markedOut')
                             : mark?.status === 'late'

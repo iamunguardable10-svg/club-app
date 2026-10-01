@@ -5,7 +5,7 @@ import { formatDateRange, formatDay, formatTimeRange as formatSharedTimeRange } 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { SessionDetailSheet, type SessionDetailFacilityOption, type SessionDetailGroup } from '@/features/sessions/SessionDetailSheet';
 import type { CoachEntryReview, CoachSession } from '@/features/role-workspaces/CoachTypes';
-import { clearEntryReview, confirmAttendance, publishSquad, requestEntryReview, setSquadStatus, type SquadStatus } from '@/shared/data';
+import { clearEntryReview, confirmAttendance, publishSquad, remindOpenPlayers, requestEntryReview, setSquadStatus, type SquadStatus } from '@/shared/data';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { PlayerLoadDetail, type PlayerLoadDetailPlayer } from '@/features/players/PlayerLoadDetail';
 import { SessionInfo } from '@/features/sessions/SessionInfo';
@@ -759,6 +759,38 @@ const SQUAD_OPTIONS: { value: SquadStatus; label: MessageKey; on: string }[] = [
  * coach publishes; then each gets a notification with their own status, and
  * after changes only those whose status changed.
  */
+/**
+ * Piece A: players who say yes themselves and have not answered yet, with a
+ * one-time "remind them" (a push each on the club server).
+ */
+export function OpenAnswers({ session, className = '' }: { session: CoachSession; className?: string }) {
+  const t = useT();
+  const [reminded, setReminded] = useState<number | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  const openIds = session.openPlayerIds ?? [];
+  if (openIds.length === 0) return null;
+  const names = openIds.map((id) => session.players.find((player) => player.id === id)?.name ?? t('coach.data.player'));
+  async function remind() {
+    try {
+      setReminded(await remindOpenPlayers(session.id));
+      setFailed(null);
+    } catch (caught) {
+      setFailed(errorText(t, caught));
+    }
+  }
+  return (
+    <div className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-amber-300/35 bg-amber-300/[0.07] px-3 py-2.5 ${className}`}>
+      <p className="min-w-0 flex-1 text-xs font-bold text-amber-100">
+        <span className="font-black">{t('coach.open.count', { count: openIds.length })}</span> · {names.join(', ')}
+      </p>
+      {reminded !== null
+        ? <span role="status" className="text-xs font-black text-emerald-200">{t('coach.open.reminded')}</span>
+        : <button type="button" onClick={() => { void remind(); }} className="rounded-lg border border-amber-300/50 px-2.5 py-1 text-xs font-black text-amber-100 transition hover:bg-amber-300/10 active:scale-95">{t('coach.open.remind')}</button>}
+      {failed ? <p role="alert" className="w-full text-xs font-bold text-rose-200">{failed}</p> : null}
+    </div>
+  );
+}
+
 function SquadPicker({ session }: { session: CoachSession }) {
   const t = useT();
   const [confirm, setConfirm] = useState(false);
@@ -768,6 +800,9 @@ function SquadPicker({ session }: { session: CoachSession }) {
   const reportFor = (playerId: string) => session.availability.find((item) => item.userId === playerId && !item.confirmedByCoach);
   const available = session.players.filter((player) => reportFor(player.id)?.status !== 'out');
   const unavailable = session.players.filter((player) => reportFor(player.id)?.status === 'out');
+  // Piece A: no answer yet is not a yes, so "everyone available" leaves them out.
+  const isOpen = (playerId: string) => Boolean(session.openPlayerIds?.includes(playerId));
+  const autoPick = available.filter((player) => !isOpen(player.id));
   const count = (status: SquadStatus) => session.players.filter((player) => squad[player.id] === status).length;
   const unpicked = session.players.filter((player) => !squad[player.id]).length;
 
@@ -782,7 +817,7 @@ function SquadPicker({ session }: { session: CoachSession }) {
 
   function row(player: CoachSession['players'][number], muted: boolean) {
     const report = reportFor(player.id);
-    const hint = report?.status === 'late' ? (report.lateMinutes ? t('squad.hint.lateMinutes', { count: report.lateMinutes }) : t('squad.hint.late')) : report?.status === 'out' ? report.reason ?? t('squad.hint.out') : null;
+    const hint = report?.status === 'late' ? (report.lateMinutes ? t('squad.hint.lateMinutes', { count: report.lateMinutes }) : t('squad.hint.late')) : report?.status === 'out' ? report.reason ?? t('squad.hint.out') : isOpen(player.id) ? t('squad.hint.open') : null;
     const current = squad[player.id] ?? null;
     return (
       <div key={player.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 px-2.5 py-1.5 ${muted ? 'opacity-70' : 'bg-slate-950/55'}`}>
@@ -825,8 +860,8 @@ function SquadPicker({ session }: { session: CoachSession }) {
               : t('squad.notPublished')}
           </p>
         </div>
-        {editable && available.some((player) => !squad[player.id]) ? (
-          <button type="button" onClick={() => run(() => { for (const player of available) if (!squad[player.id]) setSquadStatus(session.id, player.id, 'squad'); })} className="rounded-full border border-emerald-200/40 px-3 py-1.5 text-[11px] font-black text-emerald-100">
+        {editable && autoPick.some((player) => !squad[player.id]) ? (
+          <button type="button" onClick={() => run(() => { for (const player of autoPick) if (!squad[player.id]) setSquadStatus(session.id, player.id, 'squad'); })} className="rounded-full border border-emerald-200/40 px-3 py-1.5 text-[11px] font-black text-emerald-100">
             {t('squad.everyoneAvailable')}
           </button>
         ) : null}
@@ -1001,9 +1036,10 @@ export function CoachSessionDetailOverlay({
           })),
         }}
         loadRisks={loadRisks}
-        insights={!isPast && session.sessionType === 'game' && (session.canPickSquad || session.squadPublishedAt) ? (
-          <SquadPicker key={session.id} session={session} />
-        ) : isPast ? (<>
+        insights={!isPast ? ((session.openPlayerIds?.length ?? 0) > 0 || (session.sessionType === 'game' && (session.canPickSquad || session.squadPublishedAt)) ? (<>
+          <OpenAnswers key={`open-${session.id}`} session={session} className={session.sessionType === 'game' ? 'mb-3' : ''} />
+          {session.sessionType === 'game' && (session.canPickSquad || session.squadPublishedAt) ? <SquadPicker key={session.id} session={session} /> : null}
+        </>) : null) : isPast ? (<>
         {session.canConfirmAttendance && session.attendanceShared !== false && session.players.length > 0 ? (
           <AttendanceConfirmation key={session.id} session={session} />
         ) : null}
@@ -1107,7 +1143,8 @@ export function CoachSessionDetailOverlay({
           return {
             id: player.id,
             name: player.name,
-            status: flag?.status ?? 'expected',
+            // Piece A: no answer yet from a player who says yes themselves.
+            status: flag?.status ?? (session.openPlayerIds?.includes(player.id) ? 'open' : 'expected'),
             detail: flag?.status === 'late' && flag.lateMinutes ? t('insight.minutes', { count: flag.lateMinutes }) : flag?.reason ?? null,
           };
         })}

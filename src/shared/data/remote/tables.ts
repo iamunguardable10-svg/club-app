@@ -144,7 +144,7 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     })),
     department_facilities: database.departmentFacilities.map((l) => ({ department_id: l.departmentId, facility_id: l.facilityId })),
     people: database.people.map((p) => ({
-      id: p.id, club_id: p.clubId, user_id: p.userId, first_name: p.firstName, last_name: p.lastName, created_at: p.createdAt,
+      id: p.id, club_id: p.clubId, user_id: p.userId, first_name: p.firstName, last_name: p.lastName, rsvp_mode: p.rsvpMode ?? 'auto', created_at: p.createdAt,
     })),
     coach_roles: database.coachRoles.map((r) => ({
       id: r.id, team_id: r.teamId, name: r.name, permissions: r.permissions, locked: r.locked, created_at: r.createdAt,
@@ -260,7 +260,8 @@ export function fromServerRows(
     facilities: rows.facilities.map((f) => ({ id: s(f.id), clubId: s(f.club_id), name: s(f.name), address: s(f.address) })),
     departmentFacilities: rows.department_facilities.map((l) => ({ departmentId: s(l.department_id), facilityId: s(l.facility_id) })),
     people: rows.people.map((p) => ({
-      id: s(p.id), clubId: s(p.club_id), userId: sn(p.user_id), firstName: s(p.first_name), lastName: s(p.last_name), createdAt: s(p.created_at),
+      id: s(p.id), clubId: s(p.club_id), userId: sn(p.user_id), firstName: s(p.first_name), lastName: s(p.last_name),
+      rsvpMode: p.rsvp_mode === 'manual' ? 'manual' as const : 'auto' as const, createdAt: s(p.created_at),
     })),
     memberships: rows.memberships.map((m) => ({
       id: s(m.id), personId: s(m.person_id), teamId: s(m.team_id), role: m.role as 'coach' | 'athlete',

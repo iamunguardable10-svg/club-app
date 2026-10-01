@@ -1677,5 +1677,24 @@
   "tip.hallCalendar.title": "Un pabellón, todos los equipos",
   "tip.hallCalendar.text": "Aquí ves todas las reservas de este pabellón. Con «Editar» añades horarios; la app avisa al momento de los solapamientos.",
   "settings.showTipsAgain": "Volver a mostrar los consejos",
-  "settings.tipsShown": "Los consejos vuelven a aparecer en cada página."
+  "settings.tipsShown": "Los consejos vuelven a aparecer en cada página.",
+
+  "athlete.availability.open": "Aún sin respuesta · ¿vienes?",
+  "athlete.rsvp.question": "¿Vienes?",
+  "athlete.rsvp.yes": "Voy",
+  "athlete.rsvp.no": "No voy",
+  "composer.openAnswer": "Aún no has respondido. Hasta entonces, tu entrenador te ve sin respuesta.",
+  "coach.open.count": "{count} sin respuesta",
+  "coach.open.remind": "Recordar",
+  "coach.open.reminded": "Recordado",
+  "coach.row.open": "{count} sin respuesta",
+  "sessionSheet.status.open": "sin respuesta",
+  "squad.hint.open": "aún sin respuesta",
+  "settings.rsvp.title": "Responder a las sesiones",
+  "settings.rsvp.auto": "Voy automáticamente",
+  "settings.rsvp.autoDetail": "Cuentas como presente y solo avisas cuando no puedes ir.",
+  "settings.rsvp.manual": "Respondo yo",
+  "settings.rsvp.manualDetail": "Respondes «Voy» o «No voy» en cada sesión. Hasta que respondas, tu entrenador te ve sin respuesta.",
+  "server.thisSessionHasAlreadyStarted": "Esta sesión ya ha empezado.",
+  "server.yourRoleMayNotSeeAttendance": "Tu rol no puede ver la asistencia de este equipo."
 }

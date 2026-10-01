@@ -20,7 +20,7 @@ import {
 import { buildCoachData, EMPTY_COACH_DATA } from '@/features/role-workspaces/coachData';
 import type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 import { FacilitiesManager } from '@/features/facilities/FacilitiesManager';
-import { CoachHistoryInsights, CoachSessionDetailOverlay, type CoachSessionInsight } from '@/features/role-workspaces/CoachSessionSurfaces';
+import { CoachHistoryInsights, CoachSessionDetailOverlay, OpenAnswers, type CoachSessionInsight } from '@/features/role-workspaces/CoachSessionSurfaces';
 import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { WeeklySeriesBoard } from '@/features/sessions/WeeklySeriesBoard';
@@ -153,7 +153,8 @@ function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDet
   const t = useT();
   const { out, late } = summarizeAvailability(session);
   return (
-    <button type="button" onClick={onDetails} className="block w-full rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-left text-white transition hover:border-emerald-300/45 hover:bg-slate-900/70">
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 transition hover:border-emerald-300/45 hover:bg-slate-900/70">
+    <button type="button" onClick={onDetails} className="block w-full p-4 text-left text-white">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-2xl font-black tabular-nums">{formatTimeRange(session.startsAt, session.endsAt)}</p>
@@ -185,6 +186,8 @@ function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDet
         </div>
       </div>
     </button>
+    <OpenAnswers session={session} className="mx-4 mb-4 -mt-1" />
+    </div>
   );
 }
 
@@ -206,6 +209,7 @@ function UpcomingSessionRow({ session, showTeam, onOpen }: { session: CoachSessi
       <div className="flex shrink-0 flex-col items-end gap-1 text-[11px] font-black">
         {out.length > 0 ? <span className="rounded-full bg-rose-400/15 px-2 py-0.5 text-rose-200">{t('coach.row.out', { count: out.length })}</span> : null}
         {late.length > 0 ? <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-amber-200">{t('coach.row.late', { count: late.length })}</span> : null}
+        {(session.openPlayerIds?.length ?? 0) > 0 ? <span className="rounded-full border border-dashed border-amber-300/50 px-2 py-0.5 text-amber-100">{t('coach.row.open', { count: session.openPlayerIds!.length })}</span> : null}
       </div>
     </button>
   );

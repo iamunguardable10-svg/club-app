@@ -1677,5 +1677,24 @@
   "tip.hallCalendar.title": "Une salle, toutes les équipes",
   "tip.hallCalendar.text": "Tu vois ici toutes les réservations de cette salle. Avec « Modifier », tu ajoutes des créneaux ; l’app signale tout de suite les chevauchements.",
   "settings.showTipsAgain": "Réafficher les conseils",
-  "settings.tipsShown": "Les conseils réapparaissent sur chaque page."
+  "settings.tipsShown": "Les conseils réapparaissent sur chaque page.",
+
+  "athlete.availability.open": "Pas encore de réponse · tu viens ?",
+  "athlete.rsvp.question": "Tu viens ?",
+  "athlete.rsvp.yes": "Présent",
+  "athlete.rsvp.no": "Absent",
+  "composer.openAnswer": "Tu n’as pas encore répondu. D’ici là, ton coach te voit sans réponse.",
+  "coach.open.count": "{count} sans réponse",
+  "coach.open.remind": "Relancer",
+  "coach.open.reminded": "Relancé",
+  "coach.row.open": "{count} sans réponse",
+  "sessionSheet.status.open": "sans réponse",
+  "squad.hint.open": "pas encore de réponse",
+  "settings.rsvp.title": "Répondre aux séances",
+  "settings.rsvp.auto": "Présent automatiquement",
+  "settings.rsvp.autoDetail": "Tu es compté présent et tu préviens seulement si tu ne peux pas venir.",
+  "settings.rsvp.manual": "Je réponds moi-même",
+  "settings.rsvp.manualDetail": "Tu réponds « Présent » ou « Absent » à chaque séance. Tant que tu n’as pas répondu, ton coach te voit sans réponse.",
+  "server.thisSessionHasAlreadyStarted": "Cette séance a déjà commencé.",
+  "server.yourRoleMayNotSeeAttendance": "Ton rôle ne permet pas de voir la présence de cette équipe."
 }

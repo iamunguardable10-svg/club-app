@@ -15,6 +15,7 @@ import {
   athletesForTeam,
   awayForSession,
   coachPermissions,
+  isAnswerOpen,
   publishedSquadStatus,
   squadForSession,
   teamHasFeature,
@@ -304,6 +305,10 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
           ? sessionAvailability
           : sessionAvailability.filter((entry) => scopedPlayerIds.has(entry.userId)),
         players: scopedPlayers,
+        // Piece A: players who say yes themselves and have not answered yet.
+        openPlayerIds: permissions.has('viewAttendance')
+          ? scopedPlayers.filter((player) => isAnswerOpen(database, session.id, player.id, now)).map((player) => player.id)
+          : [],
         attendanceShared: permissions.has('viewAttendance'),
         loadTracked: team.loadTracked,
         confirmations: permissions.has('viewAttendance') ? Object.fromEntries(confirmed) : {},

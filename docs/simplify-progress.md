@@ -2447,3 +2447,22 @@ Texte in allen vier Sprachen, die genannten Knöpfe genau wie in der App. Geprü
 Erscheinen, Schließen, Neuladen (bleibt weg), Zurückholen; Rundgang (`test:smoke`) ohne Fehler.
 Die Load-Kurve in der Spielerkarte des Trainers gab es schon (Trend mit ACWR-Linie, 7/14/30 Tage, plus
 Wochenprofil).
+
+## Run 60 — Zusagen: automatisch dabei oder selbst zusagen; offene Antworten und Erinnern (erledigt)
+
+Wunsch (Ben, 2026-10-01): Trainer sehen „noch nicht reagiert“; Spieler wählen selbst, ob sie
+automatisch zugesagt sind. Plan: `docs/plan-rsvp-polls-news.md`, Stück A.
+- **Einstellung (Spieler):** Einstellungen → „Zusagen“: „Automatisch dabei“ (Standard, wie bisher, nur
+  absagen) oder „Selbst zusagen“. Gespeichert als `people.rsvp_mode` (`auto` | `manual`, Migration
+  0033); nur die Person selbst ändert ihn, Trainer lesen ihn.
+- **Offen:** Bei „Selbst zusagen“ ist eine künftige Einheit ohne Antwort offen (nicht abwesend, nicht
+  „nicht im Kader“). Ein „Dabei“ ist dann eine `availability`-Zeile mit Status `in`; im Modus
+  „automatisch“ bleibt es wie bisher (keine Zeile).
+- **Spieler:** Auf „Heute“ unter „Als Nächstes“ „Kommst du? Dabei / Absagen“; im Kalender gestrichelt
+  in Bernstein, im Detail „Noch keine Antwort“.
+- **Trainer:** In der Karte der nächsten Einheit und im Detail „N offen · Namen“ mit „Erinnern“ (ein
+  Push „Are you in?“ je offenem Spieler, einmal je Einheit, `remind_open_players`); in „Demnächst“ ein
+  Hinweis „N offen“; Teilnehmerliste „keine Antwort“; der Kader-Vorschlag nimmt Offene nicht.
+- **Push-Zusammenfassung** an den Trainer zählt Offene als „no answer“.
+Geprüft: SQL-Tests (neu `20_rsvp_test.sql`), Server-Store-Test (Ben sagt selbst zu, Martin sieht ihn
+offen, Erinnern zählt wie die Outbox), Browser Spieler/Trainer, Rundgang (`test:smoke`) ohne Fehler.
