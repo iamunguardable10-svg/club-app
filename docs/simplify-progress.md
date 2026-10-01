@@ -2466,3 +2466,21 @@ automatisch zugesagt sind. Plan: `docs/plan-rsvp-polls-news.md`, Stück A.
 - **Push-Zusammenfassung** an den Trainer zählt Offene als „no answer“.
 Geprüft: SQL-Tests (neu `20_rsvp_test.sql`), Server-Store-Test (Ben sagt selbst zu, Martin sieht ihn
 offen, Erinnern zählt wie die Outbox), Browser Spieler/Trainer, Rundgang (`test:smoke`) ohne Fehler.
+
+## Run 61 — Umfragen in Team-Nachrichten (erledigt)
+
+Plan: `docs/plan-rsvp-polls-news.md`, Stück B.
+- **Trainer** (wer Team-Nachrichten schreiben darf): im Nachrichtenfeld „Umfrage“ ankreuzen → der Text
+  ist die Frage, 2–6 Antworten (je bis 80 Zeichen, verschieden), optional „Mehrere Antworten erlaubt“;
+  an Team oder Gruppen, auch als wichtig. In der Liste die Balken mit Anzahl, „Abgestimmt 5/12“ zeigt
+  aufgeklappt, wer was gewählt hat und wer noch nicht; „N ohne Stimme erinnern“ (einmal, nur an die,
+  die noch nicht abgestimmt haben) und „Umfrage beenden“ (endgültig, das Ergebnis bleibt).
+- **Spieler:** tippen eine Antwort (oder mehrere) und sehen sofort die Balken mit Anzahl; erneutes
+  Tippen ändert die Stimme, bis die Umfrage beendet ist. Sie sehen nur die Zahlen, nicht wer was
+  gewählt hat. Kennzeichen „Umfrage“ in den Nachrichten und auf der Karte auf „Heute“.
+- **Server (Migration 0034):** `team_messages.poll_options/poll_multiple/poll_closed_at/poll_counts`
+  (Zahlen pflegt nur der Server), Tabelle `message_votes` (eine Zeile je Spieler mit den gewählten
+  Antworten); abstimmen nur Empfänger, nur offen; die Erinnerung einer Umfrage geht an Nicht-Abstimmer
+  und fällt weg, sobald sie abstimmen. Push-Titel „Umfrage · …“ in der Sprache des Empfängers.
+Geprüft: SQL-Test `21_message_polls_test.sql`, Server-Store-Test (abstimmen, ändern, Zahlen,
+Trainer sieht wer, beenden), Browser Handy und Desktop, Rundgang (`test:smoke`) ohne Fehler.

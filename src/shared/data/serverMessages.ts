@@ -67,6 +67,9 @@ export const SERVER_MESSAGES: Record<string, MessageKey> = {
   "Could not find the calendars.": 'server.couldNotFindTheCalendars',
   "Apple Calendar is not available right now.": 'server.appleCalendarIsNotAvailable',
   "Your role may not see attendance for this team.": 'server.yourRoleMayNotSeeAttendance',
+  "A poll needs 2 to 6 different answers of up to 80 characters.": 'server.aPollNeedsAnswers',
+  "Choose one of the answers.": 'server.chooseOneOfTheAnswers',
+  "This poll is already closed.": 'server.thisPollIsAlreadyClosed',
 };
 
 const PATTERNS: [RegExp, MessageKey][] = [

@@ -70,8 +70,9 @@ export const TABLES: readonly TableSpec[] = [
   // Kind and note live apart: shared only with viewAbsenceReasons (piece 16).
   { name: 'absence_reasons', key: ['absence_id'] },
   { name: 'squad_entries', key: ['session_id', 'person_id'], kinds: { set_at: 'timestamp' } },
-  { name: 'team_messages', key: ['id'], kinds: { created_at: 'timestamp', reminded_at: 'timestamp', pinned_until: 'timestamp' } },
+  { name: 'team_messages', key: ['id'], kinds: { created_at: 'timestamp', reminded_at: 'timestamp', pinned_until: 'timestamp', poll_closed_at: 'timestamp' } },
   { name: 'message_reads', key: ['message_id', 'person_id'], kinds: { read_at: 'timestamp' } },
+  { name: 'message_votes', key: ['message_id', 'person_id'], kinds: { voted_at: 'timestamp' } },
   { name: 'load_summaries', key: ['person_id'], kinds: { acwr: 'number', updated_at: 'timestamp' } },
   { name: 'athlete_plans', key: ['id'], kinds: { starts_at: 'timestamp', created_at: 'timestamp', expected_rpe: 'number' } },
   { name: 'acknowledged_sessions', key: ['person_id', 'session_id'] },
@@ -84,7 +85,7 @@ export type TableName =
   | 'staff_invites' | 'club_roles' | 'club_role_invites'
   | 'memberships' | 'player_groups' | 'player_group_members' | 'session_series' | 'sessions'
   | 'session_series_week_states' | 'availability' | 'availability_reasons' | 'load_entries'
-  | 'load_summaries' | 'athlete_plans' | 'acknowledged_sessions' | 'load_entry_reviews' | 'attendance_confirmations' | 'absences' | 'absence_reasons' | 'squad_entries' | 'team_messages' | 'message_reads' | 'private_events';
+  | 'load_summaries' | 'athlete_plans' | 'acknowledged_sessions' | 'load_entry_reviews' | 'attendance_confirmations' | 'absences' | 'absence_reasons' | 'squad_entries' | 'team_messages' | 'message_reads' | 'message_votes' | 'private_events';
 
 export function tableSpec(name: TableName): TableSpec {
   return TABLES.find((table) => table.name === name)!;
@@ -210,8 +211,11 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     team_messages: (database.teamMessages ?? []).map((m) => ({
       id: m.id, team_id: m.teamId, group_ids: m.groupIds, author_id: m.authorId, body: m.body, important: m.important,
       pinned_until: m.pinnedUntil, created_at: m.createdAt, reminded_at: m.remindedAt,
+      // poll_counts is the server's; it is never sent.
+      poll_options: m.pollOptions ?? null, poll_multiple: m.pollMultiple ?? false, poll_closed_at: m.pollClosedAt ?? null,
     })),
     message_reads: (database.messageReads ?? []).map((r) => ({ message_id: r.messageId, person_id: r.personId, read_at: r.readAt })),
+    message_votes: (database.messageVotes ?? []).map((v) => ({ message_id: v.messageId, person_id: v.personId, options: v.options, voted_at: v.votedAt })),
     private_events: (database.privateEvents ?? []).map((e) => ({
       user_id: e.userId, source_url: e.sourceUrl, key: e.key, title: e.title, starts_at: e.startsAt, ends_at: e.endsAt, all_day: e.allDay,
     })),
@@ -352,9 +356,14 @@ export function fromServerRows(
       .map((m) => ({
         id: s(m.id), teamId: s(m.team_id), groupIds: (m.group_ids as string[]) ?? [], authorId: sn(m.author_id), body: s(m.body),
         important: Boolean(m.important), pinnedUntil: sn(m.pinned_until), createdAt: s(m.created_at), remindedAt: sn(m.reminded_at),
+        pollOptions: (m.poll_options as string[] | null) ?? null, pollMultiple: Boolean(m.poll_multiple), pollClosedAt: sn(m.poll_closed_at),
+        pollCounts: ((m.poll_counts as number[] | null) ?? null)?.map(Number) ?? null,
       }))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     messageReads: rows.message_reads.map((r) => ({ messageId: s(r.message_id), personId: s(r.person_id), readAt: s(r.read_at) })),
+    messageVotes: rows.message_votes.map((v) => ({
+      messageId: s(v.message_id), personId: s(v.person_id), options: ((v.options as number[]) ?? []).map(Number), votedAt: s(v.voted_at),
+    })),
     privateEvents: rows.private_events.map((e) => ({
       userId: s(e.user_id), sourceUrl: s(e.source_url), key: s(e.key), title: s(e.title),
       startsAt: s(e.starts_at), endsAt: s(e.ends_at), allDay: Boolean(e.all_day),

@@ -673,6 +673,47 @@ async function main() {
   await data.flushRemote();
   check('Uwe (Team Manager) may write too', (await count("select 1 from team_messages where body = 'Kit collection Monday.'")) === 1, store.getStatus().rejected);
 
+  // --- Polls in team messages (piece B) ------------------------------------
+  store = await actAs(U.martin);
+  const pollId = data.postTeamMessage({ teamId: TEAM, body: 'Which kit on Saturday?', poll: { options: ['Home', 'Away'] } });
+  await data.flushRemote();
+  check('Martin: poll on the server, counted from zero',
+    (await count("select 1 from team_messages where id = $1 and poll_options = '{Home,Away}' and not poll_multiple and poll_counts = '{0,0}'", [pollId])) === 1, store.getStatus().rejected);
+  store = await actAs(U.ben);
+  data.votePoll(P.ben, pollId, [1]);
+  await data.flushRemote();
+  check('Ben: votes "Away" on the server', (await count("select 1 from message_votes where message_id = $1 and person_id = $2 and options = '{1}'", [pollId, P.ben])) === 1, store.getStatus().rejected);
+  const benPoll = () => db().teamMessages.find((message) => message.id === pollId)!;
+  check('… sees the count from the server', data.pollCounts(db(), benPoll()).join(',') === '0,1', benPoll().pollCounts);
+  data.votePoll(P.ben, pollId, [0]);
+  check('… changes his mind: the bars follow at once', data.pollCounts(db(), benPoll()).join(',') === '1,0', benPoll().pollCounts);
+  await data.flushRemote();
+  check('… and the server agrees', (await count("select 1 from team_messages where id = $1 and poll_counts = '{1,0}'", [pollId])) === 1 && store.getStatus().rejected === null, store.getStatus().rejected);
+  let twoAnswers = '';
+  try {
+    data.votePoll(P.ben, pollId, [0, 1]);
+  } catch (error) {
+    twoAnswers = error instanceof Error ? error.message : String(error);
+  }
+  check('… only one answer here', twoAnswers.includes('Choose one'), twoAnswers);
+  store = await actAs(U.jonas);
+  check('Jonas: sees the count, not who voted', data.pollCounts(db(), db().teamMessages.find((message) => message.id === pollId)!).join(',') === '1,0' && (db().messageVotes ?? []).length === 0, db().messageVotes);
+  store = await actAs(U.martin);
+  const pollStats = data.pollVoteStats(db(), db().teamMessages.find((message) => message.id === pollId)!);
+  check('Martin: voted 1 of 2, Ben chose "Home", Jonas not yet',
+    pollStats.voted === 1 && pollStats.total === 2 && pollStats.byOption[0].includes(P.ben) && pollStats.notVotedIds.includes(P.jonas), pollStats);
+  data.closePoll(pollId);
+  await data.flushRemote();
+  check('… closes the poll', (await count('select 1 from team_messages where id = $1 and poll_closed_at is not null', [pollId])) === 1, store.getStatus().rejected);
+  store = await actAs(U.jonas);
+  let lateVote = '';
+  try {
+    data.votePoll(P.jonas, pollId, [1]);
+  } catch (error) {
+    lateVote = error instanceof Error ? error.message : String(error);
+  }
+  check('Jonas: too late to vote', lateVote.includes('already closed'), lateVote);
+
   // --- Founding a club and running it (piece 8a) ---------------------------
   const foundingCode = (await pool.query(`select app.create_founding_code('e2e') as code`)).rows[0].code as string;
   store = await actAs(U.founder);

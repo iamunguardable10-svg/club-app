@@ -85,6 +85,7 @@ export function buildPush(t: Translate, format: PushFormat, titles: Record<strin
     }
     case 'push.message': {
       let heading = params.author ? t('push.message.titleAuthor', { team: str(params.team), author: str(params.author) }) : str(params.team);
+      if (params.poll) heading = t('push.message.poll', { title: heading });
       if (params.important) heading = t('push.message.important', { title: heading });
       if (params.reminder) heading = t('push.message.reminder', { title: heading });
       return { title: heading, body: stored.body };

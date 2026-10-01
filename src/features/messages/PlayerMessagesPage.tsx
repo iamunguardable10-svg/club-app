@@ -13,6 +13,7 @@ import {
   athleteHasLoad,
   getActivePerson,
   isMessageRead,
+  isPoll,
   markMessagesRead,
   messagesForPlayer,
   pinnedMessagesFor,
@@ -22,6 +23,7 @@ import {
 import { useT } from '@/shared/i18n';
 
 import { authorName, teamName, whenPosted } from './messageText';
+import { PollView } from './PollView';
 
 export function PlayerMessagesPage() {
   const t = useT();
@@ -53,11 +55,13 @@ export function PlayerMessagesPage() {
         </span>
         <span className="flex items-center gap-2">
           {message.important ? <span className="rounded-full bg-rose-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('messages.important')}</span> : null}
+          {isPoll(message) ? <span className="rounded-full bg-violet-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('poll.label')}</span> : null}
           {unread.has(message.id) ? <span className="rounded-full bg-sky-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('messages.new')}</span> : null}
           {whenPosted(message.createdAt)}
         </span>
       </div>
       <p className="mt-2 whitespace-pre-wrap text-sm text-slate-100">{message.body}</p>
+      {isPoll(message) && person ? <PollView database={database} message={message} personId={person.id} /> : null}
     </li>
   );
 

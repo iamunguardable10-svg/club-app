@@ -460,8 +460,27 @@ export type TeamMessage = {
   /** Important ones: on top for the players until then (chosen when written). */
   pinnedUntil: Timestamp | null;
   createdAt: Timestamp;
-  /** Set once: unread players were reminded. */
+  /** Set once: unread players (for a poll: those who have not voted) were reminded. */
   remindedAt: Timestamp | null;
+  /** A poll (piece B): the body is the question, 2 to 6 answers. Fixed once written. */
+  pollOptions?: string[] | null;
+  /** Several answers at once. */
+  pollMultiple?: boolean;
+  /** Closed by the staff: no more votes. */
+  pollClosedAt?: Timestamp | null;
+  /**
+   * How many chose each answer, as the club server counts them (players
+   * see only their own vote, not everyone's). Absent in the local test mode.
+   */
+  pollCounts?: number[] | null;
+};
+
+/** A player's vote on a poll: indexes into `pollOptions`. */
+export type MessageVote = {
+  messageId: Id;
+  personId: Id;
+  options: number[];
+  votedAt: Timestamp;
 };
 
 export type MessageRead = {
@@ -537,6 +556,8 @@ export type LocalDatabase = {
   squadEntries: SquadEntry[];
   teamMessages: TeamMessage[];
   messageReads: MessageRead[];
+  /** Votes on polls (piece B): players have only their own on the club server. */
+  messageVotes?: MessageVote[];
   /** Imported Apple calendar events (server mode only; piece 20). */
   privateEvents?: PrivateEvent[];
   /** The last load link an athlete shared with a coach, per person. */

@@ -204,6 +204,7 @@ const TABLE_KEY: Partial<Record<TableName, MessageKey>> = {
   squad_entries: 'sync.table.squadEntries',
   team_messages: 'sync.table.teamMessages',
   message_reads: 'sync.table.messageReads',
+  message_votes: 'sync.table.messageVotes',
 };
 
 export class RemoteStore {
