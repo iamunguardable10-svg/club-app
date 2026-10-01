@@ -1,12 +1,17 @@
 /** Small helpers for team messages (piece 17). */
 
-import { displayName, type LocalDatabase, type TeamMessage } from '@/shared/data';
+import { displayName, type ClubNews, type LocalDatabase, type TeamMessage } from '@/shared/data';
 import { formatShortDate } from '@/shared/format';
 import { tr } from '@/shared/i18n';
 
 export function authorName(database: LocalDatabase, message: TeamMessage): string {
   const author = message.authorId ? database.people.find((person) => person.id === message.authorId) : null;
   return author ? displayName(author) : tr('messages.coach');
+}
+
+export function newsAuthorName(database: LocalDatabase, news: ClubNews): string {
+  const author = news.authorId ? database.people.find((person) => person.id === news.authorId) : null;
+  return author ? displayName(author) : database.club.name;
 }
 
 export function teamName(database: LocalDatabase, teamId: string): string {

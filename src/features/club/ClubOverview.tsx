@@ -45,6 +45,7 @@ import {
   renameDepartment,
   renameTeam,
   revokeClubRoleInvite,
+  setNewsByHeadCoaches,
   setTeamArchived,
   teamHasFeature,
   useLocalDatabase,
@@ -353,6 +354,19 @@ function DepartmentSection({
           <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('club.departmentLead')}</p>
           <RoleHolders database={database} role="department_lead" departmentId={department.id} canManage={admin} selfId={personId} onRun={onRun} />
         </div>
+
+        <label className="flex items-start gap-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-3">
+          <input
+            type="checkbox"
+            checked={Boolean(department.newsByHeadCoaches)}
+            onChange={(event) => onRun(() => setNewsByHeadCoaches(department.id, event.target.checked))}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-teal-300"
+          />
+          <span className="grid gap-0.5">
+            <span className="text-sm font-black text-slate-100">{t('club.newsByHeadCoaches')}</span>
+            <span className="text-xs text-slate-400">{t('club.newsByHeadCoachesDetail')}</span>
+          </span>
+        </label>
 
         <div className="grid gap-2">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('club.teams')}</p>

@@ -18,7 +18,7 @@ import { useT, type MessageKey } from '@/shared/i18n';
 export type TipId =
   | 'athlete.today' | 'athlete.todayBasic' | 'athlete.calendar' | 'athlete.calendarBasic' | 'athlete.load' | 'athlete.messages'
   | 'coach.today' | 'coach.calendar' | 'coach.team' | 'coach.halls' | 'coach.history'
-  | 'club.club' | 'club.halls'
+  | 'club.club' | 'club.halls' | 'club.news'
   | 'hallCalendar';
 
 /** The text keys of a tip: `tip.<id>.title` and `tip.<id>.text`. */
@@ -36,6 +36,7 @@ const TEXT: Record<TipId, { title: MessageKey; text: MessageKey }> = {
   'coach.history': { title: 'tip.coachHistory.title', text: 'tip.coachHistory.text' },
   'club.club': { title: 'tip.club.title', text: 'tip.club.text' },
   'club.halls': { title: 'tip.clubHalls.title', text: 'tip.clubHalls.text' },
+  'club.news': { title: 'tip.news.title', text: 'tip.news.text' },
   hallCalendar: { title: 'tip.hallCalendar.title', text: 'tip.hallCalendar.text' },
 };
 

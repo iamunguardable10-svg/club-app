@@ -672,6 +672,11 @@ async function main() {
   data.postTeamMessage({ teamId: TEAM, body: 'Kit collection Monday.' });
   await data.flushRemote();
   check('Uwe (Team Manager) may write too', (await count("select 1 from team_messages where body = 'Kit collection Monday.'")) === 1, store.getStatus().rejected);
+  store = await actAs(U.martin);
+  data.deleteTeamMessage(messageId);
+  await data.flushRemote();
+  check('Martin: deletes the message Ben has read (its reads go with it)',
+    (await count('select 1 from team_messages where id = $1', [messageId])) === 0 && store.getStatus().rejected === null, store.getStatus().rejected);
 
   // --- Polls in team messages (piece B) ------------------------------------
   store = await actAs(U.martin);
@@ -713,6 +718,30 @@ async function main() {
     lateVote = error instanceof Error ? error.message : String(error);
   }
   check('Jonas: too late to vote', lateVote.includes('already closed'), lateVote);
+
+  // --- Club and department news (piece C) ----------------------------------
+  store = await actAs(U.martin);
+  check('Martin (Head Coach): no news to write while the lead does not allow it', data.newsScopesFor(db(), P.martin).length === 0);
+  await pool.query('update departments set news_by_head_coaches = true where id = $1', [DEP]);
+  store = await actAs(U.martin);
+  check('… once allowed, he may write to his department', data.newsScopesFor(db(), P.martin).join() === DEP, data.newsScopesFor(db(), P.martin));
+  const newsId = data.postNews({ departmentId: DEP, body: 'Department party on Friday.' });
+  await data.flushRemote();
+  check('… his news is on the server', (await count('select 1 from club_news where id = $1 and department_id = $2 and author_id = $3', [newsId, DEP, P.martin])) === 1, store.getStatus().rejected);
+  store = await actAs(U.uwe);
+  check('Uwe (Team Manager, not Head Coach) may not write news', data.newsScopesFor(db(), P.uwe).length === 0);
+  store = await actAs(U.ben);
+  check('Ben: sees the news, unread', data.unreadNewsFor(db(), P.ben).some((news) => news.id === newsId));
+  data.markNewsRead(P.ben, [newsId]);
+  await data.flushRemote();
+  check('… having seen it, it counts as read on the server', (await count('select 1 from news_reads where news_id = $1 and person_id = $2', [newsId, P.ben])) === 1, store.getStatus().rejected);
+  store = await actAs(U.martin);
+  const newsStats = data.newsReadStats(db(), db().clubNews!.find((news) => news.id === newsId)!);
+  check('Martin: Ben has read it', newsStats.read >= 1 && !newsStats.unreadIds.includes(P.ben), newsStats);
+  data.deleteNews(newsId);
+  await data.flushRemote();
+  check('… and deletes it', (await count('select 1 from club_news where id = $1', [newsId])) === 0, store.getStatus().rejected);
+  await pool.query('update departments set news_by_head_coaches = false where id = $1', [DEP]);
 
   // --- Founding a club and running it (piece 8a) ---------------------------
   const foundingCode = (await pool.query(`select app.create_founding_code('e2e') as code`)).rows[0].code as string;
@@ -781,10 +810,22 @@ async function main() {
   await data.flushRemote();
   check('lead: cannot create a team in Tennis', (await count('select 1 from teams')) === teamsBefore && store.getStatus().rejected !== null, store.getStatus());
   data.dismissRejectedChange();
+  const leadNews = data.postNews({ departmentId: handball, body: 'Handball: new hall times from Monday.' });
+  data.setNewsByHeadCoaches(handball, true);
+  await data.flushRemote();
+  check('lead: writes Handball news and lets its Head Coaches write too',
+    (await count('select 1 from club_news where id = $1', [leadNews])) === 1
+      && (await count('select 1 from departments where id = $1 and news_by_head_coaches', [handball])) === 1, store.getStatus().rejected);
+  check('… but not to the whole club', !data.newsScopesFor(db(), db().activeIdentity!.personId).includes(null));
   store = await actAs(U.founder);
   check('founder: can switch to her club role', data.hasIdentityRole(db(), frida!.id, 'club') && data.hasIdentityRole(db(), frida!.id, 'coach'));
   data.setActiveIdentity({ role: 'club', personId: frida!.id });
   check('… and acts as club admin', db().activeIdentity?.role === 'club');
+  const clubNewsId = data.postNews({ departmentId: null, body: 'General meeting on 12 November.', important: true, pinDays: 7 });
+  await data.flushRemote();
+  check('admin: writes to the whole club, pinned for a week',
+    (await count("select 1 from club_news where id = $1 and department_id is null and important and pinned_until > now() + interval '6 days'", [clubNewsId])) === 1, store.getStatus().rejected);
+  check('… and reads the lead\'s Handball news', data.unreadNewsFor(db(), frida!.id).some((news) => news.id === leadNews));
 
   // --- Settings (piece 12) -------------------------------------------------
   data.renameClub('SV Neu 1920');

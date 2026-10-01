@@ -90,6 +90,11 @@ export function buildPush(t: Translate, format: PushFormat, titles: Record<strin
       if (params.reminder) heading = t('push.message.reminder', { title: heading });
       return { title: heading, body: stored.body };
     }
+    case 'push.news': {
+      let heading = params.author ? t('push.news.title', { scope: str(params.scope), author: str(params.author) }) : str(params.scope);
+      if (params.important) heading = t('push.message.important', { title: heading });
+      return { title: heading, body: stored.body };
+    }
     case 'push.joined':
       return { title: t('push.joined.title', { team: str(params.team) }), body: t('push.joined.body', { name: str(params.name) }) };
     default:

@@ -74,6 +74,10 @@ check('push texts: rebuilt in English exactly as the database writes them', () =
     { title: 'Please check an entry', body: 'Carla asks you to check Team training (Fri 25 Sept: RPE 7 · 90 min) – too high?' });
   assert.deepEqual(build('push.message', { team: 'U20', author: 'Carla', important: false, reminder: true }, 'Training moves.'), { title: 'Reminder: U20 · Carla', body: 'Training moves.' });
   assert.equal(build('push.message', { team: 'U20', author: null, important: true, reminder: false })?.title, 'Important · U20');
+  // Polls (0034) and news (0035) mirror the SQL titles.
+  assert.equal(build('push.message', { team: 'U20', author: 'Carla', important: true, reminder: true, poll: true })?.title, 'Reminder: Important · Poll · U20 · Carla');
+  assert.deepEqual(build('push.news', { scope: 'Handball', author: 'Leo', important: false }, 'Party on Saturday.'), { title: 'Handball · Leo', body: 'Party on Saturday.' });
+  assert.equal(build('push.news', { scope: 'TV Nachrichten', author: 'Anna', important: true })?.title, 'Important · TV Nachrichten · Anna');
   assert.deepEqual(build('push.joined', { team: 'U20', name: 'Nina New' }), { title: 'U20 · New player', body: 'Nina New joined with the team code. Not someone you know? Remove them under Team → Players.' });
   assert.equal(build('push.unknown', {}), null);
 });
