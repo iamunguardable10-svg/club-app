@@ -334,6 +334,28 @@ weiteren Teams oder Vereinen aber nötig:
     nicht erlaubt. Sportartunabhängig geht: Spielplan als Kalenderdatei (ICS) importieren → Spiele
     mit Gegner, Ort, Heim/Auswärts. Tabellen danach je Verband mit offener Schnittstelle.
 
+- **Onboarding pro Seite, richtig gemeint (gemerkt 2026-10-01, später):** Die Hinweis-Karten aus Run 59
+  sind nur ein erster Schritt. Gemeint war ein interaktives Onboarding wie in iOS-Apps beim ersten
+  Öffnen einer Seite, das die Gesten zeigt, z. B. beim Kalender: Tippen legt eine Einheit an; Einheiten
+  verschieben, kürzen, verlängern; zwischen Wochentagen nach links/rechts wischen; Tages-/Wochenansicht;
+  zwischen Wochen springen und zurück zur aktuellen Woche. Für jede Seite so planen (Gesten und
+  Bedienelemente der Seite, kurz animiert, Schritt für Schritt).
+- **Entschlacken auf dem Handy (Punkt 9, später):** Kandidaten siehe Run 59 bzw. Chat vom 2026-09-28
+  (grüner Satz „Du bist dabei · tippe hier …“, „Kalender ›“, „ABWESEND“, Erklärsätze im Verlauf, in der
+  Belastung, bei Nachrichten und im Verein). Erst nach Entscheidung von Ben.
+- **Vergleich mit Hooplayer (2026-10-01), vor dem Launch einbauen, Reihenfolge noch offen:**
+  - *Haben wir:* Teamkalender mit Hallen, Push-Erinnerungen und Änderungen, Zu-/Absagen mit
+    Echtzeit-Liste für den Trainer, Kader, Team-Nachrichten mit angepinnten wichtigen Beiträgen,
+    alles in der App (kein WhatsApp nötig). Zusätzlich bei uns: Belastung/RPE/ACWR, Abwesenheiten mit
+    Gründen, Vereins- und Hallenverwaltung, Apple-Kalender, offline, vier Sprachen.
+  - *Teilweise:* Termin-Arten (Training, Spiel, Kraft, Regeneration, Sonstiges; Besprechung/Turnier
+    nicht eigens, mehrtägige Turniere fehlen); „wer hat noch nicht reagiert“ (bei uns gilt ohne Antwort
+    „dabei“); Ankündigungen nur pro Team, keine Vereins-News.
+  - *Fehlt:* Umfragen (auch für Fahrgemeinschaften, Trikots, Essen); Eltern-Zugang für Jugendteams
+    (passt zur Einwilligung unter 16); Videoanalyse (Video teilen mit Team oder einzelnen Spielern,
+    Feedback an Zeitstellen); Playbook/Taktik-Editor (Spielzüge in Phasen, Animation, Bibliothek nach
+    Kategorien).
+
 Annahme für den Pilot: alle Spieler haben die App (kein Eintragen durch den Trainer für
 Spieler ohne Konto nötig).
 
