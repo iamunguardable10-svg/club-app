@@ -19,6 +19,7 @@ import type {
   MessageRead,
   TeamMessage,
   MessageVote,
+  ClubNews,
   AthletePlan,
   CoachPermission,
   CoachRole,
@@ -399,6 +400,19 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
       pollOptions: ['Friday', 'Saturday', 'Sunday'], pollMultiple: true, pollClosedAt: null,
     },
   ];
+  // Piece C: one news item to the whole club (read by nobody yet) and one to Basketball.
+  const clubNews: ClubNews[] = [
+    {
+      id: 'news-demo-1', clubId: CLUB_ID, departmentId: null, authorId: 'club-admin-1', important: false, pinnedUntil: null,
+      body: 'General meeting on 12 November at 19:00 in the club house. Everyone is welcome.',
+      createdAt: addDays(now, -4).toISOString(),
+    },
+    {
+      id: 'news-demo-2', clubId: CLUB_ID, departmentId: DEPARTMENT_ID, authorId: 'department-lead-1', important: false, pinnedUntil: null,
+      body: 'Basketball summer camp: sign-up opens next week. Ask your coach for details.',
+      createdAt: addDays(now, -2).toISOString(),
+    },
+  ];
   const messageVotes: MessageVote[] = ([
     ['athlete-u16-2', [0, 1]], ['athlete-u16-3', [1]], ['athlete-u16-4', [1, 2]], ['athlete-u16-5', [0]], ['athlete-u16-6', [1]],
   ] as const).map(([personId, options]) => ({ messageId: 'message-demo-3', personId, options: [...options], votedAt: addDays(now, -1).toISOString() }));
@@ -590,6 +604,8 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     teamMessages,
     messageReads,
     messageVotes,
+    clubNews,
+    newsReads: [],
     shareLinks: {},
     // Start as the first coach so the app is usable immediately. Run 3 adds
     // the entry page that asks which role to test as and lets the person

@@ -18,7 +18,8 @@ import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { InstallHint } from '@/features/install/InstallHint';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
 import { CalendarHint } from '@/features/calendar/CalendarHint';
-import { athleteHasLoad, getActivePerson, unreadMessagesFor, useLocalDatabase } from '@/shared/data';
+import { athleteHasLoad, getActivePerson, useLocalDatabase } from '@/shared/data';
+import { unreadInbox } from '@/features/messages/inbox';
 import { UnreadMessagesCard } from '@/features/messages/UnreadMessagesCard';
 import { countToRate } from '@/features/load/athleteLocalStore';
 import { PageTip, type TipId } from '@/features/onboarding/PageTip';
@@ -26,7 +27,7 @@ import { useT, type MessageKey } from '@/shared/i18n';
 
 export type CoachNavItem = 'today' | 'calendar' | 'team' | 'halls' | 'history';
 export type AthleteNavItem = 'today' | 'calendar' | 'load' | 'messages';
-export type ClubNavItem = 'club' | 'halls';
+export type ClubNavItem = 'club' | 'halls' | 'news';
 type NavItem = CoachNavItem | AthleteNavItem | ClubNavItem;
 type NavEntry = { item: NavItem; label: MessageKey; href: string };
 
@@ -49,6 +50,8 @@ const COACH_NAV: NavEntry[] = [
 const CLUB_NAV: NavEntry[] = [
   { item: 'club', label: 'nav.club', href: '/club' },
   { item: 'halls', label: 'nav.halls', href: '/club/halls' },
+  // Piece C: news to the club or a department.
+  { item: 'news', label: 'nav.news', href: '/news' },
 ];
 
 function NavIcon({ item }: { item: NavItem }) {
@@ -63,6 +66,7 @@ function NavIcon({ item }: { item: NavItem }) {
       {item === 'club' ? <><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6l8-3z" {...common} /><path d="M9 12l2 2 4-4" {...common} /></> : null}
       {item === 'load' ? <path d="M3 12h4l3-7 4 14 3-7h4" {...common} /> : null}
       {item === 'messages' ? <path d="M4 5h16v11H9l-5 4V5z" {...common} /> : null}
+      {item === 'news' ? <><path d="M3 10v4h3l7 4V6l-7 4H3z" {...common} /><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11" {...common} /></> : null}
     </svg>
   );
 }
@@ -119,15 +123,15 @@ function RoleShell({ nav, active, title, subtitle, back, actions, tip, children 
     : 1;
   const labelFor = (item: NavItem, label: MessageKey) => t(item === 'team' && teamCount > 1 ? 'nav.teams' : label);
   const columns = nav.length === 2 ? 'grid-cols-2' : nav.length === 3 ? 'grid-cols-3' : nav.length === 4 ? 'grid-cols-4' : 'grid-cols-5';
-  // Unread messages for a player (piece 17), as a count on the tab.
-  const unread = database && person && database.activeIdentity?.role === 'athlete' ? unreadMessagesFor(database, person.id).length : 0;
+  // Unread messages and news (pieces 17 and C), as a count on the tab.
+  const unread = database && person && database.activeIdentity ? unreadInbox(database, person.id).length : 0;
   // Sessions waiting for "How hard was it?" (team and own), on the Today tab,
   // so "Later" in the prompt never loses them.
   const toRate = database && person && database.activeIdentity?.role === 'athlete' && athleteHasLoad(database, person.id)
     ? countToRate(database, person.id)
     : 0;
   const badge = (item: NavItem) => {
-    if (item === 'messages' && unread > 0) {
+    if ((item === 'messages' || item === 'news') && unread > 0) {
       return <span aria-label={t('nav.unread', { count: unread })} className="absolute -right-1.5 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-400 px-1 text-[10px] font-black text-slate-950">{unread}</span>;
     }
     if (item === 'today' && toRate > 0) {

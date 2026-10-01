@@ -70,6 +70,7 @@ export const SERVER_MESSAGES: Record<string, MessageKey> = {
   "A poll needs 2 to 6 different answers of up to 80 characters.": 'server.aPollNeedsAnswers',
   "Choose one of the answers.": 'server.chooseOneOfTheAnswers',
   "This poll is already closed.": 'server.thisPollIsAlreadyClosed',
+  "Only the club admin may rename a department.": 'server.onlyTheClubAdminMayRename',
 };
 
 const PATTERNS: [RegExp, MessageKey][] = [

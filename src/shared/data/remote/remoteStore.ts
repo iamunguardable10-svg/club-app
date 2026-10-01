@@ -176,7 +176,7 @@ export function netOperations(operations: Operation[]): Operation[] {
 
 /** Human-readable names for the message when the server refuses something. */
 /** Rows that only mark that something happened (read, seen); their time is not compared. */
-const MARK_TABLES = new Set<TableName>(['message_reads', 'acknowledged_sessions']);
+const MARK_TABLES = new Set<TableName>(['message_reads', 'news_reads', 'acknowledged_sessions']);
 
 /** What a table is called in "Not saved (…)"; text keys (docs/i18n.md). */
 const TABLE_KEY: Partial<Record<TableName, MessageKey>> = {
@@ -205,6 +205,8 @@ const TABLE_KEY: Partial<Record<TableName, MessageKey>> = {
   team_messages: 'sync.table.teamMessages',
   message_reads: 'sync.table.messageReads',
   message_votes: 'sync.table.messageVotes',
+  club_news: 'sync.table.clubNews',
+  news_reads: 'sync.table.newsReads',
 };
 
 export class RemoteStore {

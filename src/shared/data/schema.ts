@@ -132,6 +132,8 @@ export type Department = {
   id: Id;
   clubId: Id;
   name: string;
+  /** Set by the lead: the Head Coaches of its teams may write department news (piece C). */
+  newsByHeadCoaches?: boolean;
 };
 
 export type Team = {
@@ -475,6 +477,30 @@ export type TeamMessage = {
   pollCounts?: number[] | null;
 };
 
+/**
+ * News to a whole club or one department (piece C): for the players and
+ * staff of its active teams and the club roles over them. Written by club
+ * admins (club), the department lead (department) and, when the lead allows
+ * it, the department's Head Coaches. No replies; read = seen.
+ */
+export type ClubNews = {
+  id: Id;
+  clubId: Id;
+  /** Null: the whole club. */
+  departmentId: Id | null;
+  authorId: Id | null;
+  body: string;
+  important: boolean;
+  pinnedUntil: Timestamp | null;
+  createdAt: Timestamp;
+};
+
+export type NewsRead = {
+  newsId: Id;
+  personId: Id;
+  readAt: Timestamp;
+};
+
 /** A player's vote on a poll: indexes into `pollOptions`. */
 export type MessageVote = {
   messageId: Id;
@@ -558,6 +584,9 @@ export type LocalDatabase = {
   messageReads: MessageRead[];
   /** Votes on polls (piece B): players have only their own on the club server. */
   messageVotes?: MessageVote[];
+  /** Club and department news (piece C). */
+  clubNews?: ClubNews[];
+  newsReads?: NewsRead[];
   /** Imported Apple calendar events (server mode only; piece 20). */
   privateEvents?: PrivateEvent[];
   /** The last load link an athlete shared with a coach, per person. */

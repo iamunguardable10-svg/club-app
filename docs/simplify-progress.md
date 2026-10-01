@@ -2484,3 +2484,29 @@ Plan: `docs/plan-rsvp-polls-news.md`, Stück B.
   und fällt weg, sobald sie abstimmen. Push-Titel „Umfrage · …“ in der Sprache des Empfängers.
 Geprüft: SQL-Test `21_message_polls_test.sql`, Server-Store-Test (abstimmen, ändern, Zahlen,
 Trainer sieht wer, beenden), Browser Handy und Desktop, Rundgang (`test:smoke`) ohne Fehler.
+
+## Run 62 — Vereins- und Abteilungs-News, ein Posteingang (erledigt)
+
+Plan: `docs/plan-rsvp-polls-news.md`, Stück C.
+- **Wer schreibt:** an den ganzen Verein nur Vereinsadmins; an eine Abteilung die Abteilungsleitung
+  (und Admins). Die Leitung kann im Vereinsbereich je Abteilung einschalten: „Head Coaches dürfen
+  Abteilungs-News schreiben“ (Standard aus). Head Coaches verwalten dann nur ihre eigenen News; löschen
+  und „wer hat gelesen“ für alle News des Bereichs bleiben bei Leitung und Admins.
+- **Wer liest:** Spieler und Trainer der aktiven Teams im Bereich und die Vereinsrollen darüber.
+- **Seite „News“** (`/news`): Schreiben (Bereich wählen, wichtig mit Anpinn-Dauer wie bei
+  Team-Nachrichten), Liste mit Bereich-Kennzeichen, „Gelesen x/y“ mit Namen, Löschen. Vereinsrollen
+  haben „News“ als eigenen Tab (mit Zahl ungelesener), Trainer erreichen sie über die Karte auf „Heute“
+  (ungelesene/angepinnte News; sonst „News schreiben ›“ bzw. „News öffnen ›“).
+- **Spieler: ein Posteingang** — „Nachrichten“ zeigt Team-Nachrichten, Umfragen und News zusammen,
+  Angepinntes oben, Filter „Alle · Team · Verein“ sobald es News gibt; Zahl am Tab und Karte auf
+  „Heute“ zählen beides. Gesehen = gelesen.
+- **Server (Migration 0035):** `club_news`, `news_reads`, `departments.news_by_head_coaches`;
+  Zugriffsregeln wie oben (Umbenennen einer Abteilung bleibt beim Admin, auch wenn die Leitung die
+  Abteilung jetzt ändern darf); Push an alle Empfänger mit Gerät („Bereich · Autor“, wichtig nicht
+  abschaltbar), Spieler landen in „Nachrichten“, alle anderen auf „News“.
+- **Fehler behoben:** Eine gelesene Team-Nachricht ließ sich auf dem Vereinsserver nicht löschen (die
+  App schickte das Löschen der Lesebestätigungen mit, das niemand darf). Lesebestätigungen, Stimmen
+  und News-Lesebestätigungen löscht jetzt der Server mit der Nachricht.
+Geprüft: SQL-Test `22_club_news_test.sql`, Server-Store-Test (Head Coach erst ohne, dann mit Erlaubnis,
+Lesen, Löschen; Leitung schreibt und erlaubt; Admin schreibt an alle), Browser Handy/Desktop
+(Admin, Trainer, Spieler), Rundgang (`test:smoke`, jetzt mit `/news`) ohne Fehler.
