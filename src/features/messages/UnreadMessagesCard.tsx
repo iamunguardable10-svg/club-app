@@ -9,7 +9,7 @@
 
 import Link from 'next/link';
 
-import { pinnedMessagesFor, unreadMessagesFor, type LocalDatabase } from '@/shared/data';
+import { isPoll, pinnedMessagesFor, unreadMessagesFor, type LocalDatabase } from '@/shared/data';
 
 import { useT } from '@/shared/i18n';
 
@@ -25,6 +25,7 @@ export function UnreadMessagesCard({ database, personId }: { database: LocalData
       <p className="flex flex-wrap items-center gap-2 font-black text-white">
         {unread.length > 0 ? t('messages.newCount', { count: unread.length }) : null}
         {shown.important ? <span className="rounded-full bg-rose-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('messages.important')}</span> : null}
+        {isPoll(shown) ? <span className="rounded-full bg-violet-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('poll.label')}</span> : null}
       </p>
       <p className="mt-1 line-clamp-2 text-slate-300">
         <span className="font-bold text-slate-400">{authorName(database, shown)} · {whenPosted(shown.createdAt)}: </span>

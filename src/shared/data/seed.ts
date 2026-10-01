@@ -18,6 +18,7 @@ import type {
   Absence,
   MessageRead,
   TeamMessage,
+  MessageVote,
   AthletePlan,
   CoachPermission,
   CoachRole,
@@ -390,7 +391,17 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
       body: 'Game on Saturday: be at the hall by 10:15, warm-up starts 10:30. Bring both kits.',
       createdAt: addDays(now, -1).toISOString(), remindedAt: null,
     },
+    // Piece B: a poll most players have answered, the demo player not yet.
+    {
+      id: 'message-demo-3', teamId: TEAM_U16, groupIds: [], authorId: 'coach-1', important: false, pinnedUntil: null,
+      body: 'Team dinner after the last game: which days work for you?',
+      createdAt: addDays(now, -2).toISOString(), remindedAt: null,
+      pollOptions: ['Friday', 'Saturday', 'Sunday'], pollMultiple: true, pollClosedAt: null,
+    },
   ];
+  const messageVotes: MessageVote[] = ([
+    ['athlete-u16-2', [0, 1]], ['athlete-u16-3', [1]], ['athlete-u16-4', [1, 2]], ['athlete-u16-5', [0]], ['athlete-u16-6', [1]],
+  ] as const).map(([personId, options]) => ({ messageId: 'message-demo-3', personId, options: [...options], votedAt: addDays(now, -1).toISOString() }));
   const messageReads: MessageRead[] = [
     ...['athlete-u16-2', 'athlete-u16-3', 'athlete-u16-4', 'athlete-u16-5', 'athlete-u16-6', 'athlete-u16-8', 'athlete-u16-9']
       .map((personId) => ({ messageId: 'message-demo-1', personId, readAt: addDays(now, -2).toISOString() })),
@@ -578,6 +589,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     squadEntries: [],
     teamMessages,
     messageReads,
+    messageVotes,
     shareLinks: {},
     // Start as the first coach so the app is usable immediately. Run 3 adds
     // the entry page that asks which role to test as and lets the person

@@ -50,6 +50,7 @@ import {
   type AbsenceKind,
   type SquadStatus,
   type TeamMessage,
+  type MessageVote,
   type Availability,
   type AvailabilityStatus,
   type Facility,
@@ -2498,13 +2499,37 @@ function requireMessageRights(database: LocalDatabase, teamId: Id): Id {
   return coachId;
 }
 
-export function postTeamMessage(input: { teamId: Id; groupIds?: Id[]; body: string; important?: boolean; pinDays?: number }): Id {
+/** A poll has 2 to 6 answers of up to 80 characters each. */
+export const POLL_MIN_OPTIONS = 2;
+export const POLL_MAX_OPTIONS = 6;
+export const POLL_OPTION_MAX_LENGTH = 80;
+
+function pollError(message: string, key: string): LocalDataError {
+  return new LocalDataError(message, undefined, key);
+}
+
+/** The answers of a poll, cleaned; throws when they do not make a poll. */
+export function cleanPollOptions(options: string[]): string[] {
+  const cleaned = options.map((option) => option.trim()).filter(Boolean);
+  const distinct = new Set(cleaned.map((option) => option.toLowerCase()));
+  if (cleaned.length < POLL_MIN_OPTIONS || cleaned.length > POLL_MAX_OPTIONS || distinct.size !== cleaned.length
+    || cleaned.some((option) => option.length > POLL_OPTION_MAX_LENGTH)) {
+    throw pollError('A poll needs 2 to 6 different answers of up to 80 characters.', 'server.aPollNeedsAnswers');
+  }
+  return cleaned;
+}
+
+export function postTeamMessage(input: {
+  teamId: Id; groupIds?: Id[]; body: string; important?: boolean; pinDays?: number;
+  poll?: { options: string[]; multiple?: boolean } | null;
+}): Id {
   const body = input.body.trim();
   if (!body) throw new LocalDataError('Write a message first.');
   if (body.length > 2000) throw new LocalDataError('A message can be at most 2000 characters.');
   const important = Boolean(input.important);
   const pinDays = input.pinDays ?? DEFAULT_MESSAGE_PIN_DAYS;
   if (important && !(MESSAGE_PIN_DAYS as readonly number[]).includes(pinDays)) throw new LocalDataError('Choose how long the message stays pinned.');
+  const pollOptions = input.poll ? cleanPollOptions(input.poll.options) : null;
   const id = newId();
   const createdAt = new Date();
   mutate((database) => {
@@ -2518,6 +2543,9 @@ export function postTeamMessage(input: { teamId: Id; groupIds?: Id[]; body: stri
       id, teamId: input.teamId, groupIds, authorId, body, important,
       pinnedUntil: important ? new Date(createdAt.getTime() + pinDays * 86_400_000).toISOString() : null,
       createdAt: createdAt.toISOString(), remindedAt: null,
+      pollOptions, pollMultiple: Boolean(pollOptions && input.poll?.multiple), pollClosedAt: null,
+      // The club server counts; until it answers, nobody has voted.
+      pollCounts: pollOptions && isRemoteMode() ? pollOptions.map(() => 0) : null,
     });
   });
   return id;
@@ -2530,10 +2558,11 @@ export function deleteTeamMessage(messageId: Id): void {
     requireMessageRights(database, message.teamId);
     database.teamMessages = database.teamMessages.filter((candidate) => candidate.id !== messageId);
     database.messageReads = (database.messageReads ?? []).filter((read) => read.messageId !== messageId);
+    database.messageVotes = (database.messageVotes ?? []).filter((vote) => vote.messageId !== messageId);
   });
 }
 
-/** Reminds everyone who has not read it yet, once. */
+/** Reminds everyone who has not read it yet (a poll: not voted yet), once. */
 export function remindUnread(messageId: Id): void {
   mutate((database) => {
     const message = (database.teamMessages ?? []).find((candidate) => candidate.id === messageId);
@@ -2557,6 +2586,100 @@ export function markMessagesRead(personId: Id, messageIds: Id[]): void {
     draft.messageReads = draft.messageReads ?? [];
     const now = new Date().toISOString();
     for (const messageId of unread) draft.messageReads.push({ messageId, personId, readAt: now });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Polls in team messages (piece B)
+// ---------------------------------------------------------------------------
+
+export function isPoll(message: TeamMessage): boolean {
+  return Array.isArray(message.pollOptions) && message.pollOptions.length >= POLL_MIN_OPTIONS;
+}
+
+export function isPollClosed(message: TeamMessage): boolean {
+  return Boolean(message.pollClosedAt);
+}
+
+export function votesFor(database: LocalDatabase, messageId: Id): MessageVote[] {
+  return (database.messageVotes ?? []).filter((vote) => vote.messageId === messageId);
+}
+
+/** The answers this person chose, or none. */
+export function ownVote(database: LocalDatabase, messageId: Id, personId: Id): number[] {
+  return (database.messageVotes ?? []).find((vote) => vote.messageId === messageId && vote.personId === personId)?.options ?? [];
+}
+
+/**
+ * How many chose each answer. On the club server the counts come with the
+ * message (players do not get everyone's votes); in the local test mode they
+ * are counted from the votes.
+ */
+export function pollCounts(database: LocalDatabase, message: TeamMessage): number[] {
+  const options = message.pollOptions ?? [];
+  if (message.pollCounts && message.pollCounts.length === options.length) return message.pollCounts;
+  const votes = votesFor(database, message.id);
+  return options.map((_, index) => votes.filter((vote) => vote.options.includes(index)).length);
+}
+
+/** For the staff: who voted for each answer, and who has not voted yet. */
+export function pollVoteStats(database: LocalDatabase, message: TeamMessage): { voted: number; total: number; notVotedIds: Id[]; byOption: Id[][] } {
+  const recipients = messageRecipientIds(database, message);
+  const votes = votesFor(database, message.id).filter((vote) => recipients.includes(vote.personId));
+  const votedIds = new Set(votes.map((vote) => vote.personId));
+  return {
+    voted: votedIds.size,
+    total: recipients.length,
+    notVotedIds: recipients.filter((personId) => !votedIds.has(personId)),
+    byOption: (message.pollOptions ?? []).map((_, index) => votes.filter((vote) => vote.options.includes(index)).map((vote) => vote.personId)),
+  };
+}
+
+/**
+ * The player votes (or changes their vote) while the poll is open. One
+ * answer, or several when the poll allows it; none takes the vote back.
+ */
+export function votePoll(personId: Id, messageId: Id, options: number[]): void {
+  mutate((database) => {
+    if (!ownPersonIds(database).includes(personId)) throw new LocalDataError('You can only vote for yourself.');
+    const message = (database.teamMessages ?? []).find((candidate) => candidate.id === messageId);
+    if (!message || !isPoll(message) || !messageRecipientIds(database, message).includes(personId)) {
+      throw new LocalDataError('This poll is not for you.');
+    }
+    if (isPollClosed(message)) throw pollError('This poll is already closed.', 'server.thisPollIsAlreadyClosed');
+    const chosen = [...new Set(options)].sort((a, b) => a - b);
+    const count = message.pollOptions?.length ?? 0;
+    if (chosen.some((index) => !Number.isInteger(index) || index < 0 || index >= count) || (!message.pollMultiple && chosen.length > 1)) {
+      throw pollError('Choose one of the answers.', 'server.chooseOneOfTheAnswers');
+    }
+    database.messageVotes = database.messageVotes ?? [];
+    const existing = database.messageVotes.find((vote) => vote.messageId === messageId && vote.personId === personId);
+    // The server's counts follow at once, so the bars do not wait for it.
+    if (message.pollCounts && message.pollCounts.length === count) {
+      const counts = [...message.pollCounts];
+      for (const index of existing?.options ?? []) counts[index] = Math.max(0, counts[index] - 1);
+      for (const index of chosen) counts[index] += 1;
+      message.pollCounts = counts;
+    }
+    if (chosen.length === 0) {
+      database.messageVotes = database.messageVotes.filter((vote) => vote !== existing);
+    } else if (existing) {
+      existing.options = chosen;
+      existing.votedAt = new Date().toISOString();
+    } else {
+      database.messageVotes.push({ messageId, personId, options: chosen, votedAt: new Date().toISOString() });
+    }
+  });
+}
+
+/** The staff close a poll: no more votes, the result stays. Once. */
+export function closePoll(messageId: Id): void {
+  mutate((database) => {
+    const message = (database.teamMessages ?? []).find((candidate) => candidate.id === messageId);
+    if (!message || !isPoll(message)) throw new LocalDataError('This message has no poll.');
+    requireMessageRights(database, message.teamId);
+    if (isPollClosed(message)) throw pollError('This poll is already closed.', 'server.thisPollIsAlreadyClosed');
+    message.pollClosedAt = new Date().toISOString();
   });
 }
 
