@@ -1677,5 +1677,24 @@
   "tip.hallCalendar.title": "One hall, every team",
   "tip.hallCalendar.text": "Here you see every booking of this hall. With “Edit” you add times; the app warns you right away about overlaps.",
   "settings.showTipsAgain": "Show tips again",
-  "settings.tipsShown": "The tips appear again on each page."
+  "settings.tipsShown": "The tips appear again on each page.",
+
+  "athlete.availability.open": "No answer yet · are you coming?",
+  "athlete.rsvp.question": "Are you coming?",
+  "athlete.rsvp.yes": "I'm in",
+  "athlete.rsvp.no": "Can't come",
+  "composer.openAnswer": "You haven't answered yet. Your coach sees you as open until you do.",
+  "coach.open.count": "{count} no answer",
+  "coach.open.remind": "Remind",
+  "coach.open.reminded": "Reminded",
+  "coach.row.open": "{count} no answer",
+  "sessionSheet.status.open": "no answer",
+  "squad.hint.open": "no answer yet",
+  "settings.rsvp.title": "Answering sessions",
+  "settings.rsvp.auto": "Automatically in",
+  "settings.rsvp.autoDetail": "You count as coming and only say when you can't make it.",
+  "settings.rsvp.manual": "I answer myself",
+  "settings.rsvp.manualDetail": "You say “I'm in” or “Can't come” for every session. Until you answer, your coach sees you as open.",
+  "server.thisSessionHasAlreadyStarted": "This session has already started.",
+  "server.yourRoleMayNotSeeAttendance": "Your role may not see attendance for this team."
 }

@@ -56,6 +56,7 @@ import {
   type DateOnly,
   type PrivateEvent,
   type Id,
+  type RsvpMode,
   type Timestamp,
   type LoadEntry,
   type LoadEntryReview,
@@ -1983,10 +1984,55 @@ export function availabilityFor(database: LocalDatabase, sessionId: Id, personId
   return database.availability.find((entry) => entry.sessionId === sessionId && entry.personId === personId) ?? null;
 }
 
+/** How a person answers sessions (piece A); 'auto' unless they chose otherwise. */
+export function rsvpModeOf(database: LocalDatabase, personId: Id): RsvpMode {
+  return database.people.find((person) => person.id === personId)?.rsvpMode ?? 'auto';
+}
+
+/** Sets how you answer sessions, for every person of your account (all your teams). */
+export function setOwnRsvpMode(mode: RsvpMode): void {
+  mutate((database) => {
+    const own = ownPersonIds(database);
+    for (const person of database.people) if (own.includes(person.id)) person.rsvpMode = mode;
+  });
+}
+
+/**
+ * Whether a player still owes an answer for a session: they say yes
+ * themselves ('manual'), have not answered, are not away and not left out of
+ * the squad. Only for sessions still to come.
+ */
+export function isAnswerOpen(database: LocalDatabase, sessionId: Id, personId: Id, now = Date.now()): boolean {
+  if (rsvpModeOf(database, personId) !== 'manual') return false;
+  const session = database.sessions.find((candidate) => candidate.id === sessionId);
+  if (!session || new Date(session.startsAt).getTime() <= now) return false;
+  if (database.availability.some((entry) => entry.sessionId === sessionId && entry.personId === personId)) return false;
+  if (absenceOn(database, personId, sessionDate(session.startsAt))) return false;
+  return !(database.squadEntries ?? []).some((entry) => entry.sessionId === sessionId && entry.personId === personId && entry.status === 'not_selected');
+}
+
+/**
+ * "Remind the open ones" (piece A): one "Are you in?" to each player still
+ * open for the session. On the club server a push (once per player); the
+ * local test mode has no pushes and only counts them. Returns how many.
+ */
+export async function remindOpenPlayers(sessionId: Id): Promise<number> {
+  if (!isRemoteMode()) {
+    const database = readDatabase();
+    const session = database?.sessions.find((candidate) => candidate.id === sessionId);
+    if (!database || !session) return 0;
+    return database.memberships
+      .filter((m) => m.teamId === session.teamId && m.role === 'athlete')
+      .filter((m) => isAnswerOpen(database, sessionId, m.personId)).length;
+  }
+  return Number((await requireRemote().call('remind_open_players', { p_session: sessionId })) ?? 0);
+}
+
 /**
  * Records how an athlete reports in for a session. Reporting 'in' removes an
- * earlier absence rather than storing a row, so "no record" always means
- * "expected to attend".
+ * earlier absence rather than storing a row, so for players who answer
+ * automatically "no record" means "expected to attend"; players who say yes
+ * themselves ('manual') and anyone away for that day keep an explicit 'in'.
  */
 export function reportAvailability(input: {
   sessionId: Id;
@@ -2009,7 +2055,7 @@ export function reportAvailability(input: {
     // "In" is normally the absence of a report; during an absence it is said
     // out loud, so it wins over the absence for this session (piece 16).
     const session = database.sessions.find((candidate) => candidate.id === input.sessionId);
-    if (input.status === 'in' && !(session && absenceOn(database, input.personId, sessionDate(session.startsAt)))) return;
+    if (input.status === 'in' && rsvpModeOf(database, input.personId) !== 'manual' && !(session && absenceOn(database, input.personId, sessionDate(session.startsAt)))) return;
     database.availability.push({
       // A changed report keeps its row (and its id on the server).
       id: previous?.id ?? newId(),

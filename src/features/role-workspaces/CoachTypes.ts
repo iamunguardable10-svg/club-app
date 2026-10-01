@@ -65,6 +65,8 @@ export type CoachSession = {
   groupIds: string[];
   availability: CoachAvailability[];
   players: CoachPlayer[];
+  /** Players who say yes themselves and have not answered yet (piece A); empty without viewAttendance. */
+  openPlayerIds?: string[];
   /** Missing means shared; `false` for roles without `viewAttendance`. */
   attendanceShared?: boolean;
   /** `false` when the session's team does not track training load. */

@@ -72,9 +72,9 @@ select test.expect_count('"Are you in?" goes to Paul and Pete, not to Pia (away)
 select test.expect_count('"How hard was it?" not for Pia',
   $q$select 1 from app.push_outbox where kind = 'rate' and session_id = '57000000-0000-0000-0000-0000000000a3' and user_id = '10000000-0000-0000-0000-000000000071'$q$, 0);
 select test.expect_count('… but for Paul', $q$select 1 from app.push_outbox where kind = 'rate' and session_id = '57000000-0000-0000-0000-0000000000a3' and user_id = '10000000-0000-0000-0000-000000000072'$q$, 1);
-select test.expect_count('coach overview counts Pia as out, the others as no answer',
+select test.expect_count('coach overview counts Pia as out, the others (no answer, "automatically in") as in',
   $q$select 1 from app.push_outbox where kind = 'summary' and session_id = '57000000-0000-0000-0000-0000000000a2' and user_id = '10000000-0000-0000-0000-000000000074'
-     and body = '0 in · 1 out · 2 no answer'$q$, 1);
+     and body = '2 in · 1 out · 0 no answer'$q$, 1);
 select test.expect_count('Pia is away for tomorrow''s session', $q$select 1 where app.absent_for_session('a7000000-0000-0000-0000-000000000071', '57000000-0000-0000-0000-0000000000a1')$q$, 1);
 insert into public.availability (session_id, person_id, status) values ('57000000-0000-0000-0000-0000000000a1', 'a7000000-0000-0000-0000-000000000071', 'in');
 select test.expect_count('… unless she says "in" for it anyway', $q$select 1 where not app.absent_for_session('a7000000-0000-0000-0000-000000000071', '57000000-0000-0000-0000-0000000000a1')$q$, 1);

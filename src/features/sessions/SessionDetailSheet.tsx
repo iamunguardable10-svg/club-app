@@ -10,6 +10,7 @@ const STATUS_KEY: Record<string, MessageKey> = {
   late: 'sessionSheet.status.late',
   out: 'sessionSheet.status.out',
   expected: 'sessionSheet.status.expected',
+  open: 'sessionSheet.status.open',
   present: 'sessionSheet.status.present',
 };
 
@@ -56,7 +57,8 @@ export type SessionDetailLoadRisk = {
 export type SessionDetailParticipant = {
   id: string;
   name: string;
-  status?: 'expected' | 'late' | 'out' | 'present';
+  /** `open`: says yes themselves and has not answered yet (piece A). */
+  status?: 'expected' | 'late' | 'out' | 'present' | 'open';
   detail?: string | null;
 };
 
@@ -67,6 +69,7 @@ function formatTimeRange(startsAt: string, endsAt: string | null) {
 function statusClass(status?: string) {
   if (status === 'out') return 'text-red-200';
   if (status === 'late') return 'text-amber-200';
+  if (status === 'open') return 'text-slate-400';
   return 'text-emerald-200';
 }
 

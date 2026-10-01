@@ -1677,5 +1677,24 @@
   "tip.hallCalendar.title": "Eine Halle, alle Teams",
   "tip.hallCalendar.text": "Hier siehst du jede Buchung dieser Halle. Mit „Bearbeiten“ trägst du Zeiten ein; Überschneidungen meldet die App sofort.",
   "settings.showTipsAgain": "Hinweise wieder anzeigen",
-  "settings.tipsShown": "Die Hinweise erscheinen wieder auf jeder Seite."
+  "settings.tipsShown": "Die Hinweise erscheinen wieder auf jeder Seite.",
+
+  "athlete.availability.open": "Noch keine Antwort · kommst du?",
+  "athlete.rsvp.question": "Kommst du?",
+  "athlete.rsvp.yes": "Dabei",
+  "athlete.rsvp.no": "Absagen",
+  "composer.openAnswer": "Du hast noch nicht geantwortet. Bis dahin sieht dein Trainer dich als offen.",
+  "coach.open.count": "{count} offen",
+  "coach.open.remind": "Erinnern",
+  "coach.open.reminded": "Erinnert",
+  "coach.row.open": "{count} offen",
+  "sessionSheet.status.open": "keine Antwort",
+  "squad.hint.open": "noch keine Antwort",
+  "settings.rsvp.title": "Zusagen",
+  "settings.rsvp.auto": "Automatisch dabei",
+  "settings.rsvp.autoDetail": "Du giltst als dabei und sagst nur ab, wenn du nicht kannst.",
+  "settings.rsvp.manual": "Selbst zusagen",
+  "settings.rsvp.manualDetail": "Du sagst bei jeder Einheit „Dabei“ oder „Absagen“. Bis du antwortest, sieht dein Trainer dich als offen.",
+  "server.thisSessionHasAlreadyStarted": "Diese Einheit hat schon begonnen.",
+  "server.yourRoleMayNotSeeAttendance": "Deine Rolle darf die Anwesenheit dieses Teams nicht sehen."
 }

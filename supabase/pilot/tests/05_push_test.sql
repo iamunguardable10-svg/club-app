@@ -125,6 +125,8 @@ insert into public.availability (session_id, person_id, status) values
   ('57000000-0000-0000-0000-000000000001', 'a7000000-0000-0000-0000-000000000071', 'in'),
   ('57000000-0000-0000-0000-000000000004', 'a7000000-0000-0000-0000-000000000071', 'in'),
   ('57000000-0000-0000-0000-000000000004', 'a7000000-0000-0000-0000-000000000072', 'out');
+-- Pete says yes or no himself (0033): no answer from him is open, not "in".
+update public.people set rsvp_mode = 'manual' where id = 'a7000000-0000-0000-0000-000000000073';
 insert into public.load_entries (person_id, session_id, team_id, date, title, training_type, rpe, duration_minutes, load, source) values
   ('a7000000-0000-0000-0000-000000000072', '57000000-0000-0000-0000-000000000003', '77000000-0000-0000-0000-000000000001', current_date + 1, 'Gym', 'strength', 6, 60, 360, 'planned_session');
 
@@ -140,6 +142,7 @@ select test.expect_count('… with the counts',
   $q$select 1 from app.push_outbox where kind = 'summary' and body = '1 in · 1 out · 1 no answer'$q$, 1);
 select test.expect_count('… and the counts as values for other languages',
   $q$select 1 from app.push_outbox where kind = 'summary' and text_key = 'push.summary' and text_params ->> 'in' = '1' and text_params ->> 'open' = '1'$q$, 1);
+update public.people set rsvp_mode = 'auto' where id = 'a7000000-0000-0000-0000-000000000073';
 select test.expect_count('rating: Pia (Paul already rated, Pete has no device)',
   $q$select 1 from app.push_outbox where kind = 'rate' and session_id = '57000000-0000-0000-0000-000000000003' and user_id = '10000000-0000-0000-0000-000000000071'$q$, 1);
 select test.expect_count('… nobody else for that session', $q$select 1 where test.outbox('rate', '57000000-0000-0000-0000-000000000003') = 1$q$, 1);
