@@ -985,7 +985,7 @@
   "teamMessages.newMessage": "Nouveau message",
   "teamMessages.wholeTeam": "Toute l’équipe",
   "teamMessages.important": "Important",
-  "teamMessages.importantHint": "Les joueurs ne peuvent pas désactiver sa notification.",
+  "teamMessages.importantHint": "Reste épinglé en haut, même une fois lu. Les joueurs ne peuvent pas désactiver sa notification.",
   "teamMessages.pinFor": "Épinglé pendant",
   "teamMessages.pinDays_one": "{count} jour",
   "teamMessages.pinDays_other": "{count} jours",
@@ -1767,5 +1767,10 @@
   "tip.messages.title": "Tous les messages au même endroit",
   "tip.messages.text": "Choisis sous « À : » les destinataires : tes équipes ou groupes, une section ou tout le club selon ton rôle, et si c'est pour tous, seulement les entraîneurs ou seulement les joueurs. Personne ne le reçoit deux fois.",
 
-  "writeMessage.coversAll": "Tout le club comprend toutes les sections et équipes."
+  "writeMessage.coversAll": "Tout le club comprend toutes les sections et équipes.",
+
+  "writeMessage.onlyGroups": "Seulement à :",
+
+  "messages.pinned": "Épinglé",
+  "messages.pinnedUntil": "épinglé jusqu'au {date}"
 }

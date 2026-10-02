@@ -29,6 +29,7 @@ import { formatShortDate } from '@/shared/format';
 import { errorText, useT } from '@/shared/i18n';
 
 import { authorName, messageLabel, whenPosted } from './messageText';
+import { NewDot, PinIcon } from './MessageMarks';
 import { PollView } from './PollView';
 
 export function MessageList({
@@ -79,21 +80,26 @@ export function MessageList({
           const pinnedUntil = messagePinnedUntil(message);
           const pinned = pinnedUntil !== null && Date.parse(pinnedUntil) > Date.now();
           return (
-            <li key={message.id} className={`rounded-2xl border p-3 ${message.important ? 'border-rose-300/40 bg-rose-300/[0.05]' : 'border-slate-800 bg-slate-950/55'}`}>
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-400">
-                <span>
-                  <span className="font-black text-slate-200">{authorName(database, message)}</span> · {whenPosted(message.createdAt)}
-                  <span className="text-slate-500"> → {messageLabel(database, message)}</span>
-                  {message.audience !== 'all' ? <span className="text-slate-500"> · {t(message.audience === 'staff' ? 'messages.onlyStaff' : 'messages.onlyPlayers')}</span> : null}
-                </span>
-                <span className="flex flex-wrap items-center gap-2">
-                  {pinned ? <span className="text-rose-200/80">{t('teamMessages.pinnedUntil', { date: formatShortDate(pinnedUntil) })}</span> : null}
-                  {message.important ? <span className="rounded-full bg-rose-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('teamMessages.important')}</span> : null}
-                  {poll ? <span className="rounded-full bg-violet-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('poll.label')}</span> : null}
-                  {unread ? <span className="rounded-full bg-sky-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('messages.new')}</span> : null}
-                </span>
+            <li key={message.id} className="rounded-2xl border border-slate-800 bg-slate-950/55 p-3.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 text-sm font-black text-white">
+                    {unread ? <NewDot label={t('messages.new')} /> : null}
+                    <span className="truncate">{authorName(database, message)}</span>
+                  </p>
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs font-bold text-slate-500">
+                    <span>→ {messageLabel(database, message)}</span>
+                    {message.audience !== 'all' ? <span>· {t(message.audience === 'staff' ? 'messages.onlyStaff' : 'messages.onlyPlayers')}</span> : null}
+                  </p>
+                  {pinned ? (
+                    <p className="mt-0.5 flex items-center gap-1 text-xs font-bold text-slate-500">
+                      <PinIcon className="h-3.5 w-3.5 text-amber-200/80" />{t('messages.pinnedUntil', { date: formatShortDate(pinnedUntil) })}
+                    </p>
+                  ) : null}
+                </div>
+                <span className="shrink-0 text-xs font-bold text-slate-500">{whenPosted(message.createdAt)}</span>
               </div>
-              <p className="mt-1.5 whitespace-pre-wrap text-sm text-slate-100">{message.body}</p>
+              <p className="mt-2.5 whitespace-pre-wrap text-[15px] leading-relaxed text-slate-100">{message.body}</p>
               {poll ? (
                 <PollView
                   database={database}
@@ -116,12 +122,12 @@ export function MessageList({
                     )}
                     <div className="flex flex-wrap gap-3">
                       {pendingIds.length > 0 && !message.remindedAt && !message.pollClosedAt ? (
-                        <button type="button" onClick={() => run(() => remindUnread(message.id))} className="text-amber-200 underline">{votes ? t('poll.remind', { count: pendingIds.length }) : t('teamMessages.remind', { count: pendingIds.length })}</button>
+                        <button type="button" onClick={() => run(() => remindUnread(message.id))} className="text-slate-300 underline decoration-slate-600 underline-offset-2 hover:text-white">{votes ? t('poll.remind', { count: pendingIds.length }) : t('teamMessages.remind', { count: pendingIds.length })}</button>
                       ) : message.remindedAt ? <span className="text-slate-500">{t('teamMessages.reminded')}</span> : null}
                       {votes && !message.pollClosedAt ? (
-                        <button type="button" onClick={() => run(() => closePoll(message.id))} className="text-violet-200 underline">{t('poll.close')}</button>
+                        <button type="button" onClick={() => run(() => closePoll(message.id))} className="text-slate-300 underline decoration-slate-600 underline-offset-2 hover:text-white">{t('poll.close')}</button>
                       ) : null}
-                      <button type="button" onClick={() => setDeleting(message)} className="text-slate-500 underline">{t('teamMessages.delete')}</button>
+                      <button type="button" onClick={() => setDeleting(message)} className="text-slate-500 underline decoration-slate-700 underline-offset-2 hover:text-slate-300">{t('teamMessages.delete')}</button>
                     </div>
                   </div>
                   {open && pendingIds.length > 0 ? (
