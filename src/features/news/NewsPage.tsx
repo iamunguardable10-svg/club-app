@@ -16,53 +16,54 @@ import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { ActiveRoleShell, ClubShell } from '@/features/role-workspaces/RoleShell';
 import {
   DEFAULT_MESSAGE_PIN_DAYS,
-  deleteNews,
+  deleteMessage,
   displayName,
   getActivePerson,
-  isNewsRead,
-  managesNews,
-  markNewsRead,
+  isMessageRead,
+  managesMessage,
+  markMessagesRead,
   MESSAGE_PIN_DAYS,
-  newsPinnedUntil,
-  newsReadStats,
-  newsRecipientIds,
-  newsScopeName,
-  newsScopesFor,
-  newsVisibleTo,
-  postNews,
+  messagePinnedUntil,
+  messageReadStats,
+  messageRecipientIds,
+  messageTargetsFor,
+  messagesVisibleTo,
+  postMessage,
   useLocalDatabase,
-  type ClubNews,
   type Id,
+  type Message,
 } from '@/shared/data';
 import { formatShortDate } from '@/shared/format';
 import { errorText, useT } from '@/shared/i18n';
 
-import { newsAuthorName, whenPosted } from '@/features/messages/messageText';
+import { authorName, isClubMessage, messageLabel, whenPosted } from '@/features/messages/messageText';
 
 export function NewsPage() {
   const t = useT();
   const { database } = useLocalDatabase();
   const person = database ? getActivePerson(database) : null;
   const personId = person?.id ?? null;
-  const scopes = database ? newsScopesFor(database, personId) : [];
+  // Where this person may write news: the whole club (null) first, then departments.
+  const targets = database ? messageTargetsFor(database, personId) : null;
+  const scopes: (Id | null)[] = targets ? [...(targets.wholeClub ? [null] : []), ...targets.departmentIds] : [];
   const [scope, setScope] = useState<Id | null | undefined>(undefined);
   const [body, setBody] = useState('');
   const [important, setImportant] = useState(false);
   const [pinDays, setPinDays] = useState<number>(DEFAULT_MESSAGE_PIN_DAYS);
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState<ClubNews | null>(null);
+  const [deleting, setDeleting] = useState<Message | null>(null);
 
-  const news = database ? newsVisibleTo(database, personId) : [];
+  const news = database ? messagesVisibleTo(database, personId).filter(isClubMessage) : [];
   const unreadIds = database && personId
-    ? news.filter((item) => item.authorId !== personId && newsRecipientIds(database, item).includes(personId) && !isNewsRead(database, item.id, personId)).map((item) => item.id)
+    ? news.filter((item) => messageRecipientIds(database, item).includes(personId) && !isMessageRead(database, item.id, personId)).map((item) => item.id)
     : [];
   const unreadKey = unreadIds.join(',');
 
   // Seen = read. After the first paint, so the "new" marks are visible once.
   useEffect(() => {
     if (!personId || unreadKey === '') return;
-    const timer = window.setTimeout(() => markNewsRead(personId, unreadKey.split(',')), 800);
+    const timer = window.setTimeout(() => markMessagesRead(personId, unreadKey.split(',')), 800);
     return () => window.clearTimeout(timer);
   }, [personId, unreadKey]);
 
@@ -70,7 +71,9 @@ export function NewsPage() {
 
   const chosen = scope === undefined ? (scopes[0] ?? null) : scope;
   const canWrite = scopes.length > 0;
-  const scopeLabel = (departmentId: Id | null) => departmentId === null ? t('news.wholeClub') : newsScopeName(database, { departmentId });
+  const scopeLabel = (departmentId: Id | null) => departmentId === null
+    ? t('news.wholeClub')
+    : database.departments.find((department) => department.id === departmentId)?.name ?? '';
   const unread = new Set(unreadIds);
   const nameOf = (id: string) => {
     const someone = database.people.find((candidate) => candidate.id === id);
@@ -88,7 +91,7 @@ export function NewsPage() {
 
   function send() {
     run(() => {
-      postNews({ departmentId: chosen, body, important, pinDays });
+      postMessage({ ...(chosen === null ? { wholeClub: true } : { departmentIds: [chosen] }), body, important, pinDays });
       setBody('');
       setImportant(false);
       setPinDays(DEFAULT_MESSAGE_PIN_DAYS);
@@ -147,21 +150,21 @@ export function NewsPage() {
       ) : (
         <ul className="grid gap-2">
           {news.map((item) => {
-            const manages = managesNews(database, personId, item);
-            const stats = manages ? newsReadStats(database, item) : null;
+            const manages = managesMessage(database, personId, item);
+            const stats = manages ? messageReadStats(database, item) : null;
             const open = openId === item.id;
-            const pinnedUntil = newsPinnedUntil(item);
+            const pinnedUntil = messagePinnedUntil(item);
             const pinned = pinnedUntil !== null && Date.parse(pinnedUntil) > Date.now();
             return (
               <li key={item.id} className={`rounded-2xl border p-4 ${item.important ? 'border-rose-300/40 bg-rose-300/[0.06]' : 'border-slate-800 bg-slate-950/60'}`}>
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-400">
                   <span>
-                    <span className="font-black text-slate-200">{newsAuthorName(database, item)}</span> · {whenPosted(item.createdAt)}
+                    <span className="font-black text-slate-200">{authorName(database, item)}</span> · {whenPosted(item.createdAt)}
                   </span>
                   <span className="flex flex-wrap items-center gap-2">
                     {pinned ? <span className="text-rose-200/80">{t('teamMessages.pinnedUntil', { date: formatShortDate(pinnedUntil) })}</span> : null}
                     {item.important ? <span className="rounded-full bg-rose-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('messages.important')}</span> : null}
-                    <span className="rounded-full bg-teal-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{scopeLabel(item.departmentId)}</span>
+                    <span className="rounded-full bg-teal-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{item.wholeClub && item.departmentIds.length === 0 ? t('news.wholeClub') : messageLabel(database, item)}</span>
                     {unread.has(item.id) ? <span className="rounded-full bg-sky-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('messages.new')}</span> : null}
                   </span>
                 </div>
@@ -191,7 +194,7 @@ export function NewsPage() {
         confirmLabel={t('teamMessages.delete')}
         tone="danger"
         onCancel={() => setDeleting(null)}
-        onConfirm={() => { if (deleting) run(() => deleteNews(deleting.id)); setDeleting(null); }}
+        onConfirm={() => { if (deleting) run(() => deleteMessage(deleting.id)); setDeleting(null); }}
       />
     </>
   );

@@ -18,8 +18,7 @@ import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { InstallHint } from '@/features/install/InstallHint';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
 import { CalendarHint } from '@/features/calendar/CalendarHint';
-import { athleteHasLoad, getActivePerson, useLocalDatabase } from '@/shared/data';
-import { unreadInbox } from '@/features/messages/inbox';
+import { athleteHasLoad, getActivePerson, unreadMessagesFor, useLocalDatabase } from '@/shared/data';
 import { UnreadMessagesCard } from '@/features/messages/UnreadMessagesCard';
 import { countToRate } from '@/features/load/athleteLocalStore';
 import { PageTip, type TipId } from '@/features/onboarding/PageTip';
@@ -124,7 +123,7 @@ function RoleShell({ nav, active, title, subtitle, back, actions, tip, children 
   const labelFor = (item: NavItem, label: MessageKey) => t(item === 'team' && teamCount > 1 ? 'nav.teams' : label);
   const columns = nav.length === 2 ? 'grid-cols-2' : nav.length === 3 ? 'grid-cols-3' : nav.length === 4 ? 'grid-cols-4' : 'grid-cols-5';
   // Unread messages and news (pieces 17 and C), as a count on the tab.
-  const unread = database && person && database.activeIdentity ? unreadInbox(database, person.id).length : 0;
+  const unread = database && person && database.activeIdentity ? unreadMessagesFor(database, person.id).length : 0;
   // Sessions waiting for "How hard was it?" (team and own), on the Today tab,
   // so "Later" in the prompt never loses them.
   const toRate = database && person && database.activeIdentity?.role === 'athlete' && athleteHasLoad(database, person.id)

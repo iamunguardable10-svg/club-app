@@ -1,4 +1,4 @@
--- Tests for 0022 (piece 17: team messages). Runs after 01–11 and uses the
+-- Tests for team messages (0022, now `messages` from 0036; to players only, as before). Runs after 01–11 and uses the
 -- push club of 05: Carla (Head Coach U20), Tim (roster and attendance since
 -- 10), Pia, Paul (in group "Backs"), Pete (players with devices).
 
@@ -10,29 +10,29 @@ delete from app.push_outbox where kind in ('message', 'important');
 set role authenticated;
 select test.act_as('10000000-0000-0000-0000-000000000074');
 select test.expect_rows('Carla writes to U20',
-  $q$insert into public.team_messages (id, team_id, author_id, body)
-     values ('e5000000-0000-0000-0000-000000000001', '77000000-0000-0000-0000-000000000001', 'a7000000-0000-0000-0000-000000000074', 'Training moves to the small hall this week.')$q$, 1);
+  $q$insert into public.messages (id, club_id, team_ids, audience, author_id, body)
+     values ('e5000000-0000-0000-0000-000000000001', (select club_id from public.teams where id = '77000000-0000-0000-0000-000000000001'), '{77000000-0000-0000-0000-000000000001}', 'players', 'a7000000-0000-0000-0000-000000000074', 'Training moves to the small hall this week.')$q$, 1);
 select test.expect_error('… not under someone else''s name',
-  $q$insert into public.team_messages (team_id, author_id, body) values ('77000000-0000-0000-0000-000000000001', 'a7000000-0000-0000-0000-000000000075', 'x')$q$, 'row-level security');
+  $q$insert into public.messages (club_id, team_ids, audience, author_id, body) values ((select club_id from public.teams where id = '77000000-0000-0000-0000-000000000001'), '{77000000-0000-0000-0000-000000000001}', 'players', 'a7000000-0000-0000-0000-000000000075', 'x')$q$, 'row-level security');
 select test.expect_error('… not empty',
-  $q$insert into public.team_messages (team_id, author_id, body) values ('77000000-0000-0000-0000-000000000001', 'a7000000-0000-0000-0000-000000000074', '   ')$q$, 'check');
+  $q$insert into public.messages (club_id, team_ids, audience, author_id, body) values ((select club_id from public.teams where id = '77000000-0000-0000-0000-000000000001'), '{77000000-0000-0000-0000-000000000001}', 'players', 'a7000000-0000-0000-0000-000000000074', '   ')$q$, 'check');
 select test.expect_error('… only to groups of the team',
-  $q$insert into public.team_messages (team_id, group_ids, author_id, body) values ('77000000-0000-0000-0000-000000000001', '{9a000000-0000-0000-0000-000000000016}', 'a7000000-0000-0000-0000-000000000074', 'x')$q$, 'groups must belong');
+  $q$insert into public.messages (club_id, group_ids, audience, author_id, body) values ((select club_id from public.teams where id = '77000000-0000-0000-0000-000000000001'), '{9a000000-0000-0000-0000-000000000016}', 'players', 'a7000000-0000-0000-0000-000000000074', 'x')$q$, 'row-level security|must belong');
 select test.expect_rows('Carla writes an important message to the Backs only',
-  $q$insert into public.team_messages (id, team_id, group_ids, author_id, body, important)
-     values ('e5000000-0000-0000-0000-000000000002', '77000000-0000-0000-0000-000000000001', '{67000000-0000-0000-0000-000000000001}', 'a7000000-0000-0000-0000-000000000074', 'Backs: extra session Friday 17:00.', true)$q$, 1);
+  $q$insert into public.messages (id, club_id, group_ids, audience, author_id, body, important)
+     values ('e5000000-0000-0000-0000-000000000002', (select club_id from public.teams where id = '77000000-0000-0000-0000-000000000001'), '{67000000-0000-0000-0000-000000000001}', 'players', 'a7000000-0000-0000-0000-000000000074', 'Backs: extra session Friday 17:00.', true)$q$, 1);
 select test.act_as('10000000-0000-0000-0000-000000000075');
 select test.expect_rows('Tim (team manager rights) may write too',
-  $q$insert into public.team_messages (id, team_id, author_id, body) values ('e5000000-0000-0000-0000-000000000003', '77000000-0000-0000-0000-000000000001', 'a7000000-0000-0000-0000-000000000075', 'Kit collection on Monday.')$q$, 1);
+  $q$insert into public.messages (id, club_id, team_ids, audience, author_id, body) values ('e5000000-0000-0000-0000-000000000003', (select club_id from public.teams where id = '77000000-0000-0000-0000-000000000001'), '{77000000-0000-0000-0000-000000000001}', 'players', 'a7000000-0000-0000-0000-000000000075', 'Kit collection on Monday.')$q$, 1);
 select test.act_as('10000000-0000-0000-0000-000000000071');
 select test.expect_error('Pia (player) cannot write',
-  $q$insert into public.team_messages (team_id, author_id, body) values ('77000000-0000-0000-0000-000000000001', 'a7000000-0000-0000-0000-000000000071', 'Hi all')$q$, 'row-level security');
+  $q$insert into public.messages (club_id, team_ids, audience, author_id, body) values ((select club_id from public.teams where id = '77000000-0000-0000-0000-000000000001'), '{77000000-0000-0000-0000-000000000001}', 'players', 'a7000000-0000-0000-0000-000000000071', 'Hi all')$q$, 'row-level security');
 select test.expect_count('Pia sees the two team-wide messages, not the one for the Backs',
-  $q$select 1 from public.team_messages where team_id = '77000000-0000-0000-0000-000000000001'$q$, 2);
+  $q$select 1 from public.messages where true$q$, 2);
 select test.act_as('10000000-0000-0000-0000-000000000072');
-select test.expect_count('Paul (Backs) sees all three', $q$select 1 from public.team_messages where team_id = '77000000-0000-0000-0000-000000000001'$q$, 3);
+select test.expect_count('Paul (Backs) sees all three', $q$select 1 from public.messages where true$q$, 3);
 select test.act_as('10000000-0000-0000-0000-000000000099');
-select test.expect_count('Otto (other club) sees none', $q$select 1 from public.team_messages$q$, 0);
+select test.expect_count('Otto (other club) sees none', $q$select 1 from public.messages$q$, 0);
 reset role;
 
 select test.expect_count('push: the team message reaches Pia, Paul and Pete',
@@ -40,7 +40,7 @@ select test.expect_count('push: the team message reaches Pia, Paul and Pete',
 select test.expect_count('… titled with the team and the author',
   $q$select 1 from app.push_outbox where dedupe_key like 'message:e5000000-0000-0000-0000-000000000001:%' and title = 'U20 · Carla' and body = 'Training moves to the small hall this week.'$q$, 3);
 select test.expect_count('push: the important one only to Paul, marked important',
-  $q$select 1 from app.push_outbox where kind = 'important' and title = 'Important · U20 · Carla' and user_id = '10000000-0000-0000-0000-000000000072'$q$, 1);
+  $q$select 1 from app.push_outbox where kind = 'important' and title = 'Important · U20 (Backs) · Carla' and user_id = '10000000-0000-0000-0000-000000000072'$q$, 1);
 select test.expect_count('… nobody else', $q$select 1 from app.push_outbox where kind = 'important'$q$, 1);
 
 -- Reading (automatic when opened: the app writes a read row)
@@ -63,9 +63,9 @@ update app.push_outbox set sent_at = now() where kind in ('message', 'important'
 set role authenticated;
 select test.act_as('10000000-0000-0000-0000-000000000074');
 select test.expect_rows('Carla reminds',
-  $q$update public.team_messages set reminded_at = now() where id = 'e5000000-0000-0000-0000-000000000001'$q$, 1);
+  $q$update public.messages set reminded_at = now() where id = 'e5000000-0000-0000-0000-000000000001'$q$, 1);
 select test.expect_error('… only once',
-  $q$update public.team_messages set reminded_at = now() + interval '1 minute' where id = 'e5000000-0000-0000-0000-000000000001'$q$, 'already reminded');
+  $q$update public.messages set reminded_at = now() + interval '1 minute' where id = 'e5000000-0000-0000-0000-000000000001'$q$, 'already reminded');
 reset role;
 select test.expect_count('reminder to Paul and Pete (unread), not to Pia',
   $q$select 1 from app.push_outbox where dedupe_key like 'message-reminder:e5000000-0000-0000-0000-000000000001:%' and title like 'Reminder: U20%'

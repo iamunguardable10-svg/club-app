@@ -2510,3 +2510,25 @@ Plan: `docs/plan-rsvp-polls-news.md`, Stück C.
 Geprüft: SQL-Test `22_club_news_test.sql`, Server-Store-Test (Head Coach erst ohne, dann mit Erlaubnis,
 Lesen, Löschen; Leitung schreibt und erlaubt; Admin schreibt an alle), Browser Handy/Desktop
 (Admin, Trainer, Spieler), Rundgang (`test:smoke`, jetzt mit `/news`) ohne Fehler.
+
+## Run 63 — Nachrichten: ein Modell für Teams, Abteilungen und Verein; Schreibrechte pro Person (erledigt)
+
+Schritt 1 von „Nachrichten neu gedacht“ (`docs/plan-rsvp-polls-news.md`).
+- **Ein Modell:** Team-Nachrichten, Umfragen und Vereins-/Abteilungs-News sind jetzt eine Nachricht
+  (`messages`, Migration 0036) an beliebige Teams, Gruppen, Abteilungen und den ganzen Verein, an alle
+  oder nur Trainer bzw. nur Spieler. Empfänger sind eine Menge: Wer über zwei Wege erreicht wird
+  (z. B. U16 und U19, oder Team und Abteilung), bekommt sie einmal, mit einem Push und einer
+  Lesebestätigung. Push-Titel nennen die Ziele („Handball A · Tennis Damen · Anna“, „U20 (Backs)“).
+- **Rechte pro Person:** Die Abteilungsleitung schreibt immer an ihre Abteilung und schaltet im
+  Vereinsbereich pro Trainer frei, wer noch darf („Wer darf an diese Abteilung schreiben?“,
+  aufklappbar, Head Coaches zuerst, mit Rolle und Team). Admins schreiben immer an den ganzen Verein
+  und können Abteilungsleitungen dafür freischalten. Ersetzt den Abteilungsschalter von Run 62.
+  Verwalten (gelesen von, erinnern, Umfrage beenden, löschen) dürfen der Autor und wer alle Ziele
+  leitet; Freigeschaltete nur ihre eigenen.
+- **Oberfläche wie bisher:** Team-Nachrichten gehen weiter an die Spieler des Teams oder der Gruppen,
+  News über die Seite „News“; das „An:“-Feld kommt in Schritt 2.
+- Migration 0037 entfernt die alten Tabellen (`team_messages`, `club_news`, `news_reads`) und den
+  Schalter, sobald die neue App läuft; auf dem Vereinsserver stand darin noch nichts.
+Geprüft: SQL-Tests (neu `22_messages_test.sql`: Freigaben, nur Trainer, zwei Teams = einmal; 12, 19
+und 21 auf das neue Modell umgestellt), Server-Store-Test, Browser Verein/Trainer/Spieler,
+Rundgang (`test:smoke`) ohne Fehler.

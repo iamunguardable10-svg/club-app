@@ -23,7 +23,7 @@ import type { LocalDatabase } from './schema';
  *
  * Format: date plus a short reason, so the history stays readable.
  */
-export const SCHEMA_VERSION = '2026-09-25-plan-series-v18';
+export const SCHEMA_VERSION = '2026-10-02-messages-v19';
 
 /** Storage key of the database document. */
 export const DATABASE_KEY = 'club-app.local.db';
@@ -75,7 +75,7 @@ export function isCurrent(value: unknown): value is LocalDatabase {
     Array.isArray(candidate.attendanceConfirmations) &&
     Array.isArray(candidate.absences) &&
     Array.isArray(candidate.squadEntries) &&
-    Array.isArray(candidate.teamMessages) &&
+    Array.isArray(candidate.messages) &&
     Array.isArray(candidate.messageReads) &&
     typeof candidate.shareLinks === 'object'
   );

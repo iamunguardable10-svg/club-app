@@ -78,3 +78,22 @@ allen Sprachen, wie Team-Nachrichten).
 Je Stück: Migration (lokal testen: `supabase/pilot/tests/run-local.sh`, `npm run test:pilot`),
 Datenschicht, Oberfläche, Texte in vier Sprachen (`check:i18n`), Screenshots Handy/Desktop,
 `test:smoke`, PR, nach grüner CI mergen, Migration live einspielen (vor dem Merge, abwärtskompatibel).
+
+## Nachrichten neu gedacht (2026-10-02, Stufe 1 für den Pilot)
+
+Wunsch (Ben): an mehrere Teams, eine Abteilung oder den Verein schreiben, an alle oder nur an Trainer
+oder Spieler, wie das „An:“ in Teams; für Text, Umfragen und später Aufgaben; nichts doppelt.
+Schreibrechte pro Person statt pro Abteilung. Antworten erst später (Stufe 2: Rückfrage ans
+Trainerteam, aus Kinderschutzgründen nie privat zwischen einem Trainer und einem Spieler; Stufe 3
+vielleicht Team-Chat). Für den Pilot reicht Stufe 1: Ankündigungen ohne Antwort.
+
+1. **Ein Modell, Rechte pro Person** (Migration 0036/0037): eine Tabelle `messages` mit
+   `team_ids`, `group_ids`, `department_ids`, `whole_club` und `audience` (alle · Trainer · Spieler);
+   Empfänger als Menge (jeder einmal: eine Nachricht, ein Push, eine Lesebestätigung, eine Stimme);
+   `message_writers`: die Leitung schaltet pro Person frei, wer an ihre Abteilung schreibt, ein
+   Admin, wer an den ganzen Verein. Ersetzt Team-Nachrichten, Vereins-News und den Abteilungsschalter.
+2. **„An:“-Feld und Posteingang für Trainer**: Auswahl der Ziele (eigene Teams und Gruppen,
+   Abteilungen, Verein) und „wer“; Trainer und Vereinsrollen lesen und schreiben über ein
+   Nachrichten-Symbol oben (statt „News“).
+3. **Spieler-Posteingang**: ein Feed, Chips je Quelle ohne „Alle“ (Antippen filtert, nochmal
+   Antippen zeigt wieder alles), ungelesene Zahl je Chip, Beschriftung „U16 · U19“.

@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * The player's messages (pieces 17, B and C): announcements and polls from
- * the staff and news from the club or a department, in one list. Important
- * ones stay on top as long as they are pinned (newest first). Once there are
+ * The player's messages (pieces 17, B and C): messages and polls to their
+ * teams and news to their department or club, in one list. Important ones
+ * stay on top as long as they are pinned (newest first). Once there are
  * news, chips filter "All · Team · Club". Having this page open marks what is
  * shown as read; there is no button for it.
  */
@@ -14,17 +14,18 @@ import { AthleteShell } from '@/features/role-workspaces/RoleShell';
 import {
   athleteHasLoad,
   getActivePerson,
+  isMessageRead,
   isPoll,
   markMessagesRead,
-  markNewsRead,
-  newsScopeName,
+  messagePinnedUntil,
+  messagesForPerson,
   useLocalDatabase,
+  type Message,
 } from '@/shared/data';
 
 import { useT } from '@/shared/i18n';
 
-import { inboxFor, isInboxPinned, isInboxUnread, type InboxItem } from './inbox';
-import { authorName, newsAuthorName, teamName, whenPosted } from './messageText';
+import { authorName, isClubMessage, messageLabel, whenPosted } from './messageText';
 import { PollView } from './PollView';
 
 type Filter = 'all' | 'team' | 'club';
@@ -35,55 +36,46 @@ export function PlayerMessagesPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const person = database ? getActivePerson(database) : null;
   const isPlayer = database?.activeIdentity?.role === 'athlete';
-  const inbox = database && person && isPlayer ? inboxFor(database, person.id) : [];
-  const unreadItems = database && person ? inbox.filter((item) => isInboxUnread(database, person.id, item)) : [];
-  const unreadKey = unreadItems.map((item) => `${item.kind}:${item.id}`).join(',');
+  const inbox = database && person && isPlayer ? messagesForPerson(database, person.id) : [];
+  const unreadIds = database && person ? inbox.filter((message) => !isMessageRead(database, message.id, person.id)).map((message) => message.id) : [];
+  const unreadKey = unreadIds.join(',');
 
   // Seen = read. After the first paint, so the "new" marks are visible once.
   useEffect(() => {
     if (!person || unreadKey === '') return;
-    const timer = window.setTimeout(() => {
-      const keys = unreadKey.split(',');
-      const messageIds = keys.filter((key) => key.startsWith('message:')).map((key) => key.slice('message:'.length));
-      const newsIds = keys.filter((key) => key.startsWith('news:')).map((key) => key.slice('news:'.length));
-      if (messageIds.length > 0) markMessagesRead(person.id, messageIds);
-      if (newsIds.length > 0) markNewsRead(person.id, newsIds);
-    }, 800);
+    const timer = window.setTimeout(() => markMessagesRead(person.id, unreadKey.split(',')), 800);
     return () => window.clearTimeout(timer);
   }, [person, unreadKey]);
 
   if (!database) return null;
-  const hasNews = inbox.some((item) => item.kind === 'news');
-  const shown = inbox.filter((item) => !hasNews || filter === 'all' || (filter === 'team') === (item.kind === 'message'));
-  const pinned = shown.filter((item) => item.important && isInboxPinned(item));
-  const rest = shown.filter((item) => !pinned.includes(item));
-  const unread = new Set(unreadItems);
+  const hasNews = inbox.some(isClubMessage);
+  const shown = inbox.filter((message) => !hasNews || filter === 'all' || (filter === 'club') === isClubMessage(message));
+  const now = Date.now();
+  const pinned = shown.filter((message) => {
+    const until = messagePinnedUntil(message);
+    return until !== null && Date.parse(until) > now;
+  });
+  const rest = shown.filter((message) => !pinned.includes(message));
+  const unread = new Set(unreadIds);
 
-  const card = (item: InboxItem) => {
-    const author = item.kind === 'message' ? authorName(database, item.message) : newsAuthorName(database, item.news);
-    const where = item.kind === 'message'
-      ? `${teamName(database, item.message.teamId)}${item.message.groupIds.length > 0 ? ` · ${item.message.groupIds.map((id) => database.playerGroups.find((group) => group.id === id)?.name ?? t('messages.group')).join(', ')}` : ''}`
-      : null;
-    const body = item.kind === 'message' ? item.message.body : item.news.body;
-    return (
-      <li key={`${item.kind}:${item.id}`} className={`rounded-2xl border p-4 ${item.important ? 'border-rose-300/40 bg-rose-300/[0.06]' : 'border-slate-800 bg-slate-950/60'}`}>
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-400">
-          <span>
-            <span className="font-black text-slate-200">{author}</span>{where ? ` · ${where}` : ''}
-          </span>
-          <span className="flex items-center gap-2">
-            {item.important ? <span className="rounded-full bg-rose-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('messages.important')}</span> : null}
-            {item.kind === 'news' ? <span className="rounded-full bg-teal-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{newsScopeName(database, item.news)}</span> : null}
-            {item.kind === 'message' && isPoll(item.message) ? <span className="rounded-full bg-violet-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('poll.label')}</span> : null}
-            {unread.has(item) ? <span className="rounded-full bg-sky-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('messages.new')}</span> : null}
-            {whenPosted(item.createdAt)}
-          </span>
-        </div>
-        <p className="mt-2 whitespace-pre-wrap text-sm text-slate-100">{body}</p>
-        {item.kind === 'message' && isPoll(item.message) && person ? <PollView database={database} message={item.message} personId={person.id} /> : null}
-      </li>
-    );
-  };
+  const card = (message: Message) => (
+    <li key={message.id} className={`rounded-2xl border p-4 ${message.important ? 'border-rose-300/40 bg-rose-300/[0.06]' : 'border-slate-800 bg-slate-950/60'}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-400">
+        <span>
+          <span className="font-black text-slate-200">{authorName(database, message)}</span>{isClubMessage(message) ? '' : ` · ${messageLabel(database, message)}`}
+        </span>
+        <span className="flex items-center gap-2">
+          {message.important ? <span className="rounded-full bg-rose-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('messages.important')}</span> : null}
+          {isClubMessage(message) ? <span className="rounded-full bg-teal-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{messageLabel(database, message)}</span> : null}
+          {isPoll(message) ? <span className="rounded-full bg-violet-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('poll.label')}</span> : null}
+          {unread.has(message.id) ? <span className="rounded-full bg-sky-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('messages.new')}</span> : null}
+          {whenPosted(message.createdAt)}
+        </span>
+      </div>
+      <p className="mt-2 whitespace-pre-wrap text-sm text-slate-100">{message.body}</p>
+      {isPoll(message) && person ? <PollView database={database} message={message} personId={person.id} /> : null}
+    </li>
+  );
 
   return (
     <AthleteShell active="messages" title={t('messages.title')} subtitle={hasNews ? t('messages.subtitleWithNews') : t('messages.subtitle')} showLoad={person ? athleteHasLoad(database, person.id) : true}>

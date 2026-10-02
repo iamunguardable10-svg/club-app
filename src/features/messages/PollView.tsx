@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * A poll in a team message (piece B). Players tap an answer (several when the
+ * A poll in a message (piece B). Recipients tap an answer (several when the
  * poll allows it) and see the result as bars right after; tapping again
  * changes the vote until the staff close the poll. The staff see the bars,
  * and with `voters` who chose what.
@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 
-import { ownVote, pollCounts, votePoll, type LocalDatabase, type TeamMessage } from '@/shared/data';
+import { ownVote, pollCounts, votePoll, type LocalDatabase, type Message } from '@/shared/data';
 
 import { errorText, useT } from '@/shared/i18n';
 
@@ -20,7 +20,7 @@ export function PollView({
   voters,
 }: {
   database: LocalDatabase;
-  message: TeamMessage;
+  message: Message;
   /** The player voting; without one the poll is shown read-only (staff). */
   personId?: string;
   /** For the staff: names of who chose each answer. */

@@ -643,12 +643,12 @@ async function main() {
     (await count("select 1 from people where id = $1 and rsvp_mode = 'auto'", [P.ben])) === 1
     && (await count('select 1 from availability where session_id = $1 and person_id = $2', [FUTURE, P.ben])) === 0, store.getStatus().rejected);
 
-  // --- Team messages (piece 17) ---------------------------------------------
+  // --- Messages to a team (piece 17) ---------------------------------------
   store = await actAs(U.martin);
-  const messageId = data.postTeamMessage({ teamId: TEAM, body: 'Game on Saturday: meet 10:15.', important: true, pinDays: 3 });
+  const messageId = data.postMessage({ teamIds: [TEAM], audience: 'players', body: 'Game on Saturday: meet 10:15.', important: true, pinDays: 3 });
   await data.flushRemote();
-  check('Martin: message on the server', (await count('select 1 from team_messages where id = $1 and important and author_id = $2', [messageId, P.martin])) === 1, store.getStatus().rejected);
-  check('… pinned for three days', (await count("select 1 from team_messages where id = $1 and pinned_until between now() + interval '71 hours' and now() + interval '73 hours'", [messageId])) === 1);
+  check('Martin: message on the server', (await count('select 1 from messages where id = $1 and important and author_id = $2', [messageId, P.martin])) === 1, store.getStatus().rejected);
+  check('… pinned for three days', (await count("select 1 from messages where id = $1 and pinned_until between now() + interval '71 hours' and now() + interval '73 hours'", [messageId])) === 1);
   store = await actAs(U.ben);
   check('Ben: sees it, unread', data.unreadMessagesFor(db(), P.ben).some((message) => message.id === messageId));
   data.markMessagesRead(P.ben, [messageId]);
@@ -656,11 +656,11 @@ async function main() {
   check('… having seen it, it counts as read on the server', (await count('select 1 from message_reads where message_id = $1 and person_id = $2', [messageId, P.ben])) === 1, store.getStatus().rejected);
   check('… and it stays pinned for him', data.pinnedMessagesFor(db(), P.ben)[0]?.id === messageId);
   store = await actAs(U.martin);
-  const stats = data.messageReadStats(db(), db().teamMessages.find((message) => message.id === messageId)!);
+  const stats = data.messageReadStats(db(), db().messages.find((message) => message.id === messageId)!);
   check('Martin: read 1 of 2, Jonas unread', stats.read === 1 && stats.total === 2 && stats.unreadIds.includes(P.jonas), stats);
   data.remindUnread(messageId);
   await data.flushRemote();
-  check('… reminded once', (await count('select 1 from team_messages where id = $1 and reminded_at is not null', [messageId])) === 1, store.getStatus().rejected);
+  check('… reminded once', (await count('select 1 from messages where id = $1 and reminded_at is not null', [messageId])) === 1, store.getStatus().rejected);
   let secondReminder = '';
   try {
     data.remindUnread(messageId);
@@ -669,31 +669,31 @@ async function main() {
   }
   check('… not twice', secondReminder.includes('already reminded'), secondReminder);
   store = await actAs(U.uwe);
-  data.postTeamMessage({ teamId: TEAM, body: 'Kit collection Monday.' });
+  data.postMessage({ teamIds: [TEAM], audience: 'players', body: 'Kit collection Monday.' });
   await data.flushRemote();
-  check('Uwe (Team Manager) may write too', (await count("select 1 from team_messages where body = 'Kit collection Monday.'")) === 1, store.getStatus().rejected);
+  check('Uwe (Team Manager) may write too', (await count("select 1 from messages where body = 'Kit collection Monday.'")) === 1, store.getStatus().rejected);
   store = await actAs(U.martin);
-  data.deleteTeamMessage(messageId);
+  data.deleteMessage(messageId);
   await data.flushRemote();
   check('Martin: deletes the message Ben has read (its reads go with it)',
-    (await count('select 1 from team_messages where id = $1', [messageId])) === 0 && store.getStatus().rejected === null, store.getStatus().rejected);
+    (await count('select 1 from messages where id = $1', [messageId])) === 0 && store.getStatus().rejected === null, store.getStatus().rejected);
 
-  // --- Polls in team messages (piece B) ------------------------------------
+  // --- Polls (piece B) ------------------------------------------------------
   store = await actAs(U.martin);
-  const pollId = data.postTeamMessage({ teamId: TEAM, body: 'Which kit on Saturday?', poll: { options: ['Home', 'Away'] } });
+  const pollId = data.postMessage({ teamIds: [TEAM], audience: 'players', body: 'Which kit on Saturday?', poll: { options: ['Home', 'Away'] } });
   await data.flushRemote();
   check('Martin: poll on the server, counted from zero',
-    (await count("select 1 from team_messages where id = $1 and poll_options = '{Home,Away}' and not poll_multiple and poll_counts = '{0,0}'", [pollId])) === 1, store.getStatus().rejected);
+    (await count("select 1 from messages where id = $1 and poll_options = '{Home,Away}' and not poll_multiple and poll_counts = '{0,0}'", [pollId])) === 1, store.getStatus().rejected);
   store = await actAs(U.ben);
   data.votePoll(P.ben, pollId, [1]);
   await data.flushRemote();
   check('Ben: votes "Away" on the server', (await count("select 1 from message_votes where message_id = $1 and person_id = $2 and options = '{1}'", [pollId, P.ben])) === 1, store.getStatus().rejected);
-  const benPoll = () => db().teamMessages.find((message) => message.id === pollId)!;
+  const benPoll = () => db().messages.find((message) => message.id === pollId)!;
   check('… sees the count from the server', data.pollCounts(db(), benPoll()).join(',') === '0,1', benPoll().pollCounts);
   data.votePoll(P.ben, pollId, [0]);
   check('… changes his mind: the bars follow at once', data.pollCounts(db(), benPoll()).join(',') === '1,0', benPoll().pollCounts);
   await data.flushRemote();
-  check('… and the server agrees', (await count("select 1 from team_messages where id = $1 and poll_counts = '{1,0}'", [pollId])) === 1 && store.getStatus().rejected === null, store.getStatus().rejected);
+  check('… and the server agrees', (await count("select 1 from messages where id = $1 and poll_counts = '{1,0}'", [pollId])) === 1 && store.getStatus().rejected === null, store.getStatus().rejected);
   let twoAnswers = '';
   try {
     data.votePoll(P.ben, pollId, [0, 1]);
@@ -702,14 +702,14 @@ async function main() {
   }
   check('… only one answer here', twoAnswers.includes('Choose one'), twoAnswers);
   store = await actAs(U.jonas);
-  check('Jonas: sees the count, not who voted', data.pollCounts(db(), db().teamMessages.find((message) => message.id === pollId)!).join(',') === '1,0' && (db().messageVotes ?? []).length === 0, db().messageVotes);
+  check('Jonas: sees the count, not who voted', data.pollCounts(db(), db().messages.find((message) => message.id === pollId)!).join(',') === '1,0' && (db().messageVotes ?? []).length === 0, db().messageVotes);
   store = await actAs(U.martin);
-  const pollStats = data.pollVoteStats(db(), db().teamMessages.find((message) => message.id === pollId)!);
+  const pollStats = data.pollVoteStats(db(), db().messages.find((message) => message.id === pollId)!);
   check('Martin: voted 1 of 2, Ben chose "Home", Jonas not yet',
     pollStats.voted === 1 && pollStats.total === 2 && pollStats.byOption[0].includes(P.ben) && pollStats.notVotedIds.includes(P.jonas), pollStats);
   data.closePoll(pollId);
   await data.flushRemote();
-  check('… closes the poll', (await count('select 1 from team_messages where id = $1 and poll_closed_at is not null', [pollId])) === 1, store.getStatus().rejected);
+  check('… closes the poll', (await count('select 1 from messages where id = $1 and poll_closed_at is not null', [pollId])) === 1, store.getStatus().rejected);
   store = await actAs(U.jonas);
   let lateVote = '';
   try {
@@ -719,29 +719,36 @@ async function main() {
   }
   check('Jonas: too late to vote', lateVote.includes('already closed'), lateVote);
 
-  // --- Club and department news (piece C) ----------------------------------
+  // --- Messages to departments, several recipients, only staff ------------
   store = await actAs(U.martin);
-  check('Martin (Head Coach): no news to write while the lead does not allow it', data.newsScopesFor(db(), P.martin).length === 0);
-  await pool.query('update departments set news_by_head_coaches = true where id = $1', [DEP]);
+  check('Martin (Head Coach): may not write to the department until the lead allows it', data.messageTargetsFor(db(), P.martin).departmentIds.length === 0);
+  await pool.query('insert into message_writers (club_id, person_id, department_id) values ($1, $2, $3)', [CLUB, P.martin, DEP]);
   store = await actAs(U.martin);
-  check('… once allowed, he may write to his department', data.newsScopesFor(db(), P.martin).join() === DEP, data.newsScopesFor(db(), P.martin));
-  const newsId = data.postNews({ departmentId: DEP, body: 'Department party on Friday.' });
+  check('… once allowed, he may', data.messageTargetsFor(db(), P.martin).departmentIds.join() === DEP, data.messageTargetsFor(db(), P.martin));
+  const newsId = data.postMessage({ departmentIds: [DEP], body: 'Department party on Friday.' });
+  const bothId = data.postMessage({ teamIds: [TEAM], departmentIds: [DEP], body: 'Photos on Sunday.' });
+  const staffId = data.postMessage({ teamIds: [TEAM], audience: 'staff', body: 'Staff meeting after training.' });
   await data.flushRemote();
-  check('… his news is on the server', (await count('select 1 from club_news where id = $1 and department_id = $2 and author_id = $3', [newsId, DEP, P.martin])) === 1, store.getStatus().rejected);
+  check('… his messages are on the server', (await count('select 1 from messages where id = any($1) and author_id = $2', [[newsId, bothId, staffId], P.martin])) === 3, store.getStatus().rejected);
+  check('… to the team and its department: Ben is a recipient once',
+    (await count('select 1 from app.message_recipients($1) r where r.person_id = $2', [bothId, P.ben])) === 1
+      && data.messageRecipientIds(db(), db().messages.find((message) => message.id === bothId)!).filter((id) => id === P.ben).length === 1);
   store = await actAs(U.uwe);
-  check('Uwe (Team Manager, not Head Coach) may not write news', data.newsScopesFor(db(), P.uwe).length === 0);
+  check('Uwe (Team Manager, not allowed) may not write to the department', data.messageTargetsFor(db(), P.uwe).departmentIds.length === 0);
+  check('… but gets the staff message', db().messages.some((message) => message.id === staffId));
   store = await actAs(U.ben);
-  check('Ben: sees the news, unread', data.unreadNewsFor(db(), P.ben).some((news) => news.id === newsId));
-  data.markNewsRead(P.ben, [newsId]);
+  check('Ben: sees the department news, unread', data.unreadMessagesFor(db(), P.ben).some((message) => message.id === newsId));
+  check('… not the staff message', !db().messages.some((message) => message.id === staffId));
+  data.markMessagesRead(P.ben, [newsId]);
   await data.flushRemote();
-  check('… having seen it, it counts as read on the server', (await count('select 1 from news_reads where news_id = $1 and person_id = $2', [newsId, P.ben])) === 1, store.getStatus().rejected);
+  check('… having seen it, it counts as read on the server', (await count('select 1 from message_reads where message_id = $1 and person_id = $2', [newsId, P.ben])) === 1, store.getStatus().rejected);
   store = await actAs(U.martin);
-  const newsStats = data.newsReadStats(db(), db().clubNews!.find((news) => news.id === newsId)!);
+  const newsStats = data.messageReadStats(db(), db().messages.find((message) => message.id === newsId)!);
   check('Martin: Ben has read it', newsStats.read >= 1 && !newsStats.unreadIds.includes(P.ben), newsStats);
-  data.deleteNews(newsId);
+  for (const id of [newsId, bothId, staffId]) data.deleteMessage(id);
   await data.flushRemote();
-  check('… and deletes it', (await count('select 1 from club_news where id = $1', [newsId])) === 0, store.getStatus().rejected);
-  await pool.query('update departments set news_by_head_coaches = false where id = $1', [DEP]);
+  check('… and deletes his messages', (await count('select 1 from messages where id = any($1)', [[newsId, bothId, staffId]])) === 0, store.getStatus().rejected);
+  await pool.query('delete from message_writers where person_id = $1', [P.martin]);
 
   // --- Founding a club and running it (piece 8a) ---------------------------
   const foundingCode = (await pool.query(`select app.create_founding_code('e2e') as code`)).rows[0].code as string;
@@ -810,22 +817,22 @@ async function main() {
   await data.flushRemote();
   check('lead: cannot create a team in Tennis', (await count('select 1 from teams')) === teamsBefore && store.getStatus().rejected !== null, store.getStatus());
   data.dismissRejectedChange();
-  const leadNews = data.postNews({ departmentId: handball, body: 'Handball: new hall times from Monday.' });
-  data.setNewsByHeadCoaches(handball, true);
+  const leadNews = data.postMessage({ departmentIds: [handball], body: 'Handball: new hall times from Monday.' });
+  data.setMessageWriter(hanna, handball, true);
   await data.flushRemote();
-  check('lead: writes Handball news and lets its Head Coaches write too',
-    (await count('select 1 from club_news where id = $1', [leadNews])) === 1
-      && (await count('select 1 from departments where id = $1 and news_by_head_coaches', [handball])) === 1, store.getStatus().rejected);
-  check('… but not to the whole club', !data.newsScopesFor(db(), db().activeIdentity!.personId).includes(null));
+  check('lead: writes Handball news and lets Hanna (Head Coach U14) write too',
+    (await count('select 1 from messages where id = $1', [leadNews])) === 1
+      && (await count('select 1 from message_writers where person_id = $1 and department_id = $2', [hanna, handball])) === 1, store.getStatus().rejected);
+  check('… but not to the whole club', !data.messageTargetsFor(db(), db().activeIdentity!.personId).wholeClub);
   store = await actAs(U.founder);
   check('founder: can switch to her club role', data.hasIdentityRole(db(), frida!.id, 'club') && data.hasIdentityRole(db(), frida!.id, 'coach'));
   data.setActiveIdentity({ role: 'club', personId: frida!.id });
   check('… and acts as club admin', db().activeIdentity?.role === 'club');
-  const clubNewsId = data.postNews({ departmentId: null, body: 'General meeting on 12 November.', important: true, pinDays: 7 });
+  const clubNewsId = data.postMessage({ wholeClub: true, body: 'General meeting on 12 November.', important: true, pinDays: 7 });
   await data.flushRemote();
   check('admin: writes to the whole club, pinned for a week',
-    (await count("select 1 from club_news where id = $1 and department_id is null and important and pinned_until > now() + interval '6 days'", [clubNewsId])) === 1, store.getStatus().rejected);
-  check('… and reads the lead\'s Handball news', data.unreadNewsFor(db(), frida!.id).some((news) => news.id === leadNews));
+    (await count("select 1 from messages where id = $1 and whole_club and important and pinned_until > now() + interval '6 days'", [clubNewsId])) === 1, store.getStatus().rejected);
+  check('… and reads the lead\'s Handball news (as Head Coach of A-Jugend)', data.unreadMessagesFor(db(), frida!.id).some((message) => message.id === leadNews));
 
   // --- Settings (piece 12) -------------------------------------------------
   data.renameClub('SV Neu 1920');
@@ -998,8 +1005,8 @@ async function main() {
   // receipt is there with another time. That is not a refusal (found in the
   // walkthrough on the real server, 2026-09-26).
   const secondMessage = (await pool.query(
-    "insert into team_messages (team_id, author_id, body) values ($1, $2, 'Read on two devices') returning id",
-    [TEAM, P.martin],
+    "insert into messages (club_id, team_ids, audience, author_id, body) values ($1, $2, 'players', $3, 'Read on two devices') returning id",
+    [CLUB, [TEAM], P.martin],
   )).rows[0].id as string;
   await store.refresh();
   await pool.query("insert into message_reads (message_id, person_id, read_at) values ($1, $2, now() - interval '1 minute')", [secondMessage, P.ben]);

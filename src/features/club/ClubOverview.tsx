@@ -45,7 +45,8 @@ import {
   renameDepartment,
   renameTeam,
   revokeClubRoleInvite,
-  setNewsByHeadCoaches,
+  messageWritersOf,
+  setMessageWriter,
   setTeamArchived,
   teamHasFeature,
   useLocalDatabase,
@@ -224,6 +225,99 @@ function staffSummary(database: LocalDatabase, team: Team) {
     .sort((a, b) => Number(Boolean(b.role?.locked)) - Number(Boolean(a.role?.locked)));
 }
 
+type WriterCandidate = { person: { id: Id; firstName: string; lastName: string }; detail: string; lead: boolean };
+
+/** Coaches of the department's active teams, Head Coaches first, with their roles. */
+function departmentWriterCandidates(database: LocalDatabase, departmentId: Id): WriterCandidate[] {
+  const byPerson = new Map<Id, { person: WriterCandidate['person']; parts: string[]; lead: boolean }>();
+  for (const team of database.teams.filter((candidate) => candidate.departmentId === departmentId && !candidate.archivedAt)) {
+    for (const entry of staffSummary(database, team)) {
+      const current = byPerson.get(entry.person.id) ?? { person: entry.person, parts: [], lead: false };
+      current.parts.push(`${entry.role ? displayRoleName(entry.role.name) : ''} ${team.name}`.trim());
+      current.lead ||= Boolean(entry.role?.locked);
+      byPerson.set(entry.person.id, current);
+    }
+  }
+  return [...byPerson.values()]
+    .map((entry) => ({ person: entry.person, detail: entry.parts.join(' · '), lead: entry.lead }))
+    .sort((a, b) => Number(b.lead) - Number(a.lead) || `${a.person.firstName} ${a.person.lastName}`.localeCompare(`${b.person.firstName} ${b.person.lastName}`));
+}
+
+/** Department leads, who an admin can let write to the whole club. */
+function clubWriterCandidates(database: LocalDatabase): WriterCandidate[] {
+  const candidates: WriterCandidate[] = [];
+  for (const role of database.clubRoles.filter((candidate) => candidate.role === 'department_lead')) {
+    const person = database.people.find((candidate) => candidate.id === role.personId);
+    if (person && !candidates.some((entry) => entry.person.id === person.id)) {
+      candidates.push({ person, detail: clubRoleText(database, person.id), lead: true });
+    }
+  }
+  return candidates;
+}
+
+/**
+ * Who may write to a department (its lead always) or the whole club (admins
+ * always), one checkbox per person. Folded until opened; the count of those
+ * allowed shows on the button.
+ */
+function MessageWritersPanel({
+  database,
+  departmentId,
+  candidates,
+  onRun,
+}: {
+  database: LocalDatabase;
+  departmentId: Id | null;
+  candidates: WriterCandidate[];
+  onRun: Run;
+}) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const allowed = new Set(messageWritersOf(database, departmentId));
+  // Someone allowed earlier stays listed even without a role here any more.
+  const listed = [
+    ...candidates,
+    ...[...allowed]
+      .filter((id) => !candidates.some((candidate) => candidate.person.id === id))
+      .map((id) => database.people.find((person) => person.id === id))
+      .filter((person): person is NonNullable<typeof person> => Boolean(person))
+      .map((person) => ({ person, detail: '', lead: false })),
+  ];
+  return (
+    <div className="grid gap-2 rounded-2xl border border-slate-800 bg-slate-950/50 p-3">
+      <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="flex items-center justify-between gap-3 text-left">
+        <span className="grid gap-0.5">
+          <span className="text-sm font-black text-slate-100">{departmentId === null ? t('club.writers.clubTitle') : t('club.writers.title')}</span>
+          <span className="text-xs text-slate-400">{departmentId === null ? t('club.writers.clubDetail') : t('club.writers.detail')}</span>
+        </span>
+        <span className="shrink-0 text-xs font-black text-sky-300">{t('club.writers.count', { count: allowed.size })} {open ? '▴' : '▾'}</span>
+      </button>
+      {open ? (
+        listed.length === 0 ? <p className="text-xs text-slate-400">{departmentId === null ? t('club.writers.noLeads') : t('club.writers.noCoaches')}</p> : (
+          <ul className="grid gap-1.5">
+            {listed.map((candidate) => (
+              <li key={candidate.person.id}>
+                <label className="flex items-start gap-3 rounded-xl px-1 py-1">
+                  <input
+                    type="checkbox"
+                    checked={allowed.has(candidate.person.id)}
+                    onChange={(event) => onRun(() => setMessageWriter(candidate.person.id, departmentId, event.target.checked))}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-teal-300"
+                  />
+                  <span className="grid min-w-0 gap-0.5">
+                    <span className="text-sm font-bold text-slate-100">{candidate.person.firstName} {candidate.person.lastName}</span>
+                    {candidate.detail ? <span className="text-xs text-slate-400">{candidate.detail}</span> : null}
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : null}
+    </div>
+  );
+}
+
 function TeamCard({
   database,
   team,
@@ -355,18 +449,7 @@ function DepartmentSection({
           <RoleHolders database={database} role="department_lead" departmentId={department.id} canManage={admin} selfId={personId} onRun={onRun} />
         </div>
 
-        <label className="flex items-start gap-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-3">
-          <input
-            type="checkbox"
-            checked={Boolean(department.newsByHeadCoaches)}
-            onChange={(event) => onRun(() => setNewsByHeadCoaches(department.id, event.target.checked))}
-            className="mt-0.5 h-4 w-4 shrink-0 accent-teal-300"
-          />
-          <span className="grid gap-0.5">
-            <span className="text-sm font-black text-slate-100">{t('club.newsByHeadCoaches')}</span>
-            <span className="text-xs text-slate-400">{t('club.newsByHeadCoachesDetail')}</span>
-          </span>
-        </label>
+        <MessageWritersPanel database={database} departmentId={department.id} candidates={departmentWriterCandidates(database, department.id)} onRun={onRun} />
 
         <div className="grid gap-2">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('club.teams')}</p>
@@ -508,6 +591,7 @@ export function ClubOverview() {
       {admin ? (
         <CoachSection title={t('club.admins')} description={t('club.adminsDetail')}>
           <RoleHolders database={database} role="admin" departmentId={null} canManage selfId={person.id} onRun={run} />
+          <MessageWritersPanel database={database} departmentId={null} candidates={clubWriterCandidates(database)} onRun={run} />
         </CoachSection>
       ) : null}
     </ClubShell>
