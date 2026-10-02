@@ -985,7 +985,7 @@
   "teamMessages.newMessage": "Neue Nachricht",
   "teamMessages.wholeTeam": "Ganzes Team",
   "teamMessages.important": "Wichtig",
-  "teamMessages.importantHint": "Spieler können die Benachrichtigung nicht ausschalten.",
+  "teamMessages.importantHint": "Bleibt oben angepinnt, auch wenn gelesen. Die Benachrichtigung lässt sich nicht ausschalten.",
   "teamMessages.pinFor": "Oben für",
   "teamMessages.pinDays_one": "{count} Tag",
   "teamMessages.pinDays_other": "{count} Tage",
@@ -1767,5 +1767,10 @@
   "tip.messages.title": "Alle Nachrichten an einem Ort",
   "tip.messages.text": "Wähle unter „An:“, wohin es geht: deine Teams oder Gruppen, eine Abteilung oder den ganzen Verein, je nach Rolle, und ob alle, nur Trainer oder nur Spieler. Niemand bekommt etwas doppelt.",
 
-  "writeMessage.coversAll": "Der ganze Verein umfasst alle Abteilungen und Teams."
+  "writeMessage.coversAll": "Der ganze Verein umfasst alle Abteilungen und Teams.",
+
+  "writeMessage.onlyGroups": "Nur an:",
+
+  "messages.pinned": "Angepinnt",
+  "messages.pinnedUntil": "angepinnt bis {date}"
 }

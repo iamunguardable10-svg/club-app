@@ -12,7 +12,6 @@ import Link from 'next/link';
 
 import {
   isMessageRead,
-  isPoll,
   messagePinnedUntil,
   messagesForPerson,
   type LocalDatabase,
@@ -20,7 +19,8 @@ import {
 
 import { useT } from '@/shared/i18n';
 
-import { authorName, isClubMessage, messageLabel, whenPosted } from './messageText';
+import { NewDot, PinIcon } from './MessageMarks';
+import { authorName, messageLabel, whenPosted } from './messageText';
 
 export function UnreadMessagesCard({ database, personId }: { database: LocalDatabase; personId: string }) {
   const t = useT();
@@ -33,18 +33,16 @@ export function UnreadMessagesCard({ database, personId }: { database: LocalData
   }) ?? unread[0];
   const href = database.activeIdentity?.role === 'athlete' ? '/athlete/messages' : '/messages';
   if (!shown) return null;
+  const pinned = shown.important && messagePinnedUntil(shown) !== null && Date.parse(messagePinnedUntil(shown)!) > now;
   return (
-    <Link href={href} className={`block rounded-3xl border p-4 text-sm transition ${shown.important ? 'border-rose-300/50 bg-rose-300/[0.07] hover:border-rose-300' : 'border-sky-300/40 bg-sky-300/[0.06] hover:border-sky-300'}`}>
-      <p className="flex flex-wrap items-center gap-2 font-black text-white">
-        {unread.length > 0 ? t('messages.newCount', { count: unread.length }) : null}
-        {shown.important ? <span className="rounded-full bg-rose-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('messages.important')}</span> : null}
-        {isClubMessage(shown) ? <span className="rounded-full bg-teal-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{messageLabel(database, shown)}</span> : null}
-        {isPoll(shown) ? <span className="rounded-full bg-violet-300 px-2 py-0.5 text-[10px] font-black uppercase text-slate-950">{t('poll.label')}</span> : null}
+    <Link href={href} className="block rounded-3xl border border-slate-700 bg-slate-950/70 p-4 text-sm transition hover:border-slate-500">
+      <p className="flex items-center gap-2 font-black text-white">
+        {unread.length > 0 ? <NewDot label={t('messages.new')} /> : null}
+        {unread.length > 0 ? t('messages.newCount', { count: unread.length }) : t('messages.pinned')}
+        {pinned ? <PinIcon className="h-3.5 w-3.5 text-amber-200/80" /> : null}
       </p>
-      <p className="mt-1 line-clamp-2 text-slate-300">
-        <span className="font-bold text-slate-400">{authorName(database, shown)} · {whenPosted(shown.createdAt)}: </span>
-        {shown.body}
-      </p>
+      <p className="mt-1 text-xs font-bold text-slate-500">{authorName(database, shown)} · {messageLabel(database, shown)} · {whenPosted(shown.createdAt)}</p>
+      <p className="mt-1.5 line-clamp-2 text-slate-200">{shown.body}</p>
       <p className="mt-2 text-xs font-black text-sky-300">{t('messages.open')}</p>
     </Link>
   );

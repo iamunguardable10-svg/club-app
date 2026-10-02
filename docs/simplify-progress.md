@@ -2578,3 +2578,18 @@ Geklärt: Eigene Nachrichten bekommt man nicht (auch nicht als Spieler-Trainer i
 gewollt; die Test-Nachricht an Pro B kam deshalb im Spielerprofil desselben Kontos nicht an.
 Geprüft: Browser Vereinsadmin (Basketball blendet U16/U18 und deren Gruppen aus, ganzer Verein alles),
 Rundgang (`test:smoke`) ohne Fehler.
+
+## Run 67 — Nachrichten: Team zuerst, dann Gruppen; ruhigere Karten (erledigt)
+
+Wunsch (Ben): Ein Team antippen heißt ganzes Team; erst danach erscheinen darunter („Nur an:“) seine
+Gruppen zum Eingrenzen. Gruppen ersetzen das ganze Team; wird die letzte Gruppe wieder abgewählt,
+geht es wieder ans ganze Team. Im „An:“ steht dann „U16 Boys (Starting Five)“.
+**Ruhigere Karten** (Spieler, Trainer, Karte auf „Heute“): keine farbigen Kärtchen-Hintergründe und
+Etiketten mehr (WICHTIG, UMFRAGE, Vereins-Etikett, NEU). Stattdessen: Name fett, darunter grau wohin
+(Team, Abteilung, Verein) und bei Angepinntem eine kleine Nadel „angepinnt bis …“; Neues ist ein
+blauer Punkt vor dem Namen. Angepinntes steht beim Spieler unter der Überschrift „Angepinnt“.
+Umfragen erkennt man an ihren Antworten. Der Hinweis unter „Wichtig“ sagt jetzt, dass die Nachricht
+oben angepinnt bleibt, auch wenn sie gelesen ist. Punkte fürs spätere Gesten-Onboarding stehen im
+Plan.
+Geprüft: Browser Handy (Trainer: U16 → Starting Five = 8 statt 15 Personen, wieder ab = ganzes Team;
+Spieler-Posteingang und Karte auf „Heute“).

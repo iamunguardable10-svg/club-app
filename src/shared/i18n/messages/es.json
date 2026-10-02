@@ -985,7 +985,7 @@
   "teamMessages.newMessage": "Mensaje nuevo",
   "teamMessages.wholeTeam": "Todo el equipo",
   "teamMessages.important": "Importante",
-  "teamMessages.importantHint": "Los jugadores no pueden desactivar su notificación.",
+  "teamMessages.importantHint": "Queda fijado arriba, también una vez leído. Los jugadores no pueden desactivar su notificación.",
   "teamMessages.pinFor": "Fijado durante",
   "teamMessages.pinDays_one": "{count} día",
   "teamMessages.pinDays_other": "{count} días",
@@ -1767,5 +1767,10 @@
   "tip.messages.title": "Todos los mensajes en un lugar",
   "tip.messages.text": "Elige en «Para:» a quién va: tus equipos o grupos, una sección o todo el club, según tu rol, y si es para todos, solo entrenadores o solo jugadores. Nadie lo recibe dos veces.",
 
-  "writeMessage.coversAll": "Todo el club incluye todas las secciones y equipos."
+  "writeMessage.coversAll": "Todo el club incluye todas las secciones y equipos.",
+
+  "writeMessage.onlyGroups": "Solo a:",
+
+  "messages.pinned": "Fijado",
+  "messages.pinnedUntil": "fijado hasta el {date}"
 }

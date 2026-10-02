@@ -97,3 +97,11 @@ vielleicht Team-Chat). Für den Pilot reicht Stufe 1: Ankündigungen ohne Antwor
    Nachrichten-Symbol oben (statt „News“).
 3. **Spieler-Posteingang**: ein Feed, Chips je Quelle ohne „Alle“ (Antippen filtert, nochmal
    Antippen zeigt wieder alles), ungelesene Zahl je Chip, Beschriftung „U16 · U19“.
+
+### Für das Gesten-Onboarding (später) festgehalten
+
+- **Trainer:** „Wichtig“ heißt angepinnt — die Nachricht bleibt bei allen oben, bis zum gewählten Datum,
+  auch wenn sie gelesen ist; die Benachrichtigung lässt sich nicht ausschalten.
+- **Spieler:** Angepinntes steht oben unter „Angepinnt“ und bleibt dort, obwohl es schon gelesen ist —
+  weil es wichtig ist; danach rutscht es normal in den Verlauf.
+- **„An:“:** erst Team antippen = ganzes Team; darunter Gruppen antippen = nur diese Gruppen.
