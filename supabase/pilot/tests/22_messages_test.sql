@@ -142,9 +142,9 @@ select test.expect_count('the coaches'' message only to Hugo',
   $q$select 1 from app.push_outbox where dedupe_key like 'message:c0000000-0000-0000-0000-000000000005:%'$q$, 1);
 select test.expect_count('… Hugo''s own news not to himself',
   $q$select 1 from app.push_outbox where dedupe_key like 'message:c0000000-0000-0000-0000-000000000004:%' and user_id = '10000000-0000-0000-0000-0000000000c3'$q$, 0);
-select test.expect_count('players open their messages, staff the news page',
+select test.expect_count('players open their messages page, staff theirs',
   $q$select 1 from app.push_outbox where dedupe_key like 'message:c0000000-0000-0000-0000-000000000001:%'
-     and url = case when user_id = '10000000-0000-0000-0000-0000000000c3' then '/news' else '/athlete/messages' end$q$, 3);
+     and url = case when user_id = '10000000-0000-0000-0000-0000000000c3' then '/messages' else '/athlete/messages' end$q$, 3);
 select test.expect_count('the important one cannot be muted',
   $q$select 1 from app.push_outbox where dedupe_key like 'message:c0000000-0000-0000-0000-000000000002:%' and kind = 'important' and title = 'Important · TV Nachrichten · Anna'$q$, 3);
 
