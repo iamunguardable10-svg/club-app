@@ -132,8 +132,6 @@ export type Department = {
   id: Id;
   clubId: Id;
   name: string;
-  /** Set by the lead: the Head Coaches of its teams may write department news (piece C). */
-  newsByHeadCoaches?: boolean;
 };
 
 export type Team = {
@@ -447,61 +445,58 @@ export type Absence = {
   createdAt: Timestamp;
 };
 
+/** Who among the recipients gets a message: everyone, only the staff or only the players. */
+export type MessageAudience = 'all' | 'staff' | 'players';
+
 /**
- * An announcement from the staff to a team or some of its groups (piece 17).
- * No replies. Read counts as soon as the player has seen it.
+ * A message (pieces 17, B and C; one model since 2026-10-02) to any mix of
+ * teams, groups, departments and the whole club. Recipients are a set of
+ * people: someone reached twice gets it once. No replies; read counts as
+ * soon as it was seen.
  */
-export type TeamMessage = {
+export type Message = {
   id: Id;
-  teamId: Id;
-  /** Empty: the whole team. */
-  groupIds: Id[];
+  clubId: Id;
   authorId: Id | null;
+  teamIds: Id[];
+  /** Only the players of these groups (and their team's staff). */
+  groupIds: Id[];
+  departmentIds: Id[];
+  wholeClub: boolean;
+  audience: MessageAudience;
   body: string;
   important: boolean;
-  /** Important ones: on top for the players until then (chosen when written). */
+  /** Important ones: on top until then (chosen when written). */
   pinnedUntil: Timestamp | null;
   createdAt: Timestamp;
-  /** Set once: unread players (for a poll: those who have not voted) were reminded. */
+  /** Set once: those who have not read it (a poll: not voted) were reminded. */
   remindedAt: Timestamp | null;
   /** A poll (piece B): the body is the question, 2 to 6 answers. Fixed once written. */
   pollOptions?: string[] | null;
   /** Several answers at once. */
   pollMultiple?: boolean;
-  /** Closed by the staff: no more votes. */
+  /** Closed: no more votes. */
   pollClosedAt?: Timestamp | null;
   /**
-   * How many chose each answer, as the club server counts them (players
+   * How many chose each answer, as the club server counts them (recipients
    * see only their own vote, not everyone's). Absent in the local test mode.
    */
   pollCounts?: number[] | null;
 };
 
 /**
- * News to a whole club or one department (piece C): for the players and
- * staff of its active teams and the club roles over them. Written by club
- * admins (club), the department lead (department) and, when the lead allows
- * it, the department's Head Coaches. No replies; read = seen.
+ * Someone allowed to write to a department (set by its lead) or to the whole
+ * club (departmentId null, set by an admin), besides leads and admins.
  */
-export type ClubNews = {
+export type MessageWriter = {
   id: Id;
   clubId: Id;
-  /** Null: the whole club. */
+  personId: Id;
   departmentId: Id | null;
-  authorId: Id | null;
-  body: string;
-  important: boolean;
-  pinnedUntil: Timestamp | null;
   createdAt: Timestamp;
 };
 
-export type NewsRead = {
-  newsId: Id;
-  personId: Id;
-  readAt: Timestamp;
-};
-
-/** A player's vote on a poll: indexes into `pollOptions`. */
+/** A recipient's vote on a poll: indexes into `pollOptions`. */
 export type MessageVote = {
   messageId: Id;
   personId: Id;
@@ -580,13 +575,12 @@ export type LocalDatabase = {
   attendanceConfirmations: AttendanceConfirmation[];
   absences: Absence[];
   squadEntries: SquadEntry[];
-  teamMessages: TeamMessage[];
+  messages: Message[];
   messageReads: MessageRead[];
   /** Votes on polls (piece B): players have only their own on the club server. */
   messageVotes?: MessageVote[];
-  /** Club and department news (piece C). */
-  clubNews?: ClubNews[];
-  newsReads?: NewsRead[];
+  /** Who may write to a department or the whole club besides leads and admins. */
+  messageWriters?: MessageWriter[];
   /** Imported Apple calendar events (server mode only; piece 20). */
   privateEvents?: PrivateEvent[];
   /** The last load link an athlete shared with a coach, per person. */

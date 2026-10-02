@@ -20,6 +20,7 @@ import type {
   TeamFeature,
   AbsenceKind,
   SquadStatus,
+  MessageAudience,
 } from '../schema';
 import type { LoadTrainingType } from '../loadTypes';
 
@@ -70,11 +71,10 @@ export const TABLES: readonly TableSpec[] = [
   // Kind and note live apart: shared only with viewAbsenceReasons (piece 16).
   { name: 'absence_reasons', key: ['absence_id'] },
   { name: 'squad_entries', key: ['session_id', 'person_id'], kinds: { set_at: 'timestamp' } },
-  { name: 'team_messages', key: ['id'], kinds: { created_at: 'timestamp', reminded_at: 'timestamp', pinned_until: 'timestamp', poll_closed_at: 'timestamp' } },
+  { name: 'messages', key: ['id'], kinds: { created_at: 'timestamp', reminded_at: 'timestamp', pinned_until: 'timestamp', poll_closed_at: 'timestamp' } },
   { name: 'message_reads', key: ['message_id', 'person_id'], kinds: { read_at: 'timestamp' } },
   { name: 'message_votes', key: ['message_id', 'person_id'], kinds: { voted_at: 'timestamp' } },
-  { name: 'club_news', key: ['id'], kinds: { created_at: 'timestamp', pinned_until: 'timestamp' } },
-  { name: 'news_reads', key: ['news_id', 'person_id'], kinds: { read_at: 'timestamp' } },
+  { name: 'message_writers', key: ['id'], kinds: { created_at: 'timestamp' } },
   { name: 'load_summaries', key: ['person_id'], kinds: { acwr: 'number', updated_at: 'timestamp' } },
   { name: 'athlete_plans', key: ['id'], kinds: { starts_at: 'timestamp', created_at: 'timestamp', expected_rpe: 'number' } },
   { name: 'acknowledged_sessions', key: ['person_id', 'session_id'] },
@@ -87,7 +87,7 @@ export type TableName =
   | 'staff_invites' | 'club_roles' | 'club_role_invites'
   | 'memberships' | 'player_groups' | 'player_group_members' | 'session_series' | 'sessions'
   | 'session_series_week_states' | 'availability' | 'availability_reasons' | 'load_entries'
-  | 'load_summaries' | 'athlete_plans' | 'acknowledged_sessions' | 'load_entry_reviews' | 'attendance_confirmations' | 'absences' | 'absence_reasons' | 'squad_entries' | 'team_messages' | 'message_reads' | 'message_votes' | 'club_news' | 'news_reads' | 'private_events';
+  | 'load_summaries' | 'athlete_plans' | 'acknowledged_sessions' | 'load_entry_reviews' | 'attendance_confirmations' | 'absences' | 'absence_reasons' | 'squad_entries' | 'messages' | 'message_reads' | 'message_votes' | 'message_writers' | 'private_events';
 
 export function tableSpec(name: TableName): TableSpec {
   return TABLES.find((table) => table.name === name)!;
@@ -129,7 +129,7 @@ export function rowKey(table: TableName, row: Row): string {
 export function toServerRows(database: LocalDatabase): ServerRows {
   const rows: ServerRows = {
     clubs: [{ id: database.club.id, name: database.club.name, city: database.club.city, country: database.club.country, created_at: database.club.createdAt }],
-    departments: database.departments.map((d) => ({ id: d.id, club_id: d.clubId, name: d.name, news_by_head_coaches: d.newsByHeadCoaches ?? false })),
+    departments: database.departments.map((d) => ({ id: d.id, club_id: d.clubId, name: d.name })),
     facilities: database.facilities.map((f) => ({ id: f.id, club_id: f.clubId, name: f.name, address: f.address })),
     teams: database.teams.map((t) => ({
       id: t.id, club_id: t.clubId, department_id: t.departmentId, name: t.name, default_facility_id: t.defaultFacilityId, features: t.features,
@@ -210,19 +210,18 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     squad_entries: (database.squadEntries ?? []).map((q) => ({
       session_id: q.sessionId, person_id: q.personId, status: q.status, set_by: q.setBy, set_at: q.setAt,
     })),
-    team_messages: (database.teamMessages ?? []).map((m) => ({
-      id: m.id, team_id: m.teamId, group_ids: m.groupIds, author_id: m.authorId, body: m.body, important: m.important,
+    messages: (database.messages ?? []).map((m) => ({
+      id: m.id, club_id: m.clubId, author_id: m.authorId, team_ids: m.teamIds, group_ids: m.groupIds,
+      department_ids: m.departmentIds, whole_club: m.wholeClub, audience: m.audience, body: m.body, important: m.important,
       pinned_until: m.pinnedUntil, created_at: m.createdAt, reminded_at: m.remindedAt,
       // poll_counts is the server's; it is never sent.
       poll_options: m.pollOptions ?? null, poll_multiple: m.pollMultiple ?? false, poll_closed_at: m.pollClosedAt ?? null,
     })),
     message_reads: (database.messageReads ?? []).map((r) => ({ message_id: r.messageId, person_id: r.personId, read_at: r.readAt })),
     message_votes: (database.messageVotes ?? []).map((v) => ({ message_id: v.messageId, person_id: v.personId, options: v.options, voted_at: v.votedAt })),
-    club_news: (database.clubNews ?? []).map((n) => ({
-      id: n.id, club_id: n.clubId, department_id: n.departmentId, author_id: n.authorId, body: n.body, important: n.important,
-      pinned_until: n.pinnedUntil, created_at: n.createdAt,
+    message_writers: (database.messageWriters ?? []).map((w) => ({
+      id: w.id, club_id: w.clubId, person_id: w.personId, department_id: w.departmentId, created_at: w.createdAt,
     })),
-    news_reads: (database.newsReads ?? []).map((r) => ({ news_id: r.newsId, person_id: r.personId, read_at: r.readAt })),
     private_events: (database.privateEvents ?? []).map((e) => ({
       user_id: e.userId, source_url: e.sourceUrl, key: e.key, title: e.title, starts_at: e.startsAt, ends_at: e.endsAt, all_day: e.allDay,
     })),
@@ -262,7 +261,7 @@ export function fromServerRows(
     version: context.version,
     seededAt: context.previous?.seededAt ?? new Date().toISOString(),
     club: { id: s(club.id), name: s(club.name), city: s(club.city), country: s(club.country), createdAt: s(club.created_at) },
-    departments: rows.departments.map((d) => ({ id: s(d.id), clubId: s(d.club_id), name: s(d.name), newsByHeadCoaches: Boolean(d.news_by_head_coaches) })),
+    departments: rows.departments.map((d) => ({ id: s(d.id), clubId: s(d.club_id), name: s(d.name) })),
     teams: rows.teams.map((t) => ({
       id: s(t.id), clubId: s(t.club_id), departmentId: s(t.department_id), name: s(t.name),
       defaultFacilityId: sn(t.default_facility_id), features: ((t.features as string[] | null) ?? []).filter((f): f is TeamFeature => (TEAM_FEATURES as readonly string[]).includes(f)),
@@ -359,22 +358,20 @@ export function fromServerRows(
     squadEntries: rows.squad_entries.map((q) => ({
       sessionId: s(q.session_id), personId: s(q.person_id), status: s(q.status) as SquadStatus, setBy: sn(q.set_by), setAt: s(q.set_at),
     })),
-    teamMessages: rows.team_messages
+    messages: rows.messages
       .map((m) => ({
-        id: s(m.id), teamId: s(m.team_id), groupIds: (m.group_ids as string[]) ?? [], authorId: sn(m.author_id), body: s(m.body),
-        important: Boolean(m.important), pinnedUntil: sn(m.pinned_until), createdAt: s(m.created_at), remindedAt: sn(m.reminded_at),
+        id: s(m.id), clubId: s(m.club_id), authorId: sn(m.author_id),
+        teamIds: (m.team_ids as string[]) ?? [], groupIds: (m.group_ids as string[]) ?? [], departmentIds: (m.department_ids as string[]) ?? [],
+        wholeClub: Boolean(m.whole_club), audience: (m.audience === 'staff' || m.audience === 'players' ? m.audience : 'all') as MessageAudience,
+        body: s(m.body), important: Boolean(m.important), pinnedUntil: sn(m.pinned_until), createdAt: s(m.created_at), remindedAt: sn(m.reminded_at),
         pollOptions: (m.poll_options as string[] | null) ?? null, pollMultiple: Boolean(m.poll_multiple), pollClosedAt: sn(m.poll_closed_at),
         pollCounts: ((m.poll_counts as number[] | null) ?? null)?.map(Number) ?? null,
       }))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     messageReads: rows.message_reads.map((r) => ({ messageId: s(r.message_id), personId: s(r.person_id), readAt: s(r.read_at) })),
-    clubNews: rows.club_news
-      .map((n) => ({
-        id: s(n.id), clubId: s(n.club_id), departmentId: sn(n.department_id), authorId: sn(n.author_id), body: s(n.body),
-        important: Boolean(n.important), pinnedUntil: sn(n.pinned_until), createdAt: s(n.created_at),
-      }))
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    newsReads: rows.news_reads.map((r) => ({ newsId: s(r.news_id), personId: s(r.person_id), readAt: s(r.read_at) })),
+    messageWriters: rows.message_writers.map((w) => ({
+      id: s(w.id), clubId: s(w.club_id), personId: s(w.person_id), departmentId: sn(w.department_id), createdAt: s(w.created_at),
+    })),
     messageVotes: rows.message_votes.map((v) => ({
       messageId: s(v.message_id), personId: s(v.person_id), options: ((v.options as number[]) ?? []).map(Number), votedAt: s(v.voted_at),
     })),

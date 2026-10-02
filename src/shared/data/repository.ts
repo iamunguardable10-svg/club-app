@@ -49,9 +49,9 @@ import {
   type Absence,
   type AbsenceKind,
   type SquadStatus,
-  type TeamMessage,
+  type Message,
+  type MessageAudience,
   type MessageVote,
-  type ClubNews,
   type Availability,
   type AvailabilityStatus,
   type Facility,
@@ -2433,71 +2433,189 @@ export function publishSquad(sessionId: Id): void {
 }
 
 // ---------------------------------------------------------------------------
-// Team messages (piece 17)
+// Messages (pieces 17, B and C; one model since 2026-10-02)
 // ---------------------------------------------------------------------------
 
-/** Players a message is for: the team, or those in its groups. */
-export function messageRecipientIds(database: LocalDatabase, message: Pick<TeamMessage, 'teamId' | 'groupIds'>): Id[] {
-  const players = database.memberships.filter((m) => m.teamId === message.teamId && m.role === 'athlete').map((m) => m.personId);
-  if (message.groupIds.length === 0) return players;
-  const inGroups = new Set(database.playerGroupMembers.filter((member) => message.groupIds.includes(member.groupId)).map((member) => member.personId));
-  return players.filter((personId) => inGroups.has(personId));
+/** Where a message goes: any mix of teams, groups, departments and the whole club. */
+export type MessageTargets = { teamIds?: Id[]; groupIds?: Id[]; departmentIds?: Id[]; wholeClub?: boolean };
+
+function targetsOf(input: MessageTargets): Required<MessageTargets> {
+  return {
+    teamIds: [...new Set(input.teamIds ?? [])],
+    groupIds: [...new Set(input.groupIds ?? [])],
+    departmentIds: [...new Set(input.departmentIds ?? [])],
+    wholeClub: Boolean(input.wholeClub),
+  };
 }
 
-/** Messages for a player, newest first. */
-export function messagesForPlayer(database: LocalDatabase, personId: Id): TeamMessage[] {
-  return (database.teamMessages ?? [])
-    .filter((message) => messageRecipientIds(database, message).includes(personId))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+function hasTargets(targets: Required<MessageTargets>): boolean {
+  return targets.wholeClub || targets.teamIds.length + targets.groupIds.length + targets.departmentIds.length > 0;
 }
 
-export function messagesForTeam(database: LocalDatabase, teamId: Id): TeamMessage[] {
-  return (database.teamMessages ?? []).filter((message) => message.teamId === teamId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+/**
+ * Everyone a message is for, each once and never its author (as
+ * app.message_recipients on the club server): players and staff of the
+ * teams addressed directly, through a department or the whole club; the
+ * players of chosen groups and their team's staff; the club roles over an
+ * addressed department or the club. `audience` keeps only players or staff.
+ */
+export function messageRecipientIds(
+  database: LocalDatabase,
+  message: Pick<Message, 'teamIds' | 'groupIds' | 'departmentIds' | 'wholeClub' | 'audience' | 'authorId'>,
+): Id[] {
+  const players = message.audience !== 'staff';
+  const staff = message.audience !== 'players';
+  const scoped = new Set(activeTeams(database)
+    .filter((team) => message.wholeClub || message.teamIds.includes(team.id) || message.departmentIds.includes(team.departmentId))
+    .map((team) => team.id));
+  const groups = database.playerGroups.filter((group) => message.groupIds.includes(group.id));
+  const groupTeams = new Set(groups.map((group) => group.teamId));
+  const ids = new Set<Id>();
+  for (const membership of database.memberships) {
+    if (players && membership.role === 'athlete' && scoped.has(membership.teamId)) ids.add(membership.personId);
+    if (staff && membership.role === 'coach' && (scoped.has(membership.teamId) || groupTeams.has(membership.teamId))) ids.add(membership.personId);
+  }
+  if (players) {
+    for (const member of database.playerGroupMembers) {
+      const group = groups.find((candidate) => candidate.id === member.groupId);
+      if (group && database.memberships.some((m) => m.personId === member.personId && m.teamId === group.teamId && m.role === 'athlete')) {
+        ids.add(member.personId);
+      }
+    }
+  }
+  if (staff) {
+    for (const role of database.clubRoles) {
+      if (message.wholeClub || (role.departmentId !== null && message.departmentIds.includes(role.departmentId))) ids.add(role.personId);
+    }
+  }
+  if (message.authorId) ids.delete(message.authorId);
+  return [...ids];
+}
+
+const newestFirst = (a: Message, b: Message) => b.createdAt.localeCompare(a.createdAt);
+
+/** Messages for this person, newest first. */
+export function messagesForPerson(database: LocalDatabase, personId: Id): Message[] {
+  return (database.messages ?? []).filter((message) => messageRecipientIds(database, message).includes(personId)).sort(newestFirst);
+}
+
+/** Messages to this team or some of its groups, newest first (the team's message list). */
+export function messagesForTeam(database: LocalDatabase, teamId: Id): Message[] {
+  const groupIds = new Set(database.playerGroups.filter((group) => group.teamId === teamId).map((group) => group.id));
+  return (database.messages ?? [])
+    .filter((message) => message.teamIds.includes(teamId) || message.groupIds.some((groupId) => groupIds.has(groupId)))
+    .sort(newestFirst);
 }
 
 export function isMessageRead(database: LocalDatabase, messageId: Id, personId: Id): boolean {
   return (database.messageReads ?? []).some((read) => read.messageId === messageId && read.personId === personId);
 }
 
-export function unreadMessagesFor(database: LocalDatabase, personId: Id): TeamMessage[] {
-  return messagesForPlayer(database, personId).filter((message) => !isMessageRead(database, message.id, personId));
+export function unreadMessagesFor(database: LocalDatabase, personId: Id): Message[] {
+  return messagesForPerson(database, personId).filter((message) => !isMessageRead(database, message.id, personId));
 }
 
-/** How long the staff can pin an important message, in days. */
+/** How long an important message can stay pinned, in days. */
 export const MESSAGE_PIN_DAYS = [1, 3, 7, 14] as const;
 export const DEFAULT_MESSAGE_PIN_DAYS = 7;
 
-/** Until when a message stays on top; messages saved before this was chosen: two weeks. */
-export function messagePinnedUntil(message: TeamMessage): Timestamp | null {
+/** Until when a message stays on top (important ones only). */
+export function messagePinnedUntil(message: Message): Timestamp | null {
   if (!message.important) return null;
-  return message.pinnedUntil ?? new Date(Date.parse(message.createdAt) + 14 * 86_400_000).toISOString();
+  return message.pinnedUntil ?? new Date(Date.parse(message.createdAt) + 7 * 86_400_000).toISOString();
 }
 
-/** The player's important messages still pinned, newest first. */
-export function pinnedMessagesFor(database: LocalDatabase, personId: Id, now = Date.now()): TeamMessage[] {
-  return messagesForPlayer(database, personId).filter((message) => {
+/** This person's important messages still pinned, newest first. */
+export function pinnedMessagesFor(database: LocalDatabase, personId: Id, now = Date.now()): Message[] {
+  return messagesForPerson(database, personId).filter((message) => {
     const until = messagePinnedUntil(message);
     return until !== null && Date.parse(until) > now;
   });
 }
 
-/** Who has read a message, for the staff. */
-export function messageReadStats(database: LocalDatabase, message: TeamMessage): { read: number; total: number; unreadIds: Id[] } {
+/** Who has read a message, for those who manage it. */
+export function messageReadStats(database: LocalDatabase, message: Message): { read: number; total: number; unreadIds: Id[] } {
   const recipients = messageRecipientIds(database, message);
   const unreadIds = recipients.filter((personId) => !isMessageRead(database, message.id, personId));
   return { read: recipients.length - unreadIds.length, total: recipients.length, unreadIds };
 }
 
-/** Roles that see attendance or plan sessions write to the team. */
+/** Roles that see attendance or plan sessions write to the team and its groups. */
 export function mayMessageTeam(database: LocalDatabase, personId: Id | null, teamId: Id): boolean {
   const permissions = coachPermissions(database, personId, teamId);
   return permissions.has('viewAttendance') || permissions.has('editSessions');
 }
 
-function requireMessageRights(database: LocalDatabase, teamId: Id): Id {
-  const coachId = database.activeIdentity?.role === 'coach' ? database.activeIdentity.personId : null;
-  if (!coachId || !mayMessageTeam(database, coachId, teamId)) throw new LocalDataError('Your role may not write to this team.');
-  return coachId;
+function hasWriterGrant(database: LocalDatabase, personId: Id, departmentId: Id | null): boolean {
+  return (database.messageWriters ?? []).some((writer) => writer.personId === personId && writer.departmentId === departmentId);
+}
+
+/** The department's lead and club admins, and whoever the lead allows. */
+export function mayMessageDepartment(database: LocalDatabase, personId: Id | null, departmentId: Id): boolean {
+  if (!personId) return false;
+  return managedDepartmentIds(database, personId).includes(departmentId) || hasWriterGrant(database, personId, departmentId);
+}
+
+/** Club admins, and whoever an admin allows. */
+export function mayMessageClub(database: LocalDatabase, personId: Id | null): boolean {
+  if (!personId) return false;
+  return isClubAdmin(database, personId) || hasWriterGrant(database, personId, null);
+}
+
+/** Whether this person may send to all of these recipients (and there is at least one). */
+export function maySendMessage(database: LocalDatabase, personId: Id | null, input: MessageTargets): boolean {
+  const targets = targetsOf(input);
+  if (!personId || !hasTargets(targets)) return false;
+  return (!targets.wholeClub || mayMessageClub(database, personId))
+    && targets.teamIds.every((teamId) => mayMessageTeam(database, personId, teamId))
+    && targets.groupIds.every((groupId) => {
+      const group = database.playerGroups.find((candidate) => candidate.id === groupId);
+      return Boolean(group && mayMessageTeam(database, personId, group.teamId));
+    })
+    && targets.departmentIds.every((departmentId) => mayMessageDepartment(database, personId, departmentId));
+}
+
+/** Everywhere this person may write to: active teams, departments (by name), the whole club. */
+export function messageTargetsFor(database: LocalDatabase, personId: Id | null): { teamIds: Id[]; departmentIds: Id[]; wholeClub: boolean } {
+  return {
+    teamIds: activeTeams(database).filter((team) => mayMessageTeam(database, personId, team.id)).sort((a, b) => a.name.localeCompare(b.name)).map((team) => team.id),
+    departmentIds: [...database.departments].sort((a, b) => a.name.localeCompare(b.name))
+      .filter((department) => mayMessageDepartment(database, personId, department.id)).map((department) => department.id),
+    wholeClub: mayMessageClub(database, personId),
+  };
+}
+
+/**
+ * Whether this person sees who read it, reminds, closes its poll and deletes
+ * it: its author, or whoever runs all of its recipients (the team's staff
+ * with those rights, the department's lead, club admins). Someone only
+ * allowed to write to a department manages their own messages there.
+ */
+export function managesMessage(database: LocalDatabase, personId: Id | null, message: Message): boolean {
+  if (!personId) return false;
+  if (message.authorId === personId) return true;
+  const departments = managedDepartmentIds(database, personId);
+  return (!message.wholeClub || isClubAdmin(database, personId))
+    && message.teamIds.every((teamId) => mayMessageTeam(database, personId, teamId))
+    && message.groupIds.every((groupId) => {
+      const group = database.playerGroups.find((candidate) => candidate.id === groupId);
+      return Boolean(group && mayMessageTeam(database, personId, group.teamId));
+    })
+    && message.departmentIds.every((departmentId) => departments.includes(departmentId));
+}
+
+/** Messages this person sees: as a recipient, or because they manage them. Newest first. */
+export function messagesVisibleTo(database: LocalDatabase, personId: Id | null): Message[] {
+  if (!personId) return [];
+  return (database.messages ?? [])
+    .filter((message) => managesMessage(database, personId, message) || messageRecipientIds(database, message).includes(personId))
+    .sort(newestFirst);
+}
+
+function ownManagerOf(database: LocalDatabase, message: Message): Id {
+  const personId = ownPersonIds(database).find((candidate) => managesMessage(database, candidate, message));
+  if (!personId) throw new LocalDataError('You may not do this here.', undefined, 'messages.error.notAllowed');
+  return personId;
 }
 
 /** A poll has 2 to 6 answers of up to 80 characters each. */
@@ -2520,8 +2638,13 @@ export function cleanPollOptions(options: string[]): string[] {
   return cleaned;
 }
 
-export function postTeamMessage(input: {
-  teamId: Id; groupIds?: Id[]; body: string; important?: boolean; pinDays?: number;
+/**
+ * Sends a message to any mix of recipients the sender may write to; to
+ * everyone there, or only the staff or the players. Optionally important
+ * (pinned) or a poll.
+ */
+export function postMessage(input: MessageTargets & {
+  audience?: MessageAudience; body: string; important?: boolean; pinDays?: number;
   poll?: { options: string[]; multiple?: boolean } | null;
 }): Id {
   const body = input.body.trim();
@@ -2531,17 +2654,16 @@ export function postTeamMessage(input: {
   const pinDays = input.pinDays ?? DEFAULT_MESSAGE_PIN_DAYS;
   if (important && !(MESSAGE_PIN_DAYS as readonly number[]).includes(pinDays)) throw new LocalDataError('Choose how long the message stays pinned.');
   const pollOptions = input.poll ? cleanPollOptions(input.poll.options) : null;
+  const targets = targetsOf(input);
+  if (!hasTargets(targets)) throw new LocalDataError('Choose who the message is for.', undefined, 'messages.error.noRecipients');
   const id = newId();
   const createdAt = new Date();
   mutate((database) => {
-    const authorId = requireMessageRights(database, input.teamId);
-    const groupIds = input.groupIds ?? [];
-    if (groupIds.some((groupId) => !database.playerGroups.some((group) => group.id === groupId && group.teamId === input.teamId))) {
-      throw new LocalDataError('The groups must belong to the team.');
-    }
-    database.teamMessages = database.teamMessages ?? [];
-    database.teamMessages.push({
-      id, teamId: input.teamId, groupIds, authorId, body, important,
+    const authorId = ownPersonIds(database).find((personId) => maySendMessage(database, personId, targets));
+    if (!authorId) throw new LocalDataError('You may not do this here.', undefined, 'messages.error.notAllowed');
+    database.messages = database.messages ?? [];
+    database.messages.push({
+      id, clubId: database.club.id, authorId, ...targets, audience: input.audience ?? 'all', body, important,
       pinnedUntil: important ? new Date(createdAt.getTime() + pinDays * 86_400_000).toISOString() : null,
       createdAt: createdAt.toISOString(), remindedAt: null,
       pollOptions, pollMultiple: Boolean(pollOptions && input.poll?.multiple), pollClosedAt: null,
@@ -2552,12 +2674,12 @@ export function postTeamMessage(input: {
   return id;
 }
 
-export function deleteTeamMessage(messageId: Id): void {
+export function deleteMessage(messageId: Id): void {
   mutate((database) => {
-    const message = (database.teamMessages ?? []).find((candidate) => candidate.id === messageId);
+    const message = (database.messages ?? []).find((candidate) => candidate.id === messageId);
     if (!message) return;
-    requireMessageRights(database, message.teamId);
-    database.teamMessages = database.teamMessages.filter((candidate) => candidate.id !== messageId);
+    ownManagerOf(database, message);
+    database.messages = database.messages.filter((candidate) => candidate.id !== messageId);
     // The club server removes reads and votes with the message; nobody may delete them one by one.
     if (!isRemoteMode()) {
       database.messageReads = (database.messageReads ?? []).filter((read) => read.messageId !== messageId);
@@ -2569,20 +2691,20 @@ export function deleteTeamMessage(messageId: Id): void {
 /** Reminds everyone who has not read it yet (a poll: not voted yet), once. */
 export function remindUnread(messageId: Id): void {
   mutate((database) => {
-    const message = (database.teamMessages ?? []).find((candidate) => candidate.id === messageId);
+    const message = (database.messages ?? []).find((candidate) => candidate.id === messageId);
     if (!message) throw new LocalDataError('This message no longer exists.');
-    requireMessageRights(database, message.teamId);
+    ownManagerOf(database, message);
     if (message.remindedAt) throw new LocalDataError('Players were already reminded of this message.');
     message.remindedAt = new Date().toISOString();
   });
 }
 
-/** Seen: the player has had these messages on screen. Only their own, only messages for them. */
+/** Seen: this person has had these messages on screen. Only their own, only messages for them. */
 export function markMessagesRead(personId: Id, messageIds: Id[]): void {
   const database = readDatabase();
   if (!database || !ownPersonIds(database).includes(personId)) return;
   const unread = messageIds.filter((messageId) => {
-    const message = database.teamMessages?.find((candidate) => candidate.id === messageId);
+    const message = database.messages?.find((candidate) => candidate.id === messageId);
     return message && !isMessageRead(database, messageId, personId) && messageRecipientIds(database, message).includes(personId);
   });
   if (unread.length === 0) return;
@@ -2593,185 +2715,35 @@ export function markMessagesRead(personId: Id, messageIds: Id[]): void {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Club and department news (piece C)
-// ---------------------------------------------------------------------------
-
-/** Whether this person is Head Coach (the locked role) of an active team of the department. */
-function isHeadCoachIn(database: LocalDatabase, personId: Id, departmentId: Id): boolean {
-  return database.memberships.some((membership) => {
-    if (membership.personId !== personId || membership.role !== 'coach') return false;
-    const team = database.teams.find((candidate) => candidate.id === membership.teamId);
-    const role = database.coachRoles.find((candidate) => candidate.id === membership.coachRoleId);
-    return Boolean(team && !team.archivedAt && team.departmentId === departmentId && role?.locked);
-  });
+/** Who may write to a department (or the whole club, null) besides its lead and the admins. */
+export function messageWritersOf(database: LocalDatabase, departmentId: Id | null): Id[] {
+  return (database.messageWriters ?? []).filter((writer) => writer.departmentId === departmentId).map((writer) => writer.personId);
 }
 
-/**
- * Who may write news: to the whole club (departmentId null) club admins; to
- * a department its lead and admins, and its Head Coaches when the lead
- * allows it.
- */
-export function mayPostNews(database: LocalDatabase, personId: Id | null, departmentId: Id | null): boolean {
-  if (!personId) return false;
-  if (departmentId === null) return isClubAdmin(database, personId);
-  const department = database.departments.find((candidate) => candidate.id === departmentId);
-  if (!department) return false;
-  return managedDepartmentIds(database, personId).includes(departmentId)
-    || (Boolean(department.newsByHeadCoaches) && isHeadCoachIn(database, personId, departmentId));
-}
-
-/** Where this person may write news: the club (null) first, then departments by name. */
-export function newsScopesFor(database: LocalDatabase, personId: Id | null): (Id | null)[] {
-  const departments = [...database.departments].sort((a, b) => a.name.localeCompare(b.name))
-    .filter((department) => mayPostNews(database, personId, department.id))
-    .map((department) => department.id);
-  return mayPostNews(database, personId, null) ? [null, ...departments] : departments;
-}
-
-/** Who a news item is for: players and staff of the active teams in scope, and the club roles over them. */
-export function newsRecipientIds(database: LocalDatabase, news: Pick<ClubNews, 'departmentId'>): Id[] {
-  const teamIds = new Set(activeTeams(database)
-    .filter((team) => news.departmentId === null || team.departmentId === news.departmentId)
-    .map((team) => team.id));
-  const ids = new Set(database.memberships.filter((membership) => teamIds.has(membership.teamId)).map((membership) => membership.personId));
-  for (const role of database.clubRoles) {
-    if (role.role === 'admin' || news.departmentId === null || role.departmentId === news.departmentId) ids.add(role.personId);
-  }
-  return [...ids];
-}
-
-/** News for this person (as a recipient), newest first. */
-export function newsForPerson(database: LocalDatabase, personId: Id): ClubNews[] {
-  return (database.clubNews ?? [])
-    .filter((news) => newsRecipientIds(database, news).includes(personId))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-}
-
-/** News this person sees on the news page: as a recipient, or where they may write. Newest first. */
-export function newsVisibleTo(database: LocalDatabase, personId: Id | null): ClubNews[] {
-  if (!personId) return [];
-  return (database.clubNews ?? [])
-    .filter((news) => mayPostNews(database, personId, news.departmentId) || newsRecipientIds(database, news).includes(personId))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-}
-
-/**
- * Whether this person sees who read it and may delete it: its writer, or
- * whoever runs the scope (club admins; for a department its lead and admins).
- * Head Coaches allowed to write manage only their own news.
- */
-export function managesNews(database: LocalDatabase, personId: Id | null, news: ClubNews): boolean {
-  if (!personId) return false;
-  if (news.authorId === personId) return true;
-  return news.departmentId === null ? isClubAdmin(database, personId) : managedDepartmentIds(database, personId).includes(news.departmentId);
-}
-
-export function isNewsRead(database: LocalDatabase, newsId: Id, personId: Id): boolean {
-  return (database.newsReads ?? []).some((read) => read.newsId === newsId && read.personId === personId);
-}
-
-export function unreadNewsFor(database: LocalDatabase, personId: Id): ClubNews[] {
-  return newsForPerson(database, personId).filter((news) => news.authorId !== personId && !isNewsRead(database, news.id, personId));
-}
-
-/** Until when a news item stays on top (important ones only). */
-export function newsPinnedUntil(news: ClubNews): Timestamp | null {
-  return news.important ? news.pinnedUntil : null;
-}
-
-export function pinnedNewsFor(database: LocalDatabase, personId: Id, now = Date.now()): ClubNews[] {
-  return newsForPerson(database, personId).filter((news) => {
-    const until = newsPinnedUntil(news);
-    return until !== null && Date.parse(until) > now;
-  });
-}
-
-/** Who has read it, for its writers. The writer does not count. */
-export function newsReadStats(database: LocalDatabase, news: ClubNews): { read: number; total: number; unreadIds: Id[] } {
-  const recipients = newsRecipientIds(database, news).filter((personId) => personId !== news.authorId);
-  const unreadIds = recipients.filter((personId) => !isNewsRead(database, news.id, personId));
-  return { read: recipients.length - unreadIds.length, total: recipients.length, unreadIds };
-}
-
-/** The scope's name: the department, or the club. */
-export function newsScopeName(database: LocalDatabase, news: Pick<ClubNews, 'departmentId'>): string {
-  if (news.departmentId === null) return database.club.name;
-  return database.departments.find((department) => department.id === news.departmentId)?.name ?? database.club.name;
-}
-
-export function postNews(input: { departmentId: Id | null; body: string; important?: boolean; pinDays?: number }): Id {
-  const body = input.body.trim();
-  if (!body) throw new LocalDataError('Write a message first.');
-  if (body.length > 2000) throw new LocalDataError('A message can be at most 2000 characters.');
-  const important = Boolean(input.important);
-  const pinDays = input.pinDays ?? DEFAULT_MESSAGE_PIN_DAYS;
-  if (important && !(MESSAGE_PIN_DAYS as readonly number[]).includes(pinDays)) throw new LocalDataError('Choose how long the message stays pinned.');
-  const id = newId();
-  const createdAt = new Date();
+/** The lead (or an admin) lets someone write to a department; an admin to the whole club. */
+export function setMessageWriter(personId: Id, departmentId: Id | null, allowed: boolean): void {
   mutate((database) => {
-    const authorId = ownPersonIds(database).find((personId) => mayPostNews(database, personId, input.departmentId));
-    if (!authorId) throw new LocalDataError('You may not write news here.', undefined, 'news.error.notAllowed');
-    database.clubNews = database.clubNews ?? [];
-    database.clubNews.push({
-      id, clubId: database.club.id, departmentId: input.departmentId, authorId, body, important,
-      pinnedUntil: important ? new Date(createdAt.getTime() + pinDays * 86_400_000).toISOString() : null,
-      createdAt: createdAt.toISOString(),
-    });
-  });
-  return id;
-}
-
-export function deleteNews(newsId: Id): void {
-  mutate((database) => {
-    const news = (database.clubNews ?? []).find((candidate) => candidate.id === newsId);
-    if (!news) return;
-    if (!ownPersonIds(database).some((personId) => managesNews(database, personId, news))) {
-      throw new LocalDataError('You may not delete this news.', undefined, 'news.error.notAllowed');
+    const decides = ownPersonIds(database).some((own) => departmentId === null
+      ? isClubAdmin(database, own)
+      : managedDepartmentIds(database, own).includes(departmentId));
+    if (!decides) throw new LocalDataError('You may not do this here.', undefined, 'messages.error.notAllowed');
+    database.messageWriters = database.messageWriters ?? [];
+    const existing = database.messageWriters.find((writer) => writer.personId === personId && writer.departmentId === departmentId);
+    if (allowed && !existing) {
+      database.messageWriters.push({ id: newId(), clubId: database.club.id, personId, departmentId, createdAt: new Date().toISOString() });
+    } else if (!allowed && existing) {
+      database.messageWriters = database.messageWriters.filter((writer) => writer !== existing);
     }
-    database.clubNews = (database.clubNews ?? []).filter((candidate) => candidate.id !== newsId);
-    // The club server removes the reads with the news.
-    if (!isRemoteMode()) database.newsReads = (database.newsReads ?? []).filter((read) => read.newsId !== newsId);
   });
 }
 
-/** Seen: this person has had these news on screen. Only their own, only news for them. */
-export function markNewsRead(personId: Id, newsIds: Id[]): void {
-  const database = readDatabase();
-  if (!database || !ownPersonIds(database).includes(personId)) return;
-  const unread = newsIds.filter((newsId) => {
-    const news = database.clubNews?.find((candidate) => candidate.id === newsId);
-    return news && !isNewsRead(database, newsId, personId) && newsRecipientIds(database, news).includes(personId);
-  });
-  if (unread.length === 0) return;
-  mutate((draft) => {
-    draft.newsReads = draft.newsReads ?? [];
-    const now = new Date().toISOString();
-    for (const newsId of unread) draft.newsReads.push({ newsId, personId, readAt: now });
-  });
-}
+// Polls -----------------------------------------------------------------------
 
-/** The lead (or an admin) lets the department's Head Coaches write news, or not. */
-export function setNewsByHeadCoaches(departmentId: Id, allowed: boolean): void {
-  mutate((database) => {
-    const department = database.departments.find((candidate) => candidate.id === departmentId);
-    if (!department) throw new LocalDataError('This department no longer exists.');
-    if (!ownPersonIds(database).some((personId) => managedDepartmentIds(database, personId).includes(departmentId))) {
-      throw new LocalDataError('Only the department lead or a club admin can decide this.', undefined, 'news.error.notAllowed');
-    }
-    department.newsByHeadCoaches = allowed;
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Polls in team messages (piece B)
-// ---------------------------------------------------------------------------
-
-export function isPoll(message: TeamMessage): boolean {
+export function isPoll(message: Message): boolean {
   return Array.isArray(message.pollOptions) && message.pollOptions.length >= POLL_MIN_OPTIONS;
 }
 
-export function isPollClosed(message: TeamMessage): boolean {
+export function isPollClosed(message: Message): boolean {
   return Boolean(message.pollClosedAt);
 }
 
@@ -2786,18 +2758,18 @@ export function ownVote(database: LocalDatabase, messageId: Id, personId: Id): n
 
 /**
  * How many chose each answer. On the club server the counts come with the
- * message (players do not get everyone's votes); in the local test mode they
- * are counted from the votes.
+ * message (recipients do not get everyone's votes); in the local test mode
+ * they are counted from the votes.
  */
-export function pollCounts(database: LocalDatabase, message: TeamMessage): number[] {
+export function pollCounts(database: LocalDatabase, message: Message): number[] {
   const options = message.pollOptions ?? [];
   if (message.pollCounts && message.pollCounts.length === options.length) return message.pollCounts;
   const votes = votesFor(database, message.id);
   return options.map((_, index) => votes.filter((vote) => vote.options.includes(index)).length);
 }
 
-/** For the staff: who voted for each answer, and who has not voted yet. */
-export function pollVoteStats(database: LocalDatabase, message: TeamMessage): { voted: number; total: number; notVotedIds: Id[]; byOption: Id[][] } {
+/** For those who manage it: who voted for each answer, and who has not voted yet. */
+export function pollVoteStats(database: LocalDatabase, message: Message): { voted: number; total: number; notVotedIds: Id[]; byOption: Id[][] } {
   const recipients = messageRecipientIds(database, message);
   const votes = votesFor(database, message.id).filter((vote) => recipients.includes(vote.personId));
   const votedIds = new Set(votes.map((vote) => vote.personId));
@@ -2810,13 +2782,13 @@ export function pollVoteStats(database: LocalDatabase, message: TeamMessage): { 
 }
 
 /**
- * The player votes (or changes their vote) while the poll is open. One
+ * A recipient votes (or changes their vote) while the poll is open. One
  * answer, or several when the poll allows it; none takes the vote back.
  */
 export function votePoll(personId: Id, messageId: Id, options: number[]): void {
   mutate((database) => {
     if (!ownPersonIds(database).includes(personId)) throw new LocalDataError('You can only vote for yourself.');
-    const message = (database.teamMessages ?? []).find((candidate) => candidate.id === messageId);
+    const message = (database.messages ?? []).find((candidate) => candidate.id === messageId);
     if (!message || !isPoll(message) || !messageRecipientIds(database, message).includes(personId)) {
       throw new LocalDataError('This poll is not for you.');
     }
@@ -2846,12 +2818,12 @@ export function votePoll(personId: Id, messageId: Id, options: number[]): void {
   });
 }
 
-/** The staff close a poll: no more votes, the result stays. Once. */
+/** Those who manage a poll close it: no more votes, the result stays. Once. */
 export function closePoll(messageId: Id): void {
   mutate((database) => {
-    const message = (database.teamMessages ?? []).find((candidate) => candidate.id === messageId);
+    const message = (database.messages ?? []).find((candidate) => candidate.id === messageId);
     if (!message || !isPoll(message)) throw new LocalDataError('This message has no poll.');
-    requireMessageRights(database, message.teamId);
+    ownManagerOf(database, message);
     if (isPollClosed(message)) throw pollError('This poll is already closed.', 'server.thisPollIsAlreadyClosed');
     message.pollClosedAt = new Date().toISOString();
   });

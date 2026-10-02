@@ -17,9 +17,9 @@ import { COACH_PERMISSIONS } from './schema';
 import type {
   Absence,
   MessageRead,
-  TeamMessage,
+  Message,
   MessageVote,
-  ClubNews,
+  MessageWriter,
   AthletePlan,
   CoachPermission,
   CoachRole,
@@ -379,39 +379,43 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
   const unratedByAll = new Set([...latestPastByTeam.values()].map((ids) => ids[0]).filter(Boolean));
   const unratedBySome = new Set([...latestPastByTeam.values()].map((ids) => ids[1]).filter(Boolean));
 
-  // Piece 17: two announcements for U16; most players have read the older
-  // one, the demo player (athlete-u16-1) has read neither.
-  const teamMessages: TeamMessage[] = [
+  // Messages (pieces 17, B, C): two announcements and a poll to the U16
+  // players (most have read the older one, the demo player neither), one to
+  // the whole club and one to Basketball. The Head Coach of U16 may write to
+  // Basketball as well (the lead allowed it).
+  const team = { teamIds: [TEAM_U16], groupIds: [], departmentIds: [], wholeClub: false, audience: 'players' as const };
+  const messages: Message[] = [
     {
-      id: 'message-demo-1', teamId: TEAM_U16, groupIds: [], authorId: 'coach-5', important: false, pinnedUntil: null,
+      id: 'message-demo-1', clubId: CLUB_ID, ...team, authorId: 'coach-5', important: false, pinnedUntil: null,
       body: 'Kit collection on Monday after training. Please bring 20 € for the warm-up shirt.',
       createdAt: addDays(now, -3).toISOString(), remindedAt: null,
     },
     {
-      id: 'message-demo-2', teamId: TEAM_U16, groupIds: [], authorId: 'coach-1', important: true, pinnedUntil: addDays(now, 6).toISOString(),
+      id: 'message-demo-2', clubId: CLUB_ID, ...team, authorId: 'coach-1', important: true, pinnedUntil: addDays(now, 6).toISOString(),
       body: 'Game on Saturday: be at the hall by 10:15, warm-up starts 10:30. Bring both kits.',
       createdAt: addDays(now, -1).toISOString(), remindedAt: null,
     },
-    // Piece B: a poll most players have answered, the demo player not yet.
     {
-      id: 'message-demo-3', teamId: TEAM_U16, groupIds: [], authorId: 'coach-1', important: false, pinnedUntil: null,
+      id: 'message-demo-3', clubId: CLUB_ID, ...team, authorId: 'coach-1', important: false, pinnedUntil: null,
       body: 'Team dinner after the last game: which days work for you?',
       createdAt: addDays(now, -2).toISOString(), remindedAt: null,
       pollOptions: ['Friday', 'Saturday', 'Sunday'], pollMultiple: true, pollClosedAt: null,
     },
-  ];
-  // Piece C: one news item to the whole club (read by nobody yet) and one to Basketball.
-  const clubNews: ClubNews[] = [
     {
-      id: 'news-demo-1', clubId: CLUB_ID, departmentId: null, authorId: 'club-admin-1', important: false, pinnedUntil: null,
+      id: 'news-demo-1', clubId: CLUB_ID, teamIds: [], groupIds: [], departmentIds: [], wholeClub: true, audience: 'all',
+      authorId: 'club-admin-1', important: false, pinnedUntil: null,
       body: 'General meeting on 12 November at 19:00 in the club house. Everyone is welcome.',
-      createdAt: addDays(now, -4).toISOString(),
+      createdAt: addDays(now, -4).toISOString(), remindedAt: null,
     },
     {
-      id: 'news-demo-2', clubId: CLUB_ID, departmentId: DEPARTMENT_ID, authorId: 'department-lead-1', important: false, pinnedUntil: null,
+      id: 'news-demo-2', clubId: CLUB_ID, teamIds: [], groupIds: [], departmentIds: [DEPARTMENT_ID], wholeClub: false, audience: 'all',
+      authorId: 'department-lead-1', important: false, pinnedUntil: null,
       body: 'Basketball summer camp: sign-up opens next week. Ask your coach for details.',
-      createdAt: addDays(now, -2).toISOString(),
+      createdAt: addDays(now, -2).toISOString(), remindedAt: null,
     },
+  ];
+  const messageWriters: MessageWriter[] = [
+    { id: 'message-writer-1', clubId: CLUB_ID, personId: 'coach-1', departmentId: DEPARTMENT_ID, createdAt },
   ];
   const messageVotes: MessageVote[] = ([
     ['athlete-u16-2', [0, 1]], ['athlete-u16-3', [1]], ['athlete-u16-4', [1, 2]], ['athlete-u16-5', [0]], ['athlete-u16-6', [1]],
@@ -601,11 +605,10 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     attendanceConfirmations: [],
     absences,
     squadEntries: [],
-    teamMessages,
+    messages,
     messageReads,
     messageVotes,
-    clubNews,
-    newsReads: [],
+    messageWriters,
     shareLinks: {},
     // Start as the first coach so the app is usable immediately. Run 3 adds
     // the entry page that asks which role to test as and lets the person

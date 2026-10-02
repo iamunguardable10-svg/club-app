@@ -14,7 +14,7 @@ import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import {
   closePoll,
   DEFAULT_MESSAGE_PIN_DAYS,
-  deleteTeamMessage,
+  deleteMessage,
   displayName,
   MESSAGE_PIN_DAYS,
   messagePinnedUntil,
@@ -25,10 +25,10 @@ import {
   POLL_MIN_OPTIONS,
   POLL_OPTION_MAX_LENGTH,
   pollVoteStats,
-  postTeamMessage,
+  postMessage,
   remindUnread,
   useLocalDatabase,
-  type TeamMessage,
+  type Message,
 } from '@/shared/data';
 
 import { formatShortDate } from '@/shared/format';
@@ -49,7 +49,7 @@ export function TeamMessagesPanel({ teamId }: { teamId: string }) {
   const [pollMultiple, setPollMultiple] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState<TeamMessage | null>(null);
+  const [deleting, setDeleting] = useState<Message | null>(null);
   if (!database) return null;
 
   const groups = database.playerGroups.filter((group) => group.teamId === teamId);
@@ -70,7 +70,8 @@ export function TeamMessagesPanel({ teamId }: { teamId: string }) {
 
   function send() {
     run(() => {
-      postTeamMessage({ teamId, groupIds, body, important, pinDays, poll: poll ? { options: pollOptions, multiple: pollMultiple } : null });
+      // To the players of the team, or of the chosen groups (as before; who exactly is chosen in step 2 of the messages plan).
+      postMessage({ teamIds: groupIds.length === 0 ? [teamId] : [], groupIds, audience: 'players', body, important, pinDays, poll: poll ? { options: pollOptions, multiple: pollMultiple } : null });
       setBody('');
       setPoll(false);
       setPollOptions(['', '']);
@@ -219,7 +220,7 @@ export function TeamMessagesPanel({ teamId }: { teamId: string }) {
         confirmLabel={t('teamMessages.delete')}
         tone="danger"
         onCancel={() => setDeleting(null)}
-        onConfirm={() => { if (deleting) run(() => deleteTeamMessage(deleting.id)); setDeleting(null); }}
+        onConfirm={() => { if (deleting) run(() => deleteMessage(deleting.id)); setDeleting(null); }}
       />
     </div>
   );
