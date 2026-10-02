@@ -1765,5 +1765,7 @@
   "staffMessages.subtitle": "De y para tus equipos, secciones y el club",
   "staffMessages.empty": "Aún no hay mensajes. Los mensajes a tus equipos, tu sección o el club aparecen aquí.",
   "tip.messages.title": "Todos los mensajes en un lugar",
-  "tip.messages.text": "Elige en «Para:» a quién va: tus equipos o grupos, una sección o todo el club, según tu rol, y si es para todos, solo entrenadores o solo jugadores. Nadie lo recibe dos veces."
+  "tip.messages.text": "Elige en «Para:» a quién va: tus equipos o grupos, una sección o todo el club, según tu rol, y si es para todos, solo entrenadores o solo jugadores. Nadie lo recibe dos veces.",
+
+  "writeMessage.coversAll": "Todo el club incluye todas las secciones y equipos."
 }

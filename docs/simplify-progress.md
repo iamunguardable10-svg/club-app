@@ -2566,3 +2566,15 @@ Schritt 3 von „Nachrichten neu gedacht“.
   bis man die Seite verlässt; gelesen ist es trotzdem sofort (wie bisher).
 Geprüft: Browser Handy (Chips U16 Boys 3 · Basketball 1 · SV Ruhrtal 1, Filter an/aus), Rundgang
 (`test:smoke`) ohne Fehler.
+
+## Run 66 — „An:“: Weiteres schließt Engeres ein (erledigt)
+
+Wunsch (Ben): Wer den ganzen Verein wählt, braucht keine Abteilungen oder Teams mehr; wer eine
+Abteilung wählt, keine Teams daraus. Jetzt gilt: ganzer Verein > Abteilung > Team > Gruppe. Wählt man
+das Weitere, verschwinden die darin enthaltenen Ziele aus der Auswahl und aus „An:“ (beim ganzen
+Verein steht „Der ganze Verein umfasst alle Abteilungen und Teams.“). Ein Team blendet schon bisher
+seine Gruppen aus.
+Geklärt: Eigene Nachrichten bekommt man nicht (auch nicht als Spieler-Trainer im selben Team) — so
+gewollt; die Test-Nachricht an Pro B kam deshalb im Spielerprofil desselben Kontos nicht an.
+Geprüft: Browser Vereinsadmin (Basketball blendet U16/U18 und deren Gruppen aus, ganzer Verein alles),
+Rundgang (`test:smoke`) ohne Fehler.
