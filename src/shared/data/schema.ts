@@ -504,6 +504,18 @@ export type MessageVote = {
   votedAt: Timestamp;
 };
 
+/**
+ * The server's counts for a message the person runs (0039). It sees every
+ * recipient, also those this person may not see by name (a department lead
+ * does not see the players). Only with the club server; read-only.
+ */
+export type MessageStat = {
+  messageId: Id;
+  recipients: number;
+  reads: number;
+  voters: number;
+};
+
 export type MessageRead = {
   messageId: Id;
   personId: Id;
@@ -579,6 +591,7 @@ export type LocalDatabase = {
   messageReads: MessageRead[];
   /** Votes on polls (piece B): players have only their own on the club server. */
   messageVotes?: MessageVote[];
+  messageStats?: MessageStat[];
   /** Who may write to a department or the whole club besides leads and admins. */
   messageWriters?: MessageWriter[];
   /** Imported Apple calendar events (server mode only; piece 20). */

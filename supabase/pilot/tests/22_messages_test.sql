@@ -164,6 +164,36 @@ select test.expect_count('Anna sees who has read it', $q$select 1 from public.me
 reset role;
 select test.expect_count('reading drops the waiting push', $q$select 1 from app.push_outbox where dedupe_key = 'message:c0000000-0000-0000-0000-000000000001:10000000-0000-0000-0000-0000000000c4' and sent_at is not null$q$, 1);
 
+-- Names, reach and counts (0039, from the live test)
+set role authenticated;
+select test.act_as('10000000-0000-0000-0000-0000000000c5');
+select test.expect_count('Tom sees the name of Leo, who wrote to him', $q$select 1 from public.people where id = 'cf000000-0000-0000-0000-000000000002'$q$, 1);
+select test.expect_count('… not Hugo''s, who did not', $q$select 1 from public.people where id = 'cf000000-0000-0000-0000-000000000003'$q$, 0);
+select test.act_as('10000000-0000-0000-0000-0000000000c2');
+select test.expect_count('Leo (lead) still does not see the players by name', $q$select 1 from public.people where id = 'cf000000-0000-0000-0000-000000000004'$q$, 0);
+select test.expect_count('… but learns that Handball reaches 2 (Pia, Hugo)',
+  $q$select 1 where public.message_reach('cc000000-0000-0000-0000-000000000001', '{}', '{}', '{cd000000-0000-0000-0000-000000000001}', false, 'all') = 2$q$, 1);
+select test.expect_count('… 1 with only the players',
+  $q$select 1 where public.message_reach('cc000000-0000-0000-0000-000000000001', '{}', '{}', '{cd000000-0000-0000-0000-000000000001}', false, 'players') = 1$q$, 1);
+select test.expect_count('… and nothing for Tennis, which he may not write to',
+  $q$select 1 where public.message_reach('cc000000-0000-0000-0000-000000000001', '{}', '{}', '{cd000000-0000-0000-0000-000000000002}', false, 'all') is null$q$, 1);
+select test.expect_count('… nor for nobody',
+  $q$select 1 where public.message_reach('cc000000-0000-0000-0000-000000000001', '{}', '{}', '{}', false, 'all') is null$q$, 1);
+select test.expect_count('Leo sees the counts of his Handball news: 2, none read',
+  $q$select 1 from public.message_stats where message_id = 'c0000000-0000-0000-0000-000000000003' and recipients = 2 and reads = 0$q$, 1);
+select test.expect_count('… and of Hugo''s in his department',
+  $q$select 1 from public.message_stats where message_id = 'c0000000-0000-0000-0000-000000000004'$q$, 1);
+select test.expect_count('… not of Anna''s club news', $q$select 1 from public.message_stats where message_id = 'c0000000-0000-0000-0000-000000000001'$q$, 0);
+select test.act_as('10000000-0000-0000-0000-0000000000c1');
+select test.expect_count('Anna: her club news reached 4, 2 have read it',
+  $q$select 1 from public.message_stats where message_id = 'c0000000-0000-0000-0000-000000000001' and recipients = 4 and reads = 2$q$, 1);
+select test.act_as('10000000-0000-0000-0000-0000000000c4');
+select test.expect_count('Pia (player) sees no counts', $q$select 1 from public.message_stats$q$, 0);
+select test.act_as('10000000-0000-0000-0000-000000000099');
+select test.expect_count('Otto (other club) learns nothing',
+  $q$select 1 where public.message_reach('cc000000-0000-0000-0000-000000000001', '{}', '{}', '{}', true, 'all') is null$q$, 1);
+reset role;
+
 -- Managing
 set role authenticated;
 select test.act_as('10000000-0000-0000-0000-0000000000c3');
