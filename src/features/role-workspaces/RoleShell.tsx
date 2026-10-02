@@ -26,7 +26,7 @@ import { useT, type MessageKey } from '@/shared/i18n';
 
 export type CoachNavItem = 'today' | 'calendar' | 'team' | 'halls' | 'history';
 export type AthleteNavItem = 'today' | 'calendar' | 'load' | 'messages';
-export type ClubNavItem = 'club' | 'halls' | 'news';
+export type ClubNavItem = 'club' | 'halls' | 'messages';
 type NavItem = CoachNavItem | AthleteNavItem | ClubNavItem;
 type NavEntry = { item: NavItem; label: MessageKey; href: string };
 
@@ -49,8 +49,8 @@ const COACH_NAV: NavEntry[] = [
 const CLUB_NAV: NavEntry[] = [
   { item: 'club', label: 'nav.club', href: '/club' },
   { item: 'halls', label: 'nav.halls', href: '/club/halls' },
-  // Piece C: news to the club or a department.
-  { item: 'news', label: 'nav.news', href: '/news' },
+  // Messages to and from the club, departments and teams.
+  { item: 'messages', label: 'nav.messages', href: '/messages' },
 ];
 
 function NavIcon({ item }: { item: NavItem }) {
@@ -65,7 +65,6 @@ function NavIcon({ item }: { item: NavItem }) {
       {item === 'club' ? <><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6l8-3z" {...common} /><path d="M9 12l2 2 4-4" {...common} /></> : null}
       {item === 'load' ? <path d="M3 12h4l3-7 4 14 3-7h4" {...common} /> : null}
       {item === 'messages' ? <path d="M4 5h16v11H9l-5 4V5z" {...common} /> : null}
-      {item === 'news' ? <><path d="M3 10v4h3l7 4V6l-7 4H3z" {...common} /><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11" {...common} /></> : null}
     </svg>
   );
 }
@@ -129,8 +128,9 @@ function RoleShell({ nav, active, title, subtitle, back, actions, tip, children 
   const toRate = database && person && database.activeIdentity?.role === 'athlete' && athleteHasLoad(database, person.id)
     ? countToRate(database, person.id)
     : 0;
+  const showMessageIcon = database?.activeIdentity?.role === 'coach';
   const badge = (item: NavItem) => {
-    if ((item === 'messages' || item === 'news') && unread > 0) {
+    if (item === 'messages' && unread > 0) {
       return <span aria-label={t('nav.unread', { count: unread })} className="absolute -right-1.5 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-400 px-1 text-[10px] font-black text-slate-950">{unread}</span>;
     }
     if (item === 'today' && toRate > 0) {
@@ -184,6 +184,17 @@ function RoleShell({ nav, active, title, subtitle, back, actions, tip, children 
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {actions ? <div className="hidden items-center gap-2 md:flex">{actions}</div> : null}
+            {/* Coaches have no Messages tab: their messages open from here. */}
+            {showMessageIcon ? (
+              <Link
+                href="/messages"
+                aria-label={unread > 0 ? t('nav.messagesUnread', { count: unread }) : t('nav.messages')}
+                className="relative grid h-10 w-10 place-items-center rounded-full border border-slate-700 bg-slate-900/80 text-slate-200 transition hover:border-slate-500 hover:text-white"
+              >
+                <NavIcon item="messages" />
+                {unread > 0 ? <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-400 px-1 text-[10px] font-black text-slate-950">{unread}</span> : null}
+              </Link>
+            ) : null}
             <IdentitySwitcher variant="avatar" className="md:hidden" />
           </div>
         </div>

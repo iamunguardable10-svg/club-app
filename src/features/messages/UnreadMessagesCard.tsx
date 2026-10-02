@@ -3,8 +3,8 @@
 /**
  * On Today (pieces 17 and C): the newest important message while it is
  * pinned (also once read), otherwise that there is something new and the
- * newest in one line. Players open their messages; staff and club roles the
- * news page. Only opening that page counts as read, so "read" means the whole
+ * newest in one line, opening the messages page (players have their own).
+ * Only opening that page counts as read, so "read" means the whole
  * text was seen.
  */
 
@@ -15,8 +15,6 @@ import {
   isPoll,
   messagePinnedUntil,
   messagesForPerson,
-  messageTargetsFor,
-  messagesVisibleTo,
   type LocalDatabase,
 } from '@/shared/data';
 
@@ -33,20 +31,8 @@ export function UnreadMessagesCard({ database, personId }: { database: LocalData
     const until = messagePinnedUntil(message);
     return until !== null && Date.parse(until) > now;
   }) ?? unread[0];
-  const href = database.activeIdentity?.role === 'athlete' ? '/athlete/messages' : '/news';
-  if (!shown) {
-    // Staff reach the news page from here even when nothing is new.
-    if (href !== '/news') return null;
-    const targets = messageTargetsFor(database, personId);
-    const canWrite = targets.wholeClub || targets.departmentIds.length > 0;
-    if (!canWrite && !messagesVisibleTo(database, personId).some(isClubMessage)) return null;
-    return (
-      <Link href="/news" className="flex items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm font-black text-slate-200 transition hover:border-slate-600">
-        <span>{t('news.title')}</span>
-        <span className="text-xs text-sky-300">{canWrite ? t('news.write') : t('news.open')}</span>
-      </Link>
-    );
-  }
+  const href = database.activeIdentity?.role === 'athlete' ? '/athlete/messages' : '/messages';
+  if (!shown) return null;
   return (
     <Link href={href} className={`block rounded-3xl border p-4 text-sm transition ${shown.important ? 'border-rose-300/50 bg-rose-300/[0.07] hover:border-rose-300' : 'border-sky-300/40 bg-sky-300/[0.06] hover:border-sky-300'}`}>
       <p className="flex flex-wrap items-center gap-2 font-black text-white">
@@ -59,7 +45,7 @@ export function UnreadMessagesCard({ database, personId }: { database: LocalData
         <span className="font-bold text-slate-400">{authorName(database, shown)} · {whenPosted(shown.createdAt)}: </span>
         {shown.body}
       </p>
-      <p className="mt-2 text-xs font-black text-sky-300">{href === '/news' ? t('news.open') : t('messages.open')}</p>
+      <p className="mt-2 text-xs font-black text-sky-300">{t('messages.open')}</p>
     </Link>
   );
 }

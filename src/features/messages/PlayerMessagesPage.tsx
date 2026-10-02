@@ -1,11 +1,13 @@
 'use client';
 
 /**
- * The player's messages (pieces 17, B and C): messages and polls to their
- * teams and news to their department or club, in one list. Important ones
- * stay on top as long as they are pinned (newest first). Once there are
- * news, chips filter "All · Team · Club". Having this page open marks what is
- * shown as read; there is no button for it.
+ * The player's messages (pieces 17, B and C; step 3 of the messages plan):
+ * everything sent to their teams, groups, department or club, in one feed,
+ * newest first; important ones stay on top while pinned. With more than one
+ * source, chips name them (each team, the department, the club) with how
+ * many are unread: tapping one shows only its messages, tapping it again
+ * shows all. A message to two of the player's teams is one message, under
+ * both chips. Having this page open marks what is shown as read.
  */
 
 import { useEffect, useState } from 'react';
@@ -20,6 +22,7 @@ import {
   messagePinnedUntil,
   messagesForPerson,
   useLocalDatabase,
+  type LocalDatabase,
   type Message,
 } from '@/shared/data';
 
@@ -28,17 +31,36 @@ import { useT } from '@/shared/i18n';
 import { authorName, isClubMessage, messageLabel, whenPosted } from './messageText';
 import { PollView } from './PollView';
 
-type Filter = 'all' | 'team' | 'club';
+/** The player's sources a message came through: their teams, the departments, the club. */
+function sourcesOf(database: LocalDatabase, message: Message, personId: string): string[] {
+  const ownTeams = new Set(database.memberships.filter((m) => m.personId === personId && m.role === 'athlete').map((m) => m.teamId));
+  const teams = new Set([
+    ...message.teamIds,
+    ...message.groupIds.map((groupId) => database.playerGroups.find((group) => group.id === groupId)?.teamId).filter((id): id is string => Boolean(id)),
+  ]);
+  return [
+    ...[...teams].filter((teamId) => ownTeams.has(teamId)).map((teamId) => `team:${teamId}`),
+    ...message.departmentIds.map((departmentId) => `department:${departmentId}`),
+    ...(message.wholeClub ? ['club'] : []),
+  ];
+}
 
 export function PlayerMessagesPage() {
   const t = useT();
   const { database } = useLocalDatabase();
-  const [filter, setFilter] = useState<Filter>('all');
+  const [filter, setFilter] = useState<string | null>(null);
   const person = database ? getActivePerson(database) : null;
   const isPlayer = database?.activeIdentity?.role === 'athlete';
   const inbox = database && person && isPlayer ? messagesForPerson(database, person.id) : [];
   const unreadIds = database && person ? inbox.filter((message) => !isMessageRead(database, message.id, person.id)).map((message) => message.id) : [];
   const unreadKey = unreadIds.join(',');
+  // What was new when the page opened stays marked (badges, chip counts)
+  // for this visit, although it counts as read on the server right away.
+  const [newThisVisit, setNewThisVisit] = useState<string[]>([]);
+  useEffect(() => {
+    if (unreadKey === '') return;
+    setNewThisVisit((seen) => [...new Set([...seen, ...unreadKey.split(',')])]);
+  }, [unreadKey]);
 
   // Seen = read. After the first paint, so the "new" marks are visible once.
   useEffect(() => {
@@ -49,14 +71,25 @@ export function PlayerMessagesPage() {
 
   if (!database) return null;
   const hasNews = inbox.some(isClubMessage);
-  const shown = inbox.filter((message) => !hasNews || filter === 'all' || (filter === 'club') === isClubMessage(message));
+  const sourcesById = new Map(inbox.map((message) => [message.id, person ? sourcesOf(database, message, person.id) : []]));
+  // Chips in a fixed order: teams by name, then departments, then the club.
+  const sourceLabel = (key: string) => {
+    const [kind, id] = key.split(':');
+    if (kind === 'team') return database.teams.find((team) => team.id === id)?.name ?? '';
+    if (kind === 'department') return database.departments.find((department) => department.id === id)?.name ?? '';
+    return database.club.name;
+  };
+  const order = (key: string) => (key.startsWith('team:') ? 0 : key.startsWith('department:') ? 1 : 2);
+  const sources = [...new Set([...sourcesById.values()].flat())].sort((a, b) => order(a) - order(b) || sourceLabel(a).localeCompare(sourceLabel(b)));
+  const activeFilter = filter && sources.includes(filter) ? filter : null;
+  const shown = inbox.filter((message) => !activeFilter || (sourcesById.get(message.id) ?? []).includes(activeFilter));
   const now = Date.now();
   const pinned = shown.filter((message) => {
     const until = messagePinnedUntil(message);
     return until !== null && Date.parse(until) > now;
   });
   const rest = shown.filter((message) => !pinned.includes(message));
-  const unread = new Set(unreadIds);
+  const unread = new Set([...unreadIds, ...newThisVisit]);
 
   const card = (message: Message) => (
     <li key={message.id} className={`rounded-2xl border p-4 ${message.important ? 'border-rose-300/40 bg-rose-300/[0.06]' : 'border-slate-800 bg-slate-950/60'}`}>
@@ -85,19 +118,24 @@ export function PlayerMessagesPage() {
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-sm text-slate-400">{t('messages.empty')}</section>
       ) : (
         <div className="grid gap-4">
-          {hasNews ? (
-            <div role="group" aria-label={t('messages.filter')} className="flex gap-1.5">
-              {(['all', 'team', 'club'] as const).map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={filter === value}
-                  onClick={() => setFilter(value)}
-                  className={`rounded-full border px-3 py-1 text-xs font-black ${filter === value ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300'}`}
-                >
-                  {t(value === 'all' ? 'messages.filter.all' : value === 'team' ? 'messages.filter.team' : 'messages.filter.club')}
-                </button>
-              ))}
+          {sources.length > 1 ? (
+            <div role="group" aria-label={t('messages.filter')} className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+              {sources.map((key) => {
+                const unreadHere = inbox.filter((message) => unread.has(message.id) && (sourcesById.get(message.id) ?? []).includes(key)).length;
+                const on = activeFilter === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setFilter(on ? null : key)}
+                    className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-black transition ${on ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
+                  >
+                    {sourceLabel(key)}
+                    {unreadHere > 0 ? <span aria-label={t('nav.unread', { count: unreadHere })} className="grid h-4 min-w-4 place-items-center rounded-full bg-rose-400 px-1 text-[10px] font-black text-slate-950">{unreadHere}</span> : null}
+                  </button>
+                );
+              })}
             </div>
           ) : null}
           {pinned.length > 0 ? <ul className="grid gap-2">{pinned.map(card)}</ul> : null}

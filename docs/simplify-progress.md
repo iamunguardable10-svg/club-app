@@ -2532,3 +2532,37 @@ Schritt 1 von „Nachrichten neu gedacht“ (`docs/plan-rsvp-polls-news.md`).
 Geprüft: SQL-Tests (neu `22_messages_test.sql`: Freigaben, nur Trainer, zwei Teams = einmal; 12, 19
 und 21 auf das neue Modell umgestellt), Server-Store-Test, Browser Verein/Trainer/Spieler,
 Rundgang (`test:smoke`) ohne Fehler.
+
+## Run 64 — Nachrichten: „An:“-Feld, wer bekommt es, Nachrichten für Trainer und Vereinsrollen (erledigt)
+
+Schritt 2 von „Nachrichten neu gedacht“.
+- **Schreiben mit „An:“:** eine Zeile mit Chips wie bei einer Mail; „+ Empfänger“ klappt auf, was die
+  Rolle erlaubt: ganzer Verein, Abteilungen, eigene Teams und darunter deren Gruppen (solange nicht
+  das ganze Team gewählt ist). Darunter „Wer: Alle · Nur Trainer · Nur Spieler“. Unter dem Senden-Knopf
+  steht, an wie viele Personen es geht; wer doppelt erreicht wird, zählt einmal. Wer nur an ein Team
+  schreiben darf, hat es schon im „An:“; im Team-Bereich ist das Team vorausgewählt und weitere
+  lassen sich dazunehmen. Umfrage und Wichtig wie bisher, für jedes Ziel.
+- **Nachrichten für Trainer und Vereinsrollen** (`/messages`): Trainer öffnen sie über das
+  Nachrichten-Symbol oben neben dem Profilbild (mit Zahl ungelesener), Vereinsrollen über den Tab
+  „Nachrichten“ (ersetzt „News“). Dort schreiben und alles lesen, was an einen ging oder was man
+  verwaltet; jede Nachricht zeigt, wohin sie ging („→ U16 Boys · nur Spieler“). Lesen, Abstimmen,
+  Erinnern, Umfrage beenden, Löschen wie im Team. `/news` leitet weiter; Push-Links für Trainer zeigen
+  auf `/messages` (Migration 0038).
+- Die Karte auf „Heute“ öffnet für Trainer die Nachrichten; die Extra-Karte „News schreiben“ fällt
+  weg (das Symbol oben ist immer da).
+Geprüft: Browser Trainer (Symbol, „An:“ mit Team + Abteilung, nur Spieler: „Geht an 24 Personen“),
+Vereinsadmin (Tab), Spieler bekommt die Nachricht einmal; SQL- und Server-Store-Tests, Rundgang
+(`test:smoke`, jetzt mit `/messages`) ohne Fehler.
+
+## Run 65 — Spieler-Posteingang: Chips je Quelle (erledigt)
+
+Schritt 3 von „Nachrichten neu gedacht“.
+- **Ein Feed, Chips je Quelle:** Oben stehen, sobald es mehr als eine Quelle gibt, die Teams des
+  Spielers, Abteilungen und der Verein, die ihm geschrieben haben (Teams, dann Abteilungen, dann
+  Verein), jeweils mit der Zahl ungelesener. Kein „Alle“: ohne Filter sieht man alles; ein Tipp zeigt
+  nur diese Quelle, ein zweiter Tipp wieder alles. Auf dem Handy wischbar.
+- Eine Nachricht an zwei Teams des Spielers ist eine Nachricht und steht unter beiden Chips.
+- **„Neu“ bleibt für den Besuch:** Was beim Öffnen ungelesen war, behält „Neu“ und zählt in den Chips,
+  bis man die Seite verlässt; gelesen ist es trotzdem sofort (wie bisher).
+Geprüft: Browser Handy (Chips U16 Boys 3 · Basketball 1 · SV Ruhrtal 1, Filter an/aus), Rundgang
+(`test:smoke`) ohne Fehler.

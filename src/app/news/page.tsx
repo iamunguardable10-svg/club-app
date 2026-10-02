@@ -1,5 +1,6 @@
-import { NewsPage } from '@/features/news/NewsPage';
+import { redirect } from 'next/navigation';
 
+/** News became part of Messages (2026-10-02); older pushes and links still land here. */
 export default function News() {
-  return <NewsPage />;
+  redirect('/messages');
 }

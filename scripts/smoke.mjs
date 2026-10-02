@@ -31,8 +31,8 @@ const TWO_DAYS = 2 * 24 * 60 * 60 * 1000;
 const ROUTES = {
   none: ['/', '/login', '/join', '/found', '/reset-password', '/privacy'],
   athlete: ['/athlete/home', '/athlete/calendar', '/athlete/load', '/athlete/messages', '/settings'],
-  coach: ['/coach/today', '/coach/sessions', '/coach/team', '/coach/history', '/coach/load', '/coach/attendance', '/coach/facilities', 'HALL_CALENDAR', '/news', '/settings'],
-  club: ['/club', '/club/halls', '/news', '/settings', '/reports'],
+  coach: ['/coach/today', '/coach/sessions', '/coach/team', '/coach/history', '/coach/load', '/coach/attendance', '/coach/facilities', 'HALL_CALENDAR', '/messages', '/settings'],
+  club: ['/club', '/club/halls', '/messages', '/settings', '/reports'],
 };
 
 const SCENARIOS = process.env.SMOKE_FULL
