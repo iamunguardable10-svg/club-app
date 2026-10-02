@@ -1765,5 +1765,7 @@
   "staffMessages.subtitle": "De et vers tes équipes, sections et ton club",
   "staffMessages.empty": "Pas encore de messages. Les messages à tes équipes, ta section ou ton club apparaissent ici.",
   "tip.messages.title": "Tous les messages au même endroit",
-  "tip.messages.text": "Choisis sous « À : » les destinataires : tes équipes ou groupes, une section ou tout le club selon ton rôle, et si c'est pour tous, seulement les entraîneurs ou seulement les joueurs. Personne ne le reçoit deux fois."
+  "tip.messages.text": "Choisis sous « À : » les destinataires : tes équipes ou groupes, une section ou tout le club selon ton rôle, et si c'est pour tous, seulement les entraîneurs ou seulement les joueurs. Personne ne le reçoit deux fois.",
+
+  "writeMessage.coversAll": "Tout le club comprend toutes les sections et équipes."
 }

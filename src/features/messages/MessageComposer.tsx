@@ -5,6 +5,8 @@
  * goes to in one "To:" line, like a mail. "+ Recipients" opens everything the
  * writer may address — the whole club, departments, own teams and their
  * groups — and a choice of everyone, only the staff or only the players.
+ * A wider choice covers the narrower ones (club > department > team > group),
+ * so those are no longer offered once it is chosen.
  * Below the text: poll and important. The line under the text says how many
  * people it reaches; someone reached twice counts once.
  */
@@ -64,6 +66,30 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
     const group = database.playerGroups.find((candidate) => candidate.id === id);
     return group ? `${teamName(group.teamId)} (${group.name})` : '';
   };
+  const departmentOf = (teamId: Id) => database.teams.find((team) => team.id === teamId)?.departmentId ?? null;
+  const groupTeam = (groupId: Id) => database.playerGroups.find((group) => group.id === groupId)?.teamId ?? null;
+  // A wider choice covers the narrower ones: the whole club covers every
+  // department and team, a department its teams, a team its groups. Those are
+  // neither offered nor kept once the wider one is chosen.
+  const teamCovered = (teamId: Id) => targets.wholeClub || targets.departmentIds.includes(departmentOf(teamId) ?? '');
+  const chooseClub = () => setTargets(targets.wholeClub ? { ...targets, wholeClub: false } : { ...EMPTY, wholeClub: true });
+  const chooseDepartment = (id: Id) => {
+    if (targets.departmentIds.includes(id)) {
+      setTargets({ ...targets, departmentIds: toggle(targets.departmentIds, id) });
+      return;
+    }
+    const inside = (teamId: Id | null) => teamId !== null && departmentOf(teamId) === id;
+    setTargets({
+      ...targets,
+      departmentIds: [...targets.departmentIds, id],
+      teamIds: targets.teamIds.filter((teamId) => !inside(teamId)),
+      groupIds: targets.groupIds.filter((groupId) => !inside(groupTeam(groupId))),
+    });
+  };
+  const chooseTeam = (id: Id) => setTargets(targets.teamIds.includes(id)
+    ? { ...targets, teamIds: toggle(targets.teamIds, id) }
+    : { ...targets, teamIds: [...targets.teamIds, id], groupIds: targets.groupIds.filter((groupId) => groupTeam(groupId) !== id) });
+  const offeredTeams = allowed.teamIds.filter((id) => !teamCovered(id));
   const chosen = targets.wholeClub || targets.teamIds.length + targets.groupIds.length + targets.departmentIds.length > 0;
   const reach = chosen ? messageRecipientIds(database, { ...targets, audience, authorId: person.id }).length : 0;
   const pollReady = !poll || pollOptions.filter((option) => option.trim()).length >= POLL_MIN_OPTIONS;
@@ -121,18 +147,19 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
             <div className="grid gap-1.5">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t('writeMessage.clubAndDepartments')}</p>
               <div className="flex flex-wrap gap-1.5">
-                {allowed.wholeClub ? option('club', t('writeMessage.wholeClub'), targets.wholeClub, () => setTargets({ ...targets, wholeClub: !targets.wholeClub })) : null}
-                {allowed.departmentIds.map((id) => option(`d${id}`, departmentName(id), targets.departmentIds.includes(id), () => setTargets({ ...targets, departmentIds: toggle(targets.departmentIds, id) })))}
+                {allowed.wholeClub ? option('club', t('writeMessage.wholeClub'), targets.wholeClub, chooseClub) : null}
+                {targets.wholeClub ? null : allowed.departmentIds.map((id) => option(`d${id}`, departmentName(id), targets.departmentIds.includes(id), () => chooseDepartment(id)))}
               </div>
             </div>
           ) : null}
-          {allowed.teamIds.length > 0 ? (
+          {targets.wholeClub ? <p className="text-xs text-slate-400">{t('writeMessage.coversAll')}</p> : null}
+          {offeredTeams.length > 0 ? (
             <div className="grid gap-1.5">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t('writeMessage.teams')}</p>
               <div className="grid gap-2">
-                {allowed.teamIds.map((id) => (
+                {offeredTeams.map((id) => (
                   <div key={id} className="flex flex-wrap items-center gap-1.5">
-                    {option(`t${id}`, teamName(id), targets.teamIds.includes(id), () => setTargets({ ...targets, teamIds: toggle(targets.teamIds, id) }))}
+                    {option(`t${id}`, teamName(id), targets.teamIds.includes(id), () => chooseTeam(id))}
                     {/* Groups only matter while the whole team is not chosen. */}
                     {!targets.teamIds.includes(id) ? groupsOf(id).map((group) => option(`g${group.id}`, group.name, targets.groupIds.includes(group.id), () => setTargets({ ...targets, groupIds: toggle(targets.groupIds, group.id) }), true)) : null}
                   </div>

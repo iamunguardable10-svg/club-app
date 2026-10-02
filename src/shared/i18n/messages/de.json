@@ -1765,5 +1765,7 @@
   "staffMessages.subtitle": "An und von deinen Teams, Abteilungen und dem Verein",
   "staffMessages.empty": "Noch keine Nachrichten. Nachrichten an deine Teams, deine Abteilung oder den Verein erscheinen hier.",
   "tip.messages.title": "Alle Nachrichten an einem Ort",
-  "tip.messages.text": "Wähle unter „An:“, wohin es geht: deine Teams oder Gruppen, eine Abteilung oder den ganzen Verein, je nach Rolle, und ob alle, nur Trainer oder nur Spieler. Niemand bekommt etwas doppelt."
+  "tip.messages.text": "Wähle unter „An:“, wohin es geht: deine Teams oder Gruppen, eine Abteilung oder den ganzen Verein, je nach Rolle, und ob alle, nur Trainer oder nur Spieler. Niemand bekommt etwas doppelt.",
+
+  "writeMessage.coversAll": "Der ganze Verein umfasst alle Abteilungen und Teams."
 }

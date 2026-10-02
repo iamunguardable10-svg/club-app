@@ -1765,5 +1765,7 @@
   "staffMessages.subtitle": "To and from your teams, departments and club",
   "staffMessages.empty": "No messages yet. Messages to your teams, your department or the club show up here.",
   "tip.messages.title": "One place for messages",
-  "tip.messages.text": "Choose under “To:” who it goes to: your teams or groups, a department or the whole club, as your role allows, and whether everyone, only coaches or only players. Nobody gets it twice."
+  "tip.messages.text": "Choose under “To:” who it goes to: your teams or groups, a department or the whole club, as your role allows, and whether everyone, only coaches or only players. Nobody gets it twice.",
+
+  "writeMessage.coversAll": "The whole club includes every department and team."
 }
