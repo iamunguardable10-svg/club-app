@@ -1724,9 +1724,6 @@
 
   "messages.subtitleWithNews": "De tes entraîneurs et de ton club",
   "messages.filter": "Afficher",
-  "messages.filter.all": "Tout",
-  "messages.filter.team": "Équipe",
-  "messages.filter.club": "Club",
   "messages.filterEmpty": "Rien pour l'instant.",
   "push.news.title": "{scope} · {author}",
 

@@ -2553,3 +2553,16 @@ Schritt 2 von „Nachrichten neu gedacht“.
 Geprüft: Browser Trainer (Symbol, „An:“ mit Team + Abteilung, nur Spieler: „Geht an 24 Personen“),
 Vereinsadmin (Tab), Spieler bekommt die Nachricht einmal; SQL- und Server-Store-Tests, Rundgang
 (`test:smoke`, jetzt mit `/messages`) ohne Fehler.
+
+## Run 65 — Spieler-Posteingang: Chips je Quelle (erledigt)
+
+Schritt 3 von „Nachrichten neu gedacht“.
+- **Ein Feed, Chips je Quelle:** Oben stehen, sobald es mehr als eine Quelle gibt, die Teams des
+  Spielers, Abteilungen und der Verein, die ihm geschrieben haben (Teams, dann Abteilungen, dann
+  Verein), jeweils mit der Zahl ungelesener. Kein „Alle“: ohne Filter sieht man alles; ein Tipp zeigt
+  nur diese Quelle, ein zweiter Tipp wieder alles. Auf dem Handy wischbar.
+- Eine Nachricht an zwei Teams des Spielers ist eine Nachricht und steht unter beiden Chips.
+- **„Neu“ bleibt für den Besuch:** Was beim Öffnen ungelesen war, behält „Neu“ und zählt in den Chips,
+  bis man die Seite verlässt; gelesen ist es trotzdem sofort (wie bisher).
+Geprüft: Browser Handy (Chips U16 Boys 3 · Basketball 1 · SV Ruhrtal 1, Filter an/aus), Rundgang
+(`test:smoke`) ohne Fehler.
