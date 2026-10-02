@@ -2593,3 +2593,25 @@ oben angepinnt bleibt, auch wenn sie gelesen ist. Punkte fürs spätere Gesten-O
 Plan.
 Geprüft: Browser Handy (Trainer: U16 → Starting Five = 8 statt 15 Personen, wieder ab = ganzes Team;
 Spieler-Posteingang und Karte auf „Heute“).
+
+## Run 68 — Live-Test der Nachrichten, drei Fehler behoben (erledigt)
+
+Durchlauf auf dem echten Server mit einem Wegwerf-Verein (Trainerin U16+U19, Spielerin in der
+Gruppe „Aufbau“, Spieler in U16 und U19, Abteilungsleitung Basketball). In Ordnung waren: Zusagen
+„selbst antworten“ (Spielerin sieht „Kommst du?“, Trainerin „1 ohne Antwort“ + Erinnern), Umfrage
+(Abstimmen, Ändern, „Abgestimmt 2/2“), Nachricht an U16+U19 nur Spieler (Spieler in beiden Teams
+bekommt sie einmal, unter beiden Chips), Gruppen-Nachricht, Angepinntes, Schreibrecht für die
+Abteilung (Leitung erlaubt es der Trainerin), „nur Trainer“, Abzeichen am Nachrichten-Symbol.
+Behoben (Migration 0039, schon live):
+- **Absendername:** Spieler und Trainer sahen bei Nachrichten der Abteilungsleitung nur „Coach“, weil
+  sie die Leitung nicht lesen durften. Jetzt darf man den Namen von jedem lesen, der einem geschrieben
+  hat.
+- **Zählung für die Abteilungsleitung:** Die Leitung sieht die Spieler absichtlich nicht; deshalb
+  stand „Geht an 1 Person“ (statt 3) und bei fremden Nachrichten „Gelesen 0/0“. Jetzt zählt der
+  Server (`message_reach` vor dem Senden, `message_stats` für Gesendetes) — nur Zahlen, die Namen
+  bleiben bei denen, die das Team sehen dürfen. „Erinnern“ zählt ebenfalls richtig.
+- **„Wer:“ blieb hängen:** Nach dem Senden mit „Nur Spieler“ ging auch die nächste Nachricht nur an
+  Spieler. Jetzt springt „Wer:“ nach dem Senden auf „Alle“ zurück (die Empfänger bleiben stehen).
+Geprüft: SQL-Tests (neu: Namen, Reichweite, Zahlen), `test:pilot`, Browser gegen den echten Server
+(Leitung: 3 bzw. 2 Personen, „Gelesen 1/3 · 2 erinnern“, „Gelesen 3/3“; Spieler und Trainerin sehen
+„Lena Leitung“).

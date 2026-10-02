@@ -75,7 +75,11 @@ export function MessageList({
           const stats = manages ? messageReadStats(database, message) : null;
           const votes = manages && poll ? pollVoteStats(database, message) : null;
           // Who the one-time reminder is for: not read, or for a poll, not voted.
+          // The names only when all of them are known here (a department
+          // lead does not see the players; the server counts them).
           const pendingIds = votes ? votes.notVotedIds : stats?.unreadIds ?? [];
+          const pending = votes ? votes.total - votes.voted : stats ? stats.total - stats.read : 0;
+          const named = manages && messageRecipientIds(database, message).length === (votes?.total ?? stats?.total ?? 0);
           const open = openId === message.id;
           const pinnedUntil = messagePinnedUntil(message);
           const pinned = pinnedUntil !== null && Date.parse(pinnedUntil) > Date.now();
@@ -105,24 +109,25 @@ export function MessageList({
                   database={database}
                   message={message}
                   personId={recipient && viewerId ? viewerId : undefined}
-                  voters={votes && open ? votes.byOption.map((ids) => ids.map(nameOf)) : undefined}
+                  voters={votes && open && named ? votes.byOption.map((ids) => ids.map(nameOf)) : undefined}
                 />
               ) : null}
               {stats ? (
                 <>
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs font-bold">
-                    {votes ? (
-                      <button type="button" onClick={() => setOpenId(open ? null : message.id)} aria-expanded={open} className={votes.voted === votes.total ? 'text-emerald-300' : 'text-sky-300 underline'}>
-                        {t('poll.voted', { voted: votes.voted, total: votes.total })}
-                      </button>
-                    ) : (
-                      <button type="button" onClick={() => setOpenId(open ? null : message.id)} aria-expanded={open} className={stats.read === stats.total ? 'text-emerald-300' : 'text-sky-300 underline'}>
-                        {t('teamMessages.read', { read: stats.read, total: stats.total })}
-                      </button>
-                    )}
+                    {(() => {
+                      const done = votes ? votes.voted === votes.total : stats.read === stats.total;
+                      const label = votes ? t('poll.voted', { voted: votes.voted, total: votes.total }) : t('teamMessages.read', { read: stats.read, total: stats.total });
+                      // Opens the names; without them (see above) only the count.
+                      return named ? (
+                        <button type="button" onClick={() => setOpenId(open ? null : message.id)} aria-expanded={open} className={done ? 'text-emerald-300' : 'text-sky-300 underline'}>{label}</button>
+                      ) : (
+                        <span className={done ? 'text-emerald-300' : 'text-slate-300'}>{label}</span>
+                      );
+                    })()}
                     <div className="flex flex-wrap gap-3">
-                      {pendingIds.length > 0 && !message.remindedAt && !message.pollClosedAt ? (
-                        <button type="button" onClick={() => run(() => remindUnread(message.id))} className="text-slate-300 underline decoration-slate-600 underline-offset-2 hover:text-white">{votes ? t('poll.remind', { count: pendingIds.length }) : t('teamMessages.remind', { count: pendingIds.length })}</button>
+                      {pending > 0 && !message.remindedAt && !message.pollClosedAt ? (
+                        <button type="button" onClick={() => run(() => remindUnread(message.id))} className="text-slate-300 underline decoration-slate-600 underline-offset-2 hover:text-white">{votes ? t('poll.remind', { count: pending }) : t('teamMessages.remind', { count: pending })}</button>
                       ) : message.remindedAt ? <span className="text-slate-500">{t('teamMessages.reminded')}</span> : null}
                       {votes && !message.pollClosedAt ? (
                         <button type="button" onClick={() => run(() => closePoll(message.id))} className="text-slate-300 underline decoration-slate-600 underline-offset-2 hover:text-white">{t('poll.close')}</button>
@@ -130,7 +135,7 @@ export function MessageList({
                       <button type="button" onClick={() => setDeleting(message)} className="text-slate-500 underline decoration-slate-700 underline-offset-2 hover:text-slate-300">{t('teamMessages.delete')}</button>
                     </div>
                   </div>
-                  {open && pendingIds.length > 0 ? (
+                  {open && pending > 0 && named ? (
                     <p className="mt-1.5 text-xs text-slate-400">{votes ? t('poll.notVoted', { names: pendingIds.map(nameOf).join(', ') }) : t('teamMessages.notRead', { names: pendingIds.map(nameOf).join(', ') })}</p>
                   ) : null}
                 </>

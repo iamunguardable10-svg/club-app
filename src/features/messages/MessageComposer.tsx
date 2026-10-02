@@ -9,14 +9,16 @@
  * those are no longer offered once it is chosen. A team means the whole team
  * until some of its groups are chosen under it.
  * Below the text: poll and important. The line under the text says how many
- * people it reaches; someone reached twice counts once.
+ * people it reaches; someone reached twice counts once. With the club server
+ * the server counts them: a department lead does not see the players.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   DEFAULT_MESSAGE_PIN_DAYS,
   getActivePerson,
+  isRemoteMode,
   MESSAGE_PIN_DAYS,
   messageRecipientIds,
   messageTargetsFor,
@@ -24,6 +26,7 @@ import {
   POLL_MIN_OPTIONS,
   POLL_OPTION_MAX_LENGTH,
   postMessage,
+  serverMessageReach,
   useLocalDatabase,
   type Id,
   type MessageAudience,
@@ -56,6 +59,24 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
   const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
   const [pollMultiple, setPollMultiple] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [serverReach, setServerReach] = useState<{ key: string; count: number | null } | null>(null);
+  const reachKey = JSON.stringify([targets.teamIds, targets.groupIds, targets.departmentIds, targets.wholeClub, audience]);
+  const clubId = database?.club.id ?? null;
+  const remote = isRemoteMode();
+  useEffect(() => {
+    if (!remote || !clubId) return;
+    let current = true;
+    const timer = window.setTimeout(() => {
+      const [teamIds, groupIds, departmentIds, wholeClub, chosenAudience] = JSON.parse(reachKey) as [Id[], Id[], Id[], boolean, MessageAudience];
+      void serverMessageReach(clubId, { teamIds, groupIds, departmentIds, wholeClub }, chosenAudience).then((count) => {
+        if (current) setServerReach({ key: reachKey, count });
+      });
+    }, 250);
+    return () => {
+      current = false;
+      window.clearTimeout(timer);
+    };
+  }, [remote, clubId, reachKey]);
   if (!database || !person) return null;
   const canWrite = allowed.wholeClub || allowed.departmentIds.length > 0 || allowed.teamIds.length > 0;
   if (!canWrite) return null;
@@ -107,7 +128,9 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
   };
   const offeredTeams = allowed.teamIds.filter((id) => !teamCovered(id));
   const chosen = targets.wholeClub || targets.teamIds.length + targets.groupIds.length + targets.departmentIds.length > 0;
-  const reach = chosen ? messageRecipientIds(database, { ...targets, audience, authorId: person.id }).length : 0;
+  const localReach = chosen ? messageRecipientIds(database, { ...targets, audience, authorId: person.id }).length : 0;
+  // The server's count once it answered (or this one when it cannot); until then none.
+  const reach = !remote ? localReach : serverReach?.key === reachKey ? serverReach.count ?? localReach : null;
   const pollReady = !poll || pollOptions.filter((option) => option.trim()).length >= POLL_MIN_OPTIONS;
 
   function send() {
@@ -119,6 +142,7 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
       setPollMultiple(false);
       setImportant(false);
       setPinDays(DEFAULT_MESSAGE_PIN_DAYS);
+      setAudience('all');
       setPicking(false);
       setError(null);
     } catch (caught) {
@@ -266,7 +290,7 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
       {error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null}
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={!chosen || !body.trim() || !pollReady} className="rounded-xl bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950 disabled:opacity-50">{t('writeMessage.send')}</button>
-        <span className="text-xs font-bold text-slate-400">{chosen ? t('writeMessage.reach', { count: reach }) : t('writeMessage.chooseRecipients')}</span>
+        <span className="text-xs font-bold text-slate-400">{!chosen ? t('writeMessage.chooseRecipients') : reach === null ? '…' : t('writeMessage.reach', { count: reach })}</span>
       </div>
     </form>
   );

@@ -824,6 +824,13 @@ async function main() {
     (await count('select 1 from messages where id = $1', [leadNews])) === 1
       && (await count('select 1 from message_writers where person_id = $1 and department_id = $2', [hanna, handball])) === 1, store.getStatus().rejected);
   check('… but not to the whole club', !data.messageTargetsFor(db(), db().activeIdentity!.personId).wholeClub);
+  // 0039: the server counts the recipients for whoever runs the message.
+  const reachedOnServer = await count('select 1 from app.message_recipients($1)', [leadNews]);
+  const leadNewsStat = db().messageStats?.find((stat) => stat.messageId === leadNews);
+  const leadNewsStats = data.messageReadStats(db(), db().messages.find((message) => message.id === leadNews)!);
+  check('… gets the server\'s counts for his news, and they agree',
+    leadNewsStat?.recipients === reachedOnServer && leadNewsStat.reads === 0 && leadNewsStats.total === reachedOnServer && leadNewsStats.read === 0,
+    { reachedOnServer, leadNewsStat, leadNewsStats });
   store = await actAs(U.founder);
   check('founder: can switch to her club role', data.hasIdentityRole(db(), frida!.id, 'club') && data.hasIdentityRole(db(), frida!.id, 'coach'));
   data.setActiveIdentity({ role: 'club', personId: frida!.id });

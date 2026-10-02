@@ -2533,10 +2533,25 @@ export function pinnedMessagesFor(database: LocalDatabase, personId: Id, now = D
   });
 }
 
-/** Who has read a message, for those who manage it. */
+/**
+ * The server's counts, when it reaches more people than this person sees
+ * (a department lead does not see the players by name). Otherwise the
+ * counts made here, which are up to date at once and come with names.
+ */
+function serverMessageStat(database: LocalDatabase, message: Message, seen: number) {
+  const stat = database.messageStats?.find((candidate) => candidate.messageId === message.id);
+  return stat && stat.recipients > seen ? stat : null;
+}
+
+/**
+ * Who has read a message, for those who manage it. `unreadIds` are the ones
+ * known by name; with the server's counts they can be fewer than unread.
+ */
 export function messageReadStats(database: LocalDatabase, message: Message): { read: number; total: number; unreadIds: Id[] } {
   const recipients = messageRecipientIds(database, message);
   const unreadIds = recipients.filter((personId) => !isMessageRead(database, message.id, personId));
+  const server = serverMessageStat(database, message, recipients.length);
+  if (server) return { read: server.reads, total: server.recipients, unreadIds };
   return { read: recipients.length - unreadIds.length, total: recipients.length, unreadIds };
 }
 
@@ -2699,6 +2714,30 @@ export function remindUnread(messageId: Id): void {
   });
 }
 
+/**
+ * How many a message would reach, counted by the server (0039): it also
+ * counts players a department lead does not see by name. Null without the
+ * club server, offline, or for recipients this person may not write to.
+ */
+export async function serverMessageReach(clubId: Id, input: MessageTargets, audience: MessageAudience): Promise<number | null> {
+  if (!isRemoteMode() || !isBrowser()) return null;
+  const targets = targetsOf(input);
+  try {
+    const supabase = await authClient();
+    const { data, error } = await supabase.rpc('message_reach', {
+      p_club: clubId,
+      p_teams: targets.teamIds,
+      p_groups: targets.groupIds,
+      p_departments: targets.departmentIds,
+      p_whole_club: targets.wholeClub,
+      p_audience: audience,
+    });
+    return !error && typeof data === 'number' ? data : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Seen: this person has had these messages on screen. Only their own, only messages for them. */
 export function markMessagesRead(personId: Id, messageIds: Id[]): void {
   const database = readDatabase();
@@ -2768,14 +2807,15 @@ export function pollCounts(database: LocalDatabase, message: Message): number[] 
   return options.map((_, index) => votes.filter((vote) => vote.options.includes(index)).length);
 }
 
-/** For those who manage it: who voted for each answer, and who has not voted yet. */
+/** For those who manage it: who voted for each answer, and who has not voted yet (those known by name). */
 export function pollVoteStats(database: LocalDatabase, message: Message): { voted: number; total: number; notVotedIds: Id[]; byOption: Id[][] } {
   const recipients = messageRecipientIds(database, message);
   const votes = votesFor(database, message.id).filter((vote) => recipients.includes(vote.personId));
   const votedIds = new Set(votes.map((vote) => vote.personId));
+  const server = serverMessageStat(database, message, recipients.length);
   return {
-    voted: votedIds.size,
-    total: recipients.length,
+    voted: server ? server.voters : votedIds.size,
+    total: server ? server.recipients : recipients.length,
     notVotedIds: recipients.filter((personId) => !votedIds.has(personId)),
     byOption: (message.pollOptions ?? []).map((_, index) => votes.filter((vote) => vote.options.includes(index)).map((vote) => vote.personId)),
   };

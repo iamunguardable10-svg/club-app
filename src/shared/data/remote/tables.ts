@@ -75,6 +75,8 @@ export const TABLES: readonly TableSpec[] = [
   { name: 'message_reads', key: ['message_id', 'person_id'], kinds: { read_at: 'timestamp' } },
   { name: 'message_votes', key: ['message_id', 'person_id'], kinds: { voted_at: 'timestamp' } },
   { name: 'message_writers', key: ['id'], kinds: { created_at: 'timestamp' } },
+  // Counted by the server for the messages the person runs (0039).
+  { name: 'message_stats', key: ['message_id'], kinds: { recipients: 'number', reads: 'number', voters: 'number' }, readOnly: true },
   { name: 'load_summaries', key: ['person_id'], kinds: { acwr: 'number', updated_at: 'timestamp' } },
   { name: 'athlete_plans', key: ['id'], kinds: { starts_at: 'timestamp', created_at: 'timestamp', expected_rpe: 'number' } },
   { name: 'acknowledged_sessions', key: ['person_id', 'session_id'] },
@@ -87,7 +89,7 @@ export type TableName =
   | 'staff_invites' | 'club_roles' | 'club_role_invites'
   | 'memberships' | 'player_groups' | 'player_group_members' | 'session_series' | 'sessions'
   | 'session_series_week_states' | 'availability' | 'availability_reasons' | 'load_entries'
-  | 'load_summaries' | 'athlete_plans' | 'acknowledged_sessions' | 'load_entry_reviews' | 'attendance_confirmations' | 'absences' | 'absence_reasons' | 'squad_entries' | 'messages' | 'message_reads' | 'message_votes' | 'message_writers' | 'private_events';
+  | 'load_summaries' | 'athlete_plans' | 'acknowledged_sessions' | 'load_entry_reviews' | 'attendance_confirmations' | 'absences' | 'absence_reasons' | 'squad_entries' | 'messages' | 'message_reads' | 'message_votes' | 'message_writers' | 'message_stats' | 'private_events';
 
 export function tableSpec(name: TableName): TableSpec {
   return TABLES.find((table) => table.name === name)!;
@@ -222,6 +224,7 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     message_writers: (database.messageWriters ?? []).map((w) => ({
       id: w.id, club_id: w.clubId, person_id: w.personId, department_id: w.departmentId, created_at: w.createdAt,
     })),
+    message_stats: (database.messageStats ?? []).map((m) => ({ message_id: m.messageId, recipients: m.recipients, reads: m.reads, voters: m.voters })),
     private_events: (database.privateEvents ?? []).map((e) => ({
       user_id: e.userId, source_url: e.sourceUrl, key: e.key, title: e.title, starts_at: e.startsAt, ends_at: e.endsAt, all_day: e.allDay,
     })),
@@ -374,6 +377,9 @@ export function fromServerRows(
     })),
     messageVotes: rows.message_votes.map((v) => ({
       messageId: s(v.message_id), personId: s(v.person_id), options: ((v.options as number[]) ?? []).map(Number), votedAt: s(v.voted_at),
+    })),
+    messageStats: rows.message_stats.map((m) => ({
+      messageId: s(m.message_id), recipients: Number(m.recipients), reads: Number(m.reads), voters: Number(m.voters),
     })),
     privateEvents: rows.private_events.map((e) => ({
       userId: s(e.user_id), sourceUrl: s(e.source_url), key: s(e.key), title: s(e.title),
