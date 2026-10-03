@@ -41,6 +41,8 @@ jobs:
           npm run start -- -p 3100 > /tmp/next.log 2>&1 &
           for i in $(seq 1 60); do curl -sf http://localhost:3100 > /dev/null && break; sleep 1; done
           npm run test:smoke || { echo '--- server log ---'; tail -50 /tmp/next.log; exit 1; }
+          # The guided tours of every page, with their gestures (scripts/tours.mjs).
+          npm run test:tours || { echo '--- server log ---'; tail -50 /tmp/next.log; exit 1; }
 
   # The checks that used to run only locally: load maths, calendar files,
   # series, the access rules (all migrations on a plain Postgres), the data

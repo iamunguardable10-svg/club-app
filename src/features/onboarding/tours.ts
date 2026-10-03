@@ -50,6 +50,7 @@ export const TOURS: Record<TourId, TourStep[]> = {
   'athlete.calendar': [
     step('athleteCalendar.week', 'calendar-weeknav', 'tap'),
     step('athleteCalendar.view', 'calendar-view', 'tap', 'touch'),
+    step('athleteCalendar.swipe', 'calendar-swipe', 'swipe-left', 'touch'),
     step('athleteCalendar.item', 'calendar-item', 'tap'),
     step('athleteCalendar.own', 'athlete-add-own', 'tap'),
   ],

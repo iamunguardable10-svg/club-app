@@ -1913,5 +1913,8 @@
   "welcome.ready.title": "Ne rate rien",
   "welcome.ready.text": "Changements, rappels et messages en notifications. Chaque page te montre ses astuces une fois – le ? les rappelle.",
   "settings.showToursAgain": "Revoir les visites guidées",
-  "settings.toursShown": "L’accueil et la visite de chaque page reviendront."
+  "settings.toursShown": "L’accueil et la visite de chaque page reviendront.",
+
+  "tour.athleteCalendar.swipe.title": "Glisse d’un jour à l’autre",
+  "tour.athleteCalendar.swipe.text": "En vue jour, glisse à gauche ou à droite pour le jour suivant ou précédent."
 }

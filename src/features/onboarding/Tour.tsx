@@ -202,14 +202,23 @@ export function Tour({ steps: allSteps, onClose }: { steps: TourStep[]; onClose:
       return;
     }
     const box = element.getBoundingClientRect();
+    // A tall area (a squad list, the weekly plan) is shown from its top.
+    const tall = box.height > window.innerHeight * 0.55;
     const outside = box.top < 72 || box.bottom > window.innerHeight - 96;
-    if (outside) element.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+    if (tall) {
+      element.style.scrollMarginTop = '88px';
+      element.scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' });
+    } else if (outside) {
+      element.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+    }
+    const cap = Math.max(180, window.innerHeight * 0.36);
     let frame = 0;
     let last: Rect | null = null;
     const loop = () => {
       const current = findTourTarget(step.target!) ?? element;
       const b = current.getBoundingClientRect();
-      const measured = { top: b.top - PAD, left: b.left - PAD, width: b.width + PAD * 2, height: b.height + PAD * 2 };
+      const height = tall ? Math.min(b.height, cap) : b.height;
+      const measured = { top: b.top - PAD, left: b.left - PAD, width: b.width + PAD * 2, height: height + PAD * 2 };
       if (!sameRect(last, measured)) {
         last = measured;
         setRect(measured);
@@ -345,6 +354,7 @@ export function Tour({ steps: allSteps, onClose }: { steps: TourStep[]; onClose:
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        data-tour-gesture={gesture}
         tabIndex={-1}
         className={`fixed z-[303] rounded-3xl border border-white/10 bg-slate-900/95 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] outline-none backdrop-blur-xl ${nudge > 0 ? 'tour-nudge' : ''}`}
         style={{ top: cardTop, left: cardLeft, width: cardWidth, transition: reduced ? 'none' : `top ${MOVE_MS}ms cubic-bezier(.2,.8,.2,1), left ${MOVE_MS}ms cubic-bezier(.2,.8,.2,1)`, visibility: cardHeight === 0 ? 'hidden' : 'visible' }}

@@ -2630,3 +2630,28 @@ Regel verankert: `AGENTS.md` (Schritt „Onboarding“ beim Bauen einer Funktion
 (Review prüft fehlendes Onboarding), Verweis in `plan-next-runs.md`.
 Aufgefallen: Spieler können im Kalender (noch) nicht zwischen Tagen wischen, Trainer schon (Frage 6).
 Geprüft: nur Doku; `typecheck` und `build` laufen unverändert.
+
+## Run 70 — Onboarding gebaut: Willkommen, Gesten-Touren, Moment-Tipps (erledigt)
+
+Wunsch (Ben): das Konzept (Run 69) gleich bauen, „schön smooth, interaktiv, gestengesteuert“, den
+Nutzer Stück für Stück heranführen, das alte Text-Onboarding entfernen; direkt auf main, bei
+Nichtgefallen zurückrollen.
+- **Willkommen je Rolle** (Spieler, Trainer, Verein): Vollbild-Karten zum Wischen mit kleinen
+  bewegten Bildern der App-Teile; letzte Karte schaltet Benachrichtigungen ein (mit Konto) und nennt
+  den Rollenwechsel bei mehreren Rollen.
+- **Seiten-Touren** auf jeder Seite (Spieler: Heute, Kalender, Belastung, Nachrichten; Trainer: Heute,
+  Kalender, Team, Hallen, Hallenkalender, Verlauf, Nachrichten; Verein: Verein, Hallen, Nachrichten):
+  der Rest dunkelt ab, ein Licht rahmt das Bedienelement, ein Finger (Handy) bzw. Mauszeiger (Desktop)
+  zeigt die Geste – tippen, wischen, ziehen, Unterkante ziehen. Wer die Geste am Licht ausführt, kommt
+  weiter (nichts erreicht die Seite darunter, es wird nie etwas gespeichert); „Weiter/Zurück/
+  Überspringen“ und Tastatur gehen auch. Schritte ohne Element (andere Rolle, ohne Belastung, keine
+  Daten) fallen weg; eine Tour ohne passende Schritte kommt beim nächsten Besuch wieder.
+- **Moment-Tipps** beim ersten Auftauchen: „Wie hart war es?“, „Bitte prüfen“, Kader, Anwesenheit,
+  Wochenplan. Touren warten, solange ein anderer Dialog offen ist.
+- **Einmal pro Konto** (Konto-Metadaten, sonst Gerät); **„?“** oben auf jeder Seite spielt die Tour
+  erneut; Einstellungen → „Einführungen erneut zeigen“. Weniger Bewegung → ohne Animation.
+- **Alt entfernt:** die Hinweis-Karten (`PageTip`, 31 Texte je Sprache) und „Tipps erneut zeigen“.
+- **Spieler-Kalender:** Wischen zwischen Tagen wie beim Trainer (Frage 6 des Konzepts).
+- Texte in vier Sprachen (173 neue); neuer Test `npm run test:tours` (in der CI).
+Geprüft: Handy und Desktop, alle Rollen, fr/en (`test:tours`: 122 Schritte, Gesten wirklich
+ausgeführt, zweiter Besuch still, „?“ spielt neu), Rundgang (`test:smoke`) ohne Fehler, Bilder je Rolle.

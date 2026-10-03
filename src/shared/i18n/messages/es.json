@@ -1913,5 +1913,8 @@
   "welcome.ready.title": "No te pierdas nada",
   "welcome.ready.text": "Cambios, recordatorios y mensajes como notificaciones. Cada página te enseña sus trucos una vez; el ? los vuelve a mostrar.",
   "settings.showToursAgain": "Volver a ver las guías",
-  "settings.toursShown": "La bienvenida y la guía de cada página volverán a aparecer."
+  "settings.toursShown": "La bienvenida y la guía de cada página volverán a aparecer.",
+
+  "tour.athleteCalendar.swipe.title": "Desliza entre los días",
+  "tour.athleteCalendar.swipe.text": "En la vista de día, desliza a la izquierda o la derecha para el día siguiente o anterior."
 }

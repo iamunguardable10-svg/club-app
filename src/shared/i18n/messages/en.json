@@ -1913,5 +1913,8 @@
   "welcome.ready.title": "Don’t miss a thing",
   "welcome.ready.text": "Changes, reminders and messages as notifications. Each page shows you its tricks once – the ? brings them back.",
   "settings.showToursAgain": "Show the tours again",
-  "settings.toursShown": "The welcome and each page’s tour come again."
+  "settings.toursShown": "The welcome and each page’s tour come again.",
+
+  "tour.athleteCalendar.swipe.title": "Swipe through the days",
+  "tour.athleteCalendar.swipe.text": "In the day view, swipe left or right for the next or previous day."
 }

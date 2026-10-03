@@ -1,6 +1,6 @@
 'use client';
 
-import { type MouseEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useState } from 'react';
+import { type MouseEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { SessionInfo, gameLine, meetLine, squadLine } from '@/features/sessions/SessionInfo';
 import { AbsencePanel } from '@/features/absences/AbsencePanel';
 import Link from 'next/link';
@@ -923,6 +923,28 @@ function AthleteCalendar({
     return Math.max(0, Math.min(days.length - 1, index));
   }
 
+  // On the phone's day view, a sideways swipe goes to the next or previous
+  // day, across into the next or previous week (as in the coach calendar).
+  const daySwipe = useRef<{ x: number; y: number } | null>(null);
+  const swiped = useRef(false);
+  function startDaySwipe(event: ReactPointerEvent<HTMLDivElement>) {
+    if (mode !== 'view' || event.pointerType === 'mouse' || (event.target as HTMLElement).closest('[data-athlete-calendar-item="true"]')) return;
+    daySwipe.current = { x: event.clientX, y: event.clientY };
+  }
+  function endDaySwipe(event: ReactPointerEvent<HTMLDivElement>) {
+    const start = daySwipe.current;
+    daySwipe.current = null;
+    if (!start) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (Math.abs(dx) < Math.max(80, window.innerWidth * 0.25) || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+    swiped.current = true;
+    const next = clampDayIndex(activeDayIndex) + (dx < 0 ? 1 : -1);
+    if (next < 0) { setWeekOffset((value) => value - 1); setActiveDayIndex(days.length - 1); }
+    else if (next >= days.length) { setWeekOffset((value) => value + 1); setActiveDayIndex(0); }
+    else setActiveDayIndex(next);
+  }
+
   function minutesToTime(minutes: number) {
     const hour = firstHour + Math.floor(minutes / 60);
     const minute = minutes % 60;
@@ -941,6 +963,7 @@ function AthleteCalendar({
   }
 
   function pickSlot(day: Date, event: MouseEvent<HTMLDivElement>, hourHeight: number) {
+    if (swiped.current) { swiped.current = false; return; }
     if ((event.target as HTMLElement).closest('[data-athlete-calendar-item="true"]')) return;
     if (!onEmptySlot) return;
     const minutes = minutesFromPointer(event.currentTarget, event.clientY, hourHeight);
@@ -1233,7 +1256,7 @@ function AthleteCalendar({
               <button type="button" data-tour="calendar-view" onClick={() => setMobileView('week')} className="rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-300">{t('calendar.wholeWeek')}</button>
             </div>
           </div>
-          <div className="overflow-hidden">
+          <div data-tour="calendar-swipe" onPointerDown={startDaySwipe} onPointerUp={endDaySwipe} onPointerCancel={() => { daySwipe.current = null; }} className="overflow-hidden touch-pan-y">
             <div className="grid grid-cols-[52px_minmax(0,1fr)]">
               <div className="bg-slate-950/95">
                 {hours.map((hour) => <div key={hour} className="border-b border-slate-900 px-2 py-1 text-[10px] font-bold text-slate-500" style={{ height: mobileHourHeight }}>{String(hour).padStart(2, '0')}:00</div>)}

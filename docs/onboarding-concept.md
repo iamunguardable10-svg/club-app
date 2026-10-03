@@ -1,9 +1,16 @@
-# Onboarding-Konzept: jede Seite, jede Rolle (Plan, noch nicht gebaut)
+# Onboarding-Konzept: jede Seite, jede Rolle (gebaut, Run 70)
 
 Auftrag (Ben, 2026-10-03): Für jede Funktion und jede Seite ein richtiges Onboarding planen, damit
 neue Nutzer – Spieler, Trainer, Abteilungsleitung, Vereinsadmin – alle Funktionen gezeigt bekommen.
-Erst dieses Konzept, gebaut wird nach Bens „Go“. Neue Funktionen planen ihr Onboarding ab jetzt
-immer mit (Regel in Abschnitt 7).
+Erst dieses Konzept, dann gebaut (Ben, 2026-10-03: „baue es jetzt“, ohne vorherige Durchsicht; fällt
+es nicht gut aus, wird es zurückgerollt). Neue Funktionen planen ihr Onboarding ab jetzt immer mit
+(Regel in Abschnitt 7).
+
+**Stand (Run 70):** gebaut sind Willkommen je Rolle (A), Seiten-Touren aller Seiten (B, ersetzen die
+alten Hinweis-Karten, die entfernt sind), Moment-Tipps für „Wie hart war es?“, „Bitte prüfen“, Kader,
+Anwesenheit und Wochenplan (C), „?“ (G) und „Einführungen erneut zeigen“ in den Einstellungen.
+Offen: lehrende Leerzustände (D), Einrichtungs-Liste (E), „Neu“-Hinweise (F). Die offenen Fragen
+(Abschnitt 9) sind wie empfohlen umgesetzt; Wischen im Spieler-Kalender ist angeglichen.
 
 Gemeint ist ein interaktives Onboarding wie bei iOS-Apps beim ersten Öffnen einer Seite: Es zeigt am
 echten Bildschirm die Gesten und Knöpfe der Seite, kurz animiert, Schritt für Schritt (siehe
@@ -218,7 +225,17 @@ ganze Verein umfasst alle Abteilungen und Teams.
 | Telefon-Kalender, Push, Installieren, Sprache | Willkommen, Moment-Tipps, Einstellungen |
 | Rollenwechsel, Offline, Problem melden | Moment-Tipps für alle |
 
-## 6. Technik (Vorschlag)
+## 6. Technik (so gebaut)
+
+Code: `src/features/onboarding/` – `tours.ts` (alle Schritte), `Tour.tsx` (Licht, Gesten, Karte),
+`TourHost.tsx` (welche Tour wann), `Welcome.tsx`, `MomentTip.tsx`, `tourBus.ts`. Fortschritt in
+`repository.ts` (`isTourSeen`, `markTourSeen`, `resetTours`, `loadToursFromAccount`; mit Konto in den
+Konto-Metadaten `tours_seen`, keine Migration). Test: `npm run test:tours` (CI, nach dem Rundgang);
+der Rundgang (`test:smoke`) schaltet die Touren ab (`club-app.tours-off`).
+Neue Schritte: Element mit `data-tour="…"` markieren, Schritt in `tours.ts`, Texte
+`tour.<key>.title/text` in allen vier Sprachen.
+
+Ursprünglicher Vorschlag:
 
 - **Eine Tour-Komponente** mit Schritten `{ target, textKey, gesture, placement }`. Die Ziele tragen
   `data-tour="…"`; ein fehlendes oder unsichtbares Ziel überspringt den Schritt (Rolle, Recht,

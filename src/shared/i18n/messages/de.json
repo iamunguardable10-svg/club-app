@@ -1913,5 +1913,8 @@
   "welcome.ready.title": "Verpass nichts",
   "welcome.ready.text": "Änderungen, Erinnerungen und Nachrichten als Benachrichtigung. Jede Seite zeigt dir einmal ihre Kniffe – das ? holt sie zurück.",
   "settings.showToursAgain": "Einführungen erneut zeigen",
-  "settings.toursShown": "Willkommen und die Einführung jeder Seite kommen wieder."
+  "settings.toursShown": "Willkommen und die Einführung jeder Seite kommen wieder.",
+
+  "tour.athleteCalendar.swipe.title": "Durch die Tage wischen",
+  "tour.athleteCalendar.swipe.text": "In der Tagesansicht wischst du nach links oder rechts zum nächsten oder vorigen Tag."
 }
