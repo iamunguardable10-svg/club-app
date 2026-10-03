@@ -22,6 +22,7 @@ import type { AthletePendingSession } from '@/shared/data';
 import { formatSessionTime } from '@/shared/format';
 import { tr, useT, type MessageKey } from '@/shared/i18n';
 import { displayTitle } from '@/features/sessions/sessionTypeLabels';
+import { MomentTip } from '@/features/onboarding/MomentTip';
 
 const RPE_KEYS: Record<number, MessageKey> = {
   1: 'rpe.1',
@@ -98,7 +99,7 @@ function RateForm({
             <p className="text-xs font-black text-emerald-300">{remaining > 1 ? t('rate.progress', { count: remaining }) : t('rate.afterSession')}</p>
             <h2 id="rate-title" className="mt-1 text-2xl font-black">{t('rate.title')}</h2>
           </div>
-          <button type="button" onClick={onLater} className="shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{t('rate.later')}</button>
+          <button type="button" data-tour="rate-later" onClick={onLater} className="shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{t('rate.later')}</button>
         </div>
 
         <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
@@ -109,7 +110,8 @@ function RateForm({
         {isGame ? (
           <p className="mt-4 rounded-2xl border border-violet-300/25 bg-violet-300/[0.08] p-3 text-sm font-bold text-violet-100">{t('rate.gameNote')}</p>
         ) : (
-          <fieldset className="mt-4">
+          <fieldset className="mt-4" data-tour="rate-scale">
+            <MomentTip id="moment.rate" />
             <legend className="flex w-full items-baseline justify-between text-sm font-black text-slate-200">
               <span>{t('rate.effort')}</span>
               <span className="text-emerald-200">{rpe} · {rpeWord(rpe)}</span>
@@ -131,7 +133,7 @@ function RateForm({
           </fieldset>
         )}
 
-        <label className="mt-4 block">
+        <label className="mt-4 block" data-tour="rate-minutes">
           <span className="flex items-baseline justify-between text-sm font-black text-slate-200">
             <span>{isGame ? t('rate.minutesPlayed') : t('rate.duration')}</span>
             <span>{t('rate.minutes', { count: minutes })}</span>

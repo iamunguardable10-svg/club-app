@@ -163,10 +163,10 @@ export function setBackendChoice(choice: BackendChoice): void {
 
 /**
  * Hints that can be put away with "Not now": installing the app, turning on
- * notifications, the calendar (piece 20), and each page's first-visit tip
- * (`tip.<page>`, see `src/features/onboarding/PageTip.tsx`).
+ * notifications, the calendar (piece 20). The guided tours have their own
+ * memory (below).
  */
-export type HintName = 'install' | 'notifications' | 'calendar' | `tip.${string}`;
+export type HintName = 'install' | 'notifications' | 'calendar';
 
 const hintKey = (name: HintName) => `club-app.hint-dismissed.${name}`;
 
@@ -189,16 +189,93 @@ export function dismissHint(name: HintName): void {
   }
 }
 
-/** Shows every page's first-visit tip again (settings). */
-export function resetPageTips(): void {
+/**
+ * The guided tours (onboarding, `src/features/onboarding`): which ones this
+ * person has seen. Kept on the device, and with an account also in the
+ * account (so a tour comes once, not once per device). `club-app.tours-off`
+ * switches them off on a device (the smoke test does).
+ */
+const TOUR_PREFIX = 'club-app.tour-seen.';
+const TOURS_OFF_KEY = 'club-app.tours-off';
+
+export function toursSwitchedOff(): boolean {
+  if (!isBrowser()) return true;
+  try {
+    return window.localStorage.getItem(TOURS_OFF_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function isTourSeen(id: string): boolean {
+  if (!isBrowser()) return true;
+  try {
+    return window.localStorage.getItem(TOUR_PREFIX + id) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function seenTourIds(): string[] {
+  try {
+    return Array.from({ length: window.localStorage.length }, (_, index) => window.localStorage.key(index))
+      .filter((key): key is string => Boolean(key?.startsWith(TOUR_PREFIX)))
+      .map((key) => key.slice(TOUR_PREFIX.length));
+  } catch {
+    return [];
+  }
+}
+
+export function markTourSeen(id: string): void {
   if (!isBrowser()) return;
   try {
-    const prefix = hintKey('tip.');
-    const keys = Array.from({ length: window.localStorage.length }, (_, index) => window.localStorage.key(index)).filter((key): key is string => Boolean(key?.startsWith(prefix)));
-    for (const key of keys) window.localStorage.removeItem(key);
+    window.localStorage.setItem(TOUR_PREFIX + id, '1');
+  } catch {
+    // Not remembering is fine; the tour just comes again.
+  }
+  void saveToursToAccount();
+}
+
+/** Every tour comes again (settings). */
+export function resetTours(): void {
+  if (!isBrowser()) return;
+  try {
+    for (const id of seenTourIds()) window.localStorage.removeItem(TOUR_PREFIX + id);
   } catch {
     // Nothing kept, nothing to reset.
   }
+  void saveToursToAccount();
+}
+
+async function saveToursToAccount(): Promise<void> {
+  if (!isRemoteMode()) return;
+  try {
+    const supabase = await authClient();
+    const { data } = await supabase.auth.getSession();
+    if (!data.session?.user) return;
+    await supabase.auth.updateUser({ data: { tours_seen: seenTourIds() } });
+  } catch {
+    // Offline or signed out meanwhile: the device still remembers.
+  }
+}
+
+let toursFromAccount: Promise<void> | null = null;
+
+/** Takes over the tours the account has seen on other devices; once per page load. */
+export function loadToursFromAccount(): Promise<void> {
+  if (!isBrowser() || !isRemoteMode()) return Promise.resolve();
+  toursFromAccount ??= (async () => {
+    try {
+      const supabase = await authClient();
+      const { data } = await supabase.auth.getSession();
+      const seen = data.session?.user?.user_metadata?.tours_seen;
+      if (!Array.isArray(seen)) return;
+      for (const id of seen) if (typeof id === 'string') window.localStorage.setItem(TOUR_PREFIX + id, '1');
+    } catch {
+      // The device's own memory is enough.
+    }
+  })();
+  return toursFromAccount;
 }
 
 const LOCALE_KEY = 'club-app.locale';

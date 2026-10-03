@@ -1124,5 +1124,5 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
 
 /** The club area's frame when acting as club admin or department lead, the coach frame otherwise. */
 function HallShell({ club, ...props }: { club: boolean } & Omit<ComponentProps<typeof CoachShell>, 'active'>) {
-  return club ? <ClubShell active="halls" tip="hallCalendar" {...props} /> : <CoachShell active="halls" tip="hallCalendar" {...props} />;
+  return club ? <ClubShell active="halls" tour="hallCalendar" {...props} /> : <CoachShell active="halls" tour="hallCalendar" {...props} />;
 }

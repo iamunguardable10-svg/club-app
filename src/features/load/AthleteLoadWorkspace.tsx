@@ -59,6 +59,7 @@ import {
   type AthleteAvailabilityMark,
 } from './athleteLocalStore';
 import { RatePrompt, WARMUP_MINUTES, WARMUP_RPE } from './RatePrompt';
+import { MomentTip } from '@/features/onboarding/MomentTip';
 
 /**
  * Players who were already asked in this visit, so moving between Today,
@@ -1122,6 +1123,7 @@ function AthleteCalendar({
         type="button"
         data-athlete-calendar-item="true"
         data-item-id={item.id}
+        data-tour="calendar-item"
         onPointerDown={(event) => startDrag(item, 'move', event)}
         onClick={(event) => { event.stopPropagation(); if (!suppressClick) onItemSelect(item, mode); }}
         className={`${itemClass(item)} ${compact ? 'left-0.5 right-0.5 px-0.5 text-[8px] leading-tight' : ''}`}
@@ -1158,7 +1160,7 @@ function AthleteCalendar({
     <section className="min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-3 sm:rounded-[2rem] sm:p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 text-xs font-black text-slate-300">
+          <div data-tour="calendar-weeknav" className="flex items-center gap-2 text-xs font-black text-slate-300">
             <button type="button" onClick={() => setWeekOffset((value) => value - 1)} className="rounded-full border border-slate-700 px-2 py-1 text-slate-200">‹</button>
             <span>{weekLabel}</span>
             <button type="button" onClick={() => setWeekOffset((value) => value + 1)} className="rounded-full border border-slate-700 px-2 py-1 text-slate-200">›</button>
@@ -1167,7 +1169,7 @@ function AthleteCalendar({
         <div className="flex items-center gap-2">
           {weekOffset !== 0 ? <button type="button" onClick={() => setWeekOffset(0)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">{t('calendar.backToThisWeek')}</button> : null}
           {onEmptySlot ? (
-            <button type="button" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'}`}>
+            <button type="button" data-tour="athlete-add-own" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'}`}>
               {mode === 'edit' ? t('calendar.done') : t('calendar.addOwn')}
             </button>
           ) : null}
@@ -1228,7 +1230,7 @@ function AthleteCalendar({
             </div>
             <div className="mt-1.5 flex items-center justify-between px-1">
               <span className="text-xs font-black text-slate-200">{formatLongDay(activeDay)}</span>
-              <button type="button" onClick={() => setMobileView('week')} className="rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-300">{t('calendar.wholeWeek')}</button>
+              <button type="button" data-tour="calendar-view" onClick={() => setMobileView('week')} className="rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-300">{t('calendar.wholeWeek')}</button>
             </div>
           </div>
           <div className="overflow-hidden">
@@ -2033,7 +2035,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       title={activeView === 'home' ? t('athlete.title.today') : activeView === 'calendar' ? t('athlete.title.calendar') : t('athlete.title.load')}
       subtitle={activeView === 'home' ? formatLongDay(new Date()) : activeView === 'calendar' ? (hasLoad ? t('athlete.subtitle.calendarWithLoad') : t('athlete.subtitle.calendar')) : t('athlete.subtitle.load')}
       actions={hasLoad ? (
-        <button type="button" onClick={copyTrainerShareLink} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${shareStatus === 'copied' ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100' : shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
+        <button type="button" data-tour="athlete-share" onClick={copyTrainerShareLink} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${shareStatus === 'copied' ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100' : shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
           {shareStatus === 'copied' ? t('athlete.share.copied') : shareStatus === 'error' ? t('athlete.share.error') : shareActive ? t('athlete.share.on') : t('athlete.share.off')}
         </button>
       ) : undefined}
@@ -2049,7 +2051,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         ) : null}
 
         {activeView !== 'calendar' && hasLoad ? (
-          <div className="grid w-full min-w-0 grid-cols-3 gap-2 [&>*]:min-h-[92px]">
+          <div data-tour="load-metrics" className="grid w-full min-w-0 grid-cols-3 gap-2 [&>*]:min-h-[92px]">
             <LoadRoomMetric latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} />
             <AcwrMetric latest={latest} baselineReady={isBaselineReady} tone={zone.tone} />
             <Metric label={t('athlete.metric.status')} value={zone.tone === 'neutral' ? t('athlete.metric.building') : zoneLabel(zone.tone)} tone={zone.tone} />
@@ -2070,14 +2072,15 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         ) : null}
 
         {activeView === 'load' && hasLoad ? (
-          <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/65 p-4 sm:p-5">
+          <section data-tour="load-trend" className="min-w-0 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/65 p-4 sm:p-5">
             <h2 className="mb-3 text-lg font-black">{t('athlete.trend')}</h2>
             <LoadChart entries={sortedEntries} pendingSessions={loadPendingSessions} />
           </section>
         ) : null}
 
         {hasLoad && entriesToCheck.length > 0 && (activeView === 'home' || activeView === 'load') ? (
-          <section aria-label={t('athlete.check.title')} className="rounded-3xl border border-amber-300/35 bg-amber-300/[0.07] p-4 sm:p-5">
+          <section data-tour="athlete-check" aria-label={t('athlete.check.title')} className="rounded-3xl border border-amber-300/35 bg-amber-300/[0.07] p-4 sm:p-5">
+            <MomentTip id="moment.check" />
             <h2 className="text-lg font-black text-white">{t('athlete.check.title')}</h2>
             <p className="mt-1 text-sm text-slate-400">{t('athlete.check.detail', { count: entriesToCheck.length })}</p>
             <ul className="mt-3 grid gap-2">
@@ -2151,7 +2154,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               </div>
               {nextSession ? (
                 <>
-                <button type="button" onClick={() => openCalendarItem(nextSessionItem(nextSession))} className="mt-4 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.06] p-5 text-left transition hover:border-emerald-300/55">
+                <button type="button" data-tour="athlete-next" onClick={() => openCalendarItem(nextSessionItem(nextSession))} className="mt-4 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.06] p-5 text-left transition hover:border-emerald-300/55">
                   <div className="flex items-center justify-between gap-3">
                     <p className="min-w-0 text-2xl font-black tracking-tight">{displayTitle(nextSession.title)}</p>
                     {landingAfter.has(nextSession.id) ? <LoadLandingChip value={landingAfter.get(nextSession.id)!} large /> : null}
@@ -2168,7 +2171,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 </button>
                 {/* Piece A: no answer yet from a player who says yes themselves. */}
                 {isOpenSession(nextSession) ? (
-                  <div className="mt-2 flex items-center gap-2 rounded-2xl border border-amber-300/40 bg-amber-300/[0.08] py-2 pl-4 pr-2">
+                  <div data-tour="athlete-rsvp" className="mt-2 flex items-center gap-2 rounded-2xl border border-amber-300/40 bg-amber-300/[0.08] py-2 pl-4 pr-2">
                     <p className="min-w-0 flex-1 text-sm font-black text-amber-100">{t('athlete.rsvp.question')}</p>
                     <button type="button" onClick={() => { void setTeamSessionAvailability(nextSession, 'expected'); }} className="rounded-xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950 transition active:scale-95">{t('athlete.rsvp.yes')}</button>
                     <button type="button" onClick={() => { openCalendarItem(nextSessionItem(nextSession)); setAvailabilityDraft('out'); }} className="rounded-xl border border-rose-300/50 px-3 py-2 text-sm font-black text-rose-100 transition active:scale-95">{t('athlete.rsvp.no')}</button>
@@ -2198,7 +2201,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               ) : null}
               {/* Piece 16: away for a period (injured, sick, holiday …). */}
               {activePersonId ? (
-                <div className="mt-4 border-t border-slate-800/80 pt-4">
+                <div data-tour="athlete-away" className="mt-4 border-t border-slate-800/80 pt-4">
                   <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('athlete.away')}</p>
                   <AbsencePanel personId={activePersonId} viewer="self" showReasons />
                 </div>

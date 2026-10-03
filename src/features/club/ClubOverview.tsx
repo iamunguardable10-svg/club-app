@@ -285,7 +285,7 @@ function MessageWritersPanel({
   ];
   return (
     <div className="grid gap-2 rounded-2xl border border-slate-800 bg-slate-950/50 p-3">
-      <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="flex items-center justify-between gap-3 text-left">
+      <button type="button" data-tour="club-writers" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="flex items-center justify-between gap-3 text-left">
         <span className="grid gap-0.5">
           <span className="text-sm font-black text-slate-100">{departmentId === null ? t('club.writers.clubTitle') : t('club.writers.title')}</span>
           <span className="text-xs text-slate-400">{departmentId === null ? t('club.writers.clubDetail') : t('club.writers.detail')}</span>
@@ -340,7 +340,7 @@ function TeamCard({
 
   return (
     <li className="rounded-2xl border border-slate-800 bg-slate-950/60">
-      <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left">
+      <button type="button" data-tour="club-team" onClick={onToggle} aria-expanded={open} className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left">
         <span className="min-w-0">
           <span className="flex flex-wrap items-center gap-2">
             <span className="min-w-0 truncate text-sm font-black text-white">{team.name}</span>
@@ -468,6 +468,7 @@ function DepartmentSection({
             ))}
           </ul>
           <form
+            data-tour="club-add-team"
             className="flex gap-2"
             onSubmit={(event) => {
               event.preventDefault();
@@ -552,7 +553,7 @@ export function ClubOverview() {
 
   return (
     <ClubShell active="club" title={database.club.name} subtitle={clubRoleText(database, person.id)}>
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+      <div data-tour="club-tiles" className="grid grid-cols-3 gap-2 sm:gap-3">
         {[
           { label: t('club.tile.departments'), value: departments.length, warn: false },
           { label: t('club.tile.teams'), value: managedTeams.length, warn: false },
@@ -576,6 +577,7 @@ export function ClubOverview() {
       {admin ? (
         <CoachSection title={t('club.newDepartment')} description={t('club.newDepartmentDetail')}>
           <form
+            data-tour="club-new-department"
             className="flex gap-2"
             onSubmit={(event) => {
               event.preventDefault();

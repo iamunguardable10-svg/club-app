@@ -85,6 +85,8 @@ for (const { locale, viewport } of SCENARIOS) {
     // The language lives on the device; set it once, then start the demo role.
     await page.goto(BASE + '/', { waitUntil: 'load' });
     await page.evaluate((code) => window.localStorage.setItem('club-app.locale', code), locale);
+    // The guided tours cover the page; `npm run test:tours` plays them instead.
+    await page.evaluate(() => window.localStorage.setItem('club-app.tours-off', '1'));
     if (role !== 'none') {
       where.url = `/?demo=${role}`;
       await page.goto(`${BASE}/?demo=${role}`, { waitUntil: 'load' });

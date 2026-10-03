@@ -170,7 +170,7 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
 
   return (
     <form className="grid gap-2 rounded-2xl border border-slate-800 bg-slate-950/60 p-3" onSubmit={(event) => { event.preventDefault(); send(); }}>
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div data-tour="compose-to" className="flex flex-wrap items-center gap-1.5">
         <span className="text-xs font-black text-slate-400">{t('writeMessage.to')}</span>
         {targets.wholeClub ? chip('club', database.club.name, () => setTargets({ ...targets, wholeClub: false })) : null}
         {targets.departmentIds.map((id) => chip(`d${id}`, departmentName(id), () => setTargets({ ...targets, departmentIds: toggle(targets.departmentIds, id) })))}
@@ -214,7 +214,7 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
         </div>
       ) : null}
 
-      <div role="radiogroup" aria-label={t('writeMessage.who')} className="flex flex-wrap items-center gap-1.5">
+      <div role="radiogroup" data-tour="compose-who" aria-label={t('writeMessage.who')} className="flex flex-wrap items-center gap-1.5">
         <span className="text-xs font-black text-slate-400">{t('writeMessage.who')}</span>
         {(['all', 'staff', 'players'] as const).map((value) => (
           <button
@@ -268,11 +268,11 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
         </div>
       ) : null}
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <label className="flex items-center gap-2 text-xs font-black text-violet-100">
+        <label data-tour="compose-poll" className="flex items-center gap-2 text-xs font-black text-violet-100">
           <input type="checkbox" checked={poll} onChange={(event) => { setPoll(event.target.checked); setError(null); }} className="h-4 w-4 accent-violet-300" />
           {t('poll.label')}
         </label>
-        <label className="flex items-center gap-2 text-xs font-black text-rose-100">
+        <label data-tour="compose-important" className="flex items-center gap-2 text-xs font-black text-rose-100">
           <input type="checkbox" checked={important} onChange={(event) => setImportant(event.target.checked)} className="h-4 w-4 accent-rose-300" />
           {t('teamMessages.important')}
         </label>
