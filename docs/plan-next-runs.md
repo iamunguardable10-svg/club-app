@@ -340,6 +340,8 @@ weiteren Teams oder Vereinen aber nötig:
   verschieben, kürzen, verlängern; zwischen Wochentagen nach links/rechts wischen; Tages-/Wochenansicht;
   zwischen Wochen springen und zurück zur aktuellen Woche. Für jede Seite so planen (Gesten und
   Bedienelemente der Seite, kurz animiert, Schritt für Schritt).
+  → **Konzept steht (2026-10-03): `docs/onboarding-concept.md`**, gebaut wird nach Bens „Go“.
+  Neue Funktionen planen ihr Onboarding ab jetzt mit (Regel dort, Abschnitt 7, und `AGENTS.md`).
 - **Entschlacken auf dem Handy (Punkt 9, später):** Kandidaten siehe Run 59 bzw. Chat vom 2026-09-28
   (grüner Satz „Du bist dabei · tippe hier …“, „Kalender ›“, „ABWESEND“, Erklärsätze im Verlauf, in der
   Belastung, bei Nachrichten und im Verein). Erst nach Entscheidung von Ben.

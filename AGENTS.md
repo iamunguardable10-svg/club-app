@@ -69,9 +69,14 @@ Follow these steps in order. Each piece is one branch and one pull request.
    `supabase/`: a local Postgres 15+ and
    `PGHOST=… PGPORT=… PGUSER=postgres supabase/pilot/tests/run-local.sh`, then
    `npm run test:pilot` (see `supabase/pilot/README.md`).
-6. **Document:** a short entry at the end of `docs/simplify-progress.md` (what,
+6. **Onboarding:** a new or changed feature plans how new users learn it (who sees
+   it, which page tour step, moment tip or empty state, gesture, one sentence in four
+   languages, a "new" hint for existing users) in its plan, following
+   `docs/onboarding-concept.md`, and adds it to the coverage table there. A feature
+   is done only with its onboarding built and checked (once the tour toolkit exists).
+7. **Document:** a short entry at the end of `docs/simplify-progress.md` (what,
    why, how checked); mark the piece done in `docs/plan-next-runs.md`.
-7. **Pull request** with what changed and which checks ran. CI must be green.
+8. **Pull request** with what changed and which checks ran. CI must be green.
 
 **Never, without the owner's explicit OK:**
 
