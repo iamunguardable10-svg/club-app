@@ -482,6 +482,7 @@ export function TeamWorkspaceView({
             key={section}
             type="button"
             role="tab"
+            data-tour={`team-tab-${section}`}
             aria-selected={activeSection === section}
             aria-label={sectionLabel(section)}
             onClick={() => setActiveSection(section)}
@@ -531,7 +532,7 @@ export function TeamWorkspaceView({
           </div>
 
           {setupActions.length > 0 ? (
-            <section className="rounded-3xl border border-amber-500/30 bg-amber-950/10 p-4 sm:p-5">
+            <section data-tour="team-setup" className="rounded-3xl border border-amber-500/30 bg-amber-950/10 p-4 sm:p-5">
               <h2 className="text-lg font-black text-amber-100">{t('team.stillToSetUp')}</h2>
               <div className="mt-3 grid gap-2">
                 {setupActions.map((item) => {

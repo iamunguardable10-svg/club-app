@@ -40,7 +40,7 @@ import {
   ownPersonIds,
   renameClub,
   renameOwnPerson,
-  resetPageTips,
+  resetTours,
   rsvpModeOf,
   setOwnRsvpMode,
   saveNotificationSettings,
@@ -101,7 +101,7 @@ export function SettingsPage() {
                 ? <NotificationsHint variant="settings" />
                 : <p className="text-sm text-slate-400">{t('settings.demoNotifications')}</p>}
               <InstallHint variant="settings" />
-              <ShowTipsAgain />
+              <ShowToursAgain />
             </div>
           </CoachSection>
         </div>
@@ -147,16 +147,16 @@ function RsvpSection({ database, person }: { database: LocalDatabase; person: Pe
   );
 }
 
-/** Brings back the first-visit tip of every page (`PageTip`). */
-function ShowTipsAgain() {
+/** Every guided tour (welcome and pages) comes again (`src/features/onboarding`). */
+function ShowToursAgain() {
   const t = useT();
   const [done, setDone] = useState(false);
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <button type="button" onClick={() => { resetPageTips(); setDone(true); }} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-200 hover:border-slate-500">
-        {t('settings.showTipsAgain')}
+      <button type="button" onClick={() => { resetTours(); setDone(true); }} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-200 hover:border-slate-500">
+        {t('settings.showToursAgain')}
       </button>
-      {done ? <p role="status" className="text-xs font-bold text-emerald-200">{t('settings.tipsShown')}</p> : null}
+      {done ? <p role="status" className="text-xs font-bold text-emerald-200">{t('settings.toursShown')}</p> : null}
     </div>
   );
 }

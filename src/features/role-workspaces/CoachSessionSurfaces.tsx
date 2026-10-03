@@ -13,6 +13,7 @@ import { HIGH_RISK_ACWR, acwrAfter, todayISO } from '@/shared/data/loadCalculati
 import { errorText, tr, useT, type MessageKey } from '@/shared/i18n';
 import { formatDecimal, formatWeekday } from '@/shared/format';
 import { displayTitle } from '@/features/sessions/sessionTypeLabels';
+import { MomentTip } from '@/features/onboarding/MomentTip';
 import { sessionTypeToLoadType, type AthletePendingSession } from '@/shared/data/loadTypes';
 
 type HistoryTeamOption = { id: string; name: string; departmentName?: string };
@@ -408,13 +409,13 @@ function CoachHistoryTrendGraph({
   }, [selectedPeriodKey, onPeriodSelect]);
 
   return (
-    <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/70 p-3 shadow-[0_18px_70px_rgba(0,0,0,0.18)] sm:p-4">
+    <div data-tour="history-chart" className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/70 p-3 shadow-[0_18px_70px_rgba(0,0,0,0.18)] sm:p-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h3 className="text-base font-black text-white">{t('coach.history.byWeek')}</h3>
           <p className="text-xs text-slate-400">{t('coach.history.tapWeek')}</p>
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div data-tour="history-metrics" className="flex flex-wrap gap-1.5">
           {(Object.keys(HISTORY_METRIC_META) as CoachHistoryMetric[]).map((metric) => {
             const active = activeMetric === metric;
             return (
@@ -669,7 +670,8 @@ function AttendanceConfirmation({ session }: { session: CoachSession }) {
   }
 
   return (
-    <div className="mb-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.06] p-3">
+    <div data-tour="attendance-panel" className="mb-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.06] p-3">
+      <MomentTip id="moment.attendance" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">{t('attendance.title')}</p>
@@ -779,7 +781,7 @@ export function OpenAnswers({ session, className = '' }: { session: CoachSession
     }
   }
   return (
-    <div className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-amber-300/35 bg-amber-300/[0.07] px-3 py-2.5 ${className}`}>
+    <div data-tour="coach-open" className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-amber-300/35 bg-amber-300/[0.07] px-3 py-2.5 ${className}`}>
       <p className="min-w-0 flex-1 text-xs font-bold text-amber-100">
         <span className="font-black">{t('coach.open.count', { count: openIds.length })}</span> · {names.join(', ')}
       </p>
@@ -847,7 +849,8 @@ function SquadPicker({ session }: { session: CoachSession }) {
 
   const changed = session.squadChangedSincePublish ?? 0;
   return (
-    <div className="mb-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.05] p-3">
+    <div data-tour="squad-panel" className="mb-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.05] p-3">
+      <MomentTip id="moment.squad" />
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">{t('squad.title')}</p>

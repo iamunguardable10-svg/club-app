@@ -114,7 +114,7 @@ export function MessageList({
               ) : null}
               {stats ? (
                 <>
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs font-bold">
+                  <div data-tour="message-stats" className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs font-bold">
                     {(() => {
                       const done = votes ? votes.voted === votes.total : stats.read === stats.total;
                       const label = votes ? t('poll.voted', { voted: votes.voted, total: votes.total }) : t('teamMessages.read', { read: stats.read, total: stats.total });

@@ -154,7 +154,7 @@ function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDet
   const { out, late } = summarizeAvailability(session);
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/40 transition hover:border-emerald-300/45 hover:bg-slate-900/70">
-    <button type="button" onClick={onDetails} className="block w-full p-4 text-left text-white">
+    <button type="button" data-tour="coach-session" onClick={onDetails} className="block w-full p-4 text-left text-white">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-2xl font-black tabular-nums">{formatTimeRange(session.startsAt, session.endsAt)}</p>
@@ -197,7 +197,7 @@ function UpcomingSessionRow({ session, showTeam, onOpen }: { session: CoachSessi
   const { out, late } = summarizeAvailability(session);
   const start = new Date(session.startsAt);
   return (
-    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 px-3 py-3 text-left transition hover:border-sky-300/50 hover:bg-slate-900/70">
+    <button type="button" data-tour="coach-upcoming" onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 px-3 py-3 text-left transition hover:border-sky-300/50 hover:bg-slate-900/70">
       <div className="w-12 shrink-0 text-center">
         <p className="text-[11px] font-black uppercase text-slate-400">{formatWeekday(start)}</p>
         <p className="text-lg font-black leading-tight text-white">{start.getDate()}</p>
@@ -774,7 +774,7 @@ export function CoachCalendarSurface({
         ) : <span />}
         <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1" role="group" aria-label={t('coach.calendar.view')}>
           <button type="button" onClick={showWeekSurface} aria-pressed={surfaceMode === 'week'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'week' ? 'bg-sky-300 text-slate-950' : 'text-slate-400'}`}>{t('coach.calendar.sessions')}</button>
-          <button type="button" onClick={showSeriesSurface} aria-pressed={surfaceMode === 'series'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>{t('coach.calendar.weeklyPlan')}</button>
+          <button type="button" data-tour="calendar-plan" onClick={showSeriesSurface} aria-pressed={surfaceMode === 'series'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>{t('coach.calendar.weeklyPlan')}</button>
         </div>
       </div>
       {surfaceMode === 'week' ? (

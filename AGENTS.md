@@ -62,6 +62,7 @@ Follow these steps in order. Each piece is one branch and one pull request.
    npm run build
    npm run start -- -p 3100 &   # then, in a second shell:
    npm run test:smoke           # every page, all roles, no errors
+   npm run test:tours           # every guided tour with its gestures
    ```
 
    Also `npm run test:load` / `test:series` / `test:calendar` when touching load,

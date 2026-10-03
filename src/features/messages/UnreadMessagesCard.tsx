@@ -35,7 +35,7 @@ export function UnreadMessagesCard({ database, personId }: { database: LocalData
   if (!shown) return null;
   const pinned = shown.important && messagePinnedUntil(shown) !== null && Date.parse(messagePinnedUntil(shown)!) > now;
   return (
-    <Link href={href} className="block rounded-3xl border border-slate-700 bg-slate-950/70 p-4 text-sm transition hover:border-slate-500">
+    <Link href={href} data-tour="messages-card" className="block rounded-3xl border border-slate-700 bg-slate-950/70 p-4 text-sm transition hover:border-slate-500">
       <p className="flex items-center gap-2 font-black text-white">
         {unread.length > 0 ? <NewDot label={t('messages.new')} /> : null}
         {unread.length > 0 ? t('messages.newCount', { count: unread.length }) : t('messages.pinned')}

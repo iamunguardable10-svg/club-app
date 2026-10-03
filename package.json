@@ -25,7 +25,8 @@
     "test:i18n": "tsx src/shared/i18n/translate.test.ts",
     "test:build": "tsx src/features/install/buildVersion.test.ts",
     "test:address": "tsx src/features/facilities/addressAutocomplete.test.ts",
-    "test:smoke": "node scripts/smoke.mjs"
+    "test:smoke": "node scripts/smoke.mjs",
+    "test:tours": "node scripts/tours.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.1",
