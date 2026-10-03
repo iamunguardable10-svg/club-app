@@ -19,6 +19,7 @@ Check whether the diff:
 - ~~misaligns demo and real flows~~ (suspended 2026-09: there is one local mode; flag any change that reintroduces a second, parallel implementation)
 - ignores mobile or desktop behavior
 - removes functionality during UI work
+- adds or changes a feature without planning its onboarding (`docs/onboarding-concept.md`, section 7)
 - is larger than necessary
 - misses required validation (`typecheck`, `build`)
 - has a simpler or safer architecture available

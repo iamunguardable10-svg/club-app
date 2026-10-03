@@ -2615,3 +2615,18 @@ Behoben (Migration 0039, schon live):
 Geprüft: SQL-Tests (neu: Namen, Reichweite, Zahlen), `test:pilot`, Browser gegen den echten Server
 (Leitung: 3 bzw. 2 Personen, „Gelesen 1/3 · 2 erinnern“, „Gelesen 3/3“; Spieler und Trainerin sehen
 „Lena Leitung“).
+
+## Run 69 — Onboarding-Konzept für jede Seite und Rolle (Plan, wartet auf „Go“)
+
+Wunsch (Ben): Für jede Funktion und Seite ein richtiges Onboarding planen, damit neue Nutzer (Spieler,
+Trainer, Abteilungsleitung, Admin) alle Funktionen gezeigt bekommen; erst Konzept, gebaut wird nach
+„Go“; neue Funktionen planen ihr Onboarding ab jetzt mit.
+Neu: `docs/onboarding-concept.md` – Grundsätze (zeigen statt erklären, Gesten am echten Element, kurz,
+nur was Rolle und Team nutzen, üben ohne Speichern, einmal pro Konto, „?“ zum Wiederholen),
+Bausteine (Willkommen je Rolle, Seiten-Tour, Moment-Tipp, lehrende Leerzustände, Einrichtungs-Liste,
+„Neu“-Hinweis), Touren für jede Seite je Rolle mit Gesten, eine Abdeckungs-Tabelle (jede Funktion hat
+einen Ort), Technik-Vorschlag, Bau-Reihenfolge in fünf Stufen und offene Fragen.
+Regel verankert: `AGENTS.md` (Schritt „Onboarding“ beim Bauen einer Funktion), `CLAUDE.md`
+(Review prüft fehlendes Onboarding), Verweis in `plan-next-runs.md`.
+Aufgefallen: Spieler können im Kalender (noch) nicht zwischen Tagen wischen, Trainer schon (Frage 6).
+Geprüft: nur Doku; `typecheck` und `build` laufen unverändert.
