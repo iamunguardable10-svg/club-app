@@ -2673,7 +2673,7 @@ wie in klassischen Apps an.
 Geprüft: Bilder am Handy und Desktop (Tippen, Ziehen, Kante, Wischen jeweils während und nach der
 Geste), `test:tours` (prüft jetzt auch, dass nach jeder Geste das Ergebnis erscheint), `test:smoke`.
 
-## Run 72 — Onboarding als echte Übung in der App (implementiert, Browser-Abnahme offen)
+## Run 72 — Onboarding als echte Übung in der App (implementiert und browsergeprüft)
 
 Rückmeldung (Ben, 2026-10-06): Die Gesten müssen echte Einheiten, Gruppen und Nachrichten ändern;
 das Willkommen war verwirrend. Keine Änderungen an Supabase, Migrationen oder Abhängigkeiten.
@@ -2730,3 +2730,30 @@ Round-2-Prüfungen: Typecheck, i18n-Katalog-/Template-Prüfung, i18n-Tests, `tes
 bestanden; Syntaxprüfung von `scripts/tours.mjs` bestanden. Browser, Smoke und Touren werden gemäß
 Auftrag ausschließlich vom Reviewer ausgeführt. Zuerst Coach/fr/Handy mit Welcome → Kalender →
 Speichern/Verschieben/Verlängern/Löschen prüfen; dann Spieler-Absage/Zusage und Verein-Hallen.
+
+
+**Round 3 (2026-10-06): echte Browser-Prüfung abgeschlossen.**
+- Der Coach-Handykalender ließ bei mittelhohen Zielen keinen Platz für die Karte: der Touch traf
+  die Karte statt des Kalenderlochs. Die Tour misst die aktuelle Kartenhöhe mit dem Ziel und dockt
+  auch dann oben, wenn weder ober- noch unterhalb Platz ist. Karte und Weiter-Knopf bleiben in
+  `show` stabil und außerhalb des Rahmens.
+- Nach einer echten Aktion wird das Ergebnis erst gescrollt und stabil eingerahmt. Erst danach
+  beginnt die 1,4-Sekunden-Lesezeit und `data-tour-phase="result"`. Die neue Einheit, ihre geänderten
+  Zeiten, gelöschte Inhalte und neue Halle sind sichtbar. Das Team-Ergebnis zeigt den Kopf mit
+  seinem Namen, statt den oberen Teil einer großen geöffneten Teamkarte abzuschneiden.
+- `scripts/tours.mjs`: zusätzliche Prüfungen für stabile Karten-/Knopf-Geometrie und kein Überdecken
+  des Rahmens in `show` und `result`; `TOUR_SCREENSHOTS=1` speichert jeden Schritt samt Ergebnis in
+  `/tmp/codex-tours/steps/`, `TOUR_TRACE=1` zeigt den aktuellen Schritt. Keine bestehende Aktion,
+  Speicher- oder Netzwerkprüfung gelockert. 215 Schritt-/Ergebnis-/Willkommensbilder für alle Rollen
+  auf Handy/fr (390 × 844) und Desktop/en (1280 × 900) aufgenommen und visuell geprüft.
+- Zusätzliche echte Browserfälle: Trainer Heute mit und ohne heutige Einheit; fehlende `show`- und
+  `do`-Ziele verschwinden still nach etwa 1,5 Sekunden, ohne eine voll abgedunkelte Seite zu hinterlassen.
+  Reviewer-Änderungen an Datenschicht und Auth bleiben erhalten; keine Supabase-, Abhängigkeits-
+  oder Git-Historienänderungen. Browser-Aufrufe nur an localhost.
+
+Round-3-Prüfungen bestanden: `npm run typecheck`, `npm run check:i18n && npm run test:i18n`,
+`npm run test:practice`, `npm run build`, `BASE_URL=http://localhost:3101 npm run test:smoke`
+(86 Seitenaufrufe, keine Fehler) und `BASE_URL=http://localhost:3101 npm run test:tours`
+(vollständig, keine Filter: 117 Schritte, 6 Szenarien, echte Aktionen, unveränderte Speicherung,
+keine Serveraufrufe in der Übung). Eigener Server auf 3101 anschließend beendet;
+`npm run clean:next-env` ausgeführt. Port 3100 blieb unangetastet.

@@ -344,7 +344,9 @@ weiteren Teams oder Vereinen aber nötig:
   Seiten mit Gesten, Moment-Tipps). **Run 72: praktische Übungen und neuer persönlicher Einstieg implementiert**
   (echter Kalender, Gruppen, Nachrichten, Spielerantworten/RPE, Team/Halle; Speicher-/Server-Sandbox).
   Round 2: Ziele/Positionierung, Rollen-Einstieg und Welcome korrigiert; vier lokale Checks bestanden.
-  Browser-Abnahme beim Reviewer offen (`EPERM` für lokale Server hier); Leerzustände und Einrichtungs-Liste bleiben spätere Stücke.
+  **Round 3 abgeschlossen:** Smoke (86 Seiten) und alle sechs Tour-Szenarien (117 Schritte) auf
+  Port 3101 bestanden; Schrittbilder aller Rollen auf Handy/fr und Desktop/en geprüft.
+  Leerzustände und Einrichtungs-Liste bleiben spätere Stücke.
   Neue Funktionen planen ihr Onboarding ab jetzt mit (Regel dort, Abschnitt 7, und `AGENTS.md`).
 - **Entschlacken auf dem Handy (Punkt 9, später):** Kandidaten siehe Run 59 bzw. Chat vom 2026-09-28
   (grüner Satz „Du bist dabei · tippe hier …“, „Kalender ›“, „ABWESEND“, Erklärsätze im Verlauf, in der

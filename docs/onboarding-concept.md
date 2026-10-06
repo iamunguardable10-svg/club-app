@@ -9,9 +9,10 @@ es nicht gut aus, wird es zurückgerollt). Neue Funktionen planen ihr Onboarding
 **Stand (Run 72):** Willkommen mit persönlicher Begrüßung und drei ruhigen Karten,
 echte Übungen in den bestehenden Ansichten, isolierter Übungsmodus in der Datenschicht,
 Seiten-Touren, Moment-Tipps, „?“ und Zurücksetzen in den Einstellungen sind implementiert.
-Der Browser-Durchlauf und die visuelle Abnahme stehen beim Reviewer aus: diese Arbeitsumgebung
-verweigert lokale Server-Sockets (`EPERM`). Lehrende Leerzustände und die Einrichtungs-Liste bleiben
-eigene spätere Stücke; „Neu“ kennzeichnet die überarbeiteten Touren für bestehende Nutzer.
+Round 3 hat die echten Browser-Aktionen und alle Schrittbilder für Spieler, Trainer und Verein
+auf Handy/fr (390 × 844) und Desktop/en (1280 × 900) geprüft. Lehrende Leerzustände und die
+Einrichtungs-Liste bleiben eigene spätere Stücke; „Neu“ kennzeichnet die überarbeiteten Touren
+für bestehende Nutzer.
 
 Gemeint ist ein interaktives Onboarding wie bei iOS-Apps beim ersten Öffnen einer Seite: Es zeigt am
 echten Bildschirm die Gesten und Knöpfe der Seite, kurz animiert, Schritt für Schritt (siehe
@@ -80,8 +81,9 @@ Karte aus und das Licht gleitet weiter. Eine falsche Geste federt zurück. Andro
 
 Ein `show`-Schritt erklärt ein Element; ein `do`-Schritt lässt die echte Oberfläche durch ein Loch
 in vier Abdunklungsflächen bedienen. Die Tour prüft das Dokument oder den geöffneten Dialog,
-nicht die Fingerbewegung. Nach Erfolg: Haken, ein Ergebnissatz, 1,4 Sekunden zum Anschauen,
-danach der nächste Schritt. Das Ergebnis selbst wird beleuchtet (z. B. die gesendete Nachricht).
+nicht die Fingerbewegung. Haken und Ergebnissatz bestätigen den Erfolg. Das echte Ergebnis wird
+zuerst gescrollt und stabil eingerahmt; erst dann beginnen die 1,4 Sekunden zum Anschauen. Danach
+folgt der nächste Schritt. Das Ergebnis selbst wird beleuchtet (z. B. die gesendete Nachricht).
 „Weiter“ und „Überspringen“ bleiben erreichbar. Ein falscher Versuch erhält einen ruhigen Hinweis.
 Tastatur und Screenreader werden berücksichtigt; bei weniger Bewegung entfallen Animationen.
 
@@ -124,10 +126,11 @@ Die drei Willkommens-Symbole sind Inline-SVGs im Stil der App.
 
 Alle Schritte benötigen ein wirkliches sichtbares Element und einen Rahmen. Fehlt das Ziel länger
 als etwa 1,5 Sekunden, wird der Schritt ohne Konsolenmeldung übersprungen. Die Seite wird in dieser
-Wartezeit nicht vollständig abgedunkelt. Große Ziele und Dialoge lassen festen Platz anhand der
-Kartengröße; keine gegenseitige Abhängigkeit zwischen Kartenposition und Highlight. Nach einmaliger
-Ankunftsanimation ist die Karte im Zustand `show` stabil. Auch reine Erklärungen und Ergebnisse nach
-dem Löschen zeigen ein echtes Element.
+Wartezeit nicht vollständig abgedunkelt. Große Ziele, Dialoge und Ziele ohne Platz ober- oder
+unterhalb lassen festen Platz anhand der aktuell gemessenen Kartengröße; keine gegenseitige
+Abhängigkeit zwischen Kartenposition und Highlight. Nach einmaliger Ankunftsanimation ist die Karte im Zustand `show` stabil. Auch reine Erklärungen und Ergebnisse nach
+dem Löschen zeigen ein echtes Element. Nach dem Erstellen eines Teams wird der Kopf mit dem
+Teamnamen beleuchtet; der nächste Schritt zeigt den erweiterten Head-Coach-Bereich.
 
 Die folgenden detaillierten Funktionslisten bewahren den ursprünglichen Gesamtplan; die Tabelle
 oben beschreibt die jetzt gebauten praktischen Abläufe. Leerzustände und Einrichtungs-Listen aus
@@ -337,9 +340,11 @@ Absagen, Bewertungen und Umfragen aus (Handy 390 px/fr und Desktop 1280 px/en), 
 und vergleicht das gespeicherte Dokument vor/nach Übung, Abbruch und Neuladen. `ONLY_LOCALE=fr|en`
 und `ONLY_ROLE=athlete|coach|club` filtern Szenarien; alle Pflichtaktionen der ausgewählten Rolle
 bleiben erforderlich. Fehlerbilder liegen unter `/tmp/codex-tours/`, Fehlermeldungen sind auf die
-erste Zeile begrenzt. Die Browserprüfung
-steht wegen der Socket-Sperre dieser Arbeitsumgebung noch aus; auch 360–430 px und Dialog-/Tastatur-
-Übergänge gehören zur visuellen Abnahme. `scripts/smoke.mjs` bleibt unverändert.
+erste Zeile begrenzt. `TOUR_SCREENSHOTS=1` speichert jede Willkommenskarte und jeden Tour-Schritt
+inklusive Ergebnis unter `/tmp/codex-tours/steps/`; `TOUR_TRACE=1` nennt den aktuellen Schritt.
+Zusätzlich prüft das Skript stabile Karten-/Weiter-Knopf-Geometrie und freie Highlights in `show`
+und `result`. Smoke (86 Seiten) und alle sechs Tour-Szenarien (117 Schritte) haben in Round 3
+lokal auf Port 3101 bestanden; der bestehende Server auf 3100 wurde nicht angefasst. `scripts/smoke.mjs` bleibt unverändert.
 
 ## 7. Regel für neue Funktionen (ab jetzt)
 

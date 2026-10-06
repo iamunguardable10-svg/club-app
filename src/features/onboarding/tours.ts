@@ -255,7 +255,7 @@ export const TOURS: Record<TourId, TourStep[]> = {
       const row = db.teams.find((team) => !ctx.initial.teams.some((old) => old.id === team.id));
       if (row) ctx.memory.team = row.id;
       return Boolean(row);
-    }), resultTarget: (_db, ctx) => tourElement(`[data-club-team-id="${ctx.memory.team}"]`) },
+    }), resultTarget: (_db, ctx) => tourElement(`[data-club-team-id="${ctx.memory.team}"] [data-tour="club-team"]`) },
     { ...step('practice.clubInvite'), target: (_db, ctx) => tourElement(`[data-club-team-id="${ctx.memory.team}"]`) },
     { ...action('practice.hallEdit', 'halls-edit', () => Boolean(target('halls-add'))), resultTarget: () => target('halls-add') },
     { ...action('practice.hallCreate', 'halls-add', (db, ctx) => db.facilities.some((row) => !ctx.initial.facilities.some((old) => old.id === row.id))), resultTarget: hallTarget },
