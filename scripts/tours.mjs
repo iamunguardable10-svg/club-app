@@ -4,7 +4,8 @@
  * player, coach and club admin would, and fails on
  * - a page error or console error,
  * - a raw text key in a tour or the welcome,
- * - a tour step whose gesture (tap, swipe, drag, pull) does not move on,
+ * - a tour step whose gesture (tap, swipe, drag, pull) does not show its
+ *   result and move on,
  * - a tour that comes again on a second visit, or a "?" that does not replay.
  *
  * Needs a running app like the smoke test: `npm run build && npm run start
@@ -49,6 +50,12 @@ async function playAll(page, label) {
       continue;
     }
     const card = layer.locator('[role="dialog"]');
+    // Each step takes its time (light, card, hint); act once the card stands.
+    await page.waitForFunction(() => {
+      const phase = document.querySelector('[data-tour-phase]')?.getAttribute('data-tour-phase');
+      return phase === null || phase === undefined || phase === 'show';
+    }, null, { timeout: 5000 }).catch(() => undefined);
+    if (!(await card.count())) continue;
     const text = (await card.innerText()).replace(/\n+/g, ' / ');
     if (RAW_KEY.test(text)) problems.push(`${label}: raw text key: ${text.match(RAW_KEY)[0]}`);
     steps += 1;
@@ -69,8 +76,10 @@ async function playAll(page, label) {
       } else {
         await page.mouse.click(x, y);
       }
-      await page.waitForTimeout(650);
+      await page.waitForTimeout(450);
       const after = (await card.count()) ? (await card.innerText()).replace(/\n+/g, ' / ') : '';
+      const phase = await page.evaluate(() => document.querySelector('[data-tour-phase]')?.getAttribute('data-tour-phase') ?? 'gone');
+      if (phase === 'result' && !(await card.locator('svg path[d^="M5 12.5"]').count())) problems.push(`${label}: no result shown after the gesture`);
       if (after === text) {
         problems.push(`${label}: the ${kind} gesture did not move on: ${text.slice(0, 70)}`);
         await card.getByRole('button').last().click();

@@ -57,6 +57,14 @@ echten Bildschirm die Gesten und Knöpfe der Seite, kurz animiert, Schritt für 
     Schritttexte für Screenreader; Esc/Enter am Desktop.
 12. **Vier Sprachen**, wie alle Texte (en, de, fr, es; du/tu/tú).
 
+**Gefühl wie in nativen Apps (Run 71, Ben: „es fehlt die Luft bzw. das fertige Ergebnis zwischen den
+Gesten“):** Jeder Schritt hat drei Takte. (1) Das Licht gleitet zum Element, (2) die Karte kommt herein,
+(3) erst dann startet der Gesten-Hinweis. Bei der Geste hebt sich eine Kopie des Elements ab und folgt
+dem Finger: gezogen, an der Unterkante länger gezogen, weggewischt (der nächste Tag schiebt sich
+herein) bzw. beim Tippen eingedrückt. Beim Loslassen rastet sie ein, ein Haken erscheint, und ein Satz
+sagt, was gerade passiert ist (`tour.<key>.result`). Das Ergebnis bleibt kurz stehen, dann blendet die
+Karte aus und das Licht gleitet weiter. Eine falsche Geste federt zurück. Android vibriert kurz.
+
 ## 3. Bausteine
 
 | Baustein | Was | Wann |
@@ -256,7 +264,8 @@ Jeder Plan für eine neue Funktion bekommt einen Abschnitt **„Onboarding“**:
 
 - **Wer** sieht sie (Rollen, Rechte, Team-Funktionen)?
 - **Wo** wird sie gezeigt: Schritt in einer Seiten-Tour, Moment-Tipp oder Leerzustand?
-- **Geste** und **ein Satz** je Schritt (en, de, fr, es).
+- **Geste**, **ein Satz** und das **Ergebnis** (was die Geste bewirkt, `tour.<key>.result`) je Schritt
+  (en, de, fr, es).
 - **„Neu“-Hinweis** für bestehende Nutzer?
 - Eintrag in der Abdeckungs-Tabelle oben.
 

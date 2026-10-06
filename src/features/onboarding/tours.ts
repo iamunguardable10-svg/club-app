@@ -20,6 +20,8 @@ export type TourStep = {
   gesture?: Gesture;
   /** Only on touch screens or only with a mouse. */
   device?: 'touch' | 'mouse';
+  /** Shown once the gesture is done: what just happened (`tour.<key>.result`). */
+  result?: MessageKey;
 };
 
 export type PageTourId =
@@ -32,7 +34,14 @@ export type MomentTipId = 'moment.rate' | 'moment.check' | 'moment.squad' | 'mom
 export type TourId = PageTourId | MomentTipId;
 
 function step(key: string, target?: string, gesture: Gesture = 'none', device?: 'touch' | 'mouse'): TourStep {
-  return { target, title: `tour.${key}.title` as MessageKey, text: `tour.${key}.text` as MessageKey, gesture, device };
+  return {
+    target,
+    title: `tour.${key}.title` as MessageKey,
+    text: `tour.${key}.text` as MessageKey,
+    gesture,
+    device,
+    result: gesture === 'none' ? undefined : (`tour.${key}.result` as MessageKey),
+  };
 }
 
 const help = step('help', 'help');
