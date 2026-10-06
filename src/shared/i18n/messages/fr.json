@@ -2058,5 +2058,10 @@
   "tour.practice.discard.title": "Prêt à découvrir",
   "tour.practice.discard.text": "Termine pour effacer les essais et retrouver ton club.",
   "tour.practice.discard.result": "Ton club est revenu à son état initial.",
-  "tour.practice.new": "Nouveau"
+  "tour.practice.new": "Nouveau",
+  "tour.coachToday.overview.title": "Ta journée en un coup d’œil",
+  "tour.coachToday.overview.text": "Retrouve ici les séances du jour et celles à venir. Planifie ta prochaine séance dans le calendrier.",
+  "tour.practice.continue.title": "Continuer à essayer ?",
+  "tour.practice.continue.text": "Essaie la suite dans une nouvelle copie de pratique ou passe pour découvrir par toi-même.",
+  "tour.practice.continueButton": "Continuer"
 }

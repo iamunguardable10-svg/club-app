@@ -179,7 +179,7 @@ export function TourHost({ role, pageTour }: { role: WelcomeRole; pageTour: Page
       {active.kind === 'welcome'
         ? <Welcome role={role} onClose={closeWelcome} />
         : active.kind === 'continue'
-          ? <Tour key={`continue:${active.id}:${location}`} id={active.id} steps={CONTINUE_STEPS} onClose={(result) => {
+          ? <Tour key={`continue:${active.id}:${location}`} id={active.id} steps={CONTINUE_STEPS} nextLabel="tour.practice.continueButton" onClose={(result) => {
             guided.current = result === 'done';
             activeRef.current = null; setActive(null);
             if (result === 'done') {

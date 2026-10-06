@@ -87,6 +87,7 @@ Tastatur und Screenreader werden berücksichtigt; bei weniger Bewegung entfallen
 
 | Rolle / Ort | Gebaute Übung | Schritte |
 | --- | --- | --- |
+| Trainer Heute | heutige Einheit oder „Was kommt“-Liste erklären (ohne beides: Navigation) → Nachrichten → Hilfe; reine `show`-Tour | höchstens 3 |
 | Spieler Heute | Einheit öffnen → Absage mit Grund speichern → dieselbe Einheit öffnen und wieder zusagen → RPE und Minuten speichern (nur mit Load) → Nachrichtenhinweis | höchstens 5 |
 | Spieler Kalender | am Handy Tag wischen → zukünftige Teameinheit öffnen → absagen → wieder zusagen | höchstens 4 |
 | Spieler Nachrichten | Absender-Chip wählen → in einer Übungsumfrage abstimmen → Angepinntes erklären | höchstens 3 |
@@ -110,9 +111,23 @@ fortfahren. Der Kalender berücksichtigt das echte Planungsrecht und vorhandene 
 
 Das Willkommen nennt Vorname, Verein und Rolle/Teams, dann ein passendes Versprechen für Spieler,
 Trainer, Abteilungsleitung oder Admin. Die letzte Karte bietet ausdrücklich „Zeig mir die App
-(2 Min.)“ oder „Ich schaue mich selbst um“; Push ist nur ein leiser optionaler Knopf. Mehrere Rollen
+(2 Min.)“ oder „Ich schaue mich selbst um“; Push ist nur ein leiser optionaler Schalter auf der letzten Karte. Mehrere Rollen
 werden einmal mit dem Weg zum Rollenwechsel erwähnt. Neue Speicherkennungen `.practice-v1`
 bieten den überarbeiteten Einstieg einmal an, auch wenn die alte Tour bereits gesehen wurde.
+
+**Round 2:** „Zeig mir die App“ führt Trainer per Client-Navigation nach `/coach/sessions`,
+Spieler nach `/athlete/home` (nächste Übungseinheit und danach `/athlete/messages`), Vereinsrollen
+nach `/club` (Team und Hallen im selben Bereich). Trainer können danach Gruppen und Nachrichten
+üben oder die Fortsetzung überspringen. Jede Zielseite beginnt eine neue Kopie erst nach Ankunft;
+vor Navigation wird die vorige Kopie verworfen. Der Einstieg bleibt in denselben Rollen-Seiten.
+Die drei Willkommens-Symbole sind Inline-SVGs im Stil der App.
+
+Alle Schritte benötigen ein wirkliches sichtbares Element und einen Rahmen. Fehlt das Ziel länger
+als etwa 1,5 Sekunden, wird der Schritt ohne Konsolenmeldung übersprungen. Die Seite wird in dieser
+Wartezeit nicht vollständig abgedunkelt. Große Ziele und Dialoge lassen festen Platz anhand der
+Kartengröße; keine gegenseitige Abhängigkeit zwischen Kartenposition und Highlight. Nach einmaliger
+Ankunftsanimation ist die Karte im Zustand `show` stabil. Auch reine Erklärungen und Ergebnisse nach
+dem Löschen zeigen ein echtes Element.
 
 Die folgenden detaillierten Funktionslisten bewahren den ursprünglichen Gesamtplan; die Tabelle
 oben beschreibt die jetzt gebauten praktischen Abläufe. Leerzustände und Einrichtungs-Listen aus
@@ -272,13 +287,13 @@ ganze Verein umfasst alle Abteilungen und Teams.
 
 | Funktion | gezeigt in |
 | --- | --- |
-| Zu-/Absagen, Grund, Antwort zurückändern | echte Übung Spieler Heute / Kalender; Verspätung im selben Blatt |
+| Zu-/Absagen, Grund, Antwort zurückändern | Welcome → echte Übung Spieler Heute → Nachrichten; Kalender; Verspätung im selben Blatt |
 | Selbst antworten / automatisch | Spieler Heute 2, Einstellungen |
 | Abwesenheit (Spieler / vom Trainer) | Spieler Heute 3 / Trainer Team 2 |
 | „Wie hart war es?“: RPE und Minuten | echte Übung Spieler Heute (mit Load), Moment-Tipp `moment.rate` |
 | Eigenes Training, Serien | bestehender Kalender; weiterer Gesamtplan oben |
 | Belastung, ACWR, Teilen, „Bitte prüfen“ | Spieler Belastung, Heute 5, Moment-Tipp |
-| Kalender-Gesten, Wochenvorlagen, Spiele, Treffpunkt | Trainer Kalender + Moment-Tipps |
+| Kalender-Gesten, Wochenvorlagen, Spiele, Treffpunkt | Welcome → Trainer Kalender (echte Übung), danach optional Gruppen/Nachrichten; Moment-Tipps |
 | Kader, Anwesenheit, Einblick | Einheit-Blatt |
 | Gruppen anlegen und zwei Spieler zuordnen | echte Übung Trainer Team; Zielgruppen für Einheiten und Nachrichten erklärt |
 | Einladen, Trainerteam & Rechte | Trainer Team Einstellungen; Verein Head-Coach-Bereich |
@@ -307,7 +322,8 @@ aber schreibt weder lokale Speicherung noch `RemoteStore.write`. RPC-, Auth-, Pu
 Lesemarken- und Kalenderaufrufe sind in der Datenschicht abgesichert; asynchrone Client-Ketten behalten
 zusätzlich ihre Übungs-Generation. Reale Hintergrundaktualisierungen können die Kopie nicht ersetzen.
 `endPractice()` verwirft sie und zeigt das aktuelle echte Dokument. Ende, Überspringen, Navigation,
-Neuladen und Fehler beenden die Übung. Kein Übungsdatensatz erreicht andere Nutzer oder erzeugt Push.
+Neuladen und unbehandelte Laufzeitfehler beenden die Übung. Formular-/Validierungsfehler zeigen
+die Meldung und halten die unveränderte Übungskopie offen. Kein Übungsdatensatz erreicht andere Nutzer oder erzeugt Push.
 
 `usePracticeReset` räumt offene Editor-/Bestätigungsdialoge und Eingaben auf. Ziele dürfen Funktionen
 sein, damit neue Einheiten, Gruppen, Nachrichten und nachfolgende Dialoge erreichbar bleiben. Im
@@ -318,7 +334,10 @@ Server weiter in `tours_seen`. Dafür gibt es keine Migration. `test:practice` p
 Verwerfen, Fehler, Speichergrenzen, Hintergrundupdates und Server-Spione; die CI führt es mit i18n aus.
 `test:tours` führt echte Taps, Touch-Wischen, Drag/Resize, Editor-Eingaben, Gruppen, Nachrichten,
 Absagen, Bewertungen und Umfragen aus (Handy 390 px/fr und Desktop 1280 px/en), prüft Ergebnissätze
-und vergleicht das gespeicherte Dokument vor/nach Übung, Abbruch und Neuladen. Die Browserprüfung
+und vergleicht das gespeicherte Dokument vor/nach Übung, Abbruch und Neuladen. `ONLY_LOCALE=fr|en`
+und `ONLY_ROLE=athlete|coach|club` filtern Szenarien; alle Pflichtaktionen der ausgewählten Rolle
+bleiben erforderlich. Fehlerbilder liegen unter `/tmp/codex-tours/`, Fehlermeldungen sind auf die
+erste Zeile begrenzt. Die Browserprüfung
 steht wegen der Socket-Sperre dieser Arbeitsumgebung noch aus; auch 360–430 px und Dialog-/Tastatur-
 Übergänge gehören zur visuellen Abnahme. `scripts/smoke.mjs` bleibt unverändert.
 

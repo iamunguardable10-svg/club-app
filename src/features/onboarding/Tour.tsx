@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { endPractice, isPracticeActive, readDatabase, startPractice, subscribe, type LocalDatabase } from '@/shared/data';
 import { useT } from '@/shared/i18n';
+import type { MessageKey } from '@/shared/i18n';
 import { preparePractice, type Gesture, type TourContext, type TourId, type TourStep } from './tours';
 
 type Rect = { top: number; left: number; width: number; height: number };
@@ -108,7 +109,7 @@ function visible(element: HTMLElement | null): element is HTMLElement {
   return Boolean(element && element.getBoundingClientRect().width && element.getBoundingClientRect().height);
 }
 
-export function Tour({ id, steps: allSteps, onClose }: { id: TourId; steps: TourStep[]; onClose: (result: TourResult) => void }) {
+export function Tour({ id, steps: allSteps, onClose, nextLabel }: { id: TourId; steps: TourStep[]; onClose: (result: TourResult) => void; nextLabel?: MessageKey }) {
   const t = useT();
   const reduced = usePrefersReducedMotion();
   const fine = useFinePointer();
@@ -210,6 +211,7 @@ export function Tour({ id, steps: allSteps, onClose }: { id: TourId; steps: Tour
     let previous: Rect | null = null;
     const arrivedAt = performance.now();
     let settledAt = arrivedAt;
+    let framedAt: number | null = null;
     const resolve = () => currentPhase === 'result' && step.resultTarget ? step.resultTarget(readDatabase()!, ctx) : typeof step.target === 'function'
       ? step.target(readDatabase()!, ctx)
       : step.target ? findTourTarget(step.target) : null;
@@ -255,8 +257,9 @@ export function Tour({ id, steps: allSteps, onClose }: { id: TourId; steps: Tour
         const measured = { top, left: Math.max(0, b.left - PAD), width: Math.min(width, b.right + PAD) - Math.max(0, b.left - PAD), height: Math.max(0, bottom - top) };
         if (measured.width > 0 && measured.height > 0) {
           missingSince = performance.now();
+          framedAt ??= performance.now();
           if (!sameRect(previous, measured)) { settledAt = performance.now(); previous = measured; setRect(measured); }
-          if (currentPhase === 'arrive' && performance.now() - arrivedAt >= (reduced ? 0 : 420) && performance.now() - settledAt >= 100) {
+          if (currentPhase === 'arrive' && performance.now() - framedAt >= (reduced ? 0 : 420) && performance.now() - settledAt >= 100) {
             currentPhase = 'show'; setPhase('show'); later(650, () => setHint(true));
           }
         } else {
@@ -284,7 +287,7 @@ export function Tour({ id, steps: allSteps, onClose }: { id: TourId; steps: Tour
     const observer = new ResizeObserver(measure);
     observer.observe(card);
     return () => observer.disconnect();
-  }, [started]);
+  }, [started, index]);
   useEffect(() => {
     if (phase === 'show' && step?.kind !== 'do') cardRef.current?.focus({ preventScroll: true });
   }, [phase, step]);
@@ -338,7 +341,7 @@ export function Tour({ id, steps: allSteps, onClose }: { id: TourId; steps: Tour
     <div key={key} aria-hidden onPointerDown={(event) => { if (event.buttons) setNudge(true); }} className="pointer-events-auto fixed bg-slate-950/70" style={{ pointerEvents: gesturing ? 'none' : 'auto', left: x, top: y, width: Math.max(0, w), height: Math.max(0, h) }} />
   );
   return (
-    <div data-practice-active={practiceTour ? 'true' : undefined} className="pointer-events-none fixed inset-0 z-[300]">
+    <div data-tour-overlay data-practice-active={practiceTour ? 'true' : undefined} className="pointer-events-none fixed inset-0 z-[300]">
       {rect ? <>
         {panel('top', 0, 0, viewport.width, rect.top)}
         {panel('left', 0, rect.top, rect.left, rect.height)}
@@ -346,14 +349,16 @@ export function Tour({ id, steps: allSteps, onClose }: { id: TourId; steps: Tour
         {panel('bottom', 0, rect.top + rect.height, viewport.width, viewport.height - rect.top - rect.height)}
         <div aria-hidden className="pointer-events-none tour-glow fixed left-0 top-0 rounded-2xl border-2 border-emerald-200/80" style={{ animation: 'none', boxShadow: '0 0 0 4px rgb(167 243 208 / 12%), 0 0 24px rgb(167 243 208 / 18%)', width: rect.width, height: rect.height, transform: `translate3d(${rect.left}px,${rect.top}px,0)` }} />
       </> : null}
-      <style>{`body:has([data-tour-key]) [aria-modal="true"]:not([data-welcome]) { background-color: transparent; backdrop-filter: none; padding-top: calc(${cardHeight + 32}px + env(safe-area-inset-top)); } body:has([data-tour-key]) [aria-modal="true"]:not([data-welcome]) > section, body:has([data-tour-key]) [aria-modal="true"]:not([data-welcome]) > div { max-height: calc(100dvh - ${cardHeight + 48}px); overflow-y: auto; }`}</style>
+      <style>{`@keyframes tour-arrival { from { translate: 0 8px; opacity: 0; } to { translate: 0 0; opacity: 1; } }
+        body:has([data-tour-overlay]) [aria-modal="true"]:not([data-welcome]) { background-color: transparent; backdrop-filter: none; padding-top: calc(${cardHeight + 32}px + env(safe-area-inset-top)); }
+        body:has([data-tour-overlay]) [aria-modal="true"]:not([data-welcome]) > section, body:has([data-tour-overlay]) [aria-modal="true"]:not([data-welcome]) > div { max-height: calc(100dvh - ${cardHeight + 48}px); overflow-y: auto; }`}</style>
       {rect && success ? <span aria-hidden data-tour-success className="fixed left-0 top-0 grid h-9 w-9 place-items-center rounded-full bg-emerald-300 text-xl font-black text-slate-950 shadow-lg" style={{ transform: `translate3d(${rect.left + rect.width - 24}px,${rect.top - 8}px,0)` }}>✓</span> : null}
       {rect && (step.kind !== 'do' || success) ? <div className="pointer-events-auto fixed" onPointerDown={() => setNudge(true)} style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }} /> : null}
       {rect && hint && shown && !success && !reduced ? <GestureHint gesture={gesture} rect={rect} fine={fine} /> : null}
-      <div ref={cardRef} role="dialog" aria-labelledby={titleId} aria-describedby={`${titleId}-text`} tabIndex={-1}
+      <div key={index} ref={cardRef} role="dialog" aria-labelledby={titleId} aria-describedby={`${titleId}-text`} tabIndex={-1}
         data-tour-key={rect ? step.title : undefined} data-tour-kind={step.kind ?? 'show'} data-tour-gesture={gesture} data-tour-phase={phase}
         className="fixed left-0 top-0 rounded-3xl border border-white/10 bg-slate-900 p-4 text-white shadow-2xl outline-none"
-        style={{ width, visibility: rect ? 'visible' : 'hidden', pointerEvents: rect ? 'auto' : 'none', maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)', overflowY: 'auto', transform: `translate3d(${left}px,calc(${top}px + env(safe-area-inset-top)),0)`, opacity: shown ? 1 : 0 }}>
+        style={{ width, visibility: rect ? 'visible' : 'hidden', pointerEvents: rect ? 'auto' : 'none', maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)', overflowY: 'auto', transform: `translate3d(${left}px,calc(${top}px + env(safe-area-inset-top)),0)`, opacity: rect && phase === 'arrive' ? 1 : shown ? 1 : 0, animation: rect && phase === 'arrive' && !reduced ? 'tour-arrival 240ms ease-out both' : 'none' }}>
         <div className="flex items-start justify-between gap-3">
           <p id={titleId} className="text-base font-black">{t(step.title)}{index === 0 && practiceTour ? <span className="ml-2 rounded-full bg-emerald-300/10 px-2 py-1 align-middle text-[10px] text-emerald-200">{t('tour.practice.new')}</span> : null}</p>
           <button type="button" data-tour-skip onClick={() => finish('skipped')} className="rounded-full px-2 py-1 text-xs font-black text-slate-400 hover:text-white">{t('tour.skip')}</button>
@@ -364,7 +369,7 @@ export function Tour({ id, steps: allSteps, onClose }: { id: TourId; steps: Tour
         </p>
         <div className="mt-3 flex items-center justify-between gap-3">
           <span className="text-xs text-slate-400">{t('tour.progress', { step: index + 1, total: steps.length })}</span>
-          <button type="button" data-tour-next onClick={next} className="rounded-xl bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950">{t(index === steps.length - 1 ? 'tour.done' : 'tour.next')}</button>
+          <button type="button" data-tour-next onClick={next} className="rounded-xl bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950">{t(nextLabel ?? (index === steps.length - 1 ? 'tour.done' : 'tour.next'))}</button>
         </div>
       </div>
     </div>

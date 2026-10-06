@@ -2058,5 +2058,10 @@
   "tour.practice.discard.title": "Bereit für die App",
   "tour.practice.discard.text": "Beende jetzt die Übung, um alle Übungsdaten zu verwerfen und zum Verein zurückzukehren.",
   "tour.practice.discard.result": "Dein Verein ist wieder wie zuvor.",
-  "tour.practice.new": "Neu"
+  "tour.practice.new": "Neu",
+  "tour.coachToday.overview.title": "Dein Tag auf einen Blick",
+  "tour.coachToday.overview.text": "Hier siehst du die heutigen und kommenden Einheiten. Plane deine nächste Einheit im Kalender.",
+  "tour.practice.continue.title": "Weiter üben?",
+  "tour.practice.continue.text": "Probier den nächsten Teil in einer neuen Übungskopie aus oder überspringe ihn und schau dich selbst um.",
+  "tour.practice.continueButton": "Weiter üben"
 }

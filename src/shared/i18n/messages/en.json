@@ -2058,5 +2058,10 @@
   "tour.practice.discard.title": "Ready to explore",
   "tour.practice.discard.text": "Finish now to discard all practice changes and return to your club.",
   "tour.practice.discard.result": "Your club is back as it was.",
-  "tour.practice.new": "New"
+  "tour.practice.new": "New",
+  "tour.coachToday.overview.title": "Your day at a glance",
+  "tour.coachToday.overview.text": "Find today’s sessions and what’s coming up here. Use the calendar to plan your next session.",
+  "tour.practice.continue.title": "Keep practising?",
+  "tour.practice.continue.text": "Try the next part in a fresh practice copy, or skip to explore on your own.",
+  "tour.practice.continueButton": "Continue"
 }

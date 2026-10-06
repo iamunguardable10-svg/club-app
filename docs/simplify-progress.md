@@ -2679,7 +2679,7 @@ Rückmeldung (Ben, 2026-10-06): Die Gesten müssen echte Einheiten, Gruppen und 
 das Willkommen war verwirrend. Keine Änderungen an Supabase, Migrationen oder Abhängigkeiten.
 - **Übungsmodus in derselben Datenschicht:** tiefe Dokumentkopie im Speicher, echte Komponenten,
   keine Speicherung, Server-Schreibvorgänge, RPCs oder Übungsbenachrichtigungen. Hintergrundupdates
-  ersetzen die Kopie nicht. Ende, Abbruch, Navigation, Neuladen und Fehler verwerfen alles;
+  ersetzen die Kopie nicht. Ende, Abbruch, Navigation, Neuladen und unbehandelte Laufzeitfehler verwerfen alles;
   offene Übungsdialoge und Entwürfe werden aufgeräumt.
 - **Bedienbare Touren:** echte Löcher statt verschluckter Gesten, beobachtete Dokument-/Dialog-
   Ergebnisse, Haken und 1,4 Sekunden zum Anschauen. Trainer erstellen, verschieben, verlängern und
@@ -2688,7 +2688,7 @@ das Willkommen war verwirrend. Keine Änderungen an Supabase, Migrationen oder A
   filtern, stimmen ab und bewerten mit RPE/Minuten (nur mit Load). Admin und Abteilungsleitung
   erstellen Team und Halle in ihrem erlaubten Bereich. Alle Seiten bleiben bei höchstens 7 Schritten.
 - **Willkommen:** drei ruhige Karten mit Vorname, Verein und passendem Nutzen je Rolle, ausdrückliche
-  Wahl zwischen Üben und selbst Entdecken, optionaler Push-Knopf; Texte in en/de/fr/es.
+  Wahl zwischen Üben und selbst Entdecken, optionaler Push-Schalter; Texte in en/de/fr/es.
   Neue Tour-Kennungen bieten den Einstieg auch bisherigen Nutzern einmal an; Fortschritt je Konto.
 - **Prüfungen:** neuer `test:practice` in der CI; Browser-Touren führen echte Aktionen auf Handy/fr
   und Desktop/en aus und prüfen unveränderte Speicherung, keine Serveraufrufe, Abbruch, Navigation
@@ -2702,3 +2702,31 @@ zusätzlichen IPC-Socket. `npm run start -- -p 3100` scheitert an `listen EPERM`
 `test:tours` sowie die visuelle Prüfung von 360–430 px, Dialogen und Tastatur bleiben beim Reviewer.
 Die Gruppenübung benötigt zwei vorhandene Team-Spieler, Kalender-Übungen Planungsrecht und Hallen;
 fehlende Voraussetzungen erweitern keine Rechte und „Weiter/Überspringen“ bleiben verfügbar.
+
+
+**Round 2 (2026-10-06): Browserfehler und Rollen-Einstieg nachgezogen.**
+- Fehlende Ziele werden bei allen Schritten nach etwa 1,5 Sekunden still übersprungen. Ohne echtes
+  sichtbares Ziel gibt es weder eine Tour-Karte noch eine Vollabdunklung. Große Kalender und Dialoge
+  reservieren Platz nach der Kartengröße; die Position der Karte fließt nicht mehr zurück in das
+  Highlight. Einmalige Ankunftsanimation, danach stabile Karte und Knöpfe im Zustand `show`.
+- Willkommen führt Trainer per Client-Navigation nach `/coach/sessions`. Danach sind Gruppen und
+  Nachrichten optional mit „Weiter üben“/„Überspringen“ erreichbar. Spieler üben auf `/athlete/home`
+  Absage/Zusage derselben Übungseinheit und Bewertung, danach Nachrichten. Vereinsrollen starten auf
+  `/club` mit Team und derselben Hallenverwaltung. Jeder Abschnitt startet seine Kopie erst auf der
+  Zielseite und verwirft sie vor dem Wechsel. Die Trainer-Heute-Tour erklärt höchstens drei Elemente,
+  mit heutigen Einheiten, „Was kommt“-Liste oder Navigation als Rückfall.
+- Gruppen-Erklärung, Halle/Abschluss und gelöschte Nachricht haben echte Ziele. Willkommen verwendet
+  kleine Inline-SVGs und einen leisen Push-Schalter auf der letzten Karte, falls Push verfügbar ist.
+  Neue Texte sind in allen vier Katalogen enthalten.
+- `scripts/tours.mjs`: `ONLY_LOCALE=fr|en`, `ONLY_ROLE=athlete|coach|club`, Fehlerbilder unter
+  `/tmp/codex-tours/`, je Fehler nur die erste Zeile. Die Pflichtaktionen gelten weiter je gewählter
+  Rolle; nur nicht ausgewählte Rollen werden bei gefilterten Läufen aus der Gesamtprüfung genommen.
+  Zusätzliche Prüfung für reale Highlights. Keine Aktions-, Speicher- oder Netzwerkprüfung gelockert.
+- Reviewer-Änderungen an `repository.ts`/`practice.test.ts` bleiben erhalten: Validierungsfehler halten
+  die Kopie unverändert offen, Auth verwendet seinen normalen Client und Speicher außerhalb der Übung.
+  Keine Änderungen unter `supabase/`; keine Git-Befehle zum Schreiben von Historie, Commit oder Push.
+
+Round-2-Prüfungen: Typecheck, i18n-Katalog-/Template-Prüfung, i18n-Tests, `test:practice` und Build
+bestanden; Syntaxprüfung von `scripts/tours.mjs` bestanden. Browser, Smoke und Touren werden gemäß
+Auftrag ausschließlich vom Reviewer ausgeführt. Zuerst Coach/fr/Handy mit Welcome → Kalender →
+Speichern/Verschieben/Verlängern/Löschen prüfen; dann Spieler-Absage/Zusage und Verein-Hallen.

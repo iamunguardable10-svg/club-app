@@ -15,30 +15,41 @@ const COPY: Record<WelcomeRole | 'lead', { promise: MessageKey; secondTitle: Mes
   lead: { promise: 'welcome.practice.lead', secondTitle: 'welcome.practice.leadTitle', secondText: 'welcome.practice.leadSecond' },
 };
 
-function NotifyButton() {
+function NotifyToggle() {
   const t = useT();
   const [state, setState] = useState<'idle' | 'busy' | 'on' | string>('idle');
   const can = isRemoteMode() && isPushSupported() && pushPermission() === 'default';
   if (!can && state === 'idle') return null;
-  if (state === 'on') return <p role="status" className="text-sm font-black text-emerald-200">{t('welcome.notify.on')}</p>;
   return (
-    <div className="grid justify-items-center gap-2">
+    <div className="grid gap-2">
       <button
         type="button"
-        disabled={state === 'busy'}
+        role="switch"
+        aria-checked={state === 'on'}
+        disabled={state === 'busy' || state === 'on'}
         onClick={() => {
           setState('busy');
           enablePush().then(() => setState('on')).catch((caught) => setState(errorText(t, caught)));
         }}
-        className="rounded-2xl border border-emerald-300/60 bg-emerald-300/10 px-5 py-2.5 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/20 disabled:opacity-60"
+        className="flex items-center justify-between gap-4 py-2 text-left text-sm text-slate-400 disabled:cursor-default"
       >
-        {t('welcome.notify.button')}
+        <span>{t(state === 'on' ? 'welcome.notify.on' : 'welcome.notify.button')}</span>
+        <span aria-hidden className={`flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 ${state === 'on' ? 'bg-emerald-300/70' : 'bg-slate-700'}`}>
+          <span className={`h-4 w-4 rounded-full bg-slate-100 ${state === 'on' ? 'translate-x-4' : ''}`} />
+        </span>
       </button>
-      {state !== 'idle' && state !== 'busy' ? <p role="alert" className="max-w-xs text-center text-xs font-bold text-rose-200">{state}</p> : null}
+      {state !== 'idle' && state !== 'busy' && state !== 'on' ? <p role="alert" className="text-xs text-rose-200">{state}</p> : null}
     </div>
   );
 }
 
+function WelcomeIcon({ slide }: { slide: number }) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="h-7 w-7">
+    {slide === 0 ? <><circle cx="12" cy="8" r="3.5" /><path d="M5 20v-1a7 7 0 0 1 14 0v1" /></>
+      : slide === 1 ? <><rect x="3" y="5" width="18" height="16" rx="3" /><path d="M7 3v4m10-4v4M3 11h18m-13 4h2m4 0h2m-8 3h2" /></>
+      : <><path d="M12 3 4.5 6v5c0 5 3.5 8 7.5 10 4-2 7.5-5 7.5-10V6z" /><path d="m8.5 12 2.5 2.5 4.5-5" /></>}
+  </svg>;
+}
 
 export function Welcome({ role, onClose }: { role: WelcomeRole; onClose: (choice: 'tour' | 'explore') => void }) {
   const t = useT();
@@ -89,7 +100,7 @@ export function Welcome({ role, onClose }: { role: WelcomeRole; onClose: (choice
         {[0, 1, 2].map((slide) => (
           <section key={slide} aria-hidden={slide !== index} inert={slide !== index} className="flex w-full shrink-0 snap-center flex-col justify-center px-7">
             <div className="mx-auto w-full max-w-sm">
-              <span aria-hidden className="mb-8 grid h-14 w-14 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-300/10 text-2xl text-emerald-200">{slide === 0 ? person?.firstName?.slice(0, 1) : slide === 1 ? '▦' : '✓'}</span>
+              <span aria-hidden className="mb-8 grid h-14 w-14 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-300/10 text-emerald-200"><WelcomeIcon slide={slide} /></span>
               <h2 className="text-3xl font-bold tracking-tight">{slide === 0 ? t('welcome.practice.hello', { name: person?.firstName ?? '' }) : slide === 1 ? t(copy.secondTitle) : t('welcome.practice.ready')}</h2>
               {slide === 0 ? <p className="mt-3 text-sm font-bold text-emerald-200">{roleLine}</p> : null}
               <p className="mt-4 text-base leading-relaxed text-slate-300">{t(slide === 0 ? copy.promise : slide === 1 ? copy.secondText : 'welcome.practice.safe')}</p>
@@ -98,7 +109,7 @@ export function Welcome({ role, onClose }: { role: WelcomeRole; onClose: (choice
                   {[role === 'athlete' ? 'nav.today' : role === 'coach' ? 'nav.calendar' : 'nav.club', role === 'athlete' ? 'nav.calendar' : role === 'coach' ? 'nav.team' : 'nav.halls', 'nav.messages'].map((key) => <p key={key} className="flex justify-between py-4 text-sm font-bold">{t(key as MessageKey)}<span aria-hidden className="text-slate-600">›</span></p>)}
                 </div>
               ) : null}
-              {slide === 2 ? <div className="mt-6"><NotifyButton /></div> : null}
+              {slide === 2 ? <div className="mt-6"><NotifyToggle /></div> : null}
               {slide === 2 && roleCount > 1 ? <p className="mt-4 text-sm text-slate-400">{t('welcome.roles')}</p> : null}
             </div>
           </section>

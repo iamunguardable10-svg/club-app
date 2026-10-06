@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /** Real demo UI actions, both input types, with a persisted-document and network audit. */
 import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:3100';
@@ -12,7 +13,15 @@ const ROUTES = {
 const SCENARIOS = [
   { locale: 'fr', viewport: { width: 390, height: 844 }, touch: true },
   { locale: 'en', viewport: { width: 1280, height: 900 }, touch: false },
-];
+].filter(({ locale }) => !process.env.ONLY_LOCALE || locale === process.env.ONLY_LOCALE);
+const roles = Object.entries(ROUTES).filter(([role]) => !process.env.ONLY_ROLE || role === process.env.ONLY_ROLE);
+assert.ok(SCENARIOS.length && roles.length, 'ONLY_LOCALE must be fr/en and ONLY_ROLE athlete/coach/club');
+const REQUIRED = {
+  athlete: ['playerOut', 'playerBack', 'playerRate', 'playerPoll'],
+  coach: ['calendarSave', 'calendarDelete', 'groupCreate', 'groupMembers', 'messageSend', 'messageDelete'],
+  club: ['clubTeam', 'hallCreate', 'messageSend', 'messageDelete'],
+};
+const firstLine = (error) => String(error instanceof Error ? error.message : error).split('\n')[0];
 const RAW_KEY = /\b(tour|welcome)\.[A-Za-z]+(?:\.[A-Za-z]+)+\b/;
 const problems = [];
 const performed = new Set();
@@ -224,6 +233,9 @@ async function playAll(page, label, touch) {
     const key = await card.getAttribute('data-tour-key');
     assert.ok(!RAW_KEY.test(await card.innerText()), `raw key at ${key}`);
     if (await card.getAttribute('data-tour-phase') === 'result') { await page.waitForTimeout(1500); continue; }
+    const frame = await page.locator('.tour-glow').boundingBox();
+    assert.ok(frame && frame.width > 0 && frame.height > 0, `real framed hole at ${key}`);
+    assert.ok(await visible(page, '[data-tour-active]').count(), `real target at ${key}`);
     steps++;
     if (await card.getAttribute('data-tour-kind') === 'do') {
       const result = await act(page, key, touch);
@@ -266,7 +278,7 @@ async function checkAudit(page) {
 const browser = await chromium.launch();
 try {
   for (const { locale, viewport, touch } of SCENARIOS) {
-    for (const [role, routes] of Object.entries(ROUTES)) {
+    for (const [role, routes] of roles) {
       const context = await browser.newContext({ viewport, hasTouch: touch, isMobile: touch, timezoneId: 'Europe/Berlin' });
       await context.addInitScript(auditPractice, locale);
       const page = await context.newPage();
@@ -274,8 +286,9 @@ try {
       pageActions.set(page, actions);
       await page.clock.install({ time: new Date('2026-10-06T10:00:00Z') });
       const tag = `${locale} ${touch ? 'phone' : 'desktop'} ${role}`;
-      page.on('pageerror', (error) => problems.push(`${tag}: ${error.message}`));
-      page.on('console', (message) => { if (message.type() === 'error') problems.push(`${tag}: ${message.text()}`); });
+      const problemStart = problems.length;
+      page.on('pageerror', (error) => problems.push(`${tag}: ${firstLine(error)}`));
+      page.on('console', (message) => { if (message.type() === 'error') problems.push(`${tag}: ${firstLine(message.text())}`); });
       try {
         await page.goto(`${BASE}/?demo=${role}`, { waitUntil: 'load' });
         await page.waitForURL((url) => url.pathname !== '/', { timeout: 15000 });
@@ -291,7 +304,7 @@ try {
           await page.goto(BASE + url, { waitUntil: 'load' }); await page.waitForTimeout(1600);
           await playAll(page, `${tag} ${route}`, touch); await checkAudit(page);
         }
-        const required = role === 'athlete' ? ['playerOut', 'playerBack', 'playerRate', 'playerPoll'] : role === 'coach' ? ['calendarSave', 'calendarDelete', 'groupCreate', 'groupMembers', 'messageSend', 'messageDelete'] : ['clubTeam', 'hallCreate', 'messageSend', 'messageDelete'];
+        const required = REQUIRED[role];
         for (const key of required) assert.ok(actions.has(`tour.practice.${key}.title`), `${tag}: completed ${key}`);
         await page.goto(BASE + routes[0]); await page.waitForTimeout(2600);
         if (await visible(page, '[data-tour="rate-later"]').count()) await tap(page, '[data-tour="rate-later"]', touch);
@@ -322,13 +335,21 @@ try {
           assert.equal(await page.locator('[data-practice-active]').count(), 0, 'reload ends the sandbox');
           assert.equal(await page.evaluate(() => localStorage.getItem('club-app.local.db')), before, 'reload keeps original data');
         }
-      } catch (error) { problems.push(`${tag}: ${error.message}`); }
+      } catch (error) { problems.push(`${tag}: ${firstLine(error)}`); }
+      if (problems.length > problemStart) {
+        const screenshot = `/tmp/codex-tours/${locale}-${touch ? 'phone' : 'desktop'}-${role}.png`;
+        try {
+          await mkdir('/tmp/codex-tours', { recursive: true });
+          await page.screenshot({ path: screenshot, fullPage: true, timeout: 5000 });
+          console.error(`${tag}: screenshot ${screenshot}`);
+        } catch (error) { console.error(`${tag}: screenshot failed: ${firstLine(error)}`); }
+      }
       await context.close();
     }
   }
 } finally { await browser.close(); }
-for (const key of ['calendarSave','calendarDelete','groupCreate','groupMembers','messageSend','messageDelete','playerOut','playerBack','playerRate','playerPoll','clubTeam','hallCreate']) {
+for (const key of new Set(roles.flatMap(([role]) => REQUIRED[role]))) {
   if (!performed.has(`tour.practice.${key}.title`)) problems.push(`Mandatory practice action was not completed: ${key}`);
 }
 if (problems.length) { console.error(`tours: ${problems.length} problem(s)\n${problems.map((p) => `- ${p}`).join('\n')}`); process.exit(1); }
-console.log(`tours passed: ${steps} steps, real actions on phone/fr and desktop/en, storage unchanged, no practice server calls`);
+console.log(`tours passed: ${steps} steps across ${SCENARIOS.length * roles.length} scenarios, real actions, storage unchanged, no practice server calls`);

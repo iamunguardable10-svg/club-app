@@ -343,6 +343,7 @@ weiteren Teams oder Vereinen aber nötig:
   → **Konzept (2026-10-03): `docs/onboarding-concept.md`, gebaut in Run 70** (Willkommen, Touren aller
   Seiten mit Gesten, Moment-Tipps). **Run 72: praktische Übungen und neuer persönlicher Einstieg implementiert**
   (echter Kalender, Gruppen, Nachrichten, Spielerantworten/RPE, Team/Halle; Speicher-/Server-Sandbox).
+  Round 2: Ziele/Positionierung, Rollen-Einstieg und Welcome korrigiert; vier lokale Checks bestanden.
   Browser-Abnahme beim Reviewer offen (`EPERM` für lokale Server hier); Leerzustände und Einrichtungs-Liste bleiben spätere Stücke.
   Neue Funktionen planen ihr Onboarding ab jetzt mit (Regel dort, Abschnitt 7, und `AGENTS.md`).
 - **Entschlacken auf dem Handy (Punkt 9, später):** Kandidaten siehe Run 59 bzw. Chat vom 2026-09-28
