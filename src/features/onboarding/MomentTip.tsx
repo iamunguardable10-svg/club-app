@@ -8,9 +8,9 @@
 import { useEffect } from 'react';
 
 import { requestTour } from './tourBus';
-import type { MomentTipId } from './tours';
+import type { TourId } from './tours';
 
-export function MomentTip({ id }: { id: MomentTipId }) {
+export function MomentTip({ id }: { id: TourId }) {
   useEffect(() => {
     // A beat after it appears, so it has settled (sheets slide in).
     const timer = window.setTimeout(() => requestTour(id), 650);

@@ -31,7 +31,7 @@ import {
 import { BASELINE_DAYS, acwrAfter, aggregateDailyLoads, backFromBreak, baselineAgeDays, calculateACWR, fillMissingDays, firstHighRiskDay, getLatestACWR, HIGH_RISK_ACWR, loadRoom, loadZone, projectFutureACWR, todayISO, weekChangePercent } from './loadCalculations';
 import { LoadInfoButton, LoadLandingChip, LoadRiskBadge } from './LoadHints';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
-import { athleteHasLoad, clearEntryReview, displayName, getActivePerson, newId, reviewsForPerson, rsvpModeOf, useLocalDatabase } from '@/shared/data';
+import { athleteHasLoad, isPracticeActive, clearEntryReview, displayName, getActivePerson, newId, reviewsForPerson, rsvpModeOf, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
 import { formatDateRange, formatDay, formatDayMonth, formatDayNumber, formatDecimal, formatEntryDate, formatInteger, formatLongDay, formatTime as formatSharedTime, formatWeekday, formatWeekdayDay } from '@/shared/format';
@@ -59,6 +59,7 @@ import {
   type AthleteAvailabilityMark,
 } from './athleteLocalStore';
 import { RatePrompt, WARMUP_MINUTES, WARMUP_RPE } from './RatePrompt';
+import { usePracticeReset } from '@/features/onboarding/usePracticeReset';
 import { MomentTip } from '@/features/onboarding/MomentTip';
 
 /**
@@ -1146,6 +1147,7 @@ function AthleteCalendar({
         type="button"
         data-athlete-calendar-item="true"
         data-item-id={item.id}
+        data-practice-session={isPracticeActive() && item.title === t('tour.practice.sessionName') ? 'true' : undefined}
         data-tour="calendar-item"
         onPointerDown={(event) => startDrag(item, 'move', event)}
         onClick={(event) => { event.stopPropagation(); if (!suppressClick) onItemSelect(item, mode); }}
@@ -1396,7 +1398,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     () => (database && activePersonId && hasLoad ? readPlansToRate(database, activePersonId) : []),
     [database, activePersonId, hasLoad],
   );
-  const rateQueue = useMemo(() => [...sessionsToRate, ...plansToRate], [sessionsToRate, plansToRate]);
+  const rateQueue = useMemo(() => {
+    const all = [...sessionsToRate, ...plansToRate];
+    const sample = isPracticeActive() ? all.filter((session) => session.title === t('tour.practice.ratingName')) : [];
+    return sample.length ? sample : all;
+  }, [sessionsToRate, plansToRate, t]);
   const duePlans = activePendingSessions.filter((session) => session.source === 'athlete_plan' && session.date <= todayISO());
   const allToRate = [...sessionsToRate, ...duePlans];
   // Entries a coach asked this athlete to check (piece 10).
@@ -1417,7 +1423,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const todayForecast = hasLoad ? acwrAfter(sortedEntries, loadPendingSessions.filter((session) => session.date === todayISO())) : null;
   const todayRisk = todayForecast && todayForecast.after > HIGH_RISK_ACWR ? todayForecast : null;
   // A warmup belongs to its game; the game is what comes next.
-  const nextSession = activePendingSessions.find((session) => session.date >= todayISO() && session.trainingType !== 'warmup') ?? activePendingSessions[0] ?? null;
+  const practiceSession = isPracticeActive() ? pendingSessions.find((session) => session.title === t('tour.practice.sessionName') && Date.parse(session.startsAt) > Date.now()) : null;
+  const nextSession = practiceSession ?? activePendingSessions.find((session) => session.date >= todayISO() && session.trainingType !== 'warmup') ?? activePendingSessions[0] ?? null;
   // Where the ratio lands after each session shown on Today ("~1.05"), with
   // everything planned before it done as estimated (same forecast as the chart).
   // Only for the next four sessions Today shows: further out the estimates are
@@ -1452,6 +1459,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     if (session.source === 'athlete_plan') return t('athlete.availability.ownPlan');
     if (session.trainingType === 'warmup') return t('athlete.availability.warmup');
     const mark = availabilityForSession(session.id);
+    if (mark?.status === 'out') return t('composer.markedOut');
     if (mark?.status === 'late') return mark.lateMinutes ? t('athlete.availability.lateMinutes', { count: mark.lateMinutes }) : t('athlete.availability.late');
     if (isOpenSession(session)) return t('athlete.availability.open');
     return t('athlete.availability.in');
@@ -1520,10 +1528,16 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   }, [sortedEntries]);
   const [ratePromptOpen, setRatePromptOpen] = useState(false);
   useEffect(() => {
-    if (!activePersonId || rateQueue.length === 0 || askedThisVisit.has(activePersonId)) return;
+    if (isPracticeActive() || !activePersonId || rateQueue.length === 0 || askedThisVisit.has(activePersonId)) return;
     askedThisVisit.add(activePersonId);
     setRatePromptOpen(true);
   }, [activePersonId, rateQueue.length]);
+
+  usePracticeReset(() => {
+    setComposerOpen(false); setActiveComposerSession(null); setActiveEntry(null);
+    setActiveDetailItem(null); setDeleteTarget(null); setRatePromptOpen(false);
+    setActivePendingId(null); setAvailabilityReason(''); setError(null);
+  });
 
   function entryFor(session: AthletePendingSession, rpe: number, minutes: number): AthleteLoadEntry {
     return {
@@ -1557,6 +1571,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         ...(warmup ? [entryFor(warmup, WARMUP_RPE, WARMUP_MINUTES)] : []),
       ]);
       setError(null);
+      if (isPracticeActive()) setRatePromptOpen(false);
     } catch (caught) {
       setError(caught instanceof Error ? errorText(t, caught) : t('athlete.error.saveRating'));
     }
@@ -2145,7 +2160,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 <span className="shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{allToRate.length}</span>
               </div>
               {rateQueue.length > 0 ? (
-                <button type="button" onClick={() => setRatePromptOpen(true)} className="mt-3 w-full rounded-2xl bg-emerald-300 px-4 py-2.5 text-sm font-black text-slate-950">
+                <button type="button" data-tour="rate-now" onClick={() => setRatePromptOpen(true)} className="mt-3 w-full rounded-2xl bg-emerald-300 px-4 py-2.5 text-sm font-black text-slate-950">
                   {t('athlete.rate.now', { count: rateQueue.length })}
                 </button>
               ) : null}
@@ -2177,7 +2192,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               </div>
               {nextSession ? (
                 <>
-                <button type="button" data-tour="athlete-next" onClick={() => openCalendarItem(nextSessionItem(nextSession))} className="mt-4 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.06] p-5 text-left transition hover:border-emerald-300/55">
+                <button type="button" data-tour="athlete-next" data-session-id={nextSession.id} onClick={() => openCalendarItem(nextSessionItem(nextSession))} className="mt-4 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.06] p-5 text-left transition hover:border-emerald-300/55">
                   <div className="flex items-center justify-between gap-3">
                     <p className="min-w-0 text-2xl font-black tracking-tight">{displayTitle(nextSession.title)}</p>
                     {landingAfter.has(nextSession.id) ? <LoadLandingChip value={landingAfter.get(nextSession.id)!} large /> : null}
@@ -2275,7 +2290,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
       {composerOpen ? (
         <div className="fixed inset-0 z-[100] flex items-end bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
-          <div className="max-h-[88vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-xl">
+          <div data-tour="player-session-sheet" data-session-id={activeComposerSession?.id} className="max-h-[88vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-xl">
             <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-300">{t('athlete.composer.kicker')}</p>
@@ -2423,14 +2438,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                       {activeComposerSession && !isWarmup ? (
                         <div className="space-y-3">
                           <div className="grid grid-cols-3 gap-2">
-                            <button type="button" onClick={() => setAvailabilityDraft('expected')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'expected' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.available')}</button>
+                            <button type="button" data-tour="player-in" onClick={() => setAvailabilityDraft('expected')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'expected' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.available')}</button>
                             <button type="button" onClick={() => setAvailabilityDraft('late')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'late' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.late')}</button>
-                            <button type="button" onClick={() => setAvailabilityDraft('out')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'out' ? 'border-rose-300 bg-rose-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.out')}</button>
+                            <button type="button" data-tour="player-out" onClick={() => setAvailabilityDraft('out')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'out' ? 'border-rose-300 bg-rose-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.out')}</button>
                           </div>
                           {availabilityDraft === 'late' || availabilityDraft === 'out' ? (
                             <label className="block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                               {t('composer.reason')}
-                              <textarea value={availabilityReason} onChange={(event) => setAvailabilityReason(event.target.value)} placeholder={t('composer.reasonPlaceholder')} className="mt-2 min-h-20 w-full resize-y rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold normal-case tracking-normal text-white outline-none placeholder:text-slate-600 focus:border-emerald-300" />
+                              <textarea data-tour="player-reason" value={availabilityReason} onChange={(event) => setAvailabilityReason(event.target.value)} placeholder={t('composer.reasonPlaceholder')} className="mt-2 min-h-20 w-full resize-y rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold normal-case tracking-normal text-white outline-none placeholder:text-slate-600 focus:border-emerald-300" />
                             </label>
                           ) : null}
                           {availabilityDraft === 'late' ? (
@@ -2442,6 +2457,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                           ) : null}
                           <button
                             type="button"
+                            data-tour="player-rsvp-save"
                             onClick={async () => {
                               const saved = await setTeamSessionAvailability(activeComposerSession, availabilityDraft, availabilityReason, availabilityDraft === 'late' ? lateMinutes : null);
                               if (!saved) return;

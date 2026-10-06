@@ -22,6 +22,7 @@
     "check:i18n": "node scripts/check-i18n.mjs && tsx scripts/push-texts.ts --check && tsx scripts/mail-templates.ts --check",
     "push-texts": "tsx scripts/push-texts.ts",
     "mail-templates": "tsx scripts/mail-templates.ts",
+    "test:practice": "node --import tsx src/shared/data/practice.test.ts",
     "test:i18n": "tsx src/shared/i18n/translate.test.ts",
     "test:build": "tsx src/features/install/buildVersion.test.ts",
     "test:address": "tsx src/features/facilities/addressAutocomplete.test.ts",

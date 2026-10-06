@@ -100,6 +100,7 @@ function offlineCache(): OfflineCache {
       }
     },
     write(snapshot) {
+      if (practice) return;
       try {
         window.localStorage.setItem(OFFLINE_KEY, JSON.stringify(snapshot));
       } catch {
@@ -107,6 +108,7 @@ function offlineCache(): OfflineCache {
       }
     },
     clear() {
+      if (practice) return;
       try {
         window.localStorage.removeItem(OFFLINE_KEY);
       } catch {
@@ -156,7 +158,7 @@ export function getBackendChoice(): BackendChoice {
  * (`window.location.assign`): the two modes never share a document in memory.
  */
 export function setBackendChoice(choice: BackendChoice): void {
-  if (!isBrowser()) return;
+  if (!isBrowser() || practice) return;
   window.localStorage.setItem(BACKEND_CHOICE_KEY, choice);
   backendChoice = choice;
 }
@@ -181,7 +183,7 @@ export function isHintDismissed(name: HintName): boolean {
 }
 
 export function dismissHint(name: HintName): void {
-  if (!isBrowser()) return;
+  if (!isBrowser() || practice) return;
   try {
     window.localStorage.setItem(hintKey(name), '1');
   } catch {
@@ -197,6 +199,8 @@ export function dismissHint(name: HintName): void {
  */
 const TOUR_PREFIX = 'club-app.tour-seen.';
 const TOURS_OFF_KEY = 'club-app.tours-off';
+// Accounts on a shared device keep separate memories; demo remains per device.
+const tourPrefix = () => `${TOUR_PREFIX}${remote?.getUserId() ?? 'demo'}.`;
 
 export function toursSwitchedOff(): boolean {
   if (!isBrowser()) return true;
@@ -210,7 +214,7 @@ export function toursSwitchedOff(): boolean {
 export function isTourSeen(id: string): boolean {
   if (!isBrowser()) return true;
   try {
-    return window.localStorage.getItem(TOUR_PREFIX + id) === '1';
+    return window.localStorage.getItem(tourPrefix() + id) === '1';
   } catch {
     return false;
   }
@@ -219,17 +223,17 @@ export function isTourSeen(id: string): boolean {
 function seenTourIds(): string[] {
   try {
     return Array.from({ length: window.localStorage.length }, (_, index) => window.localStorage.key(index))
-      .filter((key): key is string => Boolean(key?.startsWith(TOUR_PREFIX)))
-      .map((key) => key.slice(TOUR_PREFIX.length));
+      .filter((key): key is string => Boolean(key?.startsWith(tourPrefix())))
+      .map((key) => key.slice(tourPrefix().length));
   } catch {
     return [];
   }
 }
 
 export function markTourSeen(id: string): void {
-  if (!isBrowser()) return;
+  if (!isBrowser() || practice) return;
   try {
-    window.localStorage.setItem(TOUR_PREFIX + id, '1');
+    window.localStorage.setItem(tourPrefix() + id, '1');
   } catch {
     // Not remembering is fine; the tour just comes again.
   }
@@ -238,9 +242,9 @@ export function markTourSeen(id: string): void {
 
 /** Every tour comes again (settings). */
 export function resetTours(): void {
-  if (!isBrowser()) return;
+  if (!isBrowser() || practice) return;
   try {
-    for (const id of seenTourIds()) window.localStorage.removeItem(TOUR_PREFIX + id);
+    for (const id of seenTourIds()) window.localStorage.removeItem(tourPrefix() + id);
   } catch {
     // Nothing kept, nothing to reset.
   }
@@ -248,6 +252,7 @@ export function resetTours(): void {
 }
 
 async function saveToursToAccount(): Promise<void> {
+  if (practice) return;
   if (!isRemoteMode()) return;
   try {
     const supabase = await authClient();
@@ -263,6 +268,7 @@ let toursFromAccount: Promise<void> | null = null;
 
 /** Takes over the tours the account has seen on other devices; once per page load. */
 export function loadToursFromAccount(): Promise<void> {
+  if (practice) return Promise.resolve();
   if (!isBrowser() || !isRemoteMode()) return Promise.resolve();
   toursFromAccount ??= (async () => {
     try {
@@ -270,7 +276,8 @@ export function loadToursFromAccount(): Promise<void> {
       const { data } = await supabase.auth.getSession();
       const seen = data.session?.user?.user_metadata?.tours_seen;
       if (!Array.isArray(seen)) return;
-      for (const id of seen) if (typeof id === 'string') window.localStorage.setItem(TOUR_PREFIX + id, '1');
+      if (practice) return;
+      for (const id of seen) if (typeof id === 'string') window.localStorage.setItem(tourPrefix() + id, '1');
     } catch {
       // The device's own memory is enough.
     }
@@ -295,7 +302,7 @@ export function readStoredLocale(): string | null {
 }
 
 export function storeLocale(code: string): void {
-  if (!isBrowser()) return;
+  if (!isBrowser() || practice) return;
   try {
     window.localStorage.setItem(LOCALE_KEY, code);
   } catch {
@@ -318,6 +325,34 @@ const listeners = new Set<Listener>();
 
 /** In-memory copy so repeated reads in one render do not re-parse the JSON. */
 let cache: LocalDatabase | null = null;
+
+/**
+ * A tour owns an isolated, memory-only document. The write and RPC boundaries
+ * below stop here before they can reach either store: practice creates no
+ * notifications and nobody else can ever see its sessions, messages or votes.
+ * Reloading drops this module's memory. Real background refreshes may continue,
+ * but readDatabase always returns this copy until it is discarded.
+ */
+let practice: LocalDatabase | null = null;
+let practiceGeneration = 0;
+
+export function isPracticeActive(): boolean { return practice !== null; }
+
+export function startPractice(): void {
+  if (practice) return;
+  const current = readDatabase();
+  if (!current) throw new LocalDataError('There is no document to practice with.');
+  practice = structuredClone(current);
+  practiceGeneration += 1;
+  notify();
+}
+
+export function endPractice(): void {
+  if (!practice) return;
+  practice = null;
+  practiceGeneration += 1;
+  notify();
+}
 
 function isBrowser() {
   return typeof window !== 'undefined';
@@ -342,7 +377,7 @@ function notify() {
 }
 
 function persist(database: LocalDatabase) {
-  if (!isBrowser()) return;
+  if (!isBrowser() || practice) return;
   cache = database;
   try {
     window.localStorage.setItem(DATABASE_KEY, JSON.stringify(database));
@@ -362,6 +397,7 @@ function persist(database: LocalDatabase) {
  * tester had entered, which looks like the app losing data at random.
  */
 export function readDatabase(): LocalDatabase | null {
+  if (practice) return practice;
   if (remote) return remote.read();
   if (!isBrowser()) return null;
   if (isRemoteMode()) {
@@ -459,8 +495,19 @@ export function mutate(apply: (database: LocalDatabase) => void): void {
   if (!current) return;
 
   const draft: LocalDatabase = JSON.parse(JSON.stringify(current));
-  apply(draft);
-  refreshLoadSummaries(current, draft);
+  try {
+    apply(draft);
+    refreshLoadSummaries(current, draft);
+  } catch (error) {
+    // Even a caught form error must not leave an abandoned sandbox running.
+    endPractice();
+    throw error;
+  }
+  if (practice) {
+    practice = draft;
+    notify();
+    return;
+  }
   if (remote) {
     // Shown at once; the store sends the difference and notifies again when
     // the server has answered.
@@ -487,7 +534,7 @@ function startRemote() {
   // Loaded on demand, so the local test mode never ships the server client.
   import('./remote/supabaseBackend')
     .then(async ({ createSupabaseStore, authStorage }) => {
-      const store = createSupabaseStore(SCHEMA_VERSION, authStorage(window.localStorage), readRememberedIdentity(), offlineCache());
+      const store = createSupabaseStore(SCHEMA_VERSION, authStorage(practiceStorage()), readRememberedIdentity(), offlineCache());
       connectRemoteStore(store);
       await store.load();
       ensureFreshLoadSummary();
@@ -520,6 +567,7 @@ const QUIET = { rejected: null, rejectedNotice: null, pending: 0, offline: false
 
 /** Where the data comes from and whether it is there yet. */
 export function getBackendStatus(): BackendStatus {
+  if (practice) return { mode: remote ? 'remote' : 'local', phase: 'ready', error: null, ...QUIET };
   if (!isRemoteMode()) return { mode: 'local', phase: 'ready', error: null, ...QUIET };
   if (remoteLoadError) return { mode: 'remote', phase: 'error', error: remoteLoadError, ...QUIET };
   if (!remote) return { mode: 'remote', phase: 'loading', error: null, ...QUIET };
@@ -528,17 +576,17 @@ export function getBackendStatus(): BackendStatus {
 
 /** Hides the message about a refused change. */
 export function dismissRejectedChange(): void {
-  remote?.clearRejected();
+  if (!practice) remote?.clearRejected();
 }
 
 /** Reloads from the server (remote mode); a no-op locally. */
 export function refreshFromServer(): Promise<void> {
-  return remote ? remote.refresh() : Promise.resolve();
+  return remote && !practice ? remote.refresh() : Promise.resolve();
 }
 
 /** Resolves once every change sent to the server has been answered. */
 export function flushRemote(): Promise<void> {
-  return remote ? remote.flush() : Promise.resolve();
+  return remote && !practice ? remote.flush() : Promise.resolve();
 }
 
 /**
@@ -572,6 +620,7 @@ export function subscribe(listener: Listener): () => void {
 
 /** Drops the local database and seeds a fresh test club. */
 export function resetDatabase(): void {
+  if (practice) { practice = createSeedDatabase(); notify(); return; }
   if (isRemoteMode()) throw new LocalDataError('There is no test data to reset while signed in to the club.');
   if (!isBrowser()) return;
   cache = null;
@@ -602,10 +651,47 @@ function supabaseModule() {
   return import('./remote/supabaseBackend');
 }
 
+/** Guard async client chains too: a request begun in practice stays inert after exit. */
+function guardedClient<T extends object>(client: T, generation: number): T {
+  return new Proxy(client, {
+    get(target, key) {
+      const value = Reflect.get(target, key, target);
+      if (key === 'then' && typeof value === 'function' && (practice || generation !== practiceGeneration)) {
+        return Promise.resolve(quietResponse).then.bind(Promise.resolve(quietResponse));
+      }
+      if (typeof value === 'function') return (...args: unknown[]) => {
+        if (practice || generation !== practiceGeneration) return quietClient;
+        const result = value.apply(target, args);
+        return result && typeof result === 'object' ? guardedClient(result, generation) : result;
+      };
+      return value && typeof value === 'object' ? guardedClient(value, generation) : value;
+    },
+  });
+}
+
+// Supabase's fluent API and auth responses, without creating a client or a request.
+const quietResponse = { data: Object.assign([], { session: null, user: null }), error: null };
+const quietClient: object = new Proxy({}, {
+  get: (_, key) => key === 'then'
+    ? Promise.resolve(quietResponse).then.bind(Promise.resolve(quietResponse))
+    : key === 'auth' ? quietClient : () => quietClient,
+});
+
+/** Auth refreshes share the same storage boundary as the offline document. */
+function practiceStorage() {
+  return {
+    getItem: (key: string) => window.localStorage.getItem(key),
+    setItem: (key: string, value: string) => { if (!practice) window.localStorage.setItem(key, value); },
+    removeItem: (key: string) => { if (!practice) window.localStorage.removeItem(key); },
+  };
+}
+
 async function authClient() {
   if (!isBrowser()) throw new LocalDataError('Signing in only works in the browser.');
+  const generation = practiceGeneration;
   const { getSupabase, authStorage } = await supabaseModule();
-  return getSupabase(authStorage(window.localStorage));
+  if (practice || generation !== practiceGeneration) return quietClient as ReturnType<typeof getSupabase>;
+  return guardedClient(getSupabase(authStorage(practiceStorage())), generation);
 }
 
 /**
@@ -627,6 +713,7 @@ function authError(message: string): LocalDataError {
 }
 
 export async function signInWithPassword(email: string, password: string): Promise<void> {
+  if (practice) return;
   const supabase = await authClient();
   const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
   if (error) throw authError(error.message);
@@ -637,6 +724,7 @@ export async function signInWithPassword(email: string, password: string): Promi
  * no session yet and the person has to click the link in the mail first.
  */
 export async function signUpWithPassword(email: string, password: string, returnTo: string, locale?: string): Promise<{ confirmationNeeded: boolean }> {
+  if (practice) return { confirmationNeeded: false };
   const supabase = await authClient();
   const { data, error } = await supabase.auth.signUp({
     email: email.trim(),
@@ -655,6 +743,7 @@ export async function signUpWithPassword(email: string, password: string, return
  * message (the next start tries again).
  */
 export async function saveAccountLocale(locale: string): Promise<void> {
+  if (practice) return;
   if (!isRemoteMode()) return;
   try {
     const supabase = await authClient();
@@ -669,6 +758,7 @@ export async function saveAccountLocale(locale: string): Promise<void> {
 
 /** Sends a link to choose a new password; it leads to /reset-password. */
 export async function requestPasswordReset(email: string): Promise<void> {
+  if (practice) return;
   const supabase = await authClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
     redirectTo: `${window.location.origin}/reset-password`,
@@ -678,6 +768,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
 
 /** Sets a new password for the signed-in account (after the reset link). */
 export async function updatePassword(password: string): Promise<void> {
+  if (practice) return;
   const supabase = await authClient();
   const { error } = await supabase.auth.updateUser({ password });
   if (error) throw authError(error.message);
@@ -688,6 +779,7 @@ export async function updatePassword(password: string): Promise<void> {
  * the address changes once it is clicked.
  */
 export async function changeEmail(email: string): Promise<void> {
+  if (practice) return;
   const clean = email.trim();
   if (!clean) throw new LocalDataError('Enter the new email address.');
   const supabase = await authClient();
@@ -697,6 +789,7 @@ export async function changeEmail(email: string): Promise<void> {
 
 /** Signs out on this device, or with `everywhere` on every device of the account. */
 export async function signOut(options: { everywhere?: boolean } = {}): Promise<void> {
+  if (practice) return;
   const supabase = await authClient();
   // This device stops getting the account's notifications (piece 7): the
   // next person signing in here must not see them.
@@ -720,6 +813,7 @@ export async function signOut(options: { everywhere?: boolean } = {}): Promise<v
  * (Settings → Account), then clears this device like signing out.
  */
 export async function deleteMyAccount(): Promise<void> {
+  if (practice) return;
   const supabase = await authClient();
   const { error } = await supabase.rpc('delete_my_account');
   if (error) throw serverError(error.message, error);
@@ -734,6 +828,7 @@ export async function deleteMyAccount(): Promise<void> {
 
 /** The server's public VAPID key, needed to subscribe a device. */
 export async function getPushPublicKey(): Promise<string | null> {
+  if (practice) return null;
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('push_public_key');
   if (error) throw serverError(error.message, error);
@@ -742,6 +837,7 @@ export async function getPushPublicKey(): Promise<string | null> {
 
 /** Turns notifications on for this device and the signed-in account. */
 export async function savePushSubscription(subscription: { endpoint: string; p256dh: string; auth: string }): Promise<void> {
+  if (practice) return;
   const supabase = await authClient();
   const { error } = await supabase.rpc('save_push_subscription', {
     p_endpoint: subscription.endpoint, p_p256dh: subscription.p256dh, p_auth: subscription.auth,
@@ -750,6 +846,7 @@ export async function savePushSubscription(subscription: { endpoint: string; p25
 }
 
 export async function deletePushSubscription(endpoint: string): Promise<void> {
+  if (practice) return;
   const supabase = await authClient();
   const { error } = await supabase.rpc('delete_push_subscription', { p_endpoint: endpoint });
   if (error) throw serverError(error.message, error);
@@ -764,6 +861,7 @@ export type NotificationSettings = { mutedKinds: MutablePushKind[]; quietFrom: n
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = { mutedKinds: [], quietFrom: 22, quietTo: 7 };
 
 export async function getNotificationSettings(): Promise<NotificationSettings> {
+  if (practice) return DEFAULT_NOTIFICATION_SETTINGS;
   const supabase = await authClient();
   const { data, error } = await supabase.from('notification_settings').select('muted_kinds, quiet_from, quiet_to').maybeSingle();
   if (error) throw serverError(error.message, error);
@@ -772,6 +870,7 @@ export async function getNotificationSettings(): Promise<NotificationSettings> {
 }
 
 export async function saveNotificationSettings(settings: NotificationSettings): Promise<void> {
+  if (practice) return;
   const { quietFrom, quietTo } = settings;
   if ((quietFrom === null) !== (quietTo === null)) throw new LocalDataError('Quiet hours need a start and an end.');
   if (quietFrom !== null && quietFrom === quietTo) throw new LocalDataError('Quiet hours must start and end at different times.');
@@ -795,6 +894,7 @@ export async function saveNotificationSettings(settings: NotificationSettings): 
 
 /** A one-time code for the app on the home screen (migration 0025); needs a signed-in account. */
 export async function createLoginHandoff(): Promise<string> {
+  if (practice) return '';
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('create_login_handoff');
   if (error) throw serverError(error.message, error);
@@ -806,7 +906,10 @@ export async function createLoginHandoff(): Promise<string> {
  * is used up or too old (then the person signs in once, as before).
  */
 export async function completeLoginHandoff(code: string): Promise<boolean> {
+  if (practice) return false;
+  const generation = practiceGeneration;
   const supabase = await authClient();
+  if (practice || generation !== practiceGeneration) return false;
   const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/login-handoff`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '' },
@@ -821,6 +924,7 @@ export async function completeLoginHandoff(code: string): Promise<boolean> {
 
 /** Whether this device has a signed-in account (server mode). */
 export async function hasSignedInAccount(): Promise<boolean> {
+  if (practice) return false;
   if (!isServerAvailable()) return false;
   const supabase = await authClient();
   const { data } = await supabase.auth.getSession();
@@ -847,6 +951,7 @@ function calendarLink(token: string, lastFetchedAt: string | null): CalendarLink
 
 /** The account's calendar link, or null when it has none (it is only made when asked for). */
 export async function getCalendarLink(): Promise<CalendarLink | null> {
+  if (practice) return null;
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('calendar_feed_status');
   if (error) throw serverError(error.message, error);
@@ -856,6 +961,7 @@ export async function getCalendarLink(): Promise<CalendarLink | null> {
 
 /** Makes the link, or with `renew` a new one; the old one stops working at once. */
 export async function createCalendarLink(renew = false): Promise<CalendarLink> {
+  if (practice) return { url: '', webcalUrl: '', lastFetchedAt: null };
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('calendar_feed_token', { p_new: renew });
   if (error) throw serverError(error.message, error);
@@ -864,6 +970,7 @@ export async function createCalendarLink(renew = false): Promise<CalendarLink> {
 
 /** Switches the link off; subscribed calendars stop getting sessions. */
 export async function stopCalendarLink(): Promise<void> {
+  if (practice) return;
   const supabase = await authClient();
   const { error } = await supabase.rpc('calendar_feed_stop');
   if (error) throw serverError(error.message, error);
@@ -878,6 +985,7 @@ export type CalendarSource = { url: string; name: string; color: string | null; 
 
 /** The connection, or null when this account has none (the usual case). */
 export async function getAppleCalendarStatus(): Promise<AppleCalendarStatus | null> {
+  if (practice) return null;
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('apple_calendar_status');
   if (error) throw serverError(error.message, error);
@@ -886,10 +994,14 @@ export async function getAppleCalendarStatus(): Promise<AppleCalendarStatus | nu
 }
 
 async function callAppleCalendar(body: Record<string, string>): Promise<Record<string, unknown>> {
+  if (practice) return {};
+  const generation = practiceGeneration;
   const supabase = await authClient();
   const { data: session } = await supabase.auth.getSession();
+  if (practice || generation !== practiceGeneration) return {};
   const token = session.session?.access_token;
   if (!token) throw serverError('Please sign in again.');
+  if (practice) return {};
   const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/apple-calendar`, {
     method: 'POST',
     headers: {
@@ -907,17 +1019,22 @@ async function callAppleCalendar(body: Record<string, string>): Promise<Record<s
 
 /** Checks the Apple ID and app-specific password with iCloud, stores them and runs the first sync. */
 export async function connectAppleCalendar(appleId: string, password: string): Promise<void> {
+  if (practice) return;
+  const generation = practiceGeneration;
   await callAppleCalendar({ action: 'connect', appleId, password });
-  await refreshFromServer();
+  if (generation === practiceGeneration) await refreshFromServer();
 }
 
 export async function syncAppleCalendar(): Promise<void> {
+  if (practice) return;
+  const generation = practiceGeneration;
   await callAppleCalendar({ action: 'sync' });
-  await refreshFromServer();
+  if (generation === practiceGeneration) await refreshFromServer();
 }
 
 /** Deletes the stored password, the calendar list and imported events. */
 export async function disconnectAppleCalendar(): Promise<void> {
+  if (practice) return;
   const supabase = await authClient();
   const { error } = await supabase.rpc('disconnect_apple_calendar');
   if (error) throw serverError(error.message, error);
@@ -925,6 +1042,7 @@ export async function disconnectAppleCalendar(): Promise<void> {
 }
 
 export async function listCalendarSources(): Promise<CalendarSource[]> {
+  if (practice) return [];
   const supabase = await authClient();
   const { data, error } = await supabase.from('calendar_sources').select('url, name, color, import, coach_sees').order('name');
   if (error) throw serverError(error.message, error);
@@ -933,6 +1051,7 @@ export async function listCalendarSources(): Promise<CalendarSource[]> {
 
 /** Lets Club OS read a calendar or not (off: its events go at once). */
 export async function setCalendarImport(url: string, value: boolean): Promise<void> {
+  if (practice) return;
   const supabase = await authClient();
   const { error } = await supabase.from('calendar_sources').update({ import: value }).eq('url', url);
   if (error) throw serverError(error.message, error);
@@ -955,6 +1074,7 @@ export type ReportContext = { page: string; role: IdentityRole | null; mode: 'se
 
 /** Sends an error to the server. Works signed in or not; does nothing without a server. */
 export async function sendErrorReport(kind: ErrorReportKind, message: string, detail: string | null, context: ReportContext): Promise<void> {
+  if (practice) return;
   if (!isServerAvailable()) return;
   const supabase = await authClient();
   await supabase.rpc('report_error', {
@@ -965,6 +1085,7 @@ export async function sendErrorReport(kind: ErrorReportKind, message: string, de
 
 /** "Report a problem" from the account menu. */
 export async function sendProblemReport(text: string, context: ReportContext): Promise<void> {
+  if (practice) return;
   if (!isServerAvailable()) throw new LocalDataError('Reports need a connection to the club server.');
   const supabase = await authClient();
   const { error } = await supabase.rpc('report_problem', {
@@ -993,6 +1114,7 @@ export type ErrorReport = {
 
 /** Whether the signed-in account may read the reports (operators, set on the server). */
 export async function isOperator(): Promise<boolean> {
+  if (practice) return false;
   if (!isRemoteMode()) return false;
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('am_i_operator');
@@ -1000,6 +1122,7 @@ export async function isOperator(): Promise<boolean> {
 }
 
 export async function listErrorReports(includeResolved: boolean): Promise<ErrorReport[]> {
+  if (practice) return [];
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('list_error_reports', { p_include_resolved: includeResolved });
   if (error) throw serverError(error.message, error);
@@ -1014,6 +1137,7 @@ export async function listErrorReports(includeResolved: boolean): Promise<ErrorR
 }
 
 export async function resolveErrorReport(id: string, resolved: boolean): Promise<void> {
+  if (practice) return;
   const supabase = await authClient();
   const { error } = await supabase.rpc('resolve_error_report', { p_id: id, p_resolved: resolved });
   if (error) throw serverError(error.message, error);
@@ -1021,6 +1145,7 @@ export async function resolveErrorReport(id: string, resolved: boolean): Promise
 
 /** The signed-in account, or null. */
 export async function currentAccount(): Promise<{ email: string } | null> {
+  if (practice) return null;
   if (!isServerAvailable()) return null;
   const supabase = await authClient();
   const { data } = await supabase.auth.getSession();
@@ -1040,6 +1165,7 @@ export type InvitePreview = {
 
 /** What an invitation link is for; works before signing in. */
 export async function previewInvite(token: string): Promise<InvitePreview | null> {
+  if (practice) return null;
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('invite_preview', { p_token: token });
   if (error) throw serverError(error.message, error);
@@ -1056,6 +1182,7 @@ export type JoinCodePreview = { clubName: string; teamName: string; usable: bool
 
 /** Which club and team a join code belongs to; works before signing in. Null for an unknown code. */
 export async function previewJoinCode(code: string): Promise<JoinCodePreview | null> {
+  if (practice) return null;
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('join_code_preview', { p_code: code });
   if (error) throw serverError(error.message, error);
@@ -1066,6 +1193,7 @@ export async function previewJoinCode(code: string): Promise<JoinCodePreview | n
 
 /** Whether a founding code can still be used; works before signing in. */
 export async function isFoundingCodeUsable(code: string): Promise<boolean> {
+  if (practice) return false;
   const supabase = await authClient();
   const { data, error } = await supabase.rpc('founding_code_usable', { p_code: code });
   if (error) throw serverError(error.message, error);
@@ -1073,6 +1201,7 @@ export async function isFoundingCodeUsable(code: string): Promise<boolean> {
 }
 
 function requireRemote(): RemoteStore {
+  if (practice) return { call: async () => null } as unknown as RemoteStore;
   if (!remote) throw new LocalDataError('Joining needs the club server and a signed-in account.');
   return remote;
 }
@@ -1217,7 +1346,7 @@ export function setActiveIdentity(identity: ActiveIdentity | null): void {
     }
     database.activeIdentity = identity;
     // The server document is rebuilt on every load; remember the choice here.
-    if (remote && isBrowser()) {
+    if (remote && isBrowser() && !practice) {
       try {
         window.localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity));
       } catch {
@@ -1665,7 +1794,7 @@ export function createTeam(departmentId: Id, name: string): Id {
       id, clubId: department.clubId, departmentId, name: clean, defaultFacilityId: null,
       features: ['load'], archivedAt: null, createdAt: now,
     });
-    if (!remote) {
+    if (!remote || practice) {
       COACH_ROLE_TEMPLATES.forEach((template, index) => {
         database.coachRoles.push({
           id: newId(), teamId: id, name: template.name, permissions: [...template.permissions], locked: template.locked,
@@ -2096,6 +2225,7 @@ export function isAnswerOpen(database: LocalDatabase, sessionId: Id, personId: I
  * local test mode has no pushes and only counts them. Returns how many.
  */
 export async function remindOpenPlayers(sessionId: Id): Promise<number> {
+  if (practice) return 0;
   if (!isRemoteMode()) {
     const database = readDatabase();
     const session = database?.sessions.find((candidate) => candidate.id === sessionId);
@@ -2760,7 +2890,7 @@ export function postMessage(input: MessageTargets & {
       createdAt: createdAt.toISOString(), remindedAt: null,
       pollOptions, pollMultiple: Boolean(pollOptions && input.poll?.multiple), pollClosedAt: null,
       // The club server counts; until it answers, nobody has voted.
-      pollCounts: pollOptions && isRemoteMode() ? pollOptions.map(() => 0) : null,
+      pollCounts: pollOptions && isRemoteMode() && !practice ? pollOptions.map(() => 0) : null,
     });
   });
   return id;
@@ -2773,7 +2903,7 @@ export function deleteMessage(messageId: Id): void {
     ownManagerOf(database, message);
     database.messages = database.messages.filter((candidate) => candidate.id !== messageId);
     // The club server removes reads and votes with the message; nobody may delete them one by one.
-    if (!isRemoteMode()) {
+    if (!isRemoteMode() || practice) {
       database.messageReads = (database.messageReads ?? []).filter((read) => read.messageId !== messageId);
       database.messageVotes = (database.messageVotes ?? []).filter((vote) => vote.messageId !== messageId);
     }
@@ -2797,6 +2927,7 @@ export function remindUnread(messageId: Id): void {
  * club server, offline, or for recipients this person may not write to.
  */
 export async function serverMessageReach(clubId: Id, input: MessageTargets, audience: MessageAudience): Promise<number | null> {
+  if (practice) return null;
   if (!isRemoteMode() || !isBrowser()) return null;
   const targets = targetsOf(input);
   try {
