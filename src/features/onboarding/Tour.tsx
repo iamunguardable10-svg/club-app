@@ -1,7 +1,7 @@
 'use client';
 
 /** A real hole in the light: events reach the app, and observed results move on. */
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { endPractice, isPracticeActive, readDatabase, startPractice, subscribe, type LocalDatabase } from '@/shared/data';
 import { useT } from '@/shared/i18n';
 import type { MessageKey } from '@/shared/i18n';
@@ -116,6 +116,7 @@ export function Tour({ id, steps: allSteps, onClose, nextLabel }: { id: TourId; 
   const titleId = useId();
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>('arrive');
+  const [resultReady, setResultReady] = useState(false);
   const [hint, setHint] = useState(false);
   const [nudge, setNudge] = useState(false);
   const [gesturing, setGesturing] = useState(false);
@@ -202,7 +203,7 @@ export function Tour({ id, steps: allSteps, onClose, nextLabel }: { id: TourId; 
       entered.current = index;
       try { step.enter?.(); } catch { finish('skipped'); return; }
     }
-    setPhase('arrive'); setHint(false); setNudge(false);
+    setPhase('arrive'); setResultReady(false); setHint(false); setNudge(false);
     setRect(null);
     let currentPhase: Phase = 'arrive';
     let frame = 0;
@@ -212,6 +213,7 @@ export function Tour({ id, steps: allSteps, onClose, nextLabel }: { id: TourId; 
     const arrivedAt = performance.now();
     let settledAt = arrivedAt;
     let framedAt: number | null = null;
+    let resultFramed = false;
     const resolve = () => currentPhase === 'result' && step.resultTarget ? step.resultTarget(readDatabase()!, ctx) : typeof step.target === 'function'
       ? step.target(readDatabase()!, ctx)
       : step.target ? findTourTarget(step.target) : null;
@@ -219,7 +221,8 @@ export function Tour({ id, steps: allSteps, onClose, nextLabel }: { id: TourId; 
       if (currentPhase === 'result' || finished.current) return;
       currentPhase = 'result';
       clearTimers(); setPhase('result'); setHint(false);
-      later(1400, next); // Keep the finished real result visible, even with reduced motion.
+      // Scroll and frame the real result before its reading time starts.
+      previous = null; framedAt = null; scrolled = null; setRect(null);
     };
     const observe = () => {
       if (finished.current) return;
@@ -234,6 +237,13 @@ export function Tour({ id, steps: allSteps, onClose, nextLabel }: { id: TourId; 
       const width = window.innerWidth;
       const height = window.visualViewport?.height ?? window.innerHeight;
       setViewport((old) => old.width === width && old.height === height ? old : { width, height });
+      // The keyed card can mount before its viewport width is known. Measure
+      // the current node alongside the target, including after text wraps.
+      const currentCardHeight = cardRef.current?.offsetHeight ?? cardHeightRef.current;
+      if (currentCardHeight !== cardHeightRef.current) {
+        cardHeightRef.current = currentCardHeight;
+        setCardHeight(currentCardHeight);
+      }
       const element = resolve();
       if (targetRef.current !== element) {
         targetRef.current?.removeAttribute('data-tour-active');
@@ -250,7 +260,10 @@ export function Tour({ id, steps: allSteps, onClose, nextLabel }: { id: TourId; 
         // continue beyond the hole; the dim panels yield during an active gesture.
         // Reserve space from the card's size, never its moving position. Using
         // its bottom edge here creates a highlight/card placement feedback loop.
-        const dock = Boolean(element.closest('[aria-modal="true"]')) || b.height > height - cardHeightRef.current - 60;
+        const cardSize = cardHeightRef.current;
+        const fitsBelow = b.bottom + PAD + 14 + cardSize <= height - 12;
+        const fitsAbove = b.top - PAD - cardSize - 14 >= 12;
+        const dock = Boolean(element.closest('[aria-modal="true"]')) || (!fitsBelow && !fitsAbove);
         setDocked(dock);
         const top = Math.max(dock ? cardHeightRef.current + 44 : 8, b.top - PAD);
         const bottom = Math.min(height - 8, b.bottom + PAD);
@@ -261,6 +274,10 @@ export function Tour({ id, steps: allSteps, onClose, nextLabel }: { id: TourId; 
           if (!sameRect(previous, measured)) { settledAt = performance.now(); previous = measured; setRect(measured); }
           if (currentPhase === 'arrive' && performance.now() - framedAt >= (reduced ? 0 : 420) && performance.now() - settledAt >= 100) {
             currentPhase = 'show'; setPhase('show'); later(650, () => setHint(true));
+          }
+          if (currentPhase === 'result' && !resultFramed && performance.now() - settledAt >= 100) {
+            resultFramed = true; setResultReady(true);
+            later(1400, next); // Keep the framed result visible, even with reduced motion.
           }
         } else {
           previous = null; setRect(null);
@@ -279,15 +296,6 @@ export function Tour({ id, steps: allSteps, onClose, nextLabel }: { id: TourId; 
     return () => { stop(); targetRef.current?.removeAttribute('data-tour-active'); targetRef.current = null; window.cancelAnimationFrame(frame); clearTimers(); };
   }, [started, step, index, reduced, practiceTour, clearTimers, finish, later, next]);
 
-  useLayoutEffect(() => {
-    const card = cardRef.current;
-    if (!card) return;
-    const measure = () => setCardHeight(card.offsetHeight);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(card);
-    return () => observer.disconnect();
-  }, [started, index]);
   useEffect(() => {
     if (phase === 'show' && step?.kind !== 'do') cardRef.current?.focus({ preventScroll: true });
   }, [phase, step]);
@@ -356,7 +364,7 @@ export function Tour({ id, steps: allSteps, onClose, nextLabel }: { id: TourId; 
       {rect && (step.kind !== 'do' || success) ? <div className="pointer-events-auto fixed" onPointerDown={() => setNudge(true)} style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }} /> : null}
       {rect && hint && shown && !success && !reduced ? <GestureHint gesture={gesture} rect={rect} fine={fine} /> : null}
       <div key={index} ref={cardRef} role="dialog" aria-labelledby={titleId} aria-describedby={`${titleId}-text`} tabIndex={-1}
-        data-tour-key={rect ? step.title : undefined} data-tour-kind={step.kind ?? 'show'} data-tour-gesture={gesture} data-tour-phase={phase}
+        data-tour-key={rect ? step.title : undefined} data-tour-kind={step.kind ?? 'show'} data-tour-gesture={gesture} data-tour-phase={success && !resultReady ? 'arrive' : phase}
         className="fixed left-0 top-0 rounded-3xl border border-white/10 bg-slate-900 p-4 text-white shadow-2xl outline-none"
         style={{ width, visibility: rect ? 'visible' : 'hidden', pointerEvents: rect ? 'auto' : 'none', maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)', overflowY: 'auto', transform: `translate3d(${left}px,calc(${top}px + env(safe-area-inset-top)),0)`, opacity: rect && phase === 'arrive' ? 1 : shown ? 1 : 0, animation: rect && phase === 'arrive' && !reduced ? 'tour-arrival 240ms ease-out both' : 'none' }}>
         <div className="flex items-start justify-between gap-3">

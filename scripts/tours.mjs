@@ -26,7 +26,35 @@ const RAW_KEY = /\b(tour|welcome)\.[A-Za-z]+(?:\.[A-Za-z]+)+\b/;
 const problems = [];
 const performed = new Set();
 const pageActions = new WeakMap();
+const captures = new WeakMap();
 let steps = 0;
+
+async function capture(page, key, phase) {
+  if (process.env.TOUR_TRACE) console.log(`${captures.get(page)?.tag}: ${key} ${phase}`);
+  if (!process.env.TOUR_SCREENSHOTS) return;
+  const state = captures.get(page);
+  const folder = `/tmp/codex-tours/steps/${state.tag}`;
+  await mkdir(folder, { recursive: true });
+  const name = `${String(++state.index).padStart(3, '0')}-${key.replaceAll('.', '-')}-${phase}`;
+  await page.screenshot({ path: `${folder}/${name}.png`, timeout: 5000 });
+}
+
+async function checkFrame(page, card, key) {
+  const before = await card.boundingBox();
+  const buttonBefore = await card.locator('[data-tour-next]').boundingBox();
+  await page.waitForTimeout(150);
+  const after = await card.boundingBox();
+  const buttonAfter = await card.locator('[data-tour-next]').boundingBox();
+  for (const [a, b] of [[before, after], [buttonBefore, buttonAfter]]) {
+    assert.ok(a && b && ['x', 'y', 'width', 'height'].every((axis) => Math.abs(a[axis] - b[axis]) < 1), `stable card and Next at ${key}`);
+  }
+  const frame = await page.locator('.tour-glow').boundingBox();
+  assert.ok(frame && frame.width > 0 && frame.height > 0, `real framed hole at ${key}`);
+  assert.ok(await visible(page, '[data-tour-active]').count(), `real target at ${key}`);
+  const overlap = Math.min(after.x + after.width, frame.x + frame.width) > Math.max(after.x, frame.x)
+    && Math.min(after.y + after.height, frame.y + frame.height) > Math.max(after.y, frame.y);
+  assert.ok(!overlap, `card leaves the framed element clear at ${key}`);
+}
 
 /** Runs before the app. Audits rather than intercepting/fulfilling any request. */
 function auditPractice(locale) {
@@ -218,7 +246,7 @@ async function playAll(page, label, touch) {
     if (await page.locator('[data-welcome]').count()) {
       const text = await page.locator('[data-welcome]').innerText();
       assert.ok(!RAW_KEY.test(text), `raw welcome key in ${label}`);
-      for (let i = 0; i < 3; i++) { await page.locator('[data-welcome-next]').click(); await page.waitForTimeout(500); }
+      for (let i = 0; i < 3; i++) { await capture(page, `welcome-${i}`, 'show'); await page.locator('[data-welcome-next]').click(); await page.waitForTimeout(500); }
       continue;
     }
     const card = page.locator('[data-tour-key]');
@@ -233,9 +261,8 @@ async function playAll(page, label, touch) {
     const key = await card.getAttribute('data-tour-key');
     assert.ok(!RAW_KEY.test(await card.innerText()), `raw key at ${key}`);
     if (await card.getAttribute('data-tour-phase') === 'result') { await page.waitForTimeout(1500); continue; }
-    const frame = await page.locator('.tour-glow').boundingBox();
-    assert.ok(frame && frame.width > 0 && frame.height > 0, `real framed hole at ${key}`);
-    assert.ok(await visible(page, '[data-tour-active]').count(), `real target at ${key}`);
+    await checkFrame(page, card, key);
+    await capture(page, key, 'show');
     steps++;
     if (await card.getAttribute('data-tour-kind') === 'do') {
       const result = await act(page, key, touch);
@@ -245,6 +272,8 @@ async function playAll(page, label, touch) {
         return card?.getAttribute('data-tour-key') === key && card.getAttribute('data-tour-phase') === 'result';
       }, key, { timeout: 8000 });
       assert.ok(await card.locator('[aria-live]').innerText(), `success sentence for ${key}`);
+      await checkFrame(page, card, key);
+      await capture(page, key, 'result');
       performed.add(key);
       pageActions.get(page)?.add(key);
       await page.waitForTimeout(1700);
@@ -286,6 +315,7 @@ try {
       pageActions.set(page, actions);
       await page.clock.install({ time: new Date('2026-10-06T10:00:00Z') });
       const tag = `${locale} ${touch ? 'phone' : 'desktop'} ${role}`;
+      captures.set(page, { tag: `${locale}-${touch ? 'phone' : 'desktop'}-${role}`, index: 0 });
       const problemStart = problems.length;
       page.on('pageerror', (error) => problems.push(`${tag}: ${firstLine(error)}`));
       page.on('console', (message) => { if (message.type() === 'error') problems.push(`${tag}: ${firstLine(message.text())}`); });
