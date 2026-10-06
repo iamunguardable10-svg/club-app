@@ -65,6 +65,16 @@ herein) bzw. beim Tippen eingedrückt. Beim Loslassen rastet sie ein, ein Haken 
 sagt, was gerade passiert ist (`tour.<key>.result`). Das Ergebnis bleibt kurz stehen, dann blendet die
 Karte aus und das Licht gleitet weiter. Eine falsche Geste federt zurück. Android vibriert kurz.
 
+**Rückmeldung Ben (2026-10-06), für die nächste Runde:** noch etwas durcheinander.
+- Die Gesten sollen **wirklich etwas tun** wie in einer echten Übung: im Kalender eine Einheit anlegen,
+  sie verschieben, in der Länge ändern und am Ende wieder löschen; in den Nachrichten genauso (eine
+  Nachricht schreiben und wieder entfernen). Bisher passiert auf der Seite nichts – nur die Kopie bewegt
+  sich. Umsetzung: eine echte Übungs-Einheit/-Nachricht, die die Tour anlegt und am Ende sicher wieder
+  entfernt (auch wenn die Tour abgebrochen wird), ohne Benachrichtigungen an Spieler.
+- **Gruppen** innerhalb des Teams erklären (anlegen, Spieler zuordnen, Einheit/Nachricht nur an eine
+  Gruppe).
+- Das **Willkommen am Anfang** ist verwirrend und wird neu gemacht.
+
 ## 3. Bausteine
 
 | Baustein | Was | Wann |
