@@ -37,7 +37,7 @@ import {
   COACH_PERMISSION_REQUIRES,
   CLUB_MANAGEMENT_PERMISSIONS,
   LOAD_PERMISSIONS,
-  LocalDataError,
+  LocalDataError as StoredDataError,
   type ActiveIdentity,
   type CoachPermission,
   type ClubRole,
@@ -77,6 +77,17 @@ import {
 } from './schema';
 
 type Listener = () => void;
+
+/** Validation can fail before mutate(), and forms often catch that error.
+ * Discard here too, so a caught data-layer error cannot strand the practice copy.
+ * The public error type, message and translation fields remain the same.
+ */
+class LocalDataError extends StoredDataError {
+  constructor(...args: ConstructorParameters<typeof StoredDataError>) {
+    super(...args);
+    endPractice();
+  }
+}
 
 /** The server store once connected; null in the local test mode. */
 let remote: RemoteStore | null = null;
@@ -373,7 +384,20 @@ function purgeLegacyKeys() {
 }
 
 function notify() {
-  for (const listener of listeners) listener();
+  for (const listener of listeners) {
+    try { listener(); } catch (error) {
+      if (practice) {
+        // A failed subscriber must not leave the app on an abandoned copy.
+        practice = null;
+        practiceGeneration += 1;
+        for (const restore of listeners) {
+          if (restore === listener) continue;
+          try { restore(); } catch { /* Keep discarding even if another view failed. */ }
+        }
+      }
+      throw error;
+    }
+  }
 }
 
 function persist(database: LocalDatabase) {
@@ -1211,7 +1235,7 @@ export async function joinTeamWithCode(code: string, firstName: string, lastName
   try {
     return (await requireRemote().call('join_team', { p_code: code, p_first_name: firstName, p_last_name: lastName })) as Id;
   } catch (error) {
-    throw error instanceof LocalDataError ? error : new LocalDataError(error instanceof Error ? error.message : String(error));
+    throw error instanceof StoredDataError ? error : new LocalDataError(error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -1243,7 +1267,7 @@ export async function foundClub(input: {
       p_coach_team: input.coachTeam,
     })) as Id;
   } catch (error) {
-    throw error instanceof LocalDataError ? error : new LocalDataError(error instanceof Error ? error.message : String(error));
+    throw error instanceof StoredDataError ? error : new LocalDataError(error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -1252,7 +1276,7 @@ export async function acceptStaffInvite(token: string): Promise<Id> {
   try {
     return (await requireRemote().call('accept_staff_invite', { p_token: token })) as Id;
   } catch (error) {
-    throw error instanceof LocalDataError ? error : new LocalDataError(error instanceof Error ? error.message : String(error));
+    throw error instanceof StoredDataError ? error : new LocalDataError(error instanceof Error ? error.message : String(error));
   }
 }
 

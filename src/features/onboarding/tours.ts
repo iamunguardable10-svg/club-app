@@ -161,10 +161,10 @@ const help = step('help', 'help');
 
 export const TOURS: Record<TourId, TourStep[]> = {
   'athlete.today': [
-    action('practice.playerOpen', 'athlete-next', () => Boolean(target('player-session-sheet'))),
+    { ...action('practice.playerOpen', 'athlete-next', () => Boolean(target('player-session-sheet'))), resultTarget: () => target('player-session-sheet') },
     { ...action('practice.playerOut', playerTarget, (db, ctx) => reply('out', db, ctx)), resultTarget: playerTarget },
     { ...action('practice.playerBack', playerTarget, (db, ctx) => reply('in', db, ctx)), resultTarget: playerTarget },
-    { ...action('practice.playerRate', () => target('rate-sheet') ?? target('rate-now'), (db, ctx) => db.loadEntries.some((row) => row.personId === db.activeIdentity?.personId && !ctx.before.loadEntries.some((old) => old.id === row.id))), when: hasPlayerLoad, enter: prepareRating },
+    { ...action('practice.playerRate', () => target('rate-sheet') ?? target('rate-now'), (db, ctx) => db.loadEntries.some((row) => row.personId === db.activeIdentity?.personId && !ctx.before.loadEntries.some((old) => old.id === row.id))), when: hasPlayerLoad, enter: prepareRating, resultTarget: () => target('load-metrics') },
     step('athleteToday.messages', 'messages-card'),
   ],
   'athlete.calendar': [
@@ -173,7 +173,7 @@ export const TOURS: Record<TourId, TourStep[]> = {
       ctx.memory.day ??= day;
       return day !== ctx.memory.day;
     }, 'swipe-left'), device: 'touch' as const },
-    action('practice.playerOpen', () => tourElement('[data-item-id^="team_session-"][data-practice-session="true"]') ?? tourElement('[data-item-id^="team_session-"]'), () => Boolean(target('player-session-sheet'))),
+    { ...action('practice.playerOpen', () => tourElement('[data-item-id^="team_session-"][data-practice-session="true"]') ?? tourElement('[data-item-id^="team_session-"]'), () => Boolean(target('player-session-sheet'))), resultTarget: () => target('player-session-sheet') },
     { ...action('practice.playerOut', playerTarget, (db, ctx) => reply('out', db, ctx)), resultTarget: playerTarget },
     { ...action('practice.playerBack', playerTarget, (db, ctx) => reply('in', db, ctx)), resultTarget: playerTarget },
   ],
@@ -187,7 +187,7 @@ export const TOURS: Record<TourId, TourStep[]> = {
     step('athleteMessages.pinned', 'messages-pinned'),
   ],
   'coach.today': [
-    { ...action('coachToday.session', 'coach-session', () => Boolean(sheet())), leave: () => [...(sheet()?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find((button) => button.textContent?.trim() === tr('sessionSheet.close'))?.click() },
+    { ...action('coachToday.session', 'coach-session', () => Boolean(sheet())), resultTarget: sheet, leave: () => [...(sheet()?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find((button) => button.textContent?.trim() === tr('sessionSheet.close'))?.click() },
     step('coachToday.open', 'coach-open', 'tap'),
     step('coachToday.upcoming', 'coach-upcoming', 'tap'),
     step('coachToday.messages', 'messages-icon', 'tap'),
@@ -217,7 +217,7 @@ export const TOURS: Record<TourId, TourStep[]> = {
   ].map((step) => ({ ...step, when: canEditCalendar })),
   'coach.team': [
     action('coachTeam.groups', () => target('team-tab-groups') ?? target('team-launch'), () => isSelected('team-tab-groups', 'aria-selected')),
-    action('practice.groupEdit', 'group-edit', () => Boolean(target('group-create'))),
+    { ...action('practice.groupEdit', 'group-edit', () => Boolean(target('group-create'))), resultTarget: () => target('group-create') },
     { ...action('practice.groupCreate', 'group-create', (db, ctx) => Boolean(newGroup(db, ctx))), resultTarget: (db, ctx) => { const group = newGroup(db, ctx); return group ? tourElement(`[data-group-id="${group.id}"]`) : null; } },
     action('practice.groupMembers', (db, ctx) => {
       const group = newGroup(db, ctx);
@@ -244,23 +244,23 @@ export const TOURS: Record<TourId, TourStep[]> = {
     step('hallCalendar.swipe', 'calendar-swipe', 'swipe-left', 'touch'),
   ],
   'club.club': [
-    action('practice.clubTeam', 'club-add-team', (db, ctx) => {
+    { ...action('practice.clubTeam', 'club-add-team', (db, ctx) => {
       const row = db.teams.find((team) => !ctx.initial.teams.some((old) => old.id === team.id));
       if (row) ctx.memory.team = row.id;
       return Boolean(row);
-    }),
+    }), resultTarget: (_db, ctx) => tourElement(`[data-club-team-id="${ctx.memory.team}"]`) },
     { ...step('practice.clubInvite'), target: (_db, ctx) => tourElement(`[data-club-team-id="${ctx.memory.team}"]`) },
-    action('practice.hallEdit', 'halls-edit', () => Boolean(target('halls-add'))),
+    { ...action('practice.hallEdit', 'halls-edit', () => Boolean(target('halls-add'))), resultTarget: () => target('halls-add') },
     { ...action('practice.hallCreate', 'halls-add', (db, ctx) => db.facilities.some((row) => !ctx.initial.facilities.some((old) => old.id === row.id))), resultTarget: (db, ctx) => { const hall = db.facilities.find((row) => !ctx.initial.facilities.some((old) => old.id === row.id)); return hall ? tourElement(`[data-facility-id="${hall.id}"]`) : null; } },
     step('practice.discard'),
   ],
   'club.halls': [
-    action('practice.hallEdit', 'halls-edit', () => Boolean(target('halls-add'))),
+    { ...action('practice.hallEdit', 'halls-edit', () => Boolean(target('halls-add'))), resultTarget: () => target('halls-add') },
     { ...action('practice.hallCreate', 'halls-add', (db, ctx) => db.facilities.some((row) => !ctx.initial.facilities.some((old) => old.id === row.id))), resultTarget: (db, ctx) => { const hall = db.facilities.find((row) => !ctx.initial.facilities.some((old) => old.id === row.id)); return hall ? tourElement(`[data-facility-id="${hall.id}"]`) : null; } },
     step('practice.discard'),
   ],
   messages: [
-    action('messages.to', 'compose-to', () => Boolean(target('compose-recipients'))),
+    { ...action('messages.to', 'compose-to', () => Boolean(target('compose-recipients'))), resultTarget: () => target('compose-recipients') },
     action('practice.messageGroup', () => target('compose-recipients') ?? target('compose-to'), () => Boolean(tourElement('[data-message-group][aria-pressed="true"]'))),
     action('practice.messageWrite', 'compose-body', () => Boolean((target('compose-text') as HTMLTextAreaElement | null)?.value.trim())),
     action('practice.messagePin', 'compose-important', () => Boolean(target('compose-important')?.querySelector<HTMLInputElement>('input')?.checked)),

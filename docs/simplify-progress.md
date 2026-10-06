@@ -2672,3 +2672,33 @@ wie in klassischen Apps an.
 - Weniger Bewegung: dieselben Takte, nur kürzer.
 Geprüft: Bilder am Handy und Desktop (Tippen, Ziehen, Kante, Wischen jeweils während und nach der
 Geste), `test:tours` (prüft jetzt auch, dass nach jeder Geste das Ergebnis erscheint), `test:smoke`.
+
+## Run 72 — Onboarding als echte Übung in der App (implementiert, Browser-Abnahme offen)
+
+Rückmeldung (Ben, 2026-10-06): Die Gesten müssen echte Einheiten, Gruppen und Nachrichten ändern;
+das Willkommen war verwirrend. Keine Änderungen an Supabase, Migrationen oder Abhängigkeiten.
+- **Übungsmodus in derselben Datenschicht:** tiefe Dokumentkopie im Speicher, echte Komponenten,
+  keine Speicherung, Server-Schreibvorgänge, RPCs oder Übungsbenachrichtigungen. Hintergrundupdates
+  ersetzen die Kopie nicht. Ende, Abbruch, Navigation, Neuladen und Fehler verwerfen alles;
+  offene Übungsdialoge und Entwürfe werden aufgeräumt.
+- **Bedienbare Touren:** echte Löcher statt verschluckter Gesten, beobachtete Dokument-/Dialog-
+  Ergebnisse, Haken und 1,4 Sekunden zum Anschauen. Trainer erstellen, verschieben, verlängern und
+  löschen eine Einheit; Gruppen bekommen zwei Spieler; Nachrichten gehen an eine Gruppe, werden
+  mit Lesestand/Pin sichtbar und gelöscht. Spieler sagen mit Grund ab und wieder zu, wischen,
+  filtern, stimmen ab und bewerten mit RPE/Minuten (nur mit Load). Admin und Abteilungsleitung
+  erstellen Team und Halle in ihrem erlaubten Bereich. Alle Seiten bleiben bei höchstens 7 Schritten.
+- **Willkommen:** drei ruhige Karten mit Vorname, Verein und passendem Nutzen je Rolle, ausdrückliche
+  Wahl zwischen Üben und selbst Entdecken, optionaler Push-Knopf; Texte in en/de/fr/es.
+  Neue Tour-Kennungen bieten den Einstieg auch bisherigen Nutzern einmal an; Fortschritt je Konto.
+- **Prüfungen:** neuer `test:practice` in der CI; Browser-Touren führen echte Aktionen auf Handy/fr
+  und Desktop/en aus und prüfen unveränderte Speicherung, keine Serveraufrufe, Abbruch, Navigation
+  und Neuladen. Konzept und Abdeckung aktualisiert. `scripts/smoke.mjs` bleibt unverändert.
+
+Geprüft: `npm run typecheck`, `npm run check:i18n && npm run test:i18n`, `npm run test:practice`
+und `npm run build` bestanden; Syntaxprüfung des Browser-Skripts bestanden. Load-, Serien- und
+Kalender-Tests ebenfalls bestanden mit `node --import tsx` (die `tsx`-CLI versucht hier einen
+verbotenen IPC-Socket). Die i18n-/Übungs-Skripte verwenden deshalb denselben vorhandenen Loader ohne
+zusätzlichen IPC-Socket. `npm run start -- -p 3100` scheitert an `listen EPERM`; `test:smoke` und
+`test:tours` sowie die visuelle Prüfung von 360–430 px, Dialogen und Tastatur bleiben beim Reviewer.
+Die Gruppenübung benötigt zwei vorhandene Team-Spieler, Kalender-Übungen Planungsrecht und Hallen;
+fehlende Voraussetzungen erweitern keine Rechte und „Weiter/Überspringen“ bleiben verfügbar.

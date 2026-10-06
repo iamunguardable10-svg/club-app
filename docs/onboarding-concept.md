@@ -1,4 +1,4 @@
-# Onboarding-Konzept: jede Seite, jede Rolle (gebaut, Run 70)
+# Onboarding-Konzept: jede Seite, jede Rolle (praktische Touren, Run 72)
 
 Auftrag (Ben, 2026-10-03): Für jede Funktion und jede Seite ein richtiges Onboarding planen, damit
 neue Nutzer – Spieler, Trainer, Abteilungsleitung, Vereinsadmin – alle Funktionen gezeigt bekommen.
@@ -6,17 +6,18 @@ Erst dieses Konzept, dann gebaut (Ben, 2026-10-03: „baue es jetzt“, ohne vor
 es nicht gut aus, wird es zurückgerollt). Neue Funktionen planen ihr Onboarding ab jetzt immer mit
 (Regel in Abschnitt 7).
 
-**Stand (Run 70):** gebaut sind Willkommen je Rolle (A), Seiten-Touren aller Seiten (B, ersetzen die
-alten Hinweis-Karten, die entfernt sind), Moment-Tipps für „Wie hart war es?“, „Bitte prüfen“, Kader,
-Anwesenheit und Wochenplan (C), „?“ (G) und „Einführungen erneut zeigen“ in den Einstellungen.
-Offen: lehrende Leerzustände (D), Einrichtungs-Liste (E), „Neu“-Hinweise (F). Die offenen Fragen
-(Abschnitt 9) sind wie empfohlen umgesetzt; Wischen im Spieler-Kalender ist angeglichen.
+**Stand (Run 72):** Willkommen mit persönlicher Begrüßung und drei ruhigen Karten,
+echte Übungen in den bestehenden Ansichten, isolierter Übungsmodus in der Datenschicht,
+Seiten-Touren, Moment-Tipps, „?“ und Zurücksetzen in den Einstellungen sind implementiert.
+Der Browser-Durchlauf und die visuelle Abnahme stehen beim Reviewer aus: diese Arbeitsumgebung
+verweigert lokale Server-Sockets (`EPERM`). Lehrende Leerzustände und die Einrichtungs-Liste bleiben
+eigene spätere Stücke; „Neu“ kennzeichnet die überarbeiteten Touren für bestehende Nutzer.
 
 Gemeint ist ein interaktives Onboarding wie bei iOS-Apps beim ersten Öffnen einer Seite: Es zeigt am
 echten Bildschirm die Gesten und Knöpfe der Seite, kurz animiert, Schritt für Schritt (siehe
 `plan-next-runs.md`, „Onboarding pro Seite, richtig gemeint“).
 
-## 1. Was es heute gibt
+## 1. Ursprünglicher Ausgangszustand (Run 69)
 
 - **Einstieg:** Startseite „Wer bist du?“ (Spieler, Trainer, Abteilungsleitung, Gründer), Beitritt
   per Code/Link/QR (`/join`), Einladungen, Vereinsgründung (`/found`), Demo-Verein.
@@ -34,15 +35,15 @@ echten Bildschirm die Gesten und Knöpfe der Seite, kurz animiert, Schritt für 
 1. **Zeigen statt erklären.** Jeder Schritt hebt das echte Bedienelement hervor (Rest abgedunkelt)
    und spielt die Geste kurz vor (Finger: tippen, ziehen, Kante ziehen, wischen). Ein Satz pro
    Schritt.
-2. **Kurz.** Höchstens 3–5 Schritte pro Seite. „Weiter“, „Überspringen“ jederzeit; die Geste selbst
-   ausführen zählt auch als „Weiter“.
+2. **Kurz.** Höchstens sieben Schritte pro Seite. „Weiter“, „Überspringen“ jederzeit; eine beobachtete Änderung
+   bestätigt einen Übungsschritt.
 3. **Zur rechten Zeit.** Eine Seite erklärt sich beim ersten Öffnen – nicht alles am Anfang. Tiefere
    Funktionen erklären sich beim ersten Gebrauch (Moment-Tipps, Abschnitt 3C).
 4. **Nur was zählt.** Nur Schritte, die die Rolle darf und das Team nutzt (Belastung an/aus, Rechte
    der Trainerrolle, Gruppen vorhanden, Spiel statt Training …). Fehlt ein Element, entfällt der
    Schritt.
-5. **Nichts geht kaputt.** Geübt wird an einem Übungs-Element (z. B. eine durchscheinende
-   „Übungs-Einheit“), das nicht gespeichert wird. Echte Daten ändert die Tour nie.
+5. **Nichts geht kaputt.** Geübt wird mit einer tiefen Kopie des aktuellen Dokuments im Speicher;
+   die echten Komponenten lesen und ändern diese Kopie, die anschließend verworfen wird.
 6. **Leere Seiten lehren.** Jeder Leerzustand sagt den nächsten Schritt („Noch keine Spieler →
    Code teilen“) mit Knopf dorthin.
 7. **Wiederholbar.** „?“ oben auf jeder Seite spielt ihre Tour erneut; Einstellungen → „Einführungen“
@@ -57,7 +58,7 @@ echten Bildschirm die Gesten und Knöpfe der Seite, kurz animiert, Schritt für 
     Schritttexte für Screenreader; Esc/Enter am Desktop.
 12. **Vier Sprachen**, wie alle Texte (en, de, fr, es; du/tu/tú).
 
-**Gefühl wie in nativen Apps (Run 71, Ben: „es fehlt die Luft bzw. das fertige Ergebnis zwischen den
+**Historie: Gefühl wie in nativen Apps (Run 71, Ben: „es fehlt die Luft bzw. das fertige Ergebnis zwischen den
 Gesten“):** Jeder Schritt hat drei Takte. (1) Das Licht gleitet zum Element, (2) die Karte kommt herein,
 (3) erst dann startet der Gesten-Hinweis. Bei der Geste hebt sich eine Kopie des Elements ab und folgt
 dem Finger: gezogen, an der Unterkante länger gezogen, weggewischt (der nächste Tag schiebt sich
@@ -65,7 +66,7 @@ herein) bzw. beim Tippen eingedrückt. Beim Loslassen rastet sie ein, ein Haken 
 sagt, was gerade passiert ist (`tour.<key>.result`). Das Ergebnis bleibt kurz stehen, dann blendet die
 Karte aus und das Licht gleitet weiter. Eine falsche Geste federt zurück. Android vibriert kurz.
 
-**Rückmeldung Ben (2026-10-06), für die nächste Runde:** noch etwas durcheinander.
+**Rückmeldung Ben (2026-10-06):** noch etwas durcheinander.
 - Die Gesten sollen **wirklich etwas tun** wie in einer echten Übung: im Kalender eine Einheit anlegen,
   sie verschieben, in der Länge ändern und am Ende wieder löschen; in den Nachrichten genauso (eine
   Nachricht schreiben und wieder entfernen). Bisher passiert auf der Seite nichts – nur die Kopie bewegt
@@ -75,19 +76,61 @@ Karte aus und das Licht gleitet weiter. Eine falsche Geste federt zurück. Andro
   Gruppe).
 - Das **Willkommen am Anfang** ist verwirrend und wird neu gemacht.
 
+### Umsetzung der Rückmeldung (Run 72)
+
+Ein `show`-Schritt erklärt ein Element; ein `do`-Schritt lässt die echte Oberfläche durch ein Loch
+in vier Abdunklungsflächen bedienen. Die Tour prüft das Dokument oder den geöffneten Dialog,
+nicht die Fingerbewegung. Nach Erfolg: Haken, ein Ergebnissatz, 1,4 Sekunden zum Anschauen,
+danach der nächste Schritt. Das Ergebnis selbst wird beleuchtet (z. B. die gesendete Nachricht).
+„Weiter“ und „Überspringen“ bleiben erreichbar. Ein falscher Versuch erhält einen ruhigen Hinweis.
+Tastatur und Screenreader werden berücksichtigt; bei weniger Bewegung entfallen Animationen.
+
+| Rolle / Ort | Gebaute Übung | Schritte |
+| --- | --- | --- |
+| Spieler Heute | Einheit öffnen → Absage mit Grund speichern → dieselbe Einheit öffnen und wieder zusagen → RPE und Minuten speichern (nur mit Load) → Nachrichtenhinweis | höchstens 5 |
+| Spieler Kalender | am Handy Tag wischen → zukünftige Teameinheit öffnen → absagen → wieder zusagen | höchstens 4 |
+| Spieler Nachrichten | Absender-Chip wählen → in einer Übungsumfrage abstimmen → Angepinntes erklären | höchstens 3 |
+| Trainer Kalender | am Handy Tag wischen → Bearbeiten → freien Platz antippen → Entwurf im echten Editor mit Team speichern → verschieben → Unterkante ziehen → öffnen und im Bestätigungsdialog löschen | Handy 7, Desktop 6 |
+| Trainer Team | Team wählen, falls nötig, und Gruppen öffnen → Bearbeiten → vorgeschlagenen Namen übernehmen oder ändern → zwei Spieler antippen → Gruppen als Empfänger erklären → Nachrichten öffnen → Einstellungen erklären | 7 |
+| Staff Nachrichten, auch Team-Reiter | Empfänger öffnen → Team und darunter Gruppe wählen → Beispieltext übernehmen oder selbst schreiben → Wichtig einschalten → senden und Lesestand/Pin sehen → löschen und bestätigen → Umfrage einschalten | 7 |
+| Vereinsadmin / Abteilungsleitung, Verein | Team in der eigenen Abteilung erstellen → Head-Coach-Bereich erklären → wiederverwendete Hallenverwaltung öffnen → Halle erstellen → Übung beenden | 5 |
+| Vereinsadmin / Abteilungsleitung, Hallen | Bearbeiten → Halle erstellen → Übung beenden | 3 |
+
+Die normale RPE-Abfrage wartet beim ersten Einstieg auf das Willkommen. Tour-eigene Editor-,
+Absage-, Bewertungs- und Bestätigungsdialoge werden weiter bedient; sie blockieren ihre Tour nicht.
+Dialoge bekommen während der Übung Platz unter der Tour-Karte und keine zweite Abdunklung.
+Beim Beenden verschwinden offene Übungsdialoge und Entwürfe. Der Nachrichten-Reiter verwendet
+denselben Nachrichten-Rundgang wie `/messages`.
+
+Leere Teams bekommen bei Bedarf eine Übungseinheit bzw. eine Beispielumfrage in der Kopie.
+Für Nachrichten wird bei fehlenden Gruppen eine Übungsgruppe aus vorhandenen Spielern vorbereitet.
+Dabei entstehen keine zusätzlichen Rechte oder Mitgliedschaften. Für eine Gruppenübung mit zwei
+Spielern müssen zwei echte Team-Mitglieder vorhanden sein; sonst kann der Nutzer mit „Weiter“
+fortfahren. Der Kalender berücksichtigt das echte Planungsrecht und vorhandene Hallen.
+
+Das Willkommen nennt Vorname, Verein und Rolle/Teams, dann ein passendes Versprechen für Spieler,
+Trainer, Abteilungsleitung oder Admin. Die letzte Karte bietet ausdrücklich „Zeig mir die App
+(2 Min.)“ oder „Ich schaue mich selbst um“; Push ist nur ein leiser optionaler Knopf. Mehrere Rollen
+werden einmal mit dem Weg zum Rollenwechsel erwähnt. Neue Speicherkennungen `.practice-v1`
+bieten den überarbeiteten Einstieg einmal an, auch wenn die alte Tour bereits gesehen wurde.
+
+Die folgenden detaillierten Funktionslisten bewahren den ursprünglichen Gesamtplan; die Tabelle
+oben beschreibt die jetzt gebauten praktischen Abläufe. Leerzustände und Einrichtungs-Listen aus
+diesem Gesamtplan sind weiterhin offen.
+
 ## 3. Bausteine
 
 | Baustein | Was | Wann |
 | --- | --- | --- |
-| A. Willkommen | 3–4 Karten zum Wischen: was die App für dich tut, deine Bereiche, Benachrichtigungen erlauben, App installieren | einmal nach dem ersten Beitritt, je Rolle |
-| B. Seiten-Tour | Hervorhebung + Geste + ein Satz, 3–5 Schritte | erstes Öffnen einer Seite (ersetzt die Hinweis-Karte) |
+| A. Willkommen | drei Karten: persönliche Begrüßung, Nutzen je Rolle, Üben oder selbst entdecken; optional Push | einmal nach dem ersten Beitritt, je Rolle |
+| B. Seiten-Tour | Hervorhebung + echte Aktion oder Erklärung + ein Satz, höchstens sieben Schritte | erstes Öffnen einer Seite (ersetzt die Hinweis-Karte) |
 | C. Moment-Tipp | kleine Sprechblase am Element, ein Satz | erster Gebrauch einer Funktion (erste Umfrage, erster Kader …) |
 | D. Lehrender Leerzustand | Satz + Knopf zum nächsten Schritt | solange etwas leer ist |
 | E. Einrichtungs-Liste | Haken-Liste „Erste Schritte“ mit Fortschritt | Trainer, Abteilungsleitung, Admin bis alles erledigt |
-| F. „Neu“-Hinweis | ein Tour-Schritt nur für die neue Funktion | bestehende Nutzer, einmal |
+| F. „Neu“-Hinweis | „Neu“-Markierung und neue Kennung der praktischen Tour | bestehende Nutzer, einmal |
 | G. „?“-Knopf | spielt die Seiten-Tour erneut | immer |
 
-## 4. Willkommen je Rolle (Baustein A)
+## 4. Ursprünglicher Rollenplan (Baustein A; aktuelle Umsetzung oben)
 
 - **Spieler:** 1) „Heute“: deine nächste Einheit, zu- oder absagen. 2) „Kalender“: alle Termine,
   Treffpunkt und Halle. 3) „Belastung“ (nur mit Belastung): nach jeder Einheit „Wie hart war es?“.
@@ -229,16 +272,21 @@ ganze Verein umfasst alle Abteilungen und Teams.
 
 | Funktion | gezeigt in |
 | --- | --- |
-| Zu-/Absagen, Verspätung, Grund | Spieler Heute 1–2 |
+| Zu-/Absagen, Grund, Antwort zurückändern | echte Übung Spieler Heute / Kalender; Verspätung im selben Blatt |
 | Selbst antworten / automatisch | Spieler Heute 2, Einstellungen |
 | Abwesenheit (Spieler / vom Trainer) | Spieler Heute 3 / Trainer Team 2 |
-| „Wie hart war es?“, eigenes Training, Serien | Moment-Tipp Heute, Spieler Kalender 4 |
+| „Wie hart war es?“: RPE und Minuten | echte Übung Spieler Heute (mit Load), Moment-Tipp `moment.rate` |
+| Eigenes Training, Serien | bestehender Kalender; weiterer Gesamtplan oben |
 | Belastung, ACWR, Teilen, „Bitte prüfen“ | Spieler Belastung, Heute 5, Moment-Tipp |
 | Kalender-Gesten, Wochenvorlagen, Spiele, Treffpunkt | Trainer Kalender + Moment-Tipps |
 | Kader, Anwesenheit, Einblick | Einheit-Blatt |
-| Gruppen, Einladen, Trainerteam & Rechte | Trainer Team 3–5 |
-| Nachrichten, „An:“, Wichtig, Umfragen, Erinnern | Trainer/Spieler Nachrichten |
-| Verein, Leitungen, Schreibrechte, Archiv | Verein |
+| Gruppen anlegen und zwei Spieler zuordnen | echte Übung Trainer Team; Zielgruppen für Einheiten und Nachrichten erklärt |
+| Einladen, Trainerteam & Rechte | Trainer Team Einstellungen; Verein Head-Coach-Bereich |
+| Nachrichten senden/löschen, Team → Gruppe, Beispieltext, Wichtig/Pin, Lesestand | echte Übung Staff Nachrichten und Team-Reiter |
+| Filter-Chip und Umfrage beantworten | echte Übung Spieler Nachrichten |
+| Erinnern | bestehende Nachrichtenzählung; während der Übung ohne Serverwirkung |
+| Team und Halle erstellen, Head Coach einladen | echte Übung Verein und Hallen, für Admin und Leitung im erlaubten Bereich |
+| Leitungen, Schreibrechte, Archiv | bestehender Vereinsbereich, ursprünglicher Gesamtplan oben |
 | Hallen, Hallenkalender, Konflikte | Hallen-Touren, Moment-Tipp |
 | Telefon-Kalender, Push, Installieren, Sprache | Willkommen, Moment-Tipps, Einstellungen |
 | Rollenwechsel, Offline, Problem melden | Moment-Tipps für alle |
@@ -253,20 +301,26 @@ der Rundgang (`test:smoke`) schaltet die Touren ab (`club-app.tours-off`).
 Neue Schritte: Element mit `data-tour="…"` markieren, Schritt in `tours.ts`, Texte
 `tour.<key>.title/text` in allen vier Sprachen.
 
-Ursprünglicher Vorschlag:
+**Übungsgrenze:** `startPractice()` kopiert das aktuelle Dokument tief im Speicher;
+`readDatabase()` und `useLocalDatabase()` liefern diese Kopie. `mutate()` benachrichtigt die Ansichten,
+aber schreibt weder lokale Speicherung noch `RemoteStore.write`. RPC-, Auth-, Push-, Erinnerungs-,
+Lesemarken- und Kalenderaufrufe sind in der Datenschicht abgesichert; asynchrone Client-Ketten behalten
+zusätzlich ihre Übungs-Generation. Reale Hintergrundaktualisierungen können die Kopie nicht ersetzen.
+`endPractice()` verwirft sie und zeigt das aktuelle echte Dokument. Ende, Überspringen, Navigation,
+Neuladen und Fehler beenden die Übung. Kein Übungsdatensatz erreicht andere Nutzer oder erzeugt Push.
 
-- **Eine Tour-Komponente** mit Schritten `{ target, textKey, gesture, placement }`. Die Ziele tragen
-  `data-tour="…"`; ein fehlendes oder unsichtbares Ziel überspringt den Schritt (Rolle, Recht,
-  Funktion). Hervorhebung und Abdunkeln liegen darüber, die Seite bleibt bedienbar.
-- **Gesten-Animation** als kleine SVG/CSS-Animation (Finger, Spur); bei weniger Bewegung ein
-  Standbild. Keine neue Bibliothek.
-- **Übungs-Elemente** (z. B. Übungs-Einheit im Kalender) nur im Tour-Zustand, nie gespeichert.
-- **Fortschritt** über `repository.ts` (`isTourDone`, `markTourDone`, `resetTours`): im Demo-Verein
-  im Browser, mit Konto auf dem Server (kleine Tabelle `onboarding_progress (user_id, key, done_at)`),
-  damit es pro Konto einmal kommt. Die Hinweis-Karten (`PageTip`) gehen in den Touren auf.
-- **Prüfen:** Der Rundgang (`test:smoke`) startet wie heute mit allen Touren erledigt; ein neuer Test
-  spielt jede Tour je Rolle durch (Handy 390 px und Desktop, zwei Sprachen) und prüft, dass sie
-  sich schließen lässt und nichts speichert.
+`usePracticeReset` räumt offene Editor-/Bestätigungsdialoge und Eingaben auf. Ziele dürfen Funktionen
+sein, damit neue Einheiten, Gruppen, Nachrichten und nachfolgende Dialoge erreichbar bleiben. Im
+Übungsmodus bleiben Rechte und Load-Schalter der Mitgliedschaften maßgeblich.
+
+Fortschritt wird erst nach dem Verwerfen gespeichert, im Browser getrennt je Konto und auf dem
+Server weiter in `tours_seen`. Dafür gibt es keine Migration. `test:practice` prüft Isolation,
+Verwerfen, Fehler, Speichergrenzen, Hintergrundupdates und Server-Spione; die CI führt es mit i18n aus.
+`test:tours` führt echte Taps, Touch-Wischen, Drag/Resize, Editor-Eingaben, Gruppen, Nachrichten,
+Absagen, Bewertungen und Umfragen aus (Handy 390 px/fr und Desktop 1280 px/en), prüft Ergebnissätze
+und vergleicht das gespeicherte Dokument vor/nach Übung, Abbruch und Neuladen. Die Browserprüfung
+steht wegen der Socket-Sperre dieser Arbeitsumgebung noch aus; auch 360–430 px und Dialog-/Tastatur-
+Übergänge gehören zur visuellen Abnahme. `scripts/smoke.mjs` bleibt unverändert.
 
 ## 7. Regel für neue Funktionen (ab jetzt)
 
@@ -295,7 +349,12 @@ Baukastens nachgezogen.
 
 Jede Stufe ist ein eigener PR mit Bildern (Handy und Desktop).
 
-## 9. Offene Fragen an Ben
+## 9. Ursprüngliche Fragen an Ben (Run 69)
+
+Fragen 1–4 und 6 sind inzwischen entschieden und umgesetzt: Übungskopie, Konto-Fortschritt,
+drei Willkommens-Karten, Touren statt alter Hinweis-Karten und Wischen in beiden Kalendern.
+Frage 5 bleibt außerhalb dieses Auftrags; bestehende Funktionalität und Dauertexte bleiben erhalten.
+Die damaligen Fragen sind hier als Historie festgehalten.
 
 1. **Üben ohne Speichern** (Übungs-Einheit, Empfehlung) oder echte Aktionen mit „Rückgängig“?
 2. **Fortschritt pro Konto** (einmal auf allen Geräten, Empfehlung) oder pro Gerät?

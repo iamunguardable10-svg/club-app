@@ -3,7 +3,7 @@
 /** A real hole in the light: events reach the app, and observed results move on. */
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { endPractice, isPracticeActive, readDatabase, startPractice, subscribe, type LocalDatabase } from '@/shared/data';
-import { useT, type MessageKey } from '@/shared/i18n';
+import { useT } from '@/shared/i18n';
 import { preparePractice, type Gesture, type TourContext, type TourId, type TourStep } from './tours';
 
 type Rect = { top: number; left: number; width: number; height: number };
@@ -34,16 +34,6 @@ export function findTourTarget(id: string): HTMLElement | null {
     const box = element.getBoundingClientRect();
     return box.width > 0 && box.height > 0 && getComputedStyle(element).visibility !== 'hidden';
   }) ?? null;
-}
-
-/** "Try it: tap the light" and the like, by gesture and by touch or mouse. */
-function tryKey(gesture: Gesture, fine: boolean): MessageKey {
-  const kind = gesture === 'tap' ? 'Tap' : gesture === 'resize' ? 'Resize' : gesture === 'drag' ? 'Drag' : 'Swipe';
-  const keys: Record<string, MessageKey> = {
-    touchTap: 'tour.try.touchTap', touchSwipe: 'tour.try.touchSwipe', touchDrag: 'tour.try.touchDrag', touchResize: 'tour.try.touchResize',
-    mouseTap: 'tour.try.mouseTap', mouseSwipe: 'tour.try.mouseSwipe', mouseDrag: 'tour.try.mouseDrag', mouseResize: 'tour.try.mouseResize',
-  };
-  return keys[`${fine ? 'mouse' : 'touch'}${kind}`];
 }
 
 function GestureHint({ gesture, rect, fine }: { gesture: Gesture; rect: Rect; fine: boolean }) {
@@ -155,8 +145,7 @@ export function Tour({ id, steps: allSteps, onClose }: { id: TourId; steps: Tour
     if (finished.current) return;
     finished.current = true;
     clearTimers();
-    endPractice();
-    closeRef.current(result);
+    try { endPractice(); } finally { closeRef.current(result); }
   }, [clearTimers]);
   const next = useCallback(() => {
     if (finished.current) return;
@@ -252,7 +241,7 @@ export function Tour({ id, steps: allSteps, onClose }: { id: TourId; steps: Tour
         }
         // Only the visible part of a long calendar column is framed. Gestures
         // continue beyond the hole; the dim panels yield during an active gesture.
-        const top = Math.max(b.height > height - cardHeight - 60 ? cardHeight + 32 : 8, b.top - PAD);
+        const top = Math.max(b.height > height - (cardRef.current?.offsetHeight ?? 180) - 60 ? (cardRef.current?.getBoundingClientRect().bottom ?? 212) + 16 : 8, b.top - PAD);
         const bottom = Math.min(height - 8, b.bottom + PAD);
         const measured = { top, left: Math.max(0, b.left - PAD), width: Math.min(width, b.right + PAD) - Math.max(0, b.left - PAD), height: Math.max(0, bottom - top) };
         if (!sameRect(previous, measured)) { previous = measured; setRect(measured); }
@@ -271,7 +260,7 @@ export function Tour({ id, steps: allSteps, onClose }: { id: TourId; steps: Tour
       if (currentPhase !== 'result') { currentPhase = 'show'; setPhase('show'); later(650, () => setHint(true)); }
     });
     return () => { stop(); targetRef.current?.removeAttribute('data-tour-active'); targetRef.current = null; window.cancelAnimationFrame(frame); clearTimers(); };
-  }, [started, step, index, reduced, practiceTour, clearTimers, finish, later, next, cardHeight]);
+  }, [started, step, index, reduced, practiceTour, clearTimers, finish, later, next]);
 
   useLayoutEffect(() => {
     if (cardRef.current) setCardHeight(cardRef.current.offsetHeight);
@@ -335,16 +324,16 @@ export function Tour({ id, steps: allSteps, onClose }: { id: TourId; steps: Tour
         {panel('left', 0, rect.top, rect.left, rect.height)}
         {panel('right', rect.left + rect.width, rect.top, viewport.width - rect.left - rect.width, rect.height)}
         {panel('bottom', 0, rect.top + rect.height, viewport.width, viewport.height - rect.top - rect.height)}
-        <div aria-hidden className="pointer-events-none tour-glow fixed rounded-2xl border-2 border-emerald-200/80" style={{ width: rect.width, height: rect.height, transform: `translate3d(${rect.left}px,${rect.top}px,0)`, transition: reduced ? 'none' : 'transform 380ms cubic-bezier(.2,.8,.2,1)' }} />
+        <div aria-hidden className="pointer-events-none tour-glow fixed rounded-2xl border-2 border-emerald-200/80" style={{ animation: 'none', boxShadow: '0 0 0 4px rgb(167 243 208 / 12%), 0 0 24px rgb(167 243 208 / 18%)', width: rect.width, height: rect.height, transform: `translate3d(${rect.left}px,${rect.top}px,0)`, transition: reduced ? 'none' : 'transform 380ms cubic-bezier(.2,.8,.2,1)' }} />
       </> : panel('all', 0, 0, viewport.width, viewport.height)}
-      <style>{`body:has([data-practice-active="true"]) [aria-modal="true"]:not([data-welcome]) { background-color: transparent; backdrop-filter: none; padding-top: ${cardHeight + 32}px; } body:has([data-practice-active="true"]) [aria-modal="true"]:not([data-welcome]) > section, body:has([data-practice-active="true"]) [aria-modal="true"]:not([data-welcome]) > div { max-height: calc(100dvh - ${cardHeight + 48}px); overflow-y: auto; }`}</style>
+      <style>{`body:has([data-tour-key]) [aria-modal="true"]:not([data-welcome]) { background-color: transparent; backdrop-filter: none; padding-top: calc(${cardHeight + 32}px + env(safe-area-inset-top)); } body:has([data-tour-key]) [aria-modal="true"]:not([data-welcome]) > section, body:has([data-tour-key]) [aria-modal="true"]:not([data-welcome]) > div { max-height: calc(100dvh - ${cardHeight + 48}px); overflow-y: auto; }`}</style>
       {rect && success ? <span aria-hidden data-tour-success className="fixed grid h-9 w-9 place-items-center rounded-full bg-emerald-300 text-xl font-black text-slate-950 shadow-lg" style={{ transform: `translate3d(${rect.left + rect.width - 24}px,${rect.top - 8}px,0)` }}>✓</span> : null}
       {rect && (step.kind !== 'do' || success) ? <div className="pointer-events-auto fixed" onPointerDown={() => setNudge(true)} style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }} /> : null}
       {rect && hint && shown && !success && !reduced ? <GestureHint gesture={gesture} rect={rect} fine={fine} /> : null}
       <div ref={cardRef} role="dialog" aria-labelledby={titleId} aria-describedby={`${titleId}-text`} tabIndex={-1}
         data-tour-key={step.title} data-tour-kind={step.kind ?? 'show'} data-tour-gesture={gesture} data-tour-phase={phase}
         className="pointer-events-auto fixed rounded-3xl border border-white/10 bg-slate-900 p-4 text-white shadow-2xl outline-none"
-        style={{ width, transform: `translate3d(${left}px,${top + (shown ? 0 : 8)}px,0)`, opacity: shown ? 1 : 0, transition: reduced ? 'none' : 'transform 380ms cubic-bezier(.2,.8,.2,1), opacity 240ms ease' }}>
+        style={{ width, maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)', overflowY: 'auto', transform: `translate3d(${left}px,calc(${top + (shown ? 0 : 8)}px + env(safe-area-inset-top)),0)`, opacity: shown ? 1 : 0, transition: reduced ? 'none' : 'transform 380ms cubic-bezier(.2,.8,.2,1), opacity 240ms ease' }}>
         <div className="flex items-start justify-between gap-3">
           <p id={titleId} className="text-base font-black">{t(step.title)}{index === 0 && practiceTour ? <span className="ml-2 rounded-full bg-emerald-300/10 px-2 py-1 align-middle text-[10px] text-emerald-200">{t('tour.practice.new')}</span> : null}</p>
           <button type="button" data-tour-skip onClick={() => finish('skipped')} className="rounded-full px-2 py-1 text-xs font-black text-slate-400 hover:text-white">{t('tour.skip')}</button>

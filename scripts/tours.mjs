@@ -16,6 +16,7 @@ const SCENARIOS = [
 const RAW_KEY = /\b(tour|welcome)\.[A-Za-z]+(?:\.[A-Za-z]+)+\b/;
 const problems = [];
 const performed = new Set();
+const pageActions = new WeakMap();
 let steps = 0;
 
 /** Runs before the app. Audits rather than intercepting/fulfilling any request. */
@@ -80,14 +81,24 @@ async function act(page, key, touch) {
   switch (key) {
     case 'tour.coachCalendar.swipe.title':
     case 'tour.athleteCalendar.swipe.title': {
-      // Start in the time gutter, away from existing sessions; this must be a
-      // real touch swipe (mouse events deliberately cannot switch phone days).
+      // Find empty space in the actual hole, away from existing sessions.
+      // Mouse events deliberately cannot switch phone days.
       const glow = await page.locator('.tour-glow').boundingBox();
+      assert.ok(glow, 'calendar is framed');
+      const point = await page.evaluate((box) => {
+        const x = box.x + box.width - 24;
+        for (let y = box.y + 24; y < box.y + box.height - 24; y += 24) {
+          const node = document.elementFromPoint(x, y);
+          if (node?.closest('[data-tour="calendar-swipe"]') && !node.closest('[data-athlete-calendar-item],[data-calendar-session]')) return { x, y };
+        }
+        return null;
+      }, glow);
+      assert.ok(point, 'free space for a real day swipe');
       const cdp = await page.context().newCDPSession(page);
-      const y = Math.max(340, glow.y + 35);
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 340, y }] });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+      const distance = point.x - glow.x - 24;
       for (let part = 1; part <= 12; part++) {
-        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 340 - part * 23, y }] });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: point.x - distance * part / 12, y: point.y }] });
         await page.waitForTimeout(30);
       }
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await cdp.detach();
@@ -160,11 +171,20 @@ async function act(page, key, touch) {
       if (touch) await page.touchscreen.tap(glow.x + glow.width / 2, glow.y + glow.height / 2); else await page.mouse.click(glow.x + glow.width / 2, glow.y + glow.height / 2);
       await tap(page, '[data-tour="player-in"]', touch); await tap(page, '[data-tour="player-rsvp-save"]', touch); break;
     }
-    case 'tour.practice.playerRate.title':
+    case 'tour.practice.playerRate.title': {
       if (!(await visible(page, '[data-tour="rate-sheet"]').count())) await tap(page, '[data-tour="rate-now"]', touch);
       if (await visible(page, '[data-tour="rate-scale"]').count()) await tap(page, visible(page, '[data-tour="rate-scale"]').locator('button').nth(5), touch);
-      await visible(page, '[data-tour="rate-minutes"] input').fill('60');
+      const slider = visible(page, '[data-tour="rate-minutes"] input');
+      await slider.scrollIntoViewIfNeeded(); await page.waitForTimeout(100);
+      const bounds = await slider.boundingBox();
+      const minimum = Number(await slider.getAttribute('min'));
+      const maximum = Number(await slider.getAttribute('max'));
+      const x = bounds.x + 8 + (bounds.width - 16) * (60 - minimum) / (maximum - minimum);
+      const y = bounds.y + bounds.height / 2;
+      if (touch) await page.touchscreen.tap(x, y); else await page.mouse.click(x, y);
+      assert.ok(Math.abs(Number(await slider.inputValue()) - 60) <= 5, 'duration changed with the real slider');
       await tap(page, '[data-tour="rate-save"]', touch); break;
+    }
     case 'tour.athleteMessages.chips.title': await tap(page, '[data-message-source^="team:"]', touch); break;
     case 'tour.practice.playerPoll.title': await tap(page, visible(page, '[data-tour-active]').locator('button').first(), touch); break;
     case 'tour.practice.clubTeam.title': {
@@ -214,6 +234,7 @@ async function playAll(page, label, touch) {
       }, key, { timeout: 8000 });
       assert.ok(await card.locator('[aria-live]').innerText(), `success sentence for ${key}`);
       performed.add(key);
+      pageActions.get(page)?.add(key);
       await page.waitForTimeout(1700);
     } else {
       await card.locator('[data-tour-next]').click(); await page.waitForTimeout(300);
@@ -249,6 +270,8 @@ try {
       const context = await browser.newContext({ viewport, hasTouch: touch, isMobile: touch, timezoneId: 'Europe/Berlin' });
       await context.addInitScript(auditPractice, locale);
       const page = await context.newPage();
+      const actions = new Set();
+      pageActions.set(page, actions);
       await page.clock.install({ time: new Date('2026-10-06T10:00:00Z') });
       const tag = `${locale} ${touch ? 'phone' : 'desktop'} ${role}`;
       page.on('pageerror', (error) => problems.push(`${tag}: ${error.message}`));
@@ -268,6 +291,8 @@ try {
           await page.goto(BASE + url, { waitUntil: 'load' }); await page.waitForTimeout(1600);
           await playAll(page, `${tag} ${route}`, touch); await checkAudit(page);
         }
+        const required = role === 'athlete' ? ['playerOut', 'playerBack', 'playerRate', 'playerPoll'] : role === 'coach' ? ['calendarSave', 'calendarDelete', 'groupCreate', 'groupMembers', 'messageSend', 'messageDelete'] : ['clubTeam', 'hallCreate', 'messageSend', 'messageDelete'];
+        for (const key of required) assert.ok(actions.has(`tour.practice.${key}.title`), `${tag}: completed ${key}`);
         await page.goto(BASE + routes[0]); await page.waitForTimeout(2600);
         if (await visible(page, '[data-tour="rate-later"]').count()) await tap(page, '[data-tour="rate-later"]', touch);
         assert.equal(await page.locator('[data-tour-layer]').count(), 0, 'seen tours do not repeat');
@@ -280,6 +305,15 @@ try {
           await tap(page, '[data-tour="help"]', touch); await page.waitForTimeout(900);
           await sendPracticeMessage(page, touch);
           await page.locator('[data-tour-skip]').click(); await page.waitForTimeout(300); await checkAudit(page);
+          await tap(page, '[data-tour="help"]', touch); await page.waitForTimeout(900);
+          await sendPracticeMessage(page, touch);
+          // Exercise a client navigation while a tour is active: its normal
+          // pointer hole confines taps, but routing can still change externally.
+          await page.locator('a[href="/coach/history"]').first().evaluate((link) => link.click());
+          await page.waitForURL('**/coach/history'); await page.waitForTimeout(900);
+          assert.equal(await page.locator('[data-practice-active]').count(), 0, 'navigation ends the sandbox');
+          await checkAudit(page);
+          await page.goto(BASE + '/messages'); await page.waitForTimeout(1600);
           await page.emulateMedia({ reducedMotion: 'reduce' });
           await tap(page, '[data-tour="help"]', touch); await page.waitForTimeout(900);
           await sendPracticeMessage(page, touch);

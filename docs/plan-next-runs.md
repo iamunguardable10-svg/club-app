@@ -341,7 +341,9 @@ weiteren Teams oder Vereinen aber nötig:
   zwischen Wochen springen und zurück zur aktuellen Woche. Für jede Seite so planen (Gesten und
   Bedienelemente der Seite, kurz animiert, Schritt für Schritt).
   → **Konzept (2026-10-03): `docs/onboarding-concept.md`, gebaut in Run 70** (Willkommen, Touren aller
-  Seiten mit Gesten, Moment-Tipps; offen: Leerzustände, Einrichtungs-Liste, „Neu“-Hinweise).
+  Seiten mit Gesten, Moment-Tipps). **Run 72: praktische Übungen und neuer persönlicher Einstieg implementiert**
+  (echter Kalender, Gruppen, Nachrichten, Spielerantworten/RPE, Team/Halle; Speicher-/Server-Sandbox).
+  Browser-Abnahme beim Reviewer offen (`EPERM` für lokale Server hier); Leerzustände und Einrichtungs-Liste bleiben spätere Stücke.
   Neue Funktionen planen ihr Onboarding ab jetzt mit (Regel dort, Abschnitt 7, und `AGENTS.md`).
 - **Entschlacken auf dem Handy (Punkt 9, später):** Kandidaten siehe Run 59 bzw. Chat vom 2026-09-28
   (grüner Satz „Du bist dabei · tippe hier …“, „Kalender ›“, „ABWESEND“, Erklärsätze im Verlauf, in der
