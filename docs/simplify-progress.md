@@ -2655,3 +2655,20 @@ Nichtgefallen zurückrollen.
 - Texte in vier Sprachen (173 neue); neuer Test `npm run test:tours` (in der CI).
 Geprüft: Handy und Desktop, alle Rollen, fr/en (`test:tours`: 122 Schritte, Gesten wirklich
 ausgeführt, zweiter Besuch still, „?“ spielt neu), Rundgang (`test:smoke`) ohne Fehler, Bilder je Rolle.
+
+## Run 71 — Touren fühlen sich nativ an: Ergebnis und Luft zwischen den Gesten (erledigt)
+
+Rückmeldung (Ben): Zwischen den Gesten fehlte die Luft und das fertige Ergebnis; es fühlte sich nicht
+wie in klassischen Apps an.
+- **Drei Takte je Schritt:** das Licht gleitet zum Element (und die Seite scrollt), dann kommt die
+  Karte, dann erst der Gesten-Hinweis. Zwischen den Schritten blendet die Karte aus, das Licht gleitet
+  weiter; am Ende blendet alles sanft aus.
+- **Direkte Bedienung:** eine Kopie des Elements hebt sich ab und folgt dem Finger (ziehen, Unterkante
+  länger ziehen, wegwischen; beim Tippen wird sie eingedrückt). Beim Loslassen rastet sie ein (Raster
+  wie im Kalender), beim Wischen fliegt der Tag weg und der nächste schiebt sich herein. Eine falsche
+  Geste federt zurück. Android vibriert kurz.
+- **Fertiges Ergebnis:** Haken am Element und ein Satz, was gerade passiert ist (51 neue Texte je
+  Sprache, z. B. „Verschoben – die Spieler bekommen die neue Zeit sofort.“); es bleibt 1,6 s stehen.
+- Weniger Bewegung: dieselben Takte, nur kürzer.
+Geprüft: Bilder am Handy und Desktop (Tippen, Ziehen, Kante, Wischen jeweils während und nach der
+Geste), `test:tours` (prüft jetzt auch, dass nach jeder Geste das Ergebnis erscheint), `test:smoke`.
