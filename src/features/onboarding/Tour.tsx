@@ -122,6 +122,9 @@ export function Tour({ id, steps: allSteps, onClose }: { id: TourId; steps: Tour
   const [rect, setRect] = useState<Rect | null>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [cardHeight, setCardHeight] = useState(180);
+  const cardHeightRef = useRef(cardHeight);
+  cardHeightRef.current = cardHeight;
+  const [docked, setDocked] = useState(false);
   const [started, setStarted] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const context = useRef<TourContext | null>(null);
@@ -199,11 +202,14 @@ export function Tour({ id, steps: allSteps, onClose }: { id: TourId; steps: Tour
       try { step.enter?.(); } catch { finish('skipped'); return; }
     }
     setPhase('arrive'); setHint(false); setNudge(false);
+    setRect(null);
     let currentPhase: Phase = 'arrive';
     let frame = 0;
     let scrolled: HTMLElement | null = null;
     let missingSince = performance.now();
     let previous: Rect | null = null;
+    const arrivedAt = performance.now();
+    let settledAt = arrivedAt;
     const resolve = () => currentPhase === 'result' && step.resultTarget ? step.resultTarget(readDatabase()!, ctx) : typeof step.target === 'function'
       ? step.target(readDatabase()!, ctx)
       : step.target ? findTourTarget(step.target) : null;
@@ -233,7 +239,6 @@ export function Tour({ id, steps: allSteps, onClose }: { id: TourId; steps: Tour
         targetRef.current = element;
       }
       if (visible(element)) {
-        missingSince = performance.now();
         const b = element.getBoundingClientRect();
         if (!element.closest('[aria-modal="true"]') && scrolled !== element && (b.top < 64 || b.bottom > height - 80)) {
           scrolled = element;
@@ -241,30 +246,45 @@ export function Tour({ id, steps: allSteps, onClose }: { id: TourId; steps: Tour
         }
         // Only the visible part of a long calendar column is framed. Gestures
         // continue beyond the hole; the dim panels yield during an active gesture.
-        const top = Math.max(b.height > height - (cardRef.current?.offsetHeight ?? 180) - 60 ? (cardRef.current?.getBoundingClientRect().bottom ?? 212) + 16 : 8, b.top - PAD);
+        // Reserve space from the card's size, never its moving position. Using
+        // its bottom edge here creates a highlight/card placement feedback loop.
+        const dock = Boolean(element.closest('[aria-modal="true"]')) || b.height > height - cardHeightRef.current - 60;
+        setDocked(dock);
+        const top = Math.max(dock ? cardHeightRef.current + 44 : 8, b.top - PAD);
         const bottom = Math.min(height - 8, b.bottom + PAD);
         const measured = { top, left: Math.max(0, b.left - PAD), width: Math.min(width, b.right + PAD) - Math.max(0, b.left - PAD), height: Math.max(0, bottom - top) };
-        if (!sameRect(previous, measured)) { previous = measured; setRect(measured); }
+        if (measured.width > 0 && measured.height > 0) {
+          missingSince = performance.now();
+          if (!sameRect(previous, measured)) { settledAt = performance.now(); previous = measured; setRect(measured); }
+          if (currentPhase === 'arrive' && performance.now() - arrivedAt >= (reduced ? 0 : 420) && performance.now() - settledAt >= 100) {
+            currentPhase = 'show'; setPhase('show'); later(650, () => setHint(true));
+          }
+        } else {
+          previous = null; setRect(null);
+          if (performance.now() - missingSince > 1500) { next(); return; }
+        }
       } else {
         if (previous) { previous = null; setRect(null); }
-        // Informational steps may be absent due to role, data or feature flags.
-        // Required actions wait for their newly opened UI and keep Next/Skip.
-        if (step.kind !== 'do' && step.target && performance.now() - missingSince > 1200) { next(); return; }
+        // Actions and explanations both yield when their real target is absent.
+        if (performance.now() - missingSince > 1500) { next(); return; }
       }
       observe();
       frame = window.requestAnimationFrame(measure);
     };
     measure();
     const stop = subscribe(observe);
-    later(reduced ? 0 : 420, () => {
-      if (currentPhase !== 'result') { currentPhase = 'show'; setPhase('show'); later(650, () => setHint(true)); }
-    });
     return () => { stop(); targetRef.current?.removeAttribute('data-tour-active'); targetRef.current = null; window.cancelAnimationFrame(frame); clearTimers(); };
   }, [started, step, index, reduced, practiceTour, clearTimers, finish, later, next]);
 
   useLayoutEffect(() => {
-    if (cardRef.current) setCardHeight(cardRef.current.offsetHeight);
-  }, [phase, index, nudge, viewport.width]);
+    const card = cardRef.current;
+    if (!card) return;
+    const measure = () => setCardHeight(card.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(card);
+    return () => observer.disconnect();
+  }, [started]);
   useEffect(() => {
     if (phase === 'show' && step?.kind !== 'do') cardRef.current?.focus({ preventScroll: true });
   }, [phase, step]);
@@ -311,7 +331,7 @@ export function Tour({ id, steps: allSteps, onClose }: { id: TourId; steps: Tour
   const width = Math.max(0, Math.min(380, viewport.width - margin * 2));
   const below = rect ? rect.top + rect.height + 14 : 0;
   const above = rect ? rect.top - cardHeight - 14 : 0;
-  const top = rect ? (below + cardHeight <= viewport.height - margin ? below : above >= margin ? above : margin) : Math.max(margin, viewport.height - cardHeight - margin);
+  const top = docked ? margin : rect ? (below + cardHeight <= viewport.height - margin ? below : above >= margin ? above : margin) : margin;
   const left = viewport.width < 640 ? margin : rect ? Math.min(Math.max(margin, rect.left + rect.width / 2 - width / 2), viewport.width - width - margin) : (viewport.width - width) / 2;
   const shown = phase === 'show' || success;
   const panel = (key: string, x: number, y: number, w: number, h: number) => (
@@ -324,16 +344,16 @@ export function Tour({ id, steps: allSteps, onClose }: { id: TourId; steps: Tour
         {panel('left', 0, rect.top, rect.left, rect.height)}
         {panel('right', rect.left + rect.width, rect.top, viewport.width - rect.left - rect.width, rect.height)}
         {panel('bottom', 0, rect.top + rect.height, viewport.width, viewport.height - rect.top - rect.height)}
-        <div aria-hidden className="pointer-events-none tour-glow fixed rounded-2xl border-2 border-emerald-200/80" style={{ animation: 'none', boxShadow: '0 0 0 4px rgb(167 243 208 / 12%), 0 0 24px rgb(167 243 208 / 18%)', width: rect.width, height: rect.height, transform: `translate3d(${rect.left}px,${rect.top}px,0)`, transition: reduced ? 'none' : 'transform 380ms cubic-bezier(.2,.8,.2,1)' }} />
-      </> : panel('all', 0, 0, viewport.width, viewport.height)}
+        <div aria-hidden className="pointer-events-none tour-glow fixed left-0 top-0 rounded-2xl border-2 border-emerald-200/80" style={{ animation: 'none', boxShadow: '0 0 0 4px rgb(167 243 208 / 12%), 0 0 24px rgb(167 243 208 / 18%)', width: rect.width, height: rect.height, transform: `translate3d(${rect.left}px,${rect.top}px,0)` }} />
+      </> : null}
       <style>{`body:has([data-tour-key]) [aria-modal="true"]:not([data-welcome]) { background-color: transparent; backdrop-filter: none; padding-top: calc(${cardHeight + 32}px + env(safe-area-inset-top)); } body:has([data-tour-key]) [aria-modal="true"]:not([data-welcome]) > section, body:has([data-tour-key]) [aria-modal="true"]:not([data-welcome]) > div { max-height: calc(100dvh - ${cardHeight + 48}px); overflow-y: auto; }`}</style>
-      {rect && success ? <span aria-hidden data-tour-success className="fixed grid h-9 w-9 place-items-center rounded-full bg-emerald-300 text-xl font-black text-slate-950 shadow-lg" style={{ transform: `translate3d(${rect.left + rect.width - 24}px,${rect.top - 8}px,0)` }}>✓</span> : null}
+      {rect && success ? <span aria-hidden data-tour-success className="fixed left-0 top-0 grid h-9 w-9 place-items-center rounded-full bg-emerald-300 text-xl font-black text-slate-950 shadow-lg" style={{ transform: `translate3d(${rect.left + rect.width - 24}px,${rect.top - 8}px,0)` }}>✓</span> : null}
       {rect && (step.kind !== 'do' || success) ? <div className="pointer-events-auto fixed" onPointerDown={() => setNudge(true)} style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }} /> : null}
       {rect && hint && shown && !success && !reduced ? <GestureHint gesture={gesture} rect={rect} fine={fine} /> : null}
       <div ref={cardRef} role="dialog" aria-labelledby={titleId} aria-describedby={`${titleId}-text`} tabIndex={-1}
-        data-tour-key={step.title} data-tour-kind={step.kind ?? 'show'} data-tour-gesture={gesture} data-tour-phase={phase}
-        className="pointer-events-auto fixed rounded-3xl border border-white/10 bg-slate-900 p-4 text-white shadow-2xl outline-none"
-        style={{ width, maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)', overflowY: 'auto', transform: `translate3d(${left}px,calc(${top + (shown ? 0 : 8)}px + env(safe-area-inset-top)),0)`, opacity: shown ? 1 : 0, transition: reduced ? 'none' : 'transform 380ms cubic-bezier(.2,.8,.2,1), opacity 240ms ease' }}>
+        data-tour-key={rect ? step.title : undefined} data-tour-kind={step.kind ?? 'show'} data-tour-gesture={gesture} data-tour-phase={phase}
+        className="fixed left-0 top-0 rounded-3xl border border-white/10 bg-slate-900 p-4 text-white shadow-2xl outline-none"
+        style={{ width, visibility: rect ? 'visible' : 'hidden', pointerEvents: rect ? 'auto' : 'none', maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)', overflowY: 'auto', transform: `translate3d(${left}px,calc(${top}px + env(safe-area-inset-top)),0)`, opacity: shown ? 1 : 0 }}>
         <div className="flex items-start justify-between gap-3">
           <p id={titleId} className="text-base font-black">{t(step.title)}{index === 0 && practiceTour ? <span className="ml-2 rounded-full bg-emerald-300/10 px-2 py-1 align-middle text-[10px] text-emerald-200">{t('tour.practice.new')}</span> : null}</p>
           <button type="button" data-tour-skip onClick={() => finish('skipped')} className="rounded-full px-2 py-1 text-xs font-black text-slate-400 hover:text-white">{t('tour.skip')}</button>
@@ -344,7 +364,7 @@ export function Tour({ id, steps: allSteps, onClose }: { id: TourId; steps: Tour
         </p>
         <div className="mt-3 flex items-center justify-between gap-3">
           <span className="text-xs text-slate-400">{t('tour.progress', { step: index + 1, total: steps.length })}</span>
-          <button type="button" data-tour-next onClick={next} className="rounded-xl bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950 transition active:scale-95">{t(index === steps.length - 1 ? 'tour.done' : 'tour.next')}</button>
+          <button type="button" data-tour-next onClick={next} className="rounded-xl bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950">{t(index === steps.length - 1 ? 'tour.done' : 'tour.next')}</button>
         </div>
       </div>
     </div>

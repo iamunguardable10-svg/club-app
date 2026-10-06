@@ -22,7 +22,7 @@ export type TourStep = {
   when?: (database: LocalDatabase) => boolean;
   enter?: () => void;
   leave?: () => void;
-  /** `data-tour` of the element; none for a card in the middle of the screen. */
+  /** A real element must be available before the card is shown. */
   target?: string | TourTarget;
   title: MessageKey;
   text: MessageKey;
@@ -158,6 +158,16 @@ function prepareRating() {
 }
 
 const help = step('help', 'help');
+const groupTarget: TourTarget = (db, ctx) => {
+  const group = newGroup(db, ctx);
+  return group ? tourElement(`[data-group-id="${group.id}"]`) : null;
+};
+const hallTarget: TourTarget = (db, ctx) => {
+  const hall = db.facilities.find((row) => !ctx.initial.facilities.some((old) => old.id === row.id));
+  return hall ? tourElement(`[data-facility-id="${hall.id}"]`) : null;
+};
+
+export const CONTINUE_STEPS: TourStep[] = [step('practice.continue', 'help')];
 
 export const TOURS: Record<TourId, TourStep[]> = {
   'athlete.today': [
@@ -187,11 +197,8 @@ export const TOURS: Record<TourId, TourStep[]> = {
     step('athleteMessages.pinned', 'messages-pinned'),
   ],
   'coach.today': [
-    { ...action('coachToday.session', 'coach-session', () => Boolean(sheet())), resultTarget: sheet, leave: () => [...(sheet()?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find((button) => button.textContent?.trim() === tr('sessionSheet.close'))?.click() },
-    step('coachToday.open', 'coach-open', 'tap'),
-    step('coachToday.upcoming', 'coach-upcoming', 'tap'),
-    step('coachToday.messages', 'messages-icon', 'tap'),
-    step('coachToday.nav', 'nav'),
+    { ...step('coachToday.overview'), target: () => target('coach-session') ?? target('coach-upcoming')?.closest('ul') ?? target('nav') },
+    step('coachToday.messages', 'messages-icon'),
     help,
   ],
   'coach.calendar': [
@@ -226,7 +233,7 @@ export const TOURS: Record<TourId, TourStep[]> = {
       const group = newGroup(db, ctx);
       return Boolean(group && db.playerGroupMembers.filter((row) => row.groupId === group.id).length >= 2);
     }),
-    step('practice.groupScope'),
+    { ...step('practice.groupScope'), target: groupTarget },
     action('coachTeam.messages', 'team-tab-messages', () => isSelected('team-tab-messages', 'aria-selected')),
     step('coachTeam.settings', 'team-tab-settings'),
   ],
@@ -251,13 +258,13 @@ export const TOURS: Record<TourId, TourStep[]> = {
     }), resultTarget: (_db, ctx) => tourElement(`[data-club-team-id="${ctx.memory.team}"]`) },
     { ...step('practice.clubInvite'), target: (_db, ctx) => tourElement(`[data-club-team-id="${ctx.memory.team}"]`) },
     { ...action('practice.hallEdit', 'halls-edit', () => Boolean(target('halls-add'))), resultTarget: () => target('halls-add') },
-    { ...action('practice.hallCreate', 'halls-add', (db, ctx) => db.facilities.some((row) => !ctx.initial.facilities.some((old) => old.id === row.id))), resultTarget: (db, ctx) => { const hall = db.facilities.find((row) => !ctx.initial.facilities.some((old) => old.id === row.id)); return hall ? tourElement(`[data-facility-id="${hall.id}"]`) : null; } },
-    step('practice.discard'),
+    { ...action('practice.hallCreate', 'halls-add', (db, ctx) => db.facilities.some((row) => !ctx.initial.facilities.some((old) => old.id === row.id))), resultTarget: hallTarget },
+    { ...step('practice.discard'), target: hallTarget },
   ],
   'club.halls': [
     { ...action('practice.hallEdit', 'halls-edit', () => Boolean(target('halls-add'))), resultTarget: () => target('halls-add') },
-    { ...action('practice.hallCreate', 'halls-add', (db, ctx) => db.facilities.some((row) => !ctx.initial.facilities.some((old) => old.id === row.id))), resultTarget: (db, ctx) => { const hall = db.facilities.find((row) => !ctx.initial.facilities.some((old) => old.id === row.id)); return hall ? tourElement(`[data-facility-id="${hall.id}"]`) : null; } },
-    step('practice.discard'),
+    { ...action('practice.hallCreate', 'halls-add', (db, ctx) => db.facilities.some((row) => !ctx.initial.facilities.some((old) => old.id === row.id))), resultTarget: hallTarget },
+    { ...step('practice.discard'), target: hallTarget },
   ],
   messages: [
     { ...action('messages.to', 'compose-to', () => Boolean(target('compose-recipients'))), resultTarget: () => target('compose-recipients') },
@@ -265,7 +272,7 @@ export const TOURS: Record<TourId, TourStep[]> = {
     action('practice.messageWrite', 'compose-body', () => Boolean((target('compose-text') as HTMLTextAreaElement | null)?.value.trim())),
     action('practice.messagePin', 'compose-important', () => Boolean(target('compose-important')?.querySelector<HTMLInputElement>('input')?.checked)),
     { ...action('practice.messageSend', 'compose-send', (db, ctx) => Boolean(newMessage(db, ctx))), resultTarget: messageTarget },
-    action('practice.messageDelete', (db, ctx) => sheet() ?? messageTarget(db, ctx), (db, ctx) => Boolean(ctx.memory.message) && !db.messages.some((row) => row.id === ctx.memory.message)),
+    { ...action('practice.messageDelete', (db, ctx) => sheet() ?? messageTarget(db, ctx), (db, ctx) => Boolean(ctx.memory.message) && !db.messages.some((row) => row.id === ctx.memory.message)), resultTarget: () => target('compose-send') },
     action('messages.poll', (db) => target('compose-poll')?.closest('form') ?? null, () => Boolean(target('compose-poll')?.querySelector<HTMLInputElement>('input')?.checked)),
   ],
   'moment.rate': [

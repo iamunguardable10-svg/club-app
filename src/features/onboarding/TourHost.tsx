@@ -8,21 +8,21 @@
  * at something hidden behind it. Seen tours are remembered per account.
  */
 
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { athleteHasLoad, readDatabase, endPractice, isPracticeActive, isTourSeen, loadToursFromAccount, markTourSeen, toursSwitchedOff, useLocalDatabase } from '@/shared/data';
 
 import { Tour, type TourResult } from './Tour';
-import { onTourRequest } from './tourBus';
-import { TOURS, type PageTourId, type TourId } from './tours';
+import { onTourRequest, planPracticeArrival, takePracticeArrival } from './tourBus';
+import { CONTINUE_STEPS, TOURS, type PageTourId, type TourId } from './tours';
 import { Welcome, type WelcomeRole } from './Welcome';
 
 // New hands-on tours are offered once to people who saw the old visual tours.
 const hasSeen = (id: TourId) => isTourSeen(id.startsWith('moment.') ? id : `${id}.practice-v1`);
 const remember = (id: TourId) => markTourSeen(id.startsWith('moment.') ? id : `${id}.practice-v1`);
 
-type Active = { kind: 'welcome' } | { kind: 'tour'; id: TourId } | null;
+type Active = { kind: 'welcome' } | { kind: 'tour'; id: TourId } | { kind: 'continue'; id: PageTourId; href: string } | null;
 
 /** Another app dialog on screen (the tour's own layer is not one). */
 function otherDialogOpen() {
@@ -31,12 +31,14 @@ function otherDialogOpen() {
 
 export function TourHost({ role, pageTour }: { role: WelcomeRole; pageTour: PageTourId | null }) {
   const pathname = usePathname();
+  const router = useRouter();
   const search = useSearchParams().toString();
   const { database } = useLocalDatabase();
   const ready = Boolean(database?.activeIdentity);
   const [active, setActive] = useState<Active>(null);
   const activeRef = useRef<Active>(null);
   const waiting = useRef<TourId[]>([]);
+  const guided = useRef(false);
   activeRef.current = active;
 
   const location = `${pathname}?${search}`;
@@ -73,13 +75,20 @@ export function TourHost({ role, pageTour }: { role: WelcomeRole; pageTour: Page
   const stopPending = useRef<() => void>(() => {});
   const resume = useCallback(() => {
     if (activeRef.current !== null || toursSwitchedOff()) return;
+    const arrival = takePracticeArrival(pathname);
+    if (arrival) {
+      guided.current = true;
+      stopPending.current();
+      stopPending.current = startWhenFree({ kind: 'tour', id: arrival.id });
+      return;
+    }
     const pending = waiting.current.filter((id) => !hasSeen(id));
     waiting.current = pending.slice(1);
     stopPending.current();
     if (!isTourSeen(welcomeId)) stopPending.current = startWhenFree({ kind: 'welcome' });
     else if (pageTour && !hasSeen(pageTour) && !emptyThisVisit.current) stopPending.current = startWhenFree({ kind: 'tour', id: pageTour });
     else if (pending[0]) stopPending.current = startWhenFree({ kind: 'tour', id: pending[0] });
-  }, [pageTour, startWhenFree, welcomeId]);
+  }, [pageTour, pathname, startWhenFree, welcomeId]);
 
   // On a page's first visit, once the account's memory is in.
   useEffect(() => {
@@ -117,12 +126,23 @@ export function TourHost({ role, pageTour }: { role: WelcomeRole; pageTour: Page
     markTourSeen(welcomeId);
     activeRef.current = null;
     setActive(null);
-    if (choice === 'tour' && pageTour) setActive({ kind: 'tour', id: pageTour });
+    if (choice === 'tour') {
+      const destination = role === 'coach' ? { href: '/coach/sessions', id: 'coach.calendar' as const }
+        : role === 'athlete' ? { href: '/athlete/home', id: 'athlete.today' as const }
+        : { href: '/club', id: 'club.club' as const };
+      guided.current = true;
+      stopPending.current();
+      if (pathname === destination.href) setActive({ kind: 'tour', id: destination.id });
+      else {
+        planPracticeArrival(destination.href, destination.id);
+        router.push(destination.href);
+      }
+    }
     else {
       if (pageTour) remember(pageTour);
       waiting.current = [];
     }
-  }, [pageTour, welcomeId]);
+  }, [pageTour, pathname, role, router, welcomeId]);
 
   const closeTour = useCallback((id: TourId, result: TourResult) => {
     endPractice();
@@ -133,15 +153,41 @@ export function TourHost({ role, pageTour }: { role: WelcomeRole; pageTour: Page
     else if (id === pageTour) emptyThisVisit.current = true;
     activeRef.current = null;
     setActive(null);
+    if (guided.current && result === 'done') {
+      if (id === 'coach.calendar') {
+        const teamId = real?.memberships.find((m) => m.personId === real.activeIdentity?.personId && m.role === 'coach')?.teamId;
+        setActive({ kind: 'continue', id: 'coach.team', href: teamId ? `/coach/team?teamId=${encodeURIComponent(teamId)}` : '/coach/team' });
+        return;
+      }
+      if (id === 'coach.team') {
+        setActive({ kind: 'continue', id: 'messages', href: '/messages' });
+        return;
+      }
+      if (id === 'athlete.today') {
+        planPracticeArrival('/athlete/messages', 'athlete.messages');
+        router.push('/athlete/messages');
+        return;
+      }
+    }
+    guided.current = false;
     window.setTimeout(resume, 350);
-  }, [pageTour, resume]);
+  }, [pageTour, resume, router]);
 
   if (!active) return null;
   return (
     <div data-tour-layer>
       {active.kind === 'welcome'
         ? <Welcome role={role} onClose={closeWelcome} />
-        : <Tour key={`${active.id}:${location}`} id={active.id} steps={TOURS[active.id]} onClose={(result) => closeTour(active.id, result)} />}
+        : active.kind === 'continue'
+          ? <Tour key={`continue:${active.id}:${location}`} id={active.id} steps={CONTINUE_STEPS} onClose={(result) => {
+            guided.current = result === 'done';
+            activeRef.current = null; setActive(null);
+            if (result === 'done') {
+              planPracticeArrival(active.href.split('?')[0], active.id);
+              router.push(active.href);
+            }
+          }} />
+          : <Tour key={`${active.id}:${location}`} id={active.id} steps={TOURS[active.id]} onClose={(result) => closeTour(active.id, result)} />}
     </div>
   );
 }
