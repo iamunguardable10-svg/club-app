@@ -1,5 +1,7 @@
 'use client';
 
+import { isPracticeActive } from '@/shared/data';
+import { usePracticeReset } from '@/features/onboarding/usePracticeReset';
 import Link from 'next/link';
 import { AbsencePanel } from '@/features/absences/AbsencePanel';
 import { isSessionRunning, sessionsNotOver } from '@/features/sessions/sessionTiming';
@@ -343,8 +345,10 @@ export function TeamWorkspaceView({
     { id: 'coaches', label: t('team.coaches'), status: allCoaches.length > 0 ? 'accepted' : 'missing', value: allCoaches.join(', ') || null },
   ] satisfies TeamWorkspaceStaffRole[];
   const [newGroupName, setNewGroupName] = useState('');
+  useEffect(() => { if (isPracticeActive() && activeSection === 'groups') setNewGroupName(t('tour.practice.groupName')); }, [activeSection, t]);
   const [isGroupEditMode, setIsGroupEditMode] = useState(false);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  usePracticeReset(() => { setNewGroupName(''); setIsGroupEditMode(false); setActiveGroupId(null); setDashboardSession(null); setDashboardEditingSession(null); setDashboardDeleteTargetId(null); setActiveSection(initialSection); });
   const activeGroup = useMemo(() => data.groups.find((group) => group.id === activeGroupId) ?? null, [activeGroupId, data.groups]);
   const activeGroupPlayers = useMemo(() => {
     if (!activeGroup) return [];
@@ -600,6 +604,7 @@ export function TeamWorkspaceView({
               {(onAddGroup || onRemoveGroup || onTogglePlayerGroup) ? (
                 <button
                   type="button"
+                  data-tour="group-edit"
                   onClick={() => setIsGroupEditMode((current) => !current)}
                   className={`rounded-xl border px-4 py-2 text-xs font-black transition ${isGroupEditMode ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-200 hover:bg-slate-900'}`}
                 >
@@ -609,7 +614,7 @@ export function TeamWorkspaceView({
             </div>
           </div>
           {isGroupEditMode && onAddGroup ? (
-            <div className="mt-4 flex w-full max-w-md gap-2">
+            <div data-tour="group-create" className="mt-4 flex w-full max-w-md gap-2">
               <input
                 value={newGroupName}
                 onChange={(event) => setNewGroupName(event.target.value)}
@@ -628,6 +633,7 @@ export function TeamWorkspaceView({
               return (
               <article
                 key={group.id}
+                data-group-id={group.id}
                 onClick={!isGroupEditMode ? () => setActiveGroupId(group.id) : undefined}
                 className={`rounded-2xl border border-slate-800 bg-slate-900/50 p-4 transition ${!isGroupEditMode ? 'cursor-pointer hover:border-emerald-300/50 hover:bg-slate-900' : ''}`}
               >
@@ -666,6 +672,7 @@ export function TeamWorkspaceView({
                           <button
                             key={player.id}
                             type="button"
+                            aria-pressed={selected}
                             onClick={() => onTogglePlayerGroup(group.id, player.id)}
                             className={`rounded-full border px-2 py-1 text-[11px] font-bold transition ${selected ? 'border-emerald-400/60 bg-emerald-950/30 text-emerald-100' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
                           >

@@ -7,6 +7,7 @@
  * reminder, closing a poll and deleting. Recipients vote on polls here too.
  */
 
+import { usePracticeReset } from '@/features/onboarding/usePracticeReset';
 import { useState } from 'react';
 
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
@@ -47,6 +48,7 @@ export function MessageList({
   const [openId, setOpenId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Message | null>(null);
   const [error, setError] = useState<string | null>(null);
+  usePracticeReset(() => { setDeleting(null); setOpenId(null); setError(null); });
   const nameOf = (personId: string) => {
     const person = database.people.find((candidate) => candidate.id === personId);
     return person ? displayName(person) : t('teamMessages.player');
@@ -84,7 +86,7 @@ export function MessageList({
           const pinnedUntil = messagePinnedUntil(message);
           const pinned = pinnedUntil !== null && Date.parse(pinnedUntil) > Date.now();
           return (
-            <li key={message.id} className="rounded-2xl border border-slate-800 bg-slate-950/55 p-3.5">
+            <li data-message-id={message.id} key={message.id} className="rounded-2xl border border-slate-800 bg-slate-950/55 p-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 text-sm font-black text-white">
@@ -132,7 +134,7 @@ export function MessageList({
                       {votes && !message.pollClosedAt ? (
                         <button type="button" onClick={() => run(() => closePoll(message.id))} className="text-slate-300 underline decoration-slate-600 underline-offset-2 hover:text-white">{t('poll.close')}</button>
                       ) : null}
-                      <button type="button" onClick={() => setDeleting(message)} className="text-slate-500 underline decoration-slate-700 underline-offset-2 hover:text-slate-300">{t('teamMessages.delete')}</button>
+                      <button data-tour="message-delete" type="button" onClick={() => setDeleting(message)} className="text-slate-500 underline decoration-slate-700 underline-offset-2 hover:text-slate-300">{t('teamMessages.delete')}</button>
                     </div>
                   </div>
                   {open && pending > 0 && named ? (

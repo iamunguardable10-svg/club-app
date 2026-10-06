@@ -15,6 +15,7 @@
  * data layer and the server check every change again.
  */
 
+import { FacilitiesManager } from '@/features/facilities/FacilitiesManager';
 import { useState } from 'react';
 
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
@@ -38,6 +39,7 @@ import {
   hasCoachPermission,
   isClubAdmin,
   isRemoteMode,
+  isPracticeActive,
   managedDepartmentIds,
   openClubRoleInviteFor,
   openInviteFor,
@@ -339,7 +341,7 @@ function TeamCard({
   const hasHeadCoach = staff.some((entry) => entry.role?.locked);
 
   return (
-    <li className="rounded-2xl border border-slate-800 bg-slate-950/60">
+    <li data-club-team-id={team.id} className="rounded-2xl border border-slate-800 bg-slate-950/60">
       <button type="button" data-tour="club-team" onClick={onToggle} aria-expanded={open} className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left">
         <span className="min-w-0">
           <span className="flex flex-wrap items-center gap-2">
@@ -573,6 +575,8 @@ export function ClubOverview() {
       {departments.map((department) => (
         <DepartmentSection key={department.id} database={database} department={department} personId={person.id} admin={admin} onRun={run} />
       ))}
+
+      {isPracticeActive() ? <FacilitiesManager database={database} personId={person.id} teams={managedTeams} calendarHref={(id) => `/coach/facilities/${id}/calendar?from=club`} /> : null}
 
       {admin ? (
         <CoachSection title={t('club.newDepartment')} description={t('club.newDepartmentDetail')}>

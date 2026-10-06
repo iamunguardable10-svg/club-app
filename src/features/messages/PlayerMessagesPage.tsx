@@ -12,6 +12,7 @@
 
 import { useEffect, useState } from 'react';
 
+import { usePracticeReset } from '@/features/onboarding/usePracticeReset';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
 import {
   athleteHasLoad,
@@ -51,6 +52,7 @@ export function PlayerMessagesPage() {
   const t = useT();
   const { database } = useLocalDatabase();
   const [filter, setFilter] = useState<string | null>(null);
+  usePracticeReset(() => { setFilter(null); setNewThisVisit([]); });
   const person = database ? getActivePerson(database) : null;
   const isPlayer = database?.activeIdentity?.role === 'athlete';
   const inbox = database && person && isPlayer ? messagesForPerson(database, person.id) : [];
@@ -97,7 +99,7 @@ export function PlayerMessagesPage() {
     const pinnedUntil = messagePinnedUntil(message);
     const isPinned = pinnedUntil !== null && Date.parse(pinnedUntil) > now;
     return (
-      <li key={message.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+      <li key={message.id} data-message-id={message.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="flex items-center gap-2 text-sm font-black text-white">
@@ -133,6 +135,7 @@ export function PlayerMessagesPage() {
                 return (
                   <button
                     key={key}
+                    data-message-source={key}
                     type="button"
                     aria-pressed={on}
                     onClick={() => setFilter(on ? null : key)}

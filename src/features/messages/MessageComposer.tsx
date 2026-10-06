@@ -13,12 +13,14 @@
  * the server counts them: a department lead does not see the players.
  */
 
+import { usePracticeReset } from '@/features/onboarding/usePracticeReset';
 import { useEffect, useState } from 'react';
 
 import {
   DEFAULT_MESSAGE_PIN_DAYS,
   getActivePerson,
   isRemoteMode,
+  isPracticeActive,
   MESSAGE_PIN_DAYS,
   messageRecipientIds,
   messageTargetsFor,
@@ -62,7 +64,8 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
   const [serverReach, setServerReach] = useState<{ key: string; count: number | null } | null>(null);
   const reachKey = JSON.stringify([targets.teamIds, targets.groupIds, targets.departmentIds, targets.wholeClub, audience]);
   const clubId = database?.club.id ?? null;
-  const remote = isRemoteMode();
+  const remote = isRemoteMode() && !isPracticeActive();
+  usePracticeReset(() => { setBody(''); setPicking(false); setTargets(null); setImportant(false); setPoll(false); setPollOptions(['', '']); });
   useEffect(() => {
     if (!remote || !clubId) return;
     let current = true;
@@ -160,6 +163,8 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
     <button
       key={key}
       type="button"
+      data-message-group={key.startsWith('g') ? key.slice(1) : undefined}
+      data-message-team={key.startsWith('t') ? key.slice(1) : undefined}
       aria-pressed={on}
       onClick={onToggle}
       className={`rounded-full border font-black transition ${small ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs'} ${on ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
@@ -182,7 +187,7 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
       </div>
 
       {picking ? (
-        <div className="grid gap-3 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+        <div data-tour="compose-recipients" className="grid gap-3 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
           {allowed.wholeClub || allowed.departmentIds.length > 0 ? (
             <div className="grid gap-1.5">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t('writeMessage.clubAndDepartments')}</p>
@@ -230,7 +235,9 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
         ))}
       </div>
 
+      <div data-tour="compose-body" className="grid gap-2">
       <textarea
+        data-tour="compose-text"
         value={body}
         onChange={(event) => { setBody(event.target.value); setError(null); }}
         maxLength={2000}
@@ -239,6 +246,8 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
         aria-label={poll ? t('poll.question') : t('teamMessages.newMessage')}
         className="os-field min-h-20 resize-y"
       />
+      {isPracticeActive() ? <button type="button" data-tour="compose-sample" onClick={() => setBody(t('tour.practice.sampleMessage'))} className="justify-self-start rounded-xl border border-slate-700 px-3 py-2 text-xs font-bold text-sky-200">{t('tour.practice.useSample')}</button> : null}
+      </div>
       {poll ? (
         <div className="grid gap-1.5">
           {pollOptions.map((value, index) => (
@@ -289,7 +298,7 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
       ) : null}
       {error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null}
       <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" disabled={!chosen || !body.trim() || !pollReady} className="rounded-xl bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950 disabled:opacity-50">{t('writeMessage.send')}</button>
+        <button data-tour="compose-send" type="submit" disabled={!chosen || !body.trim() || !pollReady} className="rounded-xl bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950 disabled:opacity-50">{t('writeMessage.send')}</button>
         <span className="text-xs font-bold text-slate-400">{!chosen ? t('writeMessage.chooseRecipients') : reach === null ? '…' : t('writeMessage.reach', { count: reach })}</span>
       </div>
     </form>

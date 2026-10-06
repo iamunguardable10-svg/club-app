@@ -1,5 +1,6 @@
 'use client';
 
+import { usePracticeReset } from '@/features/onboarding/usePracticeReset';
 import { sessionsNotOver } from '@/features/sessions/sessionTiming';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
@@ -634,7 +635,10 @@ export function CoachCalendarSurface({
     const deltaX = event.clientX - start.startX; const deltaY = event.clientY - start.startY;
     const threshold = typeof window === 'undefined' ? 120 : Math.max(120, window.innerWidth * 0.34);
     if (Math.abs(deltaX) < threshold || Math.abs(deltaX) < Math.abs(deltaY) * 1.4) return;
-    switchMobileDay(activeDayIndex + (deltaX < 0 ? 1 : -1));
+    const nextDay = activeDayIndex + (deltaX < 0 ? 1 : -1);
+    if (nextDay < 0) { changeWeek(-1); setActiveDayIndex(days.length - 1); }
+    else if (nextDay >= days.length) { changeWeek(1); setActiveDayIndex(0); }
+    else switchMobileDay(nextDay);
   }
   function defaultTeamForDay(day: Date) {
     if (teams.length === 1) return teams[0] ?? null;
@@ -745,6 +749,8 @@ export function CoachCalendarSurface({
     window.addEventListener('pointermove', handlePointerMove); window.addEventListener('pointerup', handlePointerUp, { once: true });
     return () => { window.removeEventListener('pointermove', handlePointerMove); window.removeEventListener('pointerup', handlePointerUp); };
   }, [activeDayIndex, days, desktopHourHeight, drag, mobileCalendarView]);
+
+  usePracticeReset(() => { setDraft(null); setEditor(null); setDrag(null); setMode('view'); setPendingConflictSave(null); setSeriesEditor(null); });
 
   const editingSession = editor?.kind === 'session' ? localSessions.find((session) => session.id === editor.sessionId) ?? null : null;
   const editorInitial = editingSession ? { startsAt: editingSession.startsAt, endsAt: editingSession.endsAt ?? addMinutes(new Date(editingSession.startsAt), 90).toISOString(), teamId: editingSession.teamId, facilityId: editingSession.facilityId, groupIds: editingSession.groupIds, sessionType: normalizeCoachSessionType(editingSession.sessionType), details: { notes: editingSession.notes, meetMinutesBefore: editingSession.meetMinutesBefore, meetPoint: editingSession.meetPoint, opponent: editingSession.opponent, homeAway: editingSession.homeAway, venueAddress: editingSession.venueAddress } } : draft;
@@ -906,6 +912,8 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const [isDeletingSession, setIsDeletingSession] = useState(false);
   const [isSavingSessionEdit, setIsSavingSessionEdit] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  usePracticeReset(() => { setActiveSession(null); setEditingSessionId(null); setDeleteSessionId(null); });
 
   const clearEditSessionParam = useCallback(() => {
     router.replace('/coach/sessions');
@@ -1403,7 +1411,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             {teams.map((team) => {
               const nextSession = nextSessionByTeamId.get(team.id);
               return (
-                <Link key={team.id} href={`/coach/team?teamId=${team.id}`} className="block rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white transition hover:border-emerald-300/50 hover:bg-slate-900/70">
+                <Link data-tour="team-launch" key={team.id} href={`/coach/team?teamId=${team.id}`} className="block rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white transition hover:border-emerald-300/50 hover:bg-slate-900/70">
                   <p className="text-xs font-bold text-slate-400">{team.departmentName}{team.roleName ? ` · ${displayRoleName(team.roleName)}` : ''}</p>
                   <h3 className="mt-1 text-xl font-black">{team.name}</h3>
                   <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-3">

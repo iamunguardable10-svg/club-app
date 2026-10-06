@@ -1,33 +1,15 @@
 'use client';
 
-/**
- * A guided tour over the real page, in the manner of iOS onboarding: the rest
- * of the screen dims, a light frames one control, a finger (on phones) or a
- * cursor (with a mouse) shows the gesture, and a card says in one sentence
- * what it does. Each step takes its time: the light glides over, the card
- * comes in, then the hint starts.
- *
- * Doing the gesture works like in the app: a copy of the control is lifted
- * and follows the finger (dragged, pulled longer, swiped away and the next
- * day sliding in), and on letting go the result stays on screen for a moment
- * with a sentence about what just happened – then the tour moves on. Nothing
- * reaches the page underneath, so a tour never changes data. "Next", "Back",
- * "Skip" and the keyboard (→ ← Esc) work too. Steps whose control is not on
- * the page (another role, a team without load tracking, a phone-only gesture
- * on a desktop) are left out.
- */
-
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-
-import { useT, type MessageKey } from '@/shared/i18n';
-
-import type { Gesture, TourStep } from './tours';
+/** A real hole in the light: events reach the app, and observed results move on. */
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { endPractice, isPracticeActive, readDatabase, startPractice, subscribe, type LocalDatabase } from '@/shared/data';
+import { useT } from '@/shared/i18n';
+import type { MessageKey } from '@/shared/i18n';
+import { preparePractice, type Gesture, type TourContext, type TourId, type TourStep } from './tours';
 
 type Rect = { top: number; left: number; width: number; height: number };
-
 const PAD = 8;
-const MOVE_MS = 380;
-
+const sameRect = (a: Rect | null, b: Rect) => Boolean(a && Math.abs(a.top - b.top) < .5 && Math.abs(a.left - b.left) < .5 && Math.abs(a.width - b.width) < .5 && Math.abs(a.height - b.height) < .5);
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
@@ -53,44 +35,6 @@ export function findTourTarget(id: string): HTMLElement | null {
     const box = element.getBoundingClientRect();
     return box.width > 0 && box.height > 0 && getComputedStyle(element).visibility !== 'hidden';
   }) ?? null;
-}
-
-function stepFits(step: TourStep, fine: boolean) {
-  if (step.device === 'touch' && fine) return false;
-  if (step.device === 'mouse' && !fine) return false;
-  return !step.target || findTourTarget(step.target) !== null;
-}
-
-function sameRect(a: Rect | null, b: Rect | null) {
-  return a === b || (a !== null && b !== null && Math.abs(a.top - b.top) < 0.5 && Math.abs(a.left - b.left) < 0.5
-    && Math.abs(a.width - b.width) < 0.5 && Math.abs(a.height - b.height) < 0.5);
-}
-
-/** What the person did on the framed control. */
-function gestureOf(dx: number, dy: number): Gesture {
-  const distance = Math.hypot(dx, dy);
-  if (distance < 12) return 'tap';
-  if (Math.abs(dx) > 36 && Math.abs(dx) > Math.abs(dy) * 1.4) return dx < 0 ? 'swipe-left' : 'swipe-right';
-  if (dy > 18 && Math.abs(dy) > Math.abs(dx)) return 'resize';
-  return 'drag';
-}
-
-function accepts(expected: Gesture, done: Gesture) {
-  if (expected === done) return true;
-  // A swipe either way counts; so does any drag for "drag" and a downward pull for "resize".
-  if (expected.startsWith('swipe') && done.startsWith('swipe')) return true;
-  if (expected === 'drag' && (done === 'resize' || done.startsWith('swipe'))) return true;
-  return false;
-}
-
-/** "Try it: tap the light" and the like, by gesture and by touch or mouse. */
-function tryKey(gesture: Gesture, fine: boolean): MessageKey {
-  const kind = gesture === 'tap' ? 'Tap' : gesture === 'resize' ? 'Resize' : gesture === 'drag' ? 'Drag' : 'Swipe';
-  const keys: Record<string, MessageKey> = {
-    touchTap: 'tour.try.touchTap', touchSwipe: 'tour.try.touchSwipe', touchDrag: 'tour.try.touchDrag', touchResize: 'tour.try.touchResize',
-    mouseTap: 'tour.try.mouseTap', mouseSwipe: 'tour.try.mouseSwipe', mouseDrag: 'tour.try.mouseDrag', mouseResize: 'tour.try.mouseResize',
-  };
-  return keys[`${fine ? 'mouse' : 'touch'}${kind}`];
 }
 
 function GestureHint({ gesture, rect, fine }: { gesture: Gesture; rect: Rect; fine: boolean }) {
@@ -157,456 +101,283 @@ function GestureHint({ gesture, rect, fine }: { gesture: Gesture; rect: Rect; fi
   );
 }
 
-export type TourResult = 'done' | 'skipped' | 'empty';
 
-/** arrive: the light glides over · show: card and hint · result: what the gesture did · leave: fading out. */
+export type TourResult = 'done' | 'skipped' | 'empty';
 type Phase = 'arrive' | 'show' | 'result' | 'leave';
 
-const ARRIVE_MS = 420;
-const HINT_DELAY_MS = 650;
-const RESULT_MS = 1600;
-const LEAVE_MS = 220;
-const SPRING = 'cubic-bezier(.2,1.25,.35,1)';
-
-/** A lifted copy of the control that follows the finger; never part of the page. */
-type Lift = { element: HTMLElement; base: DOMRect };
-
-function liftCopy(target: HTMLElement, layer: HTMLElement): Lift {
-  const base = target.getBoundingClientRect();
-  const computed = getComputedStyle(target);
-  const copy = target.cloneNode(true) as HTMLElement;
-  // No second target, no ids, nothing focusable.
-  for (const node of [copy, ...Array.from(copy.querySelectorAll<HTMLElement>('*'))]) {
-    node.removeAttribute('data-tour');
-    node.removeAttribute('id');
-    node.setAttribute('tabindex', '-1');
-  }
-  copy.setAttribute('aria-hidden', 'true');
-  const transparent = computed.backgroundColor === 'rgba(0, 0, 0, 0)' || computed.backgroundColor === 'transparent';
-  Object.assign(copy.style, {
-    position: 'fixed',
-    top: `${base.top}px`,
-    left: `${base.left}px`,
-    right: 'auto',
-    bottom: 'auto',
-    width: `${base.width}px`,
-    height: `${base.height}px`,
-    margin: '0',
-    boxSizing: 'border-box',
-    overflow: 'hidden',
-    pointerEvents: 'none',
-    color: computed.color,
-    fontSize: computed.fontSize,
-    fontWeight: computed.fontWeight,
-    lineHeight: computed.lineHeight,
-    borderRadius: computed.borderRadius === '0px' ? '16px' : computed.borderRadius,
-    background: transparent ? 'rgb(15, 23, 42)' : computed.backgroundColor,
-    transformOrigin: 'center',
-    transition: 'none',
-    willChange: 'transform, height, opacity',
-  });
-  layer.appendChild(copy);
-  return { element: copy, base };
+function visible(element: HTMLElement | null): element is HTMLElement {
+  return Boolean(element && element.getBoundingClientRect().width && element.getBoundingClientRect().height);
 }
 
-function lifted(lift: Lift, transform: string, height?: number) {
-  const style = lift.element.style;
-  style.transition = 'box-shadow 160ms ease';
-  style.transform = transform;
-  style.boxShadow = '0 22px 60px rgba(0,0,0,0.55), 0 0 0 2px rgba(110,231,183,0.85)';
-  if (height !== undefined) style.height = `${height}px`;
-}
-
-function animateTo(lift: Lift, transform: string, ms: number, extra: Partial<CSSStyleDeclaration> = {}) {
-  const style = lift.element.style;
-  style.transition = `transform ${ms}ms ${SPRING}, height ${ms}ms ${SPRING}, opacity ${ms}ms ease, box-shadow ${ms}ms ease`;
-  style.transform = transform;
-  Object.assign(style, extra);
-}
-
-/** "Done" for the senses: a short buzz where the phone can (Android). */
-function buzz() {
-  try {
-    navigator.vibrate?.(12);
-  } catch {
-    // Not supported: nothing to feel.
-  }
-}
-
-function CheckBadge({ rect }: { rect: Rect }) {
-  return (
-    <span
-      aria-hidden
-      className="pointer-events-none fixed z-[304] grid h-8 w-8 animate-[tour-pop_420ms_cubic-bezier(.2,1.4,.35,1)] place-items-center rounded-full bg-emerald-300 text-slate-950 shadow-[0_8px_30px_rgba(16,185,129,0.55)]"
-      style={{ top: rect.top - 12, left: rect.left + rect.width - 20 }}
-    >
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
-    </span>
-  );
-}
-
-export function Tour({ steps: allSteps, onClose }: { steps: TourStep[]; onClose: (result: TourResult) => void }) {
+export function Tour({ id, steps: allSteps, onClose, nextLabel }: { id: TourId; steps: TourStep[]; onClose: (result: TourResult) => void; nextLabel?: MessageKey }) {
   const t = useT();
   const reduced = usePrefersReducedMotion();
   const fine = useFinePointer();
   const titleId = useId();
-  // Fixed at the start: steps whose control is missing are left out.
-  const steps = useMemo(() => allSteps.filter((step) => stepFits(step, fine)), [allSteps, fine]);
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>('arrive');
+  const [resultReady, setResultReady] = useState(false);
   const [hint, setHint] = useState(false);
-  const [entered, setEntered] = useState(false);
-  const [closing, setClosing] = useState(false);
+  const [nudge, setNudge] = useState(false);
+  const [gesturing, setGesturing] = useState(false);
+  const targetRef = useRef<HTMLElement | null>(null);
   const [rect, setRect] = useState<Rect | null>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
-  const [nudge, setNudge] = useState(0);
-  const [pressing, setPressing] = useState(false);
-  const [cardHeight, setCardHeight] = useState(0);
+  const [cardHeight, setCardHeight] = useState(180);
+  const cardHeightRef = useRef(cardHeight);
+  cardHeightRef.current = cardHeight;
+  const [docked, setDocked] = useState(false);
+  const [started, setStarted] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
-  const liftLayer = useRef<HTMLDivElement>(null);
-  const lift = useRef<Lift | null>(null);
-  const press = useRef<{ x: number; y: number; inside: boolean } | null>(null);
+  const context = useRef<TourContext | null>(null);
+  const finished = useRef(false);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   const timers = useRef<number[]>([]);
-  const phaseRef = useRef<Phase>('arrive');
-  phaseRef.current = phase;
-  const step = steps[index] ?? null;
-  const speed = reduced ? 0.35 : 1;
+  const practiceTour = !id.startsWith('moment.') || allSteps.some((step) => step.kind === 'do');
+  const entered = useRef(-1);
+  const steps = allSteps.filter((step) => step.device !== (fine ? 'touch' : 'mouse'));
+  const step = steps[index];
 
-  const later = useCallback((ms: number, run: () => void) => {
-    timers.current.push(window.setTimeout(run, ms * speed));
-  }, [speed]);
-  const clearTimers = () => {
-    for (const timer of timers.current) window.clearTimeout(timer);
+  const clearTimers = useCallback(() => {
+    timers.current.forEach(window.clearTimeout);
     timers.current = [];
-  };
-  const dropLift = useCallback(() => {
-    lift.current?.element.remove();
-    lift.current = null;
   }, []);
-  useEffect(() => () => { clearTimers(); dropLift(); }, [dropLift]);
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setEntered(true));
-    return () => window.cancelAnimationFrame(frame);
+  const later = useCallback((ms: number, action: () => void) => {
+    timers.current.push(window.setTimeout(action, ms));
   }, []);
-
   const finish = useCallback((result: TourResult) => {
+    if (finished.current) return;
+    finished.current = true;
     clearTimers();
-    setClosing(true);
-    later(LEAVE_MS + 40, () => onClose(result));
-  }, [later, onClose]);
-
-  /** Fades the card and the lifted copy out, then goes to step `target` (or ends). */
-  const goTo = useCallback((target: number) => {
-    if (phaseRef.current === 'leave') return;
+    try { endPractice(); } finally { closeRef.current(result); }
+  }, [clearTimers]);
+  const next = useCallback(() => {
+    if (finished.current) return;
     clearTimers();
+    try { step?.leave?.(); } catch { finish('skipped'); return; }
     setPhase('leave');
     setHint(false);
-    if (lift.current) animateTo(lift.current, lift.current.element.style.transform, LEAVE_MS, { opacity: '0' });
-    later(LEAVE_MS, () => {
-      dropLift();
-      if (target >= steps.length) {
-        finish('done');
-        return;
-      }
-      setIndex(Math.max(0, target));
+    later(reduced ? 0 : 220, () => {
+      if (index + 1 >= steps.length) finish('done');
+      else setIndex(index + 1);
     });
-  }, [dropLift, finish, later, steps.length]);
-  const next = useCallback(() => goTo(index + 1), [goTo, index]);
-  const back = useCallback(() => { if (index > 0) goTo(index - 1); }, [goTo, index]);
+  }, [clearTimers, finish, index, later, reduced, steps.length, step]);
 
-  // Nothing to show yet (no control on the page): close; the tour comes again later.
   useEffect(() => {
-    if (steps.length === 0) onClose('empty');
-  }, [onClose, steps.length]);
-
-  // Each step: the light glides over (and the page scrolls), then the card, then the hint.
-  useEffect(() => {
-    if (!step) return;
-    setPhase('arrive');
-    setHint(false);
-    setViewport({ width: window.innerWidth, height: window.innerHeight });
-    let scrolled = false;
-    let frame = 0;
-    const cleanups: Array<() => void> = [];
-    if (!step.target) {
-      setRect(null);
-    } else {
-      const element = findTourTarget(step.target);
-      if (!element) {
-        goTo(index + 1);
-        return;
-      }
-      const box = element.getBoundingClientRect();
-      // A tall area (a squad list, the weekly plan) is shown from its top.
-      const tall = box.height > window.innerHeight * 0.55;
-      const outside = box.top < 72 || box.bottom > window.innerHeight - 96;
-      if (tall) {
-        element.style.scrollMarginTop = '88px';
-        element.scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' });
-        scrolled = true;
-      } else if (outside) {
-        element.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
-        scrolled = true;
-      }
-      const cap = Math.max(180, window.innerHeight * 0.36);
-      let last: Rect | null = null;
-      const loop = () => {
-        const current = findTourTarget(step.target!) ?? element;
-        const b = current.getBoundingClientRect();
-        const height = tall ? Math.min(b.height, cap) : b.height;
-        const measured = { top: b.top - PAD, left: b.left - PAD, width: b.width + PAD * 2, height: height + PAD * 2 };
-        if (!sameRect(last, measured)) {
-          last = measured;
-          setRect(measured);
-        }
-        frame = window.requestAnimationFrame(loop);
-      };
-      loop();
-      cleanups.push(() => window.cancelAnimationFrame(frame));
-    }
-    const resize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
-    window.addEventListener('resize', resize);
-    cleanups.push(() => window.removeEventListener('resize', resize));
-    // A breath before the card: longer when the page had to scroll.
-    later(ARRIVE_MS + (scrolled ? 320 : 0), () => {
-      setPhase('show');
-      later(HINT_DELAY_MS, () => setHint(true));
-    });
-    return () => { for (const cleanup of cleanups) cleanup(); };
-    // `goTo` and `later` only change with the step count and the speed.
-  }, [step, index, reduced]);
-
-  // The page underneath does not scroll while the tour is open.
-  useEffect(() => {
-    const stop = (event: Event) => event.preventDefault();
-    window.addEventListener('wheel', stop, { passive: false });
-    window.addEventListener('touchmove', stop, { passive: false });
+    finished.current = false;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    try {
+      if (practiceTour) startPractice();
+      const initial = structuredClone(readDatabase()) as LocalDatabase | null;
+      if (!initial) { finish('empty'); return; }
+      context.current = { initial, before: initial, memory: {} };
+      entered.current = -1;
+      if (practiceTour) preparePractice(id);
+      setStarted(true);
+    } catch { finish('skipped'); }
+    const failed = () => finish('skipped');
+    window.addEventListener('error', failed);
+    window.addEventListener('unhandledrejection', failed);
     return () => {
-      window.removeEventListener('wheel', stop);
-      window.removeEventListener('touchmove', stop);
+      finished.current = true;
+      clearTimers();
+      endPractice();
+      window.removeEventListener('error', failed);
+      window.removeEventListener('unhandledrejection', failed);
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
     };
-  }, []);
+  }, [clearTimers, finish, id, practiceTour]);
 
+  // Targets are resolved during each step, including controls created by the
+  // previous action. A tour's own sheets are never postponed by TourHost.
+  useEffect(() => {
+    if (!started || !step || !context.current) return;
+    clearTimers();
+    const ctx = context.current;
+    const database = readDatabase();
+    if (!database) { finish('empty'); return; }
+    if (step.when && !step.when(database)) { next(); return; }
+    if (entered.current !== index) {
+      ctx.before = structuredClone(database);
+      entered.current = index;
+      try { step.enter?.(); } catch { finish('skipped'); return; }
+    }
+    setPhase('arrive'); setResultReady(false); setHint(false); setNudge(false);
+    setRect(null);
+    let currentPhase: Phase = 'arrive';
+    let frame = 0;
+    let scrolled: HTMLElement | null = null;
+    let missingSince = performance.now();
+    let previous: Rect | null = null;
+    const arrivedAt = performance.now();
+    let settledAt = arrivedAt;
+    let framedAt: number | null = null;
+    let resultFramed = false;
+    const resolve = () => currentPhase === 'result' && step.resultTarget ? step.resultTarget(readDatabase()!, ctx) : typeof step.target === 'function'
+      ? step.target(readDatabase()!, ctx)
+      : step.target ? findTourTarget(step.target) : null;
+    const success = () => {
+      if (currentPhase === 'result' || finished.current) return;
+      currentPhase = 'result';
+      clearTimers(); setPhase('result'); setHint(false);
+      // Scroll and frame the real result before its reading time starts.
+      previous = null; framedAt = null; scrolled = null; setRect(null);
+    };
+    const observe = () => {
+      if (finished.current) return;
+      try {
+        if (practiceTour && !isPracticeActive()) { finish('skipped'); return; }
+        const db = readDatabase();
+        if (step.kind === 'do' && db && step.expected?.(db, ctx)) success();
+      } catch { finish('skipped'); }
+    };
+    const measure = () => {
+      if (finished.current) return;
+      const width = window.innerWidth;
+      const height = window.visualViewport?.height ?? window.innerHeight;
+      setViewport((old) => old.width === width && old.height === height ? old : { width, height });
+      // The keyed card can mount before its viewport width is known. Measure
+      // the current node alongside the target, including after text wraps.
+      const currentCardHeight = cardRef.current?.offsetHeight ?? cardHeightRef.current;
+      if (currentCardHeight !== cardHeightRef.current) {
+        cardHeightRef.current = currentCardHeight;
+        setCardHeight(currentCardHeight);
+      }
+      const element = resolve();
+      if (targetRef.current !== element) {
+        targetRef.current?.removeAttribute('data-tour-active');
+        element?.setAttribute('data-tour-active', 'true');
+        targetRef.current = element;
+      }
+      if (visible(element)) {
+        const b = element.getBoundingClientRect();
+        if (!element.closest('[aria-modal="true"]') && scrolled !== element && (b.top < 64 || b.bottom > height - 80)) {
+          scrolled = element;
+          element.scrollIntoView({ block: b.height > height * .6 ? 'start' : 'center', behavior: reduced ? 'instant' : 'smooth' });
+        }
+        // Only the visible part of a long calendar column is framed. Gestures
+        // continue beyond the hole; the dim panels yield during an active gesture.
+        // Reserve space from the card's size, never its moving position. Using
+        // its bottom edge here creates a highlight/card placement feedback loop.
+        const cardSize = cardHeightRef.current;
+        const fitsBelow = b.bottom + PAD + 14 + cardSize <= height - 12;
+        const fitsAbove = b.top - PAD - cardSize - 14 >= 12;
+        const dock = Boolean(element.closest('[aria-modal="true"]')) || (!fitsBelow && !fitsAbove);
+        setDocked(dock);
+        const top = Math.max(dock ? cardHeightRef.current + 44 : 8, b.top - PAD);
+        const bottom = Math.min(height - 8, b.bottom + PAD);
+        const measured = { top, left: Math.max(0, b.left - PAD), width: Math.min(width, b.right + PAD) - Math.max(0, b.left - PAD), height: Math.max(0, bottom - top) };
+        if (measured.width > 0 && measured.height > 0) {
+          missingSince = performance.now();
+          framedAt ??= performance.now();
+          if (!sameRect(previous, measured)) { settledAt = performance.now(); previous = measured; setRect(measured); }
+          if (currentPhase === 'arrive' && performance.now() - framedAt >= (reduced ? 0 : 420) && performance.now() - settledAt >= 100) {
+            currentPhase = 'show'; setPhase('show'); later(650, () => setHint(true));
+          }
+          if (currentPhase === 'result' && !resultFramed && performance.now() - settledAt >= 100) {
+            resultFramed = true; setResultReady(true);
+            later(1400, next); // Keep the framed result visible, even with reduced motion.
+          }
+        } else {
+          previous = null; setRect(null);
+          if (performance.now() - missingSince > 1500) { next(); return; }
+        }
+      } else {
+        if (previous) { previous = null; setRect(null); }
+        // Actions and explanations both yield when their real target is absent.
+        if (performance.now() - missingSince > 1500) { next(); return; }
+      }
+      observe();
+      frame = window.requestAnimationFrame(measure);
+    };
+    measure();
+    const stop = subscribe(observe);
+    return () => { stop(); targetRef.current?.removeAttribute('data-tour-active'); targetRef.current = null; window.cancelAnimationFrame(frame); clearTimers(); };
+  }, [started, step, index, reduced, practiceTour, clearTimers, finish, later, next]);
+
+  useEffect(() => {
+    if (phase === 'show' && step?.kind !== 'do') cardRef.current?.focus({ preventScroll: true });
+  }, [phase, step]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') finish('skipped');
-      else if (event.key === 'ArrowRight' || event.key === 'Enter') { event.preventDefault(); next(); }
-      else if (event.key === 'ArrowLeft') back();
+      // Text fields, selects and real controls keep their own Enter/arrows/Esc.
+      if (event.key === 'Tab') {
+        const aim = targetRef.current;
+        const candidates = [
+          ...(step?.kind === 'do' && aim ? [aim, ...aim.querySelectorAll<HTMLElement>('button,input,textarea,select,a,[tabindex]')] : []),
+          ...cardRef.current?.querySelectorAll<HTMLElement>('button') ?? [],
+        ].filter((node) => node.matches('button,input,textarea,select,a,[tabindex]') && !node.matches(':disabled') && node.getBoundingClientRect().width > 0);
+        const current = candidates.indexOf(document.activeElement as HTMLElement);
+        const chosen = candidates[(current + (event.shiftKey ? -1 : 1) + candidates.length) % candidates.length];
+        event.preventDefault(); event.stopImmediatePropagation(); chosen?.focus(); return;
+      }
+      const editing = event.target instanceof HTMLElement && event.target.closest('input,textarea,select,[contenteditable]');
+      if (editing && event.key !== 'Escape') return;
+      if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); finish('skipped'); }
+      else if ((event.key === 'Enter' || event.key === 'ArrowRight') && (!event.target || event.target === document.body || cardRef.current?.contains(event.target as Node))) {
+        event.preventDefault(); next();
+      }
+      else if (event.key === 'ArrowLeft' && step?.kind !== 'do' && index > 0) { clearTimers(); entered.current = -1; setIndex(index - 1); }
     };
-    window.addEventListener('keydown', key);
-    return () => window.removeEventListener('keydown', key);
-  }, [back, finish, next]);
-
-  useLayoutEffect(() => {
-    if (cardRef.current) setCardHeight(cardRef.current.offsetHeight);
-  });
+    window.addEventListener('keydown', key, true);
+    return () => window.removeEventListener('keydown', key, true);
+  }, [clearTimers, finish, index, next, step]);
 
   useEffect(() => {
-    if (phase === 'show') cardRef.current?.focus({ preventScroll: true });
-  }, [phase]);
+    const down = (event: PointerEvent) => {
+      if (step?.kind === 'do' && event.target instanceof Node && targetRef.current?.contains(event.target)) setGesturing(true);
+    };
+    const up = () => setGesturing(false);
+    window.addEventListener('pointerdown', down, true);
+    window.addEventListener('pointerup', up, true);
+    window.addEventListener('pointercancel', up, true);
+    return () => { window.removeEventListener('pointerdown', down, true); window.removeEventListener('pointerup', up, true); window.removeEventListener('pointercancel', up, true); };
+  }, [step]);
 
-  if (!step) return null;
-
-  const gesture: Gesture = step.gesture ?? 'none';
-  const practice = Boolean(step.target) && gesture !== 'none';
-  const inside = (x: number, y: number) => rect !== null && x >= rect.left && x <= rect.left + rect.width && y >= rect.top && y <= rect.top + rect.height;
+  if (!step || !started) return null;
+  const gesture = step.gesture ?? 'none';
   const success = phase === 'result';
-  // The light is there already while the card comes in: the gesture counts from then on.
-  const live = (phase === 'show' || phase === 'arrive') && rect !== null;
-
-  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const isInside = inside(event.clientX, event.clientY);
-    press.current = { x: event.clientX, y: event.clientY, inside: isInside };
-    // The finger may end over the card; the gesture still belongs to the light.
-    event.currentTarget.setPointerCapture(event.pointerId);
-    if (!live || !practice || !isInside || !liftLayer.current) return;
-    const target = findTourTarget(step.target!);
-    if (!target) return;
-    dropLift();
-    lift.current = liftCopy(target, liftLayer.current);
-    setPressing(true);
-    // Pressed: it sinks in a little, like a real button.
-    if (gesture === 'tap') animateTo(lift.current, 'scale(0.96)', 120);
-    else lifted(lift.current, 'scale(1.03)');
-  };
-  const onPointerMove = (event: ReactPointerEvent) => {
-    const start = press.current;
-    const copy = lift.current;
-    if (!start?.inside || !copy || gesture === 'tap') return;
-    const dx = event.clientX - start.x;
-    const dy = event.clientY - start.y;
-    if (gesture === 'drag') lifted(copy, `translate(${dx}px, ${dy}px) scale(1.03)`);
-    else if (gesture === 'resize') lifted(copy, 'none', Math.max(copy.base.height, Math.min(copy.base.height + 140, copy.base.height + dy)));
-    else lifted(copy, `translateX(${dx}px) rotate(${dx / 40}deg)`);
-  };
-  const onPointerUp = (event: ReactPointerEvent) => {
-    const start = press.current;
-    press.current = null;
-    setPressing(false);
-    if (!start) return;
-    const copy = lift.current;
-    const dx = event.clientX - start.x;
-    const dy = event.clientY - start.y;
-    if (live && start.inside && practice && accepts(gesture, gestureOf(dx, dy))) {
-      clearTimers();
-      setPhase('result');
-      setHint(false);
-      buzz();
-      if (copy) {
-        if (gesture === 'drag') {
-          // Snaps into its new place, like a session on the quarter hour.
-          animateTo(copy, `translate(${Math.round(dx / 12) * 12}px, ${Math.round(dy / 24) * 24}px) scale(1)`, 420);
-        } else if (gesture === 'resize') {
-          animateTo(copy, 'none', 420, { height: `${Math.max(copy.base.height + 36, Math.min(copy.base.height + 140, copy.base.height + Math.round(dy / 24) * 24))}px` });
-        } else if (gesture.startsWith('swipe')) {
-          // Swiped away; the next one slides in from the other side.
-          const away = dx < 0 ? -1 : 1;
-          animateTo(copy, `translateX(${away * window.innerWidth}px)`, 260, { opacity: '0' });
-          later(270, () => {
-            if (!lift.current) return;
-            const style = lift.current.element.style;
-            style.transition = 'none';
-            style.transform = `translateX(${-away * 70}px)`;
-            style.opacity = '0';
-            later(30, () => { if (lift.current) animateTo(lift.current, 'none', 380, { opacity: '1' }); });
-          });
-        } else {
-          animateTo(copy, 'scale(1)', 380);
-        }
-      }
-      later(RESULT_MS, () => goTo(index + 1));
-      return;
-    }
-    // Not quite: the copy springs back, the card shakes a little.
-    if (copy) {
-      animateTo(copy, 'none', 320, { height: `${copy.base.height}px` });
-      later(330, dropLift);
-    }
-    setNudge((value) => value + 1);
-  };
-
-  // The card sits below the control when there is room, else above; centred without a control.
-  const margin = 16;
-  const phone = viewport.width < 640;
-  const cardWidth = phone ? viewport.width - margin * 2 : 380;
-  let cardTop: number;
-  let cardLeft: number;
-  if (!rect) {
-    cardTop = Math.max(margin, (viewport.height - cardHeight) / 2);
-    cardLeft = (viewport.width - cardWidth) / 2;
-  } else {
-    // Dragging, pulling and swiping need room for the finger and the result.
-    const room = gesture === 'drag' || gesture === 'resize' ? 150 : 0;
-    const below = rect.top + rect.height + 14 + room;
-    const above = rect.top - 14 - cardHeight;
-    const fitsBelow = below + cardHeight <= viewport.height - margin;
-    cardTop = room > 0 && above >= margin ? above : fitsBelow ? below : above >= margin ? above : viewport.height - cardHeight - margin;
-    cardLeft = phone ? margin : Math.min(Math.max(margin, rect.left + rect.width / 2 - cardWidth / 2), viewport.width - cardWidth - margin);
-  }
-  const ease = 'cubic-bezier(.2,.8,.2,1)';
-  const move = reduced ? 'none' : `top ${MOVE_MS}ms ${ease}, left ${MOVE_MS}ms ${ease}, width ${MOVE_MS}ms ${ease}, height ${MOVE_MS}ms ${ease}`;
-  const cardShown = phase === 'show' || phase === 'result';
-  const last = index === steps.length - 1;
-  const resultText = step.result ? t(step.result) : t('tour.result.generic');
-
+  const margin = 12;
+  const width = Math.max(0, Math.min(380, viewport.width - margin * 2));
+  const below = rect ? rect.top + rect.height + 14 : 0;
+  const above = rect ? rect.top - cardHeight - 14 : 0;
+  const top = docked ? margin : rect ? (below + cardHeight <= viewport.height - margin ? below : above >= margin ? above : margin) : margin;
+  const left = viewport.width < 640 ? margin : rect ? Math.min(Math.max(margin, rect.left + rect.width / 2 - width / 2), viewport.width - width - margin) : (viewport.width - width) / 2;
+  const shown = phase === 'show' || success;
+  const panel = (key: string, x: number, y: number, w: number, h: number) => (
+    <div key={key} aria-hidden onPointerDown={(event) => { if (event.buttons) setNudge(true); }} className="pointer-events-auto fixed bg-slate-950/70" style={{ pointerEvents: gesturing ? 'none' : 'auto', left: x, top: y, width: Math.max(0, w), height: Math.max(0, h) }} />
+  );
   return (
-    <div
-      className="fixed inset-0 z-[300]"
-      role="presentation"
-      style={{ opacity: entered && !closing ? 1 : 0, transition: reduced ? 'none' : `opacity ${LEAVE_MS + 60}ms ease` }}
-    >
-      {/* Catches every touch: gestures on the framed control count, nothing reaches the page. */}
-      <div
-        className="absolute inset-0 touch-none select-none"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={() => { press.current = null; setPressing(false); dropLift(); }}
-      >
-        {rect ? (
-          <div
-            aria-hidden
-            className={`absolute rounded-[22px] ${success ? '' : 'tour-glow'}`}
-            style={{
-              top: rect.top,
-              left: rect.left,
-              width: rect.width,
-              height: rect.height,
-              transition: `${move}, box-shadow 300ms ease`,
-              boxShadow: success ? '0 0 0 3px rgba(110,231,183,1), 0 0 44px 12px rgba(52,211,153,0.5)' : undefined,
-            }}
-          >
-            {/* The dim around the light (kept apart so the glow can pulse on its own). */}
-            <div className="absolute inset-0 rounded-[22px]" style={{ boxShadow: '0 0 0 200vmax rgba(2,6,23,0.74)', transition: move }} />
-          </div>
-        ) : (
-          <div aria-hidden className="absolute inset-0 bg-[rgba(2,6,23,0.8)]" />
-        )}
-      </div>
-
-      {/* The lifted copy lives here, above the dim and below the card. */}
-      <div ref={liftLayer} aria-hidden className="pointer-events-none fixed inset-0 z-[301]" />
-
-      {rect && hint && live && !pressing ? <GestureHint key={`${index}-${gesture}`} gesture={reduced ? (gesture === 'none' ? 'none' : 'tap') : gesture} rect={rect} fine={fine} /> : null}
-      {rect && success ? <CheckBadge rect={rect} /> : null}
-
-      <div
-        ref={cardRef}
-        key={`card-${nudge}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        data-tour-gesture={gesture}
-        data-tour-phase={phase}
-        tabIndex={-1}
-        className={`fixed z-[303] rounded-3xl border border-white/10 bg-slate-900/95 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] outline-none backdrop-blur-xl ${nudge > 0 ? 'tour-nudge' : ''}`}
-        style={{
-          top: cardTop,
-          left: cardLeft,
-          width: cardWidth,
-          opacity: cardShown && cardHeight > 0 ? 1 : 0,
-          transform: cardShown ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.98)',
-          pointerEvents: cardShown ? 'auto' : 'none',
-          transition: reduced ? 'none' : `top ${MOVE_MS}ms ${ease}, left ${MOVE_MS}ms ${ease}, opacity 240ms ease, transform 300ms ${ease}`,
-        }}
-      >
+    <div data-tour-overlay data-practice-active={practiceTour ? 'true' : undefined} className="pointer-events-none fixed inset-0 z-[300]">
+      {rect ? <>
+        {panel('top', 0, 0, viewport.width, rect.top)}
+        {panel('left', 0, rect.top, rect.left, rect.height)}
+        {panel('right', rect.left + rect.width, rect.top, viewport.width - rect.left - rect.width, rect.height)}
+        {panel('bottom', 0, rect.top + rect.height, viewport.width, viewport.height - rect.top - rect.height)}
+        <div aria-hidden className="pointer-events-none tour-glow fixed left-0 top-0 rounded-2xl border-2 border-emerald-200/80" style={{ animation: 'none', boxShadow: '0 0 0 4px rgb(167 243 208 / 12%), 0 0 24px rgb(167 243 208 / 18%)', width: rect.width, height: rect.height, transform: `translate3d(${rect.left}px,${rect.top}px,0)` }} />
+      </> : null}
+      <style>{`@keyframes tour-arrival { from { translate: 0 8px; opacity: 0; } to { translate: 0 0; opacity: 1; } }
+        body:has([data-tour-overlay]) [aria-modal="true"]:not([data-welcome]) { background-color: transparent; backdrop-filter: none; padding-top: calc(${cardHeight + 32}px + env(safe-area-inset-top)); }
+        body:has([data-tour-overlay]) [aria-modal="true"]:not([data-welcome]) > section, body:has([data-tour-overlay]) [aria-modal="true"]:not([data-welcome]) > div { max-height: calc(100dvh - ${cardHeight + 48}px); overflow-y: auto; }`}</style>
+      {rect && success ? <span aria-hidden data-tour-success className="fixed left-0 top-0 grid h-9 w-9 place-items-center rounded-full bg-emerald-300 text-xl font-black text-slate-950 shadow-lg" style={{ transform: `translate3d(${rect.left + rect.width - 24}px,${rect.top - 8}px,0)` }}>✓</span> : null}
+      {rect && (step.kind !== 'do' || success) ? <div className="pointer-events-auto fixed" onPointerDown={() => setNudge(true)} style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }} /> : null}
+      {rect && hint && shown && !success && !reduced ? <GestureHint gesture={gesture} rect={rect} fine={fine} /> : null}
+      <div key={index} ref={cardRef} role="dialog" aria-labelledby={titleId} aria-describedby={`${titleId}-text`} tabIndex={-1}
+        data-tour-key={rect ? step.title : undefined} data-tour-kind={step.kind ?? 'show'} data-tour-gesture={gesture} data-tour-phase={success && !resultReady ? 'arrive' : phase}
+        className="fixed left-0 top-0 rounded-3xl border border-white/10 bg-slate-900 p-4 text-white shadow-2xl outline-none"
+        style={{ width, visibility: rect ? 'visible' : 'hidden', pointerEvents: rect ? 'auto' : 'none', maxHeight: 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)', overflowY: 'auto', transform: `translate3d(${left}px,calc(${top}px + env(safe-area-inset-top)),0)`, opacity: rect && phase === 'arrive' ? 1 : shown ? 1 : 0, animation: rect && phase === 'arrive' && !reduced ? 'tour-arrival 240ms ease-out both' : 'none' }}>
         <div className="flex items-start justify-between gap-3">
-          <p id={titleId} className="text-base font-black leading-snug">{t(step.title)}</p>
-          <button type="button" onClick={() => finish('skipped')} className="shrink-0 rounded-full px-2 py-0.5 text-xs font-black text-slate-400 hover:bg-slate-800 hover:text-white">
-            {t('tour.skip')}
-          </button>
+          <p id={titleId} className="text-base font-black">{t(step.title)}{index === 0 && practiceTour ? <span className="ml-2 rounded-full bg-emerald-300/10 px-2 py-1 align-middle text-[10px] text-emerald-200">{t('tour.practice.new')}</span> : null}</p>
+          <button type="button" data-tour-skip onClick={() => finish('skipped')} className="rounded-full px-2 py-1 text-xs font-black text-slate-400 hover:text-white">{t('tour.skip')}</button>
         </div>
-        <p className="mt-1.5 text-sm leading-relaxed text-slate-300">{t(step.text)}</p>
-        {practice ? (
-          <div className="relative mt-2 min-h-[1.25rem]" aria-live="polite">
-            {success ? (
-              <p key="result" className="flex animate-[tour-card-in_280ms_cubic-bezier(.2,.8,.2,1)] items-start gap-1.5 text-xs font-black text-emerald-200">
-                <svg viewBox="0 0 24 24" className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
-                {resultText}
-              </p>
-            ) : (
-              <p key="try" className="flex items-center gap-1.5 text-xs font-black text-emerald-200">
-                <span aria-hidden className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" />
-                {t(tryKey(gesture, fine))}
-              </p>
-            )}
-          </div>
-        ) : null}
+        <p id={`${titleId}-text`} className="mt-1.5 text-sm leading-relaxed text-slate-300">{t(step.text)}</p>
+        <p aria-live="polite" aria-atomic="true" className="mt-2 min-h-5 text-xs font-bold text-emerald-200">
+          {success ? <>✓ {t(step.result ?? 'tour.result.generic')}</> : nudge ? t('tour.practice.hint') : practiceTour ? t('tour.practice.safe') : ''}
+        </p>
         <div className="mt-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5" aria-label={t('tour.progress', { step: index + 1, total: steps.length })}>
-            {steps.map((_, dot) => (
-              <span key={dot} aria-hidden className={`block h-1.5 rounded-full transition-all duration-500 ${dot === index ? 'w-5 bg-emerald-300' : dot < index ? 'w-1.5 bg-emerald-300/50' : 'w-1.5 bg-slate-600'}`} />
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            {index > 0 ? (
-              <button type="button" onClick={back} className="rounded-xl px-3 py-2 text-xs font-black text-slate-300 hover:bg-slate-800 hover:text-white">{t('tour.back')}</button>
-            ) : null}
-            <button type="button" onClick={next} className="rounded-xl bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950 transition hover:bg-emerald-200 active:scale-95">
-              {last ? t('tour.done') : t('tour.next')}
-            </button>
-          </div>
+          <span className="text-xs text-slate-400">{t('tour.progress', { step: index + 1, total: steps.length })}</span>
+          <button type="button" data-tour-next onClick={next} className="rounded-xl bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950">{t(nextLabel ?? (index === steps.length - 1 ? 'tour.done' : 'tour.next'))}</button>
         </div>
       </div>
     </div>
