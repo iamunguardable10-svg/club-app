@@ -37,7 +37,7 @@ import {
   COACH_PERMISSION_REQUIRES,
   CLUB_MANAGEMENT_PERMISSIONS,
   LOAD_PERMISSIONS,
-  LocalDataError as StoredDataError,
+  LocalDataError,
   type ActiveIdentity,
   type CoachPermission,
   type ClubRole,
@@ -77,17 +77,6 @@ import {
 } from './schema';
 
 type Listener = () => void;
-
-/** Validation can fail before mutate(), and forms often catch that error.
- * Discard here too, so a caught data-layer error cannot strand the practice copy.
- * The public error type, message and translation fields remain the same.
- */
-class LocalDataError extends StoredDataError {
-  constructor(...args: ConstructorParameters<typeof StoredDataError>) {
-    super(...args);
-    endPractice();
-  }
-}
 
 /** The server store once connected; null in the local test mode. */
 let remote: RemoteStore | null = null;
@@ -384,20 +373,7 @@ function purgeLegacyKeys() {
 }
 
 function notify() {
-  for (const listener of listeners) {
-    try { listener(); } catch (error) {
-      if (practice) {
-        // A failed subscriber must not leave the app on an abandoned copy.
-        practice = null;
-        practiceGeneration += 1;
-        for (const restore of listeners) {
-          if (restore === listener) continue;
-          try { restore(); } catch { /* Keep discarding even if another view failed. */ }
-        }
-      }
-      throw error;
-    }
-  }
+  for (const listener of listeners) listener();
 }
 
 function persist(database: LocalDatabase) {
@@ -519,14 +495,8 @@ export function mutate(apply: (database: LocalDatabase) => void): void {
   if (!current) return;
 
   const draft: LocalDatabase = JSON.parse(JSON.stringify(current));
-  try {
-    apply(draft);
-    refreshLoadSummaries(current, draft);
-  } catch (error) {
-    // Even a caught form error must not leave an abandoned sandbox running.
-    endPractice();
-    throw error;
-  }
+  apply(draft);
+  refreshLoadSummaries(current, draft);
   if (practice) {
     practice = draft;
     notify();
@@ -558,7 +528,7 @@ function startRemote() {
   // Loaded on demand, so the local test mode never ships the server client.
   import('./remote/supabaseBackend')
     .then(async ({ createSupabaseStore, authStorage }) => {
-      const store = createSupabaseStore(SCHEMA_VERSION, authStorage(practiceStorage()), readRememberedIdentity(), offlineCache());
+      const store = createSupabaseStore(SCHEMA_VERSION, authStorage(window.localStorage), readRememberedIdentity(), offlineCache());
       connectRemoteStore(store);
       await store.load();
       ensureFreshLoadSummary();
@@ -675,47 +645,12 @@ function supabaseModule() {
   return import('./remote/supabaseBackend');
 }
 
-/** Guard async client chains too: a request begun in practice stays inert after exit. */
-function guardedClient<T extends object>(client: T, generation: number): T {
-  return new Proxy(client, {
-    get(target, key) {
-      const value = Reflect.get(target, key, target);
-      if (key === 'then' && typeof value === 'function' && (practice || generation !== practiceGeneration)) {
-        return Promise.resolve(quietResponse).then.bind(Promise.resolve(quietResponse));
-      }
-      if (typeof value === 'function') return (...args: unknown[]) => {
-        if (practice || generation !== practiceGeneration) return quietClient;
-        const result = value.apply(target, args);
-        return result && typeof result === 'object' ? guardedClient(result, generation) : result;
-      };
-      return value && typeof value === 'object' ? guardedClient(value, generation) : value;
-    },
-  });
-}
-
-// Supabase's fluent API and auth responses, without creating a client or a request.
-const quietResponse = { data: Object.assign([], { session: null, user: null }), error: null };
-const quietClient: object = new Proxy({}, {
-  get: (_, key) => key === 'then'
-    ? Promise.resolve(quietResponse).then.bind(Promise.resolve(quietResponse))
-    : key === 'auth' ? quietClient : () => quietClient,
-});
-
-/** Auth refreshes share the same storage boundary as the offline document. */
-function practiceStorage() {
-  return {
-    getItem: (key: string) => window.localStorage.getItem(key),
-    setItem: (key: string, value: string) => { if (!practice) window.localStorage.setItem(key, value); },
-    removeItem: (key: string) => { if (!practice) window.localStorage.removeItem(key); },
-  };
-}
-
 async function authClient() {
   if (!isBrowser()) throw new LocalDataError('Signing in only works in the browser.');
-  const generation = practiceGeneration;
+  // Every caller returns early in practice; this is the last line of defence.
+  if (practice) throw new LocalDataError('Not available while practising.');
   const { getSupabase, authStorage } = await supabaseModule();
-  if (practice || generation !== practiceGeneration) return quietClient as ReturnType<typeof getSupabase>;
-  return guardedClient(getSupabase(authStorage(practiceStorage())), generation);
+  return getSupabase(authStorage(window.localStorage));
 }
 
 /**
@@ -1235,7 +1170,7 @@ export async function joinTeamWithCode(code: string, firstName: string, lastName
   try {
     return (await requireRemote().call('join_team', { p_code: code, p_first_name: firstName, p_last_name: lastName })) as Id;
   } catch (error) {
-    throw error instanceof StoredDataError ? error : new LocalDataError(error instanceof Error ? error.message : String(error));
+    throw error instanceof LocalDataError ? error : new LocalDataError(error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -1267,7 +1202,7 @@ export async function foundClub(input: {
       p_coach_team: input.coachTeam,
     })) as Id;
   } catch (error) {
-    throw error instanceof StoredDataError ? error : new LocalDataError(error instanceof Error ? error.message : String(error));
+    throw error instanceof LocalDataError ? error : new LocalDataError(error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -1276,7 +1211,7 @@ export async function acceptStaffInvite(token: string): Promise<Id> {
   try {
     return (await requireRemote().call('accept_staff_invite', { p_token: token })) as Id;
   } catch (error) {
-    throw error instanceof StoredDataError ? error : new LocalDataError(error instanceof Error ? error.message : String(error));
+    throw error instanceof LocalDataError ? error : new LocalDataError(error instanceof Error ? error.message : String(error));
   }
 }
 
