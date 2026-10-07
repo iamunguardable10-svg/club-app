@@ -574,6 +574,14 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     ];
   });
 
+  // One away game shows seats and a request immediately in both role views.
+  const rideGame = sessions.find((session) => session.teamId === TEAM_U16 && session.sessionType === 'game' && Date.parse(session.startsAt) > now.getTime());
+  if (rideGame) {
+    rideGame.homeAway = 'away';
+    rideGame.facilityId = null;
+    rideGame.venueAddress = 'Sportpark 3, 45127 Essen';
+  }
+
   return {
     version: SCHEMA_VERSION,
     seededAt: now.toISOString(),
@@ -605,6 +613,9 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     attendanceConfirmations: [],
     absences,
     squadEntries: [],
+    carpools: rideGame ? [{ id: 'carpool-demo-1', sessionId: rideGame.id, driverId: 'coach-1', seats: 3, note: null, createdAt: now.toISOString() }] : [],
+    carpoolRiders: rideGame ? [{ carpoolId: 'carpool-demo-1', personId: 'athlete-u16-2', createdAt: now.toISOString() }] : [],
+    carpoolRequests: rideGame ? [{ sessionId: rideGame.id, personId: 'athlete-u16-1', createdAt: now.toISOString() }] : [],
     messages,
     messageReads,
     messageVotes,

@@ -71,6 +71,18 @@ export const SERVER_MESSAGES: Record<string, MessageKey> = {
   "Choose one of the answers.": 'server.chooseOneOfTheAnswers',
   "This poll is already closed.": 'server.thisPollIsAlreadyClosed',
   "The recipients must belong to the club.": 'server.theRecipientsMustBelong',
+  "Rides are only available for games.": 'carpools.error.game',
+  "Rides cannot be changed after the game starts.": 'carpools.error.past',
+  "Only members of the team can arrange rides.": 'carpools.error.member',
+  "Choose between 1 and 8 seats.": 'carpools.error.seats',
+  "The ride note can be at most 200 characters.": 'carpools.error.note',
+  "This ride has no free seats.": 'carpools.error.full',
+  "You can ride in only one car per game.": 'carpools.error.riding',
+  "A driver cannot ride in another car for this game.": 'carpools.error.driving',
+  "You already offer a ride for this game.": 'carpools.error.offered',
+  "There are more riders than the new seat count.": 'carpools.error.occupied',
+  "This ride no longer exists.": 'carpools.error.missing',
+  "You may not change this ride.": 'carpools.error.own',
 };
 
 const PATTERNS: [RegExp, MessageKey][] = [

@@ -95,6 +95,11 @@ export function buildPush(t: Translate, format: PushFormat, titles: Record<strin
       if (params.important) heading = t('push.message.important', { title: heading });
       return { title: heading, body: stored.body };
     }
+    case 'push.carpoolJoined':
+    case 'push.carpoolLeft':
+    case 'push.carpoolOffered':
+    case 'push.carpoolCancelled':
+      return { title: t(`${key}.title`, { name: str(params.name), seats: str(params.seats) }), body: t('push.carpool.body', { title: title(params.title), when: format.when(str(params.at)) }) };
     case 'push.joined':
       return { title: t('push.joined.title', { team: str(params.team) }), body: t('push.joined.body', { name: str(params.name) }) };
     default:

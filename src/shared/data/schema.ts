@@ -258,6 +258,18 @@ export type SquadEntry = {
   setAt: Timestamp;
 };
 
+export type Carpool = {
+  id: Id;
+  sessionId: Id;
+  driverId: Id;
+  seats: number;
+  note: string | null;
+  createdAt: Timestamp;
+};
+
+export type CarpoolRider = { carpoolId: Id; personId: Id; createdAt: Timestamp };
+export type CarpoolRequest = { sessionId: Id; personId: Id; createdAt: Timestamp };
+
 export type SessionSeries = {
   id: Id;
   clubId: Id;
@@ -587,6 +599,9 @@ export type LocalDatabase = {
   attendanceConfirmations: AttendanceConfirmation[];
   absences: Absence[];
   squadEntries: SquadEntry[];
+  carpools?: Carpool[];
+  carpoolRiders?: CarpoolRider[];
+  carpoolRequests?: CarpoolRequest[];
   messages: Message[];
   messageReads: MessageRead[];
   /** Votes on polls (piece B): players have only their own on the club server. */

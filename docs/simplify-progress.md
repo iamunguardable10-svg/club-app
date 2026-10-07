@@ -2778,3 +2778,42 @@ gespeicherter Abschluss ohne Tour oder Navigation, zwei dauerhaft gespeicherte B
 und beide mobilen Tages-Wischgesten. Seen-State mit Demo und zwei simulierten Konten geprüft.
 Keine Änderungen unter `supabase/` oder an `docs/onboarding-concept.md`, keine Git-Historie
 geändert. Eigene Testserver anschließend beendet; `npm run clean:next-env` ausgeführt.
+
+
+## Run 74: carpools
+
+2026-10-07. Fahrgemeinschaften für Spiele in derselben Datenschicht und denselben
+Spiel-Blättern für Spieler und Trainer: Plätze anbieten (1–8, Standard 3), kurze Notiz,
+Platz anfragen, mitfahren, verlassen, Angebot bearbeiten/zurückziehen und Mitfahrer
+entfernen. Trainer mit `editSessions` können fremde Angebote löschen. Auswärts sichtbar,
+zuhause als „Rides (optional)“ aufklappbar; ab Spielbeginn nur lesbar. Eigener Status auch
+auf der nächsten Spielkarte in Heute; Demo mit einem Auswärtsspiel, Angebot und Anfrage.
+Texte und Push-Texte in en/de/fr/es, neuer abschaltbarer Benachrichtigungstyp `carpool`.
+
+Migration `0040_pilot_carpools.sql`: drei Tabellen mit Kaskaden, RLS und eingeschränkten
+Update-Spalten; sechs Funktionen und sieben Trigger. Spiel- und Auto-Sperren verhindern
+Überbuchung, mehrere Autos und gleichzeitiges Fahren/Mitfahren. Mitfahren löscht die
+Anfrage atomar; der Remote-Store erkennt diese Löschung auch bei mehreren wartenden
+Aktionen. Wiederholte Inserts nach verlorener Netzwerkantwort erzeugen keine doppelten
+Pushes. `people_read` nur erweitert (`alter policy`): Namen beteiligter Teammitglieder,
+keine Namen anderer Teams und keine Erweiterung des Zugriffs auf Belastungsdaten.
+Pushes für Angebote, Einsteigen und Aussteigen mit englischem Text, `text_key` und
+`text_params`; beide Kind-Constraints ergänzt. Keine bestehende Migration geändert.
+Onboarding v4: Anker `data-tour="carpools"`, Tipp, Leerzustand und Neu-Zeile in vier
+Sprachen sowie Abdeckung geplant; keine Tipps oder Übungsfunktionen gebaut.
+
+Geprüft: `npm run typecheck`, `npm run check:i18n`, `npm run test:i18n`,
+`npm run test:carpools`, `npm run test:load`, `npm run test:series`,
+`npm run test:calendar`, `npm run build`, alle SQL-Tests und `npm run test:pilot`
+(ausschließlich `PGHOST=/tmp/pgclub PGPORT=54329 PGUSER=postgres`),
+`BASE_URL=http://localhost:3101 npm run test:smoke` (86 Seitenaufrufe, keine Fehler).
+SQL-/Remote-Tests prüfen Rechte, fremde Teammitglieder, Überbuchung, gleichzeitige
+Anmeldungen im selben und in verschiedenen Autos, gleichzeitiges Angebot/Mitfahren,
+Namen, Beginn-Sperre, atomare Anfragen und Push-Dedupe. Echte Browseraktionen für
+Spieler und Trainer, zuhause aufklappen und Beginn-Sperre geprüft. Bilder auf Handy/fr
+390×844 und Desktop/en 1280×900 unter `/tmp/codex-carpools/` aufgenommen und angesehen;
+auch 360 und 430 Pixel ohne Überbreite geprüft. Fahrten stehen unter den Antworten und
+vor dem langen Kader. Eigener Server auf 3101 anschließend beendet und
+`npm run clean:next-env` ausgeführt; Port 3100 unangetastet (beim Schlusscheck nicht erreichbar).
+Kein Commit, Push oder Eingriff in die Git-Historie; kein Zugriff auf Live-Supabase.
+Offen: Migration und Push-Dispatcher sind noch nicht live ausgerollt, v4-Tipps bleiben geplant.

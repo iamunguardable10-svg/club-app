@@ -745,7 +745,7 @@ export async function deletePushSubscription(endpoint: string): Promise<void> {
 }
 
 /** Kinds of message that can be switched off; "How hard was it?" cannot (piece 12). */
-export type MutablePushKind = 'changed' | 'cancelled' | 'reminder' | 'summary' | 'review' | 'message' | 'joined';
+export type MutablePushKind = 'changed' | 'cancelled' | 'reminder' | 'summary' | 'review' | 'message' | 'joined' | 'carpool';
 
 /** Per account: switched-off kinds and quiet hours (club time, whole hours; null = none). */
 export type NotificationSettings = { mutedKinds: MutablePushKind[]; quietFrom: number | null; quietTo: number | null };
@@ -1998,6 +1998,12 @@ export function updateSession(sessionId: Id, changes: Partial<SessionInput>): vo
 export function deleteSession(sessionId: Id): void {
   mutate((database) => {
     database.sessions = database.sessions.filter((session) => session.id !== sessionId);
+    if (!isRemoteMode()) {
+      const removed = new Set((database.carpools ?? []).filter((c) => c.sessionId === sessionId).map((c) => c.id));
+      database.carpools = (database.carpools ?? []).filter((c) => !removed.has(c.id));
+      database.carpoolRiders = (database.carpoolRiders ?? []).filter((r) => !removed.has(r.carpoolId));
+      database.carpoolRequests = (database.carpoolRequests ?? []).filter((r) => r.sessionId !== sessionId);
+    }
     // Same as the server's foreign keys: reports and dismissals go with the
     // session; load an athlete logged stays theirs, just no longer tied to it.
     database.availability = database.availability.filter((entry) => entry.sessionId !== sessionId);
@@ -2962,3 +2968,140 @@ export function loadSummaryForPerson(database: LocalDatabase, personId: Id) {
 }
 
 export { SCHEMA_VERSION };
+
+// Carpools: team members arrange seats for games before the start.
+function rideError(key: string): never {
+  const messages: Record<string, string> = {
+    game: 'Rides are only available for games.',
+    past: 'Rides cannot be changed after the game starts.',
+    member: 'Only members of the team can arrange rides.',
+    seats: 'Choose between 1 and 8 seats.',
+    note: 'The ride note can be at most 200 characters.',
+    full: 'This ride has no free seats.',
+    riding: 'You can ride in only one car per game.',
+    driving: 'A driver cannot ride in another car for this game.',
+    offered: 'You already offer a ride for this game.',
+    occupied: 'There are more riders than the new seat count.',
+    missing: 'This ride no longer exists.',
+    own: 'You may not change this ride.',
+  };
+  throw new LocalDataError(messages[key], undefined, `carpools.error.${key}`);
+}
+
+function rideSession(database: LocalDatabase, sessionId: Id): Session {
+  const session = database.sessions.find((candidate) => candidate.id === sessionId);
+  if (!session || session.sessionType !== 'game') rideError('game');
+  if (Date.parse(session.startsAt) <= Date.now()) rideError('past');
+  return session;
+}
+
+function rideMember(database: LocalDatabase, session: Session): Id {
+  const me = ownPersonIds(database).find((personId) => database.memberships.some((m) => m.personId === personId && m.teamId === session.teamId));
+  if (!me) rideError('member');
+  return me;
+}
+
+function requireRide(database: LocalDatabase, carpoolId: Id) {
+  const ride = database.carpools?.find((candidate) => candidate.id === carpoolId);
+  if (!ride) rideError('missing');
+  rideSession(database, ride.sessionId);
+  return ride;
+}
+
+function cleanRide(seats: number, note: string | null = null) {
+  if (!Number.isInteger(seats) || seats < 1 || seats > 8) rideError('seats');
+  const clean = note?.trim() || null;
+  if (clean && Array.from(clean).length > 200) rideError('note');
+  return { seats, note: clean };
+}
+
+/** The person's one car for this game, if joined. */
+export function joinedRide(database: LocalDatabase, sessionId: Id, personId: Id) {
+  return database.carpools?.find((ride) => ride.sessionId === sessionId && database.carpoolRiders?.some((r) => r.carpoolId === ride.id && r.personId === personId)) ?? null;
+}
+
+function clearRideRequest(database: LocalDatabase, sessionId: Id, personId: Id) {
+  database.carpoolRequests = (database.carpoolRequests ?? []).filter((r) => r.sessionId !== sessionId || r.personId !== personId);
+}
+
+export function offerRide(sessionId: Id, seats = 3, note: string | null = null): Id {
+  const id = newId();
+  const details = cleanRide(seats, note);
+  mutate((database) => {
+    const me = rideMember(database, rideSession(database, sessionId));
+    if (database.carpools?.some((c) => c.sessionId === sessionId && c.driverId === me)) rideError('offered');
+    if (joinedRide(database, sessionId, me)) rideError('riding');
+    database.carpools ??= [];
+    database.carpools.push({ id, sessionId, driverId: me, ...details, createdAt: new Date().toISOString() });
+    if (!isRemoteMode()) clearRideRequest(database, sessionId, me);
+  });
+  return id;
+}
+
+export function updateRide(carpoolId: Id, seats: number, note: string | null = null): void {
+  const details = cleanRide(seats, note);
+  mutate((database) => {
+    const ride = requireRide(database, carpoolId);
+    if (rideMember(database, rideSession(database, ride.sessionId)) !== ride.driverId) rideError('own');
+    if ((database.carpoolRiders ?? []).filter((r) => r.carpoolId === carpoolId).length > seats) rideError('occupied');
+    Object.assign(ride, details);
+  });
+}
+
+export function withdrawRide(carpoolId: Id): void {
+  mutate((database) => {
+    const ride = requireRide(database, carpoolId);
+    const me = ownPersonIds(database);
+    if (!me.includes(ride.driverId) && !me.some((id) => hasCoachPermission(database, id, rideSession(database, ride.sessionId).teamId, 'editSessions'))) rideError('own');
+    database.carpools = database.carpools!.filter((c) => c.id !== carpoolId);
+    // The server cascades riders; sending their deletions would require their rights.
+    if (!isRemoteMode()) database.carpoolRiders = (database.carpoolRiders ?? []).filter((r) => r.carpoolId !== carpoolId);
+  });
+}
+
+export function joinRide(carpoolId: Id): void {
+  mutate((database) => {
+    const ride = requireRide(database, carpoolId);
+    const me = rideMember(database, rideSession(database, ride.sessionId));
+    if (database.carpools?.some((c) => c.sessionId === ride.sessionId && c.driverId === me)) rideError('driving');
+    if (joinedRide(database, ride.sessionId, me)) rideError('riding');
+    if ((database.carpoolRiders ?? []).filter((r) => r.carpoolId === carpoolId).length >= ride.seats) rideError('full');
+    database.carpoolRiders ??= [];
+    database.carpoolRiders.push({ carpoolId, personId: me, createdAt: new Date().toISOString() });
+    // Joining clears the request atomically on the server. Do not delete it
+    // first there: a refused join must leave the request intact.
+    if (!isRemoteMode()) clearRideRequest(database, ride.sessionId, me);
+  });
+}
+
+export function leaveRide(carpoolId: Id): void {
+  mutate((database) => {
+    const ride = requireRide(database, carpoolId);
+    const me = rideMember(database, rideSession(database, ride.sessionId));
+    database.carpoolRiders = (database.carpoolRiders ?? []).filter((r) => r.carpoolId !== carpoolId || r.personId !== me);
+  });
+}
+
+export function removeRider(carpoolId: Id, personId: Id): void {
+  mutate((database) => {
+    const ride = requireRide(database, carpoolId);
+    if (!ownPersonIds(database).includes(ride.driverId)) rideError('own');
+    database.carpoolRiders = (database.carpoolRiders ?? []).filter((r) => r.carpoolId !== carpoolId || r.personId !== personId);
+  });
+}
+
+export function needSeat(sessionId: Id): void {
+  mutate((database) => {
+    const me = rideMember(database, rideSession(database, sessionId));
+    if (database.carpools?.some((c) => c.sessionId === sessionId && c.driverId === me)) rideError('driving');
+    if (joinedRide(database, sessionId, me)) rideError('riding');
+    database.carpoolRequests ??= [];
+    if (!database.carpoolRequests.some((r) => r.sessionId === sessionId && r.personId === me)) database.carpoolRequests.push({ sessionId, personId: me, createdAt: new Date().toISOString() });
+  });
+}
+
+export function cancelNeedSeat(sessionId: Id): void {
+  mutate((database) => {
+    clearRideRequest(database, sessionId, rideMember(database, rideSession(database, sessionId)));
+  });
+}

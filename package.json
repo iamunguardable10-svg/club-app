@@ -15,6 +15,7 @@
     "hooks:claude-review": "node scripts/install-claude-review-hook.mjs",
     "clean:next-env": "node scripts/clean-next-env.mjs",
     "test:pilot": "tsx supabase/pilot/tests/remote-store.test.ts",
+    "test:carpools": "tsx src/shared/data/carpools.test.ts",
     "test:load": "tsx src/shared/data/loadCalculations.test.ts",
     "test:calendar": "tsx supabase/pilot/tests/calendar-ics.test.ts",
     "test:series": "tsx src/features/load/planSeries.test.ts",

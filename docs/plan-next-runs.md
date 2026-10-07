@@ -322,9 +322,7 @@ weiteren Teams oder Vereinen aber nötig:
   Gründen dann auch für weitere Vereine.
 
 - **Ideen (gemerkt 2026-09-26, noch nicht geplant):**
-  - *Fahrgemeinschaften bei Auswärtsspielen:* „Ich fahre, 3 Plätze frei“ / „Ich brauche einen Platz“
-    am Spiel, Mitfahrer tragen sich beim Fahrer ein, Push an den Fahrer. Offen: in der Jugend fahren
-    oft Eltern ohne Konto (zunächst über das Konto des Spielers). Mittelgroß; Vorschlag: zuerst.
+  - **Fahrgemeinschaften bei Auswärtsspielen: gebaut in Run 74.** Gemeinsame Spiel-Sektion für Spieler/Trainer: Angebot, Anfrage, Mitfahren, Bearbeiten und Entfernen; lokale und Server-Regeln gegen Überbuchung, Pushes und Benachrichtigungsschalter. Zuhause optional, nach Spielbeginn nur lesbar. Eltern zunächst über das Spielerkonto; v4-Tipps/Leerzustände nur geplant in `onboarding-concept.md`.
   - *Team-Ranglisten:* Anwesenheit und Trainingsminuten (keine Belastung/RPE, das sind
     Gesundheitsdaten). Pro Team vom Trainer einschaltbar; bei Minderjährigen eher nur der eigene
     Platz und die ersten drei. Daten sind schon da; klein.

@@ -1,6 +1,7 @@
 'use client';
 
 import { type MouseEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { Carpools, CarpoolSummary } from '@/features/sessions/Carpools';
 import { SessionInfo, gameLine, meetLine, squadLine } from '@/features/sessions/SessionInfo';
 import { AbsencePanel } from '@/features/absences/AbsencePanel';
 import Link from 'next/link';
@@ -1417,6 +1418,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const todayRisk = todayForecast && todayForecast.after > HIGH_RISK_ACWR ? todayForecast : null;
   // A warmup belongs to its game; the game is what comes next.
   const nextSession = activePendingSessions.find((session) => session.date >= todayISO() && session.trainingType !== 'warmup') ?? activePendingSessions[0] ?? null;
+  const nextGame = calendarSessions.find((session) => session.trainingType === 'game' && Date.parse(session.startsAt) > Date.now() && !isSessionCancelled(session.id));
   // Where the ratio lands after each session shown on Today ("~1.05"), with
   // everything planned before it done as estimated (same forecast as the chart).
   // Only for the next four sessions Today shows: further out the estimates are
@@ -2188,6 +2190,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                     const lines = [info.squad ? squadLine(info.squad) : null, gameLine(info), place, info.squad === 'not_selected' ? null : meetLine(info)].filter(Boolean);
                     return lines.length > 0 ? <p className="mt-1 text-sm font-bold text-amber-100/90">{lines.join(' · ')}</p> : null;
                   })() : null}
+                  <CarpoolSummary sessionId={nextSession.id} />
                   {nextSession.info?.notes ? <p className="mt-1 line-clamp-2 text-xs font-bold text-slate-400">{nextSession.info.notes}</p> : null}
                   <p className={`mt-3 text-xs font-bold ${isOpenSession(nextSession) ? 'text-amber-200' : 'text-emerald-200'}`}>{availabilityLabelFor(nextSession)}</p>
                 </button>
@@ -2201,6 +2204,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 ) : null}
                 </>
               ) : <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">{t('athlete.noSessions')}</div>}
+              {nextGame && nextGame.id !== nextSession?.id ? <button type="button" data-session-id={nextGame.id} onClick={() => openCalendarItem(nextSessionItem(nextGame))} className="mt-3 w-full rounded-2xl border border-sky-300/25 bg-sky-300/[0.05] p-4 text-left hover:border-sky-300/50">
+                <p className="text-sm font-black">{[displayTitle(nextGame.title), nextGame.info ? gameLine(nextGame.info) : null].filter(Boolean).join(' · ')}</p>
+                <p className="mt-1 text-xs font-bold text-slate-400">{formatDay(nextGame.startsAt)} · {formatTime(nextGame.startsAt)}</p>
+                <CarpoolSummary sessionId={nextGame.id} />
+              </button> : null}
               {hasLoad && plans.length > 0 ? (
                 <div className="mt-4 space-y-2">
                   {plans.slice(0, 4).map((plan) => (
@@ -2233,7 +2241,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         ) : null}
       {activeDetailItem ? (
         <div className="fixed inset-0 z-[100] flex items-end bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
-          <div className="w-full rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-md">
+          <div className="max-h-[88vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-md">
             <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">{t('athlete.detail.kicker')}</p>
@@ -2258,6 +2266,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 <p className="mt-2 text-xl font-black text-white">{activeDetailItem.entry?.durationMinutes ?? '—'}</p>
               </div>
             </div>
+            {activeDetailItem.entry?.sessionId ? <Carpools key={activeDetailItem.entry.sessionId} sessionId={activeDetailItem.entry.sessionId} /> : null}
             {activeDetailItem.entry ? (
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <button type="button" onClick={() => { const item = activeDetailItem; setActiveDetailItem(null); openCalendarItem(item, 'edit'); }} className="rounded-2xl border border-sky-400/50 bg-sky-400/10 px-4 py-3 text-sm font-black text-sky-100">
@@ -2518,6 +2527,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 ) : null}
               </>
             )}
+            {activeComposerSession?.source === 'team_session' ? <Carpools key={activeComposerSession.id} sessionId={activeComposerSession.id} /> : null}
           </div>
         </div>
       ) : null}

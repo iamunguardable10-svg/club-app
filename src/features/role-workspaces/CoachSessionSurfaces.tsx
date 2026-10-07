@@ -1009,6 +1009,7 @@ export function CoachSessionDetailOverlay({
   return (
     <>
       <SessionDetailSheet
+        sessionId={session.id}
         title={displayTitle(session.title)}
         startsAt={session.startsAt}
         endsAt={session.endsAt}
@@ -1036,13 +1037,8 @@ export function CoachSessionDetailOverlay({
           })),
         }}
         loadRisks={loadRisks}
-        insights={!isPast ? ((session.openPlayerIds?.length ?? 0) > 0 || (session.sessionType === 'game' && (session.canPickSquad || session.squadPublishedAt)) ? (<>
-          <OpenAnswers key={`open-${session.id}`} session={session} className={session.sessionType === 'game' ? 'mb-3' : ''} />
-          {session.sessionType === 'game' && (session.canPickSquad || session.squadPublishedAt) ? <SquadPicker key={session.id} session={session} /> : null}
-        </>) : null) : isPast ? (<>
-        {session.canConfirmAttendance && session.attendanceShared !== false && session.players.length > 0 ? (
-          <AttendanceConfirmation key={session.id} session={session} />
-        ) : null}
+        answers={!isPast ? ((session.openPlayerIds?.length ?? 0) > 0 ? <OpenAnswers key={`open-${session.id}`} session={session} /> : null) : session.canConfirmAttendance && session.attendanceShared !== false && session.players.length > 0 ? <AttendanceConfirmation key={session.id} session={session} /> : null}
+        insights={!isPast ? (session.sessionType === 'game' && (session.canPickSquad || session.squadPublishedAt) ? <SquadPicker key={session.id} session={session} /> : null) : isPast ? (<>
         {!sessionLoadDetailsShared(session) ? (
           <p className="rounded-2xl border border-slate-800 bg-slate-950/55 p-3 text-xs font-bold text-slate-400">{session.loadTracked === false ? t('insight.noTracking', { team: session.teamName }) : t('insight.notShared')}</p>
         ) : isPast ? (
