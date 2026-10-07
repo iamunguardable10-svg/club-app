@@ -201,6 +201,52 @@ async function main() {
   check('Martin: away game with opponent, address and meeting on the server',
     (await count("select 1 from sessions where id = $1 and opponent = 'TSV Neustadt' and home_away = 'away' and facility_id is null and meet_minutes_before = 90 and meet_point = 'Club car park' and notes = 'Both kits.'", [awayGame])) === 1,
     store.getStatus().rejected);
+  // Carpools use the same repository and RLS-backed remote store.
+  const martinCar = data.offerRide(awayGame, 1, 'Meet at the school');
+  await data.flushRemote();
+  check('Martin: offers a ride on the server', db().carpools?.some((c) => c.id === martinCar && c.seats === 1) === true && !store.getStatus().rejected, store.getStatus());
+  store = await actAs(U.jonas);
+  data.needSeat(awayGame);
+  data.joinRide(martinCar); // Queue both before the first request is answered.
+  await data.flushRemote();
+  check('Jonas: queued request then join clears the request atomically, without a refusal',
+    !store.getStatus().rejected && data.joinedRide(db(), awayGame, P.jonas)?.id === martinCar && !db().carpoolRequests?.some((r) => r.sessionId === awayGame), store.getStatus());
+  const savedCar = (await pgClient(U.martin).selectAll('carpools')).find((c) => c.id === martinCar)!;
+  await assert.rejects(pgClient(U.martin).insert('carpools', [savedCar]), (error: unknown) => (error as { code: string }).code === '23505');
+  const savedRider = (await pgClient(U.jonas).selectAll('carpool_riders')).find((r) => r.carpool_id === martinCar)!;
+  await assert.rejects(pgClient(U.jonas).insert('carpool_riders', [savedRider]), (error: unknown) => (error as { code: string }).code === '23505');
+  check('… retrying the same rider leaves one row', (await count('select 1 from carpool_riders where carpool_id = $1', [martinCar])) === 1);
+  data.leaveRide(martinCar);
+  await data.flushRemote();
+  data.needSeat(awayGame);
+  data.joinRide(martinCar);
+  data.leaveRide(martinCar);
+  await data.flushRemote();
+  check('Jonas: queued request, join and leave also preserve the successful request clearing', !store.getStatus().rejected && !db().carpoolRequests?.some((r) => r.sessionId === awayGame) && !data.joinedRide(db(), awayGame, P.jonas), store.getStatus());
+  store = await actAs(U.uwe);
+  const uweCar = data.offerRide(awayGame, 1);
+  await data.flushRemote();
+  const attempts = await Promise.allSettled([U.jonas, U.ben].map((userId, i) => pgClient(userId).insert('carpool_riders', [{ carpool_id: martinCar, person_id: [P.jonas, P.ben][i] }])));
+  check('concurrent joins cannot overbook the last seat', attempts.filter((r) => r.status === 'fulfilled').length === 1 && (await count('select 1 from carpool_riders where carpool_id = $1', [martinCar])) === 1, attempts);
+  await pool.query('delete from carpool_riders where carpool_id = $1', [martinCar]);
+  const twoCars = await Promise.allSettled([martinCar, uweCar].map((car) => pgClient(U.jonas).insert('carpool_riders', [{ carpool_id: car, person_id: P.jonas }])));
+  check('concurrent joins to different cars allow only one ride per game', twoCars.filter((r) => r.status === 'fulfilled').length === 1 && (await count('select 1 from carpool_riders where person_id = $1', [P.jonas])) === 1, twoCars);
+  await pool.query('delete from carpool_riders where person_id = $1', [P.jonas]);
+  const offerOrJoin = await Promise.allSettled([
+    pgClient(U.jonas).insert('carpools', [{ id: data.newId(), session_id: awayGame, driver_id: P.jonas, seats: 3 }]),
+    pgClient(U.jonas).insert('carpool_riders', [{ carpool_id: martinCar, person_id: P.jonas }]),
+  ]);
+  check('a concurrent offer and join cannot make a driver into a rider', offerOrJoin.filter((r) => r.status === 'fulfilled').length === 1, offerOrJoin);
+  store = await actAs(U.martin);
+  const jonasCar = db().carpools?.find((c) => c.sessionId === awayGame && c.driverId === P.jonas);
+  if (jonasCar) { data.withdrawRide(jonasCar.id); await data.flushRemote(); }
+  data.updateRide(martinCar, 2, 'School, 17:15');
+  await data.flushRemote();
+  check('Martin: edits seats and note', db().carpools?.find((c) => c.id === martinCar)?.seats === 2 && !store.getStatus().rejected, store.getStatus());
+  data.withdrawRide(martinCar);
+  data.withdrawRide(uweCar); // editSessions can delete another driver's offer.
+  await data.flushRemote();
+  check('Martin: withdraw/delete cascades riders without sending unauthorized rider deletes', !store.getStatus().rejected && (await count('select 1 from carpools where session_id = $1', [awayGame])) === 0 && (await count('select 1 from carpool_riders')) === 0, store.getStatus());
   data.updateSession(awayGame, { sessionType: 'training', title: 'Training' });
   await data.flushRemote();
   check('… turned into a training, it drops the game details but keeps the meeting',

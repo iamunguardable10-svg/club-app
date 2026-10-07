@@ -1,5 +1,6 @@
 ﻿'use client';
 
+import { Carpools } from './Carpools';
 import { formatSessionTime } from '@/shared/format';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
@@ -80,6 +81,7 @@ function timeValueFromIso(value: string) {
 
 export function SessionDetailSheet({
   title,
+  sessionId,
   startsAt,
   endsAt,
   teamName,
@@ -100,6 +102,7 @@ export function SessionDetailSheet({
   participants = [],
   showExpectedParticipants = true,
   onParticipantSelect,
+  answers,
   insights,
   editDetails,
   editOpenKey,
@@ -110,6 +113,7 @@ export function SessionDetailSheet({
   onClose,
 }: {
   title: string;
+  sessionId?: string;
   startsAt: string;
   endsAt: string | null;
   teamName?: string | null;
@@ -130,6 +134,7 @@ export function SessionDetailSheet({
   participants?: SessionDetailParticipant[];
   showExpectedParticipants?: boolean;
   onParticipantSelect?: (participantId: string) => void;
+  answers?: ReactNode;
   insights?: ReactNode;
   editDetails?: ReactNode;
   editOpenKey?: string | null;
@@ -286,12 +291,15 @@ export function SessionDetailSheet({
           </div>
         ) : null}
 
+        {answers ? <div className="mt-2.5">{answers}</div> : null}
+
+        {sessionId ? <Carpools key={sessionId} sessionId={sessionId} /> : null}
+
         {insights ? (
           <div className="mt-2.5 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
             {insights}
           </div>
         ) : null}
-
 
         {load ? (
           <div className="mt-2.5 rounded-xl border border-slate-800 bg-slate-900/45 p-3">

@@ -103,6 +103,17 @@ Schreibweise: **Titel** — Satz. *(Anker · Auslöser · weg wenn)*
   *(rate-scale)*
 - Erste Umfrage: **Abstimmen** — Tippe auf eine Antwort, ändern geht jederzeit. *(messages-poll)*
 
+
+**Spiel-Blatt: Fahrgemeinschaften** (Run 74, nur geplant; keine Tipps gebaut)
+- Tipp: **Rides · Offer seats or ask for one.** *(data-tour="carpools" · erstes zukünftiges
+  Auswärtsspiel eines Teammitglieds · weg nach Angebot, Anfrage oder Mitfahren; nie über einem
+  offenen Blatt, daher künftig als Inline-Tipp in der Sektion)*
+  EN: “Rides · Offer seats or ask for one.” · DE: „Fahrgemeinschaften · Biete Plätze an oder frag nach einem.“ ·
+  FR: « Trajets · Propose des places ou demande une place. » · ES: « Viajes · Ofrece plazas o pide una. »
+- Leerzustand: EN “No rides yet. Offer seats for your team.” · DE „Noch keine Fahrgemeinschaften. Biete deinem Team Plätze an.“ ·
+  FR « Aucun trajet. Propose des places à ton équipe. » · ES « Aún no hay viajes. Ofrece plazas a tu equipo. »
+  *(carpools · keine Angebote/Anfragen · Knopf Angebot machen; nur geplant)*
+
 ### Trainer
 
 **Heute** (`/coach/today`)
@@ -146,6 +157,17 @@ Schreibweise: **Titel** — Satz. *(Anker · Auslöser · weg wenn)*
 - Erstes Spiel: **Kader** — Wähl aus, wer dabei ist, und veröffentliche. *(squad-panel)*
 - Erste offene Prüfung: **Eintrag prüfen** — Ein Spieler bittet um deinen Blick. *(athlete-check)*
 
+
+**Spiel-Blatt für Trainer: Fahrgemeinschaften** (Run 74, nur geplant; keine Tipps gebaut)
+- Tipp: **Rides · Offer seats or ask for one.** *(data-tour="carpools" · erstes zukünftiges
+  Auswärtsspiel eines Teammitglieds · weg nach Angebot, Anfrage oder Mitfahren; nie über einem
+  offenen Blatt, daher künftig als Inline-Tipp in der Sektion)*
+  EN: “Rides · Offer seats or ask for one.” · DE: „Fahrgemeinschaften · Biete Plätze an oder frag nach einem.“ ·
+  FR: « Trajets · Propose des places ou demande une place. » · ES: « Viajes · Ofrece plazas o pide una. »
+- Leerzustand: EN “No rides yet. Offer seats for your team.” · DE „Noch keine Fahrgemeinschaften. Biete deinem Team Plätze an.“ ·
+  FR « Aucun trajet. Propose des places à ton équipe. » · ES « Aún no hay viajes. Ofrece plazas a tu equipo. »
+  *(carpools · keine Angebote/Anfragen · Knopf Angebot machen; nur geplant)*
+
 ### Abteilungsleitung und Vereinsadmin
 
 **Verein** (`/club`)
@@ -173,6 +195,7 @@ Schreibweise: **Titel** — Satz. *(Anker · Auslöser · weg wenn)*
 | Verlauf leer | „Sobald Spieler Einheiten bewerten, siehst du hier den Verlauf.“ | — |
 | Verein, keine Teams | „Leg dein erstes Team an.“ | Team anlegen |
 | Hallen leer | „Noch keine Hallen. Leg die erste an.“ | Halle anlegen |
+| Spiel-Blatt, Spieler/Trainer, keine Fahrten | Texte für Rides in Abschnitt 3 (EN/DE/FR/ES), nur geplant | Angebot machen |
 
 ## 5. Einrichtungs-Liste (E)
 
@@ -205,3 +228,13 @@ Sprachen, bei Bedarf eine Zeile im „Neu“-Blatt (F). Steht in `AGENTS.md` (Sc
 1. Willkommen: ein Bildschirm wie oben ok, oder lieber 2–3 Seiten zum Wischen?
 2. Einrichtungs-Liste auch für Spieler (z. B. Profilbild, Benachrichtigungen, erste Zusage)?
 3. „Neu“-Blatt nach Updates gewünscht?
+
+## 9. Abdeckung neuer Funktionen
+
+| Funktion | Wer / Ort | Entdecken / Geste | Anker | Stand |
+|---|---|---|---|---|
+| Fahrgemeinschaften (Run 74) | Spieler und Trainer eines Teams, Spiel-Blatt; auswärts sichtbar, zuhause aufklappbar | Plätze anbieten, Platz anfragen, beim Angebot mitfahren; Tipp/Leerzustand in §3 in vier Sprachen | `data-tour="carpools"` | Funktion und Anker gebaut; v4-Tipp/Leerzustand nur geplant |
+
+„Neu“-Zeile für bestehende Nutzer, ebenfalls nur geplant:
+EN “Rides · Arrange rides for your next game.” · DE „Fahrgemeinschaften · Organisiere Fahrten zu deinem nächsten Spiel.“ ·
+FR « Trajets · Organise les trajets pour ton prochain match. » · ES « Viajes · Organiza los viajes para tu próximo partido. »

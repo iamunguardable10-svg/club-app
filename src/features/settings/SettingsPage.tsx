@@ -399,7 +399,7 @@ function NotificationSection({ database }: { database: LocalDatabase }) {
   const own = new Set(ownPersonIds(database));
   const isPlayer = database.memberships.some((membership) => own.has(membership.personId) && membership.role === 'athlete');
   const isCoach = database.memberships.some((membership) => own.has(membership.personId) && membership.role === 'coach');
-  const options = [...(isPlayer ? PLAYER_KINDS : []), ...(isCoach ? COACH_KINDS : [])];
+  const options: KindOption[] = [...(isPlayer ? PLAYER_KINDS : []), ...(isCoach ? COACH_KINDS : []), ...(isPlayer || isCoach ? [{ kinds: ['carpool'] as MutablePushKind[], label: 'settings.kind.carpool' as const, detail: 'settings.kind.carpoolDetail' as const }] : [])];
 
   const isOn = (option: KindOption) => option.kinds.every((kind) => !draft.mutedKinds.includes(kind));
   function toggle(option: KindOption) {

@@ -1,5 +1,6 @@
 'use client';
 
+import { CarpoolSummary } from '@/features/sessions/Carpools';
 import { sessionsNotOver } from '@/features/sessions/sessionTiming';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
@@ -160,6 +161,7 @@ function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDet
           <p className="text-2xl font-black tabular-nums">{formatTimeRange(session.startsAt, session.endsAt)}</p>
           <h3 className="mt-1 text-base font-black">{displayTitle(session.title)}</h3>
           <p className="mt-0.5 text-sm font-bold text-slate-400">{session.teamName}{session.homeAway !== 'away' && session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+          <CarpoolSummary sessionId={session.id} />
           {gameLine(session) || meetLine(session) ? <p className="mt-0.5 text-sm font-bold text-amber-100/90">{[gameLine(session), meetLine(session)].filter(Boolean).join(' · ')}</p> : null}
         </div>
         <span aria-hidden className="text-lg font-black text-slate-500">›</span>
@@ -205,6 +207,7 @@ function UpcomingSessionRow({ session, showTeam, onOpen }: { session: CoachSessi
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-black text-white">{displayTitle(session.title)}{session.opponent ? ` ${gameLine(session)}` : ''}</p>
         <p className="truncate text-xs font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt)}{showTeam ? ` · ${session.teamName}` : ''}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+        <CarpoolSummary sessionId={session.id} />
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1 text-[11px] font-black">
         {out.length > 0 ? <span className="rounded-full bg-rose-400/15 px-2 py-0.5 text-rose-200">{t('coach.row.out', { count: out.length })}</span> : null}
@@ -939,7 +942,10 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const initialSection = useMemo(() => (mode === 'team' && sectionParam === 'settings' ? 'settings' : sectionForMode(mode)), [mode, sectionParam]);
   const today = useMemo(() => new Date(), []);
   const todaySessions = sessions.filter((session) => isSameLocalDay(session.startsAt, today));
-  const upcomingSessions = sessions.filter((session) => new Date(session.startsAt).getTime() >= Date.now() && !isSameLocalDay(session.startsAt, today)).slice(0, 4);
+  const futureSessions = sessions.filter((session) => new Date(session.startsAt).getTime() >= Date.now() && !isSameLocalDay(session.startsAt, today));
+  const upcomingSessions = futureSessions.slice(0, 4);
+  const nextGame = futureSessions.find((session) => session.sessionType === 'game');
+  if (nextGame && !upcomingSessions.some((session) => session.id === nextGame.id)) upcomingSessions.push(nextGame);
   const nextSessionByTeamId = useMemo(() => {
     const map = new Map<string, CoachSession>();
     // A running session is still the team's next one, as on Today.

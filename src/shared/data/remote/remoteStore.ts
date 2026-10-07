@@ -201,6 +201,9 @@ const TABLE_KEY: Partial<Record<TableName, MessageKey>> = {
   attendance_confirmations: 'sync.table.attendanceConfirmations',
   absences: 'sync.table.absences',
   absence_reasons: 'sync.table.absenceReasons',
+  carpools: 'carpools.title',
+  carpool_riders: 'carpools.title',
+  carpool_requests: 'carpools.title',
   squad_entries: 'sync.table.squadEntries',
   messages: 'sync.table.messages',
   message_reads: 'sync.table.messageReads',
@@ -525,6 +528,12 @@ export class RemoteStore {
       // a hall unshared from their department) is not a refusal; only rows
       // that are visible can be compared.
       if (!found) {
+        // Offering or joining atomically clears a queued seat request.
+        if (operation.table === 'carpool_requests' && operation.kind === 'insert') {
+          const { session_id, person_id } = operation.row;
+          const cars = [...server.carpools, ...this.unchecked.flatMap((op) => op.kind === 'insert' && op.table === 'carpools' ? [op.row] : [])].filter((car) => car.session_id === session_id);
+          if (cars.some((car) => car.driver_id === person_id) || [...server.carpool_riders, ...this.unchecked.flatMap((op) => op.kind === 'insert' && op.table === 'carpool_riders' ? [op.row] : [])].some((rider) => rider.person_id === person_id && cars.some((car) => car.id === rider.carpool_id))) continue;
+        }
         if (operation.kind === 'insert') return operation.table;
         continue;
       }
