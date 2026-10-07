@@ -10,7 +10,6 @@
 import { getActivePerson, messagesForTeam, useLocalDatabase } from '@/shared/data';
 import { useT } from '@/shared/i18n';
 
-import { MomentTip } from '@/features/onboarding/MomentTip';
 import { MessageComposer } from './MessageComposer';
 import { MessageList } from './MessageList';
 
@@ -21,7 +20,6 @@ export function TeamMessagesPanel({ teamId }: { teamId: string }) {
   const person = getActivePerson(database);
   return (
     <div className="grid gap-4">
-      <MomentTip id="messages" />
       <MessageComposer initialTeamIds={[teamId]} />
       <MessageList database={database} messages={messagesForTeam(database, teamId)} viewerId={person?.id ?? null} emptyText={t('teamMessages.none')} />
     </div>

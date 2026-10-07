@@ -22,12 +22,10 @@
     "check:i18n": "node scripts/check-i18n.mjs && node --import tsx scripts/push-texts.ts --check && node --import tsx scripts/mail-templates.ts --check",
     "push-texts": "tsx scripts/push-texts.ts",
     "mail-templates": "tsx scripts/mail-templates.ts",
-    "test:practice": "node --import tsx src/shared/data/practice.test.ts",
     "test:i18n": "node --import tsx src/shared/i18n/translate.test.ts",
     "test:build": "tsx src/features/install/buildVersion.test.ts",
     "test:address": "tsx src/features/facilities/addressAutocomplete.test.ts",
-    "test:smoke": "node scripts/smoke.mjs",
-    "test:tours": "node scripts/tours.mjs"
+    "test:smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.1",

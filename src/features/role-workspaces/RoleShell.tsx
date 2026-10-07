@@ -12,18 +12,16 @@
  */
 
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { InstallHint } from '@/features/install/InstallHint';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
 import { CalendarHint } from '@/features/calendar/CalendarHint';
-import { athleteHasLoad, getActivePerson, unreadMessagesFor, useLocalDatabase } from '@/shared/data';
+import { athleteHasLoad, getActivePerson, isTourSeen, loadToursFromAccount, markTourSeen, unreadMessagesFor, useLocalDatabase } from '@/shared/data';
 import { UnreadMessagesCard } from '@/features/messages/UnreadMessagesCard';
 import { countToRate } from '@/features/load/athleteLocalStore';
-import { TourHost } from '@/features/onboarding/TourHost';
-import { requestTour } from '@/features/onboarding/tourBus';
-import type { PageTourId } from '@/features/onboarding/tours';
+import { Welcome } from '@/features/onboarding/Welcome';
 import { useT, type MessageKey } from '@/shared/i18n';
 
 export type CoachNavItem = 'today' | 'calendar' | 'team' | 'halls' | 'history';
@@ -77,25 +75,21 @@ type ShellProps = {
   back?: { href: string; label: string };
   /** Buttons next to the title (right side on desktop, below it on phones). */
   actions?: ReactNode;
-  /** The page's guided tour (first visit and "?"); by default the one of the tab, `null` for none. */
-  tour?: PageTourId | null;
   children: ReactNode;
 };
 
-export function CoachShell({ active, tour, ...props }: ShellProps & { active: CoachNavItem }) {
-  return <RoleShell nav={COACH_NAV} active={active} tour={tour === undefined ? `coach.${active}` : tour} {...props} />;
+export function CoachShell({ active, ...props }: ShellProps & { active: CoachNavItem }) {
+  return <RoleShell nav={COACH_NAV} active={active} {...props} />;
 }
 
 /** `showLoad` is false for players whose teams do not track training load. */
-export function AthleteShell({ active, showLoad = true, tour, ...props }: ShellProps & { active: AthleteNavItem; showLoad?: boolean }) {
-  // Steps about load leave themselves out without load tracking (their controls are missing).
-  return <RoleShell nav={showLoad ? ATHLETE_NAV : ATHLETE_NAV.filter((entry) => entry.item !== 'load')} active={active} tour={tour === undefined ? `athlete.${active}` : tour} {...props} />;
+export function AthleteShell({ active, showLoad = true, ...props }: ShellProps & { active: AthleteNavItem; showLoad?: boolean }) {
+  return <RoleShell nav={showLoad ? ATHLETE_NAV : ATHLETE_NAV.filter((entry) => entry.item !== 'load')} active={active} {...props} />;
 }
 
 /** Club admins and department leads (piece 8). */
-export function ClubShell({ active, tour, ...props }: ShellProps & { active: ClubNavItem }) {
-  const byTab: Record<ClubNavItem, PageTourId> = { club: 'club.club', halls: 'club.halls', messages: 'messages' };
-  return <RoleShell nav={CLUB_NAV} active={active} tour={tour === undefined ? byTab[active] : tour} {...props} />;
+export function ClubShell({ active, ...props }: ShellProps & { active: ClubNavItem }) {
+  return <RoleShell nav={CLUB_NAV} active={active} {...props} />;
 }
 
 /**
@@ -111,9 +105,9 @@ export function ActiveRoleShell(props: ShellProps) {
   return <RoleShell nav={nav} active={null} {...props} />;
 }
 
-function RoleShell({ nav, active, title, subtitle, back, actions, tour = null, children }: ShellProps & { nav: NavEntry[]; active: NavItem | null }) {
+function RoleShell({ nav, active, title, subtitle, back, actions, children }: ShellProps & { nav: NavEntry[]; active: NavItem | null }) {
   const t = useT();
-  const { database } = useLocalDatabase();
+  const { database, ready } = useLocalDatabase();
   const person = database ? getActivePerson(database) : null;
   // "Team" or "Teams", depending on what the tab opens.
   const teamCount = database && person
@@ -141,6 +135,18 @@ function RoleShell({ nav, active, title, subtitle, back, actions, tour = null, c
   // A single destination needs no tab bar on phones.
   const tabBar = nav.length > 1;
   const identityRole = database?.activeIdentity?.role ?? null;
+  const identityKey = person && identityRole ? `${person.id}.${identityRole}` : null;
+  // Keep the existing welcome IDs so accounts that saw it are remembered.
+  const welcomeId = identityRole ? `welcome.${identityRole}.practice-v1` : null;
+  const [welcomeIdentity, setWelcomeIdentity] = useState<string | null>(null);
+  useEffect(() => {
+    if (!ready || !identityKey || !welcomeId) return;
+    let cancelled = false;
+    void loadToursFromAccount().then(() => {
+      if (!cancelled) setWelcomeIdentity(isTourSeen(welcomeId) ? null : identityKey);
+    });
+    return () => { cancelled = true; };
+  }, [ready, identityKey, welcomeId]);
 
   return (
     <main className={`os-page md:pb-10 md:pl-64 ${tabBar ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))]' : 'pb-10'}`}>
@@ -197,18 +203,6 @@ function RoleShell({ nav, active, title, subtitle, back, actions, tour = null, c
                 {unread > 0 ? <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-400 px-1 text-[10px] font-black text-slate-950">{unread}</span> : null}
               </Link>
             ) : null}
-            {tour ? (
-              <button
-                type="button"
-                data-tour="help"
-                onClick={() => requestTour(tour, true)}
-                aria-label={t('tour.replay')}
-                title={t('tour.replay')}
-                className="grid h-10 w-10 place-items-center rounded-full border border-slate-700 bg-slate-900/80 text-base font-black text-slate-300 transition hover:border-emerald-300/70 hover:text-emerald-200"
-              >
-                ?
-              </button>
-            ) : null}
             <IdentitySwitcher variant="avatar" className="md:hidden" />
           </div>
         </div>
@@ -223,7 +217,10 @@ function RoleShell({ nav, active, title, subtitle, back, actions, tour = null, c
         {children}
       </div>
 
-      {identityRole ? <TourHost role={identityRole} pageTour={tour} /> : null}
+      {identityRole && welcomeId && welcomeIdentity === identityKey ? <Welcome key={identityKey} role={identityRole} onClose={() => {
+        markTourSeen(welcomeId);
+        setWelcomeIdentity(null);
+      }} /> : null}
 
       {tabBar ? <nav data-tour="nav" className="fixed inset-x-0 bottom-0 z-[70] border-t border-slate-800 bg-slate-950/95 px-2 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 text-white backdrop-blur-xl md:hidden" aria-label={t('nav.main')}>
         <div className={`mx-auto grid max-w-lg ${columns} gap-1`}>

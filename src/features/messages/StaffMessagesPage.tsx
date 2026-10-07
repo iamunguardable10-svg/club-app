@@ -58,5 +58,5 @@ export function StaffMessagesPage() {
   );
   return role === 'club'
     ? <ClubShell active="messages" title={t('staffMessages.title')} subtitle={t('staffMessages.subtitle')}>{content}</ClubShell>
-    : <ActiveRoleShell title={t('staffMessages.title')} subtitle={t('staffMessages.subtitle')} tour="messages">{content}</ActiveRoleShell>;
+    : <ActiveRoleShell title={t('staffMessages.title')} subtitle={t('staffMessages.subtitle')}>{content}</ActiveRoleShell>;
 }

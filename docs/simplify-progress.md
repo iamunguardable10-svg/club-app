@@ -2757,3 +2757,24 @@ Round-3-Prüfungen bestanden: `npm run typecheck`, `npm run check:i18n && npm ru
 (vollständig, keine Filter: 117 Schritte, 6 Szenarien, echte Aktionen, unveränderte Speicherung,
 keine Serveraufrufe in der Übung). Eigener Server auf 3101 anschließend beendet;
 `npm run clean:next-env` ausgeführt. Port 3100 blieb unangetastet.
+
+## Run 73: tours and practice mode removed
+
+2026-10-07. Auf Entscheidung des Eigentümers entfallen die Spotlight-Touren und der
+Übungsmodus; kontextuelle Tipps folgen in einem eigenen Auftrag. Tour-Engine, Moment-Tipps,
+Replay-Schaltflächen, Übungsaktionen, zugehöriges CSS, Sprachschlüssel und die beiden
+Tour-/Übungstests samt npm-/CI-Aufrufen entfernt. Die Datenschicht arbeitet wieder direkt
+mit dem gewählten Speicher; mit `1518c8f` abgeglichen, kontogetrennte Seen-Schlüssel erhalten.
+Willkommen bleibt nach geladener Identität und Kontofortschritt einmal je Rolle/Konto,
+endet mit „Los geht’s“ und behält den leisen Push-Schalter. Smoke merkt die Demo-Willkommen
+als gesehen. Echte Funktionen, insbesondere Kalender-Wischen und Bewertung, bleiben.
+
+Geprüft: `npm run typecheck`, `npm run check:i18n`, `npm run test:i18n`, `npm run build`
+und alle bestehenden Tests ohne Postgres (`test:load`, `test:series`, `test:calendar`,
+`test:build`, `test:address`, `test:caldav` mit eigenem lokalem Radicale sowie
+`BASE_URL=http://localhost:3101 npm run test:smoke`: 86 Seitenaufrufe, keine Fehler).
+Zusätzliche Browserprüfung: sechs Willkommen-Fälle auf Desktop/en und Handy/fr,
+gespeicherter Abschluss ohne Tour oder Navigation, zwei dauerhaft gespeicherte Bewertungen
+und beide mobilen Tages-Wischgesten. Seen-State mit Demo und zwei simulierten Konten geprüft.
+Keine Änderungen unter `supabase/` oder an `docs/onboarding-concept.md`, keine Git-Historie
+geändert. Eigene Testserver anschließend beendet; `npm run clean:next-env` ausgeführt.

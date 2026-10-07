@@ -40,7 +40,6 @@ import {
   ownPersonIds,
   renameClub,
   renameOwnPerson,
-  resetTours,
   rsvpModeOf,
   setOwnRsvpMode,
   saveNotificationSettings,
@@ -101,7 +100,6 @@ export function SettingsPage() {
                 ? <NotificationsHint variant="settings" />
                 : <p className="text-sm text-slate-400">{t('settings.demoNotifications')}</p>}
               <InstallHint variant="settings" />
-              <ShowToursAgain />
             </div>
           </CoachSection>
         </div>
@@ -144,20 +142,6 @@ function RsvpSection({ database, person }: { database: LocalDatabase; person: Pe
       </div>
       {error ? <p role="alert" className="mt-2 text-xs font-bold text-red-200">{error}</p> : null}
     </CoachSection>
-  );
-}
-
-/** Every guided tour (welcome and pages) comes again (`src/features/onboarding`). */
-function ShowToursAgain() {
-  const t = useT();
-  const [done, setDone] = useState(false);
-  return (
-    <div className="flex flex-wrap items-center gap-3">
-      <button type="button" onClick={() => { resetTours(); setDone(true); }} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-200 hover:border-slate-500">
-        {t('settings.showToursAgain')}
-      </button>
-      {done ? <p role="status" className="text-xs font-bold text-emerald-200">{t('settings.toursShown')}</p> : null}
-    </div>
   );
 }
 

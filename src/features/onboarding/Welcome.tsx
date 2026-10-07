@@ -1,6 +1,6 @@
 'use client';
 
-/** Three calm promises, then an explicit practice-or-explore choice. */
+/** Three calm first-run cards, with optional notifications before entering the app. */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { enablePush, isPushSupported, pushPermission } from '@/features/notifications/push';
 import { getActivePerson, hasIdentityRole, isClubAdmin, isRemoteMode, teamsForPerson, useLocalDatabase } from '@/shared/data';
@@ -51,7 +51,7 @@ function WelcomeIcon({ slide }: { slide: number }) {
   </svg>;
 }
 
-export function Welcome({ role, onClose }: { role: WelcomeRole; onClose: (choice: 'tour' | 'explore') => void }) {
+export function Welcome({ role, onClose }: { role: WelcomeRole; onClose: () => void }) {
   const t = useT();
   const { database } = useLocalDatabase();
   const person = database ? getActivePerson(database) : null;
@@ -74,10 +74,10 @@ export function Welcome({ role, onClose }: { role: WelcomeRole; onClose: (choice
   }, []);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose('explore');
+      if (event.key === 'Escape') onClose();
       else if (event.key === 'ArrowRight') go(index + 1);
       else if (event.key === 'ArrowLeft') go(index - 1);
-      else if (event.key === 'Enter' && event.target === dialog.current) { if (index === 2) onClose('tour'); else go(index + 1); }
+      else if (event.key === 'Enter' && event.target === dialog.current) { if (index === 2) onClose(); else go(index + 1); }
       else if (event.key === 'Tab') {
         const focusable = [...(dialog.current?.querySelectorAll<HTMLElement>('button') ?? [])].filter((node) => !node.closest('[aria-hidden="true"]'));
         const first = focusable[0]; const last = focusable.at(-1);
@@ -93,7 +93,7 @@ export function Welcome({ role, onClose }: { role: WelcomeRole; onClose: (choice
       className="fixed inset-0 z-[300] flex flex-col bg-slate-950 text-white outline-none">
       <div className="mx-auto flex w-full max-w-lg items-center justify-between px-6 pt-[calc(1.25rem+env(safe-area-inset-top))]">
         <p className="text-sm font-bold text-slate-400">{database?.club.name ?? 'Club OS'}</p>
-        <button type="button" onClick={() => onClose('explore')} className="rounded-full px-3 py-2 text-xs text-slate-400">{t('welcome.skip')}</button>
+        <button type="button" onClick={onClose} className="rounded-full px-3 py-2 text-xs text-slate-400">{t('welcome.skip')}</button>
       </div>
       <div ref={scroller} onScroll={(event) => setIndex(Math.round(event.currentTarget.scrollLeft / Math.max(1, event.currentTarget.clientWidth)))}
         className="flex min-h-0 flex-1 snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -103,7 +103,7 @@ export function Welcome({ role, onClose }: { role: WelcomeRole; onClose: (choice
               <span aria-hidden className="mb-8 grid h-14 w-14 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-300/10 text-emerald-200"><WelcomeIcon slide={slide} /></span>
               <h2 className="text-3xl font-bold tracking-tight">{slide === 0 ? t('welcome.practice.hello', { name: person?.firstName ?? '' }) : slide === 1 ? t(copy.secondTitle) : t('welcome.practice.ready')}</h2>
               {slide === 0 ? <p className="mt-3 text-sm font-bold text-emerald-200">{roleLine}</p> : null}
-              <p className="mt-4 text-base leading-relaxed text-slate-300">{t(slide === 0 ? copy.promise : slide === 1 ? copy.secondText : 'welcome.practice.safe')}</p>
+              <p className="mt-4 text-base leading-relaxed text-slate-300">{t(slide === 0 ? copy.promise : slide === 1 ? copy.secondText : 'welcome.ready.text')}</p>
               {slide === 1 ? (
                 <div className="mt-8 divide-y divide-slate-800 rounded-2xl border border-slate-800 bg-slate-900/50 px-4">
                   {[role === 'athlete' ? 'nav.today' : role === 'coach' ? 'nav.calendar' : 'nav.club', role === 'athlete' ? 'nav.calendar' : role === 'coach' ? 'nav.team' : 'nav.halls', 'nav.messages'].map((key) => <p key={key} className="flex justify-between py-4 text-sm font-bold">{t(key as MessageKey)}<span aria-hidden className="text-slate-600">›</span></p>)}
@@ -116,9 +116,8 @@ export function Welcome({ role, onClose }: { role: WelcomeRole; onClose: (choice
         ))}
       </div>
       <div className="mx-auto grid w-full max-w-lg gap-4 px-7 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-4">
-        <p aria-live="polite" className="text-center text-xs text-slate-500">{t('tour.progress', { step: index + 1, total: 3 })}</p>
-        <button type="button" data-welcome-next onClick={() => index === 2 ? onClose('tour') : go(index + 1)} className="rounded-2xl bg-emerald-300 px-5 py-3.5 text-sm font-bold text-slate-950 transition active:scale-[.98]">{t(index === 2 ? 'welcome.practice.tour' : 'welcome.next')}</button>
-        {index === 2 ? <button type="button" data-welcome-explore onClick={() => onClose('explore')} className="rounded-xl py-2 text-sm font-bold text-slate-400">{t('welcome.practice.explore')}</button> : null}
+        <p aria-live="polite" className="text-center text-xs text-slate-500">{t('welcome.progress', { step: index + 1, total: 3 })}</p>
+        <button type="button" data-welcome-next onClick={() => index === 2 ? onClose() : go(index + 1)} className="rounded-2xl bg-emerald-300 px-5 py-3.5 text-sm font-bold text-slate-950 transition active:scale-[.98]">{t(index === 2 ? 'welcome.start' : 'welcome.next')}</button>
       </div>
     </div>
   );
