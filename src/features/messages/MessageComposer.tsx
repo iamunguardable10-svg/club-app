@@ -13,14 +13,12 @@
  * the server counts them: a department lead does not see the players.
  */
 
-import { usePracticeReset } from '@/features/onboarding/usePracticeReset';
 import { useEffect, useState } from 'react';
 
 import {
   DEFAULT_MESSAGE_PIN_DAYS,
   getActivePerson,
   isRemoteMode,
-  isPracticeActive,
   MESSAGE_PIN_DAYS,
   messageRecipientIds,
   messageTargetsFor,
@@ -64,8 +62,7 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
   const [serverReach, setServerReach] = useState<{ key: string; count: number | null } | null>(null);
   const reachKey = JSON.stringify([targets.teamIds, targets.groupIds, targets.departmentIds, targets.wholeClub, audience]);
   const clubId = database?.club.id ?? null;
-  const remote = isRemoteMode() && !isPracticeActive();
-  usePracticeReset(() => { setBody(''); setPicking(false); setTargets(null); setImportant(false); setPoll(false); setPollOptions(['', '']); });
+  const remote = isRemoteMode();
   useEffect(() => {
     if (!remote || !clubId) return;
     let current = true;
@@ -246,7 +243,6 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
         aria-label={poll ? t('poll.question') : t('teamMessages.newMessage')}
         className="os-field min-h-20 resize-y"
       />
-      {isPracticeActive() ? <button type="button" data-tour="compose-sample" onClick={() => setBody(t('tour.practice.sampleMessage'))} className="justify-self-start rounded-xl border border-slate-700 px-3 py-2 text-xs font-bold text-sky-200">{t('tour.practice.useSample')}</button> : null}
       </div>
       {poll ? (
         <div className="grid gap-1.5">

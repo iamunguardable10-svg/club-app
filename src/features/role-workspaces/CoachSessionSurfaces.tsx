@@ -13,7 +13,6 @@ import { HIGH_RISK_ACWR, acwrAfter, todayISO } from '@/shared/data/loadCalculati
 import { errorText, tr, useT, type MessageKey } from '@/shared/i18n';
 import { formatDecimal, formatWeekday } from '@/shared/format';
 import { displayTitle } from '@/features/sessions/sessionTypeLabels';
-import { MomentTip } from '@/features/onboarding/MomentTip';
 import { sessionTypeToLoadType, type AthletePendingSession } from '@/shared/data/loadTypes';
 
 type HistoryTeamOption = { id: string; name: string; departmentName?: string };
@@ -671,7 +670,6 @@ function AttendanceConfirmation({ session }: { session: CoachSession }) {
 
   return (
     <div data-tour="attendance-panel" className="mb-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.06] p-3">
-      <MomentTip id="moment.attendance" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">{t('attendance.title')}</p>
@@ -850,7 +848,6 @@ function SquadPicker({ session }: { session: CoachSession }) {
   const changed = session.squadChangedSincePublish ?? 0;
   return (
     <div data-tour="squad-panel" className="mb-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.05] p-3">
-      <MomentTip id="moment.squad" />
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">{t('squad.title')}</p>

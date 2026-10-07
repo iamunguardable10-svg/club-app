@@ -12,7 +12,6 @@
  * split, which only a club admin needed.
  */
 
-import { usePracticeReset } from '@/features/onboarding/usePracticeReset';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
@@ -62,7 +61,6 @@ export function FacilitiesManager({
   const [error, setError] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<Id | null>(null);
 
-  usePracticeReset(() => { setEditMode(false); setDeleteId(null); setError(null); });
 
   const coachTeams = useMemo(() => {
     if (teams) return teams;

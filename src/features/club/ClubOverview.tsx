@@ -15,7 +15,6 @@
  * data layer and the server check every change again.
  */
 
-import { FacilitiesManager } from '@/features/facilities/FacilitiesManager';
 import { useState } from 'react';
 
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
@@ -39,7 +38,6 @@ import {
   hasCoachPermission,
   isClubAdmin,
   isRemoteMode,
-  isPracticeActive,
   managedDepartmentIds,
   openClubRoleInviteFor,
   openInviteFor,
@@ -576,7 +574,6 @@ export function ClubOverview() {
         <DepartmentSection key={department.id} database={database} department={department} personId={person.id} admin={admin} onRun={run} />
       ))}
 
-      {isPracticeActive() ? <FacilitiesManager database={database} personId={person.id} teams={managedTeams} calendarHref={(id) => `/coach/facilities/${id}/calendar?from=club`} /> : null}
 
       {admin ? (
         <CoachSection title={t('club.newDepartment')} description={t('club.newDepartmentDetail')}>

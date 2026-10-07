@@ -7,7 +7,6 @@
  * reminder, closing a poll and deleting. Recipients vote on polls here too.
  */
 
-import { usePracticeReset } from '@/features/onboarding/usePracticeReset';
 import { useState } from 'react';
 
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
@@ -48,7 +47,6 @@ export function MessageList({
   const [openId, setOpenId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Message | null>(null);
   const [error, setError] = useState<string | null>(null);
-  usePracticeReset(() => { setDeleting(null); setOpenId(null); setError(null); });
   const nameOf = (personId: string) => {
     const person = database.people.find((candidate) => candidate.id === personId);
     return person ? displayName(person) : t('teamMessages.player');

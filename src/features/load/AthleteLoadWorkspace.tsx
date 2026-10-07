@@ -31,7 +31,7 @@ import {
 import { BASELINE_DAYS, acwrAfter, aggregateDailyLoads, backFromBreak, baselineAgeDays, calculateACWR, fillMissingDays, firstHighRiskDay, getLatestACWR, HIGH_RISK_ACWR, loadRoom, loadZone, projectFutureACWR, todayISO, weekChangePercent } from './loadCalculations';
 import { LoadInfoButton, LoadLandingChip, LoadRiskBadge } from './LoadHints';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
-import { athleteHasLoad, isPracticeActive, clearEntryReview, displayName, getActivePerson, newId, reviewsForPerson, rsvpModeOf, useLocalDatabase } from '@/shared/data';
+import { athleteHasLoad, clearEntryReview, displayName, getActivePerson, newId, reviewsForPerson, rsvpModeOf, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
 import { formatDateRange, formatDay, formatDayMonth, formatDayNumber, formatDecimal, formatEntryDate, formatInteger, formatLongDay, formatTime as formatSharedTime, formatWeekday, formatWeekdayDay } from '@/shared/format';
@@ -59,8 +59,6 @@ import {
   type AthleteAvailabilityMark,
 } from './athleteLocalStore';
 import { RatePrompt, WARMUP_MINUTES, WARMUP_RPE } from './RatePrompt';
-import { usePracticeReset } from '@/features/onboarding/usePracticeReset';
-import { MomentTip } from '@/features/onboarding/MomentTip';
 
 /**
  * Players who were already asked in this visit, so moving between Today,
@@ -1147,7 +1145,6 @@ function AthleteCalendar({
         type="button"
         data-athlete-calendar-item="true"
         data-item-id={item.id}
-        data-practice-session={isPracticeActive() && item.title === t('tour.practice.sessionName') ? 'true' : undefined}
         data-tour="calendar-item"
         onPointerDown={(event) => startDrag(item, 'move', event)}
         onClick={(event) => { event.stopPropagation(); if (!suppressClick) onItemSelect(item, mode); }}
@@ -1398,11 +1395,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     () => (database && activePersonId && hasLoad ? readPlansToRate(database, activePersonId) : []),
     [database, activePersonId, hasLoad],
   );
-  const rateQueue = useMemo(() => {
-    const all = [...sessionsToRate, ...plansToRate];
-    const sample = isPracticeActive() ? all.filter((session) => session.title === t('tour.practice.ratingName')) : [];
-    return sample.length ? sample : all;
-  }, [sessionsToRate, plansToRate, t]);
+  const rateQueue = useMemo(() => [...sessionsToRate, ...plansToRate], [sessionsToRate, plansToRate]);
   const duePlans = activePendingSessions.filter((session) => session.source === 'athlete_plan' && session.date <= todayISO());
   const allToRate = [...sessionsToRate, ...duePlans];
   // Entries a coach asked this athlete to check (piece 10).
@@ -1423,8 +1416,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const todayForecast = hasLoad ? acwrAfter(sortedEntries, loadPendingSessions.filter((session) => session.date === todayISO())) : null;
   const todayRisk = todayForecast && todayForecast.after > HIGH_RISK_ACWR ? todayForecast : null;
   // A warmup belongs to its game; the game is what comes next.
-  const practiceSession = isPracticeActive() ? pendingSessions.find((session) => session.title === t('tour.practice.sessionName') && Date.parse(session.startsAt) > Date.now()) : null;
-  const nextSession = practiceSession ?? activePendingSessions.find((session) => session.date >= todayISO() && session.trainingType !== 'warmup') ?? activePendingSessions[0] ?? null;
+  const nextSession = activePendingSessions.find((session) => session.date >= todayISO() && session.trainingType !== 'warmup') ?? activePendingSessions[0] ?? null;
   // Where the ratio lands after each session shown on Today ("~1.05"), with
   // everything planned before it done as estimated (same forecast as the chart).
   // Only for the next four sessions Today shows: further out the estimates are
@@ -1528,16 +1520,10 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   }, [sortedEntries]);
   const [ratePromptOpen, setRatePromptOpen] = useState(false);
   useEffect(() => {
-    if (isPracticeActive() || !activePersonId || rateQueue.length === 0 || askedThisVisit.has(activePersonId)) return;
+    if (!activePersonId || rateQueue.length === 0 || askedThisVisit.has(activePersonId)) return;
     askedThisVisit.add(activePersonId);
     setRatePromptOpen(true);
   }, [activePersonId, rateQueue.length]);
-
-  usePracticeReset(() => {
-    setComposerOpen(false); setActiveComposerSession(null); setActiveEntry(null);
-    setActiveDetailItem(null); setDeleteTarget(null); setRatePromptOpen(false);
-    setActivePendingId(null); setAvailabilityReason(''); setError(null);
-  });
 
   function entryFor(session: AthletePendingSession, rpe: number, minutes: number): AthleteLoadEntry {
     return {
@@ -1571,7 +1557,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         ...(warmup ? [entryFor(warmup, WARMUP_RPE, WARMUP_MINUTES)] : []),
       ]);
       setError(null);
-      if (isPracticeActive()) setRatePromptOpen(false);
     } catch (caught) {
       setError(caught instanceof Error ? errorText(t, caught) : t('athlete.error.saveRating'));
     }
@@ -2118,7 +2103,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
         {hasLoad && entriesToCheck.length > 0 && (activeView === 'home' || activeView === 'load') ? (
           <section data-tour="athlete-check" aria-label={t('athlete.check.title')} className="rounded-3xl border border-amber-300/35 bg-amber-300/[0.07] p-4 sm:p-5">
-            <MomentTip id="moment.check" />
             <h2 className="text-lg font-black text-white">{t('athlete.check.title')}</h2>
             <p className="mt-1 text-sm text-slate-400">{t('athlete.check.detail', { count: entriesToCheck.length })}</p>
             <ul className="mt-3 grid gap-2">

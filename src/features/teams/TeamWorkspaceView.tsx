@@ -1,7 +1,5 @@
 'use client';
 
-import { isPracticeActive } from '@/shared/data';
-import { usePracticeReset } from '@/features/onboarding/usePracticeReset';
 import Link from 'next/link';
 import { AbsencePanel } from '@/features/absences/AbsencePanel';
 import { isSessionRunning, sessionsNotOver } from '@/features/sessions/sessionTiming';
@@ -345,10 +343,8 @@ export function TeamWorkspaceView({
     { id: 'coaches', label: t('team.coaches'), status: allCoaches.length > 0 ? 'accepted' : 'missing', value: allCoaches.join(', ') || null },
   ] satisfies TeamWorkspaceStaffRole[];
   const [newGroupName, setNewGroupName] = useState('');
-  useEffect(() => { if (isPracticeActive() && activeSection === 'groups') setNewGroupName(t('tour.practice.groupName')); }, [activeSection, t]);
   const [isGroupEditMode, setIsGroupEditMode] = useState(false);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
-  usePracticeReset(() => { setNewGroupName(''); setIsGroupEditMode(false); setActiveGroupId(null); setDashboardSession(null); setDashboardEditingSession(null); setDashboardDeleteTargetId(null); setActiveSection(initialSection); });
   const activeGroup = useMemo(() => data.groups.find((group) => group.id === activeGroupId) ?? null, [activeGroupId, data.groups]);
   const activeGroupPlayers = useMemo(() => {
     if (!activeGroup) return [];

@@ -12,7 +12,6 @@
 
 import { useEffect, useState } from 'react';
 
-import { usePracticeReset } from '@/features/onboarding/usePracticeReset';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
 import {
   athleteHasLoad,
@@ -52,7 +51,6 @@ export function PlayerMessagesPage() {
   const t = useT();
   const { database } = useLocalDatabase();
   const [filter, setFilter] = useState<string | null>(null);
-  usePracticeReset(() => { setFilter(null); setNewThisVisit([]); });
   const person = database ? getActivePerson(database) : null;
   const isPlayer = database?.activeIdentity?.role === 'athlete';
   const inbox = database && person && isPlayer ? messagesForPerson(database, person.id) : [];

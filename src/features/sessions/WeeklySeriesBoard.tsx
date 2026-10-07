@@ -8,7 +8,6 @@ import type {
 import { coachSessionTypeLabel } from './sessionTypeLabels';
 import { formatDayMonth, formatDayShortMonth, formatTime } from '@/shared/format';
 import { tr, useT, type MessageKey } from '@/shared/i18n';
-import { MomentTip } from '@/features/onboarding/MomentTip';
 
 /** Monday first, as the board shows the week. */
 const WEEKDAY_SHORT_KEYS: MessageKey[] = ['weekday.short.0', 'weekday.short.1', 'weekday.short.2', 'weekday.short.3', 'weekday.short.4', 'weekday.short.5', 'weekday.short.6'];
@@ -206,7 +205,6 @@ export function WeeklySeriesBoard({
 
   return (
     <section data-tour="series-board" className="rounded-2xl border border-slate-800/90 bg-slate-950/70 p-2.5 text-slate-100 shadow-2xl shadow-slate-950/30 ring-1 ring-white/[0.03] sm:p-3">
-      <MomentTip id="moment.series" />
       <div className="flex flex-col gap-2.5 border-b border-slate-800/80 pb-2.5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{t('seriesBoard.title')}</p>

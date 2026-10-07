@@ -1,6 +1,5 @@
 'use client';
 
-import { usePracticeReset } from '@/features/onboarding/usePracticeReset';
 import { sessionsNotOver } from '@/features/sessions/sessionTiming';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
@@ -750,7 +749,6 @@ export function CoachCalendarSurface({
     return () => { window.removeEventListener('pointermove', handlePointerMove); window.removeEventListener('pointerup', handlePointerUp); };
   }, [activeDayIndex, days, desktopHourHeight, drag, mobileCalendarView]);
 
-  usePracticeReset(() => { setDraft(null); setEditor(null); setDrag(null); setMode('view'); setPendingConflictSave(null); setSeriesEditor(null); });
 
   const editingSession = editor?.kind === 'session' ? localSessions.find((session) => session.id === editor.sessionId) ?? null : null;
   const editorInitial = editingSession ? { startsAt: editingSession.startsAt, endsAt: editingSession.endsAt ?? addMinutes(new Date(editingSession.startsAt), 90).toISOString(), teamId: editingSession.teamId, facilityId: editingSession.facilityId, groupIds: editingSession.groupIds, sessionType: normalizeCoachSessionType(editingSession.sessionType), details: { notes: editingSession.notes, meetMinutesBefore: editingSession.meetMinutesBefore, meetPoint: editingSession.meetPoint, opponent: editingSession.opponent, homeAway: editingSession.homeAway, venueAddress: editingSession.venueAddress } } : draft;
@@ -913,7 +911,6 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const [isSavingSessionEdit, setIsSavingSessionEdit] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  usePracticeReset(() => { setActiveSession(null); setEditingSessionId(null); setDeleteSessionId(null); });
 
   const clearEditSessionParam = useCallback(() => {
     router.replace('/coach/sessions');
