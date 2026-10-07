@@ -91,6 +91,7 @@ jobs:
           npm run test:load
           npm run test:calendar
           npm run test:series
+          npm run test:carpools
 
       - name: Access rules (SQL)
         run: supabase/pilot/tests/run-local.sh
