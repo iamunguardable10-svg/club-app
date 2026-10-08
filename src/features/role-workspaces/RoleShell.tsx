@@ -199,7 +199,6 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
         {children}
       </div>
 
-
       {tabBar ? <nav className="fixed inset-x-0 bottom-0 z-[70] border-t border-slate-800 bg-slate-950/95 px-2 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 text-white backdrop-blur-xl md:hidden" aria-label={t('nav.main')}>
         <div className={`mx-auto grid max-w-lg ${columns} gap-1`}>
           {nav.map(({ item, label, href }) => (

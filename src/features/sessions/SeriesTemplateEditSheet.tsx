@@ -75,7 +75,7 @@ function SeriesTemplateEditorForm({
   const previousTeamIdRef = useRef(teamId);
 
   const teamGroups = groups.filter((group) => group.teamId === teamId);
-  const canSave = Boolean(teamId && facilityId && startTime && endTime && selectedWeekday !== undefined);
+  const canSave = Boolean(teamId && facilityId && startTime && (isGame || endTime) && selectedWeekday !== undefined);
 
   useEffect(() => {
     const nextTeam = teams.find((team) => team.id === teamId) ?? null;
@@ -135,7 +135,7 @@ function SeriesTemplateEditorForm({
         </label>
       </div>
 
-      <div className={`grid gap-2 ${isGame ? 'grid-cols-[minmax(0,1fr)_6rem] sm:grid-cols-[minmax(0,1fr)_7rem]' : 'grid-cols-[minmax(0,1fr)_4.25rem_4.25rem] sm:grid-cols-[minmax(0,1fr)_7rem_7rem]'}`}>
+      <div className={`grid gap-2 ${isGame ? 'grid-cols-[minmax(0,1fr)_7.5rem] sm:grid-cols-[minmax(0,1fr)_8rem]' : 'grid-cols-[minmax(0,1fr)_4.25rem_4.25rem] sm:grid-cols-[minmax(0,1fr)_7rem_7rem]'}`}>
         <label className={labelClass}>
           {t('sessionForm.type')}
           <select value={sessionType} onChange={(event) => setSessionType(event.target.value)} className={inputClass}>

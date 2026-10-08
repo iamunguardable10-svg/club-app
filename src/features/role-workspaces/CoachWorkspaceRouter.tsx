@@ -722,7 +722,7 @@ export function CoachCalendarSurface({
     setDrag(nextDrag);
   }
   function startDraftDrag(kind: 'move' | 'resize', event: PointerEvent<HTMLElement>) {
-    if (!draft) return; event.stopPropagation(); event.preventDefault(); didDragRef.current = false; setEditor(null);
+    if (!draft || (kind === 'resize' && draft.sessionType === 'game')) return; event.stopPropagation(); event.preventDefault(); didDragRef.current = false; setEditor(null);
     setDrag({ target: 'draft', kind, startX: event.clientX, startY: event.clientY, originalStart: new Date(draft.startsAt), originalEnd: new Date(draft.endsAt), minutesPerPixel: window.innerWidth < 768 ? 60 / mobileHourHeight : 60 / desktopHourHeight });
   }
   useEffect(() => {

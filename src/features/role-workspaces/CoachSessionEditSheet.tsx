@@ -127,7 +127,7 @@ export function CoachSessionEditSheet({
   function nextTimeRange(startTime: string, endTime: string, type = sessionType, date = dateValue) {
     const [startHours, startMinutes] = startTime.split(':').map(Number);
     const [endHours, endMinutes] = endTime.split(':').map(Number);
-    const start = new Date(`${date}T00:00:00`);
+    const start = date ? new Date(`${date}T00:00:00`) : new Date(initial.startsAt);
     start.setHours(Number.isFinite(startHours) ? startHours : start.getHours(), Number.isFinite(startMinutes) ? startMinutes : start.getMinutes(), 0, 0);
     if (type === 'game') return { startsAt: start.toISOString(), endsAt: gameEndAt(start.toISOString(), gameDuration) };
     const end = new Date(start);
@@ -190,7 +190,7 @@ export function CoachSessionEditSheet({
           {t('composer.date')}
           <input type="date" value={dateValue} onChange={(event) => { setDateValue(event.target.value); if (event.target.value) onDraftUpdate?.(nextTimeRange(timeValue, endTimeValue, sessionType, event.target.value)); }} className="mt-1 block h-9 w-40 min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-sm font-bold text-slate-100 [color-scheme:dark]" />
         </label> : null}
-        <div className={`mt-2.5 grid min-w-0 gap-2 sm:gap-2.5 ${isGame ? 'grid-cols-[minmax(0,1fr)_6rem] sm:grid-cols-[minmax(0,1fr)_7rem]' : 'grid-cols-[minmax(0,1fr)_4.35rem_4.35rem] sm:grid-cols-[minmax(0,1fr)_7rem_7rem]'}`}>
+        <div className={`mt-2.5 grid min-w-0 gap-2 sm:gap-2.5 ${isGame ? 'grid-cols-[minmax(0,1fr)_7.5rem] sm:grid-cols-[minmax(0,1fr)_8rem]' : 'grid-cols-[minmax(0,1fr)_4.35rem_4.35rem] sm:grid-cols-[minmax(0,1fr)_7rem_7rem]'}`}>
           <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
             {t('sessionForm.type')}
             <select value={sessionType} onChange={(event) => handleSessionTypeSelect(event.target.value)} className="mt-1 h-8 w-full min-w-0 truncate rounded-lg border border-slate-700/90 bg-slate-950 px-1.5 text-[12px] font-black text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm">

@@ -374,3 +374,12 @@ Spieler ohne Konto nötig).
   (Bestätigen, Passwort zurücksetzen, E-Mail ändern) bleiben vorerst Englisch. Später einmal die drei
   Vorlagen aus `docs/mail-templates/` in Supabase → Authentication → Emails einfügen (Inhalt `.html`,
   Betreff `.subject.txt`); Anleitung in `docs/i18n.md`, Abschnitt „Mails (6b)“. Bis dahin nichts tun.
+
+## Owner-Feedback 2026-10-08 — erledigt, Run 75
+
+- Spiele: nur Datum und Anpfiff sichtbar; Ende automatisch +2 h, vorhandene abweichende
+  Dauer bleibt beim Bearbeiten und Verschieben erhalten; keine Größenänderung im Kalender.
+- Verspätung: minutenweise; gespeicherte Spielerantworten als kompakter Status mit „Change“.
+- Geführtes Onboarding und einmalige Tipps komplett entfernt; Anmeldung/Beitritt/Gründung,
+  Leerzustände, RatePrompt und Push-Einwilligung bleiben. Die Onboarding-Planungsregel ist
+  ausgesetzt; das Konzept ist nur noch Ideensammlung und wird später neu aufgesetzt.
