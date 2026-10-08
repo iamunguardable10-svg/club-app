@@ -26,7 +26,9 @@
     "test:i18n": "node --import tsx src/shared/i18n/translate.test.ts",
     "test:build": "tsx src/features/install/buildVersion.test.ts",
     "test:address": "tsx src/features/facilities/addressAutocomplete.test.ts",
-    "test:smoke": "node scripts/smoke.mjs"
+    "test:smoke": "node scripts/smoke.mjs",
+    "landing:shots": "node scripts/landing-shots.mjs",
+    "test:landing": "node scripts/landing-check.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.1",

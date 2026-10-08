@@ -236,6 +236,7 @@ Sprachen, bei Bedarf eine Zeile im „Neu“-Blatt (F). Steht in `AGENTS.md` (Sc
 | Funktion | Wer / Ort | Entdecken / Geste | Anker | Stand |
 |---|---|---|---|---|
 | Fahrgemeinschaften (Run 74) | Spieler und Trainer eines Teams, Spiel-Blatt; auswärts sichtbar, zuhause aufklappbar | Plätze anbieten, Platz anfragen, beim Angebot mitfahren; Tipp/Leerzustand in §3 in vier Sprachen | `data-tour="carpools"` | Funktion und Anker gebaut; v4-Tipp/Leerzustand nur geplant |
+| Landingpage (Run 76) | Neue Besucher, `/` | Rollenwahl vor „Demo ausprobieren“; direkte Demo mit bestehenden Willkommen-Übungen. Pilot-FAQ erklärt den Einstieg. Bestehende Konten und installierte App direkt nach `/start`, deshalb kein Neu-Hinweis nötig. | `#main`, `#features`, `#pilot` | Gebaut; Texte und Demo-Einstiege in vier Sprachen geprüft |
 
 „Neu“-Zeile für bestehende Nutzer, ebenfalls nur geplant:
 EN “Rides · Arrange rides for your next game.” · DE „Fahrgemeinschaften · Organisiere Fahrten zu deinem nächsten Spiel.“ ·

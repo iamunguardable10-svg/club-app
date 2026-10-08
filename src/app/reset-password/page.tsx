@@ -33,7 +33,7 @@ export default function ResetPasswordPage() {
     try {
       await updatePassword(password);
       setBackendChoice('server');
-      window.location.assign('/');
+      window.location.assign('/start');
     } catch (caught) {
       setError(errorText(t, caught));
       setBusy(false);

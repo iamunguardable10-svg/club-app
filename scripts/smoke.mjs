@@ -29,7 +29,7 @@ const DESKTOP = { width: 1280, height: 900 };
 const TWO_DAYS = 2 * 24 * 60 * 60 * 1000;
 
 const ROUTES = {
-  none: ['/', '/login', '/join', '/found', '/reset-password', '/privacy'],
+  none: ['/', '/start', '/imprint', '/login', '/join', '/found', '/reset-password', '/privacy'],
   athlete: ['/athlete/home', '/athlete/calendar', '/athlete/load', '/athlete/messages', '/settings'],
   coach: ['/coach/today', '/coach/sessions', '/coach/team', '/coach/history', '/coach/load', '/coach/attendance', '/coach/facilities', 'HALL_CALENDAR', '/messages', '/settings'],
   club: ['/club', '/club/halls', '/messages', '/settings', '/reports'],
@@ -88,7 +88,7 @@ for (const { locale, viewport } of SCENARIOS) {
     if (role !== 'none') {
       where.url = `/?demo=${role}`;
       await page.goto(`${BASE}/?demo=${role}`, { waitUntil: 'load' });
-      await page.waitForURL((url) => url.pathname !== '/', { timeout: 15000 }).catch(() => problems.push(`${tag}: demo role did not start`));
+      await page.waitForURL((url) => url.pathname !== '/' && url.pathname !== '/start', { timeout: 15000 }).catch(() => problems.push(`${tag}: demo role did not start`));
       await page.waitForTimeout(1000);
     }
 

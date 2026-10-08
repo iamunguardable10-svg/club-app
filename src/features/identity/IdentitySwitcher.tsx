@@ -102,7 +102,7 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
     setConfirmReset(false);
     setOpen(false);
     // Back to the start so the tester picks a role against the fresh club.
-    router.push('/');
+    router.push('/start');
   }
 
   function choose(role: IdentityRole, person: Person) {
@@ -215,7 +215,7 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
 
             {/* The same account can hold more roles: the start page shows every way in (2026-09-25). */}
             {remoteMode ? (
-              <Link href="/?add=1" onClick={() => setOpen(false)} className="mt-5 flex items-center justify-between rounded-2xl border border-emerald-300/40 px-4 py-3 text-sm font-black text-emerald-100 hover:border-emerald-300">
+              <Link href="/start?add=1" onClick={() => setOpen(false)} className="mt-5 flex items-center justify-between rounded-2xl border border-emerald-300/40 px-4 py-3 text-sm font-black text-emerald-100 hover:border-emerald-300">
                 {t('identity.addRole')}
                 <span aria-hidden className="text-emerald-300">+</span>
               </Link>

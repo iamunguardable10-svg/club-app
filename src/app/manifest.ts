@@ -10,7 +10,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'Club OS',
     short_name: 'Club OS',
     description: 'Sessions, availability and training load for your team.',
-    start_url: '/',
+    start_url: '/start',
     scope: '/',
     display: 'standalone',
     orientation: 'portrait',

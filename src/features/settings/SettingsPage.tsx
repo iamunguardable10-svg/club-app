@@ -165,6 +165,7 @@ function AccountSection({ person, remote }: { person: Person | null; remote: boo
         {remote ? <SignOutButtons /> : null}
         {remote ? <DeleteAccount /> : null}
         <Link href="/privacy" className="justify-self-start text-xs font-bold text-sky-300 underline">{t('settings.privacyLink')}</Link>
+        <Link href="/imprint" className="justify-self-start text-xs font-bold text-sky-300 underline">{t('landing.imprint')}</Link>
       </div>
     </CoachSection>
   );
@@ -304,7 +305,7 @@ function SignOutButtons() {
     try {
       await signOut({ everywhere });
     } finally {
-      window.location.assign('/');
+      window.location.assign('/start');
     }
   }
   return (
@@ -336,7 +337,7 @@ function DeleteAccount() {
     setError(null);
     try {
       await deleteMyAccount();
-      window.location.assign('/');
+      window.location.assign('/start');
     } catch (caught) {
       setError(errorText(t, caught));
       setConfirm(false);
@@ -546,7 +547,7 @@ function PlayerTeamsSection({ database, person }: { database: LocalDatabase; per
           try {
             leaveTeam(leaving.id, person.id);
             // No team left: nothing to act as here any more.
-            if (teams.length === 1) window.location.assign('/');
+            if (teams.length === 1) window.location.assign('/start');
           } catch (caught) {
             setError(errorText(t, caught));
           }

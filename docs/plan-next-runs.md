@@ -383,3 +383,8 @@ Spieler ohne Konto nötig).
 - Geführtes Onboarding und einmalige Tipps komplett entfernt; Anmeldung/Beitritt/Gründung,
   Leerzustände, RatePrompt und Push-Einwilligung bleiben. Die Onboarding-Planungsregel ist
   ausgesetzt; das Konzept ist nur noch Ideensammlung und wird später neu aufgesetzt.
+## Run 76 — Landingpage (erledigt, 2026-10-08)
+
+Öffentliche Marketingseite unter `/`, bestehender Einstieg unverändert unter `/start`.
+Demo-Altlinks bleiben gültig. Vier Sprachen, echte Demo-Screenshots, Pilotkontakt,
+Impressum und öffentliche Datenschutzseite; keine Änderungen an Supabase.

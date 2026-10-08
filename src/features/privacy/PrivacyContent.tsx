@@ -61,7 +61,7 @@ export function PrivacyContent() {
         </Part>
 
         <p className="text-xs text-slate-500">
-          {t('privacy.lastChanged')} <Link href="/" className="font-bold text-sky-300 underline">{t('privacy.back')}</Link>
+          {t('privacy.lastChanged')} <Link href="/start" className="font-bold text-sky-300 underline">{t('privacy.back')}</Link>
         </p>
       </div>
     </main>

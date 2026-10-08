@@ -15,7 +15,7 @@ import { LanguagePicker } from '@/shared/i18n/LanguagePicker';
 
 function safeNext(value: string | null) {
   // Only paths inside the app, never another site.
-  return value && value.startsWith('/') && !value.startsWith('//') ? value : '/';
+  return value && value.startsWith('/') && !value.startsWith('//') ? value : '/start';
 }
 
 function LoginContent() {

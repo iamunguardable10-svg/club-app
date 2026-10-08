@@ -77,7 +77,7 @@ function FoundForm({ code, account }: { code: string; account: { email: string }
       <section className="os-panel grid gap-3 p-5 text-sm text-slate-300">
         <AccountLine account={account} />
         <p>{t('onboarding.found.alreadyInClub')}</p>
-        <a href="/" className="os-secondary justify-center text-center">{t('onboarding.found.backToClub')}</a>
+        <a href="/start" className="os-secondary justify-center text-center">{t('onboarding.found.backToClub')}</a>
       </section>
     );
   }
