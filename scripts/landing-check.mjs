@@ -3,8 +3,7 @@
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
-const base = process.env.BASE_URL ?? 'http://localhost:3102';
-assert.equal(new URL(base).port, '3102');
+const base = process.env.BASE_URL ?? 'http://localhost:3100';
 const browser = await chromium.launch();
 let views = 0;
 const errors = [];

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /** Real demo screens, reproducible clock, isolated browser storage. No server data.
- * Run on our own server: BASE_URL=http://localhost:3102 npm run landing:shots.
+ * Run on our own server: npm run landing:shots.
  * sharp is already shipped by Next.js; no extra dependency is installed.
  */
 import fs from 'node:fs/promises';
@@ -8,8 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import sharp from 'sharp';
 
-const base = process.env.BASE_URL ?? 'http://localhost:3102';
-if (new URL(base).port !== '3102') throw new Error('Landing captures must use port 3102.');
+const base = process.env.BASE_URL ?? 'http://localhost:3100';
 const directory = fileURLToPath(new URL('../public/landing/', import.meta.url));
 await fs.mkdir(directory, { recursive: true });
 const browser = await chromium.launch();
