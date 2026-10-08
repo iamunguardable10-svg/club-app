@@ -18,6 +18,7 @@ export function ConsentFields({ value, onChange, staff = false, knownBirthYear }
       : <label className="grid gap-1 text-sm font-bold text-slate-200">{t('consent.birthYear')}<input type="number" inputMode="numeric" min={1900} max={year ?? undefined} required readOnly={knownBirthYear != null} value={value.birthYear ?? ''} onChange={(e) => onChange({ ...value, birthYear: e.target.value ? Number(e.target.value) : null, health: false })} className="os-field" /></label>}
     <label className="flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" required checked={value.terms} onChange={(e) => onChange({ ...value, terms: e.target.checked })} className="mt-1 h-4 w-4 shrink-0" />{t('consent.accept')}</label>
     <LegalLinks />
+    {!staff && adult ? <p className="text-xs leading-5 text-slate-400">{t('consent.why')}</p> : null}
     {!staff && adult ? <label className="flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" checked={value.health} onChange={(e) => onChange({ ...value, health: e.target.checked })} className="mt-1 h-4 w-4 shrink-0" />{t('consent.health')}</label> : null}
     {!staff ? <p className="text-xs leading-relaxed text-slate-400">{t('consent.limited')}</p> : null}
   </fieldset>;
