@@ -55,7 +55,7 @@ export const HOME_FOR_ROLE: Record<IdentityRole, string> = {
   club: '/club',
 };
 
-export function IdentitySwitcher({ className = '', variant = 'card' }: { className?: string; variant?: 'card' | 'avatar' }) {
+export function IdentitySwitcher({ className = '', variant = 'card', extraAction }: { className?: string; variant?: 'card' | 'avatar'; extraAction?: { label: string; onSelect: () => void } }) {
   const t = useT();
   const { database } = useLocalDatabase();
   const router = useRouter();
@@ -221,6 +221,12 @@ export function IdentitySwitcher({ className = '', variant = 'card' }: { classNa
               </Link>
             ) : null}
 
+            {extraAction ? (
+              <button type="button" onClick={extraAction.onSelect} className="mt-6 flex w-full items-center justify-between rounded-2xl border border-sky-400/40 px-4 py-3 text-left text-sm font-black text-sky-100 hover:border-sky-300">
+                {extraAction.label}
+                <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" /><path d="M16 6l-4-4-4 4" /><path d="M12 2v13" /></svg>
+              </button>
+            ) : null}
             {/* Name, email, password, notifications and the rest (piece 12). */}
             {current ? (
               <Link href="/settings" onClick={() => setOpen(false)} className="mt-6 flex items-center justify-between rounded-2xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-100 hover:border-slate-500">

@@ -401,6 +401,11 @@ function LoadRoomMetric({ latest, entries, baselineReady }: { latest: ReturnType
   );
 }
 
+function AvailabilityPill({ label }: { label: { text: string; tone: 'in' | 'late' | 'out' | 'open' | 'plain' } }) {
+  const tone = label.tone === 'in' ? 'bg-emerald-400/15 text-emerald-200' : label.tone === 'late' || label.tone === 'open' ? 'bg-amber-300/15 text-amber-200' : label.tone === 'out' ? 'bg-rose-400/15 text-rose-200' : 'bg-slate-800 text-slate-300';
+  return <span data-testid="availability-pill" className={`mt-3 inline-flex max-w-full rounded-full px-3 py-1 text-xs font-black ${tone}`}><span className="truncate">{label.text}{label.tone === 'in' ? ' ✓' : ''}</span></span>;
+}
+
 function AcwrMetric({ latest, baselineReady, tone }: { latest: ReturnType<typeof getLatestACWR>; baselineReady: boolean; tone: 'default' | 'ready' | 'high' | 'low' | 'neutral' }) {
   const acwr = latest?.acwr ?? null;
   const displayAcwr = acwr !== null && baselineReady ? acwr : null;
@@ -1448,14 +1453,15 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   function nextSessionItem(session: AthletePendingSession): AthleteCalendarItem {
     return { id: session.id, title: session.title, date: session.date, startsAt: session.startsAt, endsAt: session.endsAt, trainingType: session.trainingType, teamName: session.teamName, status: session.date < todayISO() ? 'missing' : 'planned', source: session.source ?? 'team_session', session };
   }
-  function availabilityLabelFor(session: AthletePendingSession) {
-    if (session.source === 'athlete_plan') return t('athlete.availability.ownPlan');
-    if (session.trainingType === 'warmup') return t('athlete.availability.warmup');
+  /** The short state for the next-session card: one coloured pill, tap the card to change it. */
+  function availabilityPillFor(session: AthletePendingSession): { text: string; tone: 'in' | 'late' | 'out' | 'open' | 'plain' } {
+    if (session.source === 'athlete_plan') return { text: t('athlete.availability.ownPlan'), tone: 'plain' };
+    if (session.trainingType === 'warmup') return { text: t('athlete.availability.warmup'), tone: 'plain' };
     const mark = availabilityForSession(session.id);
-    if (mark?.status === 'out') return t('composer.markedOut');
-    if (mark?.status === 'late') return mark.lateMinutes ? t('athlete.availability.lateMinutes', { count: mark.lateMinutes }) : t('athlete.availability.late');
-    if (isOpenSession(session)) return t('athlete.availability.open');
-    return t('athlete.availability.in');
+    if (mark?.status === 'out') return { text: t('composer.out') + (mark.reason ? ` · ${mark.reason}` : ''), tone: 'out' };
+    if (mark?.status === 'late') return { text: t('composer.late') + (mark.lateMinutes ? ` · ${t('composer.minutes', { count: mark.lateMinutes })}` : ''), tone: 'late' };
+    if (isOpenSession(session)) return { text: t('athlete.availability.open'), tone: 'open' };
+    return { text: t('composer.youAreIn'), tone: 'in' };
   }
   const calendarItems = useMemo(() => {
     const reportedSessionIds = new Set(sortedEntries.map((entry) => entry.sessionId).filter(Boolean));
@@ -2051,11 +2057,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       showLoad={hasLoad}
       title={activeView === 'home' ? t('athlete.title.today') : activeView === 'calendar' ? t('athlete.title.calendar') : t('athlete.title.load')}
       subtitle={activeView === 'home' ? formatLongDay(new Date()) : activeView === 'calendar' ? (hasLoad ? t('athlete.subtitle.calendarWithLoad') : t('athlete.subtitle.calendar')) : t('athlete.subtitle.load')}
-      actions={hasLoad ? (
-        <button type="button" onClick={copyTrainerShareLink} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${shareStatus === 'copied' ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100' : shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
-          {shareStatus === 'copied' ? t('athlete.share.copied') : shareStatus === 'error' ? t('athlete.share.error') : shareActive ? t('athlete.share.on') : t('athlete.share.off')}
-        </button>
-      ) : undefined}
+      menuAction={hasLoad ? { label: shareStatus === 'copied' ? t('athlete.share.copied') : shareStatus === 'error' ? t('athlete.share.error') : shareActive ? t('athlete.share.on') : t('athlete.share.off'), onSelect: () => { void copyTrainerShareLink(); } } : undefined}
     >
         {error ? <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 px-4 py-3 text-sm font-bold text-rose-100">{error}</div> : null}
 
@@ -2067,7 +2069,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           </section>
         ) : null}
 
-        {activeView !== 'calendar' && hasLoad ? (
+        {activeView === 'home' && hasLoad ? (
+          <Link href="/athlete/load" data-testid="today-load-row" className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm font-black ${zone.tone === 'high' ? 'border-rose-400/35 bg-rose-400/10 text-rose-100' : zone.tone === 'low' ? 'border-sky-400/35 bg-sky-400/10 text-sky-100' : zone.tone === 'ready' ? 'border-emerald-400/35 bg-emerald-400/10 text-emerald-100' : 'border-slate-700 bg-slate-950/60 text-slate-200'}`}>
+            <span>{isBaselineReady && latest?.acwr != null ? t('athlete.loadRow', { acwr: formatDecimal(latest.acwr), zone: zoneLabel(zone.tone) }) : t('athlete.loadRowBuilding')}</span>
+            <span aria-hidden className="text-slate-400">›</span>
+          </Link>
+        ) : null}
+
+        {activeView === 'load' && hasLoad ? (
           <div className="grid w-full min-w-0 grid-cols-3 gap-2 [&>*]:min-h-[92px]">
             <LoadRoomMetric latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} />
             <AcwrMetric latest={latest} baselineReady={isBaselineReady} tone={zone.tone} />
@@ -2131,37 +2140,25 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           </div>
         ) : activeView === 'home' ? (
           <section className={`grid min-w-0 items-stretch gap-5 ${todayPending.length > 0 ? 'lg:grid-cols-[0.9fr_1.1fr]' : ''}`}>
-            {todayPending.length > 0 ? (
-            <div className="h-full min-w-0 rounded-3xl border border-amber-300/25 bg-slate-950/65 p-4 sm:p-5">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="min-w-0 truncate text-lg font-black">{t('athlete.rate.title')}</h2>
-                <span className="shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{allToRate.length}</span>
-              </div>
-              {rateQueue.length > 0 ? (
-                <button type="button" onClick={() => setRatePromptOpen(true)} className="mt-3 w-full rounded-2xl bg-emerald-300 px-4 py-2.5 text-sm font-black text-slate-950">
-                  {t('athlete.rate.now', { count: rateQueue.length })}
-                </button>
-              ) : null}
-              <div className="mt-4 space-y-3">
-                {todayPending.map((session) => {
-                  const active = activePendingId === session.id;
-                  const defaultDuration = session.expectedDurationMinutes ?? (session.endsAt ? Math.max(30, Math.round((new Date(session.endsAt).getTime() - new Date(session.startsAt).getTime()) / 60000)) : 90);
-                  return (
-                    <article key={session.id} className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-3">
-                      <button type="button" onClick={() => setActivePendingId(active ? null : session.id)} className="flex w-full items-center justify-between gap-3 text-left">
-                        <div>
-                          <p className="text-base font-black text-white">{displayTitle(session.title)}</p>
-                          <p className="mt-1 text-xs font-bold text-slate-500">{formatEntryDate(session.date)} · {formatTime(session.startsAt)} · {session.teamName ?? t('athlete.solo')}</p>
-                        </div>
-                        <span className="rounded-full border border-amber-300/40 bg-amber-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-amber-100">{statusForPending(session)}</span>
-                      </button>
-                      {active ? <PendingInlineForm trainingType={session.trainingType} defaultRpe={session.trainingType === 'game' ? 10 : session.expectedRpe ?? 6} defaultDuration={defaultDuration} onSubmit={(rpe, duration) => submitPending(session, session.trainingType === 'game' ? 10 : rpe, duration)} /> : null}
-                    </article>
-                  );
-                })}
-              </div>
-            </div>
-            ) : null}
+            {todayPending.length > 0 ? (() => {
+              const first = todayPending[0];
+              const active = activePendingId === first.id;
+              const defaultDuration = first.expectedDurationMinutes ?? (first.endsAt ? Math.max(30, Math.round((new Date(first.endsAt).getTime() - new Date(first.startsAt).getTime()) / 60000)) : 90);
+              return (
+                <div data-testid="today-rate-row" className="min-w-0 rounded-2xl border border-amber-300/35 bg-amber-300/[0.06] p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-amber-200">{t('athlete.rate.title')}</p>
+                      <p className="truncate text-sm font-black text-white">{displayTitle(first.title)} · {formatEntryDate(first.date)}{allToRate.length > 1 ? <span className="text-slate-400"> · +{allToRate.length - 1}</span> : null}</p>
+                    </div>
+                    <button type="button" onClick={() => (rateQueue.length > 0 ? setRatePromptOpen(true) : setActivePendingId(active ? null : first.id))} className="shrink-0 rounded-xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950 transition active:scale-95">
+                      {t('athlete.rate.short')}
+                    </button>
+                  </div>
+                  {active ? <PendingInlineForm trainingType={first.trainingType} defaultRpe={first.trainingType === 'game' ? 10 : first.expectedRpe ?? 6} defaultDuration={defaultDuration} onSubmit={(rpe, duration) => submitPending(first, first.trainingType === 'game' ? 10 : rpe, duration)} /> : null}
+                </div>
+              );
+            })() : null}
 
             <div className="h-full min-w-0 rounded-3xl border border-slate-800/80 bg-slate-950/65 p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
@@ -2184,7 +2181,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   })() : null}
                   <CarpoolSummary sessionId={nextSession.id} />
                   {nextSession.info?.notes ? <p className="mt-1 line-clamp-2 text-xs font-bold text-slate-400">{nextSession.info.notes}</p> : null}
-                  <p className={`mt-3 text-xs font-bold ${isOpenSession(nextSession) ? 'text-amber-200' : 'text-emerald-200'}`}>{availabilityLabelFor(nextSession)}</p>
+                  <AvailabilityPill label={availabilityPillFor(nextSession)} />
                 </button>
                 {/* Piece A: no answer yet from a player who says yes themselves. */}
                 {isOpenSession(nextSession) ? (
@@ -2211,7 +2208,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                           {landingAfter.has(plan.id) ? <span className="shrink-0"><LoadLandingChip value={landingAfter.get(plan.id)!} /></span> : null}
                         </div>
                         <p className="mt-0.5 text-xs font-bold text-slate-500">
-                          {formatEntryDate(plan.date)} · {plan.startsAt ? formatTime(plan.startsAt) : t('athlete.noTime')} · {t('athlete.expected', { load: plan.expectedRpe * plan.expectedDurationMinutes })}
+                          {formatEntryDate(plan.date)} · {plan.startsAt ? formatTime(plan.startsAt) : t('athlete.noTime')}
                         </p>
                       </div>
                       <button type="button" onClick={() => setDeleteTarget({ kind: 'plan', id: plan.id, title: plan.title })} aria-label={t('athlete.delete')} title={t('athlete.delete')} className="absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full text-lg leading-none text-slate-500 hover:bg-rose-400/10 hover:text-rose-200">
