@@ -14,7 +14,7 @@ export function ParentConsentPage({ token, withdrawal = false }: { token: string
       : preview === undefined ? <p className="text-sm text-slate-400">{t('common.oneMoment')}</p> : !preview ? <p className="text-sm text-slate-300">{t('consent.invalid')}</p>
       : <form className="grid gap-4" onSubmit={async (e) => { e.preventDefault(); if (!guardian || !explicit || !terms) return; setBusy(true); setError(null); try { setLink(await confirmParentConsent(token,name,email)); } catch(e) { setError(e); } finally { setBusy(false); } }}>
         <h2 className="text-lg font-black text-white">{t('consent.parentIntro', { name: preview.firstName, team: preview.team, club: preview.club })}</h2>
-        <p className="text-sm leading-relaxed text-slate-300">{t('consent.parentDetail')}</p>
+        <p className="text-sm font-bold leading-relaxed text-amber-100">{t('consent.parentWhy')}</p><p className="text-sm leading-relaxed text-slate-300">{t('consent.parentDetail')}</p>
         <label className="grid gap-1 text-sm font-bold text-slate-200">{t('consent.parentName')}<input className="os-field" required minLength={2} maxLength={120} value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></label>
         <label className="grid gap-1 text-sm font-bold text-slate-200">{t('consent.parentEmail')}<input type="email" className="os-field" required maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" /></label>
         <label className="flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" required checked={guardian} onChange={(e) => setGuardian(e.target.checked)} className="mt-1 h-4 w-4 shrink-0" />{t('consent.guardian', { name: preview.firstName })}</label>
