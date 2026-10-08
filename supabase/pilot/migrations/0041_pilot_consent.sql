@@ -27,6 +27,11 @@ language plpgsql security definer set search_path = '' as $$
 begin
   if current_setting('role',true)='authenticated' and auth.uid() is not null and (new.age_group is distinct from old.age_group or new.features is distinct from old.features)
     and not app.has_perm(old.id,'manageStaff') then raise exception 'Not allowed.' using errcode='insufficient_privilege'; end if;
+  -- teams_health_settings opens updates to manageStaff for these two fields only.
+  if current_setting('role',true)='authenticated' and auth.uid() is not null
+    and (new.name is distinct from old.name or new.archived_at is distinct from old.archived_at or new.default_facility_id is distinct from old.default_facility_id)
+    and not (app.has_perm(old.id,'manageFacilities') or app.manages_team(old.id)) then
+    raise exception 'Not allowed.' using errcode='insufficient_privilege'; end if;
   return new;
 end $$;
 create trigger teams_health_guard before update on public.teams for each row execute function app.guard_team_health_settings();

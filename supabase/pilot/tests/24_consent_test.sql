@@ -50,8 +50,9 @@ select test.act_as('10000000-0000-0000-0000-000000000001');
 select test.expect_count('coach sees no parent contact rows',$q$select 1 from public.consents where person_id='a0000000-0000-0000-0000-000000000241'$q$,0);
 select test.expect_count('coach sees status',$q$select 1 where public.health_consent_active('a0000000-0000-0000-0000-000000000241')$q$,1);
 select test.expect_count('coach sees birth year',$q$select 1 from public.person_birth_years where person_id='a0000000-0000-0000-0000-000000000241' and birth_year=extract(year from current_date)::integer-14$q$,1);
-select test.act_as('10000000-0000-0000-0000-000000000005');
-select test.expect_error('roster-only coach cannot see status',$q$select public.health_consent_active('a0000000-0000-0000-0000-000000000241')$q$,'may not see');
+-- Uwe gained viewLoadSummary in 02; someone from another club sees nothing.
+select test.act_as('10000000-0000-0000-0000-000000000011');
+select test.expect_error('outsider cannot see status',$q$select public.health_consent_active('a0000000-0000-0000-0000-000000000241')$q$,'may not see');
 select test.expect_error('birth year not exposed by names table',$q$select birth_year from public.people$q$,'permission denied');
 reset role;
 set role anon;

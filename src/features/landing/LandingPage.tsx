@@ -60,6 +60,8 @@ export function LandingPage() {
 
   useEffect(() => {
     let active = true;
+    // `/?landing` shows the page even to signed-in people and the installed app.
+    if (new URLSearchParams(window.location.search).has('landing')) { setVisible(true); return; }
     if (isStandalone()) { router.replace('/start'); return; }
     void (async () => {
       const signedIn = isServerAvailable() && await hasSignedInAccount().catch(() => false);

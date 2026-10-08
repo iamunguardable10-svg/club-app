@@ -28,7 +28,8 @@
     "test:address": "tsx src/features/facilities/addressAutocomplete.test.ts",
     "test:smoke": "node scripts/smoke.mjs",
     "landing:shots": "node scripts/landing-shots.mjs",
-    "test:landing": "node scripts/landing-check.mjs"
+    "test:landing": "node scripts/landing-check.mjs",
+    "test:consent": "node --import tsx src/shared/data/consent.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.1",
