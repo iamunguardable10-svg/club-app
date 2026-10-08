@@ -14,6 +14,7 @@
  *   club (departments, leads and admins stay in the club area).
  */
 
+import { AbsencePanel } from '@/features/absences/AbsencePanel';
 import { HealthConsentPanel, ExportDataButton } from '@/features/legal/HealthConsentPanel';
 import { LegalLinks } from '@/features/legal/LegalLinks';
 import Link from 'next/link';
@@ -93,6 +94,8 @@ export function SettingsPage() {
         </div>
         <div className="grid gap-5">
           {role === 'athlete' && person ? <RsvpSection database={database} person={person} /> : null}
+          {/* Away for a while (injured, sick, holiday): moved here from Today (2026-10-08). */}
+          {role === 'athlete' && person ? <CoachSection title={t('athlete.away')}><AbsencePanel personId={person.id} viewer="self" showReasons /></CoachSection> : null}
           {role === 'athlete' && person ? <PlayerTeamsSection database={database} person={person} /> : null}
           {role === 'coach' && person ? <CoachTeamsSection database={database} person={person} /> : null}
           {role === 'club' && person ? <ClubSection database={database} person={person} /> : null}
