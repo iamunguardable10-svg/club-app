@@ -9,6 +9,8 @@
  * loads fresh, so nothing of the local test data is carried over.
  */
 
+import { ConsentFields, EMPTY_CONSENT, consentComplete } from '@/features/legal/ConsentFields';
+import { LegalLinks } from '@/features/legal/LegalLinks';
 import { useState } from 'react';
 
 import { requestPasswordReset, setBackendChoice, signInWithPassword, signUpWithPassword } from '@/shared/data';
@@ -26,13 +28,16 @@ export function AuthForm({
   initialMode = 'signIn',
   returnTo,
   intro,
+  staff = false,
 }: {
   initialMode?: 'signIn' | 'signUp';
   /** Where to go after signing in, and where the confirmation mail leads back to. */
   returnTo: string;
   intro?: string;
+  staff?: boolean;
 }) {
   const t = useT();
+  const [consent, setConsent] = useState(EMPTY_CONSENT);
   const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -55,7 +60,7 @@ export function AuthForm({
         await requestPasswordReset(email);
         setMailSent({ to: email.trim(), kind: 'reset' });
       } else {
-        const { confirmationNeeded } = await signUpWithPassword(email, password, returnTo, currentLocale());
+        const { confirmationNeeded } = await signUpWithPassword(email, password, returnTo, currentLocale(), consent);
         // The confirmation link comes back to this device in server mode.
         setBackendChoice('server');
         if (!confirmationNeeded) {
@@ -118,8 +123,9 @@ export function AuthForm({
           {mode === 'signUp' ? <span className="text-xs font-medium text-slate-500">{t('auth.passwordHint')}</span> : null}
         </label>
       ) : null}
+      {mode === 'signUp' ? <ConsentFields value={consent} onChange={setConsent} staff={staff} /> : null}
       {error ? <p role="alert" className="rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-bold text-red-100">{error}</p> : null}
-      <button type="submit" disabled={busy} className="os-success justify-center disabled:opacity-60">
+      <button type="submit" disabled={busy || (mode === 'signUp' && !consentComplete(consent, staff))} className="os-success justify-center disabled:opacity-60">
         {busy ? t('common.oneMoment') : t(SUBMIT_LABEL[mode])}
       </button>
       {mode === 'signUp' ? (
@@ -138,6 +144,7 @@ export function AuthForm({
           {t('auth.backToSignIn')}
         </button>
       ) : null}
+      <LegalLinks />
     </form>
   );
 }

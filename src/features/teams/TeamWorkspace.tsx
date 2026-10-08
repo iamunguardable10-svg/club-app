@@ -33,9 +33,11 @@ import { missedLabel, buildCoachData } from '@/features/role-workspaces/coachDat
 import { errorText, useT } from '@/shared/i18n';
 import { awayUntilLabel } from '@/features/absences/absenceText';
 import { loadAccessFor } from '@/features/load/loadAccess';
+import { TeamHealthSettings } from '@/features/legal/TeamHealthSettings';
 import { TeamStaffPanel } from '@/features/teams/TeamStaffPanel';
 import {
   absenceOn,
+  hasHealthConsent,
   athletesForTeam,
   awayForSession,
   publishedSquadStatus,
@@ -183,6 +185,9 @@ export function TeamWorkspace({
 
     const roster = permissions.has('viewRoster') ? athletesForTeam(database, team.id) : [];
     const players: TeamWorkspacePlayer[] = roster.map((person) => {
+      const healthConsent = hasHealthConsent(database, person.id);
+      const playerAccess = healthConsent ? loadAccess : 'none';
+      const playerReasons = reasonsShared && healthConsent;
       const loadEntries: AthleteLoadEntry[] = database.loadEntries
         .filter((entry) => entry.personId === person.id)
         .map(({ personId: _personId, createdAt: _createdAt, ...entry }) => entry);
@@ -190,20 +195,22 @@ export function TeamWorkspace({
       return {
         id: person.id,
         name: displayName(person),
+        healthConsent,
+        birthYear: person.birthYear,
         groups: groupIdsByPerson.get(person.id) ?? [],
         // Entries only for full access; summary-only roles get the stored
         // traffic light, as they would from the server.
-        loadEntries: loadAccess === 'full' ? loadEntries : undefined,
-        loadAccess,
-        loadSummary: loadAccess === 'summary' ? storedSummary(person.id) : null,
+        loadEntries: playerAccess === 'full' ? loadEntries : undefined,
+        loadAccess: playerAccess,
+        loadSummary: playerAccess === 'summary' ? storedSummary(person.id) : null,
         attendanceShared,
-        absenceReasonsShared: reasonsShared,
+        absenceReasonsShared: playerReasons,
         // Away right now, or starting today (piece 16).
         awayUntil: attendanceShared ? absenceOn(database, person.id, todayISO())?.toDate ?? null : null,
         ...(attendanceShared
           ? {
               ...attendance,
-              attendanceEvents: reasonsShared
+              attendanceEvents: playerReasons
                 ? attendance.attendanceEvents
                 : attendance.attendanceEvents.map((event) => (
                     event.missed ? event
@@ -322,7 +329,7 @@ export function TeamWorkspace({
   const canEditSessions = permissions.has('editSessions');
   const canManageGroups = permissions.has('manageGroups');
   const staffPanel: ReactNode = database && permissions.size > 0
-    ? <TeamStaffPanel database={database} teamId={teamId} canManage={permissions.has('manageStaff')} />
+    ? <div className="grid gap-4">{permissions.has('manageStaff') && database.teams.find((t) => t.id === teamId) ? <TeamHealthSettings team={database.teams.find((t) => t.id === teamId)!} /> : null}<TeamStaffPanel database={database} teamId={teamId} canManage={permissions.has('manageStaff')} /></div>
     : null;
 
   return (

@@ -18,6 +18,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
+import { ConsentFields, EMPTY_CONSENT, consentComplete } from '@/features/legal/ConsentFields';
 import { AuthForm } from '@/features/access/AuthForm';
 import { AccountLine, ErrorLine, OnboardingShell as Shell, continueAs } from '@/features/onboarding/OnboardingShell';
 import { useAccount, type Account } from '@/features/onboarding/useAccount';
@@ -39,6 +40,7 @@ import { errorText, useT } from '@/shared/i18n';
 function InviteFlow({ token, account }: { token: string; account: Account }) {
   const t = useT();
   const status = useBackendStatus();
+  const [consent, setConsent] = useState(EMPTY_CONSENT);
   // Asking for the data starts the connection to the server store, which
   // accepting goes through.
   useLocalDatabase();
@@ -82,15 +84,16 @@ function InviteFlow({ token, account }: { token: string; account: Account }) {
       {account ? (
         <section className="os-panel grid gap-3 p-5">
           <AccountLine account={account} />
+          <ConsentFields value={consent} onChange={setConsent} staff />
           <ErrorLine message={error} />
           <button
             type="button"
-            disabled={busy || status.phase === 'loading'}
+            disabled={busy || status.phase === 'loading' || !consentComplete(consent, true)}
             onClick={async () => {
               setBusy(true);
               setError(null);
               try {
-                const id = await acceptStaffInvite(token);
+                const id = await acceptStaffInvite(token, consent);
                 continueAs(clubRole ? 'club' : 'coach', clubRole ? null : id);
               } catch (caught) {
                 setError(errorText(t, caught));
@@ -104,7 +107,7 @@ function InviteFlow({ token, account }: { token: string; account: Account }) {
         </section>
       ) : (
         <AuthForm
-          initialMode="signUp"
+          initialMode="signUp" staff
           returnTo={`/join?invite=${encodeURIComponent(token)}`}
           intro={t('onboarding.join.inviteIntro', { name: preview.firstName })}
         />
@@ -140,6 +143,7 @@ function EnterCode({ initial, message }: { initial: string; message?: string }) 
 function CodeFlow({ code, account }: { code: string; account: Account }) {
   const t = useT();
   const status = useBackendStatus();
+  const [consent, setConsent] = useState(EMPTY_CONSENT);
   // Asking for the data starts the connection to the server store, which
   // joining goes through.
   useLocalDatabase();
@@ -186,7 +190,7 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
             setBusy(true);
             setError(null);
             try {
-              const teamId = await joinTeamWithCode(code, me ? me.firstName : firstName, me ? me.lastName : lastName);
+              const teamId = await joinTeamWithCode(code, me ? me.firstName : firstName, me ? me.lastName : lastName, consent);
               continueAs('athlete', teamId);
             } catch (caught) {
               setError(errorText(t, caught));
@@ -210,8 +214,9 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
               </label>
             </>
           )}
+          <ConsentFields value={consent} onChange={setConsent} knownBirthYear={me?.birthYear} />
           <ErrorLine message={error} />
-          <button type="submit" disabled={busy || status.phase === 'loading'} className="os-success justify-center disabled:opacity-60">
+          <button type="submit" disabled={busy || status.phase === 'loading' || !consentComplete(consent)} className="os-success justify-center disabled:opacity-60">
             {busy ? t('common.oneMoment') : t('onboarding.join.submit')}
           </button>
         </form>

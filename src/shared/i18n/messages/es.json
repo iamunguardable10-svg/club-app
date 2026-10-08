@@ -1,7 +1,6 @@
 {
   "language.label": "Idioma",
   "language.help": "El idioma de la app en este dispositivo.",
-
   "start.kicker": "Club OS",
   "start.title": "Tu equipo, en un solo sitio.",
   "start.subtitle": "Sesiones, disponibilidad y carga de entrenamiento para entrenadores y jugadores.",
@@ -31,7 +30,6 @@
   "start.local.summary_one": "Demo: {club}, {count} equipo, {players} jugadores.",
   "start.local.summary_other": "Demo: {club}, {count} equipos, {players} jugadores.",
   "start.local.startsAs": "Empiezas como {coach} o {athlete}; puedes cambiar en cualquier momento desde el menú de arriba.",
-
   "load.risk.today": "Hoy",
   "load.risk.lowerIntensity": "Plantéate bajar la intensidad",
   "load.risk.ariaForecast": "ACWR de {before} a {after}, mayor riesgo de lesión. ¿Qué significa?",
@@ -49,7 +47,6 @@
   "load.explainer.summaryOf": "Resumen de",
   "load.explainer.jumps": "El riesgo aumenta con los cambios bruscos: una semana mucho más intensa que la anterior o volver a entrenar a tope tras un descanso. Aumentar poco a poco ayuda a mantener la proporción en la zona ideal.",
   "load.explainer.caveat": "Es un indicador, no una predicción: la proporción por sí sola no puede decir si alguien se lesionará. Cómo te sientes también cuenta.",
-
   "onboarding.who.title": "¿Eres nuevo? ¿Quién eres?",
   "onboarding.who.titleSignedIn": "¿Cómo quieres unirte?",
   "onboarding.who.detail": "Elige lo que encaje contigo; más adelante podrás asumir otros roles.",
@@ -76,7 +73,6 @@
   "onboarding.who.errorJoinCode": "Introduce el código de tu entrenador, por ejemplo, ABCD-EFGH.",
   "onboarding.who.errorFoundingCode": "Introduce tu código de creación.",
   "onboarding.who.errorInvite": "Esto no parece un enlace de invitación. Pega el enlace completo que te han enviado.",
-
   "common.oneMoment": "Un momento …",
   "common.continue": "Continuar",
   "common.optional": "opcional",
@@ -166,7 +162,6 @@
   "share.qrLabel": "Código QR: {label}",
   "share.creatingQr": "Creando código QR …",
   "share.scan": "Escanea con la cámara del móvil",
-
   "loadType.team": "Equipo",
   "loadType.strength": "Fuerza",
   "loadType.game": "Partido",
@@ -181,7 +176,6 @@
   "sessionType.strength": "Fuerza",
   "sessionType.individual": "Individual",
   "sessionType.recovery": "Recuperación",
-
   "absence.kind.injured": "Lesionado",
   "absence.kind.sick": "Enfermo",
   "absence.kind.holiday": "De vacaciones",
@@ -192,7 +186,6 @@
   "absence.until.holiday": "de vacaciones hasta {date}",
   "absence.until.schoolWork": "colegio / trabajo hasta {date}",
   "absence.until.away": "ausente hasta {date}",
-
   "absence.thePlayer": "el jugador",
   "absence.now": "Ahora",
   "absence.comingUp": "Próximamente",
@@ -215,7 +208,6 @@
   "absence.removeTitle": "¿Quitar esta ausencia?",
   "absence.removeSelf": "Tus sesiones de este periodo volverán a contar con normalidad y te preguntaremos por ellas.",
   "absence.removeCoach": "Las sesiones de {name} durante este periodo volverán a contar con normalidad.",
-
   "rpe.1": "Muy fácil",
   "rpe.2": "Fácil",
   "rpe.3": "Moderado",
@@ -241,7 +233,6 @@
   "rate.didNotDo": "No lo he hecho",
   "rate.didNotTakePart": "No he participado",
   "rate.laterNote": "¿Ahora no? «Más tarde» lo mantiene en Hoy hasta que lo valores.",
-
   "nav.today": "Hoy",
   "nav.calendar": "Calendario",
   "nav.load": "Carga",
@@ -255,7 +246,6 @@
   "nav.main": "Navegación principal",
   "nav.unread": "{count} sin leer",
   "nav.toRate": "{count} por valorar",
-
   "role.coach": "Entrenador",
   "role.athlete": "Jugador",
   "role.club": "Club",
@@ -281,7 +271,6 @@
   "identity.resetConfirm": "Sí, reiniciar",
   "identity.cancel": "Cancelar",
   "identity.reset": "Restablecer datos de prueba",
-
   "install.prompt": "Instala Club OS como una app: con icono propio, a pantalla completa y a un toque.",
   "install.ios.safari": "Abre esta página en <b>Safari</b>.",
   "install.ios.share": "Pulsa <b>Compartir</b> {icon} abajo (en iPad, arriba).",
@@ -293,7 +282,6 @@
   "install.button": "Instalar",
   "install.asApp": "Instalar como app",
   "common.notNow": "Ahora no",
-
   "notifications.whatIsSent": "Sesiones modificadas o canceladas, «¿Vienes?» el día anterior y «¿Qué esfuerzo te ha supuesto?» justo después de una sesión; los entrenadores ven quién viene 2 horas antes. Sin avisos de 22:00 a 07:00, salvo que lo cambies en Ajustes.",
   "notifications.turnOn": "Activar notificaciones",
   "notifications.title": "Notificaciones",
@@ -306,7 +294,6 @@
   "notifications.error.incomplete": "El navegador ha devuelto una suscripción incompleta.",
   "notifications.error.notAllowed": "No se han permitido las notificaciones. Puedes permitirlas más tarde en los ajustes del navegador para este sitio.",
   "notifications.error.notSetUp": "Las notificaciones aún no están configuradas en el servidor.",
-
   "squad.in": "Estás en la convocatoria",
   "squad.reserve": "Eres suplente",
   "squad.notSelected": "Esta vez no estás en la convocatoria",
@@ -335,7 +322,6 @@
   "messages.subtitle": "De tus entrenadores",
   "messages.switchToPlayer": "Cambia a un jugador para ver sus mensajes.",
   "messages.empty": "Aún no hay mensajes. Aquí aparecerán los avisos de tus entrenadores.",
-
   "load.compact.team": "Equipo",
   "load.compact.gym": "Gimnasio",
   "load.compact.solo": "Individual",
@@ -382,7 +368,6 @@
   "load.chart.close": "Cerrar",
   "load.chart.title": "Gráfico de carga",
   "load.chart.rangeEwma": "{count} días · EWMA",
-
   "calendar.minutesShort": "{count} min",
   "calendar.outAt": "Ausente · {time}",
   "calendar.lateAt": "Con retraso · {time}",
@@ -393,7 +378,6 @@
   "calendar.minutes": "{count} min",
   "calendar.time": "Hora",
   "calendar.wholeWeek": "Toda la semana",
-
   "athlete.availability.ownPlan": "Tu propio plan · toca para editar",
   "athlete.availability.warmup": "Calentamiento antes del partido",
   "athlete.availability.late": "Has avisado a tu entrenador: llegarás tarde · toca para cambiarlo",
@@ -421,7 +405,6 @@
   "athlete.share.on": "Compartir con el entrenador: activado",
   "athlete.share.off": "Compartir con el entrenador",
   "athlete.phoneCalendarLink": "Mostrar estas sesiones en el calendario de tu móvil ›",
-
   "load.zone.baseline": "Referencia",
   "load.zone.ready": "Preparado",
   "athlete.noTracking.title": "Sin seguimiento de carga",
@@ -458,7 +441,6 @@
   "athlete.detail.editLoad": "Editar carga",
   "athlete.detail.deleteLoad": "Eliminar carga",
   "athlete.composer.kicker": "Sesión",
-
   "weekday.short.0": "Lu",
   "weekday.short.1": "Ma",
   "weekday.short.2": "Mi",
@@ -513,7 +495,6 @@
   "composer.savePlan": "Guardar plan",
   "composer.saveLoad": "Guardar {value} AU",
   "composer.deleteLoad": "Eliminar carga",
-
   "composer.deleteFollowing": "Eliminar esta y las siguientes",
   "composer.deletePlan": "Eliminar plan",
   "delete.entryTitle": "¿Eliminar registro de carga?",
@@ -523,7 +504,6 @@
   "delete.detail": "{title} se eliminará de tu calendario y del historial de carga.",
   "delete.load": "Eliminar carga",
   "delete.cancel": "Cancelar",
-
   "load.metric.au": "AU media",
   "load.metric.rpe": "RPE medio",
   "load.metric.acwr": "ACWR",
@@ -541,7 +521,6 @@
   "load.week.close": "Cerrar",
   "load.week.low": "{value} baja",
   "load.week.high": "{value} alta",
-
   "load.stability.building": "En desarrollo",
   "load.stability.buildingDetail": "hace falta un historial variado de 7 días",
   "load.stability.high": "Alta exigencia habitual",
@@ -580,7 +559,6 @@
   "load.inline.minutes": "{count} min",
   "load.inline.durationAria": "Duración en minutos",
   "load.inline.save": "Guardar {value} AU",
-
   "share.view.invalid": "Enlace no válido",
   "share.view.notAvailable": "No se puede compartir esta carga",
   "share.view.back": "Atrás",
@@ -590,7 +568,6 @@
   "share.view.state": "Estado",
   "share.view.trendKicker": "Tendencia",
   "share.view.trend": "Evolución de la carga",
-
   "role.default.head": "Entrenador principal",
   "role.default.assistant": "Entrenador asistente",
   "role.default.athletic": "Preparador físico",
@@ -660,7 +637,6 @@
   "coach.delete.keep": "Conservar sesión",
   "coach.team.nextSession": "Próxima sesión",
   "coach.team.nonePlanned": "Nada planificado",
-
   "coach.insight.expected": "Jugadores previstos",
   "coach.insight.rpe": "Informes de RPE",
   "coach.insight.au": "Carga en AU",
@@ -689,7 +665,6 @@
   "coach.review.noteAria": "Nota para {name}",
   "coach.review.send": "Enviar",
   "coach.review.cancel": "Cancelar",
-
   "attendance.notInSquad": "no está en la convocatoria",
   "attendance.lateMinutes": "tarde · {count} min",
   "attendance.late": "tarde",
@@ -741,7 +716,6 @@
   "squad.confirm.everyone": "Cada jugador recibirá una notificación con su estado.",
   "squad.confirm.send": "Enviar",
   "squad.confirm.publish": "Publicar",
-
   "insight.minLate": "{count} min tarde",
   "insight.expected": "Previsto",
   "insight.status.late": "tarde",
@@ -774,7 +748,6 @@
   "insight.openCalendar": "Abrir calendario",
   "insight.fromSession": "De esta sesión",
   "insight.noFlag": "No hay avisos de retraso o ausencia para esta sesión.",
-
   "history.lastWeeks": "Últimas {count} semanas",
   "history.weeksShort": "{count} sem.",
   "history.allTeams": "Todos los equipos",
@@ -791,7 +764,6 @@
   "history.avgAu": "AU de media",
   "history.reported": "Registrado",
   "history.missing": "Faltan {count}",
-
   "sessionSheet.expected": "{there}/{total} previstos",
   "sessionSheet.saveFailed": "No se han podido guardar los cambios de la sesión.",
   "sessionSheet.kicker": "Sesión",
@@ -817,7 +789,6 @@
   "sessionSheet.save": "Guardar",
   "sessionSheet.hideExpected": "Ocultar jugadores previstos",
   "sessionSheet.expectedPlayers": "Jugadores previstos ({count})",
-
   "sessionForm.kicker": "Sesión",
   "sessionForm.close": "Cerrar",
   "sessionForm.team": "Equipo",
@@ -852,7 +823,6 @@
   "sessionForm.delete": "Eliminar",
   "sessionForm.saving": "Guardando…",
   "sessionForm.save": "Guardar sesión",
-
   "series.forPlayersWeekly": "Para los jugadores · cada semana",
   "series.notePlaceholder": "p. ej., zapatillas de interior",
   "series.cancel": "Cancelar",
@@ -863,7 +833,6 @@
   "series.deleteConfirm": "Eliminar plantilla",
   "series.deleteKeep": "Conservar plantilla",
   "series.kicker": "Plantilla de serie",
-
   "seriesBoard.participants": "{count} participantes",
   "seriesBoard.groups": "{count} grupos",
   "seriesBoard.allTeam": "Todo el equipo",
@@ -878,7 +847,6 @@
   "seriesBoard.created": "Creado",
   "seriesBoard.noHall": "Sin polideportivo",
   "seriesBoard.noTemplates": "No hay plantillas",
-
   "calendar.previousWeek": "Semana anterior",
   "calendar.nextWeek": "Semana siguiente",
   "calendar.edit": "Editar",
@@ -889,7 +857,6 @@
   "calendar.confirmDraft": "Confirmar borrador de sesión",
   "calendar.training": "Entrenamiento",
   "calendar.tapToChooseTeam": "Toca para elegir equipo",
-
   "conflict.before": "Antes de {owner}",
   "conflict.after": "Después de {owner}",
   "conflict.between": "Entre {first} y {second}",
@@ -907,11 +874,9 @@
   "conflict.facilityCalendar": "Calendario de instalaciones",
   "conflict.reviewTime": "Revisar horario",
   "conflict.keep": "Mantener",
-
   "coach.data.player": "Jugador",
   "coach.data.department": "Sección",
   "coach.data.otherBooking": "Otra reserva",
-
   "playerLoad.label.notShared": "Carga no compartida",
   "playerLoad.label.noAcwr": "Aún no hay ACWR",
   "playerLoad.label.low": "Carga baja",
@@ -968,7 +933,6 @@
   "playerLoad.summaryOnly": "Tu rol solo permite ver el semáforo de carga. Los gráficos, el RPE y las sesiones solo están disponibles para los roles con acceso a los detalles de carga.",
   "playerLoad.detailsNotShared": "Los gráficos, el RPE y las sesiones no se comparten con tu rol.",
   "playerLoad.sessionsOnly": "{team} solo registra las sesiones y la asistencia.",
-
   "teamMessages.player": "Jugador",
   "teamMessages.placeholder": "Mensaje para el equipo, por ejemplo: recogida de equipaciones el lunes después del entrenamiento.",
   "teamMessages.newMessage": "Mensaje nuevo",
@@ -995,7 +959,6 @@
   "teamMessages.deleteDetail": "Los jugadores dejarán de verlo. Las notificaciones que ya se han enviado seguirán en sus teléfonos.",
   "ownTraining.noTime": "{title} (sin hora)",
   "ownTraining.none": "No hay entrenamientos propios previstos para las próximas dos semanas.",
-
   "staff.group.players": "Jugadores",
   "staff.group.planning": "Planificación",
   "staff.group.team": "Equipo",
@@ -1046,13 +1009,11 @@
   "staff.rename": "Cambiar nombre",
   "staff.noLoadRights": "Este equipo no registra la carga de entrenamiento, así que los permisos de carga no tienen efecto.",
   "staff.deleteRole": "Eliminar rol",
-
   "attendance.reason.missed": "no participó",
   "attendance.reason.confirmedAbsent": "no estuvo (confirmado por el entrenador)",
   "team.department": "Departamento",
   "team.loading": "Cargando equipo…",
   "team.notFound": "Este equipo no existe.",
-
   "team.section.overview": "Resumen",
   "team.section.settingsShort": "Ajustes",
   "team.section.players": "Jugadores",
@@ -1125,7 +1086,6 @@
   "team.removePlayer": "¿Quitar al jugador?",
   "team.removeDetail": "Deja el equipo y sus grupos y ya no ve sus sesiones. Se conservan sus informes anteriores y su carga. Puede volver a unirse con el código hasta que lo cambies (Cuerpo técnico y ajustes).",
   "team.keep": "Conservar",
-
   "facility.match.hallAt": "{name} en {address}",
   "facility.match.sameAddress.sameName": "Posible mismo pabellón: {hall} ya existe con el mismo nombre. Compruébalo bien antes de crear otro pabellón.",
   "facility.match.sameAddress.otherName": "Posible mismo pabellón: {hall} ya existe con otro nombre. Compruébalo bien antes de crear otro pabellón.",
@@ -1160,9 +1120,7 @@
   "facilities.addressOf": "Dirección de {name}",
   "facilities.save": "Guardar",
   "facilities.defaultHallOf": "Pabellón predeterminado de",
-
   "coach.loadingWorkspace": "Cargando el espacio del entrenador...",
-
   "hallCalendar.notFound": "Este pabellón no existe.",
   "hallCalendar.team": "Equipo",
   "hallCalendar.notice.assignAsAdmin": "Asigna este pabellón a un departamento antes de crear sesiones aquí.",
@@ -1186,7 +1144,6 @@
   "sessionType.session": "Sesión",
   "sessionType.video": "Vídeo",
   "sessionType.meeting": "Reunión",
-
   "club.rename": "Cambiar nombre",
   "club.firstName": "Nombre",
   "club.lastName": "Apellidos",
@@ -1250,7 +1207,6 @@
   "club.role.admin": "Administrador del club",
   "club.role.lead": "Responsable de departamento",
   "club.role.leadOf": "Responsable de departamento · {department}",
-
   "settings.title": "Ajustes",
   "settings.thisDevice": "Este dispositivo",
   "settings.demoNotifications": "Club de prueba: las notificaciones solo funcionan si has iniciado sesión en tu club.",
@@ -1330,7 +1286,6 @@
   "settings.clubAreaNote": "Los departamentos, equipos, responsables y administradores se gestionan en la sección del club.",
   "settings.handOver": "Para ceder el rol de administrador: añade al nuevo administrador en Administradores del club, envíale su enlace y quítate cuando se haya unido.",
   "settings.openClubArea": "Abrir la sección del club",
-
   "phoneCalendar.title": "Calendario del móvil",
   "phoneCalendar.detail": "Opcional: añade los entrenamientos de tu equipo (y los tuyos) al calendario del móvil para tenerlos siempre al día. Elige una opción.",
   "calendarLink.heading": "Enlace del calendario · Google, Outlook, Android y otros",
@@ -1356,7 +1311,6 @@
   "calendarLink.stopDetail": "Los calendarios suscritos dejarán de recibir entrenamientos. Puedes crear otro enlace cuando quieras.",
   "calendarLink.stop": "Desactivar",
   "calendarLink.stopped": "El enlace está desactivado.",
-
   "apple.heading": "Apple Calendar · iPhone, iPad y Mac",
   "apple.loading": "Cargando…",
   "apple.benefit.sessions": "• Tus entrenamientos aparecen siempre actualizados en un calendario «Club OS» de iCloud.",
@@ -1405,7 +1359,6 @@
   "apple.guide.notNormal": "No es tu contraseña habitual de Apple. Club OS la comprueba con Apple antes de guardarla.",
   "apple.guide.checking": "Comprobando con Apple …",
   "apple.guide.connect": "Conectar",
-
   "report.role.coach": "Entrenador",
   "report.role.athlete": "Jugador",
   "report.role.club": "Club",
@@ -1440,7 +1393,6 @@
   "reports.more": "Más",
   "reports.reopen": "Reabrir",
   "reports.resolved": "Resuelto",
-
   "crash.kicker": "Algo ha salido mal",
   "crash.pageTitle": "Esta página ha dejado de funcionar",
   "crash.pageDetail": "El error se ha comunicado automáticamente. Inténtalo de nuevo o vuelve al inicio.",
@@ -1449,7 +1401,6 @@
   "crash.tryAgain": "Volver a intentarlo",
   "crash.startPage": "Página de inicio",
   "crash.tellUs": "Cuéntanos qué has hecho",
-
   "dialog.confirm": "Confirmar",
   "dialog.cancel": "Cancelar",
   "dialog.pleaseConfirm": "Confirma, por favor",
@@ -1459,7 +1410,6 @@
   "sync.waiting_one": " · {count} cambio pendiente de envío",
   "sync.waiting_other": " · hay {count} cambios pendientes de envío",
   "sync.ok": "OK",
-
   "data.offline": "No tienes conexión.",
   "data.offlineTryAgain": "No tienes conexión. Vuelve a intentarlo cuando tengas conexión.",
   "data.signedOut": "No has iniciado sesión.",
@@ -1470,7 +1420,6 @@
   "quickRoles.joined": "Ahora también juegas en {team}. Continúa arriba como jugador o cambia de rol en el menú.",
   "quickRoles.oneMoment": "Un momento …",
   "quickRoles.alsoPlay": "Jugar también en {team}",
-
   "handoff.signingIn": "Iniciando sesión…",
   "privacy.title": "Tus datos",
   "privacy.intro": "Club OS se ofrece a tu club como proyecto piloto. En esta página explicamos claramente qué datos guardamos, quién puede verlos y cómo borrarlos. Sin anuncios, sin seguimiento y sin vender datos.",
@@ -1489,19 +1438,17 @@
   "privacy.sees.apple": "Las citas de tus calendarios personales de Apple: solo tú.",
   "privacy.sees.outside": "Nadie ajeno a tu club.",
   "privacy.where.title": "Dónde se guardan",
-  "privacy.where.text": "Los datos se guardan en Supabase, en la UE (París, Francia). La aplicación se sirve desde Vercel. Las notificaciones llegan al móvil a través del servicio push de Apple o Google. Si conectas Apple Calendar, tus entrenamientos se añaden a tu iCloud. Las sugerencias de dirección para los pabellones vienen de Geoapify; solo se envía el texto que escribes, a través de nuestro servidor.",
+  "privacy.where.text": "La demo queda en tu dispositivo. El servidor guarda datos en Supabase en París (UE); Vercel aloja la app. Las funciones opcionales de notificaciones, calendarios y mapas usan los proveedores indicados abajo.",
   "privacy.under16.title": "Menores de 16",
-  "privacy.under16.text": "Pide permiso a uno de tus padres antes de crear una cuenta.",
+  "privacy.under16.text": "Antes de los 16, pide a un progenitor el consentimiento para datos de salud. Mientras tanto puedes usar el calendario, responder sin motivos, leer mensajes y compartir coche. Desde los 16 decides tú.",
   "privacy.choices.title": "Qué puedes hacer",
   "privacy.choices.change": "Cambia tu nombre, correo electrónico o contraseña en Ajustes.",
   "privacy.choices.switchOff": "Desactiva las notificaciones, el enlace del calendario o Apple Calendar desde Ajustes cuando quieras.",
   "privacy.choices.delete": "Elimina tu cuenta en Ajustes → Cuenta → «Eliminar cuenta»: tu cuenta y todos tus datos del club se borrarán enseguida. Los mensajes que hayas escrito al equipo se conservarán, pero sin tu nombre.",
-  "privacy.choices.copy": "¿Quieres una copia de tus datos o tienes alguna pregunta? Habla con el administrador de tu club.",
+  "privacy.choices.copy": "Descarga tus datos como JSON en Ajustes → Cuenta.",
   "privacy.lastChanged": "Última actualización: 26 de septiembre de 2026.",
   "privacy.back": "Volver a Club OS",
-
   "onboarding.found.departmentPlaceholder": "Baloncesto",
-
   "server.aRoleCannotBeLocked": "Un rol no se puede bloquear después.",
   "server.aSquadCanOnlyBe": "Solo se puede elegir una convocatoria para un partido.",
   "server.attendanceCanOnlyBeConfirmed": "La asistencia solo se puede confirmar para jugadores del equipo.",
@@ -1562,7 +1509,6 @@
   "server.couldNotDeleteEvent": "No se ha podido eliminar un evento ({status}).",
   "server.couldNotReadCalendar": "No se ha podido leer un calendario ({status}).",
   "server.rlsRefused": "Puede que tu rol no permita cambiar esto.",
-
   "sync.table.facilities": "pabellones",
   "sync.table.teams": "ajustes del equipo",
   "sync.table.departmentFacilities": "uso compartido de pabellones",
@@ -1588,7 +1534,6 @@
   "sync.table.messageReads": "confirmaciones de lectura",
   "sync.notSaved": "No se ha guardado: {reason}",
   "sync.notSavedTable": "No se ha guardado ({table}): puede que tu rol no permita cambiar esto o que otra persona lo haya cambiado hace un momento.",
-
   "push.reminder.title": "¿Vienes?",
   "push.reminder.body": "{team} · {title}, {when}. Pulsa para responder.",
   "push.summary.title": "{team} · {title} a las {time}",
@@ -1620,7 +1565,6 @@
   "push.message.reminder": "Recordatorio: {title}",
   "push.joined.title": "{team} · Nuevo jugador",
   "push.joined.body": "{name} se ha unido con el código del equipo. ¿No le conoces? Elimínalo en Equipo → Jugadores.",
-
   "mail.confirm.subject": "Confirma tu cuenta de Club OS",
   "mail.confirm.heading": "Te damos la bienvenida a Club OS",
   "mail.confirm.text": "Pulsa el botón para confirmar tu dirección de correo electrónico y terminar de configurar tu cuenta.",
@@ -1636,8 +1580,6 @@
   "mail.ignore": "Si no has solicitado esto, puedes ignorar este correo.",
   "athlete.loading": "Cargando…",
   "load.landing.aria": "Ratio de carga (ACWR) después de esta sesión: aproximadamente {value}",
-
-
   "athlete.availability.open": "Aún sin respuesta · ¿vienes?",
   "athlete.rsvp.question": "¿Vienes?",
   "athlete.rsvp.yes": "Voy",
@@ -1656,7 +1598,6 @@
   "settings.rsvp.manualDetail": "Respondes «Voy» o «No voy» en cada sesión. Hasta que respondas, tu entrenador te ve sin respuesta.",
   "server.thisSessionHasAlreadyStarted": "Esta sesión ya ha empezado.",
   "server.yourRoleMayNotSeeAttendance": "Tu rol no puede ver la asistencia de este equipo.",
-
   "poll.label": "Encuesta",
   "poll.question": "Pregunta",
   "poll.questionPlaceholder": "Tu pregunta, p. ej. ¿Qué equipación para la final?",
@@ -1681,13 +1622,10 @@
   "server.chooseOneOfTheAnswers": "Elige una de las respuestas.",
   "server.thisPollIsAlreadyClosed": "Esta encuesta ya está cerrada.",
   "push.message.poll": "Encuesta · {title}",
-
   "messages.subtitleWithNews": "De tus entrenadores y tu club",
   "messages.filter": "Mostrar",
   "messages.filterEmpty": "Aún no hay nada.",
   "push.news.title": "{scope} · {author}",
-
-
   "sync.table.messages": "mensajes",
   "sync.table.messageWriters": "permisos para escribir noticias",
   "messages.error.notAllowed": "No puedes hacer esto aquí.",
@@ -1701,7 +1639,6 @@
   "club.writers.count_other": "{count} autorizados",
   "club.writers.noCoaches": "Aún no hay entrenadores en esta sección.",
   "club.writers.noLeads": "Aún no hay responsables de sección.",
-
   "writeMessage.to": "Para:",
   "writeMessage.addRecipients": "+ Destinatarios",
   "writeMessage.done": "Listo",
@@ -1724,17 +1661,10 @@
   "staffMessages.title": "Mensajes",
   "staffMessages.subtitle": "De y para tus equipos, secciones y el club",
   "staffMessages.empty": "Aún no hay mensajes. Los mensajes a tus equipos, tu sección o el club aparecen aquí.",
-
   "writeMessage.coversAll": "Todo el club incluye todas las secciones y equipos.",
-
   "writeMessage.onlyGroups": "Solo a:",
-
   "messages.pinned": "Fijado",
   "messages.pinnedUntil": "fijado hasta el {date}",
-
-
-
-
   "carpools.title": "Coches compartidos",
   "carpools.optional": "Coches compartidos (opcional)",
   "carpools.member": "Miembro del equipo",
@@ -1779,7 +1709,6 @@
   "push.carpoolOffered.title": "Viaje ofrecido · {name} tiene {seats} plazas",
   "push.carpoolCancelled.title": "Viaje · {name} ya no conduce",
   "push.carpool.body": "{title} · {when}",
-
   "landing.skip": "Ir al contenido",
   "landing.pilotBadge": "Piloto",
   "landing.navigation": "Navegación principal",
@@ -1887,5 +1816,104 @@
   "imprint.contentBody": "We prepare our own content with care. We cannot guarantee that it is complete, accurate or up to date. Our responsibility under applicable law remains unaffected. We will remove unlawful content as soon as we become aware of it.",
   "imprint.links": "Liability for links",
   "imprint.linksBody": "External links lead to content provided by third parties, for which their respective providers are responsible. We have no control over that content. No unlawful content was apparent when the links were added. We will remove links as soon as we become aware of unlawful content.",
-  "imprint.back": "Back to Club OS"
+  "imprint.back": "Back to Club OS",
+  "legal.terms": "Condiciones de uso",
+  "legal.version": "Actualizado: {version}",
+  "legal.english": "Texto legal en inglés",
+  "legal.german": "Texto legal en alemán",
+  "legal.language": "Idioma del texto legal",
+  "consent.accept": "Acepto las condiciones de uso y la política de privacidad.",
+  "consent.birthYear": "Año de nacimiento",
+  "consent.staff16": "Tengo al menos 16 años.",
+  "consent.health": "Consiento que Club OS trate mi carga de entrenamiento y mis motivos de ausencia relacionados con la salud (RPE, minutos, lesiones) para mis entrenadores. Puedo retirar mi consentimiento en cualquier momento en Ajustes.",
+  "consent.limited": "Sin este consentimiento puedes usar el calendario, responder sin motivos, leer mensajes y compartir coche.",
+  "consent.waiting": "Esperando el consentimiento de un progenitor",
+  "consent.noConsent": "Sin consentimiento",
+  "consent.askParent": "Pedir a un progenitor",
+  "consent.parentLink": "Enlace de consentimiento parental",
+  "consent.linkDetail": "Válido durante 30 días y para un solo uso. Crear otro enlace invalida el anterior.",
+  "consent.healthTitle": "Datos de salud",
+  "consent.active": "El consentimiento para datos de salud está activo.",
+  "consent.withdraw": "Retirar consentimiento",
+  "consent.deleteLoad": "Eliminar también mis registros de carga existentes",
+  "consent.give": "Dar consentimiento para datos de salud",
+  "consent.changed": "Consentimiento actualizado.",
+  "consent.saveBirth": "Guardar año de nacimiento",
+  "consent.withdrawDetail": "La retirada bloquea de inmediato los nuevos datos de salud y el acceso de los entrenadores. Los registros existentes siguen disponibles para que los exportes o elimines.",
+  "consent.parentTitle": "Consentimiento parental",
+  "consent.parentIntro": "Consentimiento para {name} · {team} · {club}",
+  "consent.parentDetail": "Club OS ayuda al equipo a planificar sesiones y seguir la carga. Con tu consentimiento explícito trata el RPE, los minutos, la carga/ACWR y los motivos de ausencia de salud de tu hijo, incluidas lesiones. Solo los entrenadores con permisos pertinentes pueden verlos. Las bases son los arts. 6(1)(a) y 9(2)(a) del RGPD; el art. 8 se aplica a menores de 16 años. El consentimiento es opcional y se puede retirar para el futuro. Sin él, tu hijo puede usar el calendario, responder sin motivos, leer mensajes y compartir coche.",
+  "consent.parentName": "Nombre del progenitor o tutor legal",
+  "consent.parentEmail": "Correo del progenitor o tutor legal",
+  "consent.guardian": "Soy progenitor o tutor legal de {name}.",
+  "consent.parentConfirm": "Dar consentimiento explícito",
+  "consent.parentSuccess": "Tu consentimiento se ha guardado. Conserva este enlace para retirarlo: solo se muestra ahora. También puedes escribir a ben.hebling@gmx.de.",
+  "consent.withdrawLink": "Enlace para retirar consentimiento",
+  "consent.parentWithdrawn": "Consentimiento retirado. Se han bloqueado nuevos datos de salud y el acceso de los entrenadores.",
+  "consent.invalid": "Este enlace no es válido, ha caducado o ya se ha usado. Pide otro al jugador.",
+  "consent.export": "Descargar mis datos",
+  "consent.ageGroup": "Grupo de edad",
+  "consent.adults": "Adultos",
+  "consent.mixed": "Mixto",
+  "consent.unknown": "Desconocido",
+  "consent.loadToggle": "Seguimiento de carga",
+  "consent.loadHint": "El seguimiento de carga tiene sentido desde aproximadamente los 12 años.",
+  "push.parentConsent.title": "Tu progenitor ha dado su consentimiento",
+  "push.parentConsent.body": "Ya puedes valorar sesiones.",
+  "push.changed.gameWhen": "{title} · ahora {when}",
+  "legal.privacy.0.title": "Controller and scope",
+  "legal.privacy.0.body": "Ben Hebling, Gröbenbachstraße 42d, 82194 Gröbenzell, Germany, ben.hebling@gmx.de, privately operates Club OS for sports clubs in Germany. No data protection officer has been appointed because one is not required. This policy covers the pilot club server and the local demo.",
+  "legal.privacy.1.title": "Data and purposes",
+  "legal.privacy.1.body": "We process email and name; birth year for players and an age confirmation for staff; clubs, departments, teams, memberships and roles; sessions, venues and calendars; RSVP status, late minutes and optional reasons; absences and optional reasons; squads and attendance; messages, polls, votes and read markers; carpools; notification preferences and push subscriptions; calendar connections; and technical error reports. These data provide club coordination, communication and attendance planning. RPE, training minutes, derived load and ACWR, personal training plans and injury-related absence reasons can reveal health information and receive the consent protection described below. Avoid putting health information in ordinary messages or carpool notes.",
+  "legal.privacy.2.title": "Legal bases and optional health consent",
+  "legal.privacy.2.body": "Providing the service to club members is based on Art. 6(1)(b) GDPR. Security, reliable operation and error reports are based on our legitimate interests under Art. 6(1)(f); you may object on grounds relating to your situation. Health data are processed only with explicit consent under Art. 9(2)(a), together with Art. 6(1)(a). Consent is optional: without it, calendar access, RSVP without reasons, messages and carpools remain available. You may withdraw in Settings at any time for the future; coaches then lose access and new health entries and rating prompts stop. Prior lawful processing is unaffected. Existing entries remain available to you for export or deletion; withdrawal offers deletion of load entries.",
+  "legal.privacy.3.title": "Children and parental consent",
+  "legal.privacy.3.body": "Players of any age may use the app with parental consent. From 16, players consent themselves. For players under 16, Art. 8 GDPR requires consent from a parent or legal guardian for consent-based processing. A one-time link, valid for 30 days, shows the child’s first name, team and club and records the guardian’s name, email and explicit confirmation. The guardian’s email must differ from the child’s login emails. The confirmation screen shows a private withdrawal link once; keep it, or contact the controller to withdraw. A player awaiting consent can use the limited features described above. We store the birth year rather than a full birth date; please provide it accurately and contact us for corrections.",
+  "legal.privacy.4.title": "Who can see data",
+  "legal.privacy.4.body": "Access follows memberships and team permissions. Players see their own health data; coaches with load permissions see health consent status and the health data allowed by their role for their own teams. Coaches with roster permissions can see birth years. Club administration does not automatically grant access to athlete health data. Team members see shared sessions, messages and the relevant carpool details. Guardian contact details are not shown to coaches; they are available to the account concerned and the operator when necessary.",
+  "legal.privacy.5.title": "Service providers and international transfers",
+  "legal.privacy.5.body": "Supabase provides database, authentication and Edge Functions under a data processing agreement, with the database in EU region eu-west-3 (Paris). Vercel Inc. hosts the web app; requests can disclose IP address, browser information and server access logs. Vercel is in the USA; transfers rely on the EU–US Data Privacy Framework and standard contractual clauses where applicable. Push notifications use the browser’s push provider (Apple, Google or Mozilla), transmitting subscription routing data and encrypted notification content; these providers may process data outside the EU. When a coach searches an address, Geoapify receives the typed search text through our server, without the account’s personal data; do not enter personal health information there. Supabase authentication sends necessary account emails. There are no advertising, analytics or tracking cookies.",
+  "legal.privacy.6.title": "Optional calendars, maps and device storage",
+  "legal.privacy.6.body": "Connecting Apple Calendar sends your Apple ID and app-specific password to the Supabase function and to Apple iCloud via CalDAV. The password is encrypted in Supabase Vault, not returned to the app. Connection URLs, chosen calendar sources, sync state, event identifiers and imported private appointments are stored; team and personal appointments are written to your iCloud calendar, and selected private calendars are imported for your account. Disconnecting removes the stored password and connection; a calendar already written to iCloud can remain there. A calendar subscription link gives its holder access to your exported appointments; share it carefully. Adding it to Google Calendar or another calendar provider sends that link and calendar data to the provider you choose. Opening Apple Maps or Google Maps sends the chosen address to that provider; following external links contacts their websites. Sharing a consent link uses the sharing app you choose; QR codes are generated on the device. Necessary browser storage keeps sign-in state, language, demo data, offline copies and pending changes, device and installation settings. There is no cross-site tracking. Clear browser storage on shared devices; deleting a server account cannot remotely erase copies on disconnected devices.",
+  "legal.privacy.7.title": "Retention and deletion",
+  "legal.privacy.7.body": "Data remain while the account and club service are used, unless you delete entries sooner. Leaving a team removes its membership, not all historic data about you. Account deletion immediately removes the account, person records, memberships, RSVPs, absences, load, votes and reads, push subscriptions, settings and stored Apple password through database cascades. Shared messages you authored remain with no author reference; technical error reports remain with no account reference, and their text can still contain details you submitted. Error reports currently have no automatic time-based deletion and remain until the operator deletes them; resolved reports are retained too. Do not include unnecessary personal or health data in reports. Provider backups are overwritten no later than 30 days. Local demo data remain on your device until reset or browser storage is cleared. Consent records and parental links are deleted with the person/account. The only club administrator must appoint another administrator before deleting an account if other people remain in the club.",
+  "legal.privacy.8.title": "Your rights and contact",
+  "legal.privacy.8.body": "You have rights to access (Art. 15), rectification (Art. 16), erasure (Art. 17), restriction (Art. 18), portability (Art. 20), objection (Art. 21) and withdrawal of consent for the future (Art. 7(3)), subject to the GDPR’s conditions. Settings → Account → Download my data provides a JSON export of your own records across clubs, including consents and push subscription metadata without cryptographic keys. You can correct your name in Settings; contact ben.hebling@gmx.de for other requests, birth-year corrections and parental withdrawals. You may complain to Bayerisches Landesamt für Datenschutzaufsicht (BayLDA), Promenade 18, 91522 Ansbach, Germany, www.lda.bayern.de. Load calculations support coaches; they are not medical diagnoses and do not make automated decisions with legal or similarly significant effects. Changes to these texts will be announced in the app.",
+  "legal.terms.0.title": "Free pilot and eligibility",
+  "legal.terms.0.body": "Club OS is a free pilot operated by Ben Hebling for sports clubs in Germany. There is no guarantee of uninterrupted availability, particular features or continued operation. We will take reasonable care in operating the service. These terms do not exclude mandatory liability, in particular for intent, gross negligence or injury to life, body or health. Players under 16 need parental consent for health processing; pending consent, the limited calendar, RSVP, messages and carpool functions remain available. Staff confirm they are at least 16.",
+  "legal.terms.1.title": "Fair and secure use",
+  "legal.terms.1.body": "Use the app only for lawful club activities. Do not harass others, publish unlawful content, upload unnecessary sensitive information, impersonate someone, bypass permissions or disrupt the service. Keep passwords, invitation and calendar links private; share parental consent requests only with a guardian. Provide accurate information and respect other people’s privacy. Load indicators do not replace medical advice or professional coaching judgment.",
+  "legal.terms.2.title": "Club invitations and permissions",
+  "legal.terms.2.body": "Club administrators and authorised staff are responsible for checking whom they invite, granting suitable roles and removing access when someone leaves. Team join codes create player memberships only. A club role alone does not authorise access to athlete health data. Invite only people who should belong to the club, explain how their data are used and respect consent choices. Consent to health processing is separate from accepting these terms.",
+  "legal.terms.3.title": "Ending use and deletion",
+  "legal.terms.3.body": "You may stop using the pilot, leave a team or delete your account in Settings. Export your data first if you want a copy. The privacy policy explains deletion, shared messages, error reports and backups. We may restrict access for serious misuse or end the pilot; where reasonably possible we will notify affected users and give time for export. Club administration must be handed over if you are the only administrator of a club with other members.",
+  "legal.terms.4.title": "Changes, governing law and contact",
+  "legal.terms.4.body": "Changes to these terms will be announced in-app with their version and effective date. If renewed acceptance or health consent is needed, it will be requested separately. German law applies; mandatory consumer protections remain unaffected. Contact the operator at ben.hebling@gmx.de or the address in the imprint. The German and English legal texts have the same intended meaning; French and Spanish app users are shown the English legal text, labelled accordingly.",
+  "legal.privacy": "Política de privacidad",
+  "server.consent0": "Un progenitor debe dar consentimiento para menores de 16.",
+  "server.consent1": "Club, department, team and your name are required.",
+  "server.consent2": "Confirma tu edad para continuar.",
+  "server.consent3": "Contacta al operador para corregir tu año de nacimiento.",
+  "server.consent4": "Introduce un año de nacimiento válido.",
+  "server.consent5": "Introduce tu nombre y correo y confirma que eres tutor legal.",
+  "server.consent6": "First and last name are required.",
+  "server.consent7": "Se necesita consentimiento para datos de salud.",
+  "server.consent8": "Not signed in.",
+  "server.consent9": "Los enlaces parentales son para menores de 16.",
+  "server.consent10": "Acepta las condiciones y la política de privacidad actuales.",
+  "server.consent11": "Este enlace ya no es válido.",
+  "server.consent12": "This founding code does not exist.",
+  "server.consent13": "This founding code has already been used.",
+  "server.consent14": "This invitation has already been accepted.",
+  "server.consent15": "This invitation is no longer valid.",
+  "server.consent16": "This join code does not exist.",
+  "server.consent17": "This team is no longer active.",
+  "server.consent18": "Demasiados intentos. Pide otro enlace al jugador.",
+  "server.consent19": "Usa un correo del progenitor diferente del de la cuenta del menor.",
+  "server.consent20": "Solo puedes cambiar tu propio consentimiento.",
+  "server.consent21": "No puedes ver el consentimiento de este jugador.",
+  "server.consent22": "Your account already belongs to a club.",
+  "server.consent23": "Your account already belongs to another club.",
+  "consent.parentHealth": "Consiento explícitamente el tratamiento de salud descrito arriba para mi hijo.",
+  "consent.saveTeam": "Guardar ajustes del equipo"
 }

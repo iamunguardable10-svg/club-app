@@ -13,6 +13,7 @@
 
 import {
   athletesForTeam,
+  hasHealthConsent,
   awayForSession,
   coachPermissions,
   isAnswerOpen,
@@ -66,6 +67,8 @@ export const EMPTY_COACH_DATA: CoachData = {
 const WINDOW_DAYS = 90;
 
 function toCoachPlayer(database: LocalDatabase, personId: Id, teamId: Id, access: LoadAccess): CoachPlayer {
+  const healthConsent = hasHealthConsent(database, personId);
+  if (!healthConsent) access = 'none';
   const person = database.people.find((candidate) => candidate.id === personId);
   const entries: AthleteLoadEntry[] = database.loadEntries
     .filter((entry) => entry.personId === personId && (!entry.teamId || entry.teamId === teamId))
@@ -93,6 +96,8 @@ function toCoachPlayer(database: LocalDatabase, personId: Id, teamId: Id, access
 
   return {
     id: personId,
+    healthConsent,
+    birthYear: person?.birthYear,
     name: person ? displayName(person) : tr('coach.data.player'),
     reviews,
     loadEntries: access === 'full' ? entries : [],
@@ -223,7 +228,7 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
         playerName: personNameById.get(entry.personId) ?? tr('coach.data.player'),
         // "Did not take part" is an absence for every count, with its own label.
         status: entry.status === 'missed' ? 'out' : entry.status,
-        reason: entry.status === 'missed' ? missedLabel() : entry.reason,
+        reason: entry.status === 'missed' ? missedLabel() : hasHealthConsent(database, entry.personId) ? entry.reason : null,
         lateMinutes: entry.lateMinutes,
         missed: entry.status === 'missed',
       },
@@ -260,7 +265,7 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
               return absence
                 ? [{
                     id: `away-${session.id}-${player.id}`, userId: player.id, playerName: player.name, status: 'out',
-                    reason: awayUntilLabel(absence, permissions.has('viewAbsenceReasons')), lateMinutes: null, awayUntil: absence.toDate,
+                    reason: awayUntilLabel(absence, permissions.has('viewAbsenceReasons') && hasHealthConsent(database, player.id)), lateMinutes: null, awayUntil: absence.toDate,
                   }]
                 : [];
             }),

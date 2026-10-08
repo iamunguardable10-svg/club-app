@@ -13,3 +13,4 @@ export { createSeedDatabase } from './seed';
 export { SCHEMA_VERSION, DATABASE_KEY } from './migrations';
 export { useBackendStatus, useLocalDatabase } from './useLocalData';
 export { serverError } from './serverMessages';
+export * from './consentRules';

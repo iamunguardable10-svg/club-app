@@ -60,13 +60,15 @@ export function buildPush(t: Translate, format: PushFormat, titles: Record<strin
           t('push.summary.open', { count: Number(params.open) }),
         ]),
       };
+    case 'push.parentConsent':
+      return { title: t('push.parentConsent.title'), body: t('push.parentConsent.body') };
     case 'push.rate':
       return { title: t('push.rate.title'), body: t('push.rate.body', { title: title(params.title), team: str(params.team) }) };
     case 'push.changed': {
       const place = params.facility ? str(params.facility) : params.away ? str(params.venue) || t('push.away') : null;
       return {
         title: t('push.changed.title', { team: str(params.team) }),
-        body: joinDot([t('push.changed.when', { what: what(), when: format.when(str(params.at)), end: format.time(str(params.ends_at)) }), place, meet()]),
+        body: joinDot([params.session_type === 'game' ? t('push.changed.gameWhen', { title: what(), when: format.when(str(params.at)) }) : t('push.changed.when', { what: what(), when: format.when(str(params.at)), end: format.time(str(params.ends_at)) }), place, meet()]),
       };
     }
     case 'push.cancelled':

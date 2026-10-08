@@ -14,6 +14,8 @@
  *   club (departments, leads and admins stay in the club area).
  */
 
+import { HealthConsentPanel, ExportDataButton } from '@/features/legal/HealthConsentPanel';
+import { LegalLinks } from '@/features/legal/LegalLinks';
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
 
@@ -85,6 +87,7 @@ export function SettingsPage() {
       <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         <div className="grid gap-5">
           <AccountSection person={person} remote={remote} />
+          {person && database.memberships.some((m) => m.personId === person.id && m.role === 'athlete') ? <HealthConsentPanel database={database} person={person} /> : null}
           {remote ? <NotificationSection database={database} /> : null}
           {role !== 'club' ? <PhoneCalendarSection remote={remote} canRead={isPlayerAccount(database)} /> : null}
         </div>
@@ -164,8 +167,8 @@ function AccountSection({ person, remote }: { person: Person | null; remote: boo
         {remote ? <PasswordForm /> : null}
         {remote ? <SignOutButtons /> : null}
         {remote ? <DeleteAccount /> : null}
-        <Link href="/privacy" className="justify-self-start text-xs font-bold text-sky-300 underline">{t('settings.privacyLink')}</Link>
-        <Link href="/imprint" className="justify-self-start text-xs font-bold text-sky-300 underline">{t('landing.imprint')}</Link>
+        <ExportDataButton />
+        <LegalLinks />
       </div>
     </CoachSection>
   );

@@ -81,9 +81,9 @@ export function supabaseRemoteClient(supabase: SupabaseClient): RemoteClient {
       checkOnline();
       const rows: Row[] = [];
       for (let from = 0; ; from += PAGE_SIZE) {
-        const { data, error, status } = await supabase.from(table).select('*').range(from, from + PAGE_SIZE - 1);
+        const { data, error, status } = await supabase.from(table).select(table === 'people' ? 'id,club_id,user_id,first_name,last_name,rsvp_mode,created_at' : '*').range(from, from + PAGE_SIZE - 1);
         if (error) fail(table, 'Loading', error, status);
-        rows.push(...(data ?? []));
+        rows.push(...(data as unknown as Row[] ?? []));
         if (!data || data.length < PAGE_SIZE) return rows;
       }
     },

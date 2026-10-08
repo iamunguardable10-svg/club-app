@@ -12,6 +12,7 @@
  * generates SEED_HISTORY_DAYS of load with real variation, including rest days.
  */
 
+import { LEGAL_VERSION } from './consentRules';
 import { SCHEMA_VERSION } from './migrations';
 import { COACH_PERMISSIONS } from './schema';
 import type {
@@ -224,10 +225,10 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
   }));
 
   const teams: LocalDatabase['teams'] = [
-    { id: TEAM_U16, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: 'U16 Boys', defaultFacilityId: FACILITY_MAIN, features: ['load'], archivedAt: null, createdAt },
+    { id: TEAM_U16, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: 'U16 Boys', ageGroup: 'U16', defaultFacilityId: FACILITY_MAIN, features: ['load'], archivedAt: null, createdAt },
     // Without load tracking, to show a team that only plans sessions and
     // attendance (piece 3.5). Its players' load history stays, unseen.
-    { id: TEAM_U18, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: 'U18 Girls', defaultFacilityId: FACILITY_MAIN, features: [], archivedAt: null, createdAt },
+    { id: TEAM_U18, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: 'U18 Girls', ageGroup: 'U18', defaultFacilityId: FACILITY_MAIN, features: [], archivedAt: null, createdAt },
   ];
 
   const people: Person[] = [];
@@ -582,6 +583,15 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     rideGame.venueAddress = 'Sportpark 3, 45127 Essen';
   }
 
+  // Two U14 players play up; Paul has parental consent, Ben awaits it.
+  for (const person of people) person.birthYear = now.getFullYear() - (['athlete-u16-11', 'athlete-u16-12'].includes(person.id) ? 14 : 18);
+  const limited = 'athlete-u16-12';
+  const consents: NonNullable<LocalDatabase['consents']> = people.flatMap((person) => [
+    { id: `terms-${person.id}`, personId: person.id, userId: null, kind: 'terms' as const, version: LEGAL_VERSION, givenAt: createdAt, withdrawnAt: null, byParentName: null, byParentEmail: null },
+    ...(person.id === limited ? [] : [{ id: `health-${person.id}`, personId: person.id, userId: null, kind: person.id === 'athlete-u16-11' ? 'parent_health' as const : 'health' as const, version: LEGAL_VERSION, givenAt: createdAt, withdrawnAt: null, byParentName: person.id === 'athlete-u16-11' ? 'Demo parent' : null, byParentEmail: person.id === 'athlete-u16-11' ? 'parent@example.test' : null }]),
+  ]);
+  // No historic health data exist for the example awaiting consent.
+  const consentedEntries = loadEntries.filter((e) => e.personId !== limited);
   return {
     version: SCHEMA_VERSION,
     seededAt: now.toISOString(),
@@ -591,6 +601,9 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     facilities,
     departmentFacilities,
     people,
+    consents,
+    parentTokens: {},
+    parentWithdrawals: {},
     memberships,
     coachRoles,
     // Codes exist locally so the data looks like the server's; joining with
@@ -604,14 +617,14 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     sessions,
     sessionSeries,
     sessionSeriesWeekStates: [],
-    availability,
-    loadEntries,
-    loadSummaries: summariesFor(loadEntries, now),
-    athletePlans,
+    availability: availability.map((a) => a.personId === limited ? { ...a, reason: null } : a),
+    loadEntries: consentedEntries,
+    loadSummaries: summariesFor(consentedEntries, now),
+    athletePlans: athletePlans.filter((p) => p.personId !== limited),
     acknowledgedSessions: [],
     loadEntryReviews: [],
     attendanceConfirmations: [],
-    absences,
+    absences: absences.map((a) => a.personId === limited ? { ...a, kind: null, note: null } : a),
     squadEntries: [],
     carpools: rideGame ? [{ id: 'carpool-demo-1', sessionId: rideGame.id, driverId: 'coach-1', seats: 3, note: null, createdAt: now.toISOString() }] : [],
     carpoolRiders: rideGame ? [{ carpoolId: 'carpool-demo-1', personId: 'athlete-u16-2', createdAt: now.toISOString() }] : [],

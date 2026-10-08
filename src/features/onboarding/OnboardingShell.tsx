@@ -1,5 +1,6 @@
 'use client';
 
+import { LegalLinks } from '@/features/legal/LegalLinks';
 import { LocalModeLink } from '@/features/access/LocalModeLink';
 import { HOME_FOR_ROLE } from '@/features/identity/IdentitySwitcher';
 import { ownPersonIds, readDatabase, setActiveIdentity, signOut, type IdentityRole } from '@/shared/data';
@@ -20,6 +21,7 @@ export function OnboardingShell({ title, children }: { title: string; children: 
           <h1 className="os-title mt-2">{title}</h1>
         </header>
         {children}
+        <LegalLinks />
         <LocalModeLink />
       </div>
     </main>

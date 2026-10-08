@@ -69,7 +69,7 @@ function pgClient(userId: string): RemoteClient {
     Object.keys(key).map((column, index) => `${column} = $${offset + index + 1}`).join(' and ');
   return {
     userId: async () => userId,
-    selectAll: (table: TableName) => asUser(async (client) => (await client.query(`select * from public.${table}`)).rows),
+    selectAll: (table: TableName) => asUser(async (client) => (await client.query(`select ${table === 'people' ? 'id,club_id,user_id,first_name,last_name,rsvp_mode,created_at' : '*'} from public.${table}`)).rows),
     insert: (table, rows) =>
       asUser(async (client) => {
         for (const row of rows) {
@@ -141,6 +141,10 @@ async function fixture() {
     insert into public.people (id, club_id, user_id, first_name, last_name) values
       ('${P.martin}', '${CLUB}', '${U.martin}', 'Martin', 'Weber'), ('${P.uwe}', '${CLUB}', '${U.uwe}', 'Uwe', 'Heller'),
       ('${P.jonas}', '${CLUB}', '${U.jonas}', 'Jonas', 'Kern'), ('${P.ben}', '${CLUB}', '${U.ben}', 'Ben', 'Albrecht');
+    update public.people set birth_year=1990;
+    insert into public.consents(user_id,kind,version) select id,'terms','2026-10-08' from auth.users;
+    insert into app.access_consent(user_id,birth_year,health,staff_16) select id,1990,true,true from auth.users;
+    insert into public.consents(person_id,kind,version) select id,'health','2026-10-08' from public.people;
     insert into public.memberships (person_id, team_id, role, coach_role_id)
       select '${P.martin}', '${TEAM}', 'coach', id from public.coach_roles where team_id = '${TEAM}' and locked;
     insert into public.memberships (person_id, team_id, role, coach_role_id)

@@ -10,6 +10,19 @@ import type { MessageKey } from '@/shared/i18n/translate';
 import { LocalDataError } from './schema';
 
 export const SERVER_MESSAGES: Record<string, MessageKey> = {
+  "You may not see consent for this player.": 'server.consent21',
+  "You can only change your own consent.": 'server.consent20',
+  "Use a parent email different from the child account email.": 'server.consent19',
+  "Too many attempts. Ask the player for a new link.": 'server.consent18',
+  "This consent link is no longer valid.": 'server.consent11',
+  "Please accept the current terms and privacy policy.": 'server.consent10',
+  "Parental consent links are for players under 16.": 'server.consent9',
+  "Health consent is required.": 'server.consent7',
+  "Enter your name and email and confirm you are a guardian.": 'server.consent5',
+  "Enter a valid birth year.": 'server.consent4',
+  "Contact the operator to correct your birth year.": 'server.consent3',
+  "Confirm your age before continuing.": 'server.consent2',
+  "A parent must consent for players under 16.": 'server.consent0',
   "A role cannot be locked afterwards.": 'server.aRoleCannotBeLocked',
   "A squad can only be picked for a game.": 'server.aSquadCanOnlyBe',
   "Attendance can only be confirmed for players of the team.": 'server.attendanceCanOnlyBeConfirmed',

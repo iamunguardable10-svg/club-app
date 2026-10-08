@@ -12,6 +12,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
+import { ConsentFields, EMPTY_CONSENT, consentComplete } from '@/features/legal/ConsentFields';
 import { AuthForm } from '@/features/access/AuthForm';
 import { AccountLine, ErrorLine, OnboardingShell as Shell, continueAs } from '@/features/onboarding/OnboardingShell';
 import { useAccount, type Account } from '@/features/onboarding/useAccount';
@@ -57,6 +58,7 @@ function Field({ label, value, onChange, placeholder, autoComplete }: { label: s
 function FoundForm({ code, account }: { code: string; account: { email: string } }) {
   const t = useT();
   const status = useBackendStatus();
+  const [consent, setConsent] = useState(EMPTY_CONSENT);
   // Asking for the data starts the connection to the server store, which
   // founding goes through.
   useLocalDatabase();
@@ -90,7 +92,7 @@ function FoundForm({ code, account }: { code: string; account: { email: string }
         setBusy(true);
         setError(null);
         try {
-          await foundClub({ code, clubName, city, firstName, lastName, departmentName, teamName, coachTeam });
+          await foundClub({ code, clubName, city, firstName, lastName, departmentName, teamName, coachTeam, consent });
           continueAs('club');
         } catch (caught) {
           setError(errorText(t, caught));
@@ -127,8 +129,9 @@ function FoundForm({ code, account }: { code: string; account: { email: string }
           </span>
         </label>
       </section>
+      <ConsentFields value={consent} onChange={setConsent} staff />
       <ErrorLine message={error} />
-      <button type="submit" disabled={busy || status.phase === 'loading'} className="os-success justify-center disabled:opacity-60">
+      <button type="submit" disabled={busy || status.phase === 'loading' || !consentComplete(consent, true)} className="os-success justify-center disabled:opacity-60">
         {busy ? t('common.oneMoment') : t('onboarding.found.submit')}
       </button>
     </form>
@@ -161,7 +164,7 @@ function FoundFlow({ code, account }: { code: string; account: Account }) {
       {account ? (
         <FoundForm code={code} account={account} />
       ) : (
-        <AuthForm initialMode="signUp" returnTo={`/found?code=${encodeURIComponent(code)}`} intro={t('onboarding.found.accountIntro')} />
+        <AuthForm initialMode="signUp" staff returnTo={`/found?code=${encodeURIComponent(code)}`} intro={t('onboarding.found.accountIntro')} />
       )}
     </Shell>
   );

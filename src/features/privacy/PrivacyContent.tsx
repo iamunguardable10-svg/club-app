@@ -6,6 +6,9 @@
  * lives, and how to delete it.
  */
 
+import { LegalDocument } from '@/features/legal/LegalDocument';
+import { LanguagePicker } from '@/shared/i18n/LanguagePicker';
+import { LEGAL_VERSION } from '@/shared/data';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
@@ -35,9 +38,9 @@ export function PrivacyContent() {
     <main className="os-page">
       <div className="os-container max-w-2xl space-y-4">
         <header className="os-hero p-6">
-          <p className="os-kicker">Club OS</p>
+          <div className="flex items-center justify-between"><p className="os-kicker">Club OS</p><LanguagePicker compact /></div>
           <h1 className="os-title mt-2">{t('privacy.title')}</h1>
-          <p className="os-copy mt-3">{t('privacy.intro')}</p>
+          <p className="os-copy mt-3">{t('privacy.intro')}</p><p className="mt-3 text-xs text-slate-400">{t('legal.version', { version: LEGAL_VERSION })}</p>
         </header>
 
         <Part title={t('privacy.keeps.title')}>
@@ -60,6 +63,7 @@ export function PrivacyContent() {
           <List keys={['privacy.choices.change', 'privacy.choices.switchOff', 'privacy.choices.delete', 'privacy.choices.copy']} />
         </Part>
 
+        <LegalDocument kind="privacy" />
         <p className="text-xs text-slate-500">
           {t('privacy.lastChanged')} <Link href="/start" className="font-bold text-sky-300 underline">{t('privacy.back')}</Link>
         </p>

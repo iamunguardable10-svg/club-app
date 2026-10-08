@@ -6,6 +6,9 @@
 set client_min_messages = notice;
 
 insert into auth.users (id, email) values ('10000000-0000-0000-0000-000000000079', 'push-nina@example.test');
+insert into public.consents(user_id,kind,version) select u.id,'terms','2026-10-08' from auth.users u where not exists(select 1 from public.consents c where c.user_id=u.id and kind='terms');
+insert into app.access_consent(user_id,birth_year,health,staff_16) select id,1990,true,true from auth.users on conflict(user_id) do nothing;
+
 insert into public.push_subscriptions (endpoint, user_id, p256dh, auth) values
   ('https://push.test/carla-join', '10000000-0000-0000-0000-000000000074', 'k', 'a'),
   ('https://push.test/tim-join', '10000000-0000-0000-0000-000000000075', 'k', 'a')
