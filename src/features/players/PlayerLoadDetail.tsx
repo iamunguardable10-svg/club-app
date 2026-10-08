@@ -166,8 +166,8 @@ export function PlayerLoadDetail({
           <div className="space-y-4">
             {summary.access === 'none' ? (
               <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
-                <p className="text-sm font-black text-white">{loadTracked ? t('playerLoad.notSharedTitle') : t('playerLoad.noTrackingTitle')}</p>
-                <p className="mt-1 text-sm font-bold text-slate-400">{loadTracked ? t('playerLoad.notSharedDetail') : t('playerLoad.noTrackingDetail', { team: teamName })}</p>
+                <p className="text-sm font-black text-white">{player.healthConsent === false ? t('consent.noConsent') : loadTracked ? t('playerLoad.notSharedTitle') : t('playerLoad.noTrackingTitle')}</p>
+                <p className="mt-1 text-sm font-bold text-slate-400">{player.healthConsent === false ? t('consent.withdrawDetail') : loadTracked ? t('playerLoad.notSharedDetail') : t('playerLoad.noTrackingDetail', { team: teamName })}</p>
               </div>
             ) : (
               <div className={`rounded-3xl border p-4 ${acwrToneClass(zone.tone)}`}>

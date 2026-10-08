@@ -7,6 +7,9 @@ set client_min_messages = notice;
 insert into auth.users (id, email) values
   ('10000000-0000-0000-0000-000000000031', 'neu-spieler@example.test'),
   ('10000000-0000-0000-0000-000000000032', 'neu-trainerin@example.test');
+insert into public.consents(user_id,kind,version) select u.id,'terms','2026-10-08' from auth.users u where not exists(select 1 from public.consents c where c.user_id=u.id and kind='terms');
+insert into app.access_consent(user_id,birth_year,health,staff_16) select id,1990,true,true from auth.users on conflict(user_id) do nothing;
+
 
 -- A placeholder staff member for Sabine to be invited into U16 (merge case),
 -- and an expired invitation.

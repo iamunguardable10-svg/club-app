@@ -16,6 +16,7 @@ import { useState } from 'react';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import {
   ABSENCE_KINDS,
+  hasHealthConsent,
   absencesForPerson,
   canEditAbsences,
   deleteAbsence,
@@ -41,7 +42,7 @@ type Draft = { id?: string; fromDate: string; toDate: string; kind: AbsenceKind 
 export function AbsencePanel({
   personId,
   viewer,
-  showReasons,
+  showReasons: requestedReasons,
   className = '',
 }: {
   personId: string;
@@ -57,6 +58,7 @@ export function AbsencePanel({
   const [error, setError] = useState<string | null>(null);
   if (!database) return null;
 
+  const showReasons = requestedReasons && hasHealthConsent(database, personId);
   const today = todayISO();
   const absences = absencesForPerson(database, personId, today);
   const editable = canEditAbsences(database, personId);
@@ -70,7 +72,7 @@ export function AbsencePanel({
   function save() {
     if (!draft) return;
     try {
-      saveAbsence({ id: draft.id, personId, fromDate: draft.fromDate, toDate: draft.toDate, kind: showReasons ? draft.kind ?? 'other' : null, note: draft.note });
+      saveAbsence({ id: draft.id, personId, fromDate: draft.fromDate, toDate: draft.toDate, kind: showReasons ? draft.kind ?? 'other' : null, note: showReasons ? draft.note : null });
       setDraft(null);
       setError(null);
     } catch (caught) {

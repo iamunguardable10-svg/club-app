@@ -32,7 +32,7 @@ import {
 import { BASELINE_DAYS, acwrAfter, aggregateDailyLoads, backFromBreak, baselineAgeDays, calculateACWR, fillMissingDays, firstHighRiskDay, getLatestACWR, HIGH_RISK_ACWR, loadRoom, loadZone, projectFutureACWR, todayISO, weekChangePercent } from './loadCalculations';
 import { LoadInfoButton, LoadLandingChip, LoadRiskBadge } from './LoadHints';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
-import { athleteHasLoad, clearEntryReview, displayName, getActivePerson, newId, reportAvailability, reviewsForPerson, rsvpModeOf, useLocalDatabase } from '@/shared/data';
+import { athleteHasLoad, hasHealthConsent, clearEntryReview, displayName, getActivePerson, newId, reportAvailability, reviewsForPerson, rsvpModeOf, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
 import { formatDateRange, formatDay, formatDayMonth, formatDayNumber, formatDecimal, formatEntryDate, formatInteger, formatLongDay, formatTime as formatSharedTime, formatWeekday, formatWeekdayDay } from '@/shared/format';
@@ -1333,6 +1333,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   );
   // Load (RPE, ACWR, own plans, sharing) only for players of a team that
   // tracks it; everyone else gets sessions and availability.
+  const healthAllowed = database && activePersonId ? hasHealthConsent(database, activePersonId) : false;
   const hasLoad = database ? athleteHasLoad(database, activePersonId) : false;
 
   // Everything below is fed from the shared local document, scoped to the
@@ -1832,8 +1833,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
   async function setTeamSessionAvailability(session: AthletePendingSession, status: 'expected' | 'late' | 'out', reason = '', minutes: number | null = null) {
     if (session.source !== 'team_session') return false;
-    const trimmedReason = reason.trim();
-    if ((status === 'late' || status === 'out') && !trimmedReason) {
+    const trimmedReason = healthAllowed ? reason.trim() : "";
+    if (healthAllowed && (status === 'late' || status === 'out') && !trimmedReason) {
       setError(t('athlete.error.reasonNeeded'));
       return false;
     }
@@ -2427,7 +2428,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                           <span className={`min-w-0 break-words rounded-2xl px-3 py-2 text-sm font-bold [overflow-wrap:anywhere] ${mark?.status === 'out' ? 'bg-rose-400/15 text-rose-200' : mark?.status === 'late' ? 'bg-amber-300/15 text-amber-200' : 'bg-emerald-300/15 text-emerald-200'}`}>
                             {mark?.status === 'out' ? t('composer.out') : mark?.status === 'late' ? t('composer.late') : t('composer.youAreIn')}
                             {mark?.status === 'late' && mark.lateMinutes != null ? ` · ${t('composer.minutes', { count: mark.lateMinutes })}` : ''}
-                            {mark?.reason ? ` · ${mark.reason}` : ''}
+                            {healthAllowed && mark?.reason ? ` · ${mark.reason}` : ''}
                           </span>
                           <button type="button" onClick={() => setAvailabilityEditing(true)} aria-expanded={false} className="shrink-0 rounded-full px-2 py-2 text-xs font-bold text-sky-300">{t('composer.change')}</button>
                         </div>
@@ -2438,7 +2439,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                             <button type="button" aria-pressed={availabilityDraft === 'late'} onClick={() => setAvailabilityDraft('late')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'late' ? 'border-amber-300 bg-amber-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.late')}</button>
                             <button type="button" aria-pressed={availabilityDraft === 'out'} onClick={() => setAvailabilityDraft('out')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'out' ? 'border-rose-300 bg-rose-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.out')}</button>
                           </div>
-                          {availabilityDraft === 'late' || availabilityDraft === 'out' ? (
+                          {healthAllowed && (availabilityDraft === 'late' || availabilityDraft === 'out') ? (
                             <label className="block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                               {t('composer.reason')}
                               <textarea value={availabilityReason} onChange={(event) => setAvailabilityReason(event.target.value)} placeholder={t('composer.reasonPlaceholder')} className="mt-2 min-h-20 w-full resize-y rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold normal-case tracking-normal text-white outline-none placeholder:text-slate-600 focus:border-emerald-300" />

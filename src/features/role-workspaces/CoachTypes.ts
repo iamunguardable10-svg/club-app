@@ -39,6 +39,8 @@ export type CoachAvailability = {
 export type CoachEntryReview = { note: string | null; requestedByName: string | null };
 
 export type CoachPlayer = {
+  healthConsent?: boolean;
+  birthYear?: number | null;
   id: string;
   name: string;
   loadEntries: AthleteLoadEntry[];

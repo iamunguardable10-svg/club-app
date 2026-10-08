@@ -129,6 +129,12 @@ insert into public.people (id, club_id, user_id, first_name, last_name) values
   ('a0000000-0000-0000-0000-000000000013', 'c0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000013', 'Lena', 'Sturm'),
   ('a0000000-0000-0000-0000-000000000099', 'c0000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000099', 'Otto', 'Außen');
 
+-- Existing access tests model adult users who have accepted legal/health terms.
+update public.people set birth_year=1990;
+insert into public.consents(user_id,kind,version) select id,'terms','2026-10-08' from auth.users;
+insert into app.access_consent(user_id,birth_year,health,staff_16) select id,1990,true,true from auth.users;
+insert into public.consents(person_id,kind,version) select id,'health','2026-10-08' from public.people;
+
 -- Coach memberships use the template roles the team trigger created.
 insert into public.memberships (person_id, team_id, role, coach_role_id)
 select v.person_id::uuid, v.team_id::uuid, 'coach', r.id
@@ -465,8 +471,12 @@ set role authenticated;
 select test.act_as('10000000-0000-0000-0000-000000000002');
 select test.expect_count('Sabine sees Lena''s traffic light while U18 tracks load',
   $q$select 1 from public.load_summaries where person_id = 'a0000000-0000-0000-0000-000000000013'$q$, 1);
-select test.expect_error('Sabine cannot switch features from the app',
-  $q$update public.teams set features = '{}' where id = '70000000-0000-0000-0000-000000000018'$q$, 'permission denied');
+-- Run 77 explicitly enables the load switch for manageStaff; an athlete still cannot use it.
+select test.expect_rows('Sabine (manageStaff) can switch load off',
+  $q$update public.teams set features = '{}' where id = '70000000-0000-0000-0000-000000000018'$q$, 1);
+select test.act_as('10000000-0000-0000-0000-000000000013');
+select test.expect_rows('Lena cannot change team features',
+  $q$update public.teams set features = '{load}' where id = '70000000-0000-0000-0000-000000000018'$q$, 0);
 reset role;
 
 update public.teams set features = '{}' where id = '70000000-0000-0000-0000-000000000018';

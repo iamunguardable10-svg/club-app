@@ -19,6 +19,7 @@
 
 import {
   awayForSession,
+  hasHealthConsent,
   publishedSquadStatus,
   mutate,
   newId,
@@ -71,7 +72,7 @@ export function readTeamSessions(database: LocalDatabase, personId: Id): Athlete
     .map((session) => toPendingSession(
       session,
       teamById.get(session.teamId)?.name ?? null,
-      teamById.get(session.teamId)?.features.includes('load') ?? false,
+      hasHealthConsent(database, personId) && (teamById.get(session.teamId)?.features.includes('load') ?? false),
       session.facilityId ? database.facilities.find((facility) => facility.id === session.facilityId)?.name ?? null : null,
       publishedSquadStatus(database, personId, session),
     ));
@@ -226,6 +227,7 @@ export function saveMissedSession(personId: Id, sessionId: Id) {
  * time from the next day. Own "games" stay on Today (they bring a warmup).
  */
 export function readPlansToRate(database: LocalDatabase, personId: Id, now = Date.now()): AthletePendingSession[] {
+  if (!hasHealthConsent(database, personId)) return [];
   const today = todayISO();
   return database.athletePlans
     .filter((plan) => plan.personId === personId && plan.trainingType !== 'game')
@@ -257,6 +259,7 @@ export function countToRate(database: LocalDatabase, personId: Id, now = Date.no
 }
 
 export function readSessionsToRate(database: LocalDatabase, personId: Id, now = Date.now()): AthletePendingSession[] {
+  if (!hasHealthConsent(database, personId)) return [];
   const joinedAtByTeam = new Map(
     database.memberships
       .filter((membership) => membership.personId === personId && membership.role === 'athlete')

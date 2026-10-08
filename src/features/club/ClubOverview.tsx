@@ -20,6 +20,8 @@ import { useState } from 'react';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { ShareLink } from '@/features/onboarding/ShareLink';
 import { ClubShell, CoachSection } from '@/features/role-workspaces/RoleShell';
+import { AgeLoadFields, TeamHealthSettings } from '@/features/legal/TeamHealthSettings';
+import type { AgeGroup } from '@/shared/data';
 import { TeamStaffPanel } from '@/features/teams/TeamStaffPanel';
 import { displayRoleName } from '@/features/teams/roleLabels';
 import { clubRoleText } from '@/features/club/clubRoleText';
@@ -366,7 +368,7 @@ function TeamCard({
               {isRemoteMode() ? t('club.addHeadCoachServer') : t('club.addHeadCoach')}
             </p>
           ) : null}
-          <TeamStaffPanel database={database} teamId={team.id} canManage={hasCoachPermission(database, personId, team.id, 'manageStaff')} />
+          {hasCoachPermission(database, personId, team.id, 'manageStaff') ? <TeamHealthSettings team={team} /> : null}<TeamStaffPanel database={database} teamId={team.id} canManage={hasCoachPermission(database, personId, team.id, 'manageStaff')} />
           <button type="button" onClick={() => setConfirmArchive(true)} className="justify-self-start text-xs font-bold text-slate-400 underline">
             {t('club.archiveTeam')}
           </button>
@@ -404,6 +406,8 @@ function DepartmentSection({
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [newTeam, setNewTeam] = useState('');
+  const [ageGroup, setAgeGroup] = useState<AgeGroup | null>(null);
+  const [load, setLoad] = useState(true);
   const teams = database.teams.filter((team) => team.departmentId === department.id).sort((a, b) => a.name.localeCompare(b.name));
   const active = teams.filter((team) => !team.archivedAt);
   const archived = teams.filter((team) => team.archivedAt);
@@ -468,17 +472,18 @@ function DepartmentSection({
             ))}
           </ul>
           <form
-            className="flex gap-2"
+            className="grid gap-3 rounded-2xl border border-slate-700 p-3"
             onSubmit={(event) => {
               event.preventDefault();
               let created: Id | null = null;
-              if (onRun(() => { created = createTeam(department.id, newTeam); })) {
+              if (onRun(() => { created = createTeam(department.id, newTeam, ageGroup, load); })) {
                 setNewTeam('');
                 setOpenTeamId(created);
               }
             }}
           >
             <input value={newTeam} onChange={(event) => setNewTeam(event.target.value)} placeholder={t('club.newTeamPlaceholder')} aria-label={t('club.newTeamIn', { name: department.name })} className={`${inputClass} flex-1`} />
+            <AgeLoadFields ageGroup={ageGroup} load={load} onChange={(a,l) => { setAgeGroup(a); setLoad(l); }} />
             <button type="submit" disabled={!newTeam.trim()} className={`${smallButtonClass} border-sky-500/50 text-sky-100 hover:bg-sky-950/35`}>{t('club.addTeam')}</button>
           </form>
           {archived.length > 0 ? (
@@ -577,7 +582,7 @@ export function ClubOverview() {
       {admin ? (
         <CoachSection title={t('club.newDepartment')} description={t('club.newDepartmentDetail')}>
           <form
-            className="flex gap-2"
+            className="grid gap-3 rounded-2xl border border-slate-700 p-3"
             onSubmit={(event) => {
               event.preventDefault();
               if (run(() => { createDepartment(newDepartment); })) setNewDepartment('');

@@ -23,6 +23,8 @@ export type LoadAccess = 'full' | 'summary' | 'none';
 export type LoadSummary = { acwr: number | null; chronicFull: boolean };
 
 export type PlayerLoadInput = {
+  healthConsent?: boolean;
+  birthYear?: number | null;
   loadEntries?: AthleteLoadEntry[];
   /** Missing means `full`: views outside the role model keep working as before. */
   loadAccess?: LoadAccess;
@@ -36,7 +38,7 @@ export function loadAccessFor(permissions: ReadonlySet<CoachPermission>): LoadAc
 }
 
 export function playerLoadSummary(player: PlayerLoadInput) {
-  const access = player.loadAccess ?? 'full';
+  const access = player.healthConsent === false ? 'none' : player.loadAccess ?? 'full';
   const entries = access === 'full' ? player.loadEntries ?? [] : [];
   // EWMA, matching what the coach views showed before.
   const latest = access === 'full' ? getLatestACWR(entries) : null;
@@ -44,12 +46,13 @@ export function playerLoadSummary(player: PlayerLoadInput) {
   const chronicFull = access === 'full' ? latest?.chronicFull ?? false : access === 'summary' ? player.loadSummary?.chronicFull ?? false : false;
   const zone = loadZone(acwr, chronicFull);
   const riskRank = zone.tone === 'high' ? 0 : zone.tone === 'low' ? 1 : zone.tone === 'ready' ? 2 : 3;
-  return { access, entries, latest, zone, acwr, riskRank };
+  return { access, entries, latest, zone, acwr, riskRank, healthConsent: player.healthConsent };
 }
 
 export type PlayerLoadSummary = ReturnType<typeof playerLoadSummary>;
 
 export function acwrDisplayLabel(summary: PlayerLoadSummary) {
+  if (summary.healthConsent === false) return tr('consent.noConsent');
   if (summary.access === 'none') return tr('playerLoad.label.notShared');
   if (summary.acwr === null) return tr('playerLoad.label.noAcwr');
   if (summary.zone.tone === 'low') return tr('playerLoad.label.low');

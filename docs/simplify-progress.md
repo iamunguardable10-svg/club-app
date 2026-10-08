@@ -2911,3 +2911,19 @@ unangetastet. Kein Commit, Push oder Eingriff in die Git-Historie.
 
 Offen: echter Server-Login wurde bewusst nicht gegen das Live-Projekt getestet.
 Die vorhandene Datenschutzseite bleibt die bestehende Pilot-Zusammenfassung.
+
+## Run 77 — Rechtstexte, Einwilligung, Minderjährige, Datenexport (2026-10-08)
+
+- **Was:** Datenschutzerklärung und Nutzungsbedingungen (DE/EN, Stand 2026-10-08), Impressum verlinkt;
+  Einwilligung bei Registrierung, Beitritt, Einladung und Gründung (AGB/Datenschutz, Geburtsjahr, eigene
+  Gesundheitseinwilligung ab 16); unter 16 Eltern-Link (`/parent-consent/<token>`, 30 Tage, einmalig, max.
+  10 Versuche, Eltern-Mail ≠ Konto-Mail des Kindes); ohne Einwilligung eingeschränkter Modus (keine
+  Belastung, keine Gründe); Widerruf in den Einstellungen; Altersklasse je Team (Belastung unter U12
+  standardmäßig aus); „Meine Daten herunterladen“; Push zu Spielen ohne Endzeit.
+- **Server:** Migration 0041 (Einwilligungen, Eltern-Tokens gehasht, Trigger und restriktive Leserechte für
+  Gesundheitsdaten, Geburtsjahr nur für sich und Trainer mit Kaderrecht, `export_my_data`). Bestehende
+  Spieler müssen der Gesundheitsverarbeitung neu zustimmen; bis dahin sehen Trainer ihre Belastung nicht.
+- **Geprüft:** typecheck, i18n, Build, alle SQL-Tests inkl. `24_consent_test.sql`, test:pilot, test:consent
+  und die übrigen tsx-Tests, Smoke, Landing; Screenshots von Datenschutz und Einstellungen.
+- Codex hat gebaut; Claude hat den letzten Teil übernommen (Testfehler, Team-Rechte enger, Test, Doku) und
+  geprüft. Die Texte sind Entwürfe und sollten vor dem öffentlichen Start juristisch gegengelesen werden.

@@ -27,6 +27,7 @@
  * know where the document lives.
  */
 
+import { LEGAL_VERSION, canSelfConsent, defaultLoadForAge, exportLocalPerson, hasHealthConsent, type AccessConsent } from './consentRules';
 import { calculateACWR, getLatestACWR, loadZone, sevenDayLoad, summarizeLoadEntries } from './loadCalculations';
 import { DATABASE_KEY, LEGACY_KEY_PREFIXES, SCHEMA_VERSION, isCurrent } from './migrations';
 import { COACH_ROLE_TEMPLATES, createSeedDatabase } from './seed';
@@ -39,6 +40,7 @@ import {
   LOAD_PERMISSIONS,
   LocalDataError,
   type ActiveIdentity,
+  type AgeGroup,
   type CoachPermission,
   type ClubRole,
   type ClubRoleInvite,
@@ -349,7 +351,7 @@ function refreshLoadSummaries(before: LocalDatabase, after: LocalDatabase) {
   const now = new Date().toISOString();
   after.loadSummaries = [
     ...after.loadSummaries.filter((row) => !changed.has(row.personId)),
-    ...Array.from(changed).map((personId) => ({
+    ...Array.from(changed).filter((personId) => hasHealthConsent(after, personId)).map((personId) => ({
       personId,
       ...summarizeLoadEntries(after.loadEntries.filter((entry) => entry.personId === personId)),
       updatedAt: now,
@@ -369,6 +371,7 @@ export function mutate(apply: (database: LocalDatabase) => void): void {
 
   const draft: LocalDatabase = JSON.parse(JSON.stringify(current));
   apply(draft);
+  assertConsentWrites(current, draft);
   refreshLoadSummaries(current, draft);
   if (remote) {
     // Shown at once; the store sends the difference and notifies again when
@@ -545,13 +548,14 @@ export async function signInWithPassword(email: string, password: string): Promi
  * Creates an account. When the project asks for e-mail confirmation there is
  * no session yet and the person has to click the link in the mail first.
  */
-export async function signUpWithPassword(email: string, password: string, returnTo: string, locale?: string): Promise<{ confirmationNeeded: boolean }> {
+export async function signUpWithPassword(email: string, password: string, returnTo: string, locale?: string, consent?: AccessConsent): Promise<{ confirmationNeeded: boolean }> {
   const supabase = await authClient();
+  if (!consent?.terms) throw serverError('Please accept the current terms and privacy policy.');
   const { data, error } = await supabase.auth.signUp({
     email: email.trim(),
     password,
     // The language goes with the account from the start, so the confirmation mail can use it.
-    options: { emailRedirectTo: `${window.location.origin}${returnTo}`, data: locale ? { locale } : undefined },
+    options: { emailRedirectTo: `${window.location.origin}${returnTo}`, data: { locale, legal_version: LEGAL_VERSION, birth_year: consent.birthYear, health_consent: consent.health, staff_16: consent.staff16 } },
   });
   if (error) throw authError(error.message);
   return { confirmationNeeded: !data.session };
@@ -987,8 +991,9 @@ function requireRemote(): RemoteStore {
 }
 
 /** Joins the team behind a join code as an athlete. Returns the team id. */
-export async function joinTeamWithCode(code: string, firstName: string, lastName: string): Promise<Id> {
+export async function joinTeamWithCode(code: string, firstName: string, lastName: string, consent?: AccessConsent): Promise<Id> {
   try {
+    if (consent) await recordAccessConsent(consent);
     return (await requireRemote().call('join_team', { p_code: code, p_first_name: firstName, p_last_name: lastName })) as Id;
   } catch (error) {
     throw error instanceof LocalDataError ? error : new LocalDataError(error instanceof Error ? error.message : String(error));
@@ -1010,8 +1015,10 @@ export async function foundClub(input: {
   departmentName: string;
   teamName: string;
   coachTeam: boolean;
+  consent?: AccessConsent;
 }): Promise<Id> {
   try {
+    if (input.consent) await recordAccessConsent(input.consent);
     return (await requireRemote().call('found_club', {
       p_code: input.code,
       p_club_name: input.clubName,
@@ -1028,8 +1035,9 @@ export async function foundClub(input: {
 }
 
 /** Links the signed-in account to the invited staff member or club role. Returns the team (or club) id. */
-export async function acceptStaffInvite(token: string): Promise<Id> {
+export async function acceptStaffInvite(token: string, consent?: AccessConsent): Promise<Id> {
   try {
+    if (consent) await recordAccessConsent(consent);
     return (await requireRemote().call('accept_staff_invite', { p_token: token })) as Id;
   } catch (error) {
     throw error instanceof LocalDataError ? error : new LocalDataError(error instanceof Error ? error.message : String(error));
@@ -1251,7 +1259,7 @@ export function teamHasFeature(database: LocalDatabase, teamId: Id | null, featu
  * does. RPE is asked only for sessions of such teams.
  */
 export function athleteHasLoad(database: LocalDatabase, personId: Id | null): boolean {
-  if (!personId) return false;
+  if (!personId || !hasHealthConsent(database, personId)) return false;
   return database.memberships.some(
     (membership) => membership.personId === personId && membership.role === 'athlete' && teamHasFeature(database, membership.teamId, 'load'),
   );
@@ -1563,7 +1571,7 @@ export function deleteDepartment(departmentId: Id): void {
  * A new team in a department. On the server its coach role templates and
  * join code come from database triggers; locally they are added here.
  */
-export function createTeam(departmentId: Id, name: string): Id {
+export function createTeam(departmentId: Id, name: string, ageGroup: AgeGroup | null = null, load = defaultLoadForAge(ageGroup)): Id {
   const id = newId();
   const clean = requireName(name, 'The team');
   mutate((database) => {
@@ -1572,7 +1580,7 @@ export function createTeam(departmentId: Id, name: string): Id {
     const now = new Date().toISOString();
     database.teams.push({
       id, clubId: department.clubId, departmentId, name: clean, defaultFacilityId: null,
-      features: ['load'], archivedAt: null, createdAt: now,
+      ageGroup, features: load ? ['load'] : [], archivedAt: null, createdAt: now,
     });
     if (!remote) {
       COACH_ROLE_TEMPLATES.forEach((template, index) => {
@@ -3025,5 +3033,159 @@ export function needSeat(sessionId: Id): void {
 export function cancelNeedSeat(sessionId: Id): void {
   mutate((database) => {
     clearRideRequest(database, sessionId, rideMember(database, rideSession(database, sessionId)));
+  });
+}
+
+// Legal choices use acknowledged RPC writes: never queue a withdrawal offline.
+async function consentRpc<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
+  if (remote) return await remote.call(name, args) as T;
+  const client = await authClient();
+  const { data, error } = await client.rpc(name, args);
+  if (error) throw serverError(error.message, error);
+  return data as T;
+}
+export async function recordAccessConsent(consent: AccessConsent): Promise<void> {
+  if (!consent.terms) throw serverError('Please accept the current terms and privacy policy.');
+  await consentRpc('record_access_consent', { p_version: LEGAL_VERSION, p_birth_year: consent.birthYear, p_health: consent.health, p_staff_16: consent.staff16 });
+}
+function assertConsentWrites(before: LocalDatabase, after: LocalDatabase): void {
+  const changed = <T extends { personId: Id }>(old: T[], next: T[], key: (row: T) => string) => {
+    const previous = new Map(old.map((r) => [key(r), JSON.stringify(r)]));
+    return next.filter((r) => previous.get(key(r)) !== JSON.stringify(r));
+  };
+  for (const row of [...changed(before.loadEntries, after.loadEntries, (r) => r.id), ...changed(before.athletePlans, after.athletePlans, (r) => r.id)]) {
+    if (!hasHealthConsent(after, row.personId)) throw serverError('Health consent is required.');
+  }
+  for (const row of changed(before.availability, after.availability, (r) => r.id)) {
+    const old = before.availability.find((r) => r.id === row.id);
+    if (row.reason && row.reason !== old?.reason && !hasHealthConsent(after, row.personId)) throw serverError('Health consent is required.');
+  }
+  for (const row of changed(before.absences, after.absences, (r) => r.id)) {
+    const old = before.absences.find((r) => r.id === row.id);
+    if ((row.kind !== old?.kind || row.note !== old?.note) && (row.kind || row.note) && !hasHealthConsent(after, row.personId)) throw serverError('Health consent is required.');
+  }
+}
+function ownConsentPerson(database: LocalDatabase, personId: Id): Person {
+  const person = database.people.find((p) => p.id === personId);
+  if (!person || !ownPersonIds(database).includes(personId)) throw serverError('You can only change your own consent.');
+  return person;
+}
+export async function setOwnBirthYear(personId: Id, birthYear: number): Promise<void> {
+  const database = readDatabase();
+  if (!database) return;
+  const person = ownConsentPerson(database, personId);
+  if (!Number.isInteger(birthYear) || birthYear < 1900 || birthYear > new Date().getFullYear()) throw serverError('Enter a valid birth year.');
+  if (person.birthYear != null && person.birthYear !== birthYear) throw serverError('Contact the operator to correct your birth year.');
+  if (isRemoteMode()) {
+    await recordAccessConsent({ terms: true, birthYear, health: false, staff16: false });
+    await consentRpc('save_my_birth_year', { p_person: personId, p_year: birthYear });
+    return;
+  }
+  mutate((draft) => { ownConsentPerson(draft, personId).birthYear = birthYear; });
+}
+export async function giveHealthConsent(personId: Id): Promise<void> {
+  if (isRemoteMode()) { await consentRpc('give_health_consent', { p_person: personId, p_version: LEGAL_VERSION }); return; }
+  mutate((database) => {
+    const person = ownConsentPerson(database, personId);
+    if (!canSelfConsent(person.birthYear)) throw serverError('A parent must consent for players under 16.');
+    database.consents ??= [];
+    database.consents.push({ id: newId(), personId, userId: null, kind: 'health', version: LEGAL_VERSION, givenAt: new Date().toISOString(), withdrawnAt: null, byParentName: null, byParentEmail: null });
+  });
+}
+function withdrawLocal(database: LocalDatabase, personId: Id, deleteLoad: boolean) {
+  const now = new Date().toISOString();
+  for (const c of database.consents ?? []) if (c.personId === personId && c.kind !== 'terms' && !c.withdrawnAt) c.withdrawnAt = now;
+  for (const token of Object.values(database.parentTokens ?? {})) if (token.personId === personId) token.usedAt ??= now;
+  if (deleteLoad) {
+    const ids = new Set(database.loadEntries.filter((e) => e.personId === personId).map((e) => e.id));
+    database.loadEntries = database.loadEntries.filter((e) => e.personId !== personId);
+    database.loadEntryReviews = database.loadEntryReviews.filter((r) => !ids.has(r.entryId));
+    database.loadSummaries = database.loadSummaries.filter((r) => r.personId !== personId);
+  }
+}
+export async function withdrawHealthConsent(personId: Id, deleteLoad = false): Promise<void> {
+  if (isRemoteMode()) { await consentRpc('withdraw_health_consent', { p_person: personId, p_delete_load: deleteLoad }); return; }
+  mutate((database) => { ownConsentPerson(database, personId); withdrawLocal(database, personId, deleteLoad); });
+}
+function randomConsentToken(): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+async function hashConsentToken(token: string): Promise<string> {
+  return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+export async function createParentConsentLink(personId: Id): Promise<string> {
+  if (isRemoteMode()) return `${window.location.origin}/parent-consent/${await consentRpc<string>('create_parent_consent_token', { p_person: personId })}`;
+  const token = randomConsentToken(); const hash = await hashConsentToken(token);
+  mutate((database) => {
+    const person = ownConsentPerson(database, personId);
+    if (person.birthYear == null || canSelfConsent(person.birthYear)) throw serverError('Parental consent links are for players under 16.');
+    database.parentTokens ??= {};
+    for (const previous of Object.values(database.parentTokens)) if (previous.personId === personId) previous.usedAt ??= new Date().toISOString();
+    database.parentTokens[hash] = { personId, expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(), usedAt: null, attempts: 0 };
+  });
+  return `${window.location.origin}/parent-consent/${token}`;
+}
+export type ParentConsentPreview = { firstName: string; team: string; club: string };
+export async function previewParentConsent(token: string): Promise<ParentConsentPreview | null> {
+  const hash = await hashConsentToken(token);
+  const database = getBackendChoice() === 'local' ? readDatabase() : null;
+  const found = database?.parentTokens?.[hash];
+  if (found && database) {
+    if (found.usedAt || Date.parse(found.expiresAt) <= Date.now() || found.attempts >= 10) return null;
+    const person = database.people.find((p) => p.id === found.personId)!;
+    const team = database.memberships.find((m) => m.personId === person.id && m.role === 'athlete');
+    return { firstName: person.firstName, team: database.teams.find((t) => t.id === team?.teamId)?.name ?? '', club: database.club.name };
+  }
+  return isServerAvailable() ? await consentRpc('parent_consent_preview', { p_token: token }) : null;
+}
+export async function confirmParentConsent(token: string, name: string, email: string): Promise<string> {
+  const hash = await hashConsentToken(token);
+  const database = getBackendChoice() === 'local' ? readDatabase() : null;
+  if (!database?.parentTokens?.[hash]) {
+    const result = await consentRpc<{ error?: string; withdrawToken: string }>('confirm_parent_consent', { p_token: token, p_name: name, p_email: email, p_guardian: true, p_version: LEGAL_VERSION });
+    if (result.error) throw serverError(result.error);
+    return `${window.location.origin}/parent-consent/withdraw/${result.withdrawToken}`;
+  }
+  const withdrawal = randomConsentToken(); const withdrawalHash = await hashConsentToken(withdrawal);
+  let refused: string | null = null;
+  mutate((draft) => {
+    const found = draft.parentTokens![hash];
+    if (found.usedAt || Date.parse(found.expiresAt) <= Date.now()) { refused = 'This consent link is no longer valid.'; return; }
+    if (found.attempts >= 10) { refused = 'Too many attempts. Ask the player for a new link.'; return; }
+    found.attempts += 1;
+    const clean = email.trim().toLowerCase();
+    if (name.trim().length < 2 || name.trim().length > 120 || clean.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) { refused = 'Enter your name and email and confirm you are a guardian.'; return; }
+    const id = newId();
+    draft.consents ??= [];
+    draft.consents.push({ id, personId: found.personId, userId: null, kind: 'parent_health', version: LEGAL_VERSION, givenAt: new Date().toISOString(), withdrawnAt: null, byParentName: name.trim(), byParentEmail: clean });
+    found.usedAt = new Date().toISOString();
+    draft.parentWithdrawals ??= {}; draft.parentWithdrawals[withdrawalHash] = id;
+  });
+  if (refused) throw serverError(refused);
+  return `${window.location.origin}/parent-consent/withdraw/${withdrawal}`;
+}
+export async function withdrawParentConsent(token: string): Promise<boolean> {
+  const hash = await hashConsentToken(token);
+  const database = getBackendChoice() === 'local' ? readDatabase() : null;
+  const id = database?.parentWithdrawals?.[hash];
+  if (!id) return isServerAvailable() ? await consentRpc('withdraw_parent_consent', { p_token: token }) : false;
+  let changed = false;
+  mutate((draft) => {
+    const consent = draft.consents?.find((c) => c.id === id && !c.withdrawnAt);
+    if (consent?.personId) { withdrawLocal(draft, consent.personId, false); changed = true; }
+  });
+  return changed;
+}
+export async function exportMyData(): Promise<unknown> {
+  if (isRemoteMode()) return await consentRpc('export_my_data');
+  const database = readDatabase();
+  if (!database?.activeIdentity) throw serverError('Not signed in.');
+  return { ...exportLocalPerson(database, database.activeIdentity.personId), device: { locale: readStoredLocale() } };
+}
+export function updateTeamHealthSettings(teamId: Id, ageGroup: AgeGroup | null, load: boolean): void {
+  mutate((database) => {
+    const team = database.teams.find((t) => t.id === teamId);
+    if (!team || !hasCoachPermission(database, database.activeIdentity?.personId ?? null, teamId, 'manageStaff')) throw serverError('Not allowed.');
+    team.ageGroup = ageGroup; team.features = load ? ['load'] : [];
   });
 }

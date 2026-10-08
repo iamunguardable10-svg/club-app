@@ -33,6 +33,9 @@ insert into public.people (id, club_id, user_id, first_name, last_name) values
   ('a7000000-0000-0000-0000-000000000074', 'c7000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000074', 'Carla', 'Coach'),
   ('a7000000-0000-0000-0000-000000000075', 'c7000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000075', 'Tim', 'Helper');
 
+-- Push fixtures explicitly consent to health processing.
+update public.people set birth_year=1990 where club_id='c7000000-0000-0000-0000-000000000001';
+insert into public.consents(person_id,kind,version) select id,'health','2026-10-08' from public.people where club_id='c7000000-0000-0000-0000-000000000001';
 insert into public.memberships (person_id, team_id, role, coach_role_id, created_at)
 select 'a7000000-0000-0000-0000-000000000074', '77000000-0000-0000-0000-000000000001', 'coach', r.id, now() - interval '30 days'
 from public.coach_roles r where r.team_id = '77000000-0000-0000-0000-000000000001' and r.locked;

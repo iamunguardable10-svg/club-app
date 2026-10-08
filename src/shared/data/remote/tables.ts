@@ -51,6 +51,9 @@ export const TABLES: readonly TableSpec[] = [
   { name: 'teams', key: ['id'], kinds: { created_at: 'timestamp', archived_at: 'timestamp' } },
   { name: 'team_join_codes', key: ['team_id'], kinds: { created_at: 'timestamp' } },
   { name: 'department_facilities', key: ['department_id', 'facility_id'] },
+  { name: 'consents', key: ['id'], kinds: { given_at: 'timestamp', withdrawn_at: 'timestamp' }, readOnly: true },
+  { name: 'health_consent_status', key: ['person_id'], readOnly: true },
+  { name: 'person_birth_years', key: ['person_id'], readOnly: true },
   { name: 'people', key: ['id'], kinds: { created_at: 'timestamp' } },
   { name: 'coach_roles', key: ['id'], kinds: { created_at: 'timestamp' } },
   { name: 'memberships', key: ['id'], kinds: { created_at: 'timestamp' } },
@@ -88,6 +91,7 @@ export const TABLES: readonly TableSpec[] = [
 ];
 
 export type TableName =
+  | 'consents' | 'health_consent_status' | 'person_birth_years'
   | 'clubs' | 'departments' | 'facilities' | 'teams' | 'team_join_codes' | 'department_facilities' | 'people' | 'coach_roles'
   | 'carpools' | 'carpool_riders' | 'carpool_requests'
   | 'staff_invites' | 'club_roles' | 'club_role_invites'
@@ -134,11 +138,14 @@ export function rowKey(table: TableName, row: Row): string {
 
 export function toServerRows(database: LocalDatabase): ServerRows {
   const rows: ServerRows = {
+    consents: (database.consents ?? []).map((c) => ({ id: c.id, person_id: c.personId, user_id: c.userId, kind: c.kind, version: c.version, given_at: c.givenAt, withdrawn_at: c.withdrawnAt, by_parent_name: c.byParentName, by_parent_email: c.byParentEmail })),
+    health_consent_status: (database.healthConsentStatus ?? []).map((c) => ({ person_id: c.personId, active: c.active })),
+    person_birth_years: database.people.filter((p) => p.birthYear != null).map((p) => ({ person_id: p.id, birth_year: p.birthYear })),
     clubs: [{ id: database.club.id, name: database.club.name, city: database.club.city, country: database.club.country, created_at: database.club.createdAt }],
     departments: database.departments.map((d) => ({ id: d.id, club_id: d.clubId, name: d.name })),
     facilities: database.facilities.map((f) => ({ id: f.id, club_id: f.clubId, name: f.name, address: f.address })),
     teams: database.teams.map((t) => ({
-      id: t.id, club_id: t.clubId, department_id: t.departmentId, name: t.name, default_facility_id: t.defaultFacilityId, features: t.features,
+      id: t.id, club_id: t.clubId, department_id: t.departmentId, name: t.name, default_facility_id: t.defaultFacilityId, features: t.features, age_group: t.ageGroup ?? null,
       archived_at: t.archivedAt, created_at: t.createdAt,
     })),
     team_join_codes: database.joinCodes.map((c) => ({ team_id: c.teamId, code: c.code, created_at: c.createdAt })),
@@ -269,18 +276,21 @@ export function fromServerRows(
 
   const database: LocalDatabase = {
     version: context.version,
+    consents: rows.consents.map((c) => ({ id: s(c.id), personId: sn(c.person_id), userId: sn(c.user_id), kind: c.kind as 'terms' | 'health' | 'parent_health', version: s(c.version), givenAt: s(c.given_at), withdrawnAt: sn(c.withdrawn_at), byParentName: sn(c.by_parent_name), byParentEmail: sn(c.by_parent_email) })),
+    healthConsentStatus: rows.health_consent_status.map((c) => ({ personId: s(c.person_id), active: Boolean(c.active) })),
     seededAt: context.previous?.seededAt ?? new Date().toISOString(),
     club: { id: s(club.id), name: s(club.name), city: s(club.city), country: s(club.country), createdAt: s(club.created_at) },
     departments: rows.departments.map((d) => ({ id: s(d.id), clubId: s(d.club_id), name: s(d.name) })),
     teams: rows.teams.map((t) => ({
       id: s(t.id), clubId: s(t.club_id), departmentId: s(t.department_id), name: s(t.name),
       defaultFacilityId: sn(t.default_facility_id), features: ((t.features as string[] | null) ?? []).filter((f): f is TeamFeature => (TEAM_FEATURES as readonly string[]).includes(f)),
-      archivedAt: sn(t.archived_at), createdAt: s(t.created_at),
+      ageGroup: (sn(t.age_group) as LocalDatabase['teams'][number]['ageGroup']), archivedAt: sn(t.archived_at), createdAt: s(t.created_at),
     })),
     facilities: rows.facilities.map((f) => ({ id: s(f.id), clubId: s(f.club_id), name: s(f.name), address: s(f.address) })),
     departmentFacilities: rows.department_facilities.map((l) => ({ departmentId: s(l.department_id), facilityId: s(l.facility_id) })),
     people: rows.people.map((p) => ({
       id: s(p.id), clubId: s(p.club_id), userId: sn(p.user_id), firstName: s(p.first_name), lastName: s(p.last_name),
+      birthYear: rows.person_birth_years.find((b) => b.person_id === p.id)?.birth_year as number | null | undefined,
       rsvpMode: p.rsvp_mode === 'manual' ? 'manual' as const : 'auto' as const, createdAt: s(p.created_at),
     })),
     memberships: rows.memberships.map((m) => ({

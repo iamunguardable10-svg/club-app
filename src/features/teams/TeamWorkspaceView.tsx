@@ -568,6 +568,8 @@ export function TeamWorkspaceView({
                   <button key={player.id} type="button" onClick={() => setActivePlayer(player)} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 text-left transition hover:border-emerald-300/55 hover:bg-slate-900">
                     <div className="flex items-center justify-between gap-3">
                       <p className="truncate font-black text-white">{player.name}</p>
+                      {data.loadTracked !== false && player.healthConsent === false ? <span className="text-xs font-bold text-amber-200">{t('consent.noConsent')}</span> : null}
+                      {player.birthYear != null ? <span className="text-xs text-slate-400">{t('consent.birthYear')}: {player.birthYear}</span> : null}
                       {data.loadTracked !== false && summary.access !== 'none' && summary.acwr !== null ? <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-black ${acwrToneClass(summary.zone.tone)}`}>{t('team.acwrBadge', { value: formatDecimal(summary.acwr) })}</span> : null}
                     </div>
                     {groupNames.length > 0 ? <p className="mt-1 truncate text-xs font-bold text-slate-500">{groupNames.join(' · ')}</p> : null}

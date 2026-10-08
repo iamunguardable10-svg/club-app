@@ -16,6 +16,7 @@ import type { ReactNode } from 'react';
 
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
+import { LimitedConsentNote } from '@/features/legal/HealthConsentPanel';
 import { athleteHasLoad, getActivePerson, unreadMessagesFor, useLocalDatabase } from '@/shared/data';
 import { UnreadMessagesCard } from '@/features/messages/UnreadMessagesCard';
 import { countToRate } from '@/features/load/athleteLocalStore';
@@ -196,6 +197,7 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
         {/* Keep notification opt-in reachable from each role’s first page. */}
         {active === 'today' || active === 'club' ? <NotificationsHint variant="card" /> : null}
         {active === 'today' && database && person ? <UnreadMessagesCard database={database} personId={person.id} /> : null}
+        {database && person && database.activeIdentity?.role === 'athlete' ? <LimitedConsentNote database={database} person={person} /> : null}
         {children}
       </div>
 

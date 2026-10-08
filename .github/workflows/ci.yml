@@ -93,6 +93,7 @@ jobs:
           npm run test:calendar
           npm run test:series
           npm run test:carpools
+          npm run test:consent
 
       - name: Access rules (SQL)
         run: supabase/pilot/tests/run-local.sh

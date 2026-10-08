@@ -134,7 +134,11 @@ export type Department = {
   name: string;
 };
 
+export const AGE_GROUPS = ['U8', 'U9', 'U10', 'U11', 'U12', 'U13', 'U14', 'U15', 'U16', 'U17', 'U18', 'U19', 'adults', 'mixed'] as const;
+export type AgeGroup = (typeof AGE_GROUPS)[number];
+
 export type Team = {
+  ageGroup?: AgeGroup | null;
   id: Id;
   clubId: Id;
   departmentId: Id;
@@ -166,6 +170,7 @@ export type DepartmentFacility = {
  * person is just a name; roles live on memberships.
  */
 export type Person = {
+  birthYear?: number | null;
   id: Id;
   clubId: Id;
   /** The account this person signs in with (pilot server). Always null in the local test mode. */
@@ -568,10 +573,21 @@ export type ActiveIdentity = {
   personId: Id;
 };
 
+export type Consent = {
+  id: Id; personId: Id | null; userId: Id | null; kind: 'terms' | 'health' | 'parent_health';
+  version: string; givenAt: Timestamp; withdrawnAt: Timestamp | null;
+  byParentName: string | null; byParentEmail: string | null;
+};
+export type ParentToken = { personId: Id; expiresAt: Timestamp; usedAt: Timestamp | null; attempts: number };
+
 /** The whole local database, stored as one JSON document. */
 export type LocalDatabase = {
   /** Schema version this document was written with. */
   version: string;
+  consents?: Consent[];
+  healthConsentStatus?: { personId: Id; active: boolean }[];
+  parentTokens?: Record<string, ParentToken>;
+  parentWithdrawals?: Record<string, Id>;
   seededAt: Timestamp;
   club: Club;
   departments: Department[];

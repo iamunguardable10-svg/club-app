@@ -8,6 +8,9 @@ set client_min_messages = notice;
 insert into auth.users (id, email) values
   ('10000000-0000-0000-0000-000000000061', 'nina@example.test'),
   ('10000000-0000-0000-0000-000000000062', 'otto@example.test');
+insert into public.consents(user_id,kind,version) select u.id,'terms','2026-10-08' from auth.users u where not exists(select 1 from public.consents c where c.user_id=u.id and kind='terms');
+insert into app.access_consent(user_id,birth_year,health,staff_16) select id,1990,true,true from auth.users on conflict(user_id) do nothing;
+
 
 select code as ajugend_code from public.team_join_codes where team_id = test.id('ajugend') \gset
 insert into public.teams (club_id, department_id, name, archived_at)
