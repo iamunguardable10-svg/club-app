@@ -27,7 +27,7 @@ export function useOwnTraining(personId: string | null, teamId: string, days = 1
 /** "18:00–19:00 Strength" or "Run (no time)". */
 export function ownTrainingLine(item: OwnTrainingItem): string {
   const title = displayTitle(item.title);
-  return item.startsAt && item.endsAt ? `${formatTime(item.startsAt)}–${formatTime(item.endsAt)} ${title}` : tr('ownTraining.noTime', { title });
+  return item.startsAt && item.endsAt ? `${formatTime(item.startsAt)}${item.trainingType === 'game' ? '' : `–${formatTime(item.endsAt)}`} ${title}` : tr('ownTraining.noTime', { title });
 }
 
 export function OwnTrainingList({ items }: { items: OwnTrainingItem[] }) {

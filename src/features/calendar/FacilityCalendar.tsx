@@ -398,6 +398,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       sessions.map((session) => ({
         id: session.id,
         title: session.title,
+        sessionType: session.session_type,
         startsAt: session.starts_at,
         endsAt: session.ends_at,
         teamName: teamById.get(session.owner_team_id)?.name ?? tr('hallCalendar.team'),
@@ -410,6 +411,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   const conflictSessions = useMemo<ConflictSession[]>(() => sessions.map((session) => ({
     id: session.id,
     title: session.title,
+    sessionType: session.session_type,
     startsAt: session.starts_at,
     endsAt: session.ends_at,
     facilityId,
@@ -599,7 +601,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     }
 
     function handlePointerMove(event: globalThis.PointerEvent) {
-      const originalDuration = durationMinutes(activeDrag.originalStart, activeDrag.originalEnd);
+      const originalDuration = sessions.find((session) => session.id === activeDrag.sessionId)?.session_type === 'game' ? (activeDrag.originalEnd.getTime() - activeDrag.originalStart.getTime()) / 60_000 : durationMinutes(activeDrag.originalStart, activeDrag.originalEnd);
       const currentStartMinutes = minutesFromDayStart(activeDrag.originalStart);
       const deltaMinutes = roundToSlot((event.clientY - activeDrag.startY) * activeDrag.minutesPerPixel);
       const maxMinutes = (lastHour - firstHour) * 60;
@@ -691,6 +693,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   }
 
   function startSessionDrag(session: Session, kind: DragState['kind'], event: PointerEvent<HTMLElement>) {
+    if (kind === 'resize' && session.session_type === 'game') return;
     event.stopPropagation();
     if (mode !== 'edit' || !canManageSession(session)) return;
     event.preventDefault();

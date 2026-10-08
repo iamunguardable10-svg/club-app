@@ -5,6 +5,7 @@ import { displayTitle } from '@/features/sessions/sessionTypeLabels';
 export type ConflictSession = {
   id: string;
   title: string;
+  sessionType?: string;
   startsAt: string;
   endsAt: string | null;
   facilityId?: string | null;
@@ -126,5 +127,6 @@ export function formatConflictDescription(conflicts: ConflictSession[]) {
   const owner = [first.teamName, first.departmentName].filter(Boolean).join(' / ');
   const more = conflicts.length > 1 ? tr('conflict.more', { count: conflicts.length - 1 }) : '';
   const params = { hall: first.facilityName ?? tr('conflict.thisHall'), title: displayTitle(first.title), owner, start: formatTime(start), end: formatTime(end), more };
+  if (first.sessionType === 'game') return owner ? tr('conflict.gameDescriptionOwner', params) : tr('conflict.gameDescription', params);
   return owner ? tr('conflict.descriptionOwner', params) : tr('conflict.description', params);
 }

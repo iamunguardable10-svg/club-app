@@ -1,3 +1,5 @@
+Zurückgestellt (2026-10-08): Onboarding und Tipps sind komplett entfernt und werden später neu aufgesetzt; dieses Konzept ist nur noch Ideensammlung.
+
 # Onboarding-Konzept v4: so wie in iOS-Apps (Entwurf 2026-10-07, wartet auf Go von Ben)
 
 Ersetzt die Abdunkel-Touren und den Übungsmodus (Run 70–72, entfernt in Run 73).

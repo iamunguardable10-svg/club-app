@@ -209,7 +209,7 @@ function TeamDashboardSessionCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-xl font-black">{displayTitle(session.title)}</h3>
-          <p className="mt-1 text-sm font-bold text-slate-400">{formatSessionTime(session.startsAt, session.endsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+          <p className="mt-1 text-sm font-bold text-slate-400">{formatSessionTime(session.startsAt, session.endsAt, session.sessionType)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
         </div>
         <span aria-hidden className="text-lg font-black text-slate-500">›</span>
       </div>
@@ -482,7 +482,6 @@ export function TeamWorkspaceView({
             key={section}
             type="button"
             role="tab"
-            data-tour={`team-tab-${section}`}
             aria-selected={activeSection === section}
             aria-label={sectionLabel(section)}
             onClick={() => setActiveSection(section)}
@@ -520,7 +519,7 @@ export function TeamWorkspaceView({
                       <button type="button" onClick={() => setDashboardSession(session)} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 px-3 py-2.5 text-left transition hover:border-sky-300/50">
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-black text-white">{displayTitle(session.title)}</span>
-                          <span className="block truncate text-xs font-bold text-slate-400">{formatSessionTime(session.startsAt, session.endsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</span>
+                          <span className="block truncate text-xs font-bold text-slate-400">{formatSessionTime(session.startsAt, session.endsAt, session.sessionType)}{session.facilityName ? ` · ${session.facilityName}` : ''}</span>
                         </span>
                         <span aria-hidden className="text-slate-500">›</span>
                       </button>
@@ -532,7 +531,7 @@ export function TeamWorkspaceView({
           </div>
 
           {setupActions.length > 0 ? (
-            <section data-tour="team-setup" className="rounded-3xl border border-amber-500/30 bg-amber-950/10 p-4 sm:p-5">
+            <section className="rounded-3xl border border-amber-500/30 bg-amber-950/10 p-4 sm:p-5">
               <h2 className="text-lg font-black text-amber-100">{t('team.stillToSetUp')}</h2>
               <div className="mt-3 grid gap-2">
                 {setupActions.map((item) => {
@@ -600,7 +599,6 @@ export function TeamWorkspaceView({
               {(onAddGroup || onRemoveGroup || onTogglePlayerGroup) ? (
                 <button
                   type="button"
-                  data-tour="group-edit"
                   onClick={() => setIsGroupEditMode((current) => !current)}
                   className={`rounded-xl border px-4 py-2 text-xs font-black transition ${isGroupEditMode ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-200 hover:bg-slate-900'}`}
                 >
@@ -610,7 +608,7 @@ export function TeamWorkspaceView({
             </div>
           </div>
           {isGroupEditMode && onAddGroup ? (
-            <div data-tour="group-create" className="mt-4 flex w-full max-w-md gap-2">
+            <div className="mt-4 flex w-full max-w-md gap-2">
               <input
                 value={newGroupName}
                 onChange={(event) => setNewGroupName(event.target.value)}

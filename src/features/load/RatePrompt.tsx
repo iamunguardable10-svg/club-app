@@ -92,24 +92,24 @@ function RateForm({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/80 p-3 backdrop-blur-sm sm:items-center" role="dialog" aria-modal="true" aria-labelledby="rate-title">
-      <section data-tour="rate-sheet" className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-3xl border border-slate-700 bg-slate-900 p-5 text-white shadow-2xl">
+      <section className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-3xl border border-slate-700 bg-slate-900 p-5 text-white shadow-2xl">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-black text-emerald-300">{remaining > 1 ? t('rate.progress', { count: remaining }) : t('rate.afterSession')}</p>
             <h2 id="rate-title" className="mt-1 text-2xl font-black">{t('rate.title')}</h2>
           </div>
-          <button type="button" data-tour="rate-later" onClick={onLater} className="shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{t('rate.later')}</button>
+          <button type="button" onClick={onLater} className="shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{t('rate.later')}</button>
         </div>
 
         <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
           <p className="text-base font-black">{displayTitle(session.title)}</p>
-          <p className="mt-0.5 text-sm font-bold text-slate-400">{formatSessionTime(session.startsAt, session.endsAt)}{session.teamName ? ` · ${session.teamName}` : ''}</p>
+          <p className="mt-0.5 text-sm font-bold text-slate-400">{formatSessionTime(session.startsAt, session.endsAt, session.trainingType)}{session.teamName ? ` · ${session.teamName}` : ''}</p>
         </div>
 
         {isGame ? (
           <p className="mt-4 rounded-2xl border border-violet-300/25 bg-violet-300/[0.08] p-3 text-sm font-bold text-violet-100">{t('rate.gameNote')}</p>
         ) : (
-          <fieldset className="mt-4" data-tour="rate-scale">
+          <fieldset className="mt-4">
             <legend className="flex w-full items-baseline justify-between text-sm font-black text-slate-200">
               <span>{t('rate.effort')}</span>
               <span className="text-emerald-200">{rpe} · {rpeWord(rpe)}</span>
@@ -131,7 +131,7 @@ function RateForm({
           </fieldset>
         )}
 
-        <label className="mt-4 block" data-tour="rate-minutes">
+        <label className="mt-4 block">
           <span className="flex items-baseline justify-between text-sm font-black text-slate-200">
             <span>{isGame ? t('rate.minutesPlayed') : t('rate.duration')}</span>
             <span>{t('rate.minutes', { count: minutes })}</span>
@@ -154,7 +154,7 @@ function RateForm({
           </label>
         ) : null}
 
-        <button type="button" data-tour="rate-save" onClick={() => onSave(session, rpe, minutes, isGame && withWarmup)} className="mt-5 w-full rounded-2xl bg-emerald-300 px-4 py-3 text-sm font-black text-slate-950">
+        <button type="button" onClick={() => onSave(session, rpe, minutes, isGame && withWarmup)} className="mt-5 w-full rounded-2xl bg-emerald-300 px-4 py-3 text-sm font-black text-slate-950">
           {t('rate.save', { load })}
         </button>
         <button type="button" onClick={() => onMissed(session)} className="mt-2 w-full rounded-2xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-200">

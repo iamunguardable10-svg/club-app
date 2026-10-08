@@ -1,3 +1,5 @@
+import { gameTemplateDuration } from './gameTiming';
+
 export type SeriesTemplate = {
   id: string;
   department: string;
@@ -173,7 +175,7 @@ export function buildSeriesWeekItems(
     if (template.activeUntil && date > template.activeUntil.slice(0, 10)) continue;
 
     const state = stateBySeriesId.get(stateKey(template.id, normalizedWeekStart));
-    const durationMinutes = durationMinutesFromTimes(template.startTime, template.endTime);
+    const durationMinutes = template.sessionType === 'game' ? gameTemplateDuration(template.startTime, template.endTime) : durationMinutesFromTimes(template.startTime, template.endTime);
     const startsAt = combineDateTimeToIso(date, template.startTime);
     const endsAt = new Date(new Date(startsAt).getTime() + durationMinutes * 60_000).toISOString();
 

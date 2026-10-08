@@ -155,10 +155,10 @@ function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDet
   const { out, late } = summarizeAvailability(session);
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/40 transition hover:border-emerald-300/45 hover:bg-slate-900/70">
-    <button type="button" data-tour="coach-session" onClick={onDetails} className="block w-full p-4 text-left text-white">
+    <button type="button" onClick={onDetails} className="block w-full p-4 text-left text-white">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-2xl font-black tabular-nums">{formatTimeRange(session.startsAt, session.endsAt)}</p>
+          <p className="text-2xl font-black tabular-nums">{formatTimeRange(session.startsAt, session.endsAt, session.sessionType)}</p>
           <h3 className="mt-1 text-base font-black">{displayTitle(session.title)}</h3>
           <p className="mt-0.5 text-sm font-bold text-slate-400">{session.teamName}{session.homeAway !== 'away' && session.facilityName ? ` · ${session.facilityName}` : ''}</p>
           <CarpoolSummary sessionId={session.id} />
@@ -199,14 +199,14 @@ function UpcomingSessionRow({ session, showTeam, onOpen }: { session: CoachSessi
   const { out, late } = summarizeAvailability(session);
   const start = new Date(session.startsAt);
   return (
-    <button type="button" data-tour="coach-upcoming" onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 px-3 py-3 text-left transition hover:border-sky-300/50 hover:bg-slate-900/70">
+    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 px-3 py-3 text-left transition hover:border-sky-300/50 hover:bg-slate-900/70">
       <div className="w-12 shrink-0 text-center">
         <p className="text-[11px] font-black uppercase text-slate-400">{formatWeekday(start)}</p>
         <p className="text-lg font-black leading-tight text-white">{start.getDate()}</p>
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-black text-white">{displayTitle(session.title)}{session.opponent ? ` ${gameLine(session)}` : ''}</p>
-        <p className="truncate text-xs font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt)}{showTeam ? ` · ${session.teamName}` : ''}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+        <p className="truncate text-xs font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt, session.sessionType)}{showTeam ? ` · ${session.teamName}` : ''}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
         <CarpoolSummary sessionId={session.id} />
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1 text-[11px] font-black">
@@ -336,6 +336,7 @@ export function CoachCalendarSurface({
     return localSessions.filter((session) => !teamFilter || session.teamId === teamFilter).map((session) => ({
       id: session.id,
       title: session.title,
+      sessionType: session.sessionType,
       startsAt: session.startsAt,
       endsAt: session.endsAt,
       teamName: session.teamName,
@@ -353,6 +354,7 @@ export function CoachCalendarSurface({
       byId.set(session.id, {
         id: session.id,
         title: session.title,
+        sessionType: session.sessionType,
         startsAt: session.startsAt,
         endsAt: session.endsAt,
         facilityId: session.facilityId,
@@ -427,6 +429,7 @@ export function CoachCalendarSurface({
         checkedCandidates.push({
           id: `series-candidate-${item.id}`,
           title: labelForCoachSessionType(item.sessionType),
+          sessionType: item.sessionType,
           startsAt: item.startsAt,
           endsAt: item.endsAt,
           facilityId: item.facilityId ?? item.facility ?? null,
@@ -681,6 +684,7 @@ export function CoachCalendarSurface({
   }
   function handleSessionKeyDown(session: SmartCalendarSession, event: KeyboardEvent<HTMLElement>) { if (event.key !== 'Enter' && event.key !== ' ') return; event.preventDefault(); handleSessionClick(session, event as unknown as MouseEvent<HTMLElement>); }
   function startSessionDrag(session: SmartCalendarSession, kind: 'move' | 'resize', event: PointerEvent<HTMLElement>) {
+    if (kind === 'resize' && session.sessionType === 'game') return;
     event.stopPropagation(); if (mode !== 'edit' || !session.canManage) return;
     const start = new Date(session.startsAt);
     const nextDrag: CoachCalendarDrag = { target: 'session', sessionId: session.id, kind, startX: event.clientX, startY: event.clientY, originalStart: start, originalEnd: session.endsAt ? new Date(session.endsAt) : addMinutes(start, 60), minutesPerPixel: window.innerWidth < 768 ? 60 / mobileHourHeight : 60 / desktopHourHeight };
@@ -718,7 +722,7 @@ export function CoachCalendarSurface({
     setDrag(nextDrag);
   }
   function startDraftDrag(kind: 'move' | 'resize', event: PointerEvent<HTMLElement>) {
-    if (!draft) return; event.stopPropagation(); event.preventDefault(); didDragRef.current = false; setEditor(null);
+    if (!draft || (kind === 'resize' && draft.sessionType === 'game')) return; event.stopPropagation(); event.preventDefault(); didDragRef.current = false; setEditor(null);
     setDrag({ target: 'draft', kind, startX: event.clientX, startY: event.clientY, originalStart: new Date(draft.startsAt), originalEnd: new Date(draft.endsAt), minutesPerPixel: window.innerWidth < 768 ? 60 / mobileHourHeight : 60 / desktopHourHeight });
   }
   useEffect(() => {
@@ -742,7 +746,7 @@ export function CoachCalendarSurface({
       setLocalSessions((current) => current.map((session) => session.id === activeDrag.sessionId ? { ...session, startsAt: start.toISOString(), endsAt: end.toISOString() } : session));
     }
     function handlePointerMove(event: globalThis.PointerEvent) {
-      const originalDuration = durationMinutes(activeDrag.originalStart, activeDrag.originalEnd); const currentStartMinutes = minutesFromDayStart(activeDrag.originalStart); const deltaMinutes = roundToSlot((event.clientY - activeDrag.startY) * activeDrag.minutesPerPixel); const maxMinutes = (lastHour - firstHour) * 60;
+      const originalDuration = originalSession?.sessionType === 'game' || draft?.sessionType === 'game' ? (activeDrag.originalEnd.getTime() - activeDrag.originalStart.getTime()) / 60_000 : durationMinutes(activeDrag.originalStart, activeDrag.originalEnd); const currentStartMinutes = minutesFromDayStart(activeDrag.originalStart); const deltaMinutes = roundToSlot((event.clientY - activeDrag.startY) * activeDrag.minutesPerPixel); const maxMinutes = (lastHour - firstHour) * 60;
       if (Math.abs(event.clientY - activeDrag.startY) > 3 || Math.abs(event.clientX - activeDrag.startX) > 3) didDragRef.current = true;
       if (activeDrag.kind === 'resize') { const nextDuration = clamp(originalDuration + deltaMinutes, 30, maxMinutes - currentStartMinutes); applyTimes(activeDrag.originalStart, addMinutes(activeDrag.originalStart, nextDuration)); return; }
       const targetDay = days[dayIndexFromPointer(event.clientX)]; const nextStartMinutes = clamp(currentStartMinutes + deltaMinutes, 0, maxMinutes - originalDuration); const nextStart = createDateForCalendarMinute(targetDay, nextStartMinutes); applyTimes(nextStart, addMinutes(nextStart, originalDuration));
@@ -781,11 +785,11 @@ export function CoachCalendarSurface({
         ) : <span />}
         <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1" role="group" aria-label={t('coach.calendar.view')}>
           <button type="button" onClick={showWeekSurface} aria-pressed={surfaceMode === 'week'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'week' ? 'bg-sky-300 text-slate-950' : 'text-slate-400'}`}>{t('coach.calendar.sessions')}</button>
-          <button type="button" data-tour="calendar-plan" onClick={showSeriesSurface} aria-pressed={surfaceMode === 'series'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>{t('coach.calendar.weeklyPlan')}</button>
+          <button type="button" onClick={showSeriesSurface} aria-pressed={surfaceMode === 'series'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>{t('coach.calendar.weeklyPlan')}</button>
         </div>
       </div>
       {surfaceMode === 'week' ? (
-        <SmartSessionCalendar mode={mode} canCreateSessions={editableTeams.length > 0 && facilities.length > 0} createBlockedHint={editableTeams.length > 0 && facilities.length === 0 ? <>{t('coach.calendar.needsHall')} <Link href="/coach/facilities" className="underline">{t('coach.calendar.addFirstHall')}</Link>{t('coach.calendar.thenEdit')}</> : undefined} days={days} hours={calendarHours} firstHour={firstHour} lastHour={lastHour} mobileVisibleHours={mobileVisibleHours} mobileFirstHour={mobileFirstHour} mobileHourHeight={mobileHourHeight} mobileGridHeight={mobileGridHeight} desktopHourHeight={desktopHourHeight} activeDayIndex={activeDayIndex} mobileCalendarView={mobileCalendarView} dayTransitionDirection={dayTransitionDirection} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null} weekLabel={weekLabel} isCurrentWeek={weekOffset === 0} calendarScrollRef={calendarScrollRef} setDayRef={(index, element) => { dayRefs.current[index] = element; }} onSetMode={setMode} onClearDraft={() => setDraft(null)} onPreviousWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onResetWeek={resetWeek} onMobileDaySelect={switchMobileDay} onMobileCalendarViewChange={setMobileCalendarView} onMobileDaySwipeStart={handleMobileDaySwipeStart} onMobileDaySwipeEnd={handleMobileDaySwipeEnd} onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }} onSlotPointerDown={handleSlotPointerDown} onSessionPointerDown={startSessionDrag} onSessionClick={handleSessionClick} onSessionKeyDown={handleSessionKeyDown} onDraftPointerDown={startDraftDrag} onDraftClick={() => setEditor({ kind: 'draft' })} onDraftCancel={() => setDraft(null)} />
+        <SmartSessionCalendar mode={mode} canCreateSessions={editableTeams.length > 0 && facilities.length > 0} createBlockedHint={editableTeams.length > 0 && facilities.length === 0 ? <>{t('coach.calendar.needsHall')} <Link href="/coach/facilities" className="underline">{t('coach.calendar.addFirstHall')}</Link>{t('coach.calendar.thenEdit')}</> : undefined} days={days} hours={calendarHours} firstHour={firstHour} lastHour={lastHour} mobileVisibleHours={mobileVisibleHours} mobileFirstHour={mobileFirstHour} mobileHourHeight={mobileHourHeight} mobileGridHeight={mobileGridHeight} desktopHourHeight={desktopHourHeight} activeDayIndex={activeDayIndex} mobileCalendarView={mobileCalendarView} dayTransitionDirection={dayTransitionDirection} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, sessionType: draft.sessionType, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null} weekLabel={weekLabel} isCurrentWeek={weekOffset === 0} calendarScrollRef={calendarScrollRef} setDayRef={(index, element) => { dayRefs.current[index] = element; }} onSetMode={setMode} onClearDraft={() => setDraft(null)} onPreviousWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onResetWeek={resetWeek} onMobileDaySelect={switchMobileDay} onMobileCalendarViewChange={setMobileCalendarView} onMobileDaySwipeStart={handleMobileDaySwipeStart} onMobileDaySwipeEnd={handleMobileDaySwipeEnd} onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }} onSlotPointerDown={handleSlotPointerDown} onSessionPointerDown={startSessionDrag} onSessionClick={handleSessionClick} onSessionKeyDown={handleSessionKeyDown} onDraftPointerDown={startDraftDrag} onDraftClick={() => setEditor({ kind: 'draft' })} onDraftCancel={() => setDraft(null)} />
       ) : (
         <div className="mt-7 sm:mt-5">
           <WeeklySeriesBoard
@@ -1274,7 +1278,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
                   {todaySessions.map((session) => <CoachSessionCard key={session.id} session={session} onDetails={() => openSessionDetails(session)} />)}
                 </div>
               ) : (
-                <p className="text-sm text-slate-400">{upcomingSessions[0] ? t('coach.today.nextUp', { title: displayTitle(upcomingSessions[0].title), time: formatSessionTime(upcomingSessions[0].startsAt, upcomingSessions[0].endsAt) }) : t('coach.today.nothing')}</p>
+                <p className="text-sm text-slate-400">{upcomingSessions[0] ? t('coach.today.nextUp', { title: displayTitle(upcomingSessions[0].title), time: formatSessionTime(upcomingSessions[0].startsAt, upcomingSessions[0].endsAt, upcomingSessions[0].sessionType) }) : t('coach.today.nothing')}</p>
               )}
             </CoachSection>
 
@@ -1414,13 +1418,13 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             {teams.map((team) => {
               const nextSession = nextSessionByTeamId.get(team.id);
               return (
-                <Link data-tour="team-launch" key={team.id} href={`/coach/team?teamId=${team.id}`} className="block rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white transition hover:border-emerald-300/50 hover:bg-slate-900/70">
+                <Link key={team.id} href={`/coach/team?teamId=${team.id}`} className="block rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white transition hover:border-emerald-300/50 hover:bg-slate-900/70">
                   <p className="text-xs font-bold text-slate-400">{team.departmentName}{team.roleName ? ` · ${displayRoleName(team.roleName)}` : ''}</p>
                   <h3 className="mt-1 text-xl font-black">{team.name}</h3>
                   <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
                     <p className="text-xs font-bold text-slate-500">{t('coach.team.nextSession')}</p>
                     <p className="mt-1 text-sm font-black text-slate-200">{nextSession ? displayTitle(nextSession.title) : t('coach.team.nonePlanned')}</p>
-                    {nextSession ? <p className="mt-0.5 text-xs font-bold text-slate-400">{formatSessionTime(nextSession.startsAt, nextSession.endsAt)}</p> : null}
+                    {nextSession ? <p className="mt-0.5 text-xs font-bold text-slate-400">{formatSessionTime(nextSession.startsAt, nextSession.endsAt, nextSession.sessionType)}</p> : null}
                   </div>
                 </Link>
               );

@@ -12,16 +12,13 @@
  */
 
 import Link from 'next/link';
-import { useEffect, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
-import { InstallHint } from '@/features/install/InstallHint';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
-import { CalendarHint } from '@/features/calendar/CalendarHint';
-import { athleteHasLoad, getActivePerson, isTourSeen, loadToursFromAccount, markTourSeen, unreadMessagesFor, useLocalDatabase } from '@/shared/data';
+import { athleteHasLoad, getActivePerson, unreadMessagesFor, useLocalDatabase } from '@/shared/data';
 import { UnreadMessagesCard } from '@/features/messages/UnreadMessagesCard';
 import { countToRate } from '@/features/load/athleteLocalStore';
-import { Welcome } from '@/features/onboarding/Welcome';
 import { useT, type MessageKey } from '@/shared/i18n';
 
 export type CoachNavItem = 'today' | 'calendar' | 'team' | 'halls' | 'history';
@@ -107,7 +104,7 @@ export function ActiveRoleShell(props: ShellProps) {
 
 function RoleShell({ nav, active, title, subtitle, back, actions, children }: ShellProps & { nav: NavEntry[]; active: NavItem | null }) {
   const t = useT();
-  const { database, ready } = useLocalDatabase();
+  const { database } = useLocalDatabase();
   const person = database ? getActivePerson(database) : null;
   // "Team" or "Teams", depending on what the tab opens.
   const teamCount = database && person
@@ -134,19 +131,6 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
   };
   // A single destination needs no tab bar on phones.
   const tabBar = nav.length > 1;
-  const identityRole = database?.activeIdentity?.role ?? null;
-  const identityKey = person && identityRole ? `${person.id}.${identityRole}` : null;
-  // Keep the existing welcome IDs so accounts that saw it are remembered.
-  const welcomeId = identityRole ? `welcome.${identityRole}.practice-v1` : null;
-  const [welcomeIdentity, setWelcomeIdentity] = useState<string | null>(null);
-  useEffect(() => {
-    if (!ready || !identityKey || !welcomeId) return;
-    let cancelled = false;
-    void loadToursFromAccount().then(() => {
-      if (!cancelled) setWelcomeIdentity(isTourSeen(welcomeId) ? null : identityKey);
-    });
-    return () => { cancelled = true; };
-  }, [ready, identityKey, welcomeId]);
 
   return (
     <main className={`os-page md:pb-10 md:pl-64 ${tabBar ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))]' : 'pb-10'}`}>
@@ -155,7 +139,7 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">{t('start.kicker')}</p>
           {database ? <p className="mt-1 truncate text-sm font-black text-white">{database.club.name}</p> : null}
         </div>
-        <nav data-tour="nav" className="grid gap-1">
+        <nav className="grid gap-1">
           {nav.map(({ item, label, href }) => (
             <Link
               key={item}
@@ -195,7 +179,6 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
             {showMessageIcon ? (
               <Link
                 href="/messages"
-                data-tour="messages-icon"
                 aria-label={unread > 0 ? t('nav.messagesUnread', { count: unread }) : t('nav.messages')}
                 className="relative grid h-10 w-10 place-items-center rounded-full border border-slate-700 bg-slate-900/80 text-slate-200 transition hover:border-slate-500 hover:text-white"
               >
@@ -210,19 +193,13 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
       </header>
 
       <div className="mx-auto w-full max-w-6xl space-y-5 px-4 pt-4 sm:px-8 md:pt-6">
-        {/* On the first page of each role only, so it is seen once and not everywhere. */}
-        {active === 'today' || active === 'club' ? <><InstallHint variant="card" /><NotificationsHint variant="card" /></> : null}
-        {active === 'calendar' ? <CalendarHint /> : null}
+        {/* Keep notification opt-in reachable from each role’s first page. */}
+        {active === 'today' || active === 'club' ? <NotificationsHint variant="card" /> : null}
         {active === 'today' && database && person ? <UnreadMessagesCard database={database} personId={person.id} /> : null}
         {children}
       </div>
 
-      {identityRole && welcomeId && welcomeIdentity === identityKey ? <Welcome key={identityKey} role={identityRole} onClose={() => {
-        markTourSeen(welcomeId);
-        setWelcomeIdentity(null);
-      }} /> : null}
-
-      {tabBar ? <nav data-tour="nav" className="fixed inset-x-0 bottom-0 z-[70] border-t border-slate-800 bg-slate-950/95 px-2 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 text-white backdrop-blur-xl md:hidden" aria-label={t('nav.main')}>
+      {tabBar ? <nav className="fixed inset-x-0 bottom-0 z-[70] border-t border-slate-800 bg-slate-950/95 px-2 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 text-white backdrop-blur-xl md:hidden" aria-label={t('nav.main')}>
         <div className={`mx-auto grid max-w-lg ${columns} gap-1`}>
           {nav.map(({ item, label, href }) => (
             <Link

@@ -114,7 +114,7 @@ export function MessageList({
               ) : null}
               {stats ? (
                 <>
-                  <div data-tour="message-stats" className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs font-bold">
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs font-bold">
                     {(() => {
                       const done = votes ? votes.voted === votes.total : stats.read === stats.total;
                       const label = votes ? t('poll.voted', { voted: votes.voted, total: votes.total }) : t('teamMessages.read', { read: stats.read, total: stats.total });
@@ -132,7 +132,7 @@ export function MessageList({
                       {votes && !message.pollClosedAt ? (
                         <button type="button" onClick={() => run(() => closePoll(message.id))} className="text-slate-300 underline decoration-slate-600 underline-offset-2 hover:text-white">{t('poll.close')}</button>
                       ) : null}
-                      <button data-tour="message-delete" type="button" onClick={() => setDeleting(message)} className="text-slate-500 underline decoration-slate-700 underline-offset-2 hover:text-slate-300">{t('teamMessages.delete')}</button>
+                      <button type="button" onClick={() => setDeleting(message)} className="text-slate-500 underline decoration-slate-700 underline-offset-2 hover:text-slate-300">{t('teamMessages.delete')}</button>
                     </div>
                   </div>
                   {open && pending > 0 && named ? (

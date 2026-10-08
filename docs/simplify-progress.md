@@ -2817,3 +2817,46 @@ vor dem langen Kader. Eigener Server auf 3101 anschließend beendet und
 `npm run clean:next-env` ausgeführt; Port 3100 unangetastet (beim Schlusscheck nicht erreichbar).
 Kein Commit, Push oder Eingriff in die Git-Historie; kein Zugriff auf Live-Supabase.
 Offen: Migration und Push-Dispatcher sind noch nicht live ausgerollt, v4-Tipps bleiben geplant.
+
+## Run 75: owner feedback — games, RSVP and onboarding removal
+
+2026-10-08. Spiele zeigen nur Datum und Anpfiff, im Trainer- und Wochenplan-Editor
+kein Endfeld. Neue Spiele enden intern nach zwei Stunden; beim Verschieben von Datum
+oder Uhrzeit und beim Ziehen im Kalender bleibt eine vorhandene abweichende Dauer
+(z. B. 97 Minuten) erhalten. Kalenderblöcke behalten ihre Dauer, Spiele haben keine
+Resize-Griffe. Spielzeiten in Heute, Listen, Team-/Spiel-Blättern, RatePrompt,
+Wochenplan, eigenem Training und clientseitigen Konflikttexten zeigen nur den Beginn.
+Demo-Spiele bereits mit zwei Stunden gespeichert; kein Seed- oder Datenbank-Umbau.
+
+Verspätungsregler unverändert 5–60 Minuten, jetzt in Ein-Minuten-Schritten. Nach einer
+Antwort kompakter grüner/gelber/roter Status mit Minuten bzw. Grund/Abwesenheit und
+„Change“; Ändern öffnet die bisherigen Optionen, Speichern klappt sie wieder zu.
+Auch automatische Zusagen werden explizit gespeichert, damit eine abgegebene Antwort
+nach Neuladen erkennbar bleibt. Selbst-RSVP, Abwesenheitszeiträume und deren einzelne
+Zusagen bleiben erhalten; nach Beginn keine RSVP-Änderung.
+
+Welcome, Kalender-/Installations-Tippkarten, Tour-Speicher samt Konto-Metadaten-Code,
+Tour-Anker und unbenutzte welcome/tour/hint-Texte entfernt. Push-Einwilligung in Heute
+und Settings, Anmeldung/Beitritt/Gründung, echte Leerzustände und RatePrompt bleiben.
+Onboarding-Regel in AGENTS/CLAUDE ausgesetzt, Konzept oben als Ideensammlung markiert.
+Alle neuen Texte in en/de/fr/es, keine Änderung unter `supabase/`, keine neuen Rechte.
+
+Geprüft: `npm run typecheck`, `npm run check:i18n`, `npm run test:i18n`,
+`npm run test:load`, `npm run test:series`, `npm run test:calendar`,
+`npm run test:carpools`, `npm run test:build`, `npm run test:address`,
+`CALDAV_URL=http://127.0.0.1:5233/ npm run test:caldav` gegen einen isolierten lokalen
+Radicale-Testserver, `npm run build`, `BASE_URL=http://localhost:3101 npm run test:smoke`
+(86 Seiten, keine Fehler). Neue Regressionen für eigene Spieldauer und Spiele über
+Mitternacht. Playwright: In/Late/Out, Change, exakt 12 Minuten, Speicherung nach
+Neuladen, Selbst-RSVP, Abwesenheit übersteuern, Datum/Uhrzeit und Kalender-Drag mit
+97 Minuten Dauer, keine Spiel-Resize-Griffe und Beginn-Sperre geprüft. Screenshots
+Spieler/Trainer auf Handy/fr 390×844 und Desktop/en 1280×900 unter `/tmp/codex-batch5/`
+aufgenommen und angesehen; zusätzlich 360/430/768 Pixel ohne Überbreite geprüft.
+Start-Zeitfeld wegen abgeschnittener nativer Anzeige verbreitert. Wochenplan-Spiel um
+23:00 speichert 01:00 als Ende und zeigt nur den Beginn.
+
+Eigener Server auf 3101 und lokaler CalDAV-Testserver anschließend beendet,
+`npm run clean:next-env` ausgeführt; Port 3100 unangetastet. Kein Commit/Push oder
+Git-Historieneingriff durch Codex. Ein externer Prozess erzeugte während der Arbeit
+WIP-Commits; diese bleiben unangetastet. Kein Zugriff auf Live-Supabase. Serverseitig
+erzeugte Push-Texte liegen unter `supabase/` und bleiben gemäß Auftrag unverändert.

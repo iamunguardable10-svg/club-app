@@ -112,7 +112,7 @@ export function PlayerMessagesPage() {
           <span className="shrink-0 text-xs font-bold text-slate-500">{whenPosted(message.createdAt)}</span>
         </div>
         <p className="mt-2.5 whitespace-pre-wrap text-[15px] leading-relaxed text-slate-100">{message.body}</p>
-        {isPoll(message) && person ? <div data-tour="messages-poll"><PollView database={database} message={message} personId={person.id} /></div> : null}
+        {isPoll(message) && person ? <div><PollView database={database} message={message} personId={person.id} /></div> : null}
       </li>
     );
   };
@@ -126,7 +126,7 @@ export function PlayerMessagesPage() {
       ) : (
         <div className="grid gap-4">
           {sources.length > 1 ? (
-            <div role="group" data-tour="messages-chips" aria-label={t('messages.filter')} className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+            <div role="group" aria-label={t('messages.filter')} className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
               {sources.map((key) => {
                 const unreadHere = inbox.filter((message) => unread.has(message.id) && (sourcesById.get(message.id) ?? []).includes(key)).length;
                 const on = activeFilter === key;
@@ -147,7 +147,7 @@ export function PlayerMessagesPage() {
             </div>
           ) : null}
           {pinned.length > 0 ? (
-            <section className="grid gap-2" data-tour="messages-pinned" aria-label={t('messages.pinned')}>
+            <section className="grid gap-2" aria-label={t('messages.pinned')}>
               <p className="flex items-center gap-1.5 px-1 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500"><PinIcon className="h-3 w-3" />{t('messages.pinned')}</p>
               <ul className="grid gap-2">{pinned.map(card)}</ul>
             </section>

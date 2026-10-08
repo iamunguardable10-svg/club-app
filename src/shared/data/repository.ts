@@ -162,10 +162,9 @@ export function setBackendChoice(choice: BackendChoice): void {
 }
 
 /**
- * Hints that can be put away with "Not now": installing the app, turning on
- * notifications, the calendar (piece 20). Onboarding has its own memory (below).
+ * Functional notification opt-in can be put away with "Not now" on this device.
  */
-export type HintName = 'install' | 'notifications' | 'calendar';
+export type HintName = 'notifications';
 
 const hintKey = (name: HintName) => `club-app.hint-dismissed.${name}`;
 
@@ -186,85 +185,6 @@ export function dismissHint(name: HintName): void {
   } catch {
     // Not remembering is fine; the hint just shows again next time.
   }
-}
-
-/**
- * Onboarding seen state: kept on the device and, when signed in, with the
- * account so the welcome and future tips appear once across devices.
- */
-const TOUR_PREFIX = 'club-app.tour-seen.';
-// Accounts on a shared device keep separate memories; demo remains per device.
-const tourPrefix = () => `${TOUR_PREFIX}${remote?.getUserId() ?? 'demo'}.`;
-
-export function isTourSeen(id: string): boolean {
-  if (!isBrowser()) return true;
-  try {
-    return window.localStorage.getItem(tourPrefix() + id) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function seenTourIds(): string[] {
-  try {
-    return Array.from({ length: window.localStorage.length }, (_, index) => window.localStorage.key(index))
-      .filter((key): key is string => Boolean(key?.startsWith(tourPrefix())))
-      .map((key) => key.slice(tourPrefix().length));
-  } catch {
-    return [];
-  }
-}
-
-export function markTourSeen(id: string): void {
-  if (!isBrowser()) return;
-  try {
-    window.localStorage.setItem(tourPrefix() + id, '1');
-  } catch {
-    // Not remembering is fine; onboarding just comes again.
-  }
-  void saveToursToAccount();
-}
-
-/** Clears onboarding seen state for the active account. */
-export function resetTours(): void {
-  if (!isBrowser()) return;
-  try {
-    for (const id of seenTourIds()) window.localStorage.removeItem(tourPrefix() + id);
-  } catch {
-    // Nothing kept, nothing to reset.
-  }
-  void saveToursToAccount();
-}
-
-async function saveToursToAccount(): Promise<void> {
-  if (!isRemoteMode()) return;
-  try {
-    const supabase = await authClient();
-    const { data } = await supabase.auth.getSession();
-    if (!data.session?.user) return;
-    await supabase.auth.updateUser({ data: { tours_seen: seenTourIds() } });
-  } catch {
-    // Offline or signed out meanwhile: the device still remembers.
-  }
-}
-
-let toursFromAccount: Promise<void> | null = null;
-
-/** Takes over the tours the account has seen on other devices; once per page load. */
-export function loadToursFromAccount(): Promise<void> {
-  if (!isBrowser() || !isRemoteMode()) return Promise.resolve();
-  toursFromAccount ??= (async () => {
-    try {
-      const supabase = await authClient();
-      const { data } = await supabase.auth.getSession();
-      const seen = data.session?.user?.user_metadata?.tours_seen;
-      if (!Array.isArray(seen)) return;
-      for (const id of seen) if (typeof id === 'string') window.localStorage.setItem(tourPrefix() + id, '1');
-    } catch {
-      // The device's own memory is enough.
-    }
-  })();
-  return toursFromAccount;
 }
 
 const LOCALE_KEY = 'club-app.locale';
@@ -2305,6 +2225,7 @@ export type OwnTrainingItem = {
   personId: Id;
   playerName: string;
   title: string;
+  trainingType: LoadEntry['trainingType'];
   date: DateOnly;
   /** Null: planned for the day without a time. */
   startsAt: Timestamp | null;
@@ -2318,6 +2239,7 @@ function ownTrainingItem(database: LocalDatabase, plan: LocalDatabase['athletePl
     personId: plan.personId,
     playerName: person ? displayName(person) : 'Player',
     title: plan.title,
+    trainingType: plan.trainingType,
     date: plan.date,
     startsAt: plan.startsAt ?? null,
     endsAt: plan.startsAt ? new Date(new Date(plan.startsAt).getTime() + plan.expectedDurationMinutes * 60_000).toISOString() : null,

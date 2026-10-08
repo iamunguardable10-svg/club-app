@@ -110,7 +110,6 @@ export function FacilitiesManager({
         {isManager ? (
           <button
             type="button"
-            data-tour="halls-edit"
             onClick={() => { setEditMode((current) => !current); setError(null); }}
             className={`${smallButtonClass} ${editMode ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-200 hover:bg-slate-900'}`}
           >
@@ -190,7 +189,6 @@ function NewFacilityForm({
 
   return (
     <form
-      data-tour="halls-add"
       className="mt-4 grid gap-3 rounded-2xl border border-dashed border-slate-700 p-4"
       onSubmit={(event) => {
         event.preventDefault();
@@ -273,7 +271,7 @@ function FacilityCard({
   if (!editMode) {
     return (
       <div data-facility-id={facility.id} className="rounded-3xl border border-slate-800 bg-slate-950/70 transition hover:border-sky-300/45 hover:bg-slate-900/70" style={style}>
-        <Link href={href} data-tour="halls-open" className="block p-5">{summary}</Link>
+        <Link href={href} className="block p-5">{summary}</Link>
         {facility.address ? (
           <a href={mapsHref(facility.address)} target="_blank" rel="noreferrer" className="mx-5 mb-4 inline-block text-xs font-black text-sky-300 hover:text-sky-200">
             {t('facilities.openMaps')}
