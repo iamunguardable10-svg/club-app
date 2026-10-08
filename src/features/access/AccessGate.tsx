@@ -12,7 +12,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useBackendStatus } from '@/shared/data';
 
 /** Pages that work without being signed in or linked. */
-const OPEN_PATHS = ['/', '/login', '/join', '/found', '/reset-password', '/share/load'];
+const OPEN_PATHS = ['/', '/start', '/privacy', '/imprint', '/login', '/join', '/found', '/reset-password', '/share/load'];
 
 export function AccessGate() {
   const status = useBackendStatus();
@@ -23,7 +23,7 @@ export function AccessGate() {
     if (status.mode !== 'remote' || OPEN_PATHS.includes(pathname)) return;
     if (status.phase === 'signedOut') router.replace(`/login?next=${encodeURIComponent(pathname)}`);
     // The start page asks who they are and shows their way in.
-    if (status.phase === 'unlinked') router.replace('/');
+    if (status.phase === 'unlinked') router.replace('/start');
   }, [pathname, router, status.mode, status.phase]);
 
   return null;

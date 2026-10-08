@@ -26,7 +26,7 @@ export function SignOutButton({ className }: { className: string }) {
     try {
       await signOut();
     } finally {
-      window.location.assign('/');
+      window.location.assign('/start');
     }
   }
 

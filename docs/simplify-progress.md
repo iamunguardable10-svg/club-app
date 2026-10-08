@@ -2860,3 +2860,54 @@ Eigener Server auf 3101 und lokaler CalDAV-Testserver anschließend beendet,
 Git-Historieneingriff durch Codex. Ein externer Prozess erzeugte während der Arbeit
 WIP-Commits; diese bleiben unangetastet. Kein Zugriff auf Live-Supabase. Serverseitig
 erzeugte Push-Texte liegen unter `supabase/` und bleiben gemäß Auftrag unverändert.
+## Run 76: landing page
+
+2026-10-08. Öffentliche Landingpage unter `/` für die ersten Pilotvereine: dunkle,
+responsive Gestaltung mit echten App-Screens in Telefonrahmen, Rollenwahl für die
+Demo, lokalisierten Pilot-Mails, Zielgruppen, fünf bebilderten Funktionsgeschichten,
+Offline/Push, vier Sprachen, Datenschutz, Pilotangebot und FAQ. Deutsche Texte nativ
+formuliert; alle neuen UI-Texte und Bildbeschreibungen in en/de/fr/es. Keine neuen
+Abhängigkeiten, externen Schriften, Analyse-Tracker oder Änderungen an Supabase.
+
+Der bisherige Einstieg liegt mit derselben Funktion unter `/start`. Alte
+`/?demo=coach|athlete|club`-Links werden serverseitig nach `/start?demo=…` umgeleitet;
+auch alte Add-role- und Handoff-Links bleiben gültig. Angemeldete Konten und installierte
+Apps gehen clientseitig direkt nach `/start`; die Landingpage bleibt während dieser
+Prüfung unsichtbar. Startlinks bei Abmelden, Kontolöschung, Rollenwechsel, Fehlerseiten,
+Login-Rücksprung und Datenschutz angepasst. Manifest und Install-Handoff starten bei
+`/start`, ebenso Offline- und Push-Fallback. Datenschutz und Impressum sind öffentlich;
+sonstige Zugriffsregeln und Trainerrechte unverändert.
+
+`/imprint` mit Betreiberanschrift, Kontakt, Verantwortlichkeit, Schlichtungs- und
+Haftungshinweisen; Deutsch bei deutscher Sprache, sonst Englisch. Verlinkt im Footer
+und in Settings neben Datenschutz. Onboarding: öffentliche Rollenwahl und FAQ führen
+in die vorhandenen Demo-Willkommen-Übungen; bestehende Konten umgehen die Marketingseite.
+Abdeckung in `onboarding-concept.md` ergänzt, Stück in `plan-next-runs.md` abgeschlossen.
+
+`scripts/landing-shots.mjs` / `npm run landing:shots`: isolierter Demo-Browser auf
+Port 3102, Uhr auf 7. Oktober 2026, 390×844 bei 2×. Sieben echte WebP-Aufnahmen in
+`public/landing/` (Kalenderwoche, Spiel/Zusagen, Fahrgemeinschaften, Team-Umfrage,
+Spieler-Heute, Belastungsgraph, Vereinshallen), zusammen ca. 435 KB, jedes unter 80 KB.
+Rating-Prompt über „Später“ geschlossen, Nachrichten über den echten Team-Reiter geöffnet.
+Next/Image, englische Seitenmetadaten und Open Graph, Fokus-/Skip-Link, semantische
+Überschriften und FAQ, Reveal nur mit Transform/Opacity und Reduced-motion-Rücksicht.
+
+Geprüft: `npm run typecheck`, `npm run check:i18n`, `npm run test:i18n`,
+`npm run test:load`, `npm run test:series`, `npm run test:calendar`, `npm run build`,
+`BASE_URL=http://localhost:3102 npm run test:smoke` (90 Seitenaufrufe, keine Fehler),
+`BASE_URL=http://localhost:3102 npm run test:landing` (21 Seitenaufrufe: vier Sprachen,
+360–1920 px, Rollen-CTAs, E-Mail-Texte, alle FAQ, Altlinks, beide Standalone-Modi,
+Manifest/Handoff und Inhalt ohne JavaScript). Screenshot-Skript auf Dev- und
+Produktionsserver erfolgreich. Ein erster Smoke-Prozess endete mit SIGTERM ohne
+Prüfergebnis; derselbe unveränderte Test danach vollständig bestanden.
+
+Zwei visuelle Überarbeitungen nach Sichtung von Vollseiten und Hero-Ausschnitten:
+Screens auf echte Umfrage/Heute/Graph korrigiert, Fahrten gesondert aufgenommen,
+Hero-Zeilenbruch auf Desktop verbessert und direkter Anmeldelink ergänzt. Finale
+Vollseiten unter `/tmp/codex-landing/phone-de-final.png` (390 px) und
+`/tmp/codex-landing/desktop-en-final.png` (1440 px), angesehen. Eigener Server nur auf
+3102, anschließend beendet; `npm run clean:next-env` ausgeführt. Ports 3100/3101
+unangetastet. Kein Commit, Push oder Eingriff in die Git-Historie.
+
+Offen: echter Server-Login wurde bewusst nicht gegen das Live-Projekt getestet.
+Die vorhandene Datenschutzseite bleibt die bestehende Pilot-Zusammenfassung.

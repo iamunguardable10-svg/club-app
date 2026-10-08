@@ -2021,7 +2021,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             <p className="mt-2 text-sm text-slate-400">{t('athlete.switchToAthlete')}</p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <IdentitySwitcher />
-              <Link href="/" className="text-sm underline">{t('athlete.startPage')}</Link>
+              <Link href="/start" className="text-sm underline">{t('athlete.startPage')}</Link>
             </div>
           </section>
         </div>

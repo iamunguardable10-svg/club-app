@@ -1228,7 +1228,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         <div className="os-container">
           <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">
             <p className="mb-4">{t('coach.noCoach')}</p>
-            <Link className="underline" href="/">{t('coach.chooseRole')}</Link>
+            <Link className="underline" href="/start">{t('coach.chooseRole')}</Link>
           </section>
         </div>
       </main>

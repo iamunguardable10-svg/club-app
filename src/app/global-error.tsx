@@ -27,7 +27,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
             <p className="mt-2 text-sm text-slate-400">{t('crash.appDetail')}</p>
             <div className="mt-5 flex flex-wrap gap-2">
               <button type="button" onClick={reset} className="os-success justify-center px-4 py-2 text-sm">{t('crash.tryAgain')}</button>
-              <a href="/" className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200">{t('crash.startPage')}</a>
+              <a href="/start" className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200">{t('crash.startPage')}</a>
             </div>
           </section>
         </main>

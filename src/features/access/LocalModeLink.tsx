@@ -11,7 +11,7 @@ export function LocalModeLink({ className = '' }: { className?: string }) {
       type="button"
       onClick={() => {
         setBackendChoice('local');
-        window.location.assign('/');
+        window.location.assign('/start');
       }}
       className={`text-xs font-bold text-slate-400 underline ${className}`}
     >

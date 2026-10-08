@@ -7,7 +7,7 @@ import manifest from '../manifest';
  */
 export function GET(request: Request) {
   const code = new URL(request.url).searchParams.get('handoff') ?? '';
-  const startUrl = /^[0-9a-f]{64}$/.test(code) ? `/?handoff=${code}` : '/';
+  const startUrl = /^[0-9a-f]{64}$/.test(code) ? `/start?handoff=${code}` : '/start';
   return new Response(JSON.stringify({ ...manifest(), start_url: startUrl }), {
     headers: { 'Content-Type': 'application/manifest+json', 'Cache-Control': 'no-store' },
   });
