@@ -481,7 +481,7 @@ export function TeamWorkspaceView({
           <button
             key={section}
             type="button"
-            role="tab"`}
+            role="tab"
             aria-selected={activeSection === section}
             aria-label={sectionLabel(section)}
             onClick={() => setActiveSection(section)}

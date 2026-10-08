@@ -32,7 +32,7 @@ import {
 import { BASELINE_DAYS, acwrAfter, aggregateDailyLoads, backFromBreak, baselineAgeDays, calculateACWR, fillMissingDays, firstHighRiskDay, getLatestACWR, HIGH_RISK_ACWR, loadRoom, loadZone, projectFutureACWR, todayISO, weekChangePercent } from './loadCalculations';
 import { LoadInfoButton, LoadLandingChip, LoadRiskBadge } from './LoadHints';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
-import { athleteHasLoad, clearEntryReview, displayName, getActivePerson, newId, reviewsForPerson, rsvpModeOf, useLocalDatabase } from '@/shared/data';
+import { athleteHasLoad, clearEntryReview, displayName, getActivePerson, newId, reportAvailability, reviewsForPerson, rsvpModeOf, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
 import { formatDateRange, formatDay, formatDayMonth, formatDayNumber, formatDecimal, formatEntryDate, formatInteger, formatLongDay, formatTime as formatSharedTime, formatWeekday, formatWeekdayDay } from '@/shared/format';
@@ -50,8 +50,6 @@ import {
   readSessionsToRate,
   readTeamSessions,
   saveAcknowledged,
-  saveAvailability,
-  sayInDuringAbsence,
   saveEntries,
   saveMissedSession,
   savePlans,
@@ -1034,7 +1032,7 @@ function AthleteCalendar({
   }
 
   function startDrag(item: AthleteCalendarItem, kind: 'move' | 'resize', event: ReactPointerEvent<HTMLButtonElement | HTMLSpanElement>) {
-    if (mode !== 'edit' || !canManage(item)) return;
+    if (mode !== 'edit' || !canManage(item) || (kind === 'resize' && item.trainingType === 'game')) return;
     event.stopPropagation();
     const activeDrag = { item, kind, startedAt: item.startsAt, durationMinutes: itemDuration(item) };
     const startX = event.clientX;
@@ -1163,10 +1161,10 @@ function AthleteCalendar({
               ? t('calendar.outAt', { time: formatTime(displayStartsAt) })
               : item.status === 'late'
                 ? t('calendar.lateAt', { time: formatTime(displayStartsAt) })
-              : compact ? formatTime(displayStartsAt) : `${formatTime(displayStartsAt)}${displayEndsAt ? ` - ${formatTime(displayEndsAt)}` : ''} · ${item.source === 'private_event' ? t('calendar.private') : item.teamName ?? loadTypeLabel(item.trainingType)}`}
+              : compact ? formatTime(displayStartsAt) : `${formatTime(displayStartsAt)}${displayEndsAt && item.trainingType !== 'game' ? ` - ${formatTime(displayEndsAt)}` : ''} · ${item.source === 'private_event' ? t('calendar.private') : item.teamName ?? loadTypeLabel(item.trainingType)}`}
           </span>
         ) : null}
-        {manageable ? <span aria-hidden="true" onPointerDown={(event) => startDrag(item, 'resize', event)} className={resizeClass} /> : null}
+        {manageable && item.trainingType !== 'game' ? <span aria-hidden="true" onPointerDown={(event) => startDrag(item, 'resize', event)} className={resizeClass} /> : null}
       </button>
     );
   }
@@ -1325,6 +1323,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [availabilityDraft, setAvailabilityDraft] = useState<AvailabilityDraft>('expected');
   const [availabilityReason, setAvailabilityReason] = useState('');
   const [lateMinutes, setLateMinutes] = useState(10);
+  const [availabilityEditing, setAvailabilityEditing] = useState(false);
 
   const { database, error: dataError, ready } = useLocalDatabase();
   const activePerson = database ? getActivePerson(database) : null;
@@ -1840,26 +1839,18 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     }
     setError(null);
 
-    setAvailabilityBySessionId((current) => {
-      const next = new Map(current);
-      const wasAway = current.get(session.id)?.fromAbsence === true;
-      if (status === 'expected') next.delete(session.id);
-      else next.set(session.id, { status, reason: trimmedReason, lateMinutes: status === 'late' ? minutes : null });
-      if (activePersonId) {
-        saveAvailability(activePersonId, next);
-        // Coming anyway although away for a period (piece 16).
-        // Saying yes out loud: coming anyway although away for a period (piece
-        // 16), or a player who answers every session themselves (piece A).
-        if (status === 'expected' && (wasAway || manualRsvp)) sayInDuringAbsence(activePersonId, session.id);
-      }
-      return next;
-    });
-    setCancelledSessionIds((current) => {
-      const next = new Set(current);
-      if (status === 'out') next.add(session.id);
-      else next.delete(session.id);
-      return next;
-    });
+    if (!activePersonId || Date.parse(session.startsAt) <= Date.now()) return false;
+    try {
+      reportAvailability({
+        sessionId: session.id, personId: activePersonId,
+        status: status === 'expected' ? 'in' : status,
+        reason: status === 'expected' ? null : trimmedReason,
+        lateMinutes: status === 'late' ? minutes : null,
+      });
+    } catch (caught) {
+      setError(errorText(t, caught));
+      return false;
+    }
 
     return true;
   }
@@ -1983,6 +1974,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       setAvailabilityDraft(availability?.status === 'missed' ? 'out' : availability?.status ?? 'expected');
       setAvailabilityReason(availability?.reason ?? '');
       setLateMinutes(availability?.lateMinutes ?? 10);
+      setAvailabilityEditing(false);
       setPlanForm({
         trainingType: item.trainingType,
         date: item.date,
@@ -2182,7 +2174,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                     <p className="min-w-0 text-2xl font-black tracking-tight">{displayTitle(nextSession.title)}</p>
                     {landingAfter.has(nextSession.id) ? <LoadLandingChip value={landingAfter.get(nextSession.id)!} large /> : null}
                   </div>
-                  <p className="mt-1 text-sm font-bold text-slate-300">{formatDay(nextSession.startsAt)} · {formatTime(nextSession.startsAt)}{nextSession.endsAt ? `–${formatTime(nextSession.endsAt)}` : ''} · {nextSession.teamName ?? t('athlete.ownPlan')}</p>
+                  <p className="mt-1 text-sm font-bold text-slate-300">{formatDay(nextSession.startsAt)} · {formatTime(nextSession.startsAt)}{nextSession.endsAt && nextSession.trainingType !== 'game' ? `–${formatTime(nextSession.endsAt)}` : ''} · {nextSession.teamName ?? t('athlete.ownPlan')}</p>
                   {nextSession.info ? (() => {
                     const info = { ...nextSession.info, startsAt: nextSession.startsAt };
                     const place = info.homeAway === 'away' ? info.venueAddress : info.facilityName;
@@ -2246,7 +2238,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">{t('athlete.detail.kicker')}</p>
                 <h2 className="mt-1 text-2xl font-black tracking-tight">{activeDetailItem.source === 'private_event' ? activeDetailItem.title : displayTitle(activeDetailItem.title)}</h2>
                 <p className="mt-1 text-sm font-bold text-slate-500">
-                  {formatEntryDate(activeDetailItem.date)} · {formatTime(activeDetailItem.startsAt)}{activeDetailItem.endsAt ? ` - ${formatTime(activeDetailItem.endsAt)}` : ''}
+                  {formatEntryDate(activeDetailItem.date)} · {formatTime(activeDetailItem.startsAt)}{activeDetailItem.endsAt && activeDetailItem.trainingType !== 'game' ? ` - ${formatTime(activeDetailItem.endsAt)}` : ''}
                 </p>
               </div>
               <button type="button" onClick={() => setActiveDetailItem(null)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">{t('athlete.close')}</button>
@@ -2414,9 +2406,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 {(() => {
                   const mark = activeComposerSession ? availabilityForSession(activeComposerSession.id) : undefined;
                   const isWarmup = activeComposerSession?.trainingType === 'warmup';
+                  const hasAnswer = Boolean(mark || (activeComposerSession && saidInIds.has(activeComposerSession.id)));
+                  const collapsed = hasAnswer && !availabilityEditing;
                   return (
                     <>
-                      <p>
+                      {!collapsed ? <p>
                         {isWarmup
                           ? t('composer.warmupAttached')
                           : activeComposerSession && isOpenSession(activeComposerSession)
@@ -2426,13 +2420,22 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                             : mark?.status === 'late'
                               ? (mark.lateMinutes ? t('composer.markedLateBy', { count: mark.lateMinutes }) : t('composer.markedLate'))
                               : t('composer.scheduled')}
-                      </p>
-                      {activeComposerSession && !isWarmup ? (
+                      </p> : null}
+                      {activeComposerSession && !isWarmup ? collapsed ? (
+                        <div className="flex items-center justify-between gap-3" role="status">
+                          <span className={`min-w-0 break-words rounded-2xl px-3 py-2 text-sm font-bold [overflow-wrap:anywhere] ${mark?.status === 'out' ? 'bg-rose-400/15 text-rose-200' : mark?.status === 'late' ? 'bg-amber-300/15 text-amber-200' : 'bg-emerald-300/15 text-emerald-200'}`}>
+                            {mark?.status === 'out' ? t('composer.out') : mark?.status === 'late' ? t('composer.late') : t('composer.youAreIn')}
+                            {mark?.status === 'late' && mark.lateMinutes != null ? ` · ${t('composer.minutes', { count: mark.lateMinutes })}` : ''}
+                            {mark?.reason ? ` · ${mark.reason}` : ''}
+                          </span>
+                          <button type="button" onClick={() => setAvailabilityEditing(true)} aria-expanded={false} className="shrink-0 rounded-full px-2 py-2 text-xs font-bold text-sky-300">{t('composer.change')}</button>
+                        </div>
+                      ) : (
                         <div className="space-y-3">
                           <div className="grid grid-cols-3 gap-2">
-                            <button type="button" onClick={() => setAvailabilityDraft('expected')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'expected' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.available')}</button>
-                            <button type="button" onClick={() => setAvailabilityDraft('late')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'late' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.late')}</button>
-                            <button type="button" onClick={() => setAvailabilityDraft('out')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'out' ? 'border-rose-300 bg-rose-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.out')}</button>
+                            <button type="button" aria-pressed={availabilityDraft === 'expected'} onClick={() => setAvailabilityDraft('expected')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'expected' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.available')}</button>
+                            <button type="button" aria-pressed={availabilityDraft === 'late'} onClick={() => setAvailabilityDraft('late')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'late' ? 'border-amber-300 bg-amber-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.late')}</button>
+                            <button type="button" aria-pressed={availabilityDraft === 'out'} onClick={() => setAvailabilityDraft('out')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'out' ? 'border-rose-300 bg-rose-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.out')}</button>
                           </div>
                           {availabilityDraft === 'late' || availabilityDraft === 'out' ? (
                             <label className="block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
@@ -2443,7 +2446,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                           {availabilityDraft === 'late' ? (
                             <label className="block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                               {t('composer.lateMinutes')}
-                              <input type="range" min="5" max="60" step="5" value={lateMinutes} onChange={(event) => setLateMinutes(Number(event.target.value))} className="mt-2 w-full accent-sky-300" />
+                              <input type="range" min="5" max="60" step="1" aria-label={t('composer.lateMinutes')} value={lateMinutes} onChange={(event) => setLateMinutes(Number(event.target.value))} className="mt-2 w-full accent-sky-300" />
                               <span className="mt-1 block text-sm font-black normal-case tracking-normal text-white">{t('composer.minutes', { count: lateMinutes })}</span>
                             </label>
                           ) : null}
@@ -2452,8 +2455,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                             onClick={async () => {
                               const saved = await setTeamSessionAvailability(activeComposerSession, availabilityDraft, availabilityReason, availabilityDraft === 'late' ? lateMinutes : null);
                               if (!saved) return;
-                              setComposerOpen(false);
-                              setActiveComposerSession(null);
+                              setAvailabilityEditing(false);
                             }}
                             className="w-full rounded-2xl bg-emerald-300 px-4 py-3 text-sm font-black text-slate-950"
                           >

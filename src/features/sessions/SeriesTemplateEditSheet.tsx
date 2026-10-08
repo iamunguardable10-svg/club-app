@@ -147,10 +147,10 @@ function SeriesTemplateEditorForm({
           <input value={startTime} onChange={(event) => setStartTime(event.target.value)} type="time" className={timeInputClass} />
         </label>
         {!isGame ? (
-        <label className={labelClass}>
-          {t('sessionForm.end')}
-          <input value={endTime} onChange={(event) => setEndTime(event.target.value)} type="time" className={timeInputClass} />
-        </label>
+          <label className={labelClass}>
+            {t('sessionForm.end')}
+            <input value={endTime} onChange={(event) => setEndTime(event.target.value)} type="time" className={timeInputClass} />
+          </label>
         ) : null}
       </div>
 

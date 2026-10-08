@@ -6,6 +6,9 @@
 
 import { addDays, latestSeriesEnd, seriesDates, seriesEnd, thisAndFollowing, weekdayOf } from './planSeries';
 
+import { gameDurationMinutes, gameEndAt, gameTemplateDuration, gameTemplateEnd } from '../sessions/gameTiming';
+import { buildSeriesWeekItems } from '../sessions/sessionSeriesPlanner';
+
 let failures = 0;
 function check(label: string, condition: boolean, detail?: unknown) {
   if (condition) {
@@ -38,6 +41,12 @@ const plans = [
 check('this and following: from the second on', thisAndFollowing(plans, plans[1]).map((plan) => plan.id).join() === 'b,c');
 check('… not other series', !thisAndFollowing(plans, plans[0]).some((plan) => plan.id === 'x'));
 check('a single plan: only itself', thisAndFollowing(plans, plans[4]).map((plan) => plan.id).join() === 'y');
+
+check('new games last two hours, even across midnight', gameEndAt('2026-10-08T23:00:00Z') === '2026-10-09T01:00:00.000Z');
+check('moving an existing game keeps its custom duration', gameEndAt('2026-10-10T11:00:00Z', gameDurationMinutes('2026-10-08T11:00:00Z', '2026-10-08T12:37:00Z')) === '2026-10-10T12:37:00.000Z');
+check('weekly games can end on the next day', gameTemplateDuration('23:00', '01:00') === 120 && gameTemplateEnd('23:00') === '01:00');
+const gameWeek = buildSeriesWeekItems([{ id: 'night-game', department: 'Basketball', team: 'U16', sessionType: 'game', weekday: 6, startTime: '23:00', endTime: '01:00' }], [], '2026-10-05')[0];
+check('weekly games materialize their stored overnight duration', gameWeek.durationMinutes === 120 && Date.parse(gameWeek.endsAt) - Date.parse(gameWeek.startsAt) === 120 * 60_000);
 
 console.log(failures === 0 ? 'all series checks passed' : `${failures} series check(s) failed`);
 process.exit(failures === 0 ? 0 : 1);

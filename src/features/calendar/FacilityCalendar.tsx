@@ -411,6 +411,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   const conflictSessions = useMemo<ConflictSession[]>(() => sessions.map((session) => ({
     id: session.id,
     title: session.title,
+    sessionType: session.session_type,
     startsAt: session.starts_at,
     endsAt: session.ends_at,
     facilityId,
@@ -600,7 +601,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     }
 
     function handlePointerMove(event: globalThis.PointerEvent) {
-      const originalDuration = durationMinutes(activeDrag.originalStart, activeDrag.originalEnd);
+      const originalDuration = sessions.find((session) => session.id === activeDrag.sessionId)?.session_type === 'game' ? (activeDrag.originalEnd.getTime() - activeDrag.originalStart.getTime()) / 60_000 : durationMinutes(activeDrag.originalStart, activeDrag.originalEnd);
       const currentStartMinutes = minutesFromDayStart(activeDrag.originalStart);
       const deltaMinutes = roundToSlot((event.clientY - activeDrag.startY) * activeDrag.minutesPerPixel);
       const maxMinutes = (lastHour - firstHour) * 60;

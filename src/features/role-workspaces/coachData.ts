@@ -377,6 +377,7 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
     .map((session) => ({
       id: session.id,
       title: session.title,
+      sessionType: session.sessionType,
       startsAt: session.startsAt,
       endsAt: session.endsAt,
       facilityId: session.facilityId,

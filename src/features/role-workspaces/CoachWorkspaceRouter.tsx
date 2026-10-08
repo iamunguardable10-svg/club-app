@@ -354,6 +354,7 @@ export function CoachCalendarSurface({
       byId.set(session.id, {
         id: session.id,
         title: session.title,
+        sessionType: session.sessionType,
         startsAt: session.startsAt,
         endsAt: session.endsAt,
         facilityId: session.facilityId,
@@ -428,6 +429,7 @@ export function CoachCalendarSurface({
         checkedCandidates.push({
           id: `series-candidate-${item.id}`,
           title: labelForCoachSessionType(item.sessionType),
+          sessionType: item.sessionType,
           startsAt: item.startsAt,
           endsAt: item.endsAt,
           facilityId: item.facilityId ?? item.facility ?? null,
@@ -744,7 +746,7 @@ export function CoachCalendarSurface({
       setLocalSessions((current) => current.map((session) => session.id === activeDrag.sessionId ? { ...session, startsAt: start.toISOString(), endsAt: end.toISOString() } : session));
     }
     function handlePointerMove(event: globalThis.PointerEvent) {
-      const originalDuration = durationMinutes(activeDrag.originalStart, activeDrag.originalEnd); const currentStartMinutes = minutesFromDayStart(activeDrag.originalStart); const deltaMinutes = roundToSlot((event.clientY - activeDrag.startY) * activeDrag.minutesPerPixel); const maxMinutes = (lastHour - firstHour) * 60;
+      const originalDuration = originalSession?.sessionType === 'game' || draft?.sessionType === 'game' ? (activeDrag.originalEnd.getTime() - activeDrag.originalStart.getTime()) / 60_000 : durationMinutes(activeDrag.originalStart, activeDrag.originalEnd); const currentStartMinutes = minutesFromDayStart(activeDrag.originalStart); const deltaMinutes = roundToSlot((event.clientY - activeDrag.startY) * activeDrag.minutesPerPixel); const maxMinutes = (lastHour - firstHour) * 60;
       if (Math.abs(event.clientY - activeDrag.startY) > 3 || Math.abs(event.clientX - activeDrag.startX) > 3) didDragRef.current = true;
       if (activeDrag.kind === 'resize') { const nextDuration = clamp(originalDuration + deltaMinutes, 30, maxMinutes - currentStartMinutes); applyTimes(activeDrag.originalStart, addMinutes(activeDrag.originalStart, nextDuration)); return; }
       const targetDay = days[dayIndexFromPointer(event.clientX)]; const nextStartMinutes = clamp(currentStartMinutes + deltaMinutes, 0, maxMinutes - originalDuration); const nextStart = createDateForCalendarMinute(targetDay, nextStartMinutes); applyTimes(nextStart, addMinutes(nextStart, originalDuration));

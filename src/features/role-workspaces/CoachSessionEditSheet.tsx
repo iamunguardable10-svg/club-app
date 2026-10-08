@@ -186,10 +186,10 @@ export function CoachSessionEditSheet({
           </label>
         </div>
 
-        <label className="mt-2.5 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+        {isGame ? <label className="mt-2.5 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
           {t('composer.date')}
           <input type="date" value={dateValue} onChange={(event) => { setDateValue(event.target.value); if (event.target.value) onDraftUpdate?.(nextTimeRange(timeValue, endTimeValue, sessionType, event.target.value)); }} className="mt-1 block h-9 w-40 min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-sm font-bold text-slate-100 [color-scheme:dark]" />
-        </label>
+        </label> : null}
         <div className={`mt-2.5 grid min-w-0 gap-2 sm:gap-2.5 ${isGame ? 'grid-cols-[minmax(0,1fr)_6rem] sm:grid-cols-[minmax(0,1fr)_7rem]' : 'grid-cols-[minmax(0,1fr)_4.35rem_4.35rem] sm:grid-cols-[minmax(0,1fr)_7rem_7rem]'}`}>
           <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
             {t('sessionForm.type')}
@@ -202,10 +202,10 @@ export function CoachSessionEditSheet({
             <input value={timeValue} onChange={(event) => handleStartTimeChange(event.target.value)} type="time" className="mt-1 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2 sm:text-sm [color-scheme:dark]" />
           </label>
           {!isGame ? (
-          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-            {t('sessionForm.end')}
-            <input value={endTimeValue} onChange={(event) => handleEndTimeChange(event.target.value)} type="time" className="mt-1 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2 sm:text-sm [color-scheme:dark]" />
-          </label>
+            <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+              {t('sessionForm.end')}
+              <input value={endTimeValue} onChange={(event) => handleEndTimeChange(event.target.value)} type="time" className="mt-1 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2 sm:text-sm [color-scheme:dark]" />
+            </label>
           ) : null}
         </div>
 
@@ -269,7 +269,7 @@ export function CoachSessionEditSheet({
 
         <div className="mt-4 flex flex-wrap justify-between gap-2">
           {onDelete ? <button type="button" onClick={() => setConfirmDelete(true)} className="rounded-lg border border-red-500/60 px-3 py-1.5 text-sm font-black text-red-100 hover:bg-red-950/35">{t('sessionForm.delete')}</button> : <span />}
-          <button type="button" onClick={() => { void submit(); }} disabled={isSaving || !hasTeam || !teamId || (!facilityId && !isAwayGame)} className="rounded-lg bg-emerald-300 px-4 py-1.5 text-sm font-black text-slate-950 disabled:opacity-60">{isSaving ? t('sessionForm.saving') : t('sessionForm.save')}</button>
+          <button type="button" onClick={() => { void submit(); }} disabled={isSaving || !dateValue || !timeValue || !hasTeam || !teamId || (!facilityId && !isAwayGame)} className="rounded-lg bg-emerald-300 px-4 py-1.5 text-sm font-black text-slate-950 disabled:opacity-60">{isSaving ? t('sessionForm.saving') : t('sessionForm.save')}</button>
         </div>
       </section>
       <AppConfirmDialog isOpen={confirmDelete} title={t('coach.delete.title')} description={t('coach.delete.detail')} confirmLabel={t('coach.delete.confirm')} cancelLabel={t('coach.delete.keep')} tone="danger" isConfirming={isSaving} onConfirm={() => { setConfirmDelete(false); onDelete?.(); }} onCancel={() => setConfirmDelete(false)} />

@@ -90,18 +90,18 @@ export function InstallHint({ variant }: { variant: 'menu' | 'settings' }) {
     </button>
   ) : null;
 
-    return (
-      <div className={`grid gap-2 text-sm text-slate-300 ${variant === 'menu' ? 'mt-6 border-t border-slate-800 pt-4' : ''}`}>
-        <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="flex items-center justify-between text-left">
-          <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{t('install.asApp')}</span>
-          <span aria-hidden className="text-lg font-black text-slate-500">{open ? '−' : '+'}</span>
-        </button>
-        {open ? (
-          <>
-            <Steps platform={platform} canPrompt={canPrompt} />
-            {installButton ? <div>{installButton}</div> : null}
-          </>
-        ) : null}
-      </div>
-    );
-  }
+  return (
+    <div className={`grid gap-2 text-sm text-slate-300 ${variant === 'menu' ? 'mt-6 border-t border-slate-800 pt-4' : ''}`}>
+      <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="flex items-center justify-between text-left">
+        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{t('install.asApp')}</span>
+        <span aria-hidden className="text-lg font-black text-slate-500">{open ? '−' : '+'}</span>
+      </button>
+      {open ? (
+        <>
+          <Steps platform={platform} canPrompt={canPrompt} />
+          {installButton ? <div>{installButton}</div> : null}
+        </>
+      ) : null}
+    </div>
+  );
+}

@@ -355,10 +355,10 @@ export function SessionDetailSheet({
                       <input value={timeValue} onChange={(event) => setTimeValue(event.target.value)} type="time" className="mt-1 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2 sm:text-sm [color-scheme:dark]" />
                     </label>
                     {sessionType !== 'game' ? (
-                    <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
-                      {t('sessionSheet.end')}
-                      <input value={endTimeValue} onChange={(event) => setEndTimeValue(event.target.value)} type="time" className="mt-1 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2 sm:text-sm [color-scheme:dark]" />
-                    </label>
+                      <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+                        {t('sessionSheet.end')}
+                        <input value={endTimeValue} onChange={(event) => setEndTimeValue(event.target.value)} type="time" className="mt-1 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2 sm:text-sm [color-scheme:dark]" />
+                      </label>
                     ) : null}
                     <button type="button" onClick={() => { void saveTimeChange(); }} disabled={isSavingTime} className="h-9 w-fit rounded-lg border border-emerald-300 bg-emerald-300 px-3 text-xs font-black text-slate-950 disabled:opacity-60">
                       {t('sessionSheet.save')}

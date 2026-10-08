@@ -103,7 +103,7 @@ function RateForm({
 
         <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
           <p className="text-base font-black">{displayTitle(session.title)}</p>
-          <p className="mt-0.5 text-sm font-bold text-slate-400">{formatSessionTime(session.startsAt, session.endsAt, session.sessionType)}{session.teamName ? ` · ${session.teamName}` : ''}</p>
+          <p className="mt-0.5 text-sm font-bold text-slate-400">{formatSessionTime(session.startsAt, session.endsAt, session.trainingType)}{session.teamName ? ` · ${session.teamName}` : ''}</p>
         </div>
 
         {isGame ? (
