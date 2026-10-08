@@ -3,7 +3,6 @@
 import { type MouseEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Carpools, CarpoolSummary } from '@/features/sessions/Carpools';
 import { SessionInfo, gameLine, meetLine, squadLine } from '@/features/sessions/SessionInfo';
-import { AbsencePanel } from '@/features/absences/AbsencePanel';
 import Link from 'next/link';
 import {
   Bar,
@@ -399,6 +398,11 @@ function LoadRoomMetric({ latest, entries, baselineReady }: { latest: ReturnType
       </div>
     </div>
   );
+}
+
+function AvailabilityPill({ label }: { label: { text: string; tone: 'in' | 'late' | 'out' | 'open' | 'plain' } }) {
+  const tone = label.tone === 'in' ? 'bg-emerald-400/15 text-emerald-200' : label.tone === 'late' || label.tone === 'open' ? 'bg-amber-300/15 text-amber-200' : label.tone === 'out' ? 'bg-rose-400/15 text-rose-200' : 'bg-slate-800 text-slate-300';
+  return <span data-testid="availability-pill" className={`mt-3 inline-flex max-w-full rounded-full px-3 py-1 text-xs font-black ${tone}`}><span className="truncate">{label.text}{label.tone === 'in' ? ' ✓' : ''}</span></span>;
 }
 
 function AcwrMetric({ latest, baselineReady, tone }: { latest: ReturnType<typeof getLatestACWR>; baselineReady: boolean; tone: 'default' | 'ready' | 'high' | 'low' | 'neutral' }) {
@@ -1448,14 +1452,15 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   function nextSessionItem(session: AthletePendingSession): AthleteCalendarItem {
     return { id: session.id, title: session.title, date: session.date, startsAt: session.startsAt, endsAt: session.endsAt, trainingType: session.trainingType, teamName: session.teamName, status: session.date < todayISO() ? 'missing' : 'planned', source: session.source ?? 'team_session', session };
   }
-  function availabilityLabelFor(session: AthletePendingSession) {
-    if (session.source === 'athlete_plan') return t('athlete.availability.ownPlan');
-    if (session.trainingType === 'warmup') return t('athlete.availability.warmup');
+  /** The short state for the next-session card: one coloured pill, tap the card to change it. */
+  function availabilityPillFor(session: AthletePendingSession): { text: string; tone: 'in' | 'late' | 'out' | 'open' | 'plain' } {
+    if (session.source === 'athlete_plan') return { text: t('athlete.availability.ownPlan'), tone: 'plain' };
+    if (session.trainingType === 'warmup') return { text: t('athlete.availability.warmup'), tone: 'plain' };
     const mark = availabilityForSession(session.id);
-    if (mark?.status === 'out') return t('composer.markedOut');
-    if (mark?.status === 'late') return mark.lateMinutes ? t('athlete.availability.lateMinutes', { count: mark.lateMinutes }) : t('athlete.availability.late');
-    if (isOpenSession(session)) return t('athlete.availability.open');
-    return t('athlete.availability.in');
+    if (mark?.status === 'out') return { text: t('composer.out') + (mark.reason ? ` · ${mark.reason}` : ''), tone: 'out' };
+    if (mark?.status === 'late') return { text: t('composer.late') + (mark.lateMinutes ? ` · ${t('composer.minutes', { count: mark.lateMinutes })}` : ''), tone: 'late' };
+    if (isOpenSession(session)) return { text: t('athlete.availability.open'), tone: 'open' };
+    return { text: t('composer.youAreIn'), tone: 'in' };
   }
   const calendarItems = useMemo(() => {
     const reportedSessionIds = new Set(sortedEntries.map((entry) => entry.sessionId).filter(Boolean));
@@ -2051,11 +2056,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       showLoad={hasLoad}
       title={activeView === 'home' ? t('athlete.title.today') : activeView === 'calendar' ? t('athlete.title.calendar') : t('athlete.title.load')}
       subtitle={activeView === 'home' ? formatLongDay(new Date()) : activeView === 'calendar' ? (hasLoad ? t('athlete.subtitle.calendarWithLoad') : t('athlete.subtitle.calendar')) : t('athlete.subtitle.load')}
-      actions={hasLoad ? (
-        <button type="button" onClick={copyTrainerShareLink} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${shareStatus === 'copied' ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100' : shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
-          {shareStatus === 'copied' ? t('athlete.share.copied') : shareStatus === 'error' ? t('athlete.share.error') : shareActive ? t('athlete.share.on') : t('athlete.share.off')}
-        </button>
-      ) : undefined}
+      menuAction={hasLoad ? { label: shareStatus === 'copied' ? t('athlete.share.copied') : shareStatus === 'error' ? t('athlete.share.error') : shareActive ? t('athlete.share.on') : t('athlete.share.off'), onSelect: () => { void copyTrainerShareLink(); } } : undefined}
     >
         {error ? <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 px-4 py-3 text-sm font-bold text-rose-100">{error}</div> : null}
 
@@ -2184,7 +2185,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   })() : null}
                   <CarpoolSummary sessionId={nextSession.id} />
                   {nextSession.info?.notes ? <p className="mt-1 line-clamp-2 text-xs font-bold text-slate-400">{nextSession.info.notes}</p> : null}
-                  <p className={`mt-3 text-xs font-bold ${isOpenSession(nextSession) ? 'text-amber-200' : 'text-emerald-200'}`}>{availabilityLabelFor(nextSession)}</p>
+                  <AvailabilityPill label={availabilityPillFor(nextSession)} />
                 </button>
                 {/* Piece A: no answer yet from a player who says yes themselves. */}
                 {isOpenSession(nextSession) ? (
@@ -2211,7 +2212,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                           {landingAfter.has(plan.id) ? <span className="shrink-0"><LoadLandingChip value={landingAfter.get(plan.id)!} /></span> : null}
                         </div>
                         <p className="mt-0.5 text-xs font-bold text-slate-500">
-                          {formatEntryDate(plan.date)} · {plan.startsAt ? formatTime(plan.startsAt) : t('athlete.noTime')} · {t('athlete.expected', { load: plan.expectedRpe * plan.expectedDurationMinutes })}
+                          {formatEntryDate(plan.date)} · {plan.startsAt ? formatTime(plan.startsAt) : t('athlete.noTime')}
                         </p>
                       </div>
                       <button type="button" onClick={() => setDeleteTarget({ kind: 'plan', id: plan.id, title: plan.title })} aria-label={t('athlete.delete')} title={t('athlete.delete')} className="absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full text-lg leading-none text-slate-500 hover:bg-rose-400/10 hover:text-rose-200">
@@ -2219,13 +2220,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                       </button>
                     </div>
                   ))}
-                </div>
-              ) : null}
-              {/* Piece 16: away for a period (injured, sick, holiday …). */}
-              {activePersonId ? (
-                <div className="mt-4 border-t border-slate-800/80 pt-4">
-                  <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('athlete.away')}</p>
-                  <AbsencePanel personId={activePersonId} viewer="self" showReasons />
                 </div>
               ) : null}
             </div>

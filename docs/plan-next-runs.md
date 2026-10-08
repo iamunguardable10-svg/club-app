@@ -367,6 +367,13 @@ Spieler ohne Konto nötig).
 
 ## Was außerhalb des Codes offen ist
 
+**Vor Werbung und Pilot (Ben, gemerkt 2026-10-08):**
+- [ ] Auftragsverarbeitungsverträge (AVV/DPA) mit Supabase (Dashboard → Organization → Legal Documents) und Vercel (vercel.com/legal/dpa) abschließen.
+- [ ] Mail-Dienst (SMTP, z. B. Brevo oder Resend) anlegen und in Supabase → Authentication → SMTP eintragen; ohne ihn verschickt Supabase nur wenige Mails pro Stunde.
+- [ ] Supabase Pro prüfen (sonst keine täglichen Backups, Pause nach 7 Tagen ohne Nutzung).
+- [ ] Testdaten löschen: Wegwerf-Verein der Live-Tests (`delete from public.clubs where id = 'c1a0de00-0000-4000-8000-000000000c01'; delete from auth.users where id::text like 'c1a0de00-%';`).
+- [ ] Rechtstexte (Datenschutz, Nutzungsbedingungen, Impressum, Einwilligung) vor dem öffentlichen Start juristisch gegenlesen lassen.
+
 - Supabase: E-Mail-Bestätigung / SMTP, Site URL und Redirect-URLs.
 - Vercel-Projekt und Adresse.
 - Gründungs-Code für den eigenen Verein (kommt mit Stück 8).

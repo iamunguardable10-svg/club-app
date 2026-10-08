@@ -73,6 +73,8 @@ type ShellProps = {
   back?: { href: string; label: string };
   /** Buttons next to the title (right side on desktop, below it on phones). */
   actions?: ReactNode;
+  /** One page-specific entry in the profile menu (e.g. the player's share link). */
+  menuAction?: { label: string; onSelect: () => void };
   children: ReactNode;
 };
 
@@ -103,7 +105,7 @@ export function ActiveRoleShell(props: ShellProps) {
   return <RoleShell nav={nav} active={null} {...props} />;
 }
 
-function RoleShell({ nav, active, title, subtitle, back, actions, children }: ShellProps & { nav: NavEntry[]; active: NavItem | null }) {
+function RoleShell({ nav, active, title, subtitle, back, actions, menuAction, children }: ShellProps & { nav: NavEntry[]; active: NavItem | null }) {
   const t = useT();
   const { database } = useLocalDatabase();
   const person = database ? getActivePerson(database) : null;
@@ -163,7 +165,7 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
           >
             {t('nav.settings')}
           </Link>
-          <IdentitySwitcher className="w-full" />
+          <IdentitySwitcher className="w-full" extraAction={menuAction} />
         </div>
       </aside>
 
@@ -187,7 +189,7 @@ function RoleShell({ nav, active, title, subtitle, back, actions, children }: Sh
                 {unread > 0 ? <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-400 px-1 text-[10px] font-black text-slate-950">{unread}</span> : null}
               </Link>
             ) : null}
-            <IdentitySwitcher variant="avatar" className="md:hidden" />
+            <IdentitySwitcher variant="avatar" className="md:hidden" extraAction={menuAction} />
           </div>
         </div>
         {actions ? <div className="flex flex-wrap items-center gap-2 px-4 pb-3 md:hidden">{actions}</div> : null}
