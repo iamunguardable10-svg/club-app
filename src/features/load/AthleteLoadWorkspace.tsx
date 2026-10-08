@@ -2406,7 +2406,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 {(() => {
                   const mark = activeComposerSession ? availabilityForSession(activeComposerSession.id) : undefined;
                   const isWarmup = activeComposerSession?.trainingType === 'warmup';
-                  const hasAnswer = Boolean(mark || (activeComposerSession && saidInIds.has(activeComposerSession.id)));
+                  // Automatic RSVP: no record already means "in", so it shows as answered.
+                  const hasAnswer = Boolean(mark || (activeComposerSession && (saidInIds.has(activeComposerSession.id) || !isOpenSession(activeComposerSession))));
                   const collapsed = hasAnswer && !availabilityEditing;
                   return (
                     <>

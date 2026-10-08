@@ -2023,9 +2023,10 @@ export async function remindOpenPlayers(sessionId: Id): Promise<number> {
 }
 
 /**
- * Records an explicit answer for a session. Automatic RSVP still treats no
- * record as attending; an explicit "in" is kept so the interface can show
- * that the player has answered, and so it overrides a period of absence.
+ * Records how an athlete reports in for a session. Reporting 'in' removes an
+ * earlier absence rather than storing a row, so for players who answer
+ * automatically "no record" means "expected to attend"; players who say yes
+ * themselves ('manual') and anyone away for that day keep an explicit 'in'.
  */
 export function reportAvailability(input: {
   sessionId: Id;
@@ -2045,6 +2046,10 @@ export function reportAvailability(input: {
       (entry) => entry.sessionId === input.sessionId && entry.personId === input.personId,
     );
     database.availability = database.availability.filter((entry) => entry !== previous);
+    // "In" is normally the absence of a report; during an absence it is said
+    // out loud, so it wins over the absence for this session (piece 16).
+    const session = database.sessions.find((candidate) => candidate.id === input.sessionId);
+    if (input.status === 'in' && rsvpModeOf(database, input.personId) !== 'manual' && !(session && absenceOn(database, input.personId, sessionDate(session.startsAt)))) return;
     database.availability.push({
       // A changed report keeps its row (and its id on the server).
       id: previous?.id ?? newId(),
