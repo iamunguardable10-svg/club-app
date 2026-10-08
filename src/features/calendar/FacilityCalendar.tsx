@@ -398,6 +398,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
       sessions.map((session) => ({
         id: session.id,
         title: session.title,
+        sessionType: session.session_type,
         startsAt: session.starts_at,
         endsAt: session.ends_at,
         teamName: teamById.get(session.owner_team_id)?.name ?? tr('hallCalendar.team'),
@@ -691,6 +692,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   }
 
   function startSessionDrag(session: Session, kind: DragState['kind'], event: PointerEvent<HTMLElement>) {
+    if (kind === 'resize' && session.session_type === 'game') return;
     event.stopPropagation();
     if (mode !== 'edit' || !canManageSession(session)) return;
     event.preventDefault();

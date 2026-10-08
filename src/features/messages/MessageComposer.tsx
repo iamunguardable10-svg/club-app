@@ -172,7 +172,7 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
 
   return (
     <form className="grid gap-2 rounded-2xl border border-slate-800 bg-slate-950/60 p-3" onSubmit={(event) => { event.preventDefault(); send(); }}>
-      <div data-tour="compose-to" className="flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-xs font-black text-slate-400">{t('writeMessage.to')}</span>
         {targets.wholeClub ? chip('club', database.club.name, () => setTargets({ ...targets, wholeClub: false })) : null}
         {targets.departmentIds.map((id) => chip(`d${id}`, departmentName(id), () => setTargets({ ...targets, departmentIds: toggle(targets.departmentIds, id) })))}
@@ -184,7 +184,7 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
       </div>
 
       {picking ? (
-        <div data-tour="compose-recipients" className="grid gap-3 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+        <div className="grid gap-3 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
           {allowed.wholeClub || allowed.departmentIds.length > 0 ? (
             <div className="grid gap-1.5">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t('writeMessage.clubAndDepartments')}</p>
@@ -216,7 +216,7 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
         </div>
       ) : null}
 
-      <div role="radiogroup" data-tour="compose-who" aria-label={t('writeMessage.who')} className="flex flex-wrap items-center gap-1.5">
+      <div role="radiogroup" aria-label={t('writeMessage.who')} className="flex flex-wrap items-center gap-1.5">
         <span className="text-xs font-black text-slate-400">{t('writeMessage.who')}</span>
         {(['all', 'staff', 'players'] as const).map((value) => (
           <button
@@ -232,9 +232,8 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
         ))}
       </div>
 
-      <div data-tour="compose-body" className="grid gap-2">
+      <div className="grid gap-2">
       <textarea
-        data-tour="compose-text"
         value={body}
         onChange={(event) => { setBody(event.target.value); setError(null); }}
         maxLength={2000}
@@ -273,11 +272,11 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
         </div>
       ) : null}
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <label data-tour="compose-poll" className="flex items-center gap-2 text-xs font-black text-violet-100">
+        <label className="flex items-center gap-2 text-xs font-black text-violet-100">
           <input type="checkbox" checked={poll} onChange={(event) => { setPoll(event.target.checked); setError(null); }} className="h-4 w-4 accent-violet-300" />
           {t('poll.label')}
         </label>
-        <label data-tour="compose-important" className="flex items-center gap-2 text-xs font-black text-rose-100">
+        <label className="flex items-center gap-2 text-xs font-black text-rose-100">
           <input type="checkbox" checked={important} onChange={(event) => setImportant(event.target.checked)} className="h-4 w-4 accent-rose-300" />
           {t('teamMessages.important')}
         </label>
@@ -294,7 +293,7 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
       ) : null}
       {error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null}
       <div className="flex flex-wrap items-center gap-3">
-        <button data-tour="compose-send" type="submit" disabled={!chosen || !body.trim() || !pollReady} className="rounded-xl bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950 disabled:opacity-50">{t('writeMessage.send')}</button>
+        <button type="submit" disabled={!chosen || !body.trim() || !pollReady} className="rounded-xl bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950 disabled:opacity-50">{t('writeMessage.send')}</button>
         <span className="text-xs font-bold text-slate-400">{!chosen ? t('writeMessage.chooseRecipients') : reach === null ? '…' : t('writeMessage.reach', { count: reach })}</span>
       </div>
     </form>

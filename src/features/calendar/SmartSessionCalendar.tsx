@@ -19,12 +19,14 @@ export type SmartCalendarSession = {
   departmentName: string;
   tone: SmartCalendarTone;
   canManage: boolean;
+  sessionType?: string;
 };
 
 export type SmartCalendarDraft = {
   startsAt: string;
   endsAt: string;
   teamLabel: string | null;
+  sessionType?: string;
 };
 
 type SmartSessionCalendarProps = {
@@ -83,9 +85,9 @@ export function smartDurationMinutes(start: Date, end: Date) {
   return Math.max(30, Math.round((end.getTime() - start.getTime()) / 60_000));
 }
 
-export function smartFormatTimeRange(startsAt: string, endsAt: string | null) {
+export function smartFormatTimeRange(startsAt: string, endsAt: string | null, sessionType?: string) {
   const start = new Date(startsAt);
-  return formatTimeRange(start, endsAt ? new Date(endsAt) : smartAddMinutes(start, 90));
+  return formatTimeRange(start, endsAt ? new Date(endsAt) : smartAddMinutes(start, 90), sessionType);
 }
 
 function minutesFromCalendarStart(value: string | Date, firstHour: number) {
@@ -163,7 +165,7 @@ export function SmartSessionCalendar({
   return (
     <>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <div data-tour="calendar-weeknav" className="flex min-w-0 flex-wrap items-center gap-1.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
           {onPreviousWeek ? (
             <button type="button" onClick={onPreviousWeek} className="grid h-8 w-8 place-items-center rounded-full border border-slate-700 bg-slate-950/70 text-sm font-black text-slate-200 hover:border-slate-500" aria-label={t('calendar.previousWeek')}>‹</button>
           ) : null}
@@ -189,7 +191,6 @@ export function SmartSessionCalendar({
             }}
             disabled={!canCreateSessions}
             aria-pressed={mode === 'edit'}
-            data-tour={canCreateSessions ? 'calendar-edit' : undefined}
             className={`rounded-full border px-3 py-1.5 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'} disabled:cursor-not-allowed disabled:opacity-50`}
           >
             {mode === 'edit' ? t('calendar.done') : t('calendar.edit')}
@@ -199,15 +200,10 @@ export function SmartSessionCalendar({
       {!canCreateSessions && createBlockedHint ? (
         <div className="mb-2 rounded-xl border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs font-bold text-amber-100">{createBlockedHint}</div>
       ) : null}
-      {mode === 'edit' ? (
-        <p className="mb-2 rounded-xl border border-sky-300/30 bg-sky-300/10 px-3 py-2 text-xs font-bold text-sky-100">
-          {t('calendar.editHint')}
-        </p>
-      ) : null}
 
       {dragPreviewSession ? (
         <div className="mb-3 rounded-2xl border border-sky-300/40 bg-sky-300/10 px-3 py-2 text-xs font-black text-sky-100 shadow-[0_16px_50px_rgba(56,189,248,0.14)]">
-          {formatDay(dragPreviewSession.startsAt)} · {smartFormatTimeRange(dragPreviewSession.startsAt, dragPreviewSession.endsAt)}
+          {formatDay(dragPreviewSession.startsAt)} · {smartFormatTimeRange(dragPreviewSession.startsAt, dragPreviewSession.endsAt, dragPreviewSession.sessionType)}
           {dragPreviewDuration ? ` · ${dragPreviewDuration} min` : ''}
         </div>
       ) : null}
@@ -238,18 +234,18 @@ export function SmartSessionCalendar({
               const draftIsOnDay = draft ? smartSameDay(new Date(draft.startsAt), day) : false;
               const isDragPreviewDay = dragPreviewDate === smartIsoDate(day);
               return (
-                <div key={day.toISOString()} data-smart-day={smartIsoDate(day)} data-density="mobile" data-tour="calendar-slot" ref={(element) => setDayRef(dayIndex, element)} onPointerDown={(event) => onSlotPointerDown(day, event)} className={`relative border-l border-slate-900 transition-colors ${isDragPreviewDay ? 'bg-sky-300/[0.07] ring-1 ring-inset ring-sky-300/35' : ''}`} style={{ height: mobileGridHeight, touchAction: 'pan-y' }}>
+                <div key={day.toISOString()} data-smart-day={smartIsoDate(day)} data-density="mobile" ref={(element) => setDayRef(dayIndex, element)} onPointerDown={(event) => onSlotPointerDown(day, event)} className={`relative border-l border-slate-900 transition-colors ${isDragPreviewDay ? 'bg-sky-300/[0.07] ring-1 ring-inset ring-sky-300/35' : ''}`} style={{ height: mobileGridHeight, touchAction: 'pan-y' }}>
                   {mobileVisibleHours.map((hour, index) => <div key={hour} className={`border-b border-slate-900 ${index === 0 ? 'border-t' : ''}`} style={{ height: mobileHourHeight }} />)}
                   {daySessions.map((session) => {
                     const start = new Date(session.startsAt);
                     const top = Math.max(0, ((start.getHours() - mobileFirstHour) * 60 + start.getMinutes()) * (mobileHourHeight / 60));
                     const height = Math.min(Math.max(20, sessionDurationMinutes(session) * (mobileHourHeight / 60)), mobileGridHeight - top);
                     return (
-                      <div key={session.id} role="button" tabIndex={0} data-calendar-session="true" data-tour="calendar-session" data-session-id={session.id} onPointerDown={(event) => onSessionPointerDown(session, 'move', event)} onClick={(event) => onSessionClick(session, event)} onKeyDown={(event) => onSessionKeyDown(session, event)} style={{ top, height, touchAction: mode === 'edit' && session.canManage ? 'none' : 'pan-y' }} className={`absolute left-0.5 right-0.5 overflow-hidden rounded-md border px-1 py-0.5 text-left transition-[top,height,filter,box-shadow,transform] duration-100 ease-out ${toneClassFor(session.tone, 'compact')} ${dragSessionId === session.id ? 'z-20 scale-[1.035] ring-1 ring-sky-200 brightness-125 shadow-[0_18px_40px_rgba(56,189,248,0.3)]' : ''}`}>
+                      <div key={session.id} role="button" tabIndex={0} data-calendar-session="true" data-session-id={session.id} onPointerDown={(event) => onSessionPointerDown(session, 'move', event)} onClick={(event) => onSessionClick(session, event)} onKeyDown={(event) => onSessionKeyDown(session, event)} style={{ top, height, touchAction: mode === 'edit' && session.canManage ? 'none' : 'pan-y' }} className={`absolute left-0.5 right-0.5 overflow-hidden rounded-md border px-1 py-0.5 text-left transition-[top,height,filter,box-shadow,transform] duration-100 ease-out ${toneClassFor(session.tone, 'compact')} ${dragSessionId === session.id ? 'z-20 scale-[1.035] ring-1 ring-sky-200 brightness-125 shadow-[0_18px_40px_rgba(56,189,248,0.3)]' : ''}`}>
                         <p className="truncate text-[9px] font-black leading-tight">{displayTitle(session.title)}</p>
                         {dragSessionId === session.id && dragPreviewDuration ? <span className="absolute right-1 top-1 rounded bg-slate-950/85 px-1 text-[7px] font-black text-sky-100 ring-1 ring-sky-200/40">{dragPreviewDuration}m</span> : null}
                         {height > 30 ? <p className="truncate text-[8px] leading-tight opacity-80">{formatTime(session.startsAt)}</p> : null}
-                        {mode === 'edit' && session.canManage ? <span data-tour-resize aria-hidden="true" onPointerDown={(event) => onSessionPointerDown(session, 'resize', event)} className="absolute inset-x-1 bottom-0 h-2 cursor-ns-resize rounded-t bg-white/40" /> : null}
+                        {mode === 'edit' && session.canManage && session.sessionType !== 'game' ? <span aria-hidden="true" onPointerDown={(event) => onSessionPointerDown(session, 'resize', event)} className="absolute inset-x-1 bottom-0 h-2 cursor-ns-resize rounded-t bg-white/40" /> : null}
                       </div>
                     );
                   })}
@@ -257,7 +253,7 @@ export function SmartSessionCalendar({
                     const start = new Date(draft.startsAt);
                     const top = Math.max(0, ((start.getHours() - mobileFirstHour) * 60 + start.getMinutes()) * (mobileHourHeight / 60));
                     const height = Math.min(Math.max(20, smartDurationMinutes(new Date(draft.startsAt), new Date(draft.endsAt)) * (mobileHourHeight / 60)), mobileGridHeight - top);
-                    return <article data-tour="calendar-draft" data-calendar-session="true" onPointerDown={(event) => onDraftPointerDown('move', event)} onClick={onDraftClick} style={{ top, height, touchAction: 'none' }} className="absolute left-0.5 right-0.5 z-20 cursor-grab overflow-hidden rounded-md border border-sky-300 bg-sky-500/40 px-1 py-0.5 text-[9px] font-black text-sky-50"><span>{draft.teamLabel ?? t('calendar.chooseTeam')}</span><button type="button" onPointerDown={(event) => onDraftPointerDown('resize', event)} className="absolute inset-x-1 bottom-0 h-2 rounded-t bg-sky-100/90" aria-label={t('calendar.resizeDraft')} /></article>;
+                    return <article data-calendar-session="true" onPointerDown={(event) => onDraftPointerDown('move', event)} onClick={onDraftClick} style={{ top, height, touchAction: 'none' }} className="absolute left-0.5 right-0.5 z-20 cursor-grab overflow-hidden rounded-md border border-sky-300 bg-sky-500/40 px-1 py-0.5 text-[9px] font-black text-sky-50"><span>{draft.teamLabel ?? t('calendar.chooseTeam')}</span>{draft.sessionType !== 'game' ? <button type="button" onPointerDown={(event) => onDraftPointerDown('resize', event)} className="absolute inset-x-1 bottom-0 h-2 rounded-t bg-sky-100/90" aria-label={t('calendar.resizeDraft')} /> : null}</article>;
                   })() : null}
                 </div>
               );
@@ -290,10 +286,10 @@ export function SmartSessionCalendar({
           </div>
           <div className="mt-1.5 flex items-center justify-between px-1">
             <span className="text-xs font-black text-slate-200">{formatLongDay(days[activeDayIndex])}</span>
-            <button type="button" data-tour="calendar-view" onClick={() => onMobileCalendarViewChange('week')} className="rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-300">{t('calendar.wholeWeek')}</button>
+            <button type="button" onClick={() => onMobileCalendarViewChange('week')} className="rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-300">{t('calendar.wholeWeek')}</button>
           </div>
         </div>
-        <div ref={calendarScrollRef} data-tour="calendar-swipe" onPointerDown={onMobileDaySwipeStart} onPointerUp={onMobileDaySwipeEnd} onPointerCancel={onMobileDaySwipeCancel} className={`overflow-hidden rounded-b-3xl touch-pan-y transition-all duration-200 ${dayTransitionDirection === 'next' ? 'translate-x-1 scale-[0.99] ring-2 ring-sky-300/40' : dayTransitionDirection === 'previous' ? '-translate-x-1 scale-[0.99] ring-2 ring-sky-300/40' : ''}`}>
+        <div ref={calendarScrollRef} onPointerDown={onMobileDaySwipeStart} onPointerUp={onMobileDaySwipeEnd} onPointerCancel={onMobileDaySwipeCancel} className={`overflow-hidden rounded-b-3xl touch-pan-y transition-all duration-200 ${dayTransitionDirection === 'next' ? 'translate-x-1 scale-[0.99] ring-2 ring-sky-300/40' : dayTransitionDirection === 'previous' ? '-translate-x-1 scale-[0.99] ring-2 ring-sky-300/40' : ''}`}>
           <div className="grid grid-cols-[52px_minmax(0,1fr)] py-2">
             <div className="bg-slate-950/95">
               {mobileVisibleHours.map((hour, index) => (
@@ -310,7 +306,7 @@ export function SmartSessionCalendar({
               const draftIsOnDay = draft ? smartSameDay(new Date(draft.startsAt), day) : false;
               const isDragPreviewDay = dragPreviewDate === smartIsoDate(day);
               return (
-                <div data-smart-day={smartIsoDate(day)} data-density="mobile" data-tour="calendar-slot" ref={(element) => setDayRef(activeDayIndex, element)} onPointerDown={(event) => onSlotPointerDown(day, event)} className={`relative border-l border-slate-900 transition-colors ${isDragPreviewDay ? 'bg-sky-300/[0.07] ring-1 ring-inset ring-sky-300/35' : ''}`} style={{ height: mobileGridHeight, touchAction: 'pan-y' }}>
+                <div data-smart-day={smartIsoDate(day)} data-density="mobile" ref={(element) => setDayRef(activeDayIndex, element)} onPointerDown={(event) => onSlotPointerDown(day, event)} className={`relative border-l border-slate-900 transition-colors ${isDragPreviewDay ? 'bg-sky-300/[0.07] ring-1 ring-inset ring-sky-300/35' : ''}`} style={{ height: mobileGridHeight, touchAction: 'pan-y' }}>
                   {mobileVisibleHours.map((hour, index) => <div key={hour} className={`border-b border-slate-900 ${index === 0 ? 'border-t' : ''}`} style={{ height: mobileHourHeight }} />)}
                   {daySessions.length === 0 && !draftIsOnDay && mode === 'view' ? (
                     <p className="pointer-events-none absolute inset-x-3 top-3 rounded-xl border border-slate-800 bg-slate-950/90 px-3 py-2 text-center text-xs font-bold text-slate-400">{t('calendar.noSessionsDay')}</p>
@@ -320,11 +316,11 @@ export function SmartSessionCalendar({
                     const top = Math.max(0, ((start.getHours() - mobileFirstHour) * 60 + start.getMinutes()) * (mobileHourHeight / 60));
                     const height = Math.min(Math.max(24, sessionDurationMinutes(session) * (mobileHourHeight / 60)), mobileGridHeight - top);
                     return (
-                      <div key={session.id} role="button" tabIndex={0} data-calendar-session="true" data-tour="calendar-session" data-session-id={session.id} onPointerDown={(event) => onSessionPointerDown(session, 'move', event)} onClick={(event) => onSessionClick(session, event)} onKeyDown={(event) => onSessionKeyDown(session, event)} style={{ top, height, touchAction: mode === 'edit' && session.canManage ? 'none' : 'pan-y' }} className={`absolute left-2 right-2 overflow-hidden rounded-xl border px-2 py-1 text-left transition-[top,height,filter,box-shadow,transform] duration-100 ease-out ${toneClassFor(session.tone, 'compact')} ${dragSessionId === session.id ? 'z-20 scale-[1.025] ring-2 ring-sky-200 brightness-125 shadow-[0_18px_45px_rgba(56,189,248,0.32)]' : ''}`}>
+                      <div key={session.id} role="button" tabIndex={0} data-calendar-session="true" data-session-id={session.id} onPointerDown={(event) => onSessionPointerDown(session, 'move', event)} onClick={(event) => onSessionClick(session, event)} onKeyDown={(event) => onSessionKeyDown(session, event)} style={{ top, height, touchAction: mode === 'edit' && session.canManage ? 'none' : 'pan-y' }} className={`absolute left-2 right-2 overflow-hidden rounded-xl border px-2 py-1 text-left transition-[top,height,filter,box-shadow,transform] duration-100 ease-out ${toneClassFor(session.tone, 'compact')} ${dragSessionId === session.id ? 'z-20 scale-[1.025] ring-2 ring-sky-200 brightness-125 shadow-[0_18px_45px_rgba(56,189,248,0.32)]' : ''}`}>
                         <p className="truncate text-xs font-black">{displayTitle(session.title)}</p>
                         {dragSessionId === session.id && dragPreviewDuration ? <span className="absolute right-2 top-1 rounded-md bg-slate-950/85 px-1 text-[9px] font-black text-sky-100 ring-1 ring-sky-200/40">{dragPreviewDuration}m</span> : null}
-                        <p className="truncate text-[10px] opacity-80">{smartFormatTimeRange(session.startsAt, session.endsAt)} · {session.teamName}</p>
-                        {mode === 'edit' && session.canManage ? <span data-tour-resize aria-hidden="true" onPointerDown={(event) => onSessionPointerDown(session, 'resize', event)} className="absolute inset-x-4 bottom-0 h-3 cursor-ns-resize rounded-t bg-white/40" /> : null}
+                        <p className="truncate text-[10px] opacity-80">{smartFormatTimeRange(session.startsAt, session.endsAt, session.sessionType)} · {session.teamName}</p>
+                        {mode === 'edit' && session.canManage && session.sessionType !== 'game' ? <span aria-hidden="true" onPointerDown={(event) => onSessionPointerDown(session, 'resize', event)} className="absolute inset-x-4 bottom-0 h-3 cursor-ns-resize rounded-t bg-white/40" /> : null}
                       </div>
                     );
                   })}
@@ -332,7 +328,7 @@ export function SmartSessionCalendar({
                     const start = new Date(draft.startsAt);
                     const top = Math.max(0, ((start.getHours() - mobileFirstHour) * 60 + start.getMinutes()) * (mobileHourHeight / 60));
                     const height = Math.min(Math.max(24, smartDurationMinutes(new Date(draft.startsAt), new Date(draft.endsAt)) * (mobileHourHeight / 60)), mobileGridHeight - top);
-                    return <article data-tour="calendar-draft" data-calendar-session="true" onPointerDown={(event) => onDraftPointerDown('move', event)} onClick={onDraftClick} style={{ top, height, touchAction: 'none' }} className="absolute left-2 right-2 z-20 cursor-grab overflow-hidden rounded-xl border border-sky-300 bg-sky-500/40 px-2 py-1 text-xs font-black text-sky-50"><span>{draft.teamLabel ?? t('calendar.chooseTeam')}</span><button type="button" onPointerDown={(event) => onDraftPointerDown('resize', event)} className="absolute inset-x-4 bottom-0 h-3 rounded-t bg-sky-100/90" aria-label={t('calendar.resizeDraft')} /></article>;
+                    return <article data-calendar-session="true" onPointerDown={(event) => onDraftPointerDown('move', event)} onClick={onDraftClick} style={{ top, height, touchAction: 'none' }} className="absolute left-2 right-2 z-20 cursor-grab overflow-hidden rounded-xl border border-sky-300 bg-sky-500/40 px-2 py-1 text-xs font-black text-sky-50"><span>{draft.teamLabel ?? t('calendar.chooseTeam')}</span>{draft.sessionType !== 'game' ? <button type="button" onPointerDown={(event) => onDraftPointerDown('resize', event)} className="absolute inset-x-4 bottom-0 h-3 rounded-t bg-sky-100/90" aria-label={t('calendar.resizeDraft')} /> : null}</article>;
                   })() : null}
                 </div>
               );
@@ -357,18 +353,18 @@ export function SmartSessionCalendar({
                 const draftIsOnDay = draft ? smartSameDay(new Date(draft.startsAt), day) : false;
                 const isDragPreviewDay = dragPreviewDate === smartIsoDate(day);
                 return (
-                  <div key={day.toISOString()} data-smart-day={smartIsoDate(day)} data-density="desktop" data-tour="calendar-slot" ref={(element) => setDayRef(dayIndex, element)} onPointerDown={(event) => onSlotPointerDown(day, event)} className={`relative border-l border-slate-900 transition-colors ${mode === 'edit' ? 'cursor-crosshair' : 'cursor-default'} ${dayIndex === activeDayIndex ? 'block' : 'hidden'} ${isDragPreviewDay ? 'bg-sky-300/[0.05] ring-1 ring-inset ring-sky-300/30' : ''} md:block`} style={{ height: `${hours.length * desktopHourHeight}px`, touchAction: 'pan-y' }}>
+                  <div key={day.toISOString()} data-smart-day={smartIsoDate(day)} data-density="desktop" ref={(element) => setDayRef(dayIndex, element)} onPointerDown={(event) => onSlotPointerDown(day, event)} className={`relative border-l border-slate-900 transition-colors ${mode === 'edit' ? 'cursor-crosshair' : 'cursor-default'} ${dayIndex === activeDayIndex ? 'block' : 'hidden'} ${isDragPreviewDay ? 'bg-sky-300/[0.05] ring-1 ring-inset ring-sky-300/30' : ''} md:block`} style={{ height: `${hours.length * desktopHourHeight}px`, touchAction: 'pan-y' }}>
                     {hours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: desktopHourHeight }} />)}
                     {daySessions.map((session) => {
                       const top = Math.max(0, minutesFromCalendarStart(session.startsAt, firstHour) * (desktopHourHeight / 60));
                       const height = Math.min(Math.max(44, sessionDurationMinutes(session) * (desktopHourHeight / 60)), (lastHour - firstHour) * desktopHourHeight - top);
                       return (
-                        <div key={session.id} role="button" tabIndex={0} data-calendar-session="true" data-tour="calendar-session" data-session-id={session.id} onPointerDown={(event) => onSessionPointerDown(session, 'move', event)} onClick={(event) => onSessionClick(session, event)} onKeyDown={(event) => onSessionKeyDown(session, event)} style={{ top, height, touchAction: mode === 'edit' && session.canManage ? 'none' : 'pan-y' }} className={`absolute left-2 right-2 overflow-hidden rounded-2xl border p-3 text-left transition-[top,height,filter,box-shadow,transform] duration-100 ease-out ${toneClassFor(session.tone, 'regular')} ${dragSessionId === session.id ? 'z-20 scale-[1.025] ring-2 ring-sky-200 brightness-125 shadow-[0_22px_60px_rgba(56,189,248,0.34)]' : ''} ${mode === 'edit' && session.canManage ? 'cursor-grab active:cursor-grabbing' : ''}`}>
+                        <div key={session.id} role="button" tabIndex={0} data-calendar-session="true" data-session-id={session.id} onPointerDown={(event) => onSessionPointerDown(session, 'move', event)} onClick={(event) => onSessionClick(session, event)} onKeyDown={(event) => onSessionKeyDown(session, event)} style={{ top, height, touchAction: mode === 'edit' && session.canManage ? 'none' : 'pan-y' }} className={`absolute left-2 right-2 overflow-hidden rounded-2xl border p-3 text-left transition-[top,height,filter,box-shadow,transform] duration-100 ease-out ${toneClassFor(session.tone, 'regular')} ${dragSessionId === session.id ? 'z-20 scale-[1.025] ring-2 ring-sky-200 brightness-125 shadow-[0_22px_60px_rgba(56,189,248,0.34)]' : ''} ${mode === 'edit' && session.canManage ? 'cursor-grab active:cursor-grabbing' : ''}`}>
                           <p className="truncate text-sm font-black">{displayTitle(session.title)}</p>
                           {dragSessionId === session.id && dragPreviewDuration ? <span className="absolute right-2 top-2 rounded-md bg-slate-950/85 px-1.5 py-0.5 text-[10px] font-black text-sky-100 ring-1 ring-sky-200/40">{dragPreviewDuration}m</span> : null}
-                          <p className="mt-0.5 truncate text-xs">{smartFormatTimeRange(session.startsAt, session.endsAt)}</p>
+                          <p className="mt-0.5 truncate text-xs">{smartFormatTimeRange(session.startsAt, session.endsAt, session.sessionType)}</p>
                           <p className="mt-0.5 truncate text-xs opacity-75">{session.teamName}</p>
-                          {mode === 'edit' && session.canManage ? <span data-tour-resize aria-hidden="true" onPointerDown={(event) => onSessionPointerDown(session, 'resize', event)} className="absolute inset-x-5 bottom-0 h-5 cursor-ns-resize rounded-t-full bg-white/40" /> : null}
+                          {mode === 'edit' && session.canManage && session.sessionType !== 'game' ? <span aria-hidden="true" onPointerDown={(event) => onSessionPointerDown(session, 'resize', event)} className="absolute inset-x-5 bottom-0 h-5 cursor-ns-resize rounded-t-full bg-white/40" /> : null}
                         </div>
                       );
                     })}
@@ -376,15 +372,15 @@ export function SmartSessionCalendar({
                       const top = Math.max(0, minutesFromCalendarStart(draft.startsAt, firstHour) * (desktopHourHeight / 60));
                       const height = Math.min(Math.max(44, smartDurationMinutes(new Date(draft.startsAt), new Date(draft.endsAt)) * (desktopHourHeight / 60)), (lastHour - firstHour) * desktopHourHeight - top);
                       return (
-                        <article data-tour="calendar-draft" data-calendar-session="true" onPointerDown={(event) => onDraftPointerDown('move', event)} onClick={onDraftClick} style={{ top, height, touchAction: 'none' }} className="absolute left-2 right-2 z-20 cursor-grab overflow-hidden rounded-2xl border border-sky-300 bg-sky-500/20 p-2.5 pr-16 text-left text-sky-50 shadow-[0_0_0_1px_rgba(125,211,252,0.4)] active:cursor-grabbing">
+                        <article data-calendar-session="true" onPointerDown={(event) => onDraftPointerDown('move', event)} onClick={onDraftClick} style={{ top, height, touchAction: 'none' }} className="absolute left-2 right-2 z-20 cursor-grab overflow-hidden rounded-2xl border border-sky-300 bg-sky-500/20 p-2.5 pr-16 text-left text-sky-50 shadow-[0_0_0_1px_rgba(125,211,252,0.4)] active:cursor-grabbing">
                           <div className="absolute right-2 top-2 flex gap-1">
                             <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onDraftCancel(); }} className="grid h-7 w-7 place-items-center rounded-full border border-slate-600 bg-slate-950/85 text-xs font-black text-slate-200 hover:border-red-300 hover:text-red-200" aria-label={t('calendar.cancelDraft')}>{'x'}</button>
                             <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onDraftClick(); }} className="grid h-7 w-7 place-items-center rounded-full bg-sky-300 text-xs font-black text-slate-950 hover:bg-sky-200" aria-label={t('calendar.confirmDraft')}>{'\u2713'}</button>
                           </div>
                           <p className="text-sm font-black">{t('calendar.training')}</p>
-                          <p className="mt-1 text-xs">{smartFormatTimeRange(draft.startsAt, draft.endsAt)}</p>
+                          <p className="mt-1 text-xs">{smartFormatTimeRange(draft.startsAt, draft.endsAt, draft.sessionType)}</p>
                           <p className="mt-1 truncate text-xs text-sky-100/80">{draft.teamLabel ?? t('calendar.tapToChooseTeam')}</p>
-                          <button type="button" onPointerDown={(event) => onDraftPointerDown('resize', event)} className="absolute bottom-0 left-1/2 h-5 w-20 -translate-x-1/2 rounded-t-full bg-sky-200/90" aria-label={t('calendar.resizeDraft')} />
+                          {draft.sessionType !== 'game' ? <button type="button" onPointerDown={(event) => onDraftPointerDown('resize', event)} className="absolute bottom-0 left-1/2 h-5 w-20 -translate-x-1/2 rounded-t-full bg-sky-200/90" aria-label={t('calendar.resizeDraft')} /> : null}
                         </article>
                       );
                     })() : null}

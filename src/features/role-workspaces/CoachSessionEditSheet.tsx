@@ -5,6 +5,7 @@ import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 import type { CoachFacility, CoachGroup, CoachSessionDetailsInput, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 import { coachSessionTypes, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
+import { gameDurationMinutes, gameEndAt } from '@/features/sessions/gameTiming';
 import { useT } from '@/shared/i18n';
 
 type CoachCalendarDraft = { startsAt: string; endsAt: string; teamId: string | null; facilityId: string | null; groupIds: string[]; sessionType: string };
@@ -52,6 +53,8 @@ export function CoachSessionEditSheet({
   const [facilityId, setFacilityId] = useState(initial.facilityId ?? selectedTeam?.defaultFacilityId ?? facilityOptions[0]?.id ?? '');
   const previousTeamIdRef = useRef(teamId);
   const [groupIds, setGroupIds] = useState<string[]>(initial.groupIds);
+  const [dateValue, setDateValue] = useState(() => { const date = new Date(initial.startsAt); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; });
+  const [gameDuration] = useState(() => initial.sessionType === 'game' ? gameDurationMinutes(initial.startsAt, initial.endsAt) : 120);
   const [timeValue, setTimeValue] = useState(() => timeValueFromIso(initial.startsAt));
   const [endTimeValue, setEndTimeValue] = useState(() => timeValueFromIso(initial.endsAt));
   const [sessionType, setSessionType] = useState(normalizeCoachSessionType(initial.sessionType));
@@ -118,14 +121,15 @@ export function CoachSessionEditSheet({
 
   function handleSessionTypeSelect(nextType: string) {
     setSessionType(nextType);
-    onDraftUpdate?.({ sessionType: nextType });
+    onDraftUpdate?.({ sessionType: nextType, ...nextTimeRange(timeValue, endTimeValue, nextType) });
   }
 
-  function nextTimeRange(startTime: string, endTime: string) {
+  function nextTimeRange(startTime: string, endTime: string, type = sessionType, date = dateValue) {
     const [startHours, startMinutes] = startTime.split(':').map(Number);
     const [endHours, endMinutes] = endTime.split(':').map(Number);
-    const start = new Date(initial.startsAt);
+    const start = new Date(`${date}T00:00:00`);
     start.setHours(Number.isFinite(startHours) ? startHours : start.getHours(), Number.isFinite(startMinutes) ? startMinutes : start.getMinutes(), 0, 0);
+    if (type === 'game') return { startsAt: start.toISOString(), endsAt: gameEndAt(start.toISOString(), gameDuration) };
     const end = new Date(start);
     end.setHours(Number.isFinite(endHours) ? endHours : end.getHours(), Number.isFinite(endMinutes) ? endMinutes : end.getMinutes(), 0, 0);
     if ((end.getTime() - start.getTime()) / 60_000 < 30) return { startsAt: start.toISOString(), endsAt: addMinutes(start, 30).toISOString() };
@@ -154,8 +158,8 @@ export function CoachSessionEditSheet({
   }
 
   return (
-    <div role="dialog" aria-modal="true" data-tour-modal className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/75 p-2.5 backdrop-blur-sm sm:items-center">
-      <section data-tour="session-editor" className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950 p-3.5 text-white shadow-2xl sm:p-4">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/75 p-2.5 backdrop-blur-sm sm:items-center">
+      <section className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950 p-3.5 text-white shadow-2xl sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-300">{t('sessionForm.kicker')}</p>
@@ -167,7 +171,7 @@ export function CoachSessionEditSheet({
         <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-2.5">
           <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
             {t('sessionForm.team')}
-            <select data-tour="session-team" value={teamId} disabled={!allowTeamChange} onChange={(event) => handleTeamSelect(event.target.value)} className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-black text-slate-100 outline-none transition focus:border-sky-300 disabled:opacity-60 sm:h-9 sm:px-2.5 sm:text-sm">
+            <select value={teamId} disabled={!allowTeamChange} onChange={(event) => handleTeamSelect(event.target.value)} className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-black text-slate-100 outline-none transition focus:border-sky-300 disabled:opacity-60 sm:h-9 sm:px-2.5 sm:text-sm">
               {allowTeamChange && teams.length > 1 ? <option value="">{t('sessionForm.chooseTeam')}</option> : null}
               {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
             </select>
@@ -182,7 +186,11 @@ export function CoachSessionEditSheet({
           </label>
         </div>
 
-        <div className="mt-2.5 grid min-w-0 grid-cols-[minmax(0,1fr)_4.35rem_4.35rem] gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_7rem] sm:gap-2.5">
+        <label className="mt-2.5 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+          {t('composer.date')}
+          <input type="date" value={dateValue} onChange={(event) => { setDateValue(event.target.value); if (event.target.value) onDraftUpdate?.(nextTimeRange(timeValue, endTimeValue, sessionType, event.target.value)); }} className="mt-1 block h-9 w-40 min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-sm font-bold text-slate-100 [color-scheme:dark]" />
+        </label>
+        <div className={`mt-2.5 grid min-w-0 gap-2 sm:gap-2.5 ${isGame ? 'grid-cols-[minmax(0,1fr)_6rem] sm:grid-cols-[minmax(0,1fr)_7rem]' : 'grid-cols-[minmax(0,1fr)_4.35rem_4.35rem] sm:grid-cols-[minmax(0,1fr)_7rem_7rem]'}`}>
           <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
             {t('sessionForm.type')}
             <select value={sessionType} onChange={(event) => handleSessionTypeSelect(event.target.value)} className="mt-1 h-8 w-full min-w-0 truncate rounded-lg border border-slate-700/90 bg-slate-950 px-1.5 text-[12px] font-black text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm">
@@ -193,10 +201,12 @@ export function CoachSessionEditSheet({
             {t('sessionForm.start')}
             <input value={timeValue} onChange={(event) => handleStartTimeChange(event.target.value)} type="time" className="mt-1 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2 sm:text-sm [color-scheme:dark]" />
           </label>
+          {!isGame ? (
           <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
             {t('sessionForm.end')}
             <input value={endTimeValue} onChange={(event) => handleEndTimeChange(event.target.value)} type="time" className="mt-1 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2 sm:text-sm [color-scheme:dark]" />
           </label>
+          ) : null}
         </div>
 
         <div className={`mt-3 rounded-xl border p-3 ${hasTeam ? 'border-slate-800 bg-slate-900/45' : 'border-slate-800/70 bg-slate-950/45 opacity-65'}`}>
@@ -258,8 +268,8 @@ export function CoachSessionEditSheet({
         </div>
 
         <div className="mt-4 flex flex-wrap justify-between gap-2">
-          {onDelete ? <button type="button" data-tour="session-delete" onClick={() => setConfirmDelete(true)} className="rounded-lg border border-red-500/60 px-3 py-1.5 text-sm font-black text-red-100 hover:bg-red-950/35">{t('sessionForm.delete')}</button> : <span />}
-          <button type="button" data-tour="session-save" onClick={() => { void submit(); }} disabled={isSaving || !hasTeam || !teamId || (!facilityId && !isAwayGame)} className="rounded-lg bg-emerald-300 px-4 py-1.5 text-sm font-black text-slate-950 disabled:opacity-60">{isSaving ? t('sessionForm.saving') : t('sessionForm.save')}</button>
+          {onDelete ? <button type="button" onClick={() => setConfirmDelete(true)} className="rounded-lg border border-red-500/60 px-3 py-1.5 text-sm font-black text-red-100 hover:bg-red-950/35">{t('sessionForm.delete')}</button> : <span />}
+          <button type="button" onClick={() => { void submit(); }} disabled={isSaving || !hasTeam || !teamId || (!facilityId && !isAwayGame)} className="rounded-lg bg-emerald-300 px-4 py-1.5 text-sm font-black text-slate-950 disabled:opacity-60">{isSaving ? t('sessionForm.saving') : t('sessionForm.save')}</button>
         </div>
       </section>
       <AppConfirmDialog isOpen={confirmDelete} title={t('coach.delete.title')} description={t('coach.delete.detail')} confirmLabel={t('coach.delete.confirm')} cancelLabel={t('coach.delete.keep')} tone="danger" isConfirming={isSaving} onConfirm={() => { setConfirmDelete(false); onDelete?.(); }} onCancel={() => setConfirmDelete(false)} />

@@ -106,15 +106,16 @@ export function formatTime(value: DateInput) {
 }
 
 /** "16:30–17:30"; a missing end counts as one hour, as everywhere else. */
-export function formatTimeRange(startsAt: DateInput, endsAt: DateInput | null) {
+export function formatTimeRange(startsAt: DateInput, endsAt: DateInput | null, sessionType?: string | null) {
+  if (sessionType === 'game') return formatTime(startsAt);
   const start = toDate(startsAt);
   const end = endsAt ? toDate(endsAt) : new Date(start.getTime() + 60 * 60_000);
   return `${formatTime(start)}–${formatTime(end)}`;
 }
 
 /** "Fri 25 Sep · 16:30–17:30" */
-export function formatSessionTime(startsAt: DateInput, endsAt: DateInput | null) {
-  return `${formatDay(startsAt)} · ${formatTimeRange(startsAt, endsAt)}`;
+export function formatSessionTime(startsAt: DateInput, endsAt: DateInput | null, sessionType?: string | null) {
+  return `${formatDay(startsAt)} · ${formatTimeRange(startsAt, endsAt, sessionType)}`;
 }
 
 /** "21–27 Sep", or "29 Sep – 5 Oct" across a month. */

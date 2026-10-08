@@ -60,7 +60,7 @@ export function Carpools({ sessionId }: { sessionId: string }) {
     setSeats(own?.seats ?? 3); setNote(own?.note ?? ''); setEditing(true); setError(null);
   }
   return (
-    <section data-tour="carpools" className={`mt-4 rounded-2xl border p-3 ${session.homeAway === 'away' ? 'border-sky-300/35 bg-sky-300/[0.05]' : 'border-slate-700 bg-slate-950/40'}`}>
+    <section className={`mt-4 rounded-2xl border p-3 ${session.homeAway === 'away' ? 'border-sky-300/35 bg-sky-300/[0.05]' : 'border-slate-700 bg-slate-950/40'}`}>
       {session.homeAway === 'away' ? <h3 className="text-base font-black text-white">{t('carpools.title')}</h3> : (
         <button type="button" aria-expanded={open} onClick={() => setExpanded(!expanded)} className="flex min-h-10 w-full items-center justify-between text-left text-sm font-bold text-slate-200">
           {t('carpools.optional')}<span aria-hidden>{open ? '−' : '+'}</span>

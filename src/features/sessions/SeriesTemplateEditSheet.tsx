@@ -6,6 +6,7 @@ import type { SeriesTemplate } from '@/features/sessions/sessionSeriesPlanner';
 import { coachSessionTypes, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
+import { gameTemplateDuration, gameTemplateEnd } from './gameTiming';
 import { useT } from '@/shared/i18n';
 
 export type SeriesTemplateInput = {
@@ -62,6 +63,8 @@ function SeriesTemplateEditorForm({
   const [facilityId, setFacilityId] = useState(initial?.facilityId ?? selectedTeam?.defaultFacilityId ?? facilityOptions[0]?.id ?? '');
   const [sessionType, setSessionType] = useState(normalizeCoachSessionType(initial?.sessionType));
   const selectedWeekday = initial?.weekday ?? weekday;
+  const isGame = sessionType === 'game';
+  const [gameDuration] = useState(() => initial?.sessionType === 'game' ? gameTemplateDuration(initial.startTime, initial.endTime) : 120);
   const [startTime, setStartTime] = useState(cleanTime(initial?.startTime, '18:00'));
   const [endTime, setEndTime] = useState(cleanTime(initial?.endTime, '19:30'));
   const [groupIds, setGroupIds] = useState<string[]>(initial?.groupIds ?? []);
@@ -106,7 +109,7 @@ function SeriesTemplateEditorForm({
   async function submit() {
     if (!canSave || selectedWeekday === undefined) return;
     await onSave({
-      teamId, facilityId, sessionType, weekday: selectedWeekday, startTime, endTime, groupIds,
+      teamId, facilityId, sessionType, weekday: selectedWeekday, startTime, endTime: isGame ? gameTemplateEnd(startTime, gameDuration) : endTime, groupIds,
       notes: notes.trim() || null, meetMinutesBefore: meetMinutesBefore || null, meetPoint: meetPoint.trim() || null,
     });
   }
@@ -132,7 +135,7 @@ function SeriesTemplateEditorForm({
         </label>
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1fr)_4.25rem_4.25rem] gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_7rem]">
+      <div className={`grid gap-2 ${isGame ? 'grid-cols-[minmax(0,1fr)_6rem] sm:grid-cols-[minmax(0,1fr)_7rem]' : 'grid-cols-[minmax(0,1fr)_4.25rem_4.25rem] sm:grid-cols-[minmax(0,1fr)_7rem_7rem]'}`}>
         <label className={labelClass}>
           {t('sessionForm.type')}
           <select value={sessionType} onChange={(event) => setSessionType(event.target.value)} className={inputClass}>
@@ -143,10 +146,12 @@ function SeriesTemplateEditorForm({
           {t('sessionForm.start')}
           <input value={startTime} onChange={(event) => setStartTime(event.target.value)} type="time" className={timeInputClass} />
         </label>
+        {!isGame ? (
         <label className={labelClass}>
           {t('sessionForm.end')}
           <input value={endTime} onChange={(event) => setEndTime(event.target.value)} type="time" className={timeInputClass} />
         </label>
+        ) : null}
       </div>
 
       <div className="border-t border-slate-800/80 pt-3">

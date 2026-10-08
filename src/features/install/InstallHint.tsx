@@ -3,8 +3,6 @@
 /**
  * "Add Club OS to your home screen" (piece 6).
  *
- * - `card`: on the first page of each role, on phones only, until installed
- *   or dismissed ("Not now" is remembered on this device).
  * - `menu`: a line in the account menu, on every device that is not already
  *   running the installed app, for whenever someone wants it later.
  *
@@ -14,7 +12,6 @@
 
 import { useEffect, useState } from 'react';
 
-import { dismissHint, isHintDismissed } from '@/shared/data';
 import { useT } from '@/shared/i18n';
 import { rich } from '@/shared/i18n/rich';
 
@@ -80,12 +77,10 @@ function useInstallState() {
   return state;
 }
 
-export function InstallHint({ variant }: { variant: 'card' | 'menu' | 'settings' }) {
+export function InstallHint({ variant }: { variant: 'menu' | 'settings' }) {
   const t = useT();
   const { ready, standalone, platform, canPrompt, installed } = useInstallState();
-  const [dismissed, setDismissed] = useState(true);
   const [open, setOpen] = useState(false);
-  useEffect(() => setDismissed(isHintDismissed('install')), []);
 
   if (!ready || standalone || installed) return null;
 
@@ -95,7 +90,6 @@ export function InstallHint({ variant }: { variant: 'card' | 'menu' | 'settings'
     </button>
   ) : null;
 
-  if (variant !== 'card') {
     return (
       <div className={`grid gap-2 text-sm text-slate-300 ${variant === 'menu' ? 'mt-6 border-t border-slate-800 pt-4' : ''}`}>
         <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="flex items-center justify-between text-left">
@@ -111,30 +105,3 @@ export function InstallHint({ variant }: { variant: 'card' | 'menu' | 'settings'
       </div>
     );
   }
-
-  if (dismissed || platform === 'desktop') return null;
-
-  return (
-    <section aria-label={t('install.cardTitle')} className="grid gap-3 rounded-3xl border border-emerald-300/30 bg-emerald-300/[0.06] p-4 text-sm text-slate-300">
-      <div className="flex items-start gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/icons/icon-192.png" alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-xl" />
-        <div className="min-w-0">
-          <p className="font-black text-white">{t('install.cardTitle')}</p>
-          <p className="text-xs text-slate-400">{t('install.cardDetail')}</p>
-        </div>
-      </div>
-      <Steps platform={platform} canPrompt={canPrompt} />
-      <div className="flex flex-wrap items-center gap-3">
-        {installButton}
-        <button
-          type="button"
-          onClick={() => { dismissHint('install'); setDismissed(true); }}
-          className="text-xs font-bold text-slate-400 underline"
-        >
-          {t('common.notNow')}
-        </button>
-      </div>
-    </section>
-  );
-}

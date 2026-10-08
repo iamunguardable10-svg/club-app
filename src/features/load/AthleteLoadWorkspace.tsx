@@ -1146,7 +1146,6 @@ function AthleteCalendar({
         type="button"
         data-athlete-calendar-item="true"
         data-item-id={item.id}
-        data-tour="calendar-item"
         onPointerDown={(event) => startDrag(item, 'move', event)}
         onClick={(event) => { event.stopPropagation(); if (!suppressClick) onItemSelect(item, mode); }}
         className={`${itemClass(item)} ${compact ? 'left-0.5 right-0.5 px-0.5 text-[8px] leading-tight' : ''}`}
@@ -1183,7 +1182,7 @@ function AthleteCalendar({
     <section className="min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-3 sm:rounded-[2rem] sm:p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <div data-tour="calendar-weeknav" className="flex items-center gap-2 text-xs font-black text-slate-300">
+          <div className="flex items-center gap-2 text-xs font-black text-slate-300">
             <button type="button" onClick={() => setWeekOffset((value) => value - 1)} className="rounded-full border border-slate-700 px-2 py-1 text-slate-200">‹</button>
             <span>{weekLabel}</span>
             <button type="button" onClick={() => setWeekOffset((value) => value + 1)} className="rounded-full border border-slate-700 px-2 py-1 text-slate-200">›</button>
@@ -1192,7 +1191,7 @@ function AthleteCalendar({
         <div className="flex items-center gap-2">
           {weekOffset !== 0 ? <button type="button" onClick={() => setWeekOffset(0)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">{t('calendar.backToThisWeek')}</button> : null}
           {onEmptySlot ? (
-            <button type="button" data-tour="athlete-add-own" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'}`}>
+            <button type="button" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'}`}>
               {mode === 'edit' ? t('calendar.done') : t('calendar.addOwn')}
             </button>
           ) : null}
@@ -1253,10 +1252,10 @@ function AthleteCalendar({
             </div>
             <div className="mt-1.5 flex items-center justify-between px-1">
               <span className="text-xs font-black text-slate-200">{formatLongDay(activeDay)}</span>
-              <button type="button" data-tour="calendar-view" onClick={() => setMobileView('week')} className="rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-300">{t('calendar.wholeWeek')}</button>
+              <button type="button" onClick={() => setMobileView('week')} className="rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-300">{t('calendar.wholeWeek')}</button>
             </div>
           </div>
-          <div data-tour="calendar-swipe" onPointerDown={startDaySwipe} onPointerUp={endDaySwipe} onPointerCancel={() => { daySwipe.current = null; }} className="overflow-hidden touch-pan-y">
+          <div onPointerDown={startDaySwipe} onPointerUp={endDaySwipe} onPointerCancel={() => { daySwipe.current = null; }} className="overflow-hidden touch-pan-y">
             <div className="grid grid-cols-[52px_minmax(0,1fr)]">
               <div className="bg-slate-950/95">
                 {hours.map((hour) => <div key={hour} className="border-b border-slate-900 px-2 py-1 text-[10px] font-bold text-slate-500" style={{ height: mobileHourHeight }}>{String(hour).padStart(2, '0')}:00</div>)}
@@ -2060,7 +2059,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       title={activeView === 'home' ? t('athlete.title.today') : activeView === 'calendar' ? t('athlete.title.calendar') : t('athlete.title.load')}
       subtitle={activeView === 'home' ? formatLongDay(new Date()) : activeView === 'calendar' ? (hasLoad ? t('athlete.subtitle.calendarWithLoad') : t('athlete.subtitle.calendar')) : t('athlete.subtitle.load')}
       actions={hasLoad ? (
-        <button type="button" data-tour="athlete-share" onClick={copyTrainerShareLink} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${shareStatus === 'copied' ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100' : shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
+        <button type="button" onClick={copyTrainerShareLink} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${shareStatus === 'copied' ? 'border-emerald-400/60 bg-emerald-400/10 text-emerald-100' : shareActive ? 'border-emerald-300/45 bg-emerald-300/10 text-emerald-100' : 'border-sky-400/45 bg-sky-400/10 text-sky-100'}`}>
           {shareStatus === 'copied' ? t('athlete.share.copied') : shareStatus === 'error' ? t('athlete.share.error') : shareActive ? t('athlete.share.on') : t('athlete.share.off')}
         </button>
       ) : undefined}
@@ -2076,7 +2075,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         ) : null}
 
         {activeView !== 'calendar' && hasLoad ? (
-          <div data-tour="load-metrics" className="grid w-full min-w-0 grid-cols-3 gap-2 [&>*]:min-h-[92px]">
+          <div className="grid w-full min-w-0 grid-cols-3 gap-2 [&>*]:min-h-[92px]">
             <LoadRoomMetric latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} />
             <AcwrMetric latest={latest} baselineReady={isBaselineReady} tone={zone.tone} />
             <Metric label={t('athlete.metric.status')} value={zone.tone === 'neutral' ? t('athlete.metric.building') : zoneLabel(zone.tone)} tone={zone.tone} />
@@ -2097,14 +2096,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         ) : null}
 
         {activeView === 'load' && hasLoad ? (
-          <section data-tour="load-trend" className="min-w-0 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/65 p-4 sm:p-5">
+          <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/65 p-4 sm:p-5">
             <h2 className="mb-3 text-lg font-black">{t('athlete.trend')}</h2>
             <LoadChart entries={sortedEntries} pendingSessions={loadPendingSessions} />
           </section>
         ) : null}
 
         {hasLoad && entriesToCheck.length > 0 && (activeView === 'home' || activeView === 'load') ? (
-          <section data-tour="athlete-check" aria-label={t('athlete.check.title')} className="rounded-3xl border border-amber-300/35 bg-amber-300/[0.07] p-4 sm:p-5">
+          <section aria-label={t('athlete.check.title')} className="rounded-3xl border border-amber-300/35 bg-amber-300/[0.07] p-4 sm:p-5">
             <h2 className="text-lg font-black text-white">{t('athlete.check.title')}</h2>
             <p className="mt-1 text-sm text-slate-400">{t('athlete.check.detail', { count: entriesToCheck.length })}</p>
             <ul className="mt-3 grid gap-2">
@@ -2146,7 +2145,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 <span className="shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{allToRate.length}</span>
               </div>
               {rateQueue.length > 0 ? (
-                <button type="button" data-tour="rate-now" onClick={() => setRatePromptOpen(true)} className="mt-3 w-full rounded-2xl bg-emerald-300 px-4 py-2.5 text-sm font-black text-slate-950">
+                <button type="button" onClick={() => setRatePromptOpen(true)} className="mt-3 w-full rounded-2xl bg-emerald-300 px-4 py-2.5 text-sm font-black text-slate-950">
                   {t('athlete.rate.now', { count: rateQueue.length })}
                 </button>
               ) : null}
@@ -2178,7 +2177,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               </div>
               {nextSession ? (
                 <>
-                <button type="button" data-tour="athlete-next" data-session-id={nextSession.id} onClick={() => openCalendarItem(nextSessionItem(nextSession))} className="mt-4 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.06] p-5 text-left transition hover:border-emerald-300/55">
+                <button type="button" data-session-id={nextSession.id} onClick={() => openCalendarItem(nextSessionItem(nextSession))} className="mt-4 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.06] p-5 text-left transition hover:border-emerald-300/55">
                   <div className="flex items-center justify-between gap-3">
                     <p className="min-w-0 text-2xl font-black tracking-tight">{displayTitle(nextSession.title)}</p>
                     {landingAfter.has(nextSession.id) ? <LoadLandingChip value={landingAfter.get(nextSession.id)!} large /> : null}
@@ -2196,7 +2195,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 </button>
                 {/* Piece A: no answer yet from a player who says yes themselves. */}
                 {isOpenSession(nextSession) ? (
-                  <div data-tour="athlete-rsvp" className="mt-2 flex items-center gap-2 rounded-2xl border border-amber-300/40 bg-amber-300/[0.08] py-2 pl-4 pr-2">
+                  <div className="mt-2 flex items-center gap-2 rounded-2xl border border-amber-300/40 bg-amber-300/[0.08] py-2 pl-4 pr-2">
                     <p className="min-w-0 flex-1 text-sm font-black text-amber-100">{t('athlete.rsvp.question')}</p>
                     <button type="button" onClick={() => { void setTeamSessionAvailability(nextSession, 'expected'); }} className="rounded-xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950 transition active:scale-95">{t('athlete.rsvp.yes')}</button>
                     <button type="button" onClick={() => { openCalendarItem(nextSessionItem(nextSession)); setAvailabilityDraft('out'); }} className="rounded-xl border border-rose-300/50 px-3 py-2 text-sm font-black text-rose-100 transition active:scale-95">{t('athlete.rsvp.no')}</button>
@@ -2231,7 +2230,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               ) : null}
               {/* Piece 16: away for a period (injured, sick, holiday …). */}
               {activePersonId ? (
-                <div data-tour="athlete-away" className="mt-4 border-t border-slate-800/80 pt-4">
+                <div className="mt-4 border-t border-slate-800/80 pt-4">
                   <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('athlete.away')}</p>
                   <AbsencePanel personId={activePersonId} viewer="self" showReasons />
                 </div>
@@ -2283,7 +2282,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
       {composerOpen ? (
         <div className="fixed inset-0 z-[100] flex items-end bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
-          <div data-tour="player-session-sheet" data-session-id={activeComposerSession?.id} className="max-h-[88vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-xl">
+          <div data-session-id={activeComposerSession?.id} className="max-h-[88vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-xl">
             <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-300">{t('athlete.composer.kicker')}</p>
@@ -2431,14 +2430,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                       {activeComposerSession && !isWarmup ? (
                         <div className="space-y-3">
                           <div className="grid grid-cols-3 gap-2">
-                            <button type="button" data-tour="player-in" onClick={() => setAvailabilityDraft('expected')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'expected' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.available')}</button>
+                            <button type="button" onClick={() => setAvailabilityDraft('expected')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'expected' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.available')}</button>
                             <button type="button" onClick={() => setAvailabilityDraft('late')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'late' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.late')}</button>
-                            <button type="button" data-tour="player-out" onClick={() => setAvailabilityDraft('out')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'out' ? 'border-rose-300 bg-rose-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.out')}</button>
+                            <button type="button" onClick={() => setAvailabilityDraft('out')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'out' ? 'border-rose-300 bg-rose-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.out')}</button>
                           </div>
                           {availabilityDraft === 'late' || availabilityDraft === 'out' ? (
                             <label className="block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
                               {t('composer.reason')}
-                              <textarea data-tour="player-reason" value={availabilityReason} onChange={(event) => setAvailabilityReason(event.target.value)} placeholder={t('composer.reasonPlaceholder')} className="mt-2 min-h-20 w-full resize-y rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold normal-case tracking-normal text-white outline-none placeholder:text-slate-600 focus:border-emerald-300" />
+                              <textarea value={availabilityReason} onChange={(event) => setAvailabilityReason(event.target.value)} placeholder={t('composer.reasonPlaceholder')} className="mt-2 min-h-20 w-full resize-y rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold normal-case tracking-normal text-white outline-none placeholder:text-slate-600 focus:border-emerald-300" />
                             </label>
                           ) : null}
                           {availabilityDraft === 'late' ? (
@@ -2450,7 +2449,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                           ) : null}
                           <button
                             type="button"
-                            data-tour="player-rsvp-save"
                             onClick={async () => {
                               const saved = await setTeamSessionAvailability(activeComposerSession, availabilityDraft, availabilityReason, availabilityDraft === 'late' ? lateMinutes : null);
                               if (!saved) return;

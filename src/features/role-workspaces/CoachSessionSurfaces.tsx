@@ -97,9 +97,9 @@ function sessionLoadRisks(session: CoachSession) {
     .sort((a, b) => (b.after ?? b.before) - (a.after ?? a.before));
 }
 
-function formatTimeRange(startsAt: string, endsAt: string | null) {
+function formatTimeRange(startsAt: string, endsAt: string | null, sessionType?: string) {
   const start = new Date(startsAt);
-  return formatSharedTimeRange(start, endsAt ? new Date(endsAt) : new Date(start.getTime() + 90 * 60_000));
+  return formatSharedTimeRange(start, endsAt ? new Date(endsAt) : new Date(start.getTime() + 90 * 60_000), sessionType);
 }
 
 /**
@@ -408,13 +408,13 @@ function CoachHistoryTrendGraph({
   }, [selectedPeriodKey, onPeriodSelect]);
 
   return (
-    <div data-tour="history-chart" className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/70 p-3 shadow-[0_18px_70px_rgba(0,0,0,0.18)] sm:p-4">
+    <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/70 p-3 shadow-[0_18px_70px_rgba(0,0,0,0.18)] sm:p-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h3 className="text-base font-black text-white">{t('coach.history.byWeek')}</h3>
           <p className="text-xs text-slate-400">{t('coach.history.tapWeek')}</p>
         </div>
-        <div data-tour="history-metrics" className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {(Object.keys(HISTORY_METRIC_META) as CoachHistoryMetric[]).map((metric) => {
             const active = activeMetric === metric;
             return (
@@ -669,7 +669,7 @@ function AttendanceConfirmation({ session }: { session: CoachSession }) {
   }
 
   return (
-    <div data-tour="attendance-panel" className="mb-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.06] p-3">
+    <div className="mb-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.06] p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">{t('attendance.title')}</p>
@@ -779,7 +779,7 @@ export function OpenAnswers({ session, className = '' }: { session: CoachSession
     }
   }
   return (
-    <div data-tour="coach-open" className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-amber-300/35 bg-amber-300/[0.07] px-3 py-2.5 ${className}`}>
+    <div className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-amber-300/35 bg-amber-300/[0.07] px-3 py-2.5 ${className}`}>
       <p className="min-w-0 flex-1 text-xs font-bold text-amber-100">
         <span className="font-black">{t('coach.open.count', { count: openIds.length })}</span> · {names.join(', ')}
       </p>
@@ -847,7 +847,7 @@ function SquadPicker({ session }: { session: CoachSession }) {
 
   const changed = session.squadChangedSincePublish ?? 0;
   return (
-    <div data-tour="squad-panel" className="mb-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.05] p-3">
+    <div className="mb-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.05] p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">{t('squad.title')}</p>
@@ -1013,6 +1013,7 @@ export function CoachSessionDetailOverlay({
         title={displayTitle(session.title)}
         startsAt={session.startsAt}
         endsAt={session.endsAt}
+        sessionType={session.sessionType}
         teamName={session.teamName}
         departmentName={session.departmentName}
         facilityName={session.homeAway === 'away' ? null : session.facilityName}
@@ -1291,7 +1292,7 @@ export function CoachHistorySessionCard({
     <article className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-white transition hover:border-violet-300/35 hover:bg-slate-900/55 sm:p-4">
       <button type="button" onClick={onDetails} className="flex w-full items-start justify-between gap-3 text-left">
         <div className="min-w-0">
-          <p className="truncate text-xs font-bold text-slate-400">{formatDay(session.startsAt)} · {formatTimeRange(session.startsAt, session.endsAt)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+          <p className="truncate text-xs font-bold text-slate-400">{formatDay(session.startsAt)} · {formatTimeRange(session.startsAt, session.endsAt, session.sessionType)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
           <h3 className="mt-0.5 truncate text-base font-black text-white">{displayTitle(session.title)} <span className="text-sm font-bold text-slate-500">{session.teamName}</span></h3>
         </div>
         <span aria-hidden className="text-lg font-black text-slate-500">›</span>

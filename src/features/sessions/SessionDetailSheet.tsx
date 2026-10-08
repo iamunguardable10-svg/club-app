@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { Carpools } from './Carpools';
+import { gameDurationMinutes, gameEndAt } from './gameTiming';
 import { formatSessionTime } from '@/shared/format';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
@@ -63,8 +64,8 @@ export type SessionDetailParticipant = {
   detail?: string | null;
 };
 
-function formatTimeRange(startsAt: string, endsAt: string | null) {
-  return formatSessionTime(startsAt, endsAt);
+function formatTimeRange(startsAt: string, endsAt: string | null, sessionType?: string) {
+  return formatSessionTime(startsAt, endsAt, sessionType);
 }
 
 function statusClass(status?: string) {
@@ -84,6 +85,7 @@ export function SessionDetailSheet({
   sessionId,
   startsAt,
   endsAt,
+  sessionType,
   teamName,
   departmentName,
   facilityName,
@@ -116,6 +118,7 @@ export function SessionDetailSheet({
   sessionId?: string;
   startsAt: string;
   endsAt: string | null;
+  sessionType?: string;
   teamName?: string | null;
   departmentName?: string | null;
   facilityName?: string | null;
@@ -196,7 +199,7 @@ export function SessionDetailSheet({
     start.setHours(hours, minutes, 0, 0);
     const end = new Date(start);
     end.setHours(Number.isFinite(endHours) ? endHours : start.getHours(), Number.isFinite(endMinutes) ? endMinutes : start.getMinutes() + 60, 0, 0);
-    const normalizedEnd = (end.getTime() - start.getTime()) / 60_000 < 30 ? new Date(start.getTime() + 30 * 60_000) : end;
+    const normalizedEnd = sessionType === 'game' ? new Date(gameEndAt(start.toISOString(), gameDurationMinutes(startsAt, endsAt))) : (end.getTime() - start.getTime()) / 60_000 < 30 ? new Date(start.getTime() + 30 * 60_000) : end;
     setIsSavingTime(true);
     try {
       await onTimeChange(start.toISOString(), normalizedEnd.toISOString());
@@ -213,7 +216,7 @@ export function SessionDetailSheet({
           <div className="min-w-0">
             <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-300">{t('sessionSheet.kicker')}</p>
             <h3 className="mt-1.5 truncate text-xl font-black text-white sm:text-2xl">{title}</h3>
-            <p className="mt-1 text-sm font-bold text-slate-400">{formatTimeRange(startsAt, endsAt)}</p>
+            <p className="mt-1 text-sm font-bold text-slate-400">{formatTimeRange(startsAt, endsAt, sessionType)}</p>
             {contextLine ? <p className="mt-1 truncate text-xs font-bold text-slate-500">{contextLine}</p> : null}
           </div>
           <button type="button" onClick={onClose} className="shrink-0 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200 hover:bg-slate-900 sm:text-sm">
@@ -346,15 +349,17 @@ export function SessionDetailSheet({
             {showEditDetails ? (
               <div className="mt-3 space-y-3">
                 {canEditTime && onTimeChange ? (
-                  <div className="grid min-w-0 grid-cols-[4.35rem_4.35rem_auto] gap-2 sm:grid-cols-[7rem_7rem_auto] sm:items-end">
+                  <div className={`grid min-w-0 gap-2 sm:items-end ${sessionType === 'game' ? 'grid-cols-[6rem_auto]' : 'grid-cols-[4.35rem_4.35rem_auto] sm:grid-cols-[7rem_7rem_auto]'}`}>
                     <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
                       {t('sessionSheet.start')}
                       <input value={timeValue} onChange={(event) => setTimeValue(event.target.value)} type="time" className="mt-1 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2 sm:text-sm [color-scheme:dark]" />
                     </label>
+                    {sessionType !== 'game' ? (
                     <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
                       {t('sessionSheet.end')}
                       <input value={endTimeValue} onChange={(event) => setEndTimeValue(event.target.value)} type="time" className="mt-1 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2 sm:text-sm [color-scheme:dark]" />
                     </label>
+                    ) : null}
                     <button type="button" onClick={() => { void saveTimeChange(); }} disabled={isSavingTime} className="h-9 w-fit rounded-lg border border-emerald-300 bg-emerald-300 px-3 text-xs font-black text-slate-950 disabled:opacity-60">
                       {t('sessionSheet.save')}
                     </button>
