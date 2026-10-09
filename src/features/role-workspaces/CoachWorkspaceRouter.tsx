@@ -1,7 +1,6 @@
 'use client';
 
 import { CarpoolSummary } from '@/features/sessions/Carpools';
-import { sessionsNotOver } from '@/features/sessions/sessionTiming';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -17,6 +16,7 @@ import {
   updateSession,
   useLocalDatabase,
   type SessionType,
+  readLastCoachTeam,
 } from '@/shared/data';
 import { buildCoachData, EMPTY_COACH_DATA } from '@/features/role-workspaces/coachData';
 import type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
@@ -35,7 +35,6 @@ import { CoachSection, CoachShell, type CoachNavItem } from '@/features/role-wor
 import { formatDateRange, formatDay, formatLongDay, formatSessionTime, formatTimeRange, formatWeekday } from '@/shared/format';
 import { errorText, useT } from '@/shared/i18n';
 import { displayTitle } from '@/features/sessions/sessionTypeLabels';
-import { displayRoleName } from '@/features/teams/roleLabels';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 export type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 export { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
@@ -960,15 +959,6 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const upcomingSessions = futureSessions.slice(0, 4);
   const nextGame = futureSessions.find((session) => session.sessionType === 'game');
   if (nextGame && !upcomingSessions.some((session) => session.id === nextGame.id)) upcomingSessions.push(nextGame);
-  const nextSessionByTeamId = useMemo(() => {
-    const map = new Map<string, CoachSession>();
-    // A running session is still the team's next one, as on Today.
-    for (const session of sessionsNotOver(sessions)) {
-      if (!map.has(session.teamId)) map.set(session.teamId, session);
-    }
-    return map;
-  }, [sessions]);
-
   function reportError(error: unknown, fallback: string) {
     setError(error instanceof Error ? errorText(t, error) : fallback);
   }
@@ -1246,11 +1236,12 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   }
 
   const shouldOpenTeamWorkspace = mode === 'team' || mode === 'attendance' || mode === 'load';
-  const workspaceTeam = shouldOpenTeamWorkspace ? selectedTeam ?? singleTeam : null;
+  // Several teams: the tab opens the last team used on this device, else the first.
+  const lastTeamId = shouldOpenTeamWorkspace && !selectedTeam && teams.length > 1 ? readLastCoachTeam() : null;
+  const workspaceTeam = shouldOpenTeamWorkspace ? selectedTeam ?? singleTeam ?? teams.find((team) => team.id === lastTeamId) ?? teams[0] ?? null : null;
 
   if (workspaceTeam) {
-    // Several teams: back to the list. One team: the tab itself is the team.
-    return <TeamWorkspace teamId={workspaceTeam.id} back={teams.length > 1 ? { href: '/coach/team', label: t('coach.calendar.allTeams') } : undefined} initialSection={initialSection} />;
+    return <TeamWorkspace teamId={workspaceTeam.id} initialSection={initialSection} />;
   }
 
   const calendarTeam = mode === 'sessions' && selectedTeam ? selectedTeam : null;
@@ -1427,25 +1418,6 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           onConfirm={() => { if (deleteSessionId) void handleCoachSessionDelete(deleteSessionId); }}
           onCancel={() => setDeleteSessionId(null)}
         />
-
-        {mode === 'team' && teams.length > 0 ? (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {teams.map((team) => {
-              const nextSession = nextSessionByTeamId.get(team.id);
-              return (
-                <Link key={team.id} href={`/coach/team?teamId=${team.id}`} className="block rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white transition hover:border-emerald-300/50 hover:bg-slate-900/70">
-                  <p className="text-xs font-bold text-slate-400">{team.departmentName}{team.roleName ? ` · ${displayRoleName(team.roleName)}` : ''}</p>
-                  <h3 className="mt-1 text-xl font-black">{team.name}</h3>
-                  <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
-                    <p className="text-xs font-bold text-slate-500">{t('coach.team.nextSession')}</p>
-                    <p className="mt-1 text-sm font-black text-slate-200">{nextSession ? displayTitle(nextSession.title) : t('coach.team.nonePlanned')}</p>
-                    {nextSession ? <p className="mt-0.5 text-xs font-bold text-slate-400">{formatSessionTime(nextSession.startsAt, nextSession.endsAt, nextSession.sessionType)}</p> : null}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        ) : null}
     </CoachShell>
   );
 }

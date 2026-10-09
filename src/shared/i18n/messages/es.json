@@ -626,8 +626,6 @@
   "coach.delete.detail": "La sesión se quitará de los calendarios del cuerpo técnico, del equipo y de los jugadores.",
   "coach.delete.confirm": "Eliminar sesión",
   "coach.delete.keep": "Conservar sesión",
-  "coach.team.nextSession": "Próxima sesión",
-  "coach.team.nonePlanned": "Nada planificado",
   "coach.insight.expected": "Jugadores previstos",
   "coach.insight.rpe": "Informes de RPE",
   "coach.insight.au": "Carga en AU",
@@ -1907,5 +1905,6 @@
   "server.consent22": "Your account already belongs to a club.",
   "server.consent23": "Your account already belongs to another club.",
   "consent.parentHealth": "Consiento explícitamente el tratamiento de salud descrito arriba para mi hijo.",
-  "consent.saveTeam": "Guardar ajustes del equipo"
+  "consent.saveTeam": "Guardar ajustes del equipo",
+  "team.switch.title": "Cambiar de equipo"
 }
