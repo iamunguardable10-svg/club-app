@@ -542,6 +542,7 @@
   "load.details.noRecent": "No hay carga reciente.",
   "load.details.weeklyProfile": "Perfil semanal de carga",
   "load.details.completed": "Sesiones completadas",
+  "load.details.showAll": "Mostrar todo ({count})",
   "load.details.noCompleted": "No hay registros completados.",
   "load.details.minutes": "{count} min",
   "load.details.rpeLoad": "RPE {rpe} · {load} AU",

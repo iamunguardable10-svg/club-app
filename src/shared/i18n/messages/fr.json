@@ -542,6 +542,7 @@
   "load.details.noRecent": "Pas de charge récente.",
   "load.details.weeklyProfile": "Profil de charge hebdomadaire",
   "load.details.completed": "Séances terminées",
+  "load.details.showAll": "Tout afficher ({count})",
   "load.details.noCompleted": "Aucune entrée terminée.",
   "load.details.minutes": "{count} min",
   "load.details.rpeLoad": "RPE {rpe} · {load} AU",

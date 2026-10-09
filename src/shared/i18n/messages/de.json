@@ -542,6 +542,7 @@
   "load.details.noRecent": "Keine aktuelle Belastung.",
   "load.details.weeklyProfile": "Wöchentliches Belastungsprofil",
   "load.details.completed": "Abgeschlossene Einheiten",
+  "load.details.showAll": "Alle anzeigen ({count})",
   "load.details.noCompleted": "Keine abgeschlossenen Einträge.",
   "load.details.minutes": "{count} Min.",
   "load.details.rpeLoad": "RPE {rpe} · {load} AU",

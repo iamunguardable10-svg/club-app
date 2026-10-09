@@ -542,6 +542,7 @@
   "load.details.noRecent": "No recent load.",
   "load.details.weeklyProfile": "Weekly load profile",
   "load.details.completed": "Completed sessions",
+  "load.details.showAll": "Show all ({count})",
   "load.details.noCompleted": "No completed entries.",
   "load.details.minutes": "{count} min",
   "load.details.rpeLoad": "RPE {rpe} · {load} AU",

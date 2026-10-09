@@ -2895,6 +2895,7 @@ function LoadDetailsPanel({
   baselineDays: number;
 }) {
   const t = useT();
+  const [showAllCompleted, setShowAllCompleted] = useState(false);
   const today = todayISO();
   const last28Start = new Date(`${today}T00:00:00`);
   last28Start.setDate(last28Start.getDate() - 27);
@@ -3058,7 +3059,7 @@ function LoadDetailsPanel({
           </div>
           <div className="mt-3 grid gap-2">
             {completedEntries.length === 0 ? <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4 text-sm font-bold text-slate-500">{t('load.details.noCompleted')}</div> : null}
-            {completedEntries.map((entry) => (
+            {(showAllCompleted ? completedEntries : completedEntries.slice(0, 3)).map((entry) => (
               <div key={entry.id} className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -3072,6 +3073,9 @@ function LoadDetailsPanel({
                 </div>
               </div>
             ))}
+            {!showAllCompleted && completedEntries.length > 3 ? (
+              <button type="button" onClick={() => setShowAllCompleted(true)} className="rounded-2xl border border-slate-700 px-4 py-2.5 text-xs font-black text-slate-200">{t('load.details.showAll', { count: completedEntries.length })}</button>
+            ) : null}
           </div>
         </div>
       </div>
