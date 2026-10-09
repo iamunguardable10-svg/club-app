@@ -384,9 +384,9 @@ function LoadRoomGauge({ room, compact = false }: { room: LoadRoomSummary; compa
   );
 }
 
-// Monotony corridor: varied below 1.5, watch up to 2, high above. Scale 0.5 to 2.5.
+// Monotony corridor: varied below 1.5, watch up to 2, high above. Scale 0 to 3.
 function MonotonyGauge({ value }: { value: number }) {
-  const pct = (v: number) => Math.min(100, Math.max(0, ((v - 0.5) / 2) * 100));
+  const pct = (v: number) => Math.min(100, Math.max(0, (v / 3) * 100));
   return (
     <div className="mt-3">
       <div className="relative h-5">
@@ -398,8 +398,10 @@ function MonotonyGauge({ value }: { value: number }) {
         <span className="absolute top-0 z-20 h-5 w-5 -translate-x-1/2 rounded-full border-[3px] border-slate-950 bg-white shadow-[0_8px_22px_rgba(0,0,0,0.45)]" style={{ left: `${pct(value)}%` }} />
       </div>
       <div className="relative h-4 text-[10px] font-black text-slate-500">
+        <span className="absolute left-0">0</span>
         <span className="absolute -translate-x-1/2" style={{ left: `${pct(1.5)}%` }}>{formatDecimal(1.5, 1)}</span>
         <span className="absolute -translate-x-1/2" style={{ left: `${pct(2)}%` }}>{formatDecimal(2, 1)}</span>
+        <span className="absolute right-0">3</span>
       </div>
     </div>
   );
