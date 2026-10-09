@@ -620,7 +620,6 @@
   "coach.today.count_one": "Heute {count} Einheit",
   "coach.today.count_other": "Heute {count} Einheiten",
   "coach.today.none": "Heute keine Einheiten",
-  "coach.today.nextUp": "Als Nächstes: {title}, {time}.",
   "coach.today.nothing": "Noch nichts geplant. Plane Einheiten im Kalender.",
   "coach.today.comingUp": "Demnächst",
   "coach.today.calendarLink": "Kalender ›",

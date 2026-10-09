@@ -1272,15 +1272,17 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
 
         {mode === 'today' && teams.length > 0 ? (
           <>
-            <CoachSection title={todaySessions.length > 0 ? t('coach.today.count', { count: todaySessions.length }) : t('coach.today.none')}>
-              {todaySessions.length > 0 ? (
-                <div className="grid gap-3 lg:grid-cols-2">
-                  {todaySessions.map((session) => <CoachSessionCard key={session.id} session={session} onDetails={() => openSessionDetails(session)} />)}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-400">{upcomingSessions[0] ? t('coach.today.nextUp', { title: displayTitle(upcomingSessions[0].title), time: formatSessionTime(upcomingSessions[0].startsAt, upcomingSessions[0].endsAt, upcomingSessions[0].sessionType) }) : t('coach.today.nothing')}</p>
-              )}
-            </CoachSection>
+            {todaySessions.length > 0 || upcomingSessions.length === 0 ? (
+              <CoachSection title={todaySessions.length > 0 ? t('coach.today.count', { count: todaySessions.length }) : t('coach.today.none')}>
+                {todaySessions.length > 0 ? (
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    {todaySessions.map((session) => <CoachSessionCard key={session.id} session={session} onDetails={() => openSessionDetails(session)} />)}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400">{t('coach.today.nothing')}</p>
+                )}
+              </CoachSection>
+            ) : null}
 
             {upcomingSessions.length > 0 ? (
               <CoachSection title={t('coach.today.comingUp')} actions={<Link href="/coach/sessions" className="text-xs font-black text-sky-300 hover:text-sky-200">{t('coach.today.calendarLink')}</Link>}>

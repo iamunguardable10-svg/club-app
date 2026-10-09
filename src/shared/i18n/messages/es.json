@@ -620,7 +620,6 @@
   "coach.today.count_one": "{count} sesión hoy",
   "coach.today.count_other": "{count} sesiones hoy",
   "coach.today.none": "Hoy no hay sesiones",
-  "coach.today.nextUp": "Lo siguiente: {title}, {time}.",
   "coach.today.nothing": "Aún no hay nada planificado. Planifica sesiones en el calendario.",
   "coach.today.comingUp": "Próximamente",
   "coach.today.calendarLink": "Calendario ›",
