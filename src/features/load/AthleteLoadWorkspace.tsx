@@ -242,7 +242,7 @@ function Metric({ label, value, tone = 'default' }: { label: string; value: stri
       <div>
         <p className="text-[10px] font-black leading-tight text-slate-400 sm:text-[11px]">{label}</p>
         <p className="mt-2 flex items-center gap-1.5 text-lg font-black tracking-tight sm:text-2xl">
-          <span aria-hidden="true" className={`h-2.5 w-2.5 shrink-0 rounded-full ${dotClass}`} />
+          <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} />
           <span className="truncate">{value}</span>
         </p>
       </div>
