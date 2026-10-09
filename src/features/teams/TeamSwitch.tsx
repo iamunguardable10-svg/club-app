@@ -13,6 +13,8 @@ import { createPortal } from 'react-dom';
 
 import { useT } from '@/shared/i18n';
 
+import { TeamDot } from './teamColor';
+
 export type TeamSwitchTeam = { id: string; name: string; detail: string };
 
 export function TeamSwitch({ teams, activeId }: { teams: TeamSwitchTeam[]; activeId: string }) {
@@ -51,7 +53,7 @@ export function TeamSwitch({ teams, activeId }: { teams: TeamSwitchTeam[]; activ
         onClick={toggle}
         className="-mx-1 -my-1 inline-flex max-w-full items-center gap-1 rounded-lg px-1 py-1 text-xs font-black text-sky-300 transition hover:text-sky-200 md:text-sm"
       >
-        <span className="truncate">{active?.name}</span>
+        <span className="truncate"><TeamDot teamId={activeId} />{active?.name}</span>
         <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
       </button>
       {open ? createPortal(
@@ -74,7 +76,7 @@ export function TeamSwitch({ teams, activeId }: { teams: TeamSwitchTeam[]; activ
                     className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition ${team.id === activeId ? 'bg-sky-300/15' : 'hover:bg-slate-900'}`}
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-black">{team.name}</span>
+                      <span className="block truncate text-sm font-black"><TeamDot teamId={team.id} />{team.name}</span>
                       {team.detail ? <span className="block truncate text-xs font-bold text-slate-400">{team.detail}</span> : null}
                     </span>
                     {team.id === activeId ? <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-sky-300" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg> : null}
