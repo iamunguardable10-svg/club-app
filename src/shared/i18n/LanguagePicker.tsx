@@ -29,10 +29,7 @@ export function LanguagePicker({ compact = false }: { compact?: boolean }) {
   if (compact) return select;
   return (
     <div className="grid gap-2">
-      <div>
-        <p className="text-sm font-black text-white">{t('language.label')}</p>
-        <p className="text-xs text-slate-400">{t('language.help')}</p>
-      </div>
+      <p className="text-sm font-black text-white">{t('language.label')}</p>
       {select}
     </div>
   );
