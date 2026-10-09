@@ -3,6 +3,7 @@ import './globals.css';
 import { SyncStatusBanner } from '@/shared/components/SyncStatusBanner';
 import { AccessGate } from '@/features/access/AccessGate';
 import { ServiceWorkerRegistration } from '@/features/install/ServiceWorkerRegistration';
+import { NoZoomInApp } from '@/features/install/NoZoomInApp';
 import { LoginHandoff } from '@/features/install/LoginHandoff';
 import { ErrorReporter } from '@/features/errors/ErrorReporter';
 import { AccountLocaleSync } from '@/shared/i18n/AccountLocaleSync';
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <SyncStatusBanner />
         <AccessGate />
         <ServiceWorkerRegistration />
+        <NoZoomInApp />
         <LoginHandoff />
         <AccountLocaleSync />
         <ErrorReporter />
