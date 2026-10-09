@@ -236,10 +236,16 @@ function Metric({ label, value, tone = 'default' }: { label: string; value: stri
       : tone === 'low'
         ? 'border-sky-400/35 bg-sky-400/10 text-sky-100'
         : 'border-slate-800 bg-slate-950/55 text-white';
+  const dotClass = tone === 'ready' ? 'bg-emerald-400' : tone === 'high' ? 'bg-rose-400' : tone === 'low' ? 'bg-sky-400' : 'bg-slate-500';
   return (
-    <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-3 sm:p-4 ${toneClass}`}>
-      <p className="text-[11px] font-black leading-tight text-slate-400">{label}</p>
-      <p className="mt-2 truncate text-lg font-black tracking-tight sm:text-2xl">{value}</p>
+    <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-2.5 sm:p-4 ${toneClass}`}>
+      <div>
+        <p className="text-[10px] font-black leading-tight text-slate-400 sm:text-[11px]">{label}</p>
+        <p className="mt-2 flex items-center gap-1.5 text-lg font-black tracking-tight sm:text-2xl">
+          <span aria-hidden="true" className={`h-2.5 w-2.5 shrink-0 rounded-full ${dotClass}`} />
+          <span className="truncate">{value}</span>
+        </p>
+      </div>
     </div>
   );
 }
@@ -387,9 +393,9 @@ function LoadRoomMetric({ latest, entries, baselineReady }: { latest: ReturnType
         ? 'border-sky-400/35 bg-sky-400/10 text-sky-100'
         : 'border-slate-800 bg-slate-950/55 text-white';
   return (
-    <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-3 sm:p-4 ${toneClass}`}>
+    <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-2.5 sm:p-4 ${toneClass}`}>
       <div>
-        <p className="text-[11px] font-black leading-tight text-slate-400">{room.label}</p>
+        <p className="text-[10px] font-black leading-tight text-slate-400 sm:text-[11px]">{room.label}</p>
         <p className="mt-2 truncate text-lg font-black tracking-tight sm:text-2xl">{room.value}</p>
       </div>
       <div>
@@ -428,9 +434,9 @@ function AcwrMetric({ latest, baselineReady, tone }: { latest: ReturnType<typeof
         ? 'border-sky-400/35 bg-sky-400/10 text-sky-100'
         : 'border-slate-800 bg-slate-950/55 text-white';
   return (
-    <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-3 sm:p-4 ${toneClass}`}>
+    <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-2.5 sm:p-4 ${toneClass}`}>
       <div>
-        <p className="text-[11px] font-black leading-tight text-slate-400">ACWR</p>
+        <p className="text-[10px] font-black leading-tight text-slate-400 sm:text-[11px]">ACWR</p>
         <p className="mt-2 truncate text-lg font-black tracking-tight sm:text-2xl">{room.value}</p>
       </div>
       <div>
@@ -2069,7 +2075,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         ) : null}
 
         {activeView !== 'calendar' && hasLoad ? (
-          <div className="grid w-full min-w-0 grid-cols-3 gap-2 [&>*]:min-h-[92px]">
+          <div className="grid w-full min-w-0 grid-cols-3 items-stretch gap-2 [&>*]:min-h-[104px]">
             <LoadRoomMetric latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} />
             <AcwrMetric latest={latest} baselineReady={isBaselineReady} tone={zone.tone} />
             <Metric label={t('athlete.metric.status')} value={zone.tone === 'neutral' ? t('athlete.metric.building') : zoneLabel(zone.tone)} tone={zone.tone} />
