@@ -53,7 +53,7 @@ export function CoachTodo({ sessions, onOpen }: { sessions: CoachSession[]; onOp
           return (
             <li key={todo.key}>
               <button type="button" onClick={() => onOpen(todo.session)} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 px-3 py-3 text-left transition hover:border-sky-300/50 hover:bg-slate-900/70">
-                <span className="min-w-0 truncate text-sm font-black text-white">
+                <span className="min-w-0 text-sm font-black text-white">
                   {todo.kind === 'answers' ? t('coach.todo.answers', { count: todo.count, what }) : t('coach.todo.attendance', { what })}
                 </span>
                 <span aria-hidden className="text-lg font-black text-slate-500">›</span>

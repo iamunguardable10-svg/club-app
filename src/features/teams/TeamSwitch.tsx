@@ -51,7 +51,7 @@ export function TeamSwitch({ teams, activeId }: { teams: TeamSwitchTeam[]; activ
         aria-expanded={open}
         aria-label={`${t('team.switch.title')}: ${active?.name ?? ''}`}
         onClick={toggle}
-        className="-mx-1 -my-1 inline-flex max-w-full items-center gap-1 rounded-lg px-1 py-1 text-xs font-black text-sky-300 transition hover:text-sky-200 md:text-sm"
+        className="-mx-1 -my-1 inline-flex min-w-0 items-center gap-1 rounded-lg px-1 py-1 text-xs font-black text-sky-300 transition hover:text-sky-200 md:text-sm"
       >
         <span className="truncate"><TeamDot teamId={activeId} />{active?.name}</span>
         <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
