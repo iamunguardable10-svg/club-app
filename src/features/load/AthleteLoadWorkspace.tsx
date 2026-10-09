@@ -31,7 +31,8 @@ import {
 import { BASELINE_DAYS, acwrAfter, aggregateDailyLoads, backFromBreak, baselineAgeDays, calculateACWR, fillMissingDays, firstHighRiskDay, getLatestACWR, HIGH_RISK_ACWR, loadRoom, loadZone, projectFutureACWR, todayISO, weekChangePercent } from './loadCalculations';
 import { LoadInfoButton, LoadLandingChip, LoadRiskBadge } from './LoadHints';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
-import { athleteHasLoad, hasHealthConsent, clearEntryReview, displayName, getActivePerson, newId, reportAvailability, reviewsForPerson, rsvpModeOf, useLocalDatabase } from '@/shared/data';
+import { HealthConsentPanel } from '@/features/legal/HealthConsentPanel';
+import { athleteHasLoad, athleteTeamTracksLoad, hasHealthConsent, clearEntryReview, displayName, getActivePerson, newId, reportAvailability, reviewsForPerson, rsvpModeOf, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
 import { formatDateRange, formatDay, formatDayMonth, formatDayNumber, formatDecimal, formatEntryDate, formatInteger, formatLongDay, formatTime as formatSharedTime, formatWeekday, formatWeekdayDay } from '@/shared/format';
@@ -1366,6 +1367,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   // tracks it; everyone else gets sessions and availability.
   const healthAllowed = database && activePersonId ? hasHealthConsent(database, activePersonId) : false;
   const hasLoad = database ? athleteHasLoad(database, activePersonId) : false;
+  // The load tab stays visible without consent; it then asks for it first.
+  const teamTracksLoad = database ? athleteTeamTracksLoad(database, activePersonId) : false;
 
   // Everything below is fed from the shared local document, scoped to the
   // active athlete. This used to be a Supabase load with a demo fallback that
@@ -2080,14 +2083,18 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   return (
     <AthleteShell
       active={activeView === 'home' ? 'today' : activeView}
-      showLoad={hasLoad}
+      showLoad={teamTracksLoad}
       title={activeView === 'home' ? t('athlete.title.today') : activeView === 'calendar' ? t('athlete.title.calendar') : t('athlete.title.load')}
       subtitle={activeView === 'home' ? formatLongDay(new Date()) : undefined}
       menuAction={hasLoad ? { label: shareStatus === 'copied' ? t('athlete.share.copied') : shareStatus === 'error' ? t('athlete.share.error') : shareActive ? t('athlete.share.on') : t('athlete.share.off'), onSelect: () => { void copyTrainerShareLink(); } } : undefined}
     >
         {error ? <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 px-4 py-3 text-sm font-bold text-rose-100">{error}</div> : null}
 
-        {activeView === 'load' && !hasLoad ? (
+        {activeView === 'load' && !hasLoad && teamTracksLoad && database && activePerson ? (
+          <HealthConsentPanel database={database} person={activePerson} />
+        ) : null}
+
+        {activeView === 'load' && !hasLoad && !teamTracksLoad ? (
           <section className="rounded-3xl border border-slate-800 bg-slate-950/65 p-5">
             <h2 className="text-lg font-black">{t('athlete.noTracking.title')}</h2>
             <p className="mt-1 text-sm text-slate-400">{t('athlete.noTracking.detail')}</p>
