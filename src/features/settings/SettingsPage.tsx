@@ -104,7 +104,7 @@ export function SettingsPage() {
       <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         <div className="grid gap-5">
           <AccountSection person={person} remote={remote} />
-          {person && database.memberships.some((m) => m.personId === person.id && m.role === 'athlete') ? <HealthConsentPanel database={database} person={person} /> : null}
+          {person && database.memberships.some((m) => m.personId === person.id && m.role === 'athlete') ? <HealthConsentPanel database={database} person={person} hideLegalLinks /> : null}
           {remote ? <NotificationSection database={database} /> : null}
           {role !== 'club' ? <PhoneCalendarSection remote={remote} canRead={isPlayerAccount(database)} /> : null}
         </div>
@@ -126,6 +126,7 @@ export function SettingsPage() {
           </CoachSection>
         </div>
       </div>
+      <div className="mt-5"><LegalLinks /></div>
     </ActiveRoleShell>
   );
 }
@@ -187,7 +188,6 @@ function AccountSection({ person, remote }: { person: Person | null; remote: boo
         {remote ? <SignOutButtons /> : null}
         {remote ? <DeleteAccount /> : null}
         <ExportDataButton />
-        <LegalLinks />
       </div>
     </CoachSection>
   );
