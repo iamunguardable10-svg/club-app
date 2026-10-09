@@ -1902,5 +1902,8 @@
   "server.consent23": "Your account already belongs to another club.",
   "consent.parentHealth": "I explicitly consent to the health processing described above for my child.",
   "consent.saveTeam": "Save team settings",
-  "team.switch.title": "Switch team"
+  "team.switch.title": "Switch team",
+  "coach.todo.title": "To do",
+  "coach.todo.answers": "{count} no answer · {what}",
+  "coach.todo.attendance": "Confirm attendance · {what}"
 }
