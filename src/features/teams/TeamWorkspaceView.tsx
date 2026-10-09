@@ -495,7 +495,10 @@ export function TeamWorkspaceView({
             <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-lg font-black">{nextSession && isSessionRunning(nextSession) ? t('team.now') : t('team.nextSession')}</h2>
-                <Link href={data.calendarHref} className="text-xs font-black text-sky-300 hover:text-sky-200">{t('team.calendarLink')}</Link>
+                <Link href={data.calendarHref} aria-label={t('team.calendarLink')} title={t('team.calendarLink')} className="text-xs font-black text-sky-300 hover:text-sky-200">
+                  <svg aria-hidden viewBox="0 0 24 24" className="grid h-9 w-9 rounded-full border border-slate-700 p-2 sm:hidden" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
+                  <span className="hidden sm:inline">{t('team.calendarLink')}</span>
+                </Link>
               </div>
               {nextSession ? (
                 <TeamDashboardSessionCard session={coachSessionFor(nextSession)} attendanceShared={data.attendanceShared !== false} onOpen={() => setDashboardSession(nextSession)} />
