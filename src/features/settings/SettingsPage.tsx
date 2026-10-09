@@ -543,7 +543,11 @@ function PlayerTeamsSection({ database, person }: { database: LocalDatabase; per
   const [error, setError] = useState<string | null>(null);
   const teams = teamsOf(database, person.id, 'athlete');
   return (
-    <CoachSection title={t('settings.yourTeams')}>
+    <CoachSection title={t('settings.yourTeams')} actions={
+      <Link href="/join" aria-label={t('settings.joinAnother')} title={t('settings.joinAnother')} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-700 text-sky-300">
+        <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
+      </Link>
+    }>
       <div className="grid gap-3">
         {teams.length === 0 ? <p className="text-sm text-slate-400">{t('settings.noPlayerTeams')}</p> : (
           <ul className="grid gap-2">
@@ -555,7 +559,6 @@ function PlayerTeamsSection({ database, person }: { database: LocalDatabase; per
           </ul>
         )}
         <Message text={error} error />
-        <Link href="/join" className="justify-self-start text-xs font-bold text-sky-300 underline">{t('settings.joinAnother')}</Link>
       </div>
       <AppConfirmDialog
         isOpen={leaving !== null}
