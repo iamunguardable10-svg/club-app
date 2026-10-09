@@ -68,15 +68,31 @@ export function SettingsPage() {
   useEffect(() => setRemote(isRemoteMode()), []);
   // Links like "/settings#phone-calendar" jump to their section. The page only
   // draws once the data is there, after the browser's own jump found nothing.
+  // Cards above the target still grow while their server data arrives, so the
+  // jump repeats on every layout change for a short while, until the user
+  // touches or scrolls the page.
   const loaded = database !== null;
   useEffect(() => {
     if (!loaded || !window.location.hash) return;
-    const frame = window.requestAnimationFrame(() => {
-      const target = document.getElementById(decodeURIComponent(window.location.hash.slice(1)));
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    const jump = () => {
+      const target = document.getElementById(id);
       // The whole card, so its heading shows below the page header.
       (target?.closest('section') ?? target)?.scrollIntoView({ block: 'start' });
-    });
-    return () => window.cancelAnimationFrame(frame);
+    };
+    const frame = window.requestAnimationFrame(jump);
+    const observer = new ResizeObserver(jump);
+    observer.observe(document.body);
+    const stop = () => observer.disconnect();
+    const timer = window.setTimeout(stop, 3000);
+    const events = ['touchstart', 'wheel', 'keydown', 'mousedown'] as const;
+    events.forEach((name) => window.addEventListener(name, stop, { once: true, passive: true }));
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+      stop();
+      events.forEach((name) => window.removeEventListener(name, stop));
+    };
   }, [loaded]);
 
   if (!database) return null;
