@@ -31,7 +31,8 @@ import {
 import { BASELINE_DAYS, acwrAfter, aggregateDailyLoads, backFromBreak, baselineAgeDays, calculateACWR, fillMissingDays, firstHighRiskDay, getLatestACWR, HIGH_RISK_ACWR, loadRoom, loadZone, projectFutureACWR, todayISO, weekChangePercent } from './loadCalculations';
 import { LoadInfoButton, LoadLandingChip, LoadRiskBadge } from './LoadHints';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
-import { athleteHasLoad, hasHealthConsent, clearEntryReview, displayName, getActivePerson, newId, reportAvailability, reviewsForPerson, rsvpModeOf, useLocalDatabase } from '@/shared/data';
+import { HealthConsentPanel } from '@/features/legal/HealthConsentPanel';
+import { athleteHasLoad, athleteTeamTracksLoad, hasHealthConsent, clearEntryReview, displayName, getActivePerson, newId, reportAvailability, reviewsForPerson, rsvpModeOf, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
 import { formatDateRange, formatDay, formatDayMonth, formatDayNumber, formatDecimal, formatEntryDate, formatInteger, formatLongDay, formatTime as formatSharedTime, formatWeekday, formatWeekdayDay } from '@/shared/format';
@@ -236,10 +237,16 @@ function Metric({ label, value, tone = 'default' }: { label: string; value: stri
       : tone === 'low'
         ? 'border-sky-400/35 bg-sky-400/10 text-sky-100'
         : 'border-slate-800 bg-slate-950/55 text-white';
+  const dotClass = tone === 'ready' ? 'bg-emerald-400' : tone === 'high' ? 'bg-rose-400' : tone === 'low' ? 'bg-sky-400' : 'bg-slate-500';
   return (
-    <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-3 sm:p-4 ${toneClass}`}>
-      <p className="text-[11px] font-black leading-tight text-slate-400">{label}</p>
-      <p className="mt-2 truncate text-lg font-black tracking-tight sm:text-2xl">{value}</p>
+    <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-2.5 sm:p-4 ${toneClass}`}>
+      <div>
+        <p className="text-[10px] font-black leading-tight text-slate-400 sm:text-[11px]">{label}</p>
+        <p className="mt-2 flex items-center gap-1.5 text-lg font-black tracking-tight sm:text-2xl">
+          <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} />
+          <span className="truncate">{value}</span>
+        </p>
+      </div>
     </div>
   );
 }
@@ -377,6 +384,29 @@ function LoadRoomGauge({ room, compact = false }: { room: LoadRoomSummary; compa
   );
 }
 
+// Monotony corridor: varied below 1.5, watch up to 2, high above. Scale 0 to 3.
+function MonotonyGauge({ value }: { value: number }) {
+  const pct = (v: number) => Math.min(100, Math.max(0, (v / 3) * 100));
+  return (
+    <div className="mt-3">
+      <div className="relative h-5">
+        <div className="absolute inset-x-0 top-2 h-2 overflow-hidden rounded-full bg-slate-900">
+          <div className="absolute inset-y-0 left-0 bg-emerald-400/35" style={{ width: `${pct(1.5)}%` }} />
+          <div className="absolute inset-y-0 bg-amber-300/35" style={{ left: `${pct(1.5)}%`, width: `${pct(2) - pct(1.5)}%` }} />
+          <div className="absolute inset-y-0 right-0 bg-rose-400/30" style={{ left: `${pct(2)}%` }} />
+        </div>
+        <span className="absolute top-0 z-20 h-5 w-5 -translate-x-1/2 rounded-full border-[3px] border-slate-950 bg-white shadow-[0_8px_22px_rgba(0,0,0,0.45)]" style={{ left: `${pct(value)}%` }} />
+      </div>
+      <div className="relative h-4 text-[10px] font-black text-slate-500">
+        <span className="absolute left-0">0</span>
+        <span className="absolute -translate-x-1/2" style={{ left: `${pct(1.5)}%` }}>{formatDecimal(1.5, 1)}</span>
+        <span className="absolute -translate-x-1/2" style={{ left: `${pct(2)}%` }}>{formatDecimal(2, 1)}</span>
+        <span className="absolute right-0">3</span>
+      </div>
+    </div>
+  );
+}
+
 function LoadRoomMetric({ latest, entries, baselineReady }: { latest: ReturnType<typeof getLatestACWR>; entries: AthleteLoadEntry[]; baselineReady: boolean }) {
   const room = buildLoadRoomSummary(latest, entries, baselineReady);
   const toneClass = room.tone === 'ready'
@@ -387,9 +417,9 @@ function LoadRoomMetric({ latest, entries, baselineReady }: { latest: ReturnType
         ? 'border-sky-400/35 bg-sky-400/10 text-sky-100'
         : 'border-slate-800 bg-slate-950/55 text-white';
   return (
-    <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-3 sm:p-4 ${toneClass}`}>
+    <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-2.5 sm:p-4 ${toneClass}`}>
       <div>
-        <p className="text-[11px] font-black leading-tight text-slate-400">{room.label}</p>
+        <p className="text-[10px] font-black leading-tight text-slate-400 sm:text-[11px]">{room.label}</p>
         <p className="mt-2 truncate text-lg font-black tracking-tight sm:text-2xl">{room.value}</p>
       </div>
       <div>
@@ -428,9 +458,9 @@ function AcwrMetric({ latest, baselineReady, tone }: { latest: ReturnType<typeof
         ? 'border-sky-400/35 bg-sky-400/10 text-sky-100'
         : 'border-slate-800 bg-slate-950/55 text-white';
   return (
-    <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-3 sm:p-4 ${toneClass}`}>
+    <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-2.5 sm:p-4 ${toneClass}`}>
       <div>
-        <p className="text-[11px] font-black leading-tight text-slate-400">ACWR</p>
+        <p className="text-[10px] font-black leading-tight text-slate-400 sm:text-[11px]">ACWR</p>
         <p className="mt-2 truncate text-lg font-black tracking-tight sm:text-2xl">{room.value}</p>
       </div>
       <div>
@@ -1193,8 +1223,8 @@ function AthleteCalendar({
         <div className="flex items-center gap-2">
           {weekOffset !== 0 ? <button type="button" onClick={() => setWeekOffset(0)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">{t('calendar.backToThisWeek')}</button> : null}
           {onEmptySlot ? (
-            <button type="button" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'}`}>
-              {mode === 'edit' ? t('calendar.done') : t('calendar.addOwn')}
+            <button type="button" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} aria-label={mode === 'edit' ? undefined : t('calendar.addOwn')} title={mode === 'edit' ? undefined : t('calendar.addOwn')} className={mode === 'edit' ? 'rounded-full border border-sky-300 bg-sky-300 px-4 py-2 text-xs font-black text-slate-950' : 'flex h-9 w-9 items-center justify-center rounded-full border border-emerald-300 bg-emerald-300 text-lg font-black leading-none text-slate-950'}>
+              {mode === 'edit' ? t('calendar.done') : '+'}
             </button>
           ) : null}
         </div>
@@ -1339,6 +1369,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   // tracks it; everyone else gets sessions and availability.
   const healthAllowed = database && activePersonId ? hasHealthConsent(database, activePersonId) : false;
   const hasLoad = database ? athleteHasLoad(database, activePersonId) : false;
+  // The load tab stays visible without consent; it then asks for it first.
+  const teamTracksLoad = database ? athleteTeamTracksLoad(database, activePersonId) : false;
 
   // Everything below is fed from the shared local document, scoped to the
   // active athlete. This used to be a Supabase load with a demo fallback that
@@ -2053,14 +2085,18 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   return (
     <AthleteShell
       active={activeView === 'home' ? 'today' : activeView}
-      showLoad={hasLoad}
+      showLoad={teamTracksLoad}
       title={activeView === 'home' ? t('athlete.title.today') : activeView === 'calendar' ? t('athlete.title.calendar') : t('athlete.title.load')}
-      subtitle={activeView === 'home' ? formatLongDay(new Date()) : activeView === 'calendar' ? (hasLoad ? t('athlete.subtitle.calendarWithLoad') : t('athlete.subtitle.calendar')) : t('athlete.subtitle.load')}
+      subtitle={activeView === 'home' ? formatLongDay(new Date()) : undefined}
       menuAction={hasLoad ? { label: shareStatus === 'copied' ? t('athlete.share.copied') : shareStatus === 'error' ? t('athlete.share.error') : shareActive ? t('athlete.share.on') : t('athlete.share.off'), onSelect: () => { void copyTrainerShareLink(); } } : undefined}
     >
         {error ? <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 px-4 py-3 text-sm font-bold text-rose-100">{error}</div> : null}
 
-        {activeView === 'load' && !hasLoad ? (
+        {activeView === 'load' && !hasLoad && teamTracksLoad && database && activePerson ? (
+          <HealthConsentPanel database={database} person={activePerson} />
+        ) : null}
+
+        {activeView === 'load' && !hasLoad && !teamTracksLoad ? (
           <section className="rounded-3xl border border-slate-800 bg-slate-950/65 p-5">
             <h2 className="text-lg font-black">{t('athlete.noTracking.title')}</h2>
             <p className="mt-1 text-sm text-slate-400">{t('athlete.noTracking.detail')}</p>
@@ -2069,7 +2105,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         ) : null}
 
         {activeView !== 'calendar' && hasLoad ? (
-          <div className="grid w-full min-w-0 grid-cols-3 gap-2 [&>*]:min-h-[92px]">
+          <div className="grid w-full min-w-0 grid-cols-3 items-stretch gap-2 [&>*]:min-h-[104px]">
             <LoadRoomMetric latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} />
             <AcwrMetric latest={latest} baselineReady={isBaselineReady} tone={zone.tone} />
             <Metric label={t('athlete.metric.status')} value={zone.tone === 'neutral' ? t('athlete.metric.building') : zoneLabel(zone.tone)} tone={zone.tone} />
@@ -2748,8 +2784,8 @@ export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoa
     <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{title ?? t('load.week.defaultTitle')}</p>
-          <p className="mt-1 text-sm font-bold text-slate-300">{t('load.week.tapHint')}</p>
+          {title === '' ? null : <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{title ?? t('load.week.defaultTitle')}</p>}
+          <p className={`${title === '' ? '' : 'mt-1 '}text-sm font-bold text-slate-300`}>{t('load.week.tapHint')}</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(WEEKLY_LOAD_METRICS) as WeeklyLoadMetric[]).map((item) => (
@@ -2895,6 +2931,7 @@ function LoadDetailsPanel({
   baselineDays: number;
 }) {
   const t = useT();
+  const [showAllCompleted, setShowAllCompleted] = useState(false);
   const today = todayISO();
   const last28Start = new Date(`${today}T00:00:00`);
   last28Start.setDate(last28Start.getDate() - 27);
@@ -3012,16 +3049,16 @@ function LoadDetailsPanel({
               </div>
             </div>
           </div>
+          {stabilityReady ? <MonotonyGauge value={monotony} /> : null}
         </div>
       </div>
 
       <div className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-black">{t('load.details.mix')}</h2>
-          </div>
-          <span className="text-xs font-black text-slate-500">{t('load.room.au', { value: recentLoad })}</span>
-        </div>
+        <details className="group" open>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+          <h2 className="text-base font-black">{t('load.details.mix')}</h2>
+          <span className="flex shrink-0 items-center whitespace-nowrap gap-2 text-xs font-black text-slate-500">{t('load.room.au', { value: recentLoad })} <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-180">▾</span></span>
+        </summary>
         <div className="mt-5 space-y-3">
           {trainingMix.length > 0 ? trainingMix.slice(0, 6).map((item) => {
             const percent = Math.round((item.load / Math.max(recentLoad, 1)) * 100);
@@ -3040,10 +3077,17 @@ function LoadDetailsPanel({
             <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4 text-sm font-bold text-slate-500">{t('load.details.noRecent')}</div>
           )}
         </div>
+        </details>
 
-        <div className="mt-5">
-          <WeeklyLoadProfileGraph entries={entries} title={t('load.details.weeklyProfile')} />
-        </div>
+        <details className="group mt-5 border-t border-slate-800/80 pt-4">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+            <h2 className="text-base font-black">{t('load.details.weeklyProfile')}</h2>
+            <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-180">▾</span>
+          </summary>
+          <div className="mt-4">
+            <WeeklyLoadProfileGraph entries={entries} title="" />
+          </div>
+        </details>
 
         <div className="mt-5">
           <div className="flex items-center justify-between gap-3">
@@ -3052,7 +3096,7 @@ function LoadDetailsPanel({
           </div>
           <div className="mt-3 grid gap-2">
             {completedEntries.length === 0 ? <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4 text-sm font-bold text-slate-500">{t('load.details.noCompleted')}</div> : null}
-            {completedEntries.map((entry) => (
+            {(showAllCompleted ? completedEntries : completedEntries.slice(0, 3)).map((entry) => (
               <div key={entry.id} className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -3066,6 +3110,9 @@ function LoadDetailsPanel({
                 </div>
               </div>
             ))}
+            {!showAllCompleted && completedEntries.length > 3 ? (
+              <button type="button" onClick={() => setShowAllCompleted(true)} className="rounded-2xl border border-slate-700 px-4 py-2.5 text-xs font-black text-slate-200">{t('load.details.showAll', { count: completedEntries.length })}</button>
+            ) : null}
           </div>
         </div>
       </div>

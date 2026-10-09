@@ -1259,7 +1259,12 @@ export function teamHasFeature(database: LocalDatabase, teamId: Id | null, featu
  * does. RPE is asked only for sessions of such teams.
  */
 export function athleteHasLoad(database: LocalDatabase, personId: Id | null): boolean {
-  if (!personId || !hasHealthConsent(database, personId)) return false;
+  return !!personId && hasHealthConsent(database, personId) && athleteTeamTracksLoad(database, personId);
+}
+
+/** True when one of the player's teams tracks load, whether or not the player has consented yet. */
+export function athleteTeamTracksLoad(database: LocalDatabase, personId: Id | null): boolean {
+  if (!personId) return false;
   return database.memberships.some(
     (membership) => membership.personId === personId && membership.role === 'athlete' && teamHasFeature(database, membership.teamId, 'load'),
   );

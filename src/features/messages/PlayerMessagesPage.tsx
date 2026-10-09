@@ -29,7 +29,7 @@ import {
 import { formatShortDate } from '@/shared/format';
 import { useT } from '@/shared/i18n';
 
-import { authorName, isClubMessage, messageLabel, whenPosted } from './messageText';
+import { authorName, messageLabel, whenPosted } from './messageText';
 import { NewDot, PinIcon } from './MessageMarks';
 import { PollView } from './PollView';
 
@@ -72,7 +72,6 @@ export function PlayerMessagesPage() {
   }, [person, unreadKey]);
 
   if (!database) return null;
-  const hasNews = inbox.some(isClubMessage);
   const sourcesById = new Map(inbox.map((message) => [message.id, person ? sourcesOf(database, message, person.id) : []]));
   // Chips in a fixed order: teams by name, then departments, then the club.
   const sourceLabel = (key: string) => {
@@ -118,7 +117,7 @@ export function PlayerMessagesPage() {
   };
 
   return (
-    <AthleteShell active="messages" title={t('messages.title')} subtitle={hasNews ? t('messages.subtitleWithNews') : t('messages.subtitle')} showLoad={person ? athleteHasLoad(database, person.id) : true}>
+    <AthleteShell active="messages" title={t('messages.title')} showLoad={person ? athleteHasLoad(database, person.id) : true}>
       {!isPlayer ? (
         <p className="text-sm text-slate-400">{t('messages.switchToPlayer')}</p>
       ) : inbox.length === 0 ? (

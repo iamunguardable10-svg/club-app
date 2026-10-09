@@ -285,3 +285,7 @@ a {
     animation: none !important;
   }
 }
+
+/* Installed app: no double-tap zoom (pinch is stopped in NoZoomInApp). */
+html.standalone-app { touch-action: pan-x pan-y; }
+:where(html.standalone-app) * { touch-action: manipulation; }
