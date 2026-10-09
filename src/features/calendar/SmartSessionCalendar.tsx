@@ -191,9 +191,16 @@ export function SmartSessionCalendar({
             }}
             disabled={!canCreateSessions}
             aria-pressed={mode === 'edit'}
+            aria-label={mode === 'edit' ? t('calendar.done') : t('calendar.edit')}
+            title={mode === 'edit' ? t('calendar.done') : t('calendar.edit')}
             className={`rounded-full border px-3 py-1.5 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'} disabled:cursor-not-allowed disabled:opacity-50`}
           >
-            {mode === 'edit' ? t('calendar.done') : t('calendar.edit')}
+            {mode === 'edit' ? t('calendar.done') : (
+              <>
+                <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
+                <span className="hidden md:inline">{t('calendar.edit')}</span>
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -286,7 +293,7 @@ export function SmartSessionCalendar({
           </div>
           <div className="mt-1.5 flex items-center justify-between px-1">
             <span className="text-xs font-black text-slate-200">{formatLongDay(days[activeDayIndex])}</span>
-            <button type="button" onClick={() => onMobileCalendarViewChange('week')} className="rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-300">{t('calendar.wholeWeek')}</button>
+            <button type="button" onClick={() => onMobileCalendarViewChange('week')} aria-label={t('calendar.wholeWeek')} title={t('calendar.wholeWeek')} className="rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-300"><svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M15 4v16" /></svg><span className="hidden md:inline">{t('calendar.wholeWeek')}</span></button>
           </div>
         </div>
         <div ref={calendarScrollRef} onPointerDown={onMobileDaySwipeStart} onPointerUp={onMobileDaySwipeEnd} onPointerCancel={onMobileDaySwipeCancel} className={`overflow-hidden rounded-b-3xl touch-pan-y transition-all duration-200 ${dayTransitionDirection === 'next' ? 'translate-x-1 scale-[0.99] ring-2 ring-sky-300/40' : dayTransitionDirection === 'previous' ? '-translate-x-1 scale-[0.99] ring-2 ring-sky-300/40' : ''}`}>

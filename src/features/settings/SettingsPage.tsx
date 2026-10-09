@@ -68,15 +68,31 @@ export function SettingsPage() {
   useEffect(() => setRemote(isRemoteMode()), []);
   // Links like "/settings#phone-calendar" jump to their section. The page only
   // draws once the data is there, after the browser's own jump found nothing.
+  // Cards above the target still grow while their server data arrives, so the
+  // jump repeats on every layout change for a short while, until the user
+  // touches or scrolls the page.
   const loaded = database !== null;
   useEffect(() => {
     if (!loaded || !window.location.hash) return;
-    const frame = window.requestAnimationFrame(() => {
-      const target = document.getElementById(decodeURIComponent(window.location.hash.slice(1)));
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    const jump = () => {
+      const target = document.getElementById(id);
       // The whole card, so its heading shows below the page header.
       (target?.closest('section') ?? target)?.scrollIntoView({ block: 'start' });
-    });
-    return () => window.cancelAnimationFrame(frame);
+    };
+    const frame = window.requestAnimationFrame(jump);
+    const observer = new ResizeObserver(jump);
+    observer.observe(document.body);
+    const stop = () => observer.disconnect();
+    const timer = window.setTimeout(stop, 3000);
+    const events = ['touchstart', 'wheel', 'keydown', 'mousedown'] as const;
+    events.forEach((name) => window.addEventListener(name, stop, { once: true, passive: true }));
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+      stop();
+      events.forEach((name) => window.removeEventListener(name, stop));
+    };
   }, [loaded]);
 
   if (!database) return null;
@@ -88,7 +104,7 @@ export function SettingsPage() {
       <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         <div className="grid gap-5">
           <AccountSection person={person} remote={remote} />
-          {person && database.memberships.some((m) => m.personId === person.id && m.role === 'athlete') ? <HealthConsentPanel database={database} person={person} /> : null}
+          {person && database.memberships.some((m) => m.personId === person.id && m.role === 'athlete') ? <HealthConsentPanel database={database} person={person} hideLegalLinks /> : null}
           {remote ? <NotificationSection database={database} /> : null}
           {role !== 'club' ? <PhoneCalendarSection remote={remote} canRead={isPlayerAccount(database)} /> : null}
         </div>
@@ -110,6 +126,7 @@ export function SettingsPage() {
           </CoachSection>
         </div>
       </div>
+      <div className="mt-5"><LegalLinks /></div>
     </ActiveRoleShell>
   );
 }
@@ -171,7 +188,6 @@ function AccountSection({ person, remote }: { person: Person | null; remote: boo
         {remote ? <SignOutButtons /> : null}
         {remote ? <DeleteAccount /> : null}
         <ExportDataButton />
-        <LegalLinks />
       </div>
     </CoachSection>
   );
@@ -216,7 +232,7 @@ function NameForm({ person }: { person: Person }) {
       </div>
       <p className="text-xs text-slate-500">{t('settings.nameHint')}</p>
       <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" disabled={!dirty} className={quietButtonClass}>{t('settings.saveName')}</button>
+        {dirty ? <button type="submit" className={quietButtonClass}>{t('settings.saveName')}</button> : null}
         <Message text={result?.text ?? null} error={result?.error} />
       </div>
     </form>
@@ -527,7 +543,11 @@ function PlayerTeamsSection({ database, person }: { database: LocalDatabase; per
   const [error, setError] = useState<string | null>(null);
   const teams = teamsOf(database, person.id, 'athlete');
   return (
-    <CoachSection title={t('settings.yourTeams')}>
+    <CoachSection title={t('settings.yourTeams')} actions={
+      <Link href="/join" aria-label={t('settings.joinAnother')} title={t('settings.joinAnother')} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-700 text-sky-300">
+        <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
+      </Link>
+    }>
       <div className="grid gap-3">
         {teams.length === 0 ? <p className="text-sm text-slate-400">{t('settings.noPlayerTeams')}</p> : (
           <ul className="grid gap-2">
@@ -539,7 +559,6 @@ function PlayerTeamsSection({ database, person }: { database: LocalDatabase; per
           </ul>
         )}
         <Message text={error} error />
-        <Link href="/join" className="justify-self-start text-xs font-bold text-sky-300 underline">{t('settings.joinAnother')}</Link>
       </div>
       <AppConfirmDialog
         isOpen={leaving !== null}

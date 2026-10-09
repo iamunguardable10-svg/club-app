@@ -198,6 +198,12 @@ function UpcomingSessionRow({ session, showTeam, onOpen }: { session: CoachSessi
   const t = useT();
   const { out, late } = summarizeAvailability(session);
   const start = new Date(session.startsAt);
+  const openCount = session.openPlayerIds?.length ?? 0;
+  const badges = [
+    out.length > 0 ? { key: 'out', className: 'text-rose-200', text: t('coach.row.out', { count: out.length }) } : null,
+    late.length > 0 ? { key: 'late', className: 'text-amber-200', text: t('coach.row.late', { count: late.length }) } : null,
+    openCount > 0 ? { key: 'open', className: 'text-amber-100', text: t('coach.row.open', { count: openCount }) } : null,
+  ].filter((badge): badge is { key: string; className: string; text: string } => badge !== null);
   return (
     <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 px-3 py-3 text-left transition hover:border-sky-300/50 hover:bg-slate-900/70">
       <div className="w-12 shrink-0 text-center">
@@ -208,11 +214,11 @@ function UpcomingSessionRow({ session, showTeam, onOpen }: { session: CoachSessi
         <p className="truncate text-sm font-black text-white">{displayTitle(session.title)}{session.opponent ? ` ${gameLine(session)}` : ''}</p>
         <p className="truncate text-xs font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt, session.sessionType)}{showTeam ? ` · ${session.teamName}` : ''}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
         <CarpoolSummary sessionId={session.id} />
-      </div>
-      <div className="flex shrink-0 flex-col items-end gap-1 text-[11px] font-black">
-        {out.length > 0 ? <span className="rounded-full bg-rose-400/15 px-2 py-0.5 text-rose-200">{t('coach.row.out', { count: out.length })}</span> : null}
-        {late.length > 0 ? <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-amber-200">{t('coach.row.late', { count: late.length })}</span> : null}
-        {(session.openPlayerIds?.length ?? 0) > 0 ? <span className="rounded-full border border-dashed border-amber-300/50 px-2 py-0.5 text-amber-100">{t('coach.row.open', { count: session.openPlayerIds!.length })}</span> : null}
+        {badges.length > 0 ? (
+          <p className="mt-0.5 flex flex-wrap gap-x-1 text-[11px] font-black">
+            {badges.map((badge, index) => <span key={badge.key} className={badge.className}>{index > 0 ? '· ' : ''}{badge.text}</span>)}
+          </p>
+        ) : null}
       </div>
     </button>
   );
@@ -765,9 +771,16 @@ export function CoachCalendarSurface({
   const pendingSeriesConflictFacilityHref = pendingSeriesConflictFacilityId && facilityCalendarHrefForFacility ? facilityCalendarHrefForFacility(pendingSeriesConflictFacilityId) : null;
   const pendingConflictFacilityLabel = pendingConflictFacilityId ? facilities.find((facility) => facility.id === pendingConflictFacilityId)?.name ?? null : null;
   const pendingSeriesConflictFacilityLabel = pendingSeriesConflict?.item.facilityName ?? (pendingSeriesConflictFacilityId ? facilities.find((facility) => facility.id === pendingSeriesConflictFacilityId)?.name ?? null : null);
+  // In the week view the switch sits in the calendar's own toolbar, next to edit, to save a row.
+  const viewSwitch = (
+    <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1" role="group" aria-label={t('coach.calendar.view')}>
+          <button type="button" onClick={showWeekSurface} aria-pressed={surfaceMode === 'week'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'week' ? 'bg-sky-300 text-slate-950' : 'text-slate-400'}`} aria-label={t('coach.calendar.sessions')} title={t('coach.calendar.sessions')}><svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg><span className="hidden md:inline">{t('coach.calendar.sessions')}</span></button>
+          <button type="button" onClick={showSeriesSurface} aria-pressed={surfaceMode === 'series'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`} aria-label={t('coach.calendar.weeklyPlan')} title={t('coach.calendar.weeklyPlan')}><svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></svg><span className="hidden md:inline">{t('coach.calendar.weeklyPlan')}</span></button>
+        </div>
+  );
   return (
     <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-white sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {teams.length > 1 || surfaceMode === 'series' ? <div className="flex flex-wrap items-center justify-between gap-3">
         {teams.length > 1 ? (
           <div className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1" role="group" aria-label={t('coach.calendar.showTeam')}>
             {[{ id: null as string | null, name: t('coach.calendar.allTeams') }, ...teams].map((team) => (
@@ -783,13 +796,10 @@ export function CoachCalendarSurface({
             ))}
           </div>
         ) : <span />}
-        <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1" role="group" aria-label={t('coach.calendar.view')}>
-          <button type="button" onClick={showWeekSurface} aria-pressed={surfaceMode === 'week'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'week' ? 'bg-sky-300 text-slate-950' : 'text-slate-400'}`}>{t('coach.calendar.sessions')}</button>
-          <button type="button" onClick={showSeriesSurface} aria-pressed={surfaceMode === 'series'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>{t('coach.calendar.weeklyPlan')}</button>
-        </div>
-      </div>
+        {surfaceMode === 'series' ? viewSwitch : null}
+      </div> : null}
       {surfaceMode === 'week' ? (
-        <SmartSessionCalendar mode={mode} canCreateSessions={editableTeams.length > 0 && facilities.length > 0} createBlockedHint={editableTeams.length > 0 && facilities.length === 0 ? <>{t('coach.calendar.needsHall')} <Link href="/coach/facilities" className="underline">{t('coach.calendar.addFirstHall')}</Link>{t('coach.calendar.thenEdit')}</> : undefined} days={days} hours={calendarHours} firstHour={firstHour} lastHour={lastHour} mobileVisibleHours={mobileVisibleHours} mobileFirstHour={mobileFirstHour} mobileHourHeight={mobileHourHeight} mobileGridHeight={mobileGridHeight} desktopHourHeight={desktopHourHeight} activeDayIndex={activeDayIndex} mobileCalendarView={mobileCalendarView} dayTransitionDirection={dayTransitionDirection} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, sessionType: draft.sessionType, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null} weekLabel={weekLabel} isCurrentWeek={weekOffset === 0} calendarScrollRef={calendarScrollRef} setDayRef={(index, element) => { dayRefs.current[index] = element; }} onSetMode={setMode} onClearDraft={() => setDraft(null)} onPreviousWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onResetWeek={resetWeek} onMobileDaySelect={switchMobileDay} onMobileCalendarViewChange={setMobileCalendarView} onMobileDaySwipeStart={handleMobileDaySwipeStart} onMobileDaySwipeEnd={handleMobileDaySwipeEnd} onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }} onSlotPointerDown={handleSlotPointerDown} onSessionPointerDown={startSessionDrag} onSessionClick={handleSessionClick} onSessionKeyDown={handleSessionKeyDown} onDraftPointerDown={startDraftDrag} onDraftClick={() => setEditor({ kind: 'draft' })} onDraftCancel={() => setDraft(null)} />
+        <SmartSessionCalendar mode={mode} canCreateSessions={editableTeams.length > 0 && facilities.length > 0} createBlockedHint={editableTeams.length > 0 && facilities.length === 0 ? <>{t('coach.calendar.needsHall')} <Link href="/coach/facilities" className="underline">{t('coach.calendar.addFirstHall')}</Link>{t('coach.calendar.thenEdit')}</> : undefined} days={days} hours={calendarHours} firstHour={firstHour} lastHour={lastHour} mobileVisibleHours={mobileVisibleHours} mobileFirstHour={mobileFirstHour} mobileHourHeight={mobileHourHeight} mobileGridHeight={mobileGridHeight} desktopHourHeight={desktopHourHeight} activeDayIndex={activeDayIndex} mobileCalendarView={mobileCalendarView} dayTransitionDirection={dayTransitionDirection} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, sessionType: draft.sessionType, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null} weekLabel={weekLabel} isCurrentWeek={weekOffset === 0} calendarScrollRef={calendarScrollRef} setDayRef={(index, element) => { dayRefs.current[index] = element; }} onSetMode={setMode} onClearDraft={() => setDraft(null)} onPreviousWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onResetWeek={resetWeek} onMobileDaySelect={switchMobileDay} onMobileCalendarViewChange={setMobileCalendarView} onMobileDaySwipeStart={handleMobileDaySwipeStart} onMobileDaySwipeEnd={handleMobileDaySwipeEnd} onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }} onSlotPointerDown={handleSlotPointerDown} onSessionPointerDown={startSessionDrag} onSessionClick={handleSessionClick} onSessionKeyDown={handleSessionKeyDown} onDraftPointerDown={startDraftDrag} onDraftClick={() => setEditor({ kind: 'draft' })} onDraftCancel={() => setDraft(null)} toolbarAccessory={viewSwitch} />
       ) : (
         <div className="mt-7 sm:mt-5">
           <WeeklySeriesBoard
@@ -1272,15 +1282,20 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
 
         {mode === 'today' && teams.length > 0 ? (
           <>
-            <CoachSection title={todaySessions.length > 0 ? t('coach.today.count', { count: todaySessions.length }) : t('coach.today.none')}>
-              {todaySessions.length > 0 ? (
-                <div className="grid gap-3 lg:grid-cols-2">
-                  {todaySessions.map((session) => <CoachSessionCard key={session.id} session={session} onDetails={() => openSessionDetails(session)} />)}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-400">{upcomingSessions[0] ? t('coach.today.nextUp', { title: displayTitle(upcomingSessions[0].title), time: formatSessionTime(upcomingSessions[0].startsAt, upcomingSessions[0].endsAt, upcomingSessions[0].sessionType) }) : t('coach.today.nothing')}</p>
-              )}
-            </CoachSection>
+            {todaySessions.length > 0 || upcomingSessions.length === 0 ? (
+              <CoachSection title={todaySessions.length > 0 ? t('coach.today.count', { count: todaySessions.length }) : t('coach.today.none')}>
+                {todaySessions.length > 0 ? (
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    {todaySessions.map((session) => <CoachSessionCard key={session.id} session={session} onDetails={() => openSessionDetails(session)} />)}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400">{t('coach.today.nothing')}</p>
+                )}
+              </CoachSection>
+            ) : (
+              // Free today: one quiet line keeps the day visible; the next sessions follow below.
+              <p className="px-1 text-sm font-black text-slate-400">{t('coach.today.none')}</p>
+            )}
 
             {upcomingSessions.length > 0 ? (
               <CoachSection title={t('coach.today.comingUp')} actions={<Link href="/coach/sessions" className="text-xs font-black text-sky-300 hover:text-sky-200">{t('coach.today.calendarLink')}</Link>}>
