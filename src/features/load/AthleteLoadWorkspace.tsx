@@ -383,6 +383,27 @@ function LoadRoomGauge({ room, compact = false }: { room: LoadRoomSummary; compa
   );
 }
 
+// Monotony corridor: varied below 1.5, watch up to 2, high above. Scale 0.5 to 2.5.
+function MonotonyGauge({ value }: { value: number }) {
+  const pct = (v: number) => Math.min(100, Math.max(0, ((v - 0.5) / 2) * 100));
+  return (
+    <div className="mt-3">
+      <div className="relative h-5">
+        <div className="absolute inset-x-0 top-2 h-2 overflow-hidden rounded-full bg-slate-900">
+          <div className="absolute inset-y-0 left-0 bg-emerald-400/35" style={{ width: `${pct(1.5)}%` }} />
+          <div className="absolute inset-y-0 bg-amber-300/35" style={{ left: `${pct(1.5)}%`, width: `${pct(2) - pct(1.5)}%` }} />
+          <div className="absolute inset-y-0 right-0 bg-rose-400/30" style={{ left: `${pct(2)}%` }} />
+        </div>
+        <span className="absolute top-0 z-20 h-5 w-5 -translate-x-1/2 rounded-full border-[3px] border-slate-950 bg-white shadow-[0_8px_22px_rgba(0,0,0,0.45)]" style={{ left: `${pct(value)}%` }} />
+      </div>
+      <div className="relative h-4 text-[10px] font-black text-slate-500">
+        <span className="absolute -translate-x-1/2" style={{ left: `${pct(1.5)}%` }}>{formatDecimal(1.5, 1)}</span>
+        <span className="absolute -translate-x-1/2" style={{ left: `${pct(2)}%` }}>{formatDecimal(2, 1)}</span>
+      </div>
+    </div>
+  );
+}
+
 function LoadRoomMetric({ latest, entries, baselineReady }: { latest: ReturnType<typeof getLatestACWR>; entries: AthleteLoadEntry[]; baselineReady: boolean }) {
   const room = buildLoadRoomSummary(latest, entries, baselineReady);
   const toneClass = room.tone === 'ready'
@@ -3019,6 +3040,7 @@ function LoadDetailsPanel({
               </div>
             </div>
           </div>
+          {stabilityReady ? <MonotonyGauge value={monotony} /> : null}
         </div>
       </div>
 
