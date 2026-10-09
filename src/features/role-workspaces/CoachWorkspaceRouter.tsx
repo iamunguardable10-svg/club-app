@@ -1292,7 +1292,10 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
                   <p className="text-sm text-slate-400">{t('coach.today.nothing')}</p>
                 )}
               </CoachSection>
-            ) : null}
+            ) : (
+              // Free today: one quiet line keeps the day visible; the next sessions follow below.
+              <p className="px-1 text-sm font-black text-slate-400">{t('coach.today.none')}</p>
+            )}
 
             {upcomingSessions.length > 0 ? (
               <CoachSection title={t('coach.today.comingUp')} actions={<Link href="/coach/sessions" className="text-xs font-black text-sky-300 hover:text-sky-200">{t('coach.today.calendarLink')}</Link>}>
