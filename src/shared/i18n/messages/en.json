@@ -1598,7 +1598,7 @@
   "poll.removeAnswer": "Remove answer",
   "poll.allowMultiple": "Several answers allowed",
   "poll.pickOne": "Tap your answer",
-  "poll.pickSeveral": "Tap all that apply",
+  "poll.pickSeveral": "Multiple choice",
   "poll.changeHint": "Tap to change your vote",
   "poll.singleHint": "One answer each",
   "poll.multipleHint": "Several answers allowed",

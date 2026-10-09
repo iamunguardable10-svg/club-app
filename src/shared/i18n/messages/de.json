@@ -1598,7 +1598,7 @@
   "poll.removeAnswer": "Antwort entfernen",
   "poll.allowMultiple": "Mehrere Antworten erlaubt",
   "poll.pickOne": "Tippe deine Antwort",
-  "poll.pickSeveral": "Tippe alle passenden an",
+  "poll.pickSeveral": "Mehrfachauswahl",
   "poll.changeHint": "Tippen, um deine Stimme zu ändern",
   "poll.singleHint": "Eine Antwort pro Spieler",
   "poll.multipleHint": "Mehrere Antworten erlaubt",

@@ -1598,7 +1598,7 @@
   "poll.removeAnswer": "Retirer la réponse",
   "poll.allowMultiple": "Plusieurs réponses possibles",
   "poll.pickOne": "Touche ta réponse",
-  "poll.pickSeveral": "Touche toutes celles qui conviennent",
+  "poll.pickSeveral": "Choix multiple",
   "poll.changeHint": "Touche pour changer ton vote",
   "poll.singleHint": "Une réponse par joueur",
   "poll.multipleHint": "Plusieurs réponses possibles",
