@@ -1826,6 +1826,7 @@
   "consent.linkDetail": "Válido durante 30 días y para un solo uso. Crear otro enlace invalida el anterior.",
   "consent.healthTitle": "Datos de salud (carga)",
   "consent.why": "Solo se trata del control de la carga: lo dura que fue una sesión (RPE), cuánto duró y motivos como «lesionado». Como permiten sacar conclusiones sobre tu salud, la ley los considera datos de salud; por eso necesitamos tu consentimiento expreso. Todo lo demás (calendario, respuestas, mensajes) funciona sin él.",
+  "consent.whyToggle": "¿Por qué?",
   "consent.parentWhy": "En resumen: solo se trata del control de la carga (RPE, minutos, motivos como «lesionado»). Como permite sacar conclusiones sobre la salud de tu hijo o hija, la ley lo considera datos de salud y necesita tu consentimiento. El calendario, las respuestas y los mensajes funcionan sin él.",
   "consent.active": "El consentimiento para datos de salud está activo.",
   "consent.withdraw": "Retirar consentimiento",
