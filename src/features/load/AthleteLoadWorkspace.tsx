@@ -3023,7 +3023,7 @@ function LoadDetailsPanel({
       </div>
 
       <div className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">
-        <details className="group">
+        <details className="group" open>
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
           <h2 className="text-base font-black">{t('load.details.mix')}</h2>
           <span className="flex shrink-0 items-center whitespace-nowrap gap-2 text-xs font-black text-slate-500">{t('load.room.au', { value: recentLoad })} <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-180">▾</span></span>
