@@ -1193,8 +1193,8 @@ function AthleteCalendar({
         <div className="flex items-center gap-2">
           {weekOffset !== 0 ? <button type="button" onClick={() => setWeekOffset(0)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">{t('calendar.backToThisWeek')}</button> : null}
           {onEmptySlot ? (
-            <button type="button" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} className={`rounded-full border px-4 py-2 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'}`}>
-              {mode === 'edit' ? t('calendar.done') : t('calendar.addOwn')}
+            <button type="button" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} aria-label={mode === 'edit' ? undefined : t('calendar.addOwn')} title={mode === 'edit' ? undefined : t('calendar.addOwn')} className={mode === 'edit' ? 'rounded-full border border-sky-300 bg-sky-300 px-4 py-2 text-xs font-black text-slate-950' : 'flex h-9 w-9 items-center justify-center rounded-full border border-emerald-300 bg-emerald-300 text-lg font-black leading-none text-slate-950'}>
+              {mode === 'edit' ? t('calendar.done') : '+'}
             </button>
           ) : null}
         </div>
