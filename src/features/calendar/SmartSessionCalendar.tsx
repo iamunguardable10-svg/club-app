@@ -191,9 +191,16 @@ export function SmartSessionCalendar({
             }}
             disabled={!canCreateSessions}
             aria-pressed={mode === 'edit'}
+            aria-label={mode === 'edit' ? t('calendar.done') : t('calendar.edit')}
+            title={mode === 'edit' ? t('calendar.done') : t('calendar.edit')}
             className={`rounded-full border px-3 py-1.5 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'} disabled:cursor-not-allowed disabled:opacity-50`}
           >
-            {mode === 'edit' ? t('calendar.done') : t('calendar.edit')}
+            {mode === 'edit' ? t('calendar.done') : (
+              <>
+                <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
+                <span className="hidden md:inline">{t('calendar.edit')}</span>
+              </>
+            )}
           </button>
         </div>
       </div>
