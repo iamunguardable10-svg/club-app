@@ -232,7 +232,7 @@ function NameForm({ person }: { person: Person }) {
       </div>
       <p className="text-xs text-slate-500">{t('settings.nameHint')}</p>
       <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" disabled={!dirty} className={quietButtonClass}>{t('settings.saveName')}</button>
+        {dirty ? <button type="submit" className={quietButtonClass}>{t('settings.saveName')}</button> : null}
         <Message text={result?.text ?? null} error={result?.error} />
       </div>
     </form>
