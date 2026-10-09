@@ -2748,8 +2748,8 @@ export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoa
     <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{title ?? t('load.week.defaultTitle')}</p>
-          <p className="mt-1 text-sm font-bold text-slate-300">{t('load.week.tapHint')}</p>
+          {title === '' ? null : <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{title ?? t('load.week.defaultTitle')}</p>}
+          <p className={`${title === '' ? '' : 'mt-1 '}text-sm font-bold text-slate-300`}>{t('load.week.tapHint')}</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(WEEKLY_LOAD_METRICS) as WeeklyLoadMetric[]).map((item) => (
@@ -3016,12 +3016,11 @@ function LoadDetailsPanel({
       </div>
 
       <div className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-black">{t('load.details.mix')}</h2>
-          </div>
-          <span className="text-xs font-black text-slate-500">{t('load.room.au', { value: recentLoad })}</span>
-        </div>
+        <details className="group">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+          <h2 className="text-lg font-black">{t('load.details.mix')}</h2>
+          <span className="flex items-center gap-2 text-xs font-black text-slate-500">{t('load.room.au', { value: recentLoad })} <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-180">▾</span></span>
+        </summary>
         <div className="mt-5 space-y-3">
           {trainingMix.length > 0 ? trainingMix.slice(0, 6).map((item) => {
             const percent = Math.round((item.load / Math.max(recentLoad, 1)) * 100);
@@ -3040,10 +3039,17 @@ function LoadDetailsPanel({
             <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4 text-sm font-bold text-slate-500">{t('load.details.noRecent')}</div>
           )}
         </div>
+        </details>
 
-        <div className="mt-5">
-          <WeeklyLoadProfileGraph entries={entries} title={t('load.details.weeklyProfile')} />
-        </div>
+        <details className="group mt-5 border-t border-slate-800/80 pt-4">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+            <h2 className="text-lg font-black">{t('load.details.weeklyProfile')}</h2>
+            <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-180">▾</span>
+          </summary>
+          <div className="mt-4">
+            <WeeklyLoadProfileGraph entries={entries} title="" />
+          </div>
+        </details>
 
         <div className="mt-5">
           <div className="flex items-center justify-between gap-3">
