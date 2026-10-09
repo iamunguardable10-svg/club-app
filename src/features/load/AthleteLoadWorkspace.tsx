@@ -2055,7 +2055,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       active={activeView === 'home' ? 'today' : activeView}
       showLoad={hasLoad}
       title={activeView === 'home' ? t('athlete.title.today') : activeView === 'calendar' ? t('athlete.title.calendar') : t('athlete.title.load')}
-      subtitle={activeView === 'home' ? formatLongDay(new Date()) : activeView === 'calendar' ? (hasLoad ? t('athlete.subtitle.calendarWithLoad') : t('athlete.subtitle.calendar')) : t('athlete.subtitle.load')}
+      subtitle={activeView === 'home' ? formatLongDay(new Date()) : activeView === 'load' ? t('athlete.subtitle.load') : undefined}
       menuAction={hasLoad ? { label: shareStatus === 'copied' ? t('athlete.share.copied') : shareStatus === 'error' ? t('athlete.share.error') : shareActive ? t('athlete.share.on') : t('athlete.share.off'), onSelect: () => { void copyTrainerShareLink(); } } : undefined}
     >
         {error ? <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 px-4 py-3 text-sm font-bold text-rose-100">{error}</div> : null}

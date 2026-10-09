@@ -394,8 +394,6 @@
   "athlete.title.today": "Today",
   "athlete.title.calendar": "Calendar",
   "athlete.title.load": "Your load",
-  "athlete.subtitle.calendarWithLoad": "Team sessions and your own plans",
-  "athlete.subtitle.calendar": "Your team sessions",
   "athlete.subtitle.load": "Training load and ACWR, from your RPE entries",
   "athlete.share.copied": "Link copied",
   "athlete.share.error": "Could not copy",
