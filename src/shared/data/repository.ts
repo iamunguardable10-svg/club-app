@@ -2527,14 +2527,6 @@ export function messagesForPerson(database: LocalDatabase, personId: Id): Messag
   return (database.messages ?? []).filter((message) => messageRecipientIds(database, message).includes(personId)).sort(newestFirst);
 }
 
-/** Messages to this team or some of its groups, newest first (the team's message list). */
-export function messagesForTeam(database: LocalDatabase, teamId: Id): Message[] {
-  const groupIds = new Set(database.playerGroups.filter((group) => group.teamId === teamId).map((group) => group.id));
-  return (database.messages ?? [])
-    .filter((message) => message.teamIds.includes(teamId) || message.groupIds.some((groupId) => groupIds.has(groupId)))
-    .sort(newestFirst);
-}
-
 export function isMessageRead(database: LocalDatabase, messageId: Id, personId: Id): boolean {
   return (database.messageReads ?? []).some((read) => read.messageId === messageId && read.personId === personId);
 }

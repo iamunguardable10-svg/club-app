@@ -352,7 +352,6 @@ export function TeamWorkspace({
     <TeamWorkspaceView
       data={data}
       initialSection={initialSection}
-      canMessage={permissions.has('viewAttendance') || permissions.has('editSessions')}
       coachSessions={coachSessions}
       onDefaultFacilityChange={permissions.has('manageFacilities') ? handleDefaultFacilityChange : undefined}
       onSessionTimeChange={canEditSessions ? handleSessionTimeChange : undefined}
