@@ -198,6 +198,12 @@ function UpcomingSessionRow({ session, showTeam, onOpen }: { session: CoachSessi
   const t = useT();
   const { out, late } = summarizeAvailability(session);
   const start = new Date(session.startsAt);
+  const openCount = session.openPlayerIds?.length ?? 0;
+  const badges = [
+    out.length > 0 ? { key: 'out', className: 'text-rose-200', text: t('coach.row.out', { count: out.length }) } : null,
+    late.length > 0 ? { key: 'late', className: 'text-amber-200', text: t('coach.row.late', { count: late.length }) } : null,
+    openCount > 0 ? { key: 'open', className: 'text-amber-100', text: t('coach.row.open', { count: openCount }) } : null,
+  ].filter((badge): badge is { key: string; className: string; text: string } => badge !== null);
   return (
     <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 px-3 py-3 text-left transition hover:border-sky-300/50 hover:bg-slate-900/70">
       <div className="w-12 shrink-0 text-center">
@@ -208,11 +214,11 @@ function UpcomingSessionRow({ session, showTeam, onOpen }: { session: CoachSessi
         <p className="truncate text-sm font-black text-white">{displayTitle(session.title)}{session.opponent ? ` ${gameLine(session)}` : ''}</p>
         <p className="truncate text-xs font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt, session.sessionType)}{showTeam ? ` · ${session.teamName}` : ''}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
         <CarpoolSummary sessionId={session.id} />
-      </div>
-      <div className="flex shrink-0 flex-col items-end gap-1 text-[11px] font-black">
-        {out.length > 0 ? <span className="rounded-full bg-rose-400/15 px-2 py-0.5 text-rose-200">{t('coach.row.out', { count: out.length })}</span> : null}
-        {late.length > 0 ? <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-amber-200">{t('coach.row.late', { count: late.length })}</span> : null}
-        {(session.openPlayerIds?.length ?? 0) > 0 ? <span className="rounded-full border border-dashed border-amber-300/50 px-2 py-0.5 text-amber-100">{t('coach.row.open', { count: session.openPlayerIds!.length })}</span> : null}
+        {badges.length > 0 ? (
+          <p className="mt-0.5 flex flex-wrap gap-x-1 text-[11px] font-black">
+            {badges.map((badge, index) => <span key={badge.key} className={badge.className}>{index > 0 ? '· ' : ''}{badge.text}</span>)}
+          </p>
+        ) : null}
       </div>
     </button>
   );
