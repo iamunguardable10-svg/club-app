@@ -198,7 +198,7 @@ function RoleShell({ nav, active, title, subtitle, back, actions, menuAction, ch
       <div className="mx-auto w-full max-w-6xl space-y-5 px-4 pt-4 sm:px-8 md:pt-6">
         {/* Keep notification opt-in reachable from each role’s first page. */}
         {active === 'today' || active === 'club' ? <NotificationsHint variant="card" /> : null}
-        {active === 'today' && !showMessageIcon && database && person ? <UnreadMessagesCard database={database} personId={person.id} /> : null}
+        {active === 'today' && database && person ? <UnreadMessagesCard database={database} personId={person.id} /> : null}
         {database && person && database.activeIdentity?.role === 'athlete' && active !== 'load' ? <LimitedConsentNote database={database} person={person} /> : null}
         {children}
       </div>
