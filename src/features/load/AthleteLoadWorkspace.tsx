@@ -2984,7 +2984,7 @@ function LoadDetailsPanel({
           </span>
         </div>
 
-        <div className="mt-5 hidden rounded-2xl border border-slate-800 bg-slate-950/75 p-4 md:block">
+        <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{t('load.details.lane')}</p>
