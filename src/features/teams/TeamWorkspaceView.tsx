@@ -1,5 +1,6 @@
 'use client';
 
+import { AvailabilityStack } from '@/features/sessions/AvailabilityStack';
 import Link from 'next/link';
 import { AbsencePanel } from '@/features/absences/AbsencePanel';
 import { isSessionRunning, sessionsNotOver } from '@/features/sessions/sessionTiming';
@@ -204,22 +205,7 @@ function TeamDashboardSessionCard({
         </div>
         <span aria-hidden className="text-lg font-black text-slate-500">›</span>
       </div>
-      {attendanceShared ? <div className="mt-4 grid grid-cols-2 gap-2">
-        <div className={`rounded-xl border p-3 ${out.length > 0 ? 'border-rose-400/35 bg-rose-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black text-slate-400">{t('team.card.out')}</p>
-            <span className="text-lg font-black text-white">{out.length}</span>
-          </div>
-          {out.slice(0, 3).map((item) => <p key={item.id} className="mt-1.5 text-xs font-bold text-slate-300">{item.playerName}{item.reason ? ` · ${item.reason}` : ''}</p>)}
-        </div>
-        <div className={`rounded-xl border p-3 ${late.length > 0 ? 'border-amber-400/35 bg-amber-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black text-slate-400">{t('team.card.late')}</p>
-            <span className="text-lg font-black text-white">{late.length}</span>
-          </div>
-          {late.slice(0, 3).map((item) => <p key={item.id} className="mt-1.5 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${t('team.card.lateMinutes', { count: item.lateMinutes })}` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>)}
-        </div>
-      </div> : null}
+      {attendanceShared ? <AvailabilityStack out={out} late={late} outLabel={t('team.card.out')} lateLabel={t('team.card.late')} lateMinutes={(count) => t('team.card.lateMinutes', { count })} /> : null}
     </button>
   );
 }

@@ -2,6 +2,7 @@
 
 import { CoachTodo } from '@/features/role-workspaces/CoachTodo';
 import { TeamDot, teamColor } from '@/features/teams/teamColor';
+import { AvailabilityStack } from '@/features/sessions/AvailabilityStack';
 import { CarpoolSummary } from '@/features/sessions/Carpools';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
@@ -168,26 +169,7 @@ function CoachSessionCard({ session, showTeam, onDetails }: { session: CoachSess
         <span aria-hidden className="text-lg font-black text-slate-500">›</span>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <div className={`rounded-xl border p-3 ${out.length > 0 ? 'border-rose-400/35 bg-rose-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black text-slate-400">{t('coach.card.out')}</p>
-            <span className="text-lg font-black text-white">{out.length}</span>
-          </div>
-          {out.slice(0, 3).map((item) => (
-            <p key={item.id} className="mt-1.5 text-xs font-bold text-slate-300">{item.playerName}{item.reason ? ` · ${item.reason}` : ''}</p>
-          ))}
-        </div>
-        <div className={`rounded-xl border p-3 ${late.length > 0 ? 'border-amber-400/35 bg-amber-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black text-slate-400">{t('coach.card.late')}</p>
-            <span className="text-lg font-black text-white">{late.length}</span>
-          </div>
-          {late.slice(0, 3).map((item) => (
-            <p key={item.id} className="mt-1.5 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${t('coach.card.lateMinutes', { count: item.lateMinutes })}` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>
-          ))}
-        </div>
-      </div>
+      <AvailabilityStack out={out} late={late} outLabel={t('coach.card.out')} lateLabel={t('coach.card.late')} lateMinutes={(count) => t('coach.card.lateMinutes', { count })} />
     </button>
     <OpenAnswers session={session} className="mx-4 mb-4 -mt-1" />
     </div>

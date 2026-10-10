@@ -1905,5 +1905,6 @@
   "team.switch.title": "Team wechseln",
   "coach.todo.title": "Zu erledigen",
   "coach.todo.answers": "{count} ohne Antwort · {what}",
-  "coach.todo.attendance": "Anwesenheit bestätigen · {what}"
+  "coach.todo.attendance": "Anwesenheit bestätigen · {what}",
+  "coach.card.nobodyMissing": "Niemand fehlt oder kommt später"
 }
