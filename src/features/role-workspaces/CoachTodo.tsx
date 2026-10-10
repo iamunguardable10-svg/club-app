@@ -13,7 +13,7 @@ import { useMemo } from 'react';
 import type { CoachSession } from '@/features/role-workspaces/CoachTypes';
 import { CoachSection } from '@/features/role-workspaces/RoleShell';
 import { coachSessionTypeLabel } from '@/features/sessions/sessionTypeLabels';
-import { formatWeekday } from '@/shared/format';
+import { formatNumericDayMonth, formatWeekday } from '@/shared/format';
 import { useT } from '@/shared/i18n';
 
 const MAX_ROWS = 3;
@@ -49,7 +49,9 @@ export function CoachTodo({ sessions, onOpen }: { sessions: CoachSession[]; onOp
     <CoachSection title={t('coach.todo.title')}>
       <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
         {todos.map((todo) => {
-          const what = `${coachSessionTypeLabel(todo.session.sessionType)} ${formatWeekday(todo.session.startsAt)}`;
+          // Past sessions carry the date, so "Sa" cannot be mistaken for the coming Saturday.
+          const day = todo.kind === 'attendance' ? `${formatWeekday(todo.session.startsAt)} ${formatNumericDayMonth(todo.session.startsAt)}` : formatWeekday(todo.session.startsAt);
+          const what = `${coachSessionTypeLabel(todo.session.sessionType)} ${day}`;
           return (
             <li key={todo.key}>
               <button type="button" onClick={() => onOpen(todo.session)} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 px-3 py-3 text-left transition hover:border-sky-300/50 hover:bg-slate-900/70">
