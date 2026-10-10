@@ -1,7 +1,9 @@
 'use client';
 
+import { CoachTodo } from '@/features/role-workspaces/CoachTodo';
+import { TeamDot, teamColor } from '@/features/teams/teamColor';
+import { AvailabilityStack } from '@/features/sessions/AvailabilityStack';
 import { CarpoolSummary } from '@/features/sessions/Carpools';
-import { sessionsNotOver } from '@/features/sessions/sessionTiming';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -17,6 +19,7 @@ import {
   updateSession,
   useLocalDatabase,
   type SessionType,
+  readLastCoachTeam,
 } from '@/shared/data';
 import { buildCoachData, EMPTY_COACH_DATA } from '@/features/role-workspaces/coachData';
 import type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
@@ -35,7 +38,6 @@ import { CoachSection, CoachShell, type CoachNavItem } from '@/features/role-wor
 import { formatDateRange, formatDay, formatLongDay, formatSessionTime, formatTimeRange, formatWeekday } from '@/shared/format';
 import { errorText, useT } from '@/shared/i18n';
 import { displayTitle } from '@/features/sessions/sessionTypeLabels';
-import { displayRoleName } from '@/features/teams/roleLabels';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 export type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 export { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
@@ -150,7 +152,7 @@ function summarizeAvailability(session: CoachSession) {
 }
 
 
-function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDetails: () => void }) {
+function CoachSessionCard({ session, showTeam, onDetails }: { session: CoachSession; showTeam: boolean; onDetails: () => void }) {
   const t = useT();
   const { out, late } = summarizeAvailability(session);
   return (
@@ -167,26 +169,7 @@ function CoachSessionCard({ session, onDetails }: { session: CoachSession; onDet
         <span aria-hidden className="text-lg font-black text-slate-500">›</span>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <div className={`rounded-xl border p-3 ${out.length > 0 ? 'border-rose-400/35 bg-rose-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black text-slate-400">{t('coach.card.out')}</p>
-            <span className="text-lg font-black text-white">{out.length}</span>
-          </div>
-          {out.slice(0, 3).map((item) => (
-            <p key={item.id} className="mt-1.5 text-xs font-bold text-slate-300">{item.playerName}{item.reason ? ` · ${item.reason}` : ''}</p>
-          ))}
-        </div>
-        <div className={`rounded-xl border p-3 ${late.length > 0 ? 'border-amber-400/35 bg-amber-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black text-slate-400">{t('coach.card.late')}</p>
-            <span className="text-lg font-black text-white">{late.length}</span>
-          </div>
-          {late.slice(0, 3).map((item) => (
-            <p key={item.id} className="mt-1.5 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${t('coach.card.lateMinutes', { count: item.lateMinutes })}` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>
-          ))}
-        </div>
-      </div>
+      <AvailabilityStack out={out} late={late} outLabel={t('coach.card.out')} lateLabel={t('coach.card.late')} lateMinutes={(count) => t('coach.card.lateMinutes', { count })} />
     </button>
     <OpenAnswers session={session} className="mx-4 mb-4 -mt-1" />
     </div>
@@ -212,7 +195,7 @@ function UpcomingSessionRow({ session, showTeam, onOpen }: { session: CoachSessi
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-black text-white">{displayTitle(session.title)}{session.opponent ? ` ${gameLine(session)}` : ''}</p>
-        <p className="truncate text-xs font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt, session.sessionType)}{showTeam ? ` · ${session.teamName}` : ''}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+        <p className="truncate text-xs font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt, session.sessionType)}{showTeam ? <> · {session.teamName}</> : ''}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
         <CarpoolSummary sessionId={session.id} />
         {badges.length > 0 ? (
           <p className="mt-0.5 flex flex-wrap gap-x-1 text-[11px] font-black">
@@ -346,6 +329,7 @@ export function CoachCalendarSurface({
       startsAt: session.startsAt,
       endsAt: session.endsAt,
       teamName: session.teamName,
+      accent: teams.length > 1 ? teamColor(session.teamId) : null,
       departmentName: session.departmentName,
       tone: toneByTeamId.get(session.teamId) ?? 'primary',
       // Was `true` for every session: any coach could drag any team's session.
@@ -791,7 +775,7 @@ export function CoachCalendarSurface({
                 aria-pressed={teamFilter === team.id}
                 className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-black transition ${teamFilter === team.id ? 'border-sky-300 bg-sky-300/15 text-sky-100' : 'border-slate-800 text-slate-400 hover:text-white'}`}
               >
-                {team.name}
+                {team.id ? <TeamDot teamId={team.id} /> : null}{team.name}
               </button>
             ))}
           </div>
@@ -960,15 +944,6 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const upcomingSessions = futureSessions.slice(0, 4);
   const nextGame = futureSessions.find((session) => session.sessionType === 'game');
   if (nextGame && !upcomingSessions.some((session) => session.id === nextGame.id)) upcomingSessions.push(nextGame);
-  const nextSessionByTeamId = useMemo(() => {
-    const map = new Map<string, CoachSession>();
-    // A running session is still the team's next one, as on Today.
-    for (const session of sessionsNotOver(sessions)) {
-      if (!map.has(session.teamId)) map.set(session.teamId, session);
-    }
-    return map;
-  }, [sessions]);
-
   function reportError(error: unknown, fallback: string) {
     setError(error instanceof Error ? errorText(t, error) : fallback);
   }
@@ -1246,11 +1221,12 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   }
 
   const shouldOpenTeamWorkspace = mode === 'team' || mode === 'attendance' || mode === 'load';
-  const workspaceTeam = shouldOpenTeamWorkspace ? selectedTeam ?? singleTeam : null;
+  // Several teams: the tab opens the last team used on this device, else the first.
+  const lastTeamId = shouldOpenTeamWorkspace && !selectedTeam && teams.length > 1 ? readLastCoachTeam() : null;
+  const workspaceTeam = shouldOpenTeamWorkspace ? selectedTeam ?? singleTeam ?? teams.find((team) => team.id === lastTeamId) ?? teams[0] ?? null : null;
 
   if (workspaceTeam) {
-    // Several teams: back to the list. One team: the tab itself is the team.
-    return <TeamWorkspace teamId={workspaceTeam.id} back={teams.length > 1 ? { href: '/coach/team', label: t('coach.calendar.allTeams') } : undefined} initialSection={initialSection} />;
+    return <TeamWorkspace teamId={workspaceTeam.id} initialSection={initialSection} />;
   }
 
   const calendarTeam = mode === 'sessions' && selectedTeam ? selectedTeam : null;
@@ -1286,7 +1262,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
               <CoachSection title={todaySessions.length > 0 ? t('coach.today.count', { count: todaySessions.length }) : t('coach.today.none')}>
                 {todaySessions.length > 0 ? (
                   <div className="grid gap-3 lg:grid-cols-2">
-                    {todaySessions.map((session) => <CoachSessionCard key={session.id} session={session} onDetails={() => openSessionDetails(session)} />)}
+                    {todaySessions.map((session) => <CoachSessionCard key={session.id} session={session} showTeam={teams.length > 1} onDetails={() => openSessionDetails(session)} />)}
                   </div>
                 ) : (
                   <p className="text-sm text-slate-400">{t('coach.today.nothing')}</p>
@@ -1296,6 +1272,8 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
               // Free today: one quiet line keeps the day visible; the next sessions follow below.
               <p className="px-1 text-sm font-black text-slate-400">{t('coach.today.none')}</p>
             )}
+
+            <CoachTodo sessions={sessions} onOpen={openSessionDetails} />
 
             {upcomingSessions.length > 0 ? (
               <CoachSection title={t('coach.today.comingUp')} actions={<Link href="/coach/sessions" className="text-xs font-black text-sky-300 hover:text-sky-200">{t('coach.today.calendarLink')}</Link>}>
@@ -1427,25 +1405,6 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           onConfirm={() => { if (deleteSessionId) void handleCoachSessionDelete(deleteSessionId); }}
           onCancel={() => setDeleteSessionId(null)}
         />
-
-        {mode === 'team' && teams.length > 0 ? (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {teams.map((team) => {
-              const nextSession = nextSessionByTeamId.get(team.id);
-              return (
-                <Link key={team.id} href={`/coach/team?teamId=${team.id}`} className="block rounded-3xl border border-slate-800 bg-slate-950/70 p-5 text-white transition hover:border-emerald-300/50 hover:bg-slate-900/70">
-                  <p className="text-xs font-bold text-slate-400">{team.departmentName}{team.roleName ? ` · ${displayRoleName(team.roleName)}` : ''}</p>
-                  <h3 className="mt-1 text-xl font-black">{team.name}</h3>
-                  <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
-                    <p className="text-xs font-bold text-slate-500">{t('coach.team.nextSession')}</p>
-                    <p className="mt-1 text-sm font-black text-slate-200">{nextSession ? displayTitle(nextSession.title) : t('coach.team.nonePlanned')}</p>
-                    {nextSession ? <p className="mt-0.5 text-xs font-bold text-slate-400">{formatSessionTime(nextSession.startsAt, nextSession.endsAt, nextSession.sessionType)}</p> : null}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        ) : null}
     </CoachShell>
   );
 }

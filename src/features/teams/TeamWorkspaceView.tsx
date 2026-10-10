@@ -1,10 +1,10 @@
 'use client';
 
+import { AvailabilityStack } from '@/features/sessions/AvailabilityStack';
 import Link from 'next/link';
 import { AbsencePanel } from '@/features/absences/AbsencePanel';
 import { isSessionRunning, sessionsNotOver } from '@/features/sessions/sessionTiming';
 import { OwnTrainingList, useOwnTraining } from '@/features/load/OwnTraining';
-import { TeamMessagesPanel } from '@/features/messages/TeamMessagesPanel';
 import { shortDate } from '@/features/absences/absenceText';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
@@ -20,7 +20,7 @@ import { formatDecimal, formatSessionTime } from '@/shared/format';
 import { tr, useT } from '@/shared/i18n';
 
 export type TeamWorkspaceRole = 'admin' | 'department_lead' | 'coach' | 'viewer';
-export type TeamWorkspaceSection = 'dashboard' | 'players' | 'groups' | 'messages' | 'settings';
+export type TeamWorkspaceSection = 'dashboard' | 'players' | 'groups' | 'settings';
 
 export type TeamWorkspaceSession = {
   id: string;
@@ -103,7 +103,6 @@ function SectionIcon({ section }: { section: TeamWorkspaceSection }) {
       {section === 'dashboard' ? <path d="M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-3H4zM14 7h6V4h-6z" {...common} /> : null}
       {section === 'players' ? <><circle cx="9" cy="8" r="3.2" {...common} /><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5M16 11a2.8 2.8 0 1 0 0-5.6M17.5 14.2c1.8.6 2.8 2.2 3 4.8" {...common} /></> : null}
       {section === 'groups' ? <><circle cx="7.5" cy="8" r="2.6" {...common} /><circle cx="16.5" cy="8" r="2.6" {...common} /><path d="M3 18c.5-2.6 2.2-4 4.5-4s4 1.4 4.5 4M12 18c.5-2.6 2.2-4 4.5-4s4 1.4 4.5 4" {...common} /></> : null}
-      {section === 'messages' ? <path d="M4 5h16v11H9l-5 4V5z" {...common} /> : null}
       {section === 'settings' ? <><circle cx="12" cy="12" r="3" {...common} /><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M5.6 18.4l1.6-1.6M16.8 7.2l1.6-1.6" {...common} /></> : null}
     </svg>
   );
@@ -113,7 +112,6 @@ function sectionLabel(section: TeamWorkspaceSection) {
   if (section === 'dashboard') return tr('team.section.overview');
   if (section === 'players') return tr('team.section.players');
   if (section === 'groups') return tr('team.section.groups');
-  if (section === 'messages') return tr('team.section.messages');
   return tr('team.section.settings');
 }
 
@@ -207,22 +205,7 @@ function TeamDashboardSessionCard({
         </div>
         <span aria-hidden className="text-lg font-black text-slate-500">›</span>
       </div>
-      {attendanceShared ? <div className="mt-4 grid grid-cols-2 gap-2">
-        <div className={`rounded-xl border p-3 ${out.length > 0 ? 'border-rose-400/35 bg-rose-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black text-slate-400">{t('team.card.out')}</p>
-            <span className="text-lg font-black text-white">{out.length}</span>
-          </div>
-          {out.slice(0, 3).map((item) => <p key={item.id} className="mt-1.5 text-xs font-bold text-slate-300">{item.playerName}{item.reason ? ` · ${item.reason}` : ''}</p>)}
-        </div>
-        <div className={`rounded-xl border p-3 ${late.length > 0 ? 'border-amber-400/35 bg-amber-400/10' : 'border-slate-800 bg-slate-950/60'}`}>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black text-slate-400">{t('team.card.late')}</p>
-            <span className="text-lg font-black text-white">{late.length}</span>
-          </div>
-          {late.slice(0, 3).map((item) => <p key={item.id} className="mt-1.5 text-xs font-bold text-slate-300">{item.playerName}{item.lateMinutes ? ` · ${t('team.card.lateMinutes', { count: item.lateMinutes })}` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>)}
-        </div>
-      </div> : null}
+      {attendanceShared ? <AvailabilityStack out={out} late={late} outLabel={t('team.card.out')} lateLabel={t('team.card.late')} lateMinutes={(count) => t('team.card.lateMinutes', { count })} /> : null}
     </button>
   );
 }
@@ -249,7 +232,6 @@ function StaffRoleGrid({ roles }: { roles: TeamWorkspaceStaffRole[] }) {
 export function TeamWorkspaceView({
   data,
   initialSection = 'dashboard',
-  canMessage = false,
   coachSessions = [],
   onDefaultFacilityChange,
   onSessionTimeChange,
@@ -265,8 +247,6 @@ export function TeamWorkspaceView({
 }: {
   data: TeamWorkspaceData;
   initialSection?: TeamWorkspaceSection;
-  /** The active coach may write team messages (piece 17). */
-  canMessage?: boolean;
   /**
    * The same sessions as the coach pages build them, with who reported out or
    * late (as far as the coach's role may see). Detail views use these so the
@@ -364,7 +344,7 @@ export function TeamWorkspaceView({
       : null,
   ].filter(Boolean) as { id: string; label: string; action: 'settings' | 'players' | 'none' }[];
 
-  const sections: TeamWorkspaceSection[] = ['dashboard', 'players', 'groups', ...(canMessage ? ['messages' as const] : []), 'settings'];
+  const sections: TeamWorkspaceSection[] = ['dashboard', 'players', 'groups', 'settings'];
   const coachSessionById = useMemo(() => new Map(coachSessions.map((session) => [session.id, session])), [coachSessions]);
   const coachSessionFor = (session: TeamWorkspaceSession) =>
     coachSessionById.get(session.id) ?? coachSessionFromTeamWorkspace(session, data, playersForSession(session));
@@ -576,14 +556,6 @@ export function TeamWorkspaceView({
               })}
             </div>
           )}
-        </section>
-      ) : null}
-
-      {activeSection === 'messages' && canMessage ? (
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 sm:p-5">
-          <h2 className="text-lg font-black">{t('team.messagesTitle')}</h2>
-          <p className="mb-4 mt-0.5 text-sm text-slate-400">{t('team.messagesDetail')}</p>
-          <TeamMessagesPanel teamId={data.id} />
         </section>
       ) : null}
 

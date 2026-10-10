@@ -18,7 +18,7 @@
  * passed — the view hides those controls on its own.
  */
 
-import { useCallback, useMemo, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
 
 import {
   TeamWorkspaceView,
@@ -35,6 +35,8 @@ import { awayUntilLabel } from '@/features/absences/absenceText';
 import { loadAccessFor } from '@/features/load/loadAccess';
 import { TeamHealthSettings } from '@/features/legal/TeamHealthSettings';
 import { TeamStaffPanel } from '@/features/teams/TeamStaffPanel';
+import { TeamSwitch } from '@/features/teams/TeamSwitch';
+import { displayRoleName } from '@/features/teams/roleLabels';
 import {
   absenceOn,
   hasHealthConsent,
@@ -49,6 +51,7 @@ import {
   newId,
   removeAthleteFromTeam,
   setTeamDefaultFacility,
+  storeLastCoachTeam,
   updateSession,
   todayISO,
   useLocalDatabase,
@@ -136,11 +139,9 @@ function attendanceForPlayer(database: LocalDatabase, personId: Id, teamId: Id) 
 
 export function TeamWorkspace({
   teamId,
-  back,
   initialSection = 'dashboard',
 }: {
   teamId: string;
-  back?: { href: string; label: string };
   initialSection?: TeamWorkspaceSection;
 }) {
   const t = useT();
@@ -255,10 +256,20 @@ export function TeamWorkspace({
     };
   }, [database, permissions, teamId]);
 
-  const coachSessions = useMemo(
-    () => (database ? buildCoachData(database, activePersonId).sessions.filter((session) => session.teamId === teamId) : []),
-    [database, activePersonId, teamId],
+  const coachData = useMemo(() => (database ? buildCoachData(database, activePersonId) : null), [database, activePersonId]);
+  const coachSessions = useMemo(() => (coachData?.sessions ?? []).filter((session) => session.teamId === teamId), [coachData, teamId]);
+  // A coach with several teams switches between them from the header; the
+  // Team tab opens the last one used.
+  const switchTeams = useMemo(
+    () => (coachData?.teams ?? []).map((team) => ({
+      id: team.id,
+      name: team.name,
+      detail: `${team.departmentName}${team.roleName ? ` · ${displayRoleName(team.roleName)}` : ''}`,
+    })),
+    [coachData],
   );
+  const multiTeam = switchTeams.length > 1;
+  useEffect(() => { if (data) storeLastCoachTeam(teamId); }, [data, teamId]);
 
   const handleSessionTimeChange = useCallback((sessionId: string, startsAt: string, endsAt: string) => {
     updateSession(sessionId, { startsAt, endsAt });
@@ -335,14 +346,12 @@ export function TeamWorkspace({
   return (
     <CoachShell
       active="team"
-      title={data.name}
-      subtitle={`${data.departmentName}${data.defaultFacilityName ? ` · ${data.defaultFacilityName}` : ''}`}
-      back={back}
+      title={multiTeam ? t('coach.header.teams') : data.name}
+      subtitle={multiTeam ? <TeamSwitch teams={switchTeams} activeId={teamId} /> : `${data.departmentName}${data.defaultFacilityName ? ` · ${data.defaultFacilityName}` : ''}`}
     >
     <TeamWorkspaceView
       data={data}
       initialSection={initialSection}
-      canMessage={permissions.has('viewAttendance') || permissions.has('editSessions')}
       coachSessions={coachSessions}
       onDefaultFacilityChange={permissions.has('manageFacilities') ? handleDefaultFacilityChange : undefined}
       onSessionTimeChange={canEditSessions ? handleSessionTimeChange : undefined}

@@ -189,6 +189,27 @@ export function dismissHint(name: HintName): void {
   }
 }
 
+const LAST_COACH_TEAM_KEY = 'club-app.last-coach-team';
+
+/** The team a coach looked at last on this device, or null. Whether it still exists is the caller's check. */
+export function readLastCoachTeam(): string | null {
+  if (!isBrowser()) return null;
+  try {
+    return window.localStorage.getItem(LAST_COACH_TEAM_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function storeLastCoachTeam(teamId: string): void {
+  if (!isBrowser()) return;
+  try {
+    window.localStorage.setItem(LAST_COACH_TEAM_KEY, teamId);
+  } catch {
+    // Not remembered: the Team tab opens the first team again.
+  }
+}
+
 const LOCALE_KEY = 'club-app.locale';
 const localeListeners = new Set<() => void>();
 
@@ -2504,14 +2525,6 @@ const newestFirst = (a: Message, b: Message) => b.createdAt.localeCompare(a.crea
 /** Messages for this person, newest first. */
 export function messagesForPerson(database: LocalDatabase, personId: Id): Message[] {
   return (database.messages ?? []).filter((message) => messageRecipientIds(database, message).includes(personId)).sort(newestFirst);
-}
-
-/** Messages to this team or some of its groups, newest first (the team's message list). */
-export function messagesForTeam(database: LocalDatabase, teamId: Id): Message[] {
-  const groupIds = new Set(database.playerGroups.filter((group) => group.teamId === teamId).map((group) => group.id));
-  return (database.messages ?? [])
-    .filter((message) => message.teamIds.includes(teamId) || message.groupIds.some((groupId) => groupIds.has(groupId)))
-    .sort(newestFirst);
 }
 
 export function isMessageRead(database: LocalDatabase, messageId: Id, personId: Id): boolean {
