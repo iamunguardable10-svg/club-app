@@ -161,7 +161,7 @@ function CoachSessionCard({ session, showTeam, onDetails }: { session: CoachSess
         <div className="min-w-0">
           <p className="text-2xl font-black tabular-nums">{formatTimeRange(session.startsAt, session.endsAt, session.sessionType)}</p>
           <h3 className="mt-1 text-base font-black">{displayTitle(session.title)}</h3>
-          <p className="mt-0.5 text-sm font-bold text-slate-400"><TeamDot teamId={session.teamId} show={showTeam} />{session.teamName}{session.homeAway !== 'away' && session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+          <p className="mt-0.5 text-sm font-bold text-slate-400">{session.teamName}{session.homeAway !== 'away' && session.facilityName ? ` · ${session.facilityName}` : ''}</p>
           <CarpoolSummary sessionId={session.id} />
           {gameLine(session) || meetLine(session) ? <p className="mt-0.5 text-sm font-bold text-amber-100/90">{[gameLine(session), meetLine(session)].filter(Boolean).join(' · ')}</p> : null}
         </div>
@@ -213,7 +213,7 @@ function UpcomingSessionRow({ session, showTeam, onOpen }: { session: CoachSessi
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-black text-white">{displayTitle(session.title)}{session.opponent ? ` ${gameLine(session)}` : ''}</p>
-        <p className="truncate text-xs font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt, session.sessionType)}{showTeam ? <> · <TeamDot teamId={session.teamId} className="mr-1" />{session.teamName}</> : ''}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+        <p className="truncate text-xs font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt, session.sessionType)}{showTeam ? <> · {session.teamName}</> : ''}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
         <CarpoolSummary sessionId={session.id} />
         {badges.length > 0 ? (
           <p className="mt-0.5 flex flex-wrap gap-x-1 text-[11px] font-black">
