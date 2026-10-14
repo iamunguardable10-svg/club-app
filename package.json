@@ -15,6 +15,7 @@
     "hooks:claude-review": "node scripts/install-claude-review-hook.mjs",
     "clean:next-env": "node scripts/clean-next-env.mjs",
     "test:pilot": "tsx supabase/pilot/tests/remote-store.test.ts",
+    "test:store": "tsx src/shared/data/remote/remoteStore.cache.test.ts",
     "test:carpools": "tsx src/shared/data/carpools.test.ts",
     "test:load": "tsx src/shared/data/loadCalculations.test.ts",
     "test:calendar": "tsx supabase/pilot/tests/calendar-ics.test.ts",
@@ -27,6 +28,7 @@
     "test:build": "tsx src/features/install/buildVersion.test.ts",
     "test:address": "tsx src/features/facilities/addressAutocomplete.test.ts",
     "test:smoke": "node scripts/smoke.mjs",
+    "perf:nav": "node scripts/perf-nav.mjs",
     "landing:shots": "node scripts/landing-shots.mjs",
     "test:landing": "node scripts/landing-check.mjs",
     "test:consent": "node --import tsx src/shared/data/consent.test.ts"

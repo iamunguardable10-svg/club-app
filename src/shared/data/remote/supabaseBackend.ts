@@ -12,7 +12,7 @@
  * coming back online sends it.
  */
 
-import { createClient, isAuthRetryableFetchError, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, isAuthApiError, type SupabaseClient } from '@supabase/supabase-js';
 
 import { LocalDataError } from '../schema';
 import { OfflineError, RemoteStore, type OfflineCache, type RemoteClient } from './remoteStore';
@@ -21,6 +21,8 @@ import type { Row, TableName } from './tables';
 /** PostgREST returns at most this many rows per request; larger tables are paged. */
 const PAGE_SIZE = 1000;
 const REFRESH_MS = 30_000;
+/** How long one table may take to load before it counts as no network. */
+const LOAD_TIMEOUT_MS = 20_000;
 
 type KeyValueStorage = { getItem(key: string): string | null; setItem(key: string, value: string): void; removeItem(key: string): void };
 
@@ -69,19 +71,57 @@ function fail(table: TableName, action: string, error: RequestError, status: num
   throw Object.assign(new Error(`${action} ${table}: ${error.message}`), { code: error.code });
 }
 
-export function supabaseRemoteClient(supabase: SupabaseClient): RemoteClient {
+/** Where supabase-js keeps the session by default: `sb-<project ref>-auth-token`. */
+function sessionStorageKey(): string | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) return null;
+  try {
+    return `sb-${new URL(url).hostname.split('.')[0]}-auth-token`;
+  } catch {
+    return null;
+  }
+}
+
+/** The account id in the kept session, without the network (it may be expired). */
+export function storedSessionUserId(storage: KeyValueStorage | undefined): string | null {
+  const key = sessionStorageKey();
+  if (!storage || !key) return null;
+  try {
+    const raw = storage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { user?: { id?: unknown }; currentSession?: { user?: { id?: unknown } } };
+    const id = parsed.user?.id ?? parsed.currentSession?.user?.id;
+    return typeof id === 'string' ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+export function supabaseRemoteClient(supabase: SupabaseClient, storage?: KeyValueStorage): RemoteClient {
   return {
     async userId() {
       const { data, error } = await supabase.auth.getSession();
-      // An expired sign-in cannot be renewed without a network; it is not a sign-out.
-      if (!data.session && error && (isAuthRetryableFetchError(error) || knownOffline())) throw new OfflineError();
-      return data.session?.user.id ?? null;
+      if (data.session) return data.session.user.id;
+      // Only the server saying the sign-in is no longer valid (revoked or
+      // expired refresh token) signs out. A timeout, a dropped connection or
+      // any other failure to renew keeps the saved state, like being offline.
+      if (error && !(isAuthApiError(error) && [400, 401, 403].includes(error.status ?? 0))) throw new OfflineError();
+      return null;
+    },
+    storedUserId() {
+      return storedSessionUserId(storage);
     },
     async selectAll(table) {
       checkOnline();
       const rows: Row[] = [];
       for (let from = 0; ; from += PAGE_SIZE) {
-        const { data, error, status } = await supabase.from(table).select(table === 'people' ? 'id,club_id,user_id,first_name,last_name,rsvp_mode,created_at' : '*').range(from, from + PAGE_SIZE - 1);
+        // A request that hangs ends after a while and counts as no network,
+        // so the screen shows the saved state instead of waiting forever.
+        const { data, error, status } = await supabase
+          .from(table)
+          .select(table === 'people' ? 'id,club_id,user_id,first_name,last_name,rsvp_mode,created_at' : '*')
+          .range(from, from + PAGE_SIZE - 1)
+          .abortSignal(AbortSignal.timeout(LOAD_TIMEOUT_MS));
         if (error) fail(table, 'Loading', error, status);
         rows.push(...(data as unknown as Row[] ?? []));
         if (!data || data.length < PAGE_SIZE) return rows;
@@ -124,7 +164,7 @@ export function createSupabaseStore(
   offlineCache: OfflineCache | null = null,
 ): RemoteStore {
   const supabase = getSupabase(storage);
-  const store = new RemoteStore(supabaseRemoteClient(supabase), version, rememberedIdentity, offlineCache);
+  const store = new RemoteStore(supabaseRemoteClient(supabase, storage), version, rememberedIdentity, offlineCache);
 
   // Signing in or out elsewhere (another tab, token expiry) reloads.
   supabase.auth.onAuthStateChange((event) => {
@@ -132,8 +172,15 @@ export function createSupabaseStore(
   });
 
   if (typeof window !== 'undefined') {
+    // Focus and visibility often fire together when the app comes back;
+    // one reload covers both (the store also shares a load in flight).
+    let lastRefresh = 0;
     const refreshIfVisible = () => {
-      if (document.visibilityState === 'visible') void store.refresh();
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - lastRefresh < 5_000) return;
+      lastRefresh = now;
+      void store.refresh();
     };
     window.addEventListener('focus', refreshIfVisible);
     // Back online: send what waited, then reload.

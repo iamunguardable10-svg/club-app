@@ -7,12 +7,14 @@
  * other without a reload — the coach sees an athlete's cancellation the moment
  * it is entered. Reading on mount alone would not do that.
  *
- * The hook returns null during server rendering and the first client render,
- * which keeps hydration consistent. Callers render a loading state for that
- * one frame.
+ * The hook returns null during server rendering and while the page hydrates,
+ * which keeps hydration consistent; callers render a loading state for that
+ * one frame. Every later mount (switching tabs, opening a sheet, going back)
+ * reads the document the page already holds and shows it in its first frame,
+ * without a loading phase.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
 import { getBackendStatus, readDatabase, subscribe, type BackendStatus } from './repository';
 import { LocalDataError, type LocalDatabase } from './schema';
@@ -31,43 +33,57 @@ const BACKEND_MESSAGES: Partial<Record<BackendStatus['phase'], { text: string; k
   error: { text: 'Could not load the data from the server.', key: 'data.loadFailed' },
 };
 
-export function useLocalDatabase(): LocalDataState {
-  const [state, setState] = useState<LocalDataState>({ database: null, error: null, ready: false });
+const NOT_READY: LocalDataState = { database: null, error: null, ready: false };
 
-  const read = useCallback(() => {
-    try {
-      const database = readDatabase();
-      const backend = getBackendStatus();
-      if (backend.phase === 'loading') {
-        setState({ database: null, error: null, ready: false });
-        return;
-      }
+/** Reads the current state; the same object while nothing changed (useSyncExternalStore needs that). */
+let lastState: LocalDataState = NOT_READY;
+let lastKey: unknown[] = [];
+
+function sameKey(next: unknown[]) {
+  return next.length === lastKey.length && next.every((value, index) => Object.is(value, lastKey[index]));
+}
+
+function currentState(): LocalDataState {
+  let next: LocalDataState;
+  let key: unknown[];
+  try {
+    const database = readDatabase();
+    const backend = getBackendStatus();
+    key = [database, backend.phase, backend.error];
+    if (sameKey(key)) return lastState;
+    if (backend.phase === 'loading') {
+      next = NOT_READY;
+    } else {
       const message = BACKEND_MESSAGES[backend.phase];
       if (message) {
         const error = backend.error
           ? new LocalDataError(`${message.text} (${backend.error})`, undefined, 'data.withDetail', { message: message.key, detail: backend.error })
           : new LocalDataError(message.text, undefined, message.key);
-        setState({ database: null, error, ready: true });
-        return;
+        next = { database: null, error, ready: true };
+      } else {
+        next = { database, error: null, ready: true };
       }
-      setState({ database, error: null, ready: true });
-    } catch (error) {
-      // Surfaced, never swallowed: a broken document must not look like an
-      // empty club.
-      setState({
-        database: null,
-        error: error instanceof LocalDataError ? error : new LocalDataError('Could not read the local database.', error, 'data.readFailed'),
-        ready: true,
-      });
     }
-  }, []);
+  } catch (error) {
+    // Surfaced, never swallowed: a broken document must not look like an
+    // empty club.
+    key = ['error', error];
+    if (sameKey(key)) return lastState;
+    next = {
+      database: null,
+      error: error instanceof LocalDataError ? error : new LocalDataError('Could not read the local database.', error, 'data.readFailed'),
+      ready: true,
+    };
+  }
+  lastKey = key;
+  lastState = next;
+  return next;
+}
 
-  useEffect(() => {
-    read();
-    return subscribe(read);
-  }, [read]);
+const serverState = () => NOT_READY;
 
-  return state;
+export function useLocalDatabase(): LocalDataState {
+  return useSyncExternalStore(subscribe, currentState, serverState);
 }
 
 /**
@@ -75,12 +91,21 @@ export function useLocalDatabase(): LocalDataState {
  * server and whether the server refused the last one. Local mode: always
  * ready, nothing pending.
  */
+let lastStatus: BackendStatus | null = null;
+
+function currentStatus(): BackendStatus {
+  const next = getBackendStatus();
+  if (lastStatus && (Object.keys(next) as (keyof BackendStatus)[]).every((key) => Object.is(next[key], lastStatus?.[key]))) return lastStatus;
+  lastStatus = next;
+  return next;
+}
+
+/**
+ * While the page hydrates the server's HTML: nothing known yet. Screens show
+ * their loading state for that one frame, as they did on the server.
+ */
+const HYDRATING_STATUS: BackendStatus = { mode: 'local', phase: 'loading', error: null, rejected: null, rejectedNotice: null, pending: 0, offline: false, savedAt: null };
+
 export function useBackendStatus(): BackendStatus {
-  const [status, setStatus] = useState<BackendStatus>(() => getBackendStatus());
-  useEffect(() => {
-    const update = () => setStatus(getBackendStatus());
-    update();
-    return subscribe(update);
-  }, []);
-  return status;
+  return useSyncExternalStore(subscribe, currentStatus, () => HYDRATING_STATUS);
 }

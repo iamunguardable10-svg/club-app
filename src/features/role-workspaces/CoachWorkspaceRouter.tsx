@@ -1,6 +1,8 @@
 'use client';
 
 import { CoachTodo } from '@/features/role-workspaces/CoachTodo';
+import { useRememberedState } from '@/shared/useRememberedState';
+import { ScreenSkeleton } from '@/shared/components/Skeleton';
 import { TeamDot, teamColor } from '@/features/teams/teamColor';
 import { AvailabilityStack } from '@/features/sessions/AvailabilityStack';
 import { CarpoolSummary } from '@/features/sessions/Carpools';
@@ -279,7 +281,11 @@ export function CoachCalendarSurface({
   const [dayTransitionDirection, setDayTransitionDirection] = useState<'next' | 'previous' | null>(null);
   const [desktopHourHeight, setDesktopHourHeight] = useState(baseDesktopHourHeight);
   const [mode, setMode] = useState<'view' | 'edit'>('view');
-  const [teamFilter, setTeamFilter] = useState<string | null>(initialTeamId && teams.some((team) => team.id === initialTeamId) ? initialTeamId : null);
+  // The chosen team stays when the coach leaves the calendar and comes back;
+  // a link to one team (?teamId=) wins.
+  const linkedTeam = initialTeamId && teams.some((team) => team.id === initialTeamId) ? initialTeamId : null;
+  const [rememberedTeam, setTeamFilter] = useRememberedState<string | null>('coach.calendar.team', teams.map((team) => team.id).join(','), null);
+  const teamFilter = linkedTeam ?? (rememberedTeam && teams.some((team) => team.id === rememberedTeam) ? rememberedTeam : null);
   const [drag, setDrag] = useState<CoachCalendarDrag | null>(null);
   const [draft, setDraft] = useState<CoachCalendarDraft | null>(null);
   const [localSessions, setLocalSessions] = useState<CoachSession[]>(sessions);
@@ -1198,7 +1204,9 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   }
 
   if (!ready) {
-    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">{t('coach.loading')}</section></div></main>;
+    // The navigation and the title are there at once; only the content waits.
+    const loadingTitle = { today: 'coach.header.today', sessions: 'coach.header.calendar', team: 'coach.header.teams', attendance: 'coach.header.teams', load: 'coach.header.teams', facilities: 'coach.header.halls', history: 'coach.header.history' } as const;
+    return <CoachShell active={NAV_FOR_MODE[mode]} title={t(loadingTitle[mode])}><ScreenSkeleton label={t('coach.loading')} /></CoachShell>;
   }
 
   // A broken document is shown as such rather than silently replaced with

@@ -19,6 +19,7 @@
  */
 
 import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
+import { ScreenSkeleton } from '@/shared/components/Skeleton';
 
 import {
   TeamWorkspaceView,
@@ -326,7 +327,7 @@ export function TeamWorkspace({
   }, []);
 
   if (!ready) {
-    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">{t('team.loading')}</section></div></main>;
+    return <CoachShell active="team" title={t('coach.header.teams')}><ScreenSkeleton label={t('team.loading')} /></CoachShell>;
   }
 
   if (error) {
