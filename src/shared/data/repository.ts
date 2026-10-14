@@ -605,8 +605,8 @@ export async function signInWithPassword(email: string, password: string): Promi
 export async function signUpWithPassword(email: string, password: string, returnTo: string, locale?: string, consent?: AccessConsent): Promise<{ confirmationNeeded: boolean }> {
   const supabase = await authClient();
   if (!consent?.terms) throw serverError('Please accept the current terms and privacy policy.');
-  // Each sign-up sends a confirmation mail: three per address in the window.
-  countAuthAttempt(guardAuthAttempt('signUp', email, 3));
+  // Each sign-up sends a confirmation mail: five per address in the window.
+  countAuthAttempt(guardAuthAttempt('signUp', email, 5));
   const { data, error } = await supabase.auth.signUp({
     email: email.trim(),
     password,

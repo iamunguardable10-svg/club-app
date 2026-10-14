@@ -9,17 +9,17 @@ select set_config('request.jwt.claims', '', true);
 do $$ begin for i in 1..40 loop perform public.join_code_preview('NOPE2345'); end loop; end $$;
 select test.expect_count('no headers: 40 previews pass', $q$select 1$q$, 1);
 
--- Anonymous caller from one IP: 30 per 10 minutes, the 31st fails.
+-- Anonymous caller from one IP: 300 per 10 minutes (a whole team on one Wi-Fi), the 301st fails.
 select set_config('request.headers', '{"x-forwarded-for":"203.0.113.7, 10.0.0.1"}', true);
-do $$ begin for i in 1..30 loop perform public.join_code_preview('NOPE2345'); end loop; end $$;
-select test.expect_error('31st preview from the same IP', $q$select public.join_code_preview('NOPE2345')$q$, 'Too many attempts');
+do $$ begin for i in 1..300 loop perform public.join_code_preview('NOPE2345'); end loop; end $$;
+select test.expect_error('301st preview from the same IP', $q$select public.join_code_preview('NOPE2345')$q$, 'Too many attempts');
 -- Another IP is not affected.
 select set_config('request.headers', '{"x-forwarded-for":"198.51.100.9"}', true);
 select test.expect_count('other IP still allowed', $q$select 1 from (select public.join_code_preview('NOPE2345')) x$q$, 0);
 
--- Founding codes: 10 per hour.
-do $$ begin for i in 1..10 loop perform public.founding_code_usable('XXXX'); end loop; end $$;
-select test.expect_error('11th founding code check', $q$select public.founding_code_usable('XXXX')$q$, 'Too many attempts');
+-- Founding codes: 30 per hour.
+do $$ begin for i in 1..30 loop perform public.founding_code_usable('XXXX'); end loop; end $$;
+select test.expect_error('31st founding code check', $q$select public.founding_code_usable('XXXX')$q$, 'Too many attempts');
 
 -- Signed in: counted per account, not per IP.
 reset role;
@@ -27,7 +27,7 @@ set role authenticated;
 select test.act_as('10000000-0000-0000-0000-000000000072');
 select set_config('request.headers', '{"x-forwarded-for":"203.0.113.7"}', true);
 select test.expect_count('account has its own budget', $q$select 1 from (select public.join_code_preview('NOPE2345')) x$q$, 0);
-do $$ begin for i in 1..29 loop perform public.join_code_preview('NOPE2345'); end loop; end $$;
+do $$ begin for i in 1..299 loop perform public.join_code_preview('NOPE2345'); end loop; end $$;
 select set_config('request.headers', '{"x-forwarded-for":"198.51.100.200"}', true);
 select test.expect_error('a new IP does not reset the account budget', $q$select public.join_code_preview('NOPE2345')$q$, 'Too many attempts');
 
