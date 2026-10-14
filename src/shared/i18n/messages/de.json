@@ -1906,5 +1906,6 @@
   "coach.todo.title": "Zu erledigen",
   "coach.todo.answers": "{count} ohne Antwort · {what}",
   "coach.todo.attendance": "Anwesenheit bestätigen · {what}",
-  "coach.card.nobodyMissing": "Niemand fehlt oder kommt später"
+  "coach.card.nobodyMissing": "Niemand fehlt oder kommt später",
+  "server.rateLimited": "Zu viele Versuche. Warte ein paar Minuten und versuch es dann noch einmal."
 }

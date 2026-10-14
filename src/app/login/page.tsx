@@ -14,8 +14,10 @@ import { useT } from '@/shared/i18n';
 import { LanguagePicker } from '@/shared/i18n/LanguagePicker';
 
 function safeNext(value: string | null) {
-  // Only paths inside the app, never another site.
-  return value && value.startsWith('/') && !value.startsWith('//') ? value : '/start';
+  // Only paths inside the app, never another site. Browsers read "/\\evil.com"
+  // like "//evil.com", so backslashes and control characters are refused too.
+  if (!value || !value.startsWith('/') || value.startsWith('//') || /[\\\u0000-\u001f]/.test(value)) return '/start';
+  return value;
 }
 
 function LoginContent() {
