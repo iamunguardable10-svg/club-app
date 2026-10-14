@@ -7,6 +7,7 @@
  */
 
 import { FacilitiesManager } from '@/features/facilities/FacilitiesManager';
+import { ScreenSkeleton } from '@/shared/components/Skeleton';
 import { ClubShell, CoachSection } from '@/features/role-workspaces/RoleShell';
 import { getActivePerson, managedDepartmentIds, useLocalDatabase } from '@/shared/data';
 import { errorText, useT } from '@/shared/i18n';
@@ -23,7 +24,7 @@ export function ClubHalls() {
       </ClubShell>
     );
   }
-  if (!database) return <ClubShell active="halls" title={t('nav.halls')}><p className="text-sm text-slate-400">{t('club.loading')}</p></ClubShell>;
+  if (!database) return <ClubShell active="halls" title={t('nav.halls')}><ScreenSkeleton label={t('club.loading')} /></ClubShell>;
 
   const departmentIds = managedDepartmentIds(database, person?.id ?? null);
   if (!person || departmentIds.length === 0) {

@@ -16,6 +16,7 @@
  */
 
 import { useState } from 'react';
+import { ScreenSkeleton } from '@/shared/components/Skeleton';
 
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { ShareLink } from '@/features/onboarding/ShareLink';
@@ -536,7 +537,7 @@ export function ClubOverview() {
       </ClubShell>
     );
   }
-  if (!database) return <ClubShell active="club" title={t('club.title')}><p className="text-sm text-slate-400">{t('club.loading')}</p></ClubShell>;
+  if (!database) return <ClubShell active="club" title={t('club.title')}><ScreenSkeleton label={t('club.loading')} /></ClubShell>;
 
   const roles = clubRolesOf(database, person?.id ?? null);
   if (!person || roles.length === 0) {

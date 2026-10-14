@@ -11,6 +11,8 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useRememberedState } from '@/shared/useRememberedState';
+import { ScreenSkeleton } from '@/shared/components/Skeleton';
 
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
 import {
@@ -50,8 +52,9 @@ function sourcesOf(database: LocalDatabase, message: Message, personId: string):
 export function PlayerMessagesPage() {
   const t = useT();
   const { database } = useLocalDatabase();
-  const [filter, setFilter] = useState<string | null>(null);
   const person = database ? getActivePerson(database) : null;
+  // The chosen source stays when the player comes back to the inbox.
+  const [filter, setFilter] = useRememberedState<string | null>('messages.filter', person?.id, null);
   const isPlayer = database?.activeIdentity?.role === 'athlete';
   const inbox = database && person && isPlayer ? messagesForPerson(database, person.id) : [];
   const unreadIds = database && person ? inbox.filter((message) => !isMessageRead(database, message.id, person.id)).map((message) => message.id) : [];
@@ -71,7 +74,7 @@ export function PlayerMessagesPage() {
     return () => window.clearTimeout(timer);
   }, [person, unreadKey]);
 
-  if (!database) return null;
+  if (!database) return <AthleteShell active="messages" title={t('messages.title')}><ScreenSkeleton label={t('athlete.loading')} /></AthleteShell>;
   const sourcesById = new Map(inbox.map((message) => [message.id, person ? sourcesOf(database, message, person.id) : []]));
   // Chips in a fixed order: teams by name, then departments, then the club.
   const sourceLabel = (key: string) => {

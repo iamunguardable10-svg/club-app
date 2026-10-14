@@ -2927,3 +2927,33 @@ Die vorhandene Datenschutzseite bleibt die bestehende Pilot-Zusammenfassung.
   und die übrigen tsx-Tests, Smoke, Landing; Screenshots von Datenschutz und Einstellungen.
 - Codex hat gebaut; Claude hat den letzten Teil übernommen (Testfehler, Team-Rechte enger, Test, Doku) und
   geprüft. Die Texte sind Entwürfe und sollten vor dem öffentlichen Start juristisch gegengelesen werden.
+
+## Run 83 — Sicherheit und Geschwindigkeit (2026-10-15)
+
+**Sicherheit (PR #84 und Nachtrag):**
+- Rate-Limits mit gleitendem Fenster (0042–0044) pro Konto, vor dem Anmelden pro gehashter IP.
+- Die Grenzen pro IP sind so hoch gesetzt, dass ein ganzes Team im selben WLAN oder hinter einer Mobilfunk-IP gleichzeitig beitreten kann: Code-Vorschau 300 pro 10 min, Einladungen 120 pro 10 min, Eltern-Links 60 pro Stunde, Gründungscodes 30 pro Stunde.
+- Die Grenzen für angemeldete Aktionen liegen weit über normaler Nutzung: 10 Beitritte pro Stunde, 30 Nachrichten pro Stunde, 20 Erinnerungen pro Stunde.
+- Dazu kamen Sicherheits-Header, die Drossel beim Login und die Absicherung des Adress-Proxys.
+
+**Geschwindigkeit:**
+- Gemessen wurde mit `npm run perf:nav -- <label> 5` im Demo-Verein auf Handy-Viewport bei 4× CPU-Drosselung (Median).
+- `useLocalDatabase` und `useBackendStatus` laufen über `useSyncExternalStore`. Nur während der Hydration gibt es einen Frame ohne Daten. Danach zeigt jeder Screen beim Tab-Wechsel und beim Zurückgehen vorhandene Daten im ersten Frame. Vorher blitzte bei 6 von 8 Tab-Wechseln „Wird geladen …“ auf, jetzt bei keinem.
+- recharts lädt nur, wo ein Diagramm gezeigt wird (`LoadCharts.tsx`, `next/dynamic` mit Platzhalter gleicher Größe). Auf Spieler-Seiten wird es im Leerlauf vorgeladen. First Load JS ging bei den Spieler-Seiten von 437 auf 320 kB zurück, bei den Trainer-Seiten von 497 auf 380 kB.
+- Server-Store:
+  - Der gespeicherte Stand des Kontos auf dem Gerät erscheint sofort, ohne vorher auf die Sitzungsprüfung im Netz zu warten (`storedUserId`). Danach wird geprüft und bei einem anderen Konto verworfen.
+  - Gleichzeitige Ladevorgänge teilen sich eine Anfrage. Ein älterer Reload überschreibt keinen neueren, und während Änderungen gesendet werden, startet kein paralleler Reload.
+  - Fokus und Sichtbarkeit lösen zusammen nur einen Reload aus.
+  - Tabellen-Abfragen enden nach 20 s und gelten dann als offline. So gibt es keine endlosen Ladezustände.
+- Abmelden passiert nur noch, wenn der Server die Sitzung ablehnt (400, 401 oder 403). Timeouts und Netzfehler zählen als offline, die Daten bleiben.
+- Ladezustände zeigen Navigation und Titel sofort, nur der Inhalt ist ein Skeleton (`ScreenSkeleton`, `motion-safe`).
+- Der angetippte Tab leuchtet sofort auf (15 ms in der Seite gemessen). Filter (Nachrichten-Quelle, Kalender-Team) bleiben beim Zurückkehren pro Person erhalten. Die Scrollposition bleibt beim Zurückgehen erhalten.
+- Behoben: eine Update-Schleife auf `/start?demo=…`, die der neue Hook sichtbar gemacht hat (Startrolle jetzt nur einmal setzen).
+- Kaltstart bis zum Inhalt: vorher 596/630 ms, nachher 563/544 ms (Spieler/Trainer).
+- Tab-Wechsel bis zum Inhalt, nachher: Kalender 115/126 ms, Heute 247/195 ms, Team (Trainer) 478 ms, Belastung 375 ms.
+  - Team und Belastung sind beim ersten Besuch langsamer als vorher (289 und 264 ms). Team rendert jetzt mit Daten im Navigationsübergang statt erst „Lädt …“ zu zeigen. Belastung lädt den Diagramm-Code, falls das Vorladen noch nicht fertig war.
+  - Bei wiederholten Wechseln liegen alle Tabs bei etwa 140–350 ms, wie vorher.
+- Offen:
+  - Ein Diagramm-Rendering blockiert bei 4× CPU rund eine Sekunde. Ein Tipp direkt danach wartet darauf.
+  - Der Reload alle 30 s lädt weiterhin alle Tabellen.
+  - Abo und Paywall gibt es noch nicht, also auch keinen eingeschränkten Zustand.

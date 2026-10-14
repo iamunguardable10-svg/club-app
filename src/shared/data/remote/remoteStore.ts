@@ -49,6 +49,12 @@ import {
 export interface RemoteClient {
   /** The signed-in user's id, or null when nobody is signed in. */
   userId(): Promise<string | null>;
+  /**
+   * The account of the sign-in kept on this device, read without the network
+   * (may be expired or revoked). Only used to show that account's saved state
+   * at once while `userId` checks it; it never grants anything.
+   */
+  storedUserId?(): string | null;
   selectAll(table: TableName): Promise<Row[]>;
   insert(table: TableName, rows: Row[]): Promise<void>;
   /** Returns how many rows changed; 0 when row-level security hid the row. */
@@ -226,6 +232,12 @@ export class RemoteStore {
   /** Sent, but not yet compared with a reload (and the first refusal among them). */
   private unchecked: Operation[] = [];
   private uncheckedFailure: string | null = null;
+  /** The load in flight, so focus, visibility and timers share one request. */
+  private loading: Promise<void> | null = null;
+  /** Counts full reloads; an older one that answers late must not replace a newer one. */
+  private fetchGeneration = 0;
+  /** Sending waiting changes; that ends with its own reload. */
+  private draining = false;
 
   constructor(
     private readonly client: RemoteClient,
@@ -331,7 +343,21 @@ export class RemoteStore {
    * Loads everything the signed-in user may read. Changes still waiting are
    * sent first (the reload follows them).
    */
-  async load(): Promise<void> {
+  load(): Promise<void> {
+    if (!this.loading) {
+      this.loading = this.loadOnce().finally(() => {
+        this.loading = null;
+      });
+    }
+    return this.loading;
+  }
+
+  private async loadOnce(): Promise<void> {
+    // The saved state of the account kept on this device appears before the
+    // sign-in is checked over the network; the check below replaces or
+    // removes it.
+    const storedUserId = this.document ? null : this.client.storedUserId?.() ?? null;
+    if (storedUserId && this.adoptSaved(storedUserId)) this.notify();
     try {
       const userId = await this.client.userId();
       if (!userId) {
@@ -354,6 +380,8 @@ export class RemoteStore {
         this.queue = this.queue.then(() => this.drain());
         return this.queue;
       }
+      // Changes are being sent: their reload follows and checks them.
+      if (this.draining) return this.queue;
       await this.fetchAll(userId);
     } catch (error) {
       if (error instanceof OfflineError) this.goOffline();
@@ -365,9 +393,14 @@ export class RemoteStore {
 
   /** Replaces the document with the server's; false when a newer change arrived meanwhile. */
   private async fetchAll(userId: string): Promise<boolean> {
+    const generation = ++this.fetchGeneration;
     const tables = await Promise.all(TABLES.map((table) => this.client.selectAll(table.name)));
     // A change made while this was loading goes first; its own reload follows.
     if (this.outbox.length > 0) return false;
+    // A newer reload started meanwhile: its answer is the one to show.
+    if (generation !== this.fetchGeneration) return false;
+    // Signed out or another account meanwhile: this answer belongs to nobody here.
+    if (this.userId !== userId) return false;
     const rows = Object.fromEntries(TABLES.map((table, index) => [table.name, tables[index]])) as ServerRows;
     const previous = this.document ?? (this.rememberedIdentity ? ({ activeIdentity: this.rememberedIdentity } as LocalDatabase) : null);
     const document = fromServerRows(rows, { userId, version: this.version, previous });
@@ -438,6 +471,15 @@ export class RemoteStore {
   /** Sends the waiting changes in order, then reloads and checks what the server kept. */
   private async drain() {
     if (this.outbox.length === 0) return;
+    this.draining = true;
+    try {
+      await this.drainOnce();
+    } finally {
+      this.draining = false;
+    }
+  }
+
+  private async drainOnce() {
     while (this.outbox.length > 0) {
       const operations = this.outbox[0];
       try {

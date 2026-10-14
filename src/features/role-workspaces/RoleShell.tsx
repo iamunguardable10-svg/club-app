@@ -12,7 +12,7 @@
  */
 
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
@@ -105,8 +105,11 @@ export function ActiveRoleShell(props: ShellProps) {
   return <RoleShell nav={nav} active={null} {...props} />;
 }
 
-function RoleShell({ nav, active, title, subtitle, back, actions, menuAction, children }: ShellProps & { nav: NavEntry[]; active: NavItem | null }) {
+function RoleShell({ nav, active: current, title, subtitle, back, actions, menuAction, children }: ShellProps & { nav: NavEntry[]; active: NavItem | null }) {
   const t = useT();
+  // The tapped tab lights up at once, while the next screen is being prepared.
+  const [tapped, setTapped] = useState<NavItem | null>(null);
+  const active = tapped ?? current;
   const { database } = useLocalDatabase();
   const person = database ? getActivePerson(database) : null;
   // "Team" or "Teams", depending on what the tab opens.
@@ -147,7 +150,8 @@ function RoleShell({ nav, active, title, subtitle, back, actions, menuAction, ch
             <Link
               key={item}
               href={href}
-              aria-current={active === item ? 'page' : undefined}
+              onClick={() => setTapped(item)}
+              aria-current={current === item ? 'page' : undefined}
               className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-black transition ${
                 active === item ? 'bg-emerald-300 text-slate-950' : 'text-slate-300 hover:bg-slate-900 hover:text-white'
               }`}
@@ -209,8 +213,9 @@ function RoleShell({ nav, active, title, subtitle, back, actions, menuAction, ch
             <Link
               key={item}
               href={href}
-              aria-current={active === item ? 'page' : undefined}
-              className={`flex min-w-0 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-[11px] font-black transition ${
+              onClick={() => setTapped(item)}
+              aria-current={current === item ? 'page' : undefined}
+              className={`flex min-w-0 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-[11px] font-black transition active:scale-95 ${
                 active === item ? 'text-emerald-300' : 'text-slate-400 hover:text-white'
               }`}
             >

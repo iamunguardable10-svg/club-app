@@ -20,7 +20,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 
 import { WhoAreYou } from '@/features/onboarding/WhoAreYou';
 import { QuickPlayerRoles } from '@/features/identity/QuickPlayerRoles';
@@ -289,9 +289,15 @@ function LocalStart() {
     router.push(HOME_FOR_ROLE[role]);
   }
 
-  // Arriving from server mode with a role already picked: start it.
+  // Arriving from server mode with a role already picked: start it, once.
+  // Starting changes the document, which renders this page again.
+  const startedDemo = useRef<string | null>(null);
   useEffect(() => {
-    if (database && (requestedDemo === 'coach' || requestedDemo === 'athlete' || requestedDemo === 'club')) start(requestedDemo);
+    if (!database || startedDemo.current === requestedDemo) return;
+    if (requestedDemo === 'coach' || requestedDemo === 'athlete' || requestedDemo === 'club') {
+      startedDemo.current = requestedDemo;
+      start(requestedDemo);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [database, requestedDemo]);
 
