@@ -1906,5 +1906,6 @@
   "coach.todo.title": "Por hacer",
   "coach.todo.answers": "{count} sin respuesta · {what}",
   "coach.todo.attendance": "Confirmar asistencia · {what}",
-  "coach.card.nobodyMissing": "Nadie falta ni llega tarde"
+  "coach.card.nobodyMissing": "Nadie falta ni llega tarde",
+  "server.rateLimited": "Demasiados intentos. Espera unos minutos y vuelve a intentarlo."
 }

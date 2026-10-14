@@ -373,6 +373,15 @@ Spieler ohne Konto nötig).
 - [ ] Supabase Pro prüfen (sonst keine täglichen Backups, Pause nach 7 Tagen ohne Nutzung).
 - [ ] Testdaten löschen: Wegwerf-Verein der Live-Tests (`delete from public.clubs where id = 'c1a0de00-0000-4000-8000-000000000c01'; delete from auth.users where id::text like 'c1a0de00-%';`).
 - [ ] Rechtstexte (Datenschutz, Nutzungsbedingungen, Impressum, Einwilligung) vor dem öffentlichen Start juristisch gegenlesen lassen.
+- [ ] Sicherheit im Supabase-Dashboard (Run 82, App-Seite ist erledigt): Authentication → Policies „Leaked password protection“ an (braucht Pro); Mindestlänge Passwort auf 8 (die App verlangt 8, der Server erlaubt sonst 6); Authentication → Rate Limits prüfen (Sign-in/Sign-up pro IP, Mails pro Stunde); optional Bot-Schutz (Cloudflare Turnstile) – dann bauen wir das Captcha ins Login-Formular ein.
+
+**Weg zum Umsatz (Plan, gemerkt 2026-10-14, Ben erledigt die Schritte selbst):**
+- Wer zahlt: der Verein (Hallenplanung über alle Teams, Abteilungsüberblick) und ambitionierte Leistungsteams (Belastungssteuerung). Reine Teamorganisation ist gratis bei der Konkurrenz (z. B. Spond).
+- Pilot: 2–3 Vereine mit je 2–4 Teams, 8 Wochen, kostenlos für die Saison gegen 15 Minuten Rückmeldung alle zwei Wochen; Pilotpreis schon im ersten Gespräch nennen (Hypothese 10–20 € pro Team und Monat oder Vereinspreis pro Jahr).
+- Messen: Antwortquote der Spieler > 70 %, Trainer nutzt die App nach 4 Wochen noch, weniger Team-WhatsApp, Zusage zum Preis.
+- Akquise: eigenes Netzwerk (Gröbenzell, Puchheim, Olching), Abteilungsleiter direkt anschreiben, Trainerlehrgänge/Verbände; etwa 20–30 Anfragen für 2–3 Zusagen.
+- Was wir dafür bauen: Seite „Pilotverein werden“ mit Formular, Demo-Verein komplett auf Deutsch, Nutzungszahlen pro Verein (nur Zahlen), Kurzanleitung für Trainer, Vorlagen (Mail an Abteilungsleiter, WhatsApp an Trainer, Gesprächsleitfaden mit Preisfragen).
+- Offen von Ben: eigene Sportart und Verein, 10 Namen für die erste Ansprache.
 
 - Supabase: E-Mail-Bestätigung / SMTP, Site URL und Redirect-URLs.
 - Vercel-Projekt und Adresse.

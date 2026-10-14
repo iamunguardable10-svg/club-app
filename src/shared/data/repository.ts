@@ -559,10 +559,43 @@ function authError(message: string): LocalDataError {
   return match ? new LocalDataError(match[1], undefined, match[2]) : new LocalDataError(message);
 }
 
+/**
+ * A sliding window of recent attempts per action and address, in this tab
+ * only. It spares the server obvious retry loops and tells the person to wait
+ * before Supabase's own limits (the real guard) lock the address out.
+ */
+const AUTH_ATTEMPT_WINDOW_MS = 15 * 60_000;
+const authAttempts = new Map<string, number[]>();
+
+function recentAuthAttempts(key: string): number[] {
+  const since = Date.now() - AUTH_ATTEMPT_WINDOW_MS;
+  const recent = (authAttempts.get(key) ?? []).filter((at) => at > since);
+  authAttempts.set(key, recent);
+  return recent;
+}
+
+function guardAuthAttempt(action: string, email: string, limit: number): string {
+  const key = `${action}:${email.trim().toLowerCase()}`;
+  if (recentAuthAttempts(key).length >= limit) {
+    throw new LocalDataError('Too many attempts. Please wait a moment and try again.', undefined, 'auth.error.tooManyAttempts');
+  }
+  return key;
+}
+
+function countAuthAttempt(key: string): void {
+  authAttempts.set(key, [...recentAuthAttempts(key), Date.now()]);
+}
+
 export async function signInWithPassword(email: string, password: string): Promise<void> {
+  const key = guardAuthAttempt('signIn', email, 5);
   const supabase = await authClient();
   const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-  if (error) throw authError(error.message);
+  if (error) {
+    // Only wrong attempts count; a successful sign-in clears them.
+    countAuthAttempt(key);
+    throw authError(error.message);
+  }
+  authAttempts.delete(key);
 }
 
 /**
@@ -572,6 +605,8 @@ export async function signInWithPassword(email: string, password: string): Promi
 export async function signUpWithPassword(email: string, password: string, returnTo: string, locale?: string, consent?: AccessConsent): Promise<{ confirmationNeeded: boolean }> {
   const supabase = await authClient();
   if (!consent?.terms) throw serverError('Please accept the current terms and privacy policy.');
+  // Each sign-up sends a confirmation mail: three per address in the window.
+  countAuthAttempt(guardAuthAttempt('signUp', email, 3));
   const { data, error } = await supabase.auth.signUp({
     email: email.trim(),
     password,
@@ -603,6 +638,8 @@ export async function saveAccountLocale(locale: string): Promise<void> {
 
 /** Sends a link to choose a new password; it leads to /reset-password. */
 export async function requestPasswordReset(email: string): Promise<void> {
+  // Each request sends a mail: three per address in the window.
+  countAuthAttempt(guardAuthAttempt('reset', email, 3));
   const supabase = await authClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
     redirectTo: `${window.location.origin}/reset-password`,

@@ -76,6 +76,7 @@ export const SERVER_MESSAGES: Record<string, MessageKey> = {
   "Unknown action.": 'server.unknownAction',
   "Apple did not accept the Apple ID or the app-specific password.": 'server.appleDidNotAcceptThe',
   "Too many redirects.": 'server.tooManyRedirects',
+  "Too many attempts. Please wait a few minutes and try again.": 'server.rateLimited',
   "Could not find the calendar account.": 'server.couldNotFindTheCalendar',
   "Could not find the calendars.": 'server.couldNotFindTheCalendars',
   "Apple Calendar is not available right now.": 'server.appleCalendarIsNotAvailable',
