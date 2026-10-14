@@ -2328,6 +2328,8 @@ function LoadDetailsPanel({
 }) {
   const t = useT();
   const [showAllCompleted, setShowAllCompleted] = useState(false);
+  // The weekly profile is a second chart; it is drawn only once opened.
+  const [weeklyOpen, setWeeklyOpen] = useState(false);
   const today = todayISO();
   const last28Start = new Date(`${today}T00:00:00`);
   last28Start.setDate(last28Start.getDate() - 27);
@@ -2475,13 +2477,13 @@ function LoadDetailsPanel({
         </div>
         </details>
 
-        <details className="group mt-5 border-t border-slate-800/80 pt-4">
+        <details className="group mt-5 border-t border-slate-800/80 pt-4" onToggle={(event) => { if (event.currentTarget.open) setWeeklyOpen(true); }}>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
             <h2 className="text-base font-black">{t('load.details.weeklyProfile')}</h2>
             <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-180">▾</span>
           </summary>
           <div className="mt-4">
-            <WeeklyLoadProfileGraph entries={entries} title="" />
+            {weeklyOpen ? <WeeklyLoadProfileGraph entries={entries} title="" /> : null}
           </div>
         </details>
 

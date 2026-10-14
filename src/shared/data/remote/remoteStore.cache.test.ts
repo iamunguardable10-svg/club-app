@@ -5,7 +5,8 @@
  * - another account's kept state never shows after the check,
  * - loads asked for at the same time share one request per table,
  * - a timeout while renewing the sign-in keeps the data (no sign-out),
- * - a clear "not signed in" from the server removes it.
+ * - a clear "not signed in" from the server removes it,
+ * - a live change reloads only the tables whose version moved.
  *
  *   npx tsx src/shared/data/remote/remoteStore.cache.test.ts
  */
@@ -13,7 +14,7 @@
 import assert from 'node:assert/strict';
 
 import type { LocalDatabase } from '../schema';
-import { OfflineError, RemoteStore, type OfflineCache, type OfflineSnapshot, type RemoteClient } from './remoteStore';
+import { OfflineError, RemoteStore, tablesToReload, type ChangeVersion, type OfflineCache, type OfflineSnapshot, type RemoteClient } from './remoteStore';
 import { TABLES, type Row } from './tables';
 
 const VERSION = 'test-version';
@@ -129,6 +130,55 @@ await run('a clear "not signed in" removes the kept state', async () => {
   assert.equal(store.read(), null);
   assert.equal(store.getStatus().phase, 'signedOut');
   assert.equal(cache.cleared, true);
+});
+
+await run('only the tables whose version moved reload', async () => {
+  const versions: ChangeVersion[] = [{ club_id: 'c1', table_name: 'sessions', version: 1 }];
+  const loaded: string[] = [];
+  const { client } = fakeClient({ stored: null, userId: async () => 'u1' });
+  client.changeVersions = async () => versions.map((row) => ({ ...row }));
+  const select = client.selectAll;
+  client.selectAll = async (table) => { loaded.push(table); return select(table); };
+  const store = new RemoteStore(client, VERSION, null, memoryCache(null));
+  await store.load();
+  assert.equal(loaded.length, TABLES.length);
+
+  let notified = 0;
+  store.subscribe(() => { notified += 1; });
+  loaded.length = 0;
+  await store.refreshChanged();
+  assert.deepEqual(loaded, [], 'nothing changed: nothing loads');
+  assert.equal(notified, 0, 'nothing changed: the screen is not told');
+
+  versions.push({ club_id: 'c1', table_name: 'availability', version: 1 });
+  await store.refreshChanged();
+  assert.deepEqual(loaded.sort(), ['availability', 'availability_reasons']);
+
+  loaded.length = 0;
+  versions[0].version = 2;
+  versions.push({ club_id: 'c1', table_name: 'memberships', version: 1 });
+  await store.refreshChanged();
+  assert.equal(loaded.length, TABLES.length, 'a membership change can change what is visible: everything reloads');
+});
+
+await run('versions that cannot be read reload everything', async () => {
+  const loaded: string[] = [];
+  const { client } = fakeClient({ stored: null, userId: async () => 'u1' });
+  client.changeVersions = async () => null;
+  const select = client.selectAll;
+  client.selectAll = async (table) => { loaded.push(table); return select(table); };
+  const store = new RemoteStore(client, VERSION, null, memoryCache(null));
+  await store.load();
+  loaded.length = 0;
+  await store.refreshChanged();
+  assert.equal(loaded.length, TABLES.length);
+});
+
+await run('dependent tables and views reload with their table', async () => {
+  const before = new Map([['c1:messages', 1]]);
+  assert.deepEqual(tablesToReload(before, new Map([['c1:messages', 2]])), ['messages', 'message_reads', 'message_stats', 'message_votes']);
+  assert.deepEqual(tablesToReload(before, new Map([['c1:messages', 1], ['c2:unknown_table', 1]])), []);
+  assert.equal(tablesToReload(new Map(), new Map([['c1:consents', 1]])), 'all');
 });
 
 console.log('all server store start checks passed');

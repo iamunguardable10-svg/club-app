@@ -2957,3 +2957,17 @@ Die vorhandene Datenschutzseite bleibt die bestehende Pilot-Zusammenfassung.
   - Ein Diagramm-Rendering blockiert bei 4× CPU rund eine Sekunde. Ein Tipp direkt danach wartet darauf.
   - Der Reload alle 30 s lädt weiterhin alle Tabellen.
   - Abo und Paywall gibt es noch nicht, also auch keinen eingeschränkten Zustand.
+
+## Run 84 — Live-Aktualisierung und Diagramm (2026-10-14)
+
+**Live statt 30-s-Volllade:**
+- Migration 0045: `public.data_changes` (Version je Verein und Tabelle), Statement-Trigger auf allen 37 geladenen Tabellen, RLS nur eigene Vereine, Realtime-Publikation nur für diese Tabelle.
+- App: Realtime-Kanal → nach 300 ms `refreshChanged()`, lädt nur Tabellen mit neuer Version (plus abhängige Tabellen/Views); Mitgliedschaften, Rollen, Personen, Teams, Einwilligungen u. Ä. laden alles neu.
+- Fallback: alle 30 s und bei Fokus nur die Versionen lesen (eine kleine Abfrage); ohne `data_changes` wie bisher alles laden.
+- Tests: `26_live_updates_test.sql`, Store-Tests (`test:store`), Postgres-Test „neue Nachricht lädt nur Nachrichtentabellen“.
+
+**Diagramm (4× CPU, Tippen auf Nachrichten direkt nach Öffnen von Belastung):**
+- vorher 1885 / 920 / 804 ms, längster Task 1172 / 466 / 392 ms
+- nachher 1193 / 580 / 259 ms, längster Task 568 / 268 / 269 ms
+- Wochenprofil wird erst beim Aufklappen gezeichnet (lief vorher unsichtbar mit), leere Balkenreihen fallen weg, Daten per `useMemo`, kein doppeltes Rendern für das Handy-Layout, Linien ohne Animation. Aussehen unverändert.
+- Eigenes SVG statt recharts verworfen (kurzes Laden ist ok).
