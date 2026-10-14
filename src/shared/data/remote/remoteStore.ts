@@ -56,12 +56,68 @@ export interface RemoteClient {
    */
   storedUserId?(): string | null;
   selectAll(table: TableName): Promise<Row[]>;
+  /**
+   * How often each table of the user's clubs changed (`data_changes`, one
+   * row per club and table). Null when the server cannot say (then every
+   * refresh reloads all), as without this method.
+   */
+  changeVersions?(): Promise<ChangeVersion[] | null>;
   insert(table: TableName, rows: Row[]): Promise<void>;
   /** Returns how many rows changed; 0 when row-level security hid the row. */
   update(table: TableName, key: Row, changes: Row): Promise<number>;
   delete(table: TableName, key: Row): Promise<number>;
   /** Calls one of the database functions the app may call (join_team, accept_staff_invite, invite_preview). */
   rpc(name: string, args: Row): Promise<unknown>;
+}
+
+export type ChangeVersion = { club_id: string; table_name: string; version: number };
+
+/**
+ * Tables whose change can change what the user may read elsewhere (a new
+ * membership shows a team's sessions, a consent the load data): everything
+ * reloads.
+ */
+const RELOAD_ALL = new Set<string>([
+  'clubs', 'departments', 'facilities', 'teams', 'department_facilities', 'people', 'coach_roles',
+  'memberships', 'club_roles', 'player_groups', 'player_group_members', 'consents',
+]);
+
+/**
+ * What else reloads with a table: rows deleted along with it (which may not
+ * count on their own) and the views computed from it.
+ */
+const RELOAD_WITH: Partial<Record<string, TableName[]>> = {
+  session_series: ['sessions', 'session_series_week_states'],
+  sessions: ['availability', 'attendance_confirmations', 'squad_entries', 'carpools', 'carpool_requests', 'acknowledged_sessions', 'load_entries'],
+  availability: ['availability_reasons'],
+  absences: ['absence_reasons'],
+  load_entries: ['load_entry_reviews', 'load_summaries'],
+  carpools: ['carpool_riders', 'carpool_requests'],
+  messages: ['message_reads', 'message_votes', 'message_stats'],
+  message_reads: ['message_stats'],
+  message_votes: ['message_stats'],
+};
+
+function versionMap(rows: ChangeVersion[] | null): Map<string, number> | null {
+  if (!rows) return null;
+  return new Map(rows.map((row) => [`${row.club_id}:${row.table_name}`, Number(row.version)]));
+}
+
+/** The tables to reload after the versions moved from `before` to `after`; 'all' or none. */
+export function tablesToReload(before: Map<string, number>, after: Map<string, number>): TableName[] | 'all' {
+  const changed = new Set<string>();
+  for (const [key, version] of after) if (before.get(key) !== version) changed.add(key.slice(key.indexOf(':') + 1));
+  for (const key of before.keys()) if (!after.has(key)) changed.add(key.slice(key.indexOf(':') + 1));
+  if ([...changed].some((table) => RELOAD_ALL.has(table))) return 'all';
+  const known = new Set<string>(TABLES.map((spec) => spec.name));
+  const result = new Set<TableName>();
+  const add = (table: string) => {
+    if (!known.has(table) || result.has(table as TableName)) return;
+    result.add(table as TableName);
+    for (const next of RELOAD_WITH[table] ?? []) add(next);
+  };
+  for (const table of changed) add(table);
+  return [...result];
 }
 
 /** No network: nothing reached the server. The change waits; reading shows the saved state. */
@@ -238,6 +294,9 @@ export class RemoteStore {
   private fetchGeneration = 0;
   /** Sending waiting changes; that ends with its own reload. */
   private draining = false;
+  /** The rows behind the shown document and the change versions they reflect (null: reload all next time). */
+  private rows: ServerRows | null = null;
+  private versions: Map<string, number> | null = null;
 
   constructor(
     private readonly client: RemoteClient,
@@ -303,6 +362,8 @@ export class RemoteStore {
     this.unchecked = [];
     this.uncheckedFailure = null;
     this.lastWritten = '';
+    this.rows = null;
+    this.versions = null;
     this.cache?.clear();
     this.setStatus({ pending: 0, savedAt: null });
   }
@@ -394,6 +455,8 @@ export class RemoteStore {
   /** Replaces the document with the server's; false when a newer change arrived meanwhile. */
   private async fetchAll(userId: string): Promise<boolean> {
     const generation = ++this.fetchGeneration;
+    // Read before the tables: a change in between is loaded again next time, never missed.
+    const versions = this.client.changeVersions ? versionMap(await this.client.changeVersions()) : null;
     const tables = await Promise.all(TABLES.map((table) => this.client.selectAll(table.name)));
     // A change made while this was loading goes first; its own reload follows.
     if (this.outbox.length > 0) return false;
@@ -405,11 +468,65 @@ export class RemoteStore {
     const previous = this.document ?? (this.rememberedIdentity ? ({ activeIdentity: this.rememberedIdentity } as LocalDatabase) : null);
     const document = fromServerRows(rows, { userId, version: this.version, previous });
     this.document = document;
+    this.rows = rows;
+    this.versions = versions;
     // Signed in, but not (or no longer) anyone in a team: the account needs
     // a join code or an invitation first.
     this.setStatus({ phase: document?.activeIdentity ? 'ready' : 'unlinked', error: null, offline: false, savedAt: new Date().toISOString() });
     this.persist();
     return true;
+  }
+
+  /**
+   * Reloads only what changed on the server since the last load (someone
+   * else's change, announced by Realtime or found by the regular check);
+   * nothing when nothing changed.
+   */
+  refreshChanged(): Promise<void> {
+    if (this.outbox.length > 0) return this.refresh();
+    // Sending ends with a reload; a load in flight answers this too.
+    if (this.draining) return this.queue;
+    if (this.loading) return this.loading;
+    if (!this.client.changeVersions || !this.versions || !this.rows || !this.userId) return this.load();
+    this.loading = this.refreshChangedOnce(this.userId).finally(() => {
+      this.loading = null;
+    });
+    return this.loading;
+  }
+
+  private async refreshChangedOnce(userId: string): Promise<void> {
+    try {
+      const generation = ++this.fetchGeneration;
+      const versions = versionMap(await this.client.changeVersions!());
+      const tables = versions && this.versions ? tablesToReload(this.versions, versions) : 'all';
+      if (tables === 'all') {
+        await this.fetchAll(userId);
+        this.notify();
+        return;
+      }
+      if (tables.length === 0) {
+        // The usual answer of the regular check: nothing to show anew.
+        if (this.status.offline) {
+          this.setStatus({ offline: false });
+          this.notify();
+        }
+        return;
+      }
+      const loaded = await Promise.all(tables.map((table) => this.client.selectAll(table)));
+      if (this.outbox.length > 0 || generation !== this.fetchGeneration || this.userId !== userId || !this.rows) return;
+      const rows = { ...this.rows, ...Object.fromEntries(tables.map((table, index) => [table, loaded[index]])) } as ServerRows;
+      const document = fromServerRows(rows, { userId, version: this.version, previous: this.document });
+      this.document = document;
+      this.rows = rows;
+      this.versions = versions;
+      this.setStatus({ phase: document?.activeIdentity ? 'ready' : 'unlinked', error: null, offline: false, savedAt: new Date().toISOString() });
+      this.persist();
+      this.notify();
+    } catch (error) {
+      if (error instanceof OfflineError) this.goOffline();
+      else this.setStatus({ phase: 'error', error: error instanceof Error ? error.message : String(error) });
+      this.notify();
+    }
   }
 
   /** Reloads, or sends what is waiting first (then that reloads). */

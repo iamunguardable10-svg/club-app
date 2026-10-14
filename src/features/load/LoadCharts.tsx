@@ -13,6 +13,7 @@ import { FORECAST_BASIS_KEY, WEEKLY_LOAD_METRICS, buildWeeklyLoadDayProfile, bui
 
 type LoadChartRange = 7 | 14 | 30 | 60;
 
+
 type LoadChartDatum = {
   date: string;
   label: string;
@@ -118,10 +119,12 @@ function plannedProjectionLoad(point?: ACWRDataPoint) {
 
 export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEntry[]; pendingSessions: AthletePendingSession[] }) {
   const t = useT();
-  const [isMobile, setIsMobile] = useState(false);
-  const [isCompactViewport, setIsCompactViewport] = useState(false);
+  // Read from the window at once (this only renders in the browser), so the
+  // chart is not drawn a second time for the phone layout.
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
+  const [isCompactViewport, setIsCompactViewport] = useState(() => window.innerWidth < 1024);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isLandscape, setIsLandscape] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(() => window.innerWidth > window.innerHeight);
   const [range, setRange] = useState<LoadChartRange>(14);
   const [showLoadLines, setShowLoadLines] = useState(false);
 
@@ -147,53 +150,58 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
     return () => { document.body.style.overflow = previous; };
   }, [isFullscreen]);
 
-  const daily = fillMissingDays(aggregateDailyLoads(entries), Math.max(range, 84));
-  const acwr = calculateACWR(entries);
-  const projected = projectFutureACWR(entries, pendingSessions, 14);
-  const acwrByDate = new Map(acwr.map((point) => [point.date, point]));
-  const projectedByDate = new Map(projected.map((point) => [point.date, point]));
-  const entriesByDate = new Map<string, AthleteLoadEntry[]>();
-  for (const entry of entries) {
-    entriesByDate.set(entry.date, [...(entriesByDate.get(entry.date) ?? []), entry]);
-  }
-  const historicalData: LoadChartDatum[] = daily.slice(-range).map((day) => {
-    const point = acwrByDate.get(day.date);
-    const projection = projectedByDate.get(day.date);
-    return {
-      date: day.date,
-      label: formatDayMonth(day.date),
-      totalLoad: day.totalLoad,
-      forecastLoad: plannedProjectionLoad(projection),
-      acuteLoad: point?.acuteLoad ?? 0,
-      chronicLoad: point?.chronicLoad ?? 0,
-      acwr: point?.acwr ?? null,
-      projectedAcwr: projection?.acwr ?? null,
-      entryCount: entriesByDate.get(day.date)?.length ?? 0,
-      isProjected: false,
-      forecastBasis: projection?.forecastBasis,
-      chronicFull: point?.chronicFull ?? false,
-      ...day.loads,
-      ...projectionSegments(projection),
-    };
-  });
-  const lastHistoricalDate = daily[daily.length - 1]?.date ?? todayISO();
-  const projectedLimit = isMobile ? (range === 7 ? 2 : 3) : range === 7 ? 7 : 14;
-  const projectedData: LoadChartDatum[] = projected.filter((point) => point.date > lastHistoricalDate).slice(0, projectedLimit).map((point) => ({
-    date: point.date,
-    label: formatDayMonth(point.date),
-    totalLoad: 0,
-    forecastLoad: plannedProjectionLoad(point),
-    acuteLoad: null,
-    chronicLoad: null,
-    acwr: null,
-    projectedAcwr: point.acwr,
-    entryCount: 0,
-    isProjected: true,
-    forecastBasis: point.forecastBasis,
-    chronicFull: point.chronicFull,
-    ...projectionSegments(point),
-  })) as LoadChartDatum[];
-  const chartData = [...historicalData, ...projectedData];
+  const chartData = useMemo(() => {
+    const daily = fillMissingDays(aggregateDailyLoads(entries), Math.max(range, 84));
+    const acwr = calculateACWR(entries);
+    const projected = projectFutureACWR(entries, pendingSessions, 14);
+    const acwrByDate = new Map(acwr.map((point) => [point.date, point]));
+    const projectedByDate = new Map(projected.map((point) => [point.date, point]));
+    const entriesByDate = new Map<string, AthleteLoadEntry[]>();
+    for (const entry of entries) {
+      entriesByDate.set(entry.date, [...(entriesByDate.get(entry.date) ?? []), entry]);
+    }
+    const historicalData: LoadChartDatum[] = daily.slice(-range).map((day) => {
+      const point = acwrByDate.get(day.date);
+      const projection = projectedByDate.get(day.date);
+      return {
+        date: day.date,
+        label: formatDayMonth(day.date),
+        totalLoad: day.totalLoad,
+        forecastLoad: plannedProjectionLoad(projection),
+        acuteLoad: point?.acuteLoad ?? 0,
+        chronicLoad: point?.chronicLoad ?? 0,
+        acwr: point?.acwr ?? null,
+        projectedAcwr: projection?.acwr ?? null,
+        entryCount: entriesByDate.get(day.date)?.length ?? 0,
+        isProjected: false,
+        forecastBasis: projection?.forecastBasis,
+        chronicFull: point?.chronicFull ?? false,
+        ...day.loads,
+        ...projectionSegments(projection),
+      };
+    });
+    const lastHistoricalDate = daily[daily.length - 1]?.date ?? todayISO();
+    const projectedLimit = isMobile ? (range === 7 ? 2 : 3) : range === 7 ? 7 : 14;
+    const projectedData: LoadChartDatum[] = projected.filter((point) => point.date > lastHistoricalDate).slice(0, projectedLimit).map((point) => ({
+      date: point.date,
+      label: formatDayMonth(point.date),
+      totalLoad: 0,
+      forecastLoad: plannedProjectionLoad(point),
+      acuteLoad: null,
+      chronicLoad: null,
+      acwr: null,
+      projectedAcwr: point.acwr,
+      entryCount: 0,
+      isProjected: true,
+      forecastBasis: point.forecastBasis,
+      chronicFull: point.chronicFull,
+      ...projectionSegments(point),
+    })) as LoadChartDatum[];
+    return [...historicalData, ...projectedData];
+  }, [entries, pendingSessions, range, isMobile]);
+  // Series without any value draw nothing; leaving them out saves most of the drawing work.
+  const shownTypes = useMemo(() => LOAD_TRAINING_TYPES.filter((type) => chartData.some((day) => Number(day[type] ?? 0) > 0)), [chartData]);
+  const shownForecastTypes = useMemo(() => LOAD_TRAINING_TYPES.filter((type) => chartData.some((day) => Number(day[`${type}_p`] ?? 0) > 0)), [chartData]);
 
   const maxLoad = Math.max(600, ...chartData.map((day) => Math.max(day.totalLoad, day.forecastLoad)));
   const ranges = isMobile ? ([7, 14, 30] as const) : ([7, 14, 30, 60] as const);
@@ -252,7 +260,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
         <Tooltip cursor={{ fill: 'rgba(125,211,252,0.07)' }} content={(props) => <LoadTooltip {...(props as unknown as LoadTooltipProps)} />} />
         <ReferenceLine yAxisId="acwr" y={ACWR_ZONES.low} stroke="#38bdf8" strokeDasharray="5 6" strokeOpacity={0.62} />
         <ReferenceLine yAxisId="acwr" y={ACWR_ZONES.high} stroke="#fb7185" strokeDasharray="5 6" strokeOpacity={0.62} />
-        {LOAD_TRAINING_TYPES.map((type, index) => (
+        {shownTypes.map((type) => (
           <Bar
             key={type}
             yAxisId="load"
@@ -260,12 +268,12 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
             stackId="load"
             fill={LOAD_TYPE_COLORS[type]}
             maxBarSize={range === 7 ? 44 : range === 14 ? 34 : range === 30 ? 30 : 22}
-            radius={index === LOAD_TRAINING_TYPES.length - 1 ? [8, 8, 2, 2] : [2, 2, 2, 2]}
+            radius={type === LOAD_TRAINING_TYPES[LOAD_TRAINING_TYPES.length - 1] ? [8, 8, 2, 2] : [2, 2, 2, 2]}
             isAnimationActive={false}
             name={loadTypeLabel(type)}
           />
         ))}
-        {LOAD_TRAINING_TYPES.map((type) => (
+        {shownForecastTypes.map((type) => (
           <Bar
             key={`${type}_p`}
             yAxisId="load"
@@ -284,6 +292,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
         {showLoadLines ? (
           <>
             <Line
+              isAnimationActive={false}
               yAxisId="load"
               type="monotone"
               dataKey="acuteLoad"
@@ -295,6 +304,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
               name={t('load.chart.acuteLoad')}
             />
             <Line
+              isAnimationActive={false}
               yAxisId="load"
               type="monotone"
               dataKey="chronicLoad"
@@ -308,6 +318,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
           </>
         ) : null}
         <Line
+          isAnimationActive={false}
           yAxisId="acwr"
           type="monotone"
           dataKey="acwr"
@@ -319,6 +330,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
           name="ACWR"
         />
         <Line
+          isAnimationActive={false}
           yAxisId="acwr"
           type="monotone"
           dataKey="projectedAcwr"
@@ -564,6 +576,7 @@ export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoa
               className="cursor-pointer"
             />
             <Line
+              isAnimationActive={false}
               type="monotone"
               dataKey={meta.dataKey}
               stroke={meta.color}

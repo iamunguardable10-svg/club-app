@@ -1,8 +1,11 @@
 /**
  * The server store on Supabase: a `RemoteClient` over supabase-js, plus the
- * browser wiring (reload when the app comes back to the foreground and every
- * half minute while it is visible, so a coach sees a player's cancellation
- * without reloading the page).
+ * browser wiring for live updates. Every change on the server counts up a
+ * version of its table (`data_changes`, migration 0045); the app listens to
+ * those versions over Realtime and reloads just the tables that moved, so a
+ * coach sees a player's cancellation within a second or two. A cheap check
+ * of the versions when the app comes back to the foreground and every half
+ * minute while it is visible covers a dropped connection.
  *
  * Only loaded when this device chose the server (start page), through a
  * dynamic import in the repository.
@@ -15,12 +18,14 @@
 import { createClient, isAuthApiError, type SupabaseClient } from '@supabase/supabase-js';
 
 import { LocalDataError } from '../schema';
-import { OfflineError, RemoteStore, type OfflineCache, type RemoteClient } from './remoteStore';
+import { OfflineError, RemoteStore, type ChangeVersion, type OfflineCache, type RemoteClient } from './remoteStore';
 import type { Row, TableName } from './tables';
 
 /** PostgREST returns at most this many rows per request; larger tables are paged. */
 const PAGE_SIZE = 1000;
-const REFRESH_MS = 30_000;
+const CHECK_MS = 30_000;
+/** Changes that arrive together (one save touching several tables) load together. */
+const LIVE_DELAY_MS = 300;
 /** How long one table may take to load before it counts as no network. */
 const LOAD_TIMEOUT_MS = 20_000;
 
@@ -127,6 +132,17 @@ export function supabaseRemoteClient(supabase: SupabaseClient, storage?: KeyValu
         if (!data || data.length < PAGE_SIZE) return rows;
       }
     },
+    async changeVersions() {
+      checkOnline();
+      const { data, error, status } = await supabase
+        .from('data_changes')
+        .select('club_id,table_name,version')
+        .abortSignal(AbortSignal.timeout(LOAD_TIMEOUT_MS));
+      if (error && (status === 0 || knownOffline())) throw new OfflineError();
+      // Not there (yet) or refused: the app reloads everything as before.
+      if (error) return null;
+      return (data ?? []) as ChangeVersion[];
+    },
     async insert(table, rows) {
       // No `.select()`: a row may be writable but not yet readable (a staff
       // member added before their membership), which would fail the request.
@@ -172,21 +188,52 @@ export function createSupabaseStore(
   });
 
   if (typeof window !== 'undefined') {
-    // Focus and visibility often fire together when the app comes back;
-    // one reload covers both (the store also shares a load in flight).
-    let lastRefresh = 0;
-    const refreshIfVisible = () => {
-      if (document.visibilityState !== 'visible') return;
-      const now = Date.now();
-      if (now - lastRefresh < 5_000) return;
-      lastRefresh = now;
-      void store.refresh();
+    const visible = () => document.visibilityState === 'visible';
+
+    // Live: a version moved. Hidden, the check on coming back does it.
+    let liveTimer: number | undefined;
+    const onLiveChange = () => {
+      window.clearTimeout(liveTimer);
+      liveTimer = window.setTimeout(() => {
+        if (visible()) void store.refreshChanged();
+      }, LIVE_DELAY_MS);
     };
-    window.addEventListener('focus', refreshIfVisible);
+    let channel: ReturnType<SupabaseClient['channel']> | null = null;
+    const listen = (signedIn: boolean) => {
+      if (!signedIn) {
+        if (channel) void supabase.removeChannel(channel);
+        channel = null;
+        return;
+      }
+      if (channel) return;
+      // Row-level security decides which clubs' versions arrive.
+      channel = supabase
+        .channel('data-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'data_changes' }, onLiveChange)
+        // (Re)connected: what changed while the connection was down.
+        .subscribe((state) => {
+          if (state === 'SUBSCRIBED') onLiveChange();
+        });
+    };
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT') listen(Boolean(session));
+    });
+
+    // Focus and visibility often fire together when the app comes back;
+    // one check covers both (the store also shares a load in flight).
+    let lastCheck = 0;
+    const checkIfVisible = () => {
+      if (!visible()) return;
+      const now = Date.now();
+      if (now - lastCheck < 2_000) return;
+      lastCheck = now;
+      void store.refreshChanged();
+    };
+    window.addEventListener('focus', checkIfVisible);
     // Back online: send what waited, then reload.
     window.addEventListener('online', () => void store.refresh());
-    document.addEventListener('visibilitychange', refreshIfVisible);
-    window.setInterval(refreshIfVisible, REFRESH_MS);
+    document.addEventListener('visibilitychange', checkIfVisible);
+    window.setInterval(checkIfVisible, CHECK_MS);
   }
   return store;
 }

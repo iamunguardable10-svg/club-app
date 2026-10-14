@@ -70,6 +70,7 @@ function pgClient(userId: string): RemoteClient {
   return {
     userId: async () => userId,
     selectAll: (table: TableName) => asUser(async (client) => (await client.query(`select ${table === 'people' ? 'id,club_id,user_id,first_name,last_name,rsvp_mode,created_at' : '*'} from public.${table}`)).rows),
+    changeVersions: () => asUser(async (client) => (await client.query('select club_id, table_name, version from public.data_changes')).rows),
     insert: (table, rows) =>
       asUser(async (client) => {
         for (const row of rows) {
@@ -1082,6 +1083,28 @@ async function main() {
   await store.refresh();
   check('a refused offline change is reported once online', store.getStatus().rejected?.includes('team settings') === true && db().teams.find((team) => team.id === TEAM)?.name !== 'Renamed offline', store.getStatus().rejected);
   store.clearRejected();
+
+  // Live updates: a coach's new message reaches Ben by reloading only the
+  // message tables (versions in data_changes, migration 0045).
+  {
+    const loadedTables: string[] = [];
+    const real = pgClient(U.ben);
+    const live = new RemoteStore({ ...real, selectAll: (table) => { loadedTables.push(table); return real.selectAll(table); } }, data.SCHEMA_VERSION);
+    await live.load();
+    loadedTables.length = 0;
+    await live.refreshChanged();
+    check('live: nothing changed, nothing reloads', loadedTables.length === 0, loadedTables);
+    const liveMessage = (await pool.query(
+      "insert into messages (club_id, team_ids, audience, author_id, body) values ($1, $2, 'players', $3, 'Live') returning id",
+      [CLUB, [TEAM], P.martin],
+    )).rows[0].id as string;
+    await live.refreshChanged();
+    check(
+      '… a new message: only the message tables reload, and it shows',
+      loadedTables.every((table) => table.startsWith('message')) && loadedTables.includes('messages') && live.read()?.messages.some((message) => message.id === liveMessage) === true,
+      loadedTables,
+    );
+  }
 
   // Another account on this device: nothing of Ben's is shown or kept.
   store = new RemoteStore(flaky(U.martin), data.SCHEMA_VERSION, null, deviceCache);
