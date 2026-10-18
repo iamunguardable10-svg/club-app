@@ -182,9 +182,10 @@ export function createSupabaseStore(
   const supabase = getSupabase(storage);
   const store = new RemoteStore(supabaseRemoteClient(supabase, storage), version, rememberedIdentity, offlineCache);
 
-  // Signing in or out elsewhere (another tab, token expiry) reloads.
+  // Signing in or out elsewhere (another tab, token expiry) reloads. A
+  // changed account (language, e-mail, password) changes no club data.
   supabase.auth.onAuthStateChange((event) => {
-    if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') void store.load();
+    if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') void store.load();
   });
 
   if (typeof window !== 'undefined') {

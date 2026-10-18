@@ -1104,6 +1104,24 @@ async function main() {
       loadedTables.every((table) => table.startsWith('message')) && loadedTables.includes('messages') && live.read()?.messages.some((message) => message.id === liveMessage) === true,
       loadedTables,
     );
+    // Own change: after sending, only what was written (and what moved) reloads.
+    loadedTables.length = 0;
+    const before = live.read()!;
+    await live.write(before, { ...before, messageReads: [...(before.messageReads ?? []), { messageId: liveMessage, personId: P.ben, readAt: new Date().toISOString() }] });
+    check(
+      '… own read receipt: only the read tables reload, nothing refused',
+      loadedTables.length > 0 && loadedTables.every((table) => table.startsWith('message')) && !live.getStatus().rejected && live.getStatus().pending === 0,
+      { loadedTables, status: live.getStatus() },
+    );
+    // A change the server silently refuses (a player renaming a session) is still found.
+    const doc = live.read()!;
+    const target = doc.sessions[0];
+    await live.write(doc, { ...doc, sessions: doc.sessions.map((session) => (session.id === target.id ? { ...session, title: 'Renamed by a player' } : session)) });
+    check(
+      '… a silently refused change is reported and undone',
+      Boolean(live.getStatus().rejected) && live.read()!.sessions.find((session) => session.id === target.id)?.title === target.title,
+      live.getStatus().rejected,
+    );
   }
 
   // Another account on this device: nothing of Ben's is shown or kept.

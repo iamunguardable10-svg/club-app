@@ -103,9 +103,12 @@ function versionMap(rows: ChangeVersion[] | null): Map<string, number> | null {
   return new Map(rows.map((row) => [`${row.club_id}:${row.table_name}`, Number(row.version)]));
 }
 
-/** The tables to reload after the versions moved from `before` to `after`; 'all' or none. */
-export function tablesToReload(before: Map<string, number>, after: Map<string, number>): TableName[] | 'all' {
-  const changed = new Set<string>();
+/**
+ * The tables to reload after the versions moved from `before` to `after`
+ * (plus `also`, e.g. the tables this device just wrote); 'all' or none.
+ */
+export function tablesToReload(before: Map<string, number>, after: Map<string, number>, also: Iterable<string> = []): TableName[] | 'all' {
+  const changed = new Set<string>(also);
   for (const [key, version] of after) if (before.get(key) !== version) changed.add(key.slice(key.indexOf(':') + 1));
   for (const key of before.keys()) if (!after.has(key)) changed.add(key.slice(key.indexOf(':') + 1));
   if ([...changed].some((table) => RELOAD_ALL.has(table))) return 'all';
@@ -496,37 +499,49 @@ export class RemoteStore {
 
   private async refreshChangedOnce(userId: string): Promise<void> {
     try {
-      const generation = ++this.fetchGeneration;
-      const versions = versionMap(await this.client.changeVersions!());
-      const tables = versions && this.versions ? tablesToReload(this.versions, versions) : 'all';
-      if (tables === 'all') {
-        await this.fetchAll(userId);
+      const wasOffline = this.status.offline;
+      const result = await this.reloadChanged(userId);
+      // The usual answer of the regular check is "nothing changed": the screen is not told.
+      if (result !== 'unchanged' || wasOffline) {
+        if (result === 'unchanged') this.setStatus({ offline: false });
         this.notify();
-        return;
       }
-      if (tables.length === 0) {
-        // The usual answer of the regular check: nothing to show anew.
-        if (this.status.offline) {
-          this.setStatus({ offline: false });
-          this.notify();
-        }
-        return;
-      }
-      const loaded = await Promise.all(tables.map((table) => this.client.selectAll(table)));
-      if (this.outbox.length > 0 || generation !== this.fetchGeneration || this.userId !== userId || !this.rows) return;
-      const rows = { ...this.rows, ...Object.fromEntries(tables.map((table, index) => [table, loaded[index]])) } as ServerRows;
-      const document = fromServerRows(rows, { userId, version: this.version, previous: this.document });
-      this.document = document;
-      this.rows = rows;
-      this.versions = versions;
-      this.setStatus({ phase: document?.activeIdentity ? 'ready' : 'unlinked', error: null, offline: false, savedAt: new Date().toISOString() });
-      this.persist();
-      this.notify();
     } catch (error) {
       if (error instanceof OfflineError) this.goOffline();
       else this.setStatus({ phase: 'error', error: error instanceof Error ? error.message : String(error) });
       this.notify();
     }
+  }
+
+  /** Whether the last load can be updated table by table (else everything reloads). */
+  private canReloadPart(): boolean {
+    return Boolean(this.client.changeVersions && this.versions && this.rows);
+  }
+
+  /**
+   * Reloads the tables whose version moved since the last load, and `also`
+   * (the tables just written, so a change the server silently refused is
+   * found too). 'stale' when a newer change or load made the answer useless.
+   */
+  private async reloadChanged(userId: string, also: Iterable<TableName> = []): Promise<'reloaded' | 'unchanged' | 'stale'> {
+    const generation = ++this.fetchGeneration;
+    const versions = versionMap(await this.client.changeVersions!());
+    const tables = versions && this.versions ? tablesToReload(this.versions, versions, also) : 'all';
+    if (tables === 'all') return (await this.fetchAll(userId)) ? 'reloaded' : 'stale';
+    if (tables.length === 0) {
+      if (versions) this.versions = versions;
+      return 'unchanged';
+    }
+    const loaded = await Promise.all(tables.map((table) => this.client.selectAll(table)));
+    if (this.outbox.length > 0 || generation !== this.fetchGeneration || this.userId !== userId || !this.rows) return 'stale';
+    const rows = { ...this.rows, ...Object.fromEntries(tables.map((table, index) => [table, loaded[index]])) } as ServerRows;
+    const document = fromServerRows(rows, { userId, version: this.version, previous: this.document });
+    this.document = document;
+    this.rows = rows;
+    this.versions = versions;
+    this.setStatus({ phase: document?.activeIdentity ? 'ready' : 'unlinked', error: null, offline: false, savedAt: new Date().toISOString() });
+    this.persist();
+    return 'reloaded';
   }
 
   /** Reloads, or sends what is waiting first (then that reloads). */
@@ -597,8 +612,10 @@ export class RemoteStore {
   }
 
   private async drainOnce() {
+    const touched = new Set<TableName>();
     while (this.outbox.length > 0) {
       const operations = this.outbox[0];
+      for (const operation of operations) touched.add(operation.table);
       try {
         await this.send(operations);
         this.unchecked.push(...operations);
@@ -619,7 +636,8 @@ export class RemoteStore {
 
     let reloaded = false;
     try {
-      if (this.userId) reloaded = await this.fetchAll(this.userId);
+      // Only what this device wrote and what others changed meanwhile.
+      if (this.userId) reloaded = this.canReloadPart() ? (await this.reloadChanged(this.userId, touched)) !== 'stale' : await this.fetchAll(this.userId);
     } catch (error) {
       if (error instanceof OfflineError) this.goOffline();
       else this.setStatus({ phase: 'error', error: error instanceof Error ? error.message : String(error) });
