@@ -2971,3 +2971,21 @@ Die vorhandene Datenschutzseite bleibt die bestehende Pilot-Zusammenfassung.
 - nachher 1193 / 580 / 259 ms, längster Task 568 / 268 / 269 ms
 - Wochenprofil wird erst beim Aufklappen gezeichnet (lief vorher unsichtbar mit), leere Balkenreihen fallen weg, Daten per `useMemo`, kein doppeltes Rendern für das Handy-Layout, Linien ohne Animation. Aussehen unverändert.
 - Eigenes SVG statt recharts verworfen (kurzes Laden ist ok).
+
+## Run 85 — Live-Aktualisierung mit zwei Geräten auf dem echten Server (2026-10-18)
+
+Wegwerf-Verein `c1a0de01-…` mit Trainerin (Desktop) und Spieler (Handy), App lokal gebaut gegen das
+echte Supabase-Projekt (lokales Relay mit TLS-Prüfung, jetzt auch für WebSocket/Realtime).
+
+- Trainerin legt ein Spiel an → beim Spieler nach ~3,1 s sichtbar, ohne Neuladen.
+- Spieler tippt in der App „Abgemeldet“ → bei der Trainerin „1 abgemeldet“ nach ~2,2 s; zurück auf „Dabei“ nach ~2,3 s. Beide laden nur `availability` und `availability_reasons` nach.
+- Neue Nachricht, während der Spieler in Nachrichten ist → nach ~1,2 s sichtbar.
+- 35 s ohne Änderung: nur die kleine Versionsabfrage.
+
+Gefunden und behoben:
+- Nach jeder eigenen Änderung (Zusage, „gelesen“) lud das Gerät alle ~40 Tabellen neu. Jetzt nur die geschriebenen Tabellen und was sich sonst bewegt hat; still abgelehnte Änderungen werden weiter erkannt (neue Postgres-Tests).
+- Das Speichern der Sprache am Konto (`USER_UPDATED`) löste ein zweites komplettes Laden aus (82 statt 41 Anfragen beim Start). Konto-Änderungen laden jetzt nichts neu.
+
+Löschen des Wegwerf-Vereins braucht Bens Bestätigung (SQL in `docs/plan-next-runs.md`).
+
+Plan für fehlende Funktionen und Freischaltung: `docs/plan-features-freischaltung.md`.

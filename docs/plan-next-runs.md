@@ -349,6 +349,7 @@ weiteren Teams oder Vereinen aber nötig:
 - **Entschlacken auf dem Handy (Punkt 9, später):** Kandidaten siehe Run 59 bzw. Chat vom 2026-09-28
   (grüner Satz „Du bist dabei · tippe hier …“, „Kalender ›“, „ABWESEND“, Erklärsätze im Verlauf, in der
   Belastung, bei Nachrichten und im Verein). Erst nach Entscheidung von Ben.
+- **Umsetzungsplan dazu (2026-10-18): `docs/plan-features-freischaltung.md`** (Freischaltung in drei Ebenen, dann Besprechung/Turnier, Eltern, Video, Playbook).
 - **Vergleich mit Hooplayer (2026-10-01), vor dem Launch einbauen, Reihenfolge noch offen:**
   - *Haben wir:* Teamkalender mit Hallen, Push-Erinnerungen und Änderungen, Zu-/Absagen mit
     Echtzeit-Liste für den Trainer, Kader, Team-Nachrichten mit angepinnten wichtigen Beiträgen,
@@ -371,7 +372,7 @@ Spieler ohne Konto nötig).
 - [ ] Auftragsverarbeitungsverträge (AVV/DPA) mit Supabase (Dashboard → Organization → Legal Documents) und Vercel (vercel.com/legal/dpa) abschließen.
 - [ ] Mail-Dienst (SMTP, z. B. Brevo oder Resend) anlegen und in Supabase → Authentication → SMTP eintragen; ohne ihn verschickt Supabase nur wenige Mails pro Stunde.
 - [ ] Supabase Pro prüfen (sonst keine täglichen Backups, Pause nach 7 Tagen ohne Nutzung).
-- [ ] Testdaten löschen: Wegwerf-Verein der Live-Tests (`delete from public.clubs where id = 'c1a0de00-0000-4000-8000-000000000c01'; delete from auth.users where id::text like 'c1a0de00-%';`).
+- [ ] Testdaten löschen: Wegwerf-Vereine der Live-Tests (`delete from public.clubs where id in ('c1a0de00-0000-4000-8000-000000000c01', 'c1a0de01-0000-4000-8000-000000000c01'); delete from auth.users where id::text like 'c1a0de00-%' or id::text like 'c1a0de01-%'; delete from public.data_changes where club_id in ('c1a0de00-0000-4000-8000-000000000c01', 'c1a0de01-0000-4000-8000-000000000c01');`).
 - [ ] Rechtstexte (Datenschutz, Nutzungsbedingungen, Impressum, Einwilligung) vor dem öffentlichen Start juristisch gegenlesen lassen.
 - [ ] Sicherheit im Supabase-Dashboard (Run 82, App-Seite ist erledigt): Authentication → Policies „Leaked password protection“ an (braucht Pro); Mindestlänge Passwort auf 8 (die App verlangt 8, der Server erlaubt sonst 6); Authentication → Rate Limits prüfen (Sign-in/Sign-up pro IP, Mails pro Stunde); optional Bot-Schutz (Cloudflare Turnstile) – dann bauen wir das Captcha ins Login-Formular ein.
 
