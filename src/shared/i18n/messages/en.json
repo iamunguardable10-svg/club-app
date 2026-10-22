@@ -439,7 +439,6 @@
   "weekday.short.4": "Fr",
   "weekday.short.5": "Sa",
   "weekday.short.6": "Su",
-  "composer.lockedByTeam": "{type} · locked by team session",
   "composer.date": "Date",
   "composer.time": "Time",
   "composer.once": "Once",
@@ -1930,5 +1929,7 @@
   "features.mode.on": "On for all",
   "features.mode.off": "Off for all",
   "features.error.off": "This feature is switched off for the team.",
-  "consent.saveAgeGroup": "Save age group"
+  "consent.saveAgeGroup": "Save age group",
+  "features.team.summary": "{on} of {total} on",
+  "composer.yourAnswer": "Your answer"
 }

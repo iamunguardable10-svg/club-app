@@ -86,15 +86,23 @@ function FeatureRow({ database, team, feature, onError }: { database: LocalDatab
 export function TeamFeatureSwitches({ database, team }: { database: LocalDatabase; team: Team }) {
   const t = useT();
   const [error, setError] = useState<unknown>(null);
+  const on = TEAM_FEATURES.filter((feature) => featureStatus(database, team, feature).on).length;
+  // Closed by default: set once, rarely changed.
   return (
-    <div className="grid gap-2" data-testid="team-features">
-      <div>
-        <p className="text-sm font-black text-white">{t('features.team.title')}</p>
+    <details className="group" data-testid="team-features">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0">
+          <span className="block text-sm font-black text-white">{t('features.team.title')}</span>
+          <span className="block text-xs text-slate-400">{t('features.team.summary', { on, total: TEAM_FEATURES.length })}</span>
+        </span>
+        <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-180">▾</span>
+      </summary>
+      <div className="mt-3 grid gap-2">
         <p className="text-xs text-slate-400">{t('features.team.detail')}</p>
+        {TEAM_FEATURES.map((feature) => <FeatureRow key={feature} database={database} team={team} feature={feature} onError={setError} />)}
+        {error ? <p role="alert" className="text-xs text-red-200">{errorText(t, error)}</p> : null}
       </div>
-      {TEAM_FEATURES.map((feature) => <FeatureRow key={feature} database={database} team={team} feature={feature} onError={setError} />)}
-      {error ? <p role="alert" className="text-xs text-red-200">{errorText(t, error)}</p> : null}
-    </div>
+    </details>
   );
 }
 

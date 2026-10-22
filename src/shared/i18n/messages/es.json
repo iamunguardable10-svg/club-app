@@ -439,7 +439,6 @@
   "weekday.short.4": "Vi",
   "weekday.short.5": "Sá",
   "weekday.short.6": "Do",
-  "composer.lockedByTeam": "{type} · bloqueado por una sesión del equipo",
   "composer.date": "Fecha",
   "composer.time": "Hora",
   "composer.once": "Una vez",
@@ -1930,5 +1929,7 @@
   "features.mode.on": "Activado para todos",
   "features.mode.off": "Desactivado para todos",
   "features.error.off": "Esta función está desactivada para el equipo.",
-  "consent.saveAgeGroup": "Guardar grupo de edad"
+  "consent.saveAgeGroup": "Guardar grupo de edad",
+  "features.team.summary": "{on} de {total} activadas",
+  "composer.yourAnswer": "Tu respuesta"
 }
