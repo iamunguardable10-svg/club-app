@@ -1,9 +1,59 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { cancelNeedSeat, hasCoachPermission, joinedRide, joinRide, leaveRide, needSeat, offerRide, removeRider, teamHasFeature, updateRide, useLocalDatabase, withdrawRide, type LocalDatabase } from '@/shared/data';
 import { errorText, useT } from '@/shared/i18n';
-import { formatInteger } from '@/shared/format';
+import { formatInteger, formatTime } from '@/shared/format';
+
+import type { MeetPin } from './MeetPointPicker';
+
+// The map (Leaflet) loads only when a driver edits a ride.
+const MeetPointPicker = dynamic(() => import('./MeetPointPicker'), {
+  ssr: false,
+  loading: () => <div aria-hidden className="h-52 w-full rounded-xl border border-slate-700 bg-slate-800 motion-safe:animate-pulse" />,
+});
+
+/** Google Maps at the pin, or a search for the typed place. */
+export function mapsLink(meetPoint: string | null | undefined, lat: number | null | undefined, lng: number | null | undefined): string | null {
+  if (typeof lat === 'number' && typeof lng === 'number') return `https://www.google.com/maps/search/?api=1&query=${lat.toFixed(6)},${lng.toFixed(6)}`;
+  return meetPoint ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(meetPoint)}` : null;
+}
+
+/** "13:30" of a departure, for the time field. */
+function timeOf(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+/** The departure at this time on the game's day, or the day before when that time is after the start. */
+function departureAt(startsAt: string, time: string): string | null {
+  const [hours, minutes] = time.split(':').map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  const at = new Date(startsAt);
+  at.setHours(hours, minutes, 0, 0);
+  if (at.getTime() >= Date.parse(startsAt)) at.setDate(at.getDate() - 1);
+  return at.toISOString();
+}
+
+function DepartureLine({ departAt, meetPoint, meetLat, meetLng, startsAt }: { departAt?: string | null; meetPoint?: string | null; meetLat?: number | null; meetLng?: number | null; startsAt: string }) {
+  const t = useT();
+  const link = mapsLink(meetPoint, meetLat, meetLng);
+  if (!departAt && !link) return null;
+  const dayBefore = departAt ? new Date(departAt).toDateString() !== new Date(startsAt).toDateString() : false;
+  const when = departAt ? (dayBefore ? t('carpools.departsDayBefore', { time: formatTime(departAt) }) : t('carpools.departs', { time: formatTime(departAt) })) : null;
+  return (
+    <div className="mt-1 grid gap-0.5 text-sm font-bold">
+      {when ? <p className="text-slate-300">{when}</p> : null}
+      {link ? (
+        <a href={link} target="_blank" rel="noreferrer" className="min-w-0 break-words text-sky-300 hover:underline">
+          {meetPoint || t('carpools.openInMaps')} <span aria-hidden>↗</span>
+        </a>
+      ) : null}
+    </div>
+  );
+}
 
 function rideState(database: LocalDatabase, sessionId: string, personId: string, t: ReturnType<typeof useT>, compact: boolean) {
   const own = database.carpools?.find((c) => c.sessionId === sessionId && c.driverId === personId);
@@ -40,6 +90,8 @@ export function Carpools({ sessionId }: { sessionId: string }) {
   const [editing, setEditing] = useState(false);
   const [seats, setSeats] = useState(3);
   const [note, setNote] = useState('');
+  const [departTime, setDepartTime] = useState('');
+  const [meetPin, setMeetPin] = useState<MeetPin>({ label: '', lat: null, lng: null });
   const [error, setError] = useState<unknown>(null);
   const session = database?.sessions.find((s) => s.id === sessionId);
   const me = database?.activeIdentity?.personId;
@@ -59,7 +111,7 @@ export function Carpools({ sessionId }: { sessionId: string }) {
     try { action(); setError(null); } catch (caught) { setError(caught); }
   }
   function edit() {
-    setSeats(own?.seats ?? 3); setNote(own?.note ?? ''); setEditing(true); setError(null);
+    setSeats(own?.seats ?? 3); setNote(own?.note ?? ''); setDepartTime(timeOf(own?.departAt)); setMeetPin({ label: own?.meetPoint ?? '', lat: own?.meetLat ?? null, lng: own?.meetLng ?? null }); setEditing(true); setError(null);
   }
   return (
     <section className="mt-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
@@ -77,6 +129,7 @@ export function Carpools({ sessionId }: { sessionId: string }) {
           const free = offer.seats - riders.length;
           return <li key={offer.id} className="py-3">
             <p className="text-sm font-black text-white">{name(offer.driverId)} <span className="font-bold text-slate-400">· {t('carpools.free', { free: formatInteger(free), seats: formatInteger(offer.seats) })}</span></p>
+            <DepartureLine departAt={offer.departAt} meetPoint={offer.meetPoint} meetLat={offer.meetLat} meetLng={offer.meetLng} startsAt={session.startsAt} />
             {offer.note ? <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-300 [overflow-wrap:anywhere]">{offer.note}</p> : null}
             {riders.length > 0 ? <ul className="mt-2 flex flex-wrap gap-1.5">{riders.map((r) => <li key={r.personId} className="flex items-center gap-1 rounded-full bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-200">
               {name(r.personId)}
@@ -93,10 +146,22 @@ export function Carpools({ sessionId }: { sessionId: string }) {
           <button type="button" onClick={edit} className={actionClass}>{t('carpools.offer')}</button>
           <button type="button" aria-pressed={Boolean(requested)} onClick={() => run(() => requested ? cancelNeedSeat(sessionId) : needSeat(sessionId))} className={actionClass}>{requested ? t('carpools.cancelNeed') : t('carpools.ask')}</button>
         </div> : null}
-        {!past && editing ? <form className="space-y-3 rounded-xl bg-slate-900/70 p-3" onSubmit={(event) => { event.preventDefault(); run(() => { if (own) updateRide(own.id, seats, note); else offerRide(sessionId, seats, note); setEditing(false); }); }}>
+        {!past && editing ? <form className="space-y-3 rounded-xl bg-slate-900/70 p-3" onSubmit={(event) => { event.preventDefault(); run(() => {
+            const departure = { departAt: departTime ? departureAt(session.startsAt, departTime) : null, meetPoint: meetPin.label, meetLat: meetPin.lat, meetLng: meetPin.lng };
+            if (own) updateRide(own.id, seats, note, departure); else offerRide(sessionId, seats, note, departure);
+            setEditing(false);
+          }); }}>
           <label className="block text-xs font-bold text-slate-300">{t('carpools.seats')}
             <select value={seats} onChange={(event) => setSeats(Number(event.target.value))} className="os-field mt-1 w-full">{Array.from({ length: 8 }, (_, i) => i + 1).map((value) => <option key={value} value={value}>{formatInteger(value)}</option>)}</select>
           </label>
+          <label className="block text-xs font-bold text-slate-300">{t('carpools.departure')}
+            <input type="time" value={departTime} onChange={(event) => setDepartTime(event.target.value)} className="os-field mt-1 block w-32 [color-scheme:dark]" />
+          </label>
+          <div className="grid gap-1 text-xs font-bold text-slate-300">
+            {t('carpools.meetPoint')}
+            <MeetPointPicker value={meetPin} onChange={setMeetPin} centerHint={session.homeAway === 'away' && session.venueAddress ? session.venueAddress : database.facilities.find((f) => f.id === session.facilityId)?.address ?? null} />
+          </div>
+          <p className="text-xs text-slate-500">{t('carpools.departureHint')}</p>
           <label className="block text-xs font-bold text-slate-300">{t('carpools.note')}
             <textarea value={note} maxLength={200} onChange={(event) => setNote(event.target.value)} className="os-field mt-1 min-h-20 w-full resize-y" />
           </label>

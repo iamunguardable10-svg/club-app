@@ -118,7 +118,7 @@ function ClubFeatureRow({ database, feature, onError }: { database: LocalDatabas
         <p className="text-xs text-slate-400">{t(DETAIL[feature])}</p>
         {unlockNote ? <p className="mt-0.5 text-[11px] font-bold text-amber-200/90">{unlockNote}</p> : null}
       </div>
-      <div role="radiogroup" aria-label={t(TITLE[feature])} className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1 text-xs font-black">
+      <div role="radiogroup" aria-label={t(TITLE[feature])} className="grid grid-cols-3 gap-1 rounded-2xl border border-slate-800 bg-slate-950/80 p-1 text-xs font-black sm:flex sm:rounded-full">
         {MODES.map((option) => (
           <button
             key={option.mode}
@@ -127,7 +127,7 @@ function ClubFeatureRow({ database, feature, onError }: { database: LocalDatabas
             aria-checked={mode === option.mode}
             disabled={locked}
             onClick={() => { try { setClubFeatureMode(feature, option.mode); onError(null); } catch (error) { onError(error); } }}
-            className={`flex-1 whitespace-nowrap rounded-full px-3 py-1.5 disabled:opacity-50 ${mode === option.mode ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}
+            className={`min-w-0 rounded-xl px-2 py-1.5 leading-tight disabled:opacity-50 sm:flex-1 sm:whitespace-nowrap sm:rounded-full sm:px-3 ${mode === option.mode ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}
           >
             {t(option.label)}
           </button>
@@ -141,10 +141,18 @@ function ClubFeatureRow({ database, feature, onError }: { database: LocalDatabas
 export function ClubFeatureSettings({ database }: { database: LocalDatabase }) {
   const t = useT();
   const [error, setError] = useState<unknown>(null);
+  const fixed = TEAM_FEATURES.filter((feature) => clubFeatureMode(database, database.club.id, feature) !== 'teams').length;
+  // Closed by default, like the team's switches.
   return (
-    <div className="grid gap-2" data-testid="club-features">
-      {TEAM_FEATURES.map((feature) => <ClubFeatureRow key={feature} database={database} feature={feature} onError={setError} />)}
-      {error ? <p role="alert" className="text-xs text-red-200">{errorText(t, error)}</p> : null}
-    </div>
+    <details className="group" data-testid="club-features">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/55 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
+        <span className="text-sm font-bold text-slate-200">{fixed === 0 ? t('features.club.allTeams') : t('features.club.fixed', { count: fixed })}</span>
+        <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-180">▾</span>
+      </summary>
+      <div className="mt-2 grid gap-2">
+        {TEAM_FEATURES.map((feature) => <ClubFeatureRow key={feature} database={database} feature={feature} onError={setError} />)}
+        {error ? <p role="alert" className="text-xs text-red-200">{errorText(t, error)}</p> : null}
+      </div>
+    </details>
   );
 }

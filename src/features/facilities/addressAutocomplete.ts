@@ -11,6 +11,11 @@ export type AddressSuggestion = {
   address: string;
   /** The place's own name when it has one ("PSD Bank - Halle Nord"). */
   name: string | null;
+  /** Where it is, when Geoapify says (the carpool meeting point's pin). */
+  lat?: number;
+  lon?: number;
+  /** How precise it is: 'area' (town, postcode, district), 'street', or 'spot' (a building or place). */
+  precision?: 'area' | 'street' | 'spot';
 };
 
 type Place = {
@@ -23,7 +28,17 @@ type Place = {
   district?: string;
   state?: string;
   country?: string;
+  lat?: number;
+  lon?: number;
+  result_type?: string;
 };
+
+function precisionOf(type: string | undefined): AddressSuggestion['precision'] {
+  if (!type) return undefined;
+  if (type === 'street') return 'street';
+  if (['building', 'amenity'].includes(type)) return 'spot';
+  return 'area';
+}
 
 /** Places as suggestions; those without anything to put in the field are left out. */
 function toSuggestions(places: Place[]): AddressSuggestion[] {
@@ -38,7 +53,9 @@ function toSuggestions(places: Place[]): AddressSuggestion[] {
     const key = `${name ?? ''}|${address}`;
     if (!address || seen.has(key)) return;
     seen.add(key);
-    results.push({ placeId: p.id ?? `${address}-${index}`, address, name });
+    const position = typeof p.lat === 'number' && typeof p.lon === 'number' ? { lat: p.lat, lon: p.lon } : {};
+    const precision = precisionOf(p.result_type);
+    results.push({ placeId: p.id ?? `${address}-${index}`, address, name, ...position, ...(precision ? { precision } : {}) });
   });
   return results;
 }
@@ -49,6 +66,15 @@ type GeoapifyResult = Omit<Place, 'id'> & { place_id?: string };
 export function parseGeoapifyResults(data: unknown): AddressSuggestion[] {
   const results = (data as { results?: GeoapifyResult[] } | null)?.results ?? [];
   return toSuggestions(results.map(({ place_id: id, ...place }) => ({ ...place, id: id ?? null })));
+}
+
+/** The address at a spot on the map (a dropped pin), or null. */
+export async function fetchAddressAt(lat: number, lon: number, options?: { signal?: AbortSignal; lang?: string }): Promise<AddressSuggestion | null> {
+  const params = new URLSearchParams({ lat: lat.toFixed(6), lon: lon.toFixed(6), lang: options?.lang ?? 'en' });
+  const response = await fetch(`/api/address?${params.toString()}`, { signal: options?.signal });
+  if (!response.ok) return null;
+  const data = (await response.json()) as { results?: AddressSuggestion[] };
+  return data.results?.[0] ?? null;
 }
 
 export async function fetchAddressSuggestions(query: string, options?: { signal?: AbortSignal; lang?: string }): Promise<AddressSuggestion[]> {

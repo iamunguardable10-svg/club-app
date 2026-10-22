@@ -82,7 +82,7 @@ export const TABLES: readonly TableSpec[] = [
   { name: 'absences', key: ['id'], kinds: { created_at: 'timestamp' } },
   // Kind and note live apart: shared only with viewAbsenceReasons (piece 16).
   { name: 'absence_reasons', key: ['absence_id'] },
-  { name: 'carpools', key: ['id'], kinds: { created_at: 'timestamp', seats: 'number' } },
+  { name: 'carpools', key: ['id'], kinds: { created_at: 'timestamp', depart_at: 'timestamp', seats: 'number', meet_lat: 'number', meet_lng: 'number' } },
   { name: 'carpool_riders', key: ['carpool_id', 'person_id'], kinds: { created_at: 'timestamp' } },
   { name: 'carpool_requests', key: ['session_id', 'person_id'], kinds: { created_at: 'timestamp' } },
   { name: 'squad_entries', key: ['session_id', 'person_id'], kinds: { set_at: 'timestamp' } },
@@ -233,7 +233,7 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     absence_reasons: (database.absences ?? [])
       .filter((a) => a.kind !== null)
       .map((a) => ({ absence_id: a.id, kind: a.kind, note: a.note })),
-    carpools: (database.carpools ?? []).map((c) => ({ id: c.id, session_id: c.sessionId, driver_id: c.driverId, seats: c.seats, note: c.note, created_at: c.createdAt })),
+    carpools: (database.carpools ?? []).map((c) => ({ id: c.id, session_id: c.sessionId, driver_id: c.driverId, seats: c.seats, note: c.note, depart_at: c.departAt ?? null, meet_point: c.meetPoint ?? null, meet_lat: c.meetLat ?? null, meet_lng: c.meetLng ?? null, created_at: c.createdAt })),
     carpool_riders: (database.carpoolRiders ?? []).map((r) => ({ carpool_id: r.carpoolId, person_id: r.personId, created_at: r.createdAt })),
     carpool_requests: (database.carpoolRequests ?? []).map((r) => ({ session_id: r.sessionId, person_id: r.personId, created_at: r.createdAt })),
     squad_entries: (database.squadEntries ?? []).map((q) => ({
@@ -391,7 +391,7 @@ export function fromServerRows(
         };
       })
       .sort((a, b) => a.fromDate.localeCompare(b.fromDate)),
-    carpools: rows.carpools.map((c) => ({ id: s(c.id), sessionId: s(c.session_id), driverId: s(c.driver_id), seats: Number(c.seats), note: sn(c.note), createdAt: s(c.created_at) })),
+    carpools: rows.carpools.map((c) => ({ id: s(c.id), sessionId: s(c.session_id), driverId: s(c.driver_id), seats: Number(c.seats), note: sn(c.note), departAt: sn(c.depart_at), meetPoint: sn(c.meet_point), meetLat: c.meet_lat == null ? null : Number(c.meet_lat), meetLng: c.meet_lng == null ? null : Number(c.meet_lng), createdAt: s(c.created_at) })),
     carpoolRiders: rows.carpool_riders.map((r) => ({ carpoolId: s(r.carpool_id), personId: s(r.person_id), createdAt: s(r.created_at) })),
     carpoolRequests: rows.carpool_requests.map((r) => ({ sessionId: s(r.session_id), personId: s(r.person_id), createdAt: s(r.created_at) })),
     squadEntries: rows.squad_entries.map((q) => ({

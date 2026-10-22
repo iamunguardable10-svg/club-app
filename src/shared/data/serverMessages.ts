@@ -90,6 +90,7 @@ export const SERVER_MESSAGES: Record<string, MessageKey> = {
   "Only members of the team can arrange rides.": 'carpools.error.member',
   "Choose between 1 and 8 seats.": 'carpools.error.seats',
   "The ride note can be at most 200 characters.": 'carpools.error.note',
+  "The departure must be before the game and at most 24 hours earlier.": 'carpools.error.departure',
   "This ride has no free seats.": 'carpools.error.full',
   "You can ride in only one car per game.": 'carpools.error.riding',
   "A driver cannot ride in another car for this game.": 'carpools.error.driving',

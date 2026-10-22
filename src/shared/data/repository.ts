@@ -3057,6 +3057,8 @@ function rideError(key: string): never {
     member: 'Only members of the team can arrange rides.',
     seats: 'Choose between 1 and 8 seats.',
     note: 'The ride note can be at most 200 characters.',
+    departure: 'The departure must be before the game and at most 24 hours earlier.',
+    meetPoint: 'The meeting point can be at most 120 characters.',
     full: 'This ride has no free seats.',
     riding: 'You can ride in only one car per game.',
     driving: 'A driver cannot ride in another car for this game.',
@@ -3089,11 +3091,30 @@ function requireRide(database: LocalDatabase, carpoolId: Id) {
   return ride;
 }
 
+/** When and where the car leaves; both optional. */
+export type RideDeparture = { departAt?: string | null; meetPoint?: string | null; meetLat?: number | null; meetLng?: number | null };
+
 function cleanRide(seats: number, note: string | null = null) {
   if (!Number.isInteger(seats) || seats < 1 || seats > 8) rideError('seats');
   const clean = note?.trim() || null;
   if (clean && Array.from(clean).length > 200) rideError('note');
   return { seats, note: clean };
+}
+
+/** Departure before the game and at most 24 hours earlier, as the server checks it (0047). */
+function cleanDeparture(session: Session, departure: RideDeparture | undefined) {
+  const departAt = departure?.departAt ? new Date(departure.departAt).toISOString() : null;
+  if (departAt) {
+    const start = Date.parse(session.startsAt);
+    const at = Date.parse(departAt);
+    if (at >= start || at < start - 24 * 3_600_000) rideError('departure');
+  }
+  const meetPoint = departure?.meetPoint?.trim() || null;
+  if (meetPoint && Array.from(meetPoint).length > 120) rideError('meetPoint');
+  // A pin counts only with both coordinates in range.
+  const lat = departure?.meetLat, lng = departure?.meetLng;
+  const pinned = typeof lat === 'number' && typeof lng === 'number' && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+  return { departAt, meetPoint, meetLat: pinned ? lat : null, meetLng: pinned ? lng : null };
 }
 
 /** The person's one car for this game, if joined. */
@@ -3105,11 +3126,13 @@ function clearRideRequest(database: LocalDatabase, sessionId: Id, personId: Id) 
   database.carpoolRequests = (database.carpoolRequests ?? []).filter((r) => r.sessionId !== sessionId || r.personId !== personId);
 }
 
-export function offerRide(sessionId: Id, seats = 3, note: string | null = null): Id {
+export function offerRide(sessionId: Id, seats = 3, note: string | null = null, departure?: RideDeparture): Id {
   const id = newId();
   const details = cleanRide(seats, note);
   mutate((database) => {
-    const me = rideMember(database, rideSession(database, sessionId));
+    const session = rideSession(database, sessionId);
+    const me = rideMember(database, session);
+    Object.assign(details, cleanDeparture(session, departure));
     if (database.carpools?.some((c) => c.sessionId === sessionId && c.driverId === me)) rideError('offered');
     if (joinedRide(database, sessionId, me)) rideError('riding');
     database.carpools ??= [];
@@ -3119,11 +3142,13 @@ export function offerRide(sessionId: Id, seats = 3, note: string | null = null):
   return id;
 }
 
-export function updateRide(carpoolId: Id, seats: number, note: string | null = null): void {
+export function updateRide(carpoolId: Id, seats: number, note: string | null = null, departure?: RideDeparture): void {
   const details = cleanRide(seats, note);
   mutate((database) => {
     const ride = requireRide(database, carpoolId);
-    if (rideMember(database, rideSession(database, ride.sessionId)) !== ride.driverId) rideError('own');
+    const session = rideSession(database, ride.sessionId);
+    if (rideMember(database, session) !== ride.driverId) rideError('own');
+    if (departure) Object.assign(details, cleanDeparture(session, departure));
     if ((database.carpoolRiders ?? []).filter((r) => r.carpoolId === carpoolId).length > seats) rideError('occupied');
     Object.assign(ride, details);
   });

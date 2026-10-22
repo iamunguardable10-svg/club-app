@@ -17,11 +17,16 @@ export function AddressField({
   value,
   onChange,
   label,
+  placeholder,
+  onPick,
   className = '',
 }: {
   value: string;
   onChange: (value: string) => void;
   label?: string;
+  placeholder?: string;
+  /** A suggestion was chosen (with its position, for a map). */
+  onPick?: (suggestion: AddressSuggestion) => void;
   className?: string;
 }) {
   const t = useT();
@@ -51,9 +56,16 @@ export function AddressField({
       <input
         value={value}
         onChange={(event) => { typedRef.current = true; onChange(event.target.value); }}
+        onKeyDown={(event) => {
+          // Enter takes the first suggestion (the map zooms there).
+          if (event.key !== 'Enter' || !onPick || suggestions.length === 0) return;
+          event.preventDefault();
+          const first = suggestions[0];
+          typedRef.current = false; onChange(first.address); onPick(first); setSuggestions([]); setOpen(false);
+        }}
         onFocus={() => setOpen(true)}
         onBlur={() => window.setTimeout(() => setOpen(false), 150)}
-        placeholder={t('address.placeholder')}
+        placeholder={placeholder ?? t('address.placeholder')}
         aria-label={label ?? t('address.label')}
         autoComplete="off"
         role="combobox"
@@ -68,7 +80,7 @@ export function AddressField({
               <button
                 type="button"
                 onMouseDown={(event) => event.preventDefault()}
-                onClick={() => { typedRef.current = false; onChange(suggestion.address); setSuggestions([]); setOpen(false); }}
+                onClick={() => { typedRef.current = false; onChange(suggestion.address); onPick?.(suggestion); setSuggestions([]); setOpen(false); }}
                 className="block w-full px-3 py-2 text-left text-sm font-bold text-slate-200 hover:bg-slate-900"
               >
                 {suggestion.name ? <span className="block text-white">{suggestion.name}</span> : null}

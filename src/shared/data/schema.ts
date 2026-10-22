@@ -282,6 +282,12 @@ export type Carpool = {
   driverId: Id;
   seats: number;
   note: string | null;
+  /** When the car leaves (before the game, at most a day earlier) and from where; missing in older documents. */
+  departAt?: Timestamp | null;
+  meetPoint?: string | null;
+  /** The pin on the map (both or neither), for "open in Google Maps". */
+  meetLat?: number | null;
+  meetLng?: number | null;
   createdAt: Timestamp;
 };
 
