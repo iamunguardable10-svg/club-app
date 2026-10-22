@@ -2989,3 +2989,13 @@ Gefunden und behoben:
 Löschen des Wegwerf-Vereins braucht Bens Bestätigung (SQL in `docs/plan-next-runs.md`).
 
 Plan für fehlende Funktionen und Freischaltung: `docs/plan-features-freischaltung.md`.
+
+## Run 86 — Freischaltung in drei Ebenen (2026-10-22)
+
+Plan: `docs/plan-features-freischaltung.md` (Entscheidungen von Ben: Teams entscheiden selbst ist der Standard; Familienkonto statt Eltern-Bereich; Video/Playbook später als eigene Projekte).
+
+- **Migration 0046 (live):** `club_entitlements` (von uns, Pilot „Leistung“ bis 2027-06-30 für alle Vereine, auch neu gegründete), `club_feature_settings` (Vereins-Admin: an/aus für alle, ohne Zeile „Teams entscheiden“), `teams.feature_choices` (Head Coach). Der Server rechnet das Ergebnis in `teams.features`; nächtlicher Job für abgelaufene Freischaltungen. Einschränkende Zugriffsregeln für Fahrgemeinschaften, Umfragen/Abstimmen, Kader und Anwesenheits-Bestätigung. Die alte App (schreibt nur `features` mit Belastung) funktioniert weiter. Live geprüft: alle 7 Teams behalten Belastung und bekommen die Basisfunktionen.
+- **App:** Team-Einstellungen mit Schaltern (Belastung, Fahrgemeinschaften, Umfragen, Kader, Anwesenheit; gesperrt mit Hinweis, wenn der Verein festgelegt hat oder nicht freigeschaltet ist), Verein → Funktionen mit „Teams entscheiden / An für alle / Aus für alle“. Ausgeschaltetes verschwindet (Fahrgemeinschaft in der Einheit, Umfrage im Verfassen und in Nachrichten, Kader, Anwesenheit bestätigen); Daten bleiben.
+- **Nebenbei (UI):** Standardhalle ohne grüne Hallenfarbe, Team-Funktionen als eigener Block statt unter „Trainerrollen“, „Altersgruppe speichern“ erscheint nur bei Änderung.
+- **Tests:** SQL `27_feature_unlocking_test.sql` (drei Ebenen, alte App, Ablauf, Daten bleiben), `test:features` (lokaler Modus, in der CI), Postgres-Test „Head Coach schaltet aus“; Upgrade-Test auf befüllter Datenbank (Reihenfolge beim Nachrüsten korrigiert, sonst wäre Belastung kurz aus gewesen).
+- **Live mit zwei Geräten:** Trainerin schaltet Fahrgemeinschaften aus → beim Spieler im offenen Spiel-Blatt nach ~5,7 s weg, wieder an nach ~5,2 s (lädt alles neu, weil sich Sichtbarkeit ändern kann).

@@ -38,6 +38,9 @@ import {
   COACH_PERMISSION_REQUIRES,
   CLUB_MANAGEMENT_PERMISSIONS,
   LOAD_PERMISSIONS,
+  BASIC_FEATURES,
+  PAID_FEATURES,
+  TEAM_FEATURES,
   LocalDataError,
   type ActiveIdentity,
   type AgeGroup,
@@ -76,6 +79,7 @@ import {
   type SessionType,
   type Team,
   type TeamFeature,
+  type ClubFeatureMode,
 } from './schema';
 
 type Listener = () => void;
@@ -1306,10 +1310,87 @@ export function coachPermissions(database: LocalDatabase, personId: Id | null, t
   return new Set([...granted].filter((permission) => !LOAD_PERMISSIONS.includes(permission)));
 }
 
-/** Whether a team has a feature switched on (`TEAM_FEATURES`). */
+/**
+ * Whether a feature works in a team: unlocked for the club, not switched off
+ * by the club, and chosen by the team or switched on by the club. Computed
+ * like the server's `app.effective_team_features` (0046), so a change shows
+ * at once; the server's result in `team.features` is the same.
+ */
 export function teamHasFeature(database: LocalDatabase, teamId: Id | null, feature: TeamFeature): boolean {
   if (!teamId) return false;
-  return database.teams.find((team) => team.id === teamId)?.features.includes(feature) ?? false;
+  const team = database.teams.find((candidate) => candidate.id === teamId);
+  return Boolean(team) && featureStatus(database, team!, feature).on;
+}
+
+/** The team's own choice (older documents: the switched-on features plus the basic ones). */
+export function teamFeatureChoices(team: Team): TeamFeature[] {
+  return team.featureChoices ?? [...new Set([...team.features, ...BASIC_FEATURES])];
+}
+
+/** Whether the club has this feature unlocked (always for basic ones; everything in the local test mode). */
+export function featureUnlocked(database: LocalDatabase, clubId: Id, feature: TeamFeature): boolean {
+  if (!PAID_FEATURES.includes(feature) || !database.clubEntitlements) return true;
+  const today = todayIso();
+  return database.clubEntitlements.some((e) => e.clubId === clubId && e.feature === feature && (e.validUntil === null || e.validUntil >= today));
+}
+
+/** The club's entitlement for a paid feature, for showing until when it is unlocked. */
+export function featureEntitlement(database: LocalDatabase, clubId: Id, feature: TeamFeature) {
+  return database.clubEntitlements?.find((e) => e.clubId === clubId && e.feature === feature) ?? null;
+}
+
+export function clubFeatureMode(database: LocalDatabase, clubId: Id, feature: TeamFeature): ClubFeatureMode {
+  return database.clubFeatureSettings?.find((setting) => setting.clubId === clubId && setting.feature === feature)?.mode ?? 'teams';
+}
+
+/** Whether a feature works in a team, and if not, which level says no. */
+export function featureStatus(database: LocalDatabase, team: Team, feature: TeamFeature): { on: boolean; locked: boolean; clubMode: ClubFeatureMode; chosen: boolean } {
+  const locked = !featureUnlocked(database, team.clubId, feature);
+  const clubMode = clubFeatureMode(database, team.clubId, feature);
+  const chosen = teamFeatureChoices(team).includes(feature);
+  return { on: !locked && clubMode !== 'off' && (clubMode === 'on' || chosen), locked, clubMode, chosen };
+}
+
+function todayIso(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+/** Keeps `team.features` equal to what works (the local test mode has no server to compute it). */
+function refreshTeamFeatures(database: LocalDatabase, clubId?: Id) {
+  for (const team of database.teams) {
+    if (clubId && team.clubId !== clubId) continue;
+    team.features = TEAM_FEATURES.filter((feature) => featureStatus(database, team, feature).on);
+  }
+}
+
+/** The team switches one of its features on or off (who may configure the team: manageStaff). */
+export function setTeamFeature(teamId: Id, feature: TeamFeature, on: boolean): void {
+  mutate((database) => {
+    const team = database.teams.find((candidate) => candidate.id === teamId);
+    if (!team || !hasCoachPermission(database, database.activeIdentity?.personId ?? null, teamId, 'manageStaff')) throw serverError('Not allowed.');
+    const choices = new Set(teamFeatureChoices(team));
+    if (on) choices.add(feature); else choices.delete(feature);
+    team.featureChoices = TEAM_FEATURES.filter((candidate) => choices.has(candidate));
+    refreshTeamFeatures(database, team.clubId);
+  });
+}
+
+/** The club admin decides a feature for all teams, or leaves it to each team. */
+export function setClubFeatureMode(feature: TeamFeature, mode: ClubFeatureMode): void {
+  mutate((database) => {
+    const personId = ownPersonIds(database).find((candidate) => isClubAdmin(database, candidate)) ?? null;
+    if (!personId) throw serverError('Not allowed.');
+    const clubId = database.club.id;
+    database.clubFeatureSettings = (database.clubFeatureSettings ?? []).filter((setting) => !(setting.clubId === clubId && setting.feature === feature));
+    if (mode !== 'teams') database.clubFeatureSettings.push({ clubId, feature, mode });
+    refreshTeamFeatures(database, clubId);
+  });
+}
+
+/** Refuses a change in a feature that is off for this team (the server refuses it too). */
+function requireFeature(database: LocalDatabase, teamId: Id | null, feature: TeamFeature) {
+  if (!teamHasFeature(database, teamId, feature)) throw new LocalDataError('This feature is switched off for the team.', undefined, 'features.error.off');
 }
 
 /**
@@ -1643,8 +1724,9 @@ export function createTeam(departmentId: Id, name: string, ageGroup: AgeGroup | 
     const now = new Date().toISOString();
     database.teams.push({
       id, clubId: department.clubId, departmentId, name: clean, defaultFacilityId: null,
-      ageGroup, features: load ? ['load'] : [], archivedAt: null, createdAt: now,
+      ageGroup, features: [], featureChoices: TEAM_FEATURES.filter((feature) => (feature === 'load' ? load : BASIC_FEATURES.includes(feature))), archivedAt: null, createdAt: now,
     });
+    refreshTeamFeatures(database, department.clubId);
     if (!remote) {
       COACH_ROLE_TEMPLATES.forEach((template, index) => {
         database.coachRoles.push({
@@ -2263,6 +2345,7 @@ export function confirmAttendance(sessionId: Id, presence: { personId: Id; prese
     const session = database.sessions.find((candidate) => candidate.id === sessionId);
     if (!session) throw new LocalDataError('This session no longer exists.');
     if (new Date(session.startsAt).getTime() > Date.now()) throw new LocalDataError('Attendance can only be confirmed once the session has started.');
+    requireFeature(database, session.teamId, 'attendance');
     const coachId = database.activeIdentity?.role === 'coach' ? database.activeIdentity.personId : null;
     if (!coachPermissions(database, coachId, session.teamId).has('viewAttendance')) {
       throw new LocalDataError('Only a coach who may see attendance can confirm it.');
@@ -2444,8 +2527,11 @@ export function squadForSession(database: LocalDatabase, sessionId: Id): Map<Id,
 }
 
 /** A player's status once the squad is published (null before, or if not picked). */
-export function publishedSquadStatus(database: LocalDatabase, personId: Id, session: Pick<Session, 'id' | 'squadPublishedAt'>): SquadStatus | null {
+export function publishedSquadStatus(database: LocalDatabase, personId: Id, session: Pick<Session, 'id' | 'squadPublishedAt'> & { teamId?: Id }): SquadStatus | null {
   if (!session.squadPublishedAt) return null;
+  // Squads switched off for the team: kept, but they count for nothing.
+  const teamId = session.teamId ?? database.sessions.find((candidate) => candidate.id === session.id)?.teamId ?? null;
+  if (!teamHasFeature(database, teamId, 'squads')) return null;
   return (database.squadEntries ?? []).find((entry) => entry.sessionId === session.id && entry.personId === personId)?.status ?? null;
 }
 
@@ -2453,6 +2539,7 @@ function requireSquadRights(database: LocalDatabase, sessionId: Id): Session {
   const session = database.sessions.find((candidate) => candidate.id === sessionId);
   if (!session) throw new LocalDataError('This session no longer exists.');
   if (session.sessionType !== 'game') throw new LocalDataError('A squad can only be picked for a game.');
+  requireFeature(database, session.teamId, 'squads');
   const coachId = database.activeIdentity?.role === 'coach' ? database.activeIdentity.personId : null;
   if (!coachPermissions(database, coachId, session.teamId).has('editSessions')) {
     throw new LocalDataError('Your role may not pick the squad.');
@@ -2700,6 +2787,12 @@ function pollError(message: string, key: string): LocalDataError {
 }
 
 /** The answers of a poll, cleaned; throws when they do not make a poll. */
+/** Polls go only to teams that use them (department and club news are not switched per team), as `app.polls_allowed`. */
+export function pollsAllowed(database: LocalDatabase, targets: Pick<MessageTargets, 'teamIds' | 'groupIds'>): boolean {
+  const groupTeams = (targets.groupIds ?? []).map((groupId) => database.playerGroups.find((group) => group.id === groupId)?.teamId ?? null);
+  return [...(targets.teamIds ?? []), ...groupTeams].every((teamId) => teamId === null || teamHasFeature(database, teamId, 'polls'));
+}
+
 export function cleanPollOptions(options: string[]): string[] {
   const cleaned = options.map((option) => option.trim()).filter(Boolean);
   const distinct = new Set(cleaned.map((option) => option.toLowerCase()));
@@ -2733,6 +2826,7 @@ export function postMessage(input: MessageTargets & {
   mutate((database) => {
     const authorId = ownPersonIds(database).find((personId) => maySendMessage(database, personId, targets));
     if (!authorId) throw new LocalDataError('You may not do this here.', undefined, 'messages.error.notAllowed');
+    if (pollOptions && !pollsAllowed(database, targets)) throw new LocalDataError('This feature is switched off for the team.', undefined, 'features.error.off');
     database.messages = database.messages ?? [];
     database.messages.push({
       id, clubId: database.club.id, authorId, ...targets, audience: input.audience ?? 'all', body, important,
@@ -2890,6 +2984,7 @@ export function votePoll(personId: Id, messageId: Id, options: number[]): void {
       throw new LocalDataError('This poll is not for you.');
     }
     if (isPollClosed(message)) throw pollError('This poll is already closed.', 'server.thisPollIsAlreadyClosed');
+    if (!pollsAllowed(database, message)) throw new LocalDataError('This feature is switched off for the team.', undefined, 'features.error.off');
     const chosen = [...new Set(options)].sort((a, b) => a - b);
     const count = message.pollOptions?.length ?? 0;
     if (chosen.some((index) => !Number.isInteger(index) || index < 0 || index >= count) || (!message.pollMultiple && chosen.length > 1)) {
@@ -2977,6 +3072,7 @@ function rideSession(database: LocalDatabase, sessionId: Id): Session {
   const session = database.sessions.find((candidate) => candidate.id === sessionId);
   if (!session || session.sessionType !== 'game') rideError('game');
   if (Date.parse(session.startsAt) <= Date.now()) rideError('past');
+  requireFeature(database, session.teamId, 'carpools');
   return session;
 }
 
@@ -3241,6 +3337,9 @@ export function updateTeamHealthSettings(teamId: Id, ageGroup: AgeGroup | null, 
   mutate((database) => {
     const team = database.teams.find((t) => t.id === teamId);
     if (!team || !hasCoachPermission(database, database.activeIdentity?.personId ?? null, teamId, 'manageStaff')) throw serverError('Not allowed.');
-    team.ageGroup = ageGroup; team.features = load ? ['load'] : [];
+    team.ageGroup = ageGroup;
+    const choices = teamFeatureChoices(team);
+    team.featureChoices = TEAM_FEATURES.filter((feature) => (feature === 'load' ? load : choices.includes(feature)));
+    refreshTeamFeatures(database, team.clubId);
   });
 }

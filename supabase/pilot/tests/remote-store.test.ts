@@ -1124,6 +1124,23 @@ async function main() {
     );
   }
 
+  // Features (0046): the head coach switches carpools off for the team; the server keeps the choice and the result.
+  {
+    const coachStore = await actAs(U.martin);
+    data.setActiveIdentity({ role: 'coach', personId: P.martin });
+    data.setTeamFeature(TEAM, 'carpools', false);
+    await data.flushRemote();
+    const row = (await pool.query('select features, feature_choices from teams where id = $1', [TEAM])).rows[0];
+    check(
+      'Martin switches carpools off: stored as choice and result, nothing refused',
+      !row.features.includes('carpools') && !row.feature_choices.includes('carpools') && !coachStore.getStatus().rejected && !data.teamHasFeature(db(), TEAM, 'carpools'),
+      { row, rejected: coachStore.getStatus().rejected },
+    );
+    data.setTeamFeature(TEAM, 'carpools', true);
+    await data.flushRemote();
+    check('… and on again', (await count("select 1 from teams where id = $1 and 'carpools' = any (features)", [TEAM])) === 1 && !coachStore.getStatus().rejected);
+  }
+
   // Another account on this device: nothing of Ben's is shown or kept.
   store = new RemoteStore(flaky(U.martin), data.SCHEMA_VERSION, null, deviceCache);
   data.connectRemoteStore(store);

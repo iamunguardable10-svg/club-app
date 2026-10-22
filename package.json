@@ -17,6 +17,7 @@
     "test:pilot": "tsx supabase/pilot/tests/remote-store.test.ts",
     "test:store": "tsx src/shared/data/remote/remoteStore.cache.test.ts",
     "test:carpools": "tsx src/shared/data/carpools.test.ts",
+    "test:features": "tsx src/shared/data/features.test.ts",
     "test:load": "tsx src/shared/data/loadCalculations.test.ts",
     "test:calendar": "tsx supabase/pilot/tests/calendar-ics.test.ts",
     "test:series": "tsx src/features/load/planSeries.test.ts",

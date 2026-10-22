@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { cancelNeedSeat, hasCoachPermission, joinedRide, joinRide, leaveRide, needSeat, offerRide, removeRider, updateRide, useLocalDatabase, withdrawRide, type LocalDatabase } from '@/shared/data';
+import { cancelNeedSeat, hasCoachPermission, joinedRide, joinRide, leaveRide, needSeat, offerRide, removeRider, teamHasFeature, updateRide, useLocalDatabase, withdrawRide, type LocalDatabase } from '@/shared/data';
 import { errorText, useT } from '@/shared/i18n';
 import { formatInteger } from '@/shared/format';
 
@@ -23,7 +23,7 @@ export function CarpoolSummary({ sessionId }: { sessionId: string }) {
   const { database, ready } = useLocalDatabase();
   const me = database?.activeIdentity?.personId;
   const session = database?.sessions.find((s) => s.id === sessionId);
-  if (!ready || !database || !me || !session || session.sessionType !== 'game') return null;
+  if (!ready || !database || !me || !session || session.sessionType !== 'game' || !teamHasFeature(database, session.teamId, 'carpools')) return null;
   if (!database.memberships.some((m) => m.personId === me && m.teamId === session.teamId)) return null;
   const text = rideState(database, sessionId, me, t, true);
   return text ? <p className="mt-1 text-xs font-bold text-sky-200">{text}</p> : null;
@@ -41,7 +41,7 @@ export function Carpools({ sessionId }: { sessionId: string }) {
   const [error, setError] = useState<unknown>(null);
   const session = database?.sessions.find((s) => s.id === sessionId);
   const me = database?.activeIdentity?.personId;
-  if (!ready || !database || !session || session.sessionType !== 'game' || !me) return null;
+  if (!ready || !database || !session || session.sessionType !== 'game' || !me || !teamHasFeature(database, session.teamId, 'carpools')) return null;
   if (!database.memberships.some((m) => m.personId === me && m.teamId === session.teamId)) return null;
   const past = Date.parse(session.startsAt) <= Date.now();
   const offers = (database.carpools ?? []).filter((c) => c.sessionId === sessionId);

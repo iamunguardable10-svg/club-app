@@ -316,8 +316,9 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
           : [],
         attendanceShared: permissions.has('viewAttendance'),
         loadTracked: team.loadTracked,
-        confirmations: permissions.has('viewAttendance') ? Object.fromEntries(confirmed) : {},
-        canConfirmAttendance: permissions.has('viewAttendance') && new Date(session.startsAt).getTime() <= now,
+        // Switched off for the team (0046): stored confirmations and squads stay, hidden.
+        confirmations: permissions.has('viewAttendance') && teamHasFeature(database, session.teamId, 'attendance') ? Object.fromEntries(confirmed) : {},
+        canConfirmAttendance: permissions.has('viewAttendance') && teamHasFeature(database, session.teamId, 'attendance') && new Date(session.startsAt).getTime() <= now,
         canRequestReview: permissions.has('viewLoadDetails'),
         notes: session.notes ?? null,
         meetMinutesBefore: session.meetMinutesBefore ?? null,
@@ -325,10 +326,10 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
         opponent: session.opponent ?? null,
         homeAway: session.homeAway ?? null,
         venueAddress: session.venueAddress ?? null,
-        squadPublishedAt: session.squadPublishedAt ?? null,
-        squad: session.sessionType === 'game' && (permissions.has('editSessions') || permissions.has('viewAttendance'))
+        squadPublishedAt: teamHasFeature(database, session.teamId, 'squads') ? session.squadPublishedAt ?? null : null,
+        squad: session.sessionType === 'game' && teamHasFeature(database, session.teamId, 'squads') && (permissions.has('editSessions') || permissions.has('viewAttendance'))
           ? Object.fromEntries(squadForSession(database, session.id)) : {},
-        canPickSquad: session.sessionType === 'game' && permissions.has('editSessions') && new Date(session.startsAt).getTime() > now,
+        canPickSquad: session.sessionType === 'game' && teamHasFeature(database, session.teamId, 'squads') && permissions.has('editSessions') && new Date(session.startsAt).getTime() > now,
         squadChangedSincePublish: session.squadPublishedAt
           ? (database.squadEntries ?? []).filter((entry) => entry.sessionId === session.id && Date.parse(entry.setAt) > Date.parse(session.squadPublishedAt!)).length
           : 0,

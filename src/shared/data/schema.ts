@@ -68,13 +68,24 @@ export const COACH_PERMISSION_REQUIRES: Partial<Record<CoachPermission, CoachPer
 };
 
 /**
- * Features a team can have switched on. Not every team needs training load;
- * later the club's subscription decides which teams have which features, and
- * this list is what it sets. For now they are switched in the database only
- * (docs/plan-next-runs.md, piece 3.5); new teams start with load.
+ * Features that can be switched per team (docs/plan-features-freischaltung.md).
+ * One works in a team when it is unlocked for the club (paid ones need an
+ * entitlement), the club has not switched it off for all teams, and the team
+ * chose it (or the club switched it on for all). The server keeps the result
+ * in `teams.features`; the app computes the same (`teamHasFeature`).
  */
-export const TEAM_FEATURES = ['load'] as const;
+export const TEAM_FEATURES = ['load', 'carpools', 'polls', 'squads', 'attendance'] as const;
 export type TeamFeature = (typeof TEAM_FEATURES)[number];
+/** Features that need an entitlement (paid packages; unlocked in the pilot). */
+export const PAID_FEATURES: readonly TeamFeature[] = ['load'];
+/** Basic features every new team starts with. */
+export const BASIC_FEATURES: readonly TeamFeature[] = ['carpools', 'polls', 'squads', 'attendance'];
+
+/** Unlocked for a club by us (pilot, package or by hand), until the end of `validUntil`. */
+export type ClubEntitlement = { clubId: Id; feature: TeamFeature; source: 'pilot' | 'plan' | 'manual'; validUntil: string | null };
+/** The club's setting for all teams; without one, each team decides. */
+export type ClubFeatureMode = 'teams' | 'on' | 'off';
+export type ClubFeatureSetting = { clubId: Id; feature: TeamFeature; mode: 'on' | 'off' };
 
 /**
  * Coach rights that only exist in teams with load tracking. A role may keep
@@ -144,8 +155,10 @@ export type Team = {
   departmentId: Id;
   name: string;
   defaultFacilityId: Id | null;
-  /** Switched-on features, see `TEAM_FEATURES`. */
+  /** The features working in this team, as the server computed them (see `TEAM_FEATURES`). */
   features: TeamFeature[];
+  /** The team's own choice; missing in older documents (then: `features` plus the basic ones). */
+  featureChoices?: TeamFeature[];
   /** Archived teams keep their data but leave every list. */
   archivedAt: Timestamp | null;
   createdAt: Timestamp;
@@ -585,6 +598,9 @@ export type LocalDatabase = {
   /** Schema version this document was written with. */
   version: string;
   consents?: Consent[];
+  /** Missing in the local test mode: there everything is unlocked. */
+  clubEntitlements?: ClubEntitlement[];
+  clubFeatureSettings?: ClubFeatureSetting[];
   healthConsentStatus?: { personId: Id; active: boolean }[];
   parentTokens?: Record<string, ParentToken>;
   parentWithdrawals?: Record<string, Id>;
