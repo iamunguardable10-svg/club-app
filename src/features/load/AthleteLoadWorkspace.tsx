@@ -1881,24 +1881,52 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       {composerOpen ? (
         <div className="fixed inset-0 z-[100] flex items-end bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
           <div data-session-id={activeComposerSession?.id} className="max-h-[88vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-xl">
-            <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-300">{t('athlete.composer.kicker')}</p>
-                <h2 className="mt-1 text-2xl font-black tracking-tight">{composerTitle}</h2>
-                <p className="mt-1 text-sm font-bold text-slate-500">{formatEntryDate(planForm.date)}</p>
-              </div>
-              <button type="button" onClick={() => { setComposerOpen(false); setActiveComposerSession(null); setActiveEntry(null); }} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">{t('athlete.close')}</button>
-            </div>
+            {(() => {
+              const close = () => { setComposerOpen(false); setActiveComposerSession(null); setActiveEntry(null); };
+              const closeButton = (
+                <button type="button" onClick={close} aria-label={t('athlete.close')} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-700 text-lg leading-none text-slate-300 hover:bg-slate-800">×</button>
+              );
+              if (!activeTeamSessionLocked) {
+                return (
+                  <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4">
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-300">{t('athlete.composer.kicker')}</p>
+                      <h2 className="mt-1 text-2xl font-black tracking-tight">{composerTitle}</h2>
+                      <p className="mt-1 text-sm font-bold text-slate-500">{formatEntryDate(planForm.date)}</p>
+                    </div>
+                    {closeButton}
+                  </div>
+                );
+              }
+              // A team session: what it is, not a form (nothing here can be changed).
+              const info = activeComposerSession?.info;
+              const type = loadTypeLabel(planForm.trainingType);
+              const opponent = planForm.trainingType === 'game' ? info?.opponent?.trim() : null;
+              const title = opponent ? t('game.vs', { opponent }) : displayTitle(activeComposerSession?.title ?? activeEntry?.title ?? '') || composerTitle;
+              const chips = [title === type ? null : type, info?.homeAway === 'away' ? t('game.away') : info?.homeAway === 'home' ? t('game.home') : null].filter(Boolean) as string[];
+              return (
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-black">
+                      {chips.map((chip) => <span key={chip} className="rounded-full bg-slate-800 px-2 py-0.5 text-slate-200">{chip}</span>)}
+                      {activeComposerSession?.teamName ? <span className="text-slate-400">{activeComposerSession.teamName}</span> : null}
+                    </div>
+                    <h2 className="mt-2 break-words text-2xl font-black tracking-tight">{title}</h2>
+                    <p className="mt-1 text-sm font-bold text-slate-400">
+                      {formatEntryDate(planForm.date)}
+                      {planForm.time ? ` · ${planForm.time}${planForm.trainingType !== 'game' && activeComposerSession?.endsAt ? `–${timeInputFromISO(activeComposerSession.endsAt)}` : ''}` : ''}
+                    </p>
+                  </div>
+                  {closeButton}
+                </div>
+              );
+            })()}
 
             {activeComposerSession?.source === 'team_session' && activeComposerSession.info ? (
-              <SessionInfo info={{ ...activeComposerSession.info, startsAt: activeComposerSession.startsAt }} className="mt-4" />
+              <SessionInfo info={{ ...activeComposerSession.info, startsAt: activeComposerSession.startsAt }} hideGame={planForm.trainingType === 'game' && Boolean(activeComposerSession.info.opponent?.trim())} className="mt-5" />
             ) : null}
 
-            {activeTeamSessionLocked ? (
-              <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm font-black text-slate-200">
-                {t('composer.lockedByTeam', { type: loadTypeLabel(planForm.trainingType) })}
-              </div>
-            ) : (
+            {activeTeamSessionLocked ? null : (
               <div className="mt-4 grid grid-cols-2 gap-2">
                 {LOAD_TRAINING_TYPES.slice(0, 6).map((type) => (
                   <button key={type} type="button" onClick={() => setSessionTrainingType(type)} className={`rounded-2xl border px-3 py-2 text-left text-xs font-black transition ${planForm.trainingType === type ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-300'}`}>
@@ -1908,22 +1936,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               </div>
             )}
 
-            {activeTeamSessionLocked ? (
-              <div className="mt-4 grid max-w-xs grid-cols-[minmax(0,1fr)_6rem] gap-2">
-                <div className="min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                  {t('composer.date')}
-                  <div className="mt-2 h-10 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-center text-sm font-black normal-case tracking-normal text-white">
-                    {formatEntryDate(planForm.date)}
-                  </div>
-                </div>
-                <div className="min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                  {t('composer.time')}
-                  <div className="mt-2 h-10 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-center text-sm font-black normal-case tracking-normal text-white">
-                    {planForm.time || '—'}
-                  </div>
-                </div>
-              </div>
-            ) : (
+            {activeTeamSessionLocked ? null : (
               <div className="mt-4 flex max-w-full flex-wrap gap-2">
                 <label className="w-[9rem] max-w-[calc(100vw-2rem)] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500 sm:w-[10rem]">
                   {t('composer.date')}
@@ -2008,7 +2021,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 {t('composer.noTracking', { team: activeComposerSession.teamName ?? t('composer.thisTeam') })}
               </p>
             ) : activeTeamSessionIsFuture ? (
-              <div className="mt-5 space-y-3 rounded-2xl border border-slate-700 bg-slate-950/70 p-4 text-sm font-bold text-slate-300">
+              <div className="mt-3 space-y-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-4 text-sm font-bold text-slate-300">
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">{t('composer.yourAnswer')}</p>
                 {(() => {
                   const mark = activeComposerSession ? availabilityForSession(activeComposerSession.id) : undefined;
                   const isWarmup = activeComposerSession?.trainingType === 'warmup';

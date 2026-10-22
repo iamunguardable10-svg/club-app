@@ -341,7 +341,11 @@ export function TeamWorkspace({
   const canEditSessions = permissions.has('editSessions');
   const canManageGroups = permissions.has('manageGroups');
   const staffPanel: ReactNode = database && permissions.size > 0
-    ? <div className="grid gap-4">{permissions.has('manageStaff') && database.teams.find((t) => t.id === teamId) ? <TeamHealthSettings team={database.teams.find((t) => t.id === teamId)!} /> : null}<TeamStaffPanel database={database} teamId={teamId} canManage={permissions.has('manageStaff')} /></div>
+    ? <TeamStaffPanel database={database} teamId={teamId} canManage={permissions.has('manageStaff')} />
+    : null;
+  const settingsTeam = database?.teams.find((t) => t.id === teamId);
+  const featuresPanel: ReactNode = database && settingsTeam && permissions.has('manageStaff')
+    ? <TeamHealthSettings database={database} team={settingsTeam} />
     : null;
 
   return (
@@ -365,6 +369,7 @@ export function TeamWorkspace({
       onTogglePlayerGroup={canManageGroups ? handleTogglePlayerGroup : undefined}
       onRemovePlayer={permissions.has('manageStaff') ? (personId) => removeAthleteFromTeam(teamId, personId) : undefined}
       staffPanel={staffPanel}
+      featuresPanel={featuresPanel}
     />
     </CoachShell>
   );

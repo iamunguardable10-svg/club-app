@@ -1,202 +1,155 @@
 # Umsetzungsplan: fehlende Funktionen und Freischaltung
 
-Stand 2026-10-18. Grundlage: Hooplayer-Liste vom 2026-10-01 (`docs/plan-next-runs.md`,
-„Vergleich mit Hooplayer“) und der heutige Stand der App.
+Stand 2026-10-22 (Entscheidungen von Ben eingearbeitet). Grundlage: Hooplayer-Liste vom
+2026-10-01 (`docs/plan-next-runs.md`, „Vergleich mit Hooplayer“) und der heutige Stand der App.
 
 ## Was es schon gibt und was fehlt
 
 | Hooplayer | Bei uns |
 |---|---|
 | Teamkalender mit Hallen, Push bei neuen/geänderten Terminen | ✅ (dazu Serien, Apple-Kalender, ICS, offline) |
-| Zu-/Absagen mit einem Tipp, Live-Liste für den Trainer, „noch nicht reagiert“ | ✅ (seit Run 84 live ohne Neuladen; automatisch/selbst zusagen, Erinnerung) |
+| Zu-/Absagen mit einem Tipp, Live-Liste für den Trainer, „noch nicht reagiert“ | ✅ (live ohne Neuladen seit Run 84/85) |
 | Kaderplanung | ✅ (Kader je Spiel) |
-| News/Pinnwand, Umfragen, Fahrgemeinschaften | ✅ (Team-, Abteilungs- und Vereins-News, angepinnt, Umfragen, Fahrgemeinschaften) |
+| News/Pinnwand, Umfragen, Fahrgemeinschaften | ✅ |
 | Alles in einer App statt WhatsApp/Excel | ✅ |
-| Termin-Arten: Besprechung, Turnier, Hallenbuchung | ⚠️ teilweise: Training, Kraft, Spiel, Regeneration, Sonstiges; **Besprechung und mehrtägiges Turnier fehlen** (Hallenbuchung = Termin mit Halle, gibt es) |
-| Eltern-Zugang für Jugendteams | ⚠️ nur die Eltern-Einwilligung per Link; **kein Eltern-Konto, das Termine sieht und für das Kind zu-/absagt** |
-| Videoanalyse (teilen mit Team oder einzelnen, Feedback an Zeitstellen) | ❌ |
-| Playbook/Taktik-Editor (Phasen, Animation, Bibliothek, Kategorien) | ❌ |
+| Termin-Arten: Besprechung, Turnier | ⚠️ **Besprechung und mehrtägiges Turnier fehlen** |
+| Eltern-Zugang für Jugendteams | ⚠️ nur Eltern-Einwilligung per Link → **Familienkonto** (Stück 2) |
+| Videoanalyse | ❌ später, eigenes Projekt (Stück 3) |
+| Playbook/Taktik-Editor | ❌ später, eigenes Projekt (Stück 4) |
 
-Zusätzlich bei uns, ohne Gegenstück: Belastung/RPE/ACWR, Abwesenheiten mit Gründen,
-Vereins- und Hallenverwaltung über alle Teams, Abteilungen, vier Sprachen.
+## Entscheidungen (Ben, 2026-10-22)
+
+- **Teams entscheiden selbst ist der Standard.** Der Verein kann eine Funktion für alle Teams
+  festlegen (an oder aus), muss aber nicht. Im Pilot gibt es meist einzelne Teams statt ganzer
+  Abteilungen, deshalb muss alles auch ohne Vereins-Admin-Arbeit sinnvoll laufen.
+- **Eltern: Familienkonto statt eigenem Eltern-Bereich** (Stück 2).
+- **Playbook und Video** werden später als eigene Projekte geplant (mit dem
+  Reverse-Engineer-Skill). Hier stehen nur die Andockpunkte.
 
 ## 0 Grundsatz: Freischaltung in drei Ebenen
 
-Jede Funktion (die bestehenden und alle neuen) hängt ab jetzt an einem **Funktions-Schlüssel**
-(`load`, `video`, `playbook`, `parents`, `carpools` …). Ob sie an ist, entscheiden drei Ebenen,
-und alle drei müssen „an“ sagen:
+Jede abschaltbare Funktion hat einen Schlüssel. Wirksam ist sie in einem Team nur, wenn alle
+drei Ebenen „an“ sagen:
 
-1. **Freigeschaltet (durch uns, je Verein):** Was der Verein gebucht hat (Paket, Pilot,
-   Einzelfreischaltung). Nur wir setzen das, später automatisch durch die Bezahlung.
-   Basisfunktionen sind für jeden Verein freigeschaltet.
-2. **Vom Verein eingeschaltet (Vereins-Admin):** Innerhalb des Freigeschalteten kann der
-   Verein jede Funktion aus- und einschalten, auch Basisfunktionen (z. B. „wir nutzen keine
-   Fahrgemeinschaften“). Kernfunktionen (Kalender, Zu-/Absagen, Team-Nachrichten) sind nicht
-   abschaltbar.
-3. **Im Team eingeschaltet (nur Team-Funktionen):** Wie heute `teams.features` für Belastung:
-   Der Verein (oder der Head Coach, wenn der Verein es erlaubt) wählt, welche Teams eine
-   Team-Funktion nutzen (z. B. Belastung nur für die Leistungsteams, Video nur für die erste
-   Mannschaft). Bei Paketen mit Team-Grenze zählt hier, wie viele Teams es haben dürfen.
+1. **Freigeschaltet (durch uns, je Verein).** Basisfunktionen sind immer freigeschaltet.
+   Bezahlfunktionen (heute: Belastung) brauchen eine Freischaltung
+   (`club_entitlements`: Pilot, Paket oder Einzelfreischaltung, mit Ablaufdatum). Nur wir
+   setzen das, später die Bezahlung.
+2. **Vereins-Einstellung je Funktion (Vereins-Admin):** `Teams entscheiden` (Standard),
+   `An für alle` oder `Aus für alle`.
+3. **Team-Wahl (Head Coach bzw. wer `manageStaff` hat):** Gilt, wenn der Verein „Teams
+   entscheiden“ eingestellt hat.
 
-**Wirkung von „aus“:** Echte Sperre auf dem Server (Zugriffsregeln, Trigger, Funktionen),
-nicht nur ausgeblendet. Die Oberfläche blendet Tabs, Knöpfe, Push und Einstellungen aus. Die
-Daten bleiben erhalten und sind beim Wiedereinschalten wieder da (wie heute bei Belastung).
-Ein Wechsel kommt über die Live-Aktualisierung sofort bei allen an (er gehört zu den
-Tabellen, nach denen alles neu lädt).
+Der Server rechnet die drei Ebenen in `teams.features` zur **wirksamen** Liste zusammen. Die
+Team-Wahl steht getrennt in `teams.feature_choices`. Alles, was heute `teams.features` liest
+(Zugriffsregeln, Push, App), bleibt dadurch richtig.
 
-### Funktions-Katalog (Vorschlag, Paketnamen und Preise offen)
+**Wirkung von „aus“:** echte Sperre auf dem Server (zusätzliche einschränkende
+Zugriffsregeln), die App blendet die Funktion aus, Push entsteht nicht. Die Daten bleiben
+erhalten und sind beim Einschalten wieder da. Ein Wechsel kommt über die Live-Aktualisierung
+sofort bei allen an.
 
-| Schlüssel | Ebene | Paket | Vom Verein abschaltbar |
+### Funktions-Katalog
+
+| Schlüssel | Was | Paket | Standard für neue Teams |
 |---|---|---|---|
-| `calendar`, `rsvp`, `team_messages` | Kern | Basis | nein |
-| `absences` (Abwesenheiten mit Zeitraum) | Verein | Basis | ja |
-| `squads` (Kader je Spiel) | Verein | Basis | ja |
-| `polls` (Umfragen) | Verein | Basis | ja |
-| `carpools` (Fahrgemeinschaften) | Verein | Basis | ja |
-| `club_news` (Abteilungs-/Vereins-News) | Verein | Basis | ja |
-| `phone_calendar` (Apple-Kalender, Abo-Link) | Verein | Basis | ja |
-| `attendance_check` (Anwesenheit bestätigen) | Verein | Basis | ja |
-| `meetings_tournaments` (Besprechung, Turnier) | Verein | Basis | ja |
-| `parents` (Eltern-Zugang) | Verein | Basis | ja |
-| `hall_planning` (Hallenbelegung über alle Teams, Abteilungsüberblick) | Verein | Verein | ja |
-| `load` (Belastung, RPE, ACWR) | Team | Leistung | ja |
-| `video` (Videoanalyse) | Team | Leistung | ja |
-| `playbook` (Taktik) | Team | Leistung | ja |
+| `load` | Belastung, RPE, ACWR | Leistung (im Pilot freigeschaltet) | an, außer U8–U11 |
+| `carpools` | Fahrgemeinschaften | Basis | an |
+| `polls` | Umfragen in Nachrichten | Basis | an |
+| `squads` | Kader je Spiel | Basis | an |
+| `attendance` | Anwesenheit nach der Einheit bestätigen | Basis | an |
+| später `video`, `playbook` | Stück 3 und 4 | Leistung | – |
 
-Pakete als Arbeitsnamen: **Basis** (kostenlos), **Verein** (Hallen/Abteilungen,
-pro Verein und Jahr) und **Leistung** (pro Team und Monat). Das passt zur
-Preis-Hypothese aus „Weg zum Umsatz“. Pilotvereine bekommen bis Saisonende alles
-freigeschaltet.
+Immer an und nicht abschaltbar: Kalender, Zu-/Absagen, Team-Nachrichten, Abwesenheiten,
+Hallen. Vereins-/Abteilungs-News bleiben vorerst wie sie sind; einen Schalter bekommen sie,
+wenn Vereine mit mehreren Abteilungen danach fragen.
 
-## Stück F: Freischaltungs-Schicht (zuerst, vor allen neuen Funktionen)
+Pakete als Arbeitsnamen: **Basis** (kostenlos), **Leistung** (pro Team und Monat, später auch
+Video und Playbook). Ein mögliches Vereins-Paket (Hallen und Abteilungen über alle Teams) kommt
+erst, wenn ganze Vereine kommen. Pilotvereine haben „Leistung“ bis 2027-06-30 freigeschaltet;
+das gilt auch für neu gegründete Vereine, solange wir nur per Gründungs-Code freigeben.
+
+## Stück F: Freischaltungs-Schicht (erledigt, Run 86)
 
 **Server (Migration 0046):**
-- `public.club_entitlements (club_id, feature, source 'pilot'|'plan'|'manual', valid_until, limits jsonb)`.
-  Lesen dürfen Mitglieder ihres Vereins, schreiben nur wir (Service-Rolle). `limits` enthält
-  z. B. `{"teams": 3}` oder `{"video_gb": 20}`.
-- `public.club_feature_settings (club_id, feature, enabled)`: schreibt nur der Vereins-Admin.
-  Ein Trigger verhindert, dass nicht Freigeschaltetes eingeschaltet wird.
-- `teams.features` bleibt für Team-Funktionen, mit Prüfung gegen Freischaltung und Team-Grenze.
-- `app.feature_on(club, feature, team default null)` ist die eine Prüfung, die alle
-  Zugriffsregeln nutzen. `app.team_has_load` ruft sie ab dann intern auf.
-- Lesbare Sicht `club_features` (Ergebnis je Verein/Team), wird in der App wie eine Tabelle geladen.
-- `app.grant_feature(club, feature, until, limits)` für unsere Freischaltung (nur Service-Rolle),
-  vorerst per SQL. Später ruft ein Bezahl-Webhook (Stripe) dieselbe Funktion auf.
-- Nachrüsten: Alle bestehenden Vereine bekommen `pilot` für alles bis 2027-06-30. Bestehende
-  Funktionen bekommen ihre Sperre: Umfragen, Fahrgemeinschaften, News, Abwesenheiten, Kader und
-  Kalender-Abo prüfen beim Anlegen `feature_on`. Push-Arten werden für abgeschaltete
-  Funktionen nicht erzeugt.
+- `club_entitlements (club_id, feature, source, valid_until)`. Lesen dürfen Mitglieder des
+  Vereins, schreiben nur wir. `app.grant_feature(club, feature, until, source)` setzt sie.
+- `club_feature_settings (club_id, feature, mode)` mit `mode in ('on','off')`; ohne Zeile gilt
+  „Teams entscheiden“. Schreiben darf der Vereins-Admin.
+- `teams.feature_choices text[]` (die Team-Wahl) und `teams.features` als wirksame Liste.
+  Ein Trigger berechnet `features` neu bei Änderungen an der Team-Wahl, an
+  Vereins-Einstellungen oder an Freischaltungen. Ein täglicher Job berücksichtigt abgelaufene
+  Freischaltungen.
+- Einschränkende Zugriffsregeln: Fahrgemeinschaften, Umfragen (neue Umfrage und Abstimmen),
+  Kader und Anwesenheits-Bestätigung nur, wenn die Funktion im Team wirksam ist. Belastung
+  ist schon über `features` gesperrt.
+- Nachrüsten: Alle bestehenden Teams bekommen alle Basisfunktionen und behalten ihren
+  Belastungs-Stand. Alle Vereine bekommen „Leistung“ als Pilot bis 2027-06-30.
 
 **App:**
-- `useFeature(key, teamId?)` aus dem Dokument; alle bestehenden Stellen (heute `teamHasFeature`)
-  laufen darüber.
-- Verein → Einstellungen → **Funktionen**: Schalter je Funktion. Nicht Freigeschaltetes
-  erscheint ausgegraut mit „Im Paket Leistung“. Bei Team-Funktionen gibt es eine Auswahl der Teams.
-- Im Demo-Verein ist alles freigeschaltet. Damit man es sieht, lässt sich eine Funktion
-  testweise abschalten.
+- Team-Einstellungen (Head Coach): Schalter je Funktion. Hat der Verein festgelegt, steht dort
+  „Vom Verein festgelegt“. Fehlt die Freischaltung, steht dort „Nicht freigeschaltet“.
+- Verein → Funktionen (Vereins-Admin): je Funktion „Teams entscheiden / An für alle / Aus für
+  alle“, mit Hinweis auf Freischaltung und Ablaufdatum.
+- Ausgeschaltete Funktionen verschwinden überall: Fahrgemeinschaft in der Einheit, Umfrage im
+  Verfassen, Kader, Anwesenheit bestätigen, Belastung wie bisher.
+- Im Demo-Verein ist alles freigeschaltet; die Schalter lassen sich ausprobieren.
 
-**Fertig, wenn:** SQL-Tests für jede Ebene (nicht freigeschaltet → Anlegen abgelehnt;
-freigeschaltet aber vom Verein aus → abgelehnt; Team ohne Funktion → abgelehnt; Daten bleiben
-nach Aus/An). Store-Test: ein Wechsel lädt alles neu. Browser-Check: Verein schaltet
-Fahrgemeinschaften aus, und beim Spieler verschwindet der Knopf live. Vier Sprachen.
+**Fertig, wenn:** Für jede Ebene gibt es einen SQL-Test (nicht freigeschaltet, vom Verein aus,
+im Team aus, Daten bleiben). Der Store-Test zeigt, dass ein Wechsel alles neu lädt. Dazu der
+Browser-Check: Der Trainer schaltet Fahrgemeinschaften aus, und beim Spieler verschwindet der
+Knopf live. Vorher-/Nachher-Bilder, vier Sprachen.
 
-## Stück 1: Besprechung und mehrtägiges Turnier (`meetings_tournaments`, Basis)
+## Stück 1: Besprechung und mehrtägiges Turnier (Basis, immer an)
 
-- Neue Termin-Arten `meeting` (ohne Halle möglich, Ort frei oder online-Link, keine RPE-Abfrage)
-  und `tournament` (Start- und Enddatum über mehrere Tage, optional mehrere Spiele darunter).
-- Kalender: mehrtägige Balken in Wochen- und Monatsansicht, eine Zusage für das ganze Turnier,
-  optional je Tag. Kader und Fahrgemeinschaften gelten für das Turnier.
-- Belastung: Spiele im Turnier fragen wie Spiele nach RPE; die Besprechung fragt nicht.
-- Server: Erweiterung der Prüfung von `session_type`, `ends_at` darf über mehrere Tage gehen
-  (heute auf eine Einheit ausgelegt). ICS und Apple-Kalender liefern Ganztags- bzw.
-  Mehrtages-Termine.
-- Fertig, wenn: Anlegen, Verschieben und Zusagen für beide Arten, Kalenderansichten Handy und
-  Desktop, ICS-Test, vier Sprachen.
+- Neue Termin-Arten `meeting` (Ort frei oder Online-Link, keine RPE-Abfrage) und `tournament`
+  (Start- und Enddatum über mehrere Tage, optional mehrere Spiele darunter).
+- Kalender: mehrtägige Balken, eine Zusage für das ganze Turnier, optional je Tag. Kader und
+  Fahrgemeinschaften gelten für das Turnier.
+- Server: Erweiterung von `session_type`, mehrtägige Zeiträume. ICS und Apple-Kalender liefern
+  Ganztags- bzw. Mehrtages-Termine.
 
-## Stück 2: Eltern-Zugang (`parents`, Basis)
+## Stück 2: Familienkonto (statt Eltern-Bereich)
 
-- **Modell:** `guardians (parent_user_id, person_id, relation, created_at)`. Ein Elternteil
-  ist ein eigenes Konto ohne Person im Team. Es kann mehrere Kinder haben, ein Kind kann
-  zwei Elternteile haben.
-- **Einladung:** Der Trainer oder das Kind schickt einen Eltern-Link (wie heute der
-  Einwilligungs-Link, den wir erweitern). Bei unter 16 ist die Eltern-Einwilligung gleich
-  Teil davon.
-- **Was Eltern sehen und tun:** Kalender des Kindes, Zu-/Absagen für das Kind (mit Hinweis
-  „von Mama gemeldet“), Abwesenheiten melden, Team-Nachrichten mit Zielgruppe „Eltern“,
-  Fahrgemeinschaften (fahren selbst mit Plätzen), Push. **Keine Belastungsdaten**, außer das
-  Kind ist unter 16 und die Eltern haben in die Gesundheitsdaten eingewilligt. Dann sehen sie
-  dieselbe Ansicht wie das Kind, nur lesend.
-- **Rechte:** Neue Prüfung `app.is_guardian_of(person)` in den Zugriffsregeln für
-  Verfügbarkeit, Abwesenheit, Fahrgemeinschaft und Nachrichten-Lesen.
-  Rollenumschalter: „Als Elternteil von Mia“.
-- **Nachrichten:** Neue Zielgruppe „Eltern“ bzw. „Spieler und Eltern“. „Gelesen“ zählt je Familie.
-- Fertig, wenn: SQL-Tests (Eltern sieht nur eigenes Kind, kein Load ohne Einwilligung,
-  Kind 16+ kann den Eltern-Zugang beenden), Live-Test mit drei Konten (Trainer, Kind,
-  Elternteil), vier Sprachen.
+- **Idee:** Ein Konto kann mehrere Personen führen. Eltern treten mit dem Team-Code bei und
+  wählen „Ich melde mein Kind an“. Das Konto legt dann das Profil des Kindes an und bedient es
+  wie ein Spieler: Zu-/Absagen, Abwesenheiten, Nachrichten, Fahrgemeinschaften, Push. Bei
+  mehreren Kindern wechselt man oben zwischen ihnen, so wie heute zwischen Rollen.
+- **Einwilligung:** Bei unter 16 gibt der Elternteil sie direkt im eigenen Konto. Der
+  Extra-Link ist dann nur noch nötig, wenn das Kind selbst ein Konto hat.
+- **Übergabe:** „An Kind übergeben“ per Link. Das Kind bekommt ein eigenes Konto, das Profil
+  und alle Daten wandern mit, und das Elternkonto verliert den Zugriff.
+- **Server:** `people.user_id` ist heute eindeutig (ein Konto = eine Person); das wird auf
+  mehrere Personen je Konto umgestellt. Die Rechte-Prüfungen (`is_me`) gelten für alle
+  Personen des Kontos. Es gibt keine neue Rolle und keine Sonderrechte.
+- **Nicht enthalten:** Kind und Elternteil gleichzeitig auf einem Profil. Das kommt erst, wenn
+  Vereine danach fragen.
 
-## Stück 3: Videoanalyse (`video`, Leistung, Team-Funktion)
+## Stück 3: Videoanalyse (später, eigenes Projekt)
 
-In zwei Phasen, damit wir früh etwas haben und keine Speicherkosten raten müssen:
+Andockpunkte, die jetzt schon feststehen:
+- Funktions-Schlüssel `video`, Team-Funktion, Paket Leistung.
+- Teilen mit dem Team oder einzelnen Spielern, Feedback an Zeitstellen, an einen Termin hängbar.
+- Speicher: zuerst Links (YouTube, Vimeo, Hudl), Hochladen erst mit Supabase Pro.
 
-- **3a Links und Zeitstellen (ohne Upload):** Trainer fügt ein Video per Link hinzu (YouTube
-  nicht gelistet, Vimeo, Hudl, Google Drive). Es wird im eingebetteten Player abgespielt.
-  Freigabe für das ganze Team oder einzelne Spieler. Feedback an Zeitstellen
-  (`video_notes: video_id, at_seconds, body, for_person`); ein Tipp springt an die Stelle.
-  Spieler sehen „Für dich“ zuerst, mit Push bei neuer Freigabe. Spieler können an
-  Zeitstellen antworten (optional, Schalter).
-- **3b Hochladen:** Supabase Storage, privater Bucket je Verein, nur signierte Links. Größen-
-  und Speichergrenze aus `limits` (z. B. 20 GB je Verein). Hochladen vom Handy mit Fortschritt
-  und Fortsetzen. Löschen gibt den Speicher frei. Braucht Supabase Pro (siehe Liste
-  „Vor Werbung und Pilot“).
-- **CSP:** Erlaubte Einbett-Quellen (frame-src) werden gezielt ergänzt.
-- Fertig, wenn: SQL-Tests (Spieler sieht nur ihm freigegebene Videos, anderes Team nichts,
-  ohne Funktion nichts), Abspielen und Springen auf Handy/Desktop, vier Sprachen, bei 3b ein
-  Upload-Test mit Grenze.
+## Stück 4: Playbook (später, eigenes Projekt)
 
-## Stück 4: Playbook / Taktik (`playbook`, Leistung, Team-Funktion)
-
-Größtes Stück, deshalb in vier Teilen:
-
-- **4a Daten und Ansicht:** `plays (team_id, name, category, court, phases jsonb,
-  shared_with, updated_at)`. Eine Phase ist eine Aufstellung von Spielern (O1–O5, X1–X5),
-  Ball und Pfeilen (Pass, Laufweg, Block, Dribbling). Die Ansicht als SVG-Feld (zuerst
-  Basketball, halbes und ganzes Feld). Phasen wechseln per Wischen.
-- **4b Editor:** Auf Handy und Desktop Spieler ziehen, Pfeile zeichnen, Phase duplizieren und
-  weiterziehen, rückgängig machen. Gespeichert über die normale Datenschicht (offline-fähig).
-- **4c Animation:** Zwischen den Phasen fließend bewegen (Laufweg entlang der Pfeile, Ball
-  folgt dem Pass), mit Abspielen/Pause/Tempo. Für die Spieler als Hauptansicht.
-- **4d Bibliothek:** Kategorien (Out-of-Bounds, Baseline, Press-Break, Zone, Mann …,
-  frei erweiterbar), Suche, Favoriten, offline verfügbar. Teilen mit Team oder Gruppe.
-  Ein Spielzug lässt sich an einen Termin hängen („heute üben wir das“).
-- Später: weitere Sportarten (Feld-Vorlagen Fußball, Handball, Volleyball).
-- Fertig, wenn: SQL-Tests (nur eigenes Team, Spieler nur lesen), Editor-Gesten auf Handy
-  (Playwright mit Touch), Animation flüssig mit 4× gedrosselter CPU, vier Sprachen.
+Andockpunkte:
+- Funktions-Schlüssel `playbook`, Team-Funktion, Paket Leistung.
+- Spielzüge gehören dem Team, Spieler lesen, an einen Termin hängbar („heute üben wir das“).
+- Umfang wie eine eigene App (Phasen, Animation, Aufnahme, PDF-Export, Dateiformat); Planung
+  mit dem Reverse-Engineer-Skill.
 
 ## Stück Z: Bezahlung (nach dem Pilot)
 
 - Erst wenn Pakete und Preise aus den Pilotgesprächen feststehen.
-- Stripe Checkout bzw. Rechnung für Vereine. Der Webhook ruft `app.grant_feature` auf. Läuft
-  die Zahlung aus, endet `valid_until`, und die Funktionen gehen aus, die Daten bleiben.
-- Seite „Paket und Rechnung“ für den Vereins-Admin.
+- Ein Bezahl-Webhook (Stripe) ruft `app.grant_feature` auf. Läuft die Zahlung aus, endet
+  `valid_until`, und die Funktion geht aus; die Daten bleiben.
 
-## Reihenfolge (Empfehlung)
+## Reihenfolge
 
-1. **F Freischaltung.** Das ist das Fundament; danach entsteht jede neue Funktion gleich mit
-   ihrem Schalter.
-2. **1 Besprechung/Turnier.** Klein, in Gesprächen oft gefragt.
-3. **2 Eltern-Zugang.** Wichtig für Jugendvereine, die im Pilot typisch sind.
-4. **3a Video per Link.** Wenig Aufwand, sichtbarer Mehrwert für das Paket „Leistung“.
-5. **4a–4d Playbook.**
-6. **3b Video-Upload.** Erst mit Supabase Pro und wenn die Nachfrage da ist.
-7. **Z Bezahlung.**
-
-Für jedes Stück gilt wie bisher: Sperre auf dem Server, App, vier Sprachen, Tests in der CI,
-Vorher-/Nachher-Screenshots, Live-Test mit Wegwerf-Konten, und beim Abschalten bleiben die Daten.
-
-## Offene Fragen an Ben
-
-- Paketnamen und Preise (Arbeitsnamen oben). Soll der Eltern-Zugang wirklich kostenlos sein?
-- Video: Reichen am Anfang Links (3a), oder muss Hochladen von Anfang an dabei sein?
-- Playbook: Nur Basketball zum Start, oder gleich eine zweite Sportart?
-- Darf ein Head Coach Team-Funktionen selbst einschalten, wenn der Verein sie gebucht hat, oder
-  nur der Vereins-Admin?
+1. **F Freischaltung** (erledigt, Run 86)
+2. **1 Besprechung/Turnier**
+3. **2 Familienkonto**
+4. Video und Playbook als eigene Projekte
+5. **Z Bezahlung**

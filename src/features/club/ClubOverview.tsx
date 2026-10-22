@@ -24,6 +24,7 @@ import { ClubShell, CoachSection } from '@/features/role-workspaces/RoleShell';
 import { AgeLoadFields, TeamHealthSettings } from '@/features/legal/TeamHealthSettings';
 import type { AgeGroup } from '@/shared/data';
 import { TeamStaffPanel } from '@/features/teams/TeamStaffPanel';
+import { ClubFeatureSettings } from '@/features/teams/FeatureSwitches';
 import { displayRoleName } from '@/features/teams/roleLabels';
 import { clubRoleText } from '@/features/club/clubRoleText';
 import { formatShortDate } from '@/shared/format';
@@ -369,7 +370,7 @@ function TeamCard({
               {isRemoteMode() ? t('club.addHeadCoachServer') : t('club.addHeadCoach')}
             </p>
           ) : null}
-          {hasCoachPermission(database, personId, team.id, 'manageStaff') ? <TeamHealthSettings team={team} /> : null}<TeamStaffPanel database={database} teamId={team.id} canManage={hasCoachPermission(database, personId, team.id, 'manageStaff')} />
+          {hasCoachPermission(database, personId, team.id, 'manageStaff') ? <TeamHealthSettings database={database} team={team} /> : null}<TeamStaffPanel database={database} teamId={team.id} canManage={hasCoachPermission(database, personId, team.id, 'manageStaff')} />
           <button type="button" onClick={() => setConfirmArchive(true)} className="justify-self-start text-xs font-bold text-slate-400 underline">
             {t('club.archiveTeam')}
           </button>
@@ -592,6 +593,12 @@ export function ClubOverview() {
             <input value={newDepartment} onChange={(event) => setNewDepartment(event.target.value)} placeholder={t('club.departmentNamePlaceholder')} aria-label={t('club.newDepartmentName')} className={`${inputClass} flex-1`} />
             <button type="submit" disabled={!newDepartment.trim()} className={`${smallButtonClass} border-sky-500/50 text-sky-100 hover:bg-sky-950/35`}>{t('club.addDepartment')}</button>
           </form>
+        </CoachSection>
+      ) : null}
+
+      {admin ? (
+        <CoachSection title={t('features.club.title')} description={t('features.club.detail')}>
+          <ClubFeatureSettings database={database} />
         </CoachSection>
       ) : null}
 

@@ -25,6 +25,7 @@ import {
   POLL_MAX_OPTIONS,
   POLL_MIN_OPTIONS,
   POLL_OPTION_MAX_LENGTH,
+  pollsAllowed,
   postMessage,
   serverMessageReach,
   useLocalDatabase,
@@ -131,11 +132,14 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
   const localReach = chosen ? messageRecipientIds(database, { ...targets, audience, authorId: person.id }).length : 0;
   // The server's count once it answered (or this one when it cannot); until then none.
   const reach = !remote ? localReach : serverReach?.key === reachKey ? serverReach.count ?? localReach : null;
-  const pollReady = !poll || pollOptions.filter((option) => option.trim()).length >= POLL_MIN_OPTIONS;
+  // Polls only where every addressed team uses them (team switch, 0046).
+  const pollsOn = pollsAllowed(database, targets);
+  const asPoll = poll && pollsOn;
+  const pollReady = !asPoll || pollOptions.filter((option) => option.trim()).length >= POLL_MIN_OPTIONS;
 
   function send() {
     try {
-      postMessage({ ...targets, audience, body, important, pinDays, poll: poll ? { options: pollOptions, multiple: pollMultiple } : null });
+      postMessage({ ...targets, audience, body, important, pinDays, poll: asPoll ? { options: pollOptions, multiple: pollMultiple } : null });
       setBody('');
       setPoll(false);
       setPollOptions(['', '']);
@@ -238,12 +242,12 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
         onChange={(event) => { setBody(event.target.value); setError(null); }}
         maxLength={2000}
         rows={3}
-        placeholder={poll ? t('poll.questionPlaceholder') : t('writeMessage.placeholder')}
-        aria-label={poll ? t('poll.question') : t('teamMessages.newMessage')}
+        placeholder={asPoll ? t('poll.questionPlaceholder') : t('writeMessage.placeholder')}
+        aria-label={asPoll ? t('poll.question') : t('teamMessages.newMessage')}
         className="os-field min-h-20 resize-y"
       />
       </div>
-      {poll ? (
+      {asPoll ? (
         <div className="grid gap-1.5">
           {pollOptions.map((value, index) => (
             <div key={index} className="flex items-center gap-1.5">
@@ -272,10 +276,12 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
         </div>
       ) : null}
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <label className="flex items-center gap-2 text-xs font-black text-violet-100">
-          <input type="checkbox" checked={poll} onChange={(event) => { setPoll(event.target.checked); setError(null); }} className="h-4 w-4 accent-violet-300" />
-          {t('poll.label')}
-        </label>
+        {pollsOn ? (
+          <label className="flex items-center gap-2 text-xs font-black text-violet-100">
+            <input type="checkbox" checked={poll} onChange={(event) => { setPoll(event.target.checked); setError(null); }} className="h-4 w-4 accent-violet-300" />
+            {t('poll.label')}
+          </label>
+        ) : null}
         <label className="flex items-center gap-2 text-xs font-black text-rose-100">
           <input type="checkbox" checked={important} onChange={(event) => setImportant(event.target.checked)} className="h-4 w-4 accent-rose-300" />
           {t('teamMessages.important')}

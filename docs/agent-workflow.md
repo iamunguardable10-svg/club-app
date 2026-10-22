@@ -64,3 +64,10 @@ Good candidates for later selective ECC use:
 - frontend accessibility checks
 - verification/test workflows
 - security review support
+
+## Visual improvements seen in screenshots (Ben, 2026-10-22)
+
+When a screenshot taken for any task shows something that can be improved
+visually or in UX (leftover colours, disabled buttons that only take space,
+misplaced sections), fix it right away if it is small and clearly better, or
+ask first if it is a matter of taste. Either way, show before and after.

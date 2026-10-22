@@ -51,12 +51,23 @@ as('athlete-u18-1'); refused('member', () => data.offerRide(game.id)); refused('
 as('coach-1', 'coach');
 const training = seed.sessions.find((s) => s.sessionType === 'training' && Date.parse(s.startsAt) > Date.now())!;
 refused('game', () => data.offerRide(training.id));
+// Departure and meeting point (0047): before the game, at most a day earlier; a pin needs both coordinates.
+as('athlete-u16-4');
+refused('departure', () => data.offerRide(game.id, 2, null, { departAt: game.startsAt }));
+refused('departure', () => data.offerRide(game.id, 2, null, { departAt: new Date(Date.parse(game.startsAt) - 25 * 3_600_000).toISOString() }));
+refused('meetPoint', () => data.offerRide(game.id, 2, null, { meetPoint: 'x'.repeat(121) }));
+const fourth = data.offerRide(game.id, 2, null, { departAt: new Date(Date.parse(game.startsAt) - 3_600_000).toISOString(), meetPoint: '  School car park ', meetLat: 51.45, meetLng: 7.01 });
+assert.equal(db().carpools?.find((c) => c.id === fourth)?.meetPoint, 'School car park');
+data.updateRide(fourth, 2, null, { meetPoint: 'Station', meetLat: 51.45, meetLng: null });
+assert.equal(db().carpools?.find((c) => c.id === fourth)?.meetLat, null, 'half a pin is no pin');
+data.withdrawRide(fourth);
+as('coach-1', 'coach');
 const rows = toServerRows(db());
 const roundtrip = fromServerRows(rows, { userId: 'test', version: seed.version, previous: db() })!;
 assert.deepEqual(roundtrip.carpools, db().carpools);
 assert.deepEqual(roundtrip.carpoolRiders, db().carpoolRiders);
 assert.deepEqual(roundtrip.carpoolRequests, db().carpoolRequests);
-for (const key of ['push.carpoolJoined', 'push.carpoolLeft', 'push.carpoolOffered']) {
+for (const key of ['push.carpoolJoined', 'push.carpoolLeft', 'push.carpoolOffered', 'push.carpoolChanged']) {
   for (const locale of ['de', 'fr', 'es']) {
     const result = renderPush(pushTexts as PushTexts, locale, key, { name: 'Lena', seats: 3, title: 'Game', at: game.startsAt }, { title: 'English', body: 'English' });
     assert.ok(result && result.title.includes('Lena') && !result.body.includes('English'));

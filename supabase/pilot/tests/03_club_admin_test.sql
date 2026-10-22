@@ -46,7 +46,7 @@ select test.expect_count('… the team got its four roles and a join code',
   $q$select 1 from public.teams t where t.id = test.id('ajugend') and exists (select 1 from public.team_join_codes j where j.team_id = t.id) and (select count(*) from public.coach_roles r where r.team_id = t.id) = 4$q$, 1);
 select test.expect_count('… and Frida is its Head Coach, as asked',
   $q$select 1 from public.memberships m join public.coach_roles r on r.id = m.coach_role_id where m.person_id = test.id('frida') and m.team_id = test.id('ajugend') and r.locked$q$, 1);
-select test.expect_count('… new teams track load', $q$select 1 from public.teams where id = test.id('ajugend') and features = array['load']$q$, 1);
+select test.expect_count('… new teams track load', $q$select 1 from public.teams where id = test.id('ajugend') and 'load' = any (features)$q$, 1);
 
 set role authenticated;
 select test.act_as('10000000-0000-0000-0000-000000000052');
@@ -72,7 +72,7 @@ select test.expect_rows('admin: creates a team in it',
   $q$insert into public.teams (id, club_id, department_id, name, features) values ('71000000-0000-0000-0000-000000000002', test.id('club'), 'd1000000-0000-0000-0000-000000000002', 'Damen 1', '{}')$q$, 1);
 reset role;
 select test.expect_count('… which tracks load anyway (features come from the subscription, not the app)',
-  $q$select 1 from public.teams where id = '71000000-0000-0000-0000-000000000002' and features = array['load']$q$, 1);
+  $q$select 1 from public.teams where id = '71000000-0000-0000-0000-000000000002' and 'load' = any (features)$q$, 1);
 set role authenticated;
 select test.act_as('10000000-0000-0000-0000-000000000051');
 select test.expect_error('admin: a team cannot point at another club''s department',

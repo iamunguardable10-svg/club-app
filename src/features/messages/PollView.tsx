@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 
-import { ownVote, pollCounts, votePoll, type LocalDatabase, type Message } from '@/shared/data';
+import { ownVote, pollCounts, pollsAllowed, votePoll, type LocalDatabase, type Message } from '@/shared/data';
 
 import { errorText, useT } from '@/shared/i18n';
 
@@ -37,6 +37,8 @@ export function PollView({
   const showResult = !personId || mine.length > 0 || closed;
   const highest = Math.max(1, ...counts);
   const total = counts.reduce((sum, count) => sum + count, 0);
+  // Polls switched off for the team: the answers stay stored but are not shown.
+  if (!pollsAllowed(database, message)) return null;
 
   function pick(index: number) {
     if (!personId || !canVote) return;

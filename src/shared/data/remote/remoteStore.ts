@@ -80,6 +80,7 @@ export type ChangeVersion = { club_id: string; table_name: string; version: numb
 const RELOAD_ALL = new Set<string>([
   'clubs', 'departments', 'facilities', 'teams', 'department_facilities', 'people', 'coach_roles',
   'memberships', 'club_roles', 'player_groups', 'player_group_members', 'consents',
+  'club_entitlements', 'club_feature_settings',
 ]);
 
 /**

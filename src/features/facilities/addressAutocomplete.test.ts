@@ -23,6 +23,18 @@ check('a hall: its name apart, the address to fill in', () => assert.deepEqual(
   parseGeoapifyResults(place({ place_id: 'abc', name: 'PSD Bank - Halle Nord', street: 'Birkenweg', housenumber: '10', postcode: '67346', city: 'Speyer', country: 'Deutschland', formatted: 'PSD Bank - Halle Nord, Birkenweg 10, 67346 Speyer, Deutschland' })),
   [{ placeId: 'abc', name: 'PSD Bank - Halle Nord', address: 'Birkenweg 10, 67346 Speyer' }],
 ));
+check('with a position: lat and lon come along (the meeting point pin)', () => assert.deepEqual(
+  parseGeoapifyResults(place({ place_id: 'p1', street: 'Nordring', housenumber: '12', postcode: '45141', city: 'Essen', lat: 51.46, lon: 7.01 })),
+  [{ placeId: 'p1', name: null, address: 'Nordring 12, 45141 Essen', lat: 51.46, lon: 7.01 }],
+));
+check('precision: town, street or spot (where the map zooms and whether a pin is set)', () => assert.deepEqual(
+  parseGeoapifyResults({ results: [
+    { place_id: 'c', name: 'Speyer', city: 'Speyer', result_type: 'city', lat: 49.3, lon: 8.4 },
+    { place_id: 's', name: 'Birkenweg', street: 'Birkenweg', city: 'Speyer', result_type: 'street', lat: 49.31, lon: 8.41 },
+    { place_id: 'b', street: 'Birkenweg', housenumber: '10', city: 'Speyer', result_type: 'building', lat: 49.312, lon: 8.412 },
+  ] }).map((place) => place.precision),
+  ['area', 'street', 'spot'],
+));
 check('a plain address: no name', () => assert.deepEqual(
   parseGeoapifyResults(place({ place_id: 'n1', street: 'Nordring', housenumber: '12', postcode: '45141', city: 'Essen' })),
   [{ placeId: 'n1', name: null, address: 'Nordring 12, 45141 Essen' }],

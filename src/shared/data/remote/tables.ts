@@ -10,7 +10,7 @@
  * Everything is pure: no network, no storage.
  */
 
-import { TEAM_FEATURES } from '../schema';
+import { BASIC_FEATURES, TEAM_FEATURES } from '../schema';
 import type {
   Availability,
   LoadSummaryRow,
@@ -38,6 +38,12 @@ type TableSpec = {
   readOnly?: boolean;
 };
 
+/** Known feature keys only, in the app's order. */
+function teamFeatures(value: unknown): TeamFeature[] {
+  const list = Array.isArray(value) ? (value as string[]) : [];
+  return TEAM_FEATURES.filter((feature) => list.includes(feature));
+}
+
 /**
  * In dependency order: a table only refers to tables above it. Inserts and
  * updates run top-down, deletes bottom-up.
@@ -45,6 +51,9 @@ type TableSpec = {
 export const TABLES: readonly TableSpec[] = [
   // Renamed by the club admin (piece 12); founded through a database function.
   { name: 'clubs', key: ['id'], kinds: { created_at: 'timestamp' } },
+  // Unlocked by us (0046); the club admin decides for all teams or leaves it to them.
+  { name: 'club_entitlements', key: ['club_id', 'feature'], readOnly: true },
+  { name: 'club_feature_settings', key: ['club_id', 'feature'] },
   // Created and renamed by the club admin (piece 8).
   { name: 'departments', key: ['id'] },
   { name: 'facilities', key: ['id'] },
@@ -73,7 +82,7 @@ export const TABLES: readonly TableSpec[] = [
   { name: 'absences', key: ['id'], kinds: { created_at: 'timestamp' } },
   // Kind and note live apart: shared only with viewAbsenceReasons (piece 16).
   { name: 'absence_reasons', key: ['absence_id'] },
-  { name: 'carpools', key: ['id'], kinds: { created_at: 'timestamp', seats: 'number' } },
+  { name: 'carpools', key: ['id'], kinds: { created_at: 'timestamp', depart_at: 'timestamp', seats: 'number', meet_lat: 'number', meet_lng: 'number' } },
   { name: 'carpool_riders', key: ['carpool_id', 'person_id'], kinds: { created_at: 'timestamp' } },
   { name: 'carpool_requests', key: ['session_id', 'person_id'], kinds: { created_at: 'timestamp' } },
   { name: 'squad_entries', key: ['session_id', 'person_id'], kinds: { set_at: 'timestamp' } },
@@ -92,7 +101,7 @@ export const TABLES: readonly TableSpec[] = [
 
 export type TableName =
   | 'consents' | 'health_consent_status' | 'person_birth_years'
-  | 'clubs' | 'departments' | 'facilities' | 'teams' | 'team_join_codes' | 'department_facilities' | 'people' | 'coach_roles'
+  | 'clubs' | 'club_entitlements' | 'club_feature_settings' | 'departments' | 'facilities' | 'teams' | 'team_join_codes' | 'department_facilities' | 'people' | 'coach_roles'
   | 'carpools' | 'carpool_riders' | 'carpool_requests'
   | 'staff_invites' | 'club_roles' | 'club_role_invites'
   | 'memberships' | 'player_groups' | 'player_group_members' | 'session_series' | 'sessions'
@@ -142,10 +151,14 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     health_consent_status: (database.healthConsentStatus ?? []).map((c) => ({ person_id: c.personId, active: c.active })),
     person_birth_years: database.people.filter((p) => p.birthYear != null).map((p) => ({ person_id: p.id, birth_year: p.birthYear })),
     clubs: [{ id: database.club.id, name: database.club.name, city: database.club.city, country: database.club.country, created_at: database.club.createdAt }],
+    club_entitlements: (database.clubEntitlements ?? []).map((e) => ({ club_id: e.clubId, feature: e.feature, source: e.source, valid_until: e.validUntil })),
+    club_feature_settings: (database.clubFeatureSettings ?? []).map((f) => ({ club_id: f.clubId, feature: f.feature, mode: f.mode })),
     departments: database.departments.map((d) => ({ id: d.id, club_id: d.clubId, name: d.name })),
     facilities: database.facilities.map((f) => ({ id: f.id, club_id: f.clubId, name: f.name, address: f.address })),
     teams: database.teams.map((t) => ({
-      id: t.id, club_id: t.clubId, department_id: t.departmentId, name: t.name, default_facility_id: t.defaultFacilityId, features: t.features, age_group: t.ageGroup ?? null,
+      // `features` is the server's result and never sent; the team's choice is.
+      id: t.id, club_id: t.clubId, department_id: t.departmentId, name: t.name, default_facility_id: t.defaultFacilityId,
+      feature_choices: t.featureChoices ?? [...new Set([...t.features, ...BASIC_FEATURES])], age_group: t.ageGroup ?? null,
       archived_at: t.archivedAt, created_at: t.createdAt,
     })),
     team_join_codes: database.joinCodes.map((c) => ({ team_id: c.teamId, code: c.code, created_at: c.createdAt })),
@@ -220,7 +233,7 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     absence_reasons: (database.absences ?? [])
       .filter((a) => a.kind !== null)
       .map((a) => ({ absence_id: a.id, kind: a.kind, note: a.note })),
-    carpools: (database.carpools ?? []).map((c) => ({ id: c.id, session_id: c.sessionId, driver_id: c.driverId, seats: c.seats, note: c.note, created_at: c.createdAt })),
+    carpools: (database.carpools ?? []).map((c) => ({ id: c.id, session_id: c.sessionId, driver_id: c.driverId, seats: c.seats, note: c.note, depart_at: c.departAt ?? null, meet_point: c.meetPoint ?? null, meet_lat: c.meetLat ?? null, meet_lng: c.meetLng ?? null, created_at: c.createdAt })),
     carpool_riders: (database.carpoolRiders ?? []).map((r) => ({ carpool_id: r.carpoolId, person_id: r.personId, created_at: r.createdAt })),
     carpool_requests: (database.carpoolRequests ?? []).map((r) => ({ session_id: r.sessionId, person_id: r.personId, created_at: r.createdAt })),
     squad_entries: (database.squadEntries ?? []).map((q) => ({
@@ -278,12 +291,15 @@ export function fromServerRows(
     version: context.version,
     consents: rows.consents.map((c) => ({ id: s(c.id), personId: sn(c.person_id), userId: sn(c.user_id), kind: c.kind as 'terms' | 'health' | 'parent_health', version: s(c.version), givenAt: s(c.given_at), withdrawnAt: sn(c.withdrawn_at), byParentName: sn(c.by_parent_name), byParentEmail: sn(c.by_parent_email) })),
     healthConsentStatus: rows.health_consent_status.map((c) => ({ personId: s(c.person_id), active: Boolean(c.active) })),
+    clubEntitlements: rows.club_entitlements.map((e) => ({ clubId: s(e.club_id), feature: e.feature as TeamFeature, source: e.source as 'pilot' | 'plan' | 'manual', validUntil: sn(e.valid_until) })),
+    clubFeatureSettings: rows.club_feature_settings.map((f) => ({ clubId: s(f.club_id), feature: f.feature as TeamFeature, mode: f.mode === 'on' ? 'on' : 'off' })),
     seededAt: context.previous?.seededAt ?? new Date().toISOString(),
     club: { id: s(club.id), name: s(club.name), city: s(club.city), country: s(club.country), createdAt: s(club.created_at) },
     departments: rows.departments.map((d) => ({ id: s(d.id), clubId: s(d.club_id), name: s(d.name) })),
     teams: rows.teams.map((t) => ({
       id: s(t.id), clubId: s(t.club_id), departmentId: s(t.department_id), name: s(t.name),
-      defaultFacilityId: sn(t.default_facility_id), features: ((t.features as string[] | null) ?? []).filter((f): f is TeamFeature => (TEAM_FEATURES as readonly string[]).includes(f)),
+      defaultFacilityId: sn(t.default_facility_id), features: teamFeatures(t.features),
+      ...(Array.isArray(t.feature_choices) ? { featureChoices: teamFeatures(t.feature_choices) } : {}),
       ageGroup: (sn(t.age_group) as LocalDatabase['teams'][number]['ageGroup']), archivedAt: sn(t.archived_at), createdAt: s(t.created_at),
     })),
     facilities: rows.facilities.map((f) => ({ id: s(f.id), clubId: s(f.club_id), name: s(f.name), address: s(f.address) })),
@@ -375,7 +391,7 @@ export function fromServerRows(
         };
       })
       .sort((a, b) => a.fromDate.localeCompare(b.fromDate)),
-    carpools: rows.carpools.map((c) => ({ id: s(c.id), sessionId: s(c.session_id), driverId: s(c.driver_id), seats: Number(c.seats), note: sn(c.note), createdAt: s(c.created_at) })),
+    carpools: rows.carpools.map((c) => ({ id: s(c.id), sessionId: s(c.session_id), driverId: s(c.driver_id), seats: Number(c.seats), note: sn(c.note), departAt: sn(c.depart_at), meetPoint: sn(c.meet_point), meetLat: c.meet_lat == null ? null : Number(c.meet_lat), meetLng: c.meet_lng == null ? null : Number(c.meet_lng), createdAt: s(c.created_at) })),
     carpoolRiders: rows.carpool_riders.map((r) => ({ carpoolId: s(r.carpool_id), personId: s(r.person_id), createdAt: s(r.created_at) })),
     carpoolRequests: rows.carpool_requests.map((r) => ({ sessionId: s(r.session_id), personId: s(r.person_id), createdAt: s(r.created_at) })),
     squadEntries: rows.squad_entries.map((q) => ({

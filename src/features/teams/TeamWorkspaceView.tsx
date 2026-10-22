@@ -8,7 +8,6 @@ import { OwnTrainingList, useOwnTraining } from '@/features/load/OwnTraining';
 import { shortDate } from '@/features/absences/absenceText';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
-import { getFacilityAccent } from '@/features/facilities/facilityAccent';
 import { playerLoadSummary, type PlayerLoadInput } from '@/features/load/loadAccess';
 import { loadZone } from '@/features/load/loadCalculations';
 import { PlayerLoadDetail } from '@/features/players/PlayerLoadDetail';
@@ -244,6 +243,7 @@ export function TeamWorkspaceView({
   onTogglePlayerGroup,
   onRemovePlayer,
   staffPanel,
+  featuresPanel,
 }: {
   data: TeamWorkspaceData;
   initialSection?: TeamWorkspaceSection;
@@ -266,6 +266,8 @@ export function TeamWorkspaceView({
   onRemovePlayer?: (playerId: string) => void | Promise<void>;
   /** Replaces the read-only staff overview in settings, e.g. with role management. */
   staffPanel?: ReactNode;
+  /** Age group and the team's features, for whoever may configure the team. */
+  featuresPanel?: ReactNode;
 }) {
   const t = useT();
   const [activeSection, setActiveSection] = useState<TeamWorkspaceSection>(initialSection);
@@ -283,7 +285,6 @@ export function TeamWorkspaceView({
   const [removePlayerTarget, setRemovePlayerTarget] = useState<TeamWorkspacePlayer | null>(null);
   const [isRemovingPlayer, setIsRemovingPlayer] = useState(false);
   // Same accent as the hall list, seeded by the hall id.
-  const selectedFacilityAccent = data.defaultFacilityId ? getFacilityAccent(data.defaultFacilityId) : null;
   const players = data.players ?? [];
   const sortedPlayers = useMemo(() => [...players].sort((a, b) => {
     if (playerSort === 'az' || data.loadTracked === false) return a.name.localeCompare(b.name);
@@ -695,18 +696,14 @@ export function TeamWorkspaceView({
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
           <h2 className="text-lg font-black">{t('team.section.settings')}</h2>
           <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-3">
-            <div
-              className="max-w-sm rounded-2xl border border-slate-800 bg-slate-950/70 p-3"
-              style={selectedFacilityAccent ? { borderColor: selectedFacilityAccent.hex, backgroundColor: selectedFacilityAccent.softHex } : undefined}
-            >
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
               <p className="text-sm font-black text-slate-100">{t('team.defaultHall')}</p>
               {data.availableFacilities && data.availableFacilities.length > 0 ? (
                 <select
                   value={data.defaultFacilityId ?? ''}
                   onChange={(event) => handleDefaultFacilityChange(event.target.value)}
                   disabled={!onDefaultFacilityChange || isSavingDefault}
-                  className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-950/90 px-3 py-2 text-xs font-black text-slate-100 outline-none focus:border-sky-300 disabled:opacity-60"
-                  style={selectedFacilityAccent ? { borderColor: selectedFacilityAccent.hex, color: selectedFacilityAccent.textHex } : undefined}
+                  className="os-field mt-3 w-full disabled:opacity-60"
                 >
                   <option value="">{t('team.noDefaultHall')}</option>
                   {data.availableFacilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
@@ -715,6 +712,7 @@ export function TeamWorkspaceView({
                 <p className="mt-1 text-sm text-slate-400">{t('team.assignHallFirst')}</p>
               )}
             </div>
+            {featuresPanel}
             <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
               <p className="text-sm font-black text-slate-100">{t('team.staffRoles')}</p>
               <div className="mt-4">
