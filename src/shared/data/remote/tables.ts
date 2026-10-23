@@ -64,7 +64,7 @@ export const TABLES: readonly TableSpec[] = [
   { name: 'consents', key: ['id'], kinds: { given_at: 'timestamp', withdrawn_at: 'timestamp' }, readOnly: true },
   { name: 'health_consent_status', key: ['person_id'], readOnly: true },
   { name: 'person_birth_years', key: ['person_id'], readOnly: true },
-  { name: 'people', key: ['id'], kinds: { created_at: 'timestamp' } },
+  { name: 'people', key: ['id'], kinds: { created_at: 'timestamp', photo_at: 'timestamp' } },
   { name: 'coach_roles', key: ['id'], kinds: { created_at: 'timestamp' } },
   { name: 'memberships', key: ['id'], kinds: { created_at: 'timestamp' } },
   { name: 'club_roles', key: ['id'], kinds: { created_at: 'timestamp' } },
@@ -175,7 +175,7 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     })),
     department_facilities: database.departmentFacilities.map((l) => ({ department_id: l.departmentId, facility_id: l.facilityId })),
     people: database.people.map((p) => ({
-      id: p.id, club_id: p.clubId, user_id: p.userId, first_name: p.firstName, last_name: p.lastName, rsvp_mode: p.rsvpMode ?? 'auto', created_at: p.createdAt,
+      id: p.id, club_id: p.clubId, user_id: p.userId, first_name: p.firstName, last_name: p.lastName, rsvp_mode: p.rsvpMode ?? 'auto', photo_at: p.photoAt ?? null, created_at: p.createdAt,
     })),
     coach_roles: database.coachRoles.map((r) => ({
       id: r.id, team_id: r.teamId, name: r.name, permissions: r.permissions, locked: r.locked, created_at: r.createdAt,
@@ -316,7 +316,7 @@ export function fromServerRows(
     people: rows.people.map((p) => ({
       id: s(p.id), clubId: s(p.club_id), userId: sn(p.user_id), firstName: s(p.first_name), lastName: s(p.last_name),
       birthYear: rows.person_birth_years.find((b) => b.person_id === p.id)?.birth_year as number | null | undefined,
-      rsvpMode: p.rsvp_mode === 'manual' ? 'manual' as const : 'auto' as const, createdAt: s(p.created_at),
+      rsvpMode: p.rsvp_mode === 'manual' ? 'manual' as const : 'auto' as const, photoAt: sn(p.photo_at), createdAt: s(p.created_at),
     })),
     memberships: rows.memberships.map((m) => ({
       id: s(m.id), personId: s(m.person_id), teamId: s(m.team_id), role: m.role as 'coach' | 'athlete',

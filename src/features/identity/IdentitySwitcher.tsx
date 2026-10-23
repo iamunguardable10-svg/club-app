@@ -22,6 +22,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 
 import { LocalModeLink } from '@/features/access/LocalModeLink';
+import { PersonAvatar } from '@/features/people/PersonPhoto';
 import { SignOutButton } from '@/features/access/SignOutButton';
 import { ReportProblemDialog } from '@/features/errors/ReportProblemDialog';
 
@@ -172,7 +173,7 @@ export function IdentitySwitcher({ className = '', variant = 'card', extraAction
           aria-label={`${label}. ${remoteMode ? t('identity.account') : t('identity.switchRole')}`}
           className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-700 bg-slate-900 text-xs font-black text-slate-100 ${className}`}
         >
-          {initials}
+          {current ? <PersonAvatar personId={current.id} name={displayName(current)} size="sm" /> : initials}
         </button>
       ) : (
         <button
@@ -180,7 +181,7 @@ export function IdentitySwitcher({ className = '', variant = 'card', extraAction
           onClick={() => setOpen(true)}
           className={`flex min-w-0 items-center gap-2.5 rounded-2xl border border-slate-800 bg-slate-950/70 px-2.5 py-2 text-left text-xs font-bold text-slate-200 transition hover:border-slate-600 ${className}`}
         >
-          <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-800 text-[11px] font-black text-slate-100">{initials}</span>
+          {current ? <PersonAvatar personId={current.id} name={displayName(current)} size="sm" /> : <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-800 text-[11px] font-black text-slate-100">{initials}</span>}
           <span className="min-w-0">
             <span className="block truncate text-sm font-black text-white">{current ? displayName(current) : t('identity.chooseRole')}</span>
             <span className="block truncate text-[11px] text-slate-400">{current ? t(ROLE_LABEL[identity!.role]) : ''}{remoteMode ? t('identity.accountSuffix') : t('identity.switchSuffix')}</span>

@@ -7,8 +7,23 @@ import { ownPersonIds, readDatabase, setActiveIdentity, signOut, type IdentityRo
 import { useT } from '@/shared/i18n';
 import { LanguagePicker } from '@/shared/i18n/LanguagePicker';
 
+/** Where someone is on their way in: the steps by name, the current one lit. */
+export function OnboardingSteps({ labels, current }: { labels: string[]; current: number }) {
+  const t = useT();
+  return (
+    <ol className="mt-4 grid gap-1.5" style={{ gridTemplateColumns: `repeat(${labels.length}, minmax(0, 1fr))` }} aria-label={t('onboarding.steps', { current: current + 1, total: labels.length })}>
+      {labels.map((label, index) => (
+        <li key={label} aria-current={index === current ? 'step' : undefined} className="min-w-0">
+          <span className={`block h-1 rounded-full ${index <= current ? 'bg-emerald-300' : 'bg-slate-800'}`} />
+          <span className={`mt-1.5 block truncate text-[11px] font-black ${index === current ? 'text-white' : index < current ? 'text-emerald-200/80' : 'text-slate-500'}`}>{label}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 /** The frame of the onboarding pages (/join, /found). */
-export function OnboardingShell({ title, children }: { title: string; children: React.ReactNode }) {
+export function OnboardingShell({ title, steps, demoLink = true, children }: { title: string; steps?: { labels: string[]; current: number }; demoLink?: boolean; children: React.ReactNode }) {
   const t = useT();
   return (
     <main className="os-page">
@@ -19,10 +34,11 @@ export function OnboardingShell({ title, children }: { title: string; children: 
             <LanguagePicker compact />
           </div>
           <h1 className="os-title mt-2">{title}</h1>
+          {steps ? <OnboardingSteps labels={steps.labels} current={steps.current} /> : null}
         </header>
         {children}
         <LegalLinks />
-        <LocalModeLink />
+        {demoLink ? <LocalModeLink /> : null}
       </div>
     </main>
   );
@@ -44,10 +60,10 @@ export function AccountLine({ account }: { account: { email: string } }) {
 
 /**
  * After joining, accepting or founding: act as the new role and go to its
- * start page. `teamId` names the team for a team role; without one (or for
- * `club`) the club role is used.
+ * start page (or `path`). `teamId` names the team for a team role; without
+ * one (or for `club`) the club role is used.
  */
-export function continueAs(role: IdentityRole, teamId: string | null = null) {
+export function continueAs(role: IdentityRole, teamId: string | null = null, path: string = HOME_FOR_ROLE[role]) {
   const database = readDatabase();
   const own = database ? ownPersonIds(database) : [];
   let personId: string | undefined;
@@ -57,5 +73,5 @@ export function continueAs(role: IdentityRole, teamId: string | null = null) {
     personId = database.memberships.find((m) => m.teamId === teamId && m.role === role && own.includes(m.personId))?.personId;
   }
   if (personId) setActiveIdentity({ role, personId });
-  window.location.assign(HOME_FOR_ROLE[role]);
+  window.location.assign(path);
 }

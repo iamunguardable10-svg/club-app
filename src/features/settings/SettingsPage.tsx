@@ -22,6 +22,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { PhoneCalendarSection } from '@/features/calendar/PhoneCalendarSection';
+import { PhotoPicker, usePhotoUrl } from '@/features/people/PersonPhoto';
 import { InstallHint } from '@/features/install/InstallHint';
 import { SignOutButton } from '@/features/access/SignOutButton';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
@@ -43,6 +44,8 @@ import {
   ownPersonIds,
   renameClub,
   renameOwnPerson,
+  removeOwnPhoto,
+  setOwnPhoto,
   rsvpModeOf,
   setOwnRsvpMode,
   saveNotificationSettings,
@@ -182,6 +185,7 @@ function AccountSection({ person, remote }: { person: Person | null; remote: boo
   return (
     <CoachSection title={t('settings.account')} description={remote ? undefined : t('settings.accountDemo')}>
       <div className="grid gap-5">
+        {person ? <PhotoForm key={`photo-${person.id}`} person={person} /> : null}
         {person ? <NameForm key={person.id} person={person} /> : null}
         {remote ? <EmailForm /> : null}
         {remote ? <PasswordForm /> : null}
@@ -215,6 +219,26 @@ function useFormResult() {
     }
   }
   return { result, busy, run, clear: () => setResult(null) };
+}
+
+/** One's own profile photo: shown to the club next to one's name (0050). */
+function PhotoForm({ person }: { person: Person }) {
+  const t = useT();
+  const src = usePhotoUrl(person);
+  const { result, busy, run } = useFormResult();
+  return (
+    <div className="grid gap-2">
+      <p className={labelClass}>{t('photo.title')}</p>
+      <PhotoPicker
+        name={`${person.firstName} ${person.lastName}`}
+        src={src}
+        busy={busy}
+        onPick={(photo) => run(() => setOwnPhoto(person.id, photo), 'photo.saved')}
+        onRemove={() => run(() => removeOwnPhoto(person.id), 'photo.removed')}
+      />
+      <Message text={result?.text ?? null} error={result?.error} />
+    </div>
+  );
 }
 
 function NameForm({ person }: { person: Person }) {

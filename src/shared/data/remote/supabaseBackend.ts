@@ -124,7 +124,7 @@ export function supabaseRemoteClient(supabase: SupabaseClient, storage?: KeyValu
         // so the screen shows the saved state instead of waiting forever.
         const { data, error, status } = await supabase
           .from(table)
-          .select(table === 'people' ? 'id,club_id,user_id,first_name,last_name,rsvp_mode,created_at' : '*')
+          .select(table === 'people' ? 'id,club_id,user_id,first_name,last_name,rsvp_mode,photo_at,created_at' : '*')
           .range(from, from + PAGE_SIZE - 1)
           .abortSignal(AbortSignal.timeout(LOAD_TIMEOUT_MS));
         if (error) fail(table, 'Loading', error, status);

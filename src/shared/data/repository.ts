@@ -202,6 +202,87 @@ export function dismissHint(name: HintName): void {
   }
 }
 
+const ONBOARDING_DRAFT_KEY = 'club-app.onboarding-draft';
+
+/**
+ * What someone typed before making an account (name, birth year, consent),
+ * for the way in it belongs to (`for`: the join code, invitation or founding
+ * code). It outlives the confirmation mail, so nothing is asked twice, and is
+ * removed once they are in.
+ */
+export type OnboardingDraft = { for: string; firstName: string; lastName: string; consent: AccessConsent };
+
+export function readOnboardingDraft(forWay: string): OnboardingDraft | null {
+  if (!isBrowser()) return null;
+  try {
+    const raw = window.localStorage.getItem(ONBOARDING_DRAFT_KEY);
+    const draft = raw ? (JSON.parse(raw) as OnboardingDraft) : null;
+    return draft && draft.for === forWay && draft.consent ? draft : null;
+  } catch {
+    return null;
+  }
+}
+
+export function storeOnboardingDraft(draft: OnboardingDraft): void {
+  if (!isBrowser()) return;
+  try {
+    window.localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // Not remembered: after the confirmation mail the step is asked again.
+  }
+}
+
+export function clearOnboardingDraft(): void {
+  if (!isBrowser()) return;
+  try {
+    window.localStorage.removeItem(ONBOARDING_DRAFT_KEY);
+  } catch {
+    // Nothing to remove.
+  }
+}
+
+const PENDING_PHOTO_KEY = 'club-app.pending-photo';
+
+/**
+ * A profile photo picked before the account existed (a small data URL). It
+ * is put on the person once they are in, on the club server only.
+ */
+export function readPendingPhoto(): string | null {
+  if (!isBrowser()) return null;
+  try {
+    return window.localStorage.getItem(PENDING_PHOTO_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function storePendingPhoto(dataUrl: string | null): void {
+  if (!isBrowser()) return;
+  try {
+    if (dataUrl) window.localStorage.setItem(PENDING_PHOTO_KEY, dataUrl);
+    else window.localStorage.removeItem(PENDING_PHOTO_KEY);
+  } catch {
+    // Not remembered: the photo can still be added in the settings.
+  }
+}
+
+/** Puts a photo picked before the account on one's person, once (club server only). */
+export async function applyPendingPhoto(): Promise<void> {
+  const pending = readPendingPhoto();
+  if (!pending || !isRemoteMode()) return;
+  const database = readDatabase();
+  if (!database) return;
+  const person = database.people.find((candidate) => ownPersonIds(database).includes(candidate.id));
+  if (!person) return;
+  if (person.photoAt) { storePendingPhoto(null); return; }
+  // Decoded by hand: the content security policy does not let `fetch` read data URLs.
+  const [header, body] = pending.split(',');
+  const bytes = Uint8Array.from(atob(body ?? ''), (char) => char.charCodeAt(0));
+  await setOwnPhoto(person.id, new Blob([bytes], { type: /data:([^;]+)/.exec(header ?? '')?.[1] ?? 'image/jpeg' }));
+  // Only once it is up: a failed upload is tried again on the next start.
+  storePendingPhoto(null);
+}
+
 const LAST_COACH_TEAM_KEY = 'club-app.last-coach-team';
 
 /** The team a coach looked at last on this device, or null. Whether it still exists is the caller's check. */
@@ -598,7 +679,8 @@ function authError(message: string): LocalDataError {
     [/password should be at least (\d+)/i, 'The password is too short.', 'auth.error.passwordTooShort'],
     [/rate limit|too many/i, 'Too many attempts. Please wait a moment and try again.', 'auth.error.tooManyAttempts'],
     [/not authorized/i, 'The server cannot send mail to this address right now.', 'auth.error.cannotSendMail'],
-    [/unable to validate email|invalid format|invalid email/i, 'This email address does not look valid.', 'auth.error.invalidEmail'],
+    // Supabase says 'Email address "x@y" is invalid' for addresses it will not take (e.g. made-up domains).
+    [/unable to validate email|invalid format|invalid email|email address .* is invalid/i, 'This email address does not look valid.', 'auth.error.invalidEmail'],
   ];
   const match = known.find(([pattern]) => pattern.test(message));
   return match ? new LocalDataError(match[1], undefined, match[2]) : new LocalDataError(message);
@@ -3599,4 +3681,72 @@ export async function playbookLink(playbook: Playbook): Promise<string> {
   if (!isRemoteMode()) return playbook.filePath;
   const files = await import('./remote/playbookFiles');
   return files.playbookFileLink(playbook.filePath);
+}
+
+// ---------------------------------------------------------------------------
+// Profile photos (0050)
+// ---------------------------------------------------------------------------
+
+/** The photo as the app makes it (square, about 256 px, JPEG): a few dozen KB. */
+export const PHOTO_MAX_BYTES = 400_000;
+
+function requireOwnPerson(database: LocalDatabase, personId: Id): Person {
+  if (!ownPersonIds(database).includes(personId)) throw new LocalDataError('You can only change your own photo.');
+  const person = database.people.find((candidate) => candidate.id === personId);
+  if (!person) throw new LocalDataError(`Unknown person: ${personId}`);
+  return person;
+}
+
+/** Puts (or replaces) one's own profile photo. */
+export async function setOwnPhoto(personId: Id, photo: Blob): Promise<void> {
+  const database = readDatabase();
+  if (!database) throw new LocalDataError('The data is not loaded yet.');
+  const person = requireOwnPerson(database, personId);
+  if (photo.size <= 0 || photo.size > PHOTO_MAX_BYTES) throw new LocalDataError('The photo is too large.');
+  const now = new Date().toISOString();
+  if (isRemoteMode()) {
+    const files = await import('./remote/avatarFiles');
+    await files.uploadAvatar(files.avatarPath(person.clubId, person.id), photo);
+    mutate((draft) => { requireOwnPerson(draft, personId).photoAt = now; });
+    return;
+  }
+  const dataUrl = await readAsDataUrl(photo);
+  mutate((draft) => {
+    const own = requireOwnPerson(draft, personId);
+    own.photo = dataUrl;
+    own.photoAt = now;
+  });
+}
+
+export async function removeOwnPhoto(personId: Id): Promise<void> {
+  const database = readDatabase();
+  if (!database) throw new LocalDataError('The data is not loaded yet.');
+  const person = requireOwnPerson(database, personId);
+  if (isRemoteMode() && person.photoAt) {
+    const files = await import('./remote/avatarFiles');
+    await files.removeAvatar(files.avatarPath(person.clubId, person.id));
+  }
+  mutate((draft) => {
+    const own = requireOwnPerson(draft, personId);
+    own.photo = null;
+    own.photoAt = null;
+  });
+}
+
+/** Links to show the photos of these people (those that have one), by person id. */
+export async function personPhotoLinks(people: readonly Person[]): Promise<Map<Id, string>> {
+  const withPhoto = people.filter((person) => person.photoAt);
+  const links = new Map<Id, string>();
+  if (!isRemoteMode()) {
+    for (const person of withPhoto) if (person.photo) links.set(person.id, person.photo);
+    return links;
+  }
+  if (withPhoto.length === 0) return links;
+  const files = await import('./remote/avatarFiles');
+  const byPath = await files.avatarLinks(withPhoto.map((person) => files.avatarPath(person.clubId, person.id)));
+  for (const person of withPhoto) {
+    const link = byPath.get(files.avatarPath(person.clubId, person.id));
+    if (link) links.set(person.id, link);
+  }
+  return links;
 }

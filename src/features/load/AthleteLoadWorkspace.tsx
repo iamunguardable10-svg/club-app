@@ -251,9 +251,10 @@ function Metric({ label, value, tone = 'default' }: { label: string; value: stri
     <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-2.5 sm:p-4 ${toneClass}`}>
       <div>
         <p className="text-[10px] font-black leading-tight text-slate-400 sm:text-[11px]">{label}</p>
-        <p className="mt-2 flex items-center gap-1.5 text-lg font-black tracking-tight sm:text-2xl">
-          <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} />
-          <span className="truncate">{value}</span>
+        <p className="mt-2 flex items-start gap-1.5 text-lg font-black leading-tight tracking-tight sm:text-2xl">
+          <span aria-hidden="true" className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} />
+          {/* Words like "Im Aufbau" wrap instead of being cut off in the narrow card. */}
+          <span className="min-w-0 break-words">{value}</span>
         </p>
       </div>
     </div>
