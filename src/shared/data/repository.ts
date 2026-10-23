@@ -82,6 +82,12 @@ import {
   type Team,
   type TeamFeature,
   type ClubFeatureMode,
+  PLAYBOOK_CATEGORIES,
+  PLAYBOOK_FILE_TYPES,
+  type Playbook,
+  type PlaybookCategory,
+  type PlaybookFileType,
+  DEFAULT_ON_FEATURES,
 } from './schema';
 
 type Listener = () => void;
@@ -1358,7 +1364,7 @@ export function teamHasFeature(database: LocalDatabase, teamId: Id | null, featu
 
 /** The team's own choice (older documents: the switched-on features plus the basic ones). */
 export function teamFeatureChoices(team: Team): TeamFeature[] {
-  return team.featureChoices ?? [...new Set([...team.features, ...BASIC_FEATURES])];
+  return team.featureChoices ?? [...new Set([...team.features, ...DEFAULT_ON_FEATURES])];
 }
 
 /** Whether the club has this feature unlocked (always for basic ones; everything in the local test mode). */
@@ -1758,7 +1764,7 @@ export function createTeam(departmentId: Id, name: string, ageGroup: AgeGroup | 
     const now = new Date().toISOString();
     database.teams.push({
       id, clubId: department.clubId, departmentId, name: clean, defaultFacilityId: null,
-      ageGroup, features: [], featureChoices: TEAM_FEATURES.filter((feature) => (feature === 'load' ? load : BASIC_FEATURES.includes(feature))), archivedAt: null, createdAt: now,
+      ageGroup, features: [], featureChoices: TEAM_FEATURES.filter((feature) => (feature === 'load' ? load : DEFAULT_ON_FEATURES.includes(feature))), archivedAt: null, createdAt: now,
     });
     refreshTeamFeatures(database, department.clubId);
     if (!remote) {
@@ -3412,4 +3418,184 @@ export function updateTeamHealthSettings(teamId: Id, ageGroup: AgeGroup | null, 
     team.featureChoices = TEAM_FEATURES.filter((feature) => (feature === 'load' ? load : choices.includes(feature)));
     refreshTeamFeatures(database, team.clubId);
   });
+}
+
+// ---------------------------------------------------------------------------
+// Playbooks (0049): coaches upload plays and release them to players.
+// ---------------------------------------------------------------------------
+
+/** On the server 20 MB; in the local test mode the file lives in the browser's storage. */
+export const PLAYBOOK_MAX_BYTES = 20 * 1024 * 1024;
+const PLAYBOOK_LOCAL_MAX_BYTES = 1024 * 1024;
+
+export type PlaybookInput = {
+  title: string;
+  description?: string | null;
+  category?: PlaybookCategory;
+};
+
+export type PlaybookRelease = {
+  /** Empty: the whole team. */
+  groupIds: Id[];
+  /** Players see it from then on (null: at once). */
+  releaseAt: Timestamp | null;
+};
+
+function playbookError(key: string): never {
+  const messages: Record<string, string> = {
+    title: 'The playbook needs a title of at most 80 characters.',
+    description: 'The description can be at most 500 characters.',
+    type: 'Only PDF files and pictures (PNG, JPG, WebP) can be uploaded.',
+    size: 'The file can be at most 20 MB.',
+    localSize: 'In the test mode a file can be at most 1 MB.',
+    groups: "A playbook can only be shared with the team's own groups.",
+    missing: 'This playbook no longer exists.',
+    own: 'Only coaches who plan sessions manage playbooks.',
+  };
+  throw new LocalDataError(messages[key], undefined, `playbook.error.${key}`);
+}
+
+/** Coaches who may plan sessions manage the team's playbooks (same as the server). */
+export function canManagePlaybooks(database: LocalDatabase, teamId: Id): boolean {
+  return ownPersonIds(database).some((personId) => hasCoachPermission(database, personId, teamId, 'editSessions'));
+}
+
+function requirePlaybookManager(database: LocalDatabase, teamId: Id) {
+  requireFeature(database, teamId, 'playbook');
+  if (!canManagePlaybooks(database, teamId)) playbookError('own');
+}
+
+function cleanPlaybookInput(input: PlaybookInput) {
+  const title = input.title.trim();
+  if (!title || Array.from(title).length > 80) playbookError('title');
+  const description = input.description?.trim() || null;
+  if (description && Array.from(description).length > 500) playbookError('description');
+  const category = input.category && PLAYBOOK_CATEGORIES.includes(input.category) ? input.category : 'other';
+  return { title, description, category };
+}
+
+/** What a player of the team sees: released, its time has come, for the whole team or one of their groups. */
+export function visiblePlaybooks(database: LocalDatabase, teamId: Id, now = Date.now()): Playbook[] {
+  if (!teamHasFeature(database, teamId, 'playbook')) return [];
+  const all = (database.playbooks ?? []).filter((playbook) => playbook.teamId === teamId)
+    .sort((a, b) => a.position - b.position || b.createdAt.localeCompare(a.createdAt));
+  const own = ownPersonIds(database);
+  if (own.some((personId) => database.memberships.some((m) => m.personId === personId && m.teamId === teamId && m.role === 'coach'))) return all;
+  const groups = new Set(database.playerGroupMembers.filter((member) => own.includes(member.personId)).map((member) => member.groupId));
+  return all.filter((playbook) => playbook.status === 'released'
+    && (!playbook.releaseAt || Date.parse(playbook.releaseAt) <= now)
+    && (playbook.groupIds.length === 0 || playbook.groupIds.some((groupId) => groups.has(groupId))));
+}
+
+/** The player's teams that use the tactics area (today: the playbook). */
+export function athleteTacticsTeams(database: LocalDatabase, personId: Id): Id[] {
+  return database.memberships.filter((m) => m.personId === personId && m.role === 'athlete' && teamHasFeature(database, m.teamId, 'playbook')).map((m) => m.teamId);
+}
+
+/** The player's teams that have released playbooks for them. */
+export function athletePlaybookTeams(database: LocalDatabase, personId: Id): Id[] {
+  const teams = database.memberships.filter((m) => m.personId === personId && m.role === 'athlete').map((m) => m.teamId);
+  return teams.filter((teamId) => visiblePlaybooks(database, teamId).length > 0);
+}
+
+function readAsDataUrl(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Uploads the file, then adds the playbook as a draft. */
+export async function addPlaybook(teamId: Id, input: PlaybookInput, file: File): Promise<Id> {
+  const database = readDatabase();
+  if (!database) throw new LocalDataError('The data is not loaded yet.');
+  requirePlaybookManager(database, teamId);
+  const details = cleanPlaybookInput(input);
+  const fileType = file.type as PlaybookFileType;
+  if (!PLAYBOOK_FILE_TYPES.includes(fileType)) playbookError('type');
+  if (file.size <= 0 || file.size > PLAYBOOK_MAX_BYTES) playbookError('size');
+  const team = database.teams.find((candidate) => candidate.id === teamId);
+  if (!team) playbookError('missing');
+  const id = newId();
+  const fileName = (file.name || 'playbook').replace(/[^\w.\-]+/g, '_').slice(-120) || 'playbook';
+  let filePath: string;
+  if (isRemoteMode()) {
+    filePath = `${team.clubId}/${teamId}/${id}/${fileName}`;
+    const files = await import('./remote/playbookFiles');
+    await files.uploadPlaybookFile(filePath, file, fileType);
+  } else {
+    if (file.size > PLAYBOOK_LOCAL_MAX_BYTES) playbookError('localSize');
+    filePath = await readAsDataUrl(file);
+  }
+  const now = new Date().toISOString();
+  const me = ownPersonIds(database).find((personId) => hasCoachPermission(database, personId, teamId, 'editSessions')) ?? null;
+  mutate((draft) => {
+    draft.playbooks ??= [];
+    const position = Math.min(0, ...draft.playbooks.filter((p) => p.teamId === teamId).map((p) => p.position)) - 1;
+    draft.playbooks.push({
+      id, clubId: team.clubId, teamId, ...details, filePath, fileName, fileType, fileSize: file.size,
+      status: 'draft', groupIds: [], releaseAt: null, releasedAt: null, position, createdBy: me, createdAt: now, updatedAt: now,
+    });
+  });
+  return id;
+}
+
+function requirePlaybook(database: LocalDatabase, playbookId: Id): Playbook {
+  const playbook = database.playbooks?.find((candidate) => candidate.id === playbookId);
+  if (!playbook) playbookError('missing');
+  requirePlaybookManager(database, playbook.teamId);
+  return playbook;
+}
+
+export function updatePlaybook(playbookId: Id, input: PlaybookInput): void {
+  const details = cleanPlaybookInput(input);
+  mutate((database) => {
+    Object.assign(requirePlaybook(database, playbookId), details);
+  });
+}
+
+/** Releases to the team or to groups, at once or from a date; on the server the players get a push. */
+export function releasePlaybook(playbookId: Id, release: PlaybookRelease): void {
+  mutate((database) => {
+    const playbook = requirePlaybook(database, playbookId);
+    const teamGroups = new Set(database.playerGroups.filter((group) => group.teamId === playbook.teamId).map((group) => group.id));
+    if (release.groupIds.some((groupId) => !teamGroups.has(groupId))) playbookError('groups');
+    const wasReleased = playbook.status === 'released';
+    playbook.status = 'released';
+    playbook.groupIds = [...new Set(release.groupIds)];
+    playbook.releaseAt = release.releaseAt;
+    // The server keeps the time itself (0049).
+    if (!isRemoteMode() && !wasReleased) playbook.releasedAt = new Date().toISOString();
+  });
+}
+
+/** Back to a draft: players no longer see it. */
+export function withdrawPlaybook(playbookId: Id): void {
+  mutate((database) => {
+    const playbook = requirePlaybook(database, playbookId);
+    playbook.status = 'draft';
+    if (!isRemoteMode()) playbook.releasedAt = null;
+  });
+}
+
+export async function deletePlaybook(playbookId: Id): Promise<void> {
+  const database = readDatabase();
+  if (!database) return;
+  const playbook = requirePlaybook(database, playbookId);
+  if (isRemoteMode()) {
+    const files = await import('./remote/playbookFiles');
+    await files.removePlaybookFile(playbook.filePath);
+  }
+  mutate((draft) => {
+    draft.playbooks = (draft.playbooks ?? []).filter((candidate) => candidate.id !== playbookId);
+  });
+}
+
+/** A link to open the file: on the server signed for a few minutes, locally the stored file. */
+export async function playbookLink(playbook: Playbook): Promise<string> {
+  if (!isRemoteMode()) return playbook.filePath;
+  const files = await import('./remote/playbookFiles');
+  return files.playbookFileLink(playbook.filePath);
 }

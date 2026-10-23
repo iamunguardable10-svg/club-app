@@ -5,8 +5,8 @@ set client_min_messages = notice;
 insert into public.sessions(id,club_id,department_id,team_id,title,session_type,starts_at,ends_at) values ('57000000-0000-0000-0000-0000000000f1','c7000000-0000-0000-0000-000000000001','d7000000-0000-0000-0000-000000000001','77000000-0000-0000-0000-000000000001','Away game','game',now()+interval '5 days',now()+interval '5 days'+interval '90 minutes'),
  ('57000000-0000-0000-0000-0000000000f2','c7000000-0000-0000-0000-000000000001','d7000000-0000-0000-0000-000000000001','77000000-0000-0000-0000-000000000001','Away game 2','game',now()+interval '6 days',now()+interval '6 days'+interval '90 minutes');
 
-select test.expect_count('pilot: U20 has every feature', $q$select 1 from public.teams where id = '77000000-0000-0000-0000-000000000001' and features = array['attendance','carpools','load','polls','squads']$q$, 1);
-select test.expect_count('Minis (load switched off before 0046) keep the basic features', $q$select 1 from public.teams where id = '77000000-0000-0000-0000-000000000002' and features = array['attendance','carpools','polls','squads']$q$, 1);
+select test.expect_count('pilot: U20 has every feature', $q$select 1 from public.teams where id = '77000000-0000-0000-0000-000000000001' and features = array['attendance','carpools','load','playbook','polls','squads']$q$, 1);
+select test.expect_count('Minis (load switched off before 0046) keep the basic features', $q$select 1 from public.teams where id = '77000000-0000-0000-0000-000000000002' and features = array['attendance','carpools','playbook','polls','squads']$q$, 1);
 
 -- Level 3: the head coach decides for the team.
 set role authenticated;
@@ -66,7 +66,7 @@ select test.expect_count('the nightly check finds nothing to change', $q$select 
 
 -- A club founded now is in the pilot too.
 insert into public.clubs(id, name) values ('c7000000-0000-0000-0000-0000000000f9', 'New club');
-select test.expect_count('new club: pilot entitlement', $q$select 1 from public.club_entitlements where club_id = 'c7000000-0000-0000-0000-0000000000f9' and source = 'pilot'$q$, 1);
+select test.expect_count('new club: pilot entitlements (load, playbook)', $q$select 1 from public.club_entitlements where club_id = 'c7000000-0000-0000-0000-0000000000f9' and source = 'pilot'$q$, 2);
 select test.expect_count('the helpers are not callable over the API', $q$select 1 where has_function_privilege('authenticated', 'app.grant_feature(uuid, text, date, text)', 'execute')$q$, 0);
 
 \echo 'feature unlocking tests passed'

@@ -15,7 +15,7 @@ Stand 2026-10-22 (Entscheidungen von Ben eingearbeitet). Grundlage: Hooplayer-Li
 | Termin-Arten: Besprechung, Turnier | ⚠️ **Besprechung und mehrtägiges Turnier fehlen** |
 | Eltern-Zugang für Jugendteams | ⚠️ nur Eltern-Einwilligung per Link → **Familienkonto** (Stück 2) |
 | Videoanalyse | ❌ später, eigenes Projekt (Stück 3) |
-| Playbook/Taktik-Editor | ❌ später, eigenes Projekt (Stück 4) |
+| Playbook/Taktik-Editor | ✅ Playbook-Reiter mit PDF/Bild und Freigabe (Run 90, 0049); Taktik-Editor später, eigenes Projekt |
 
 ## Entscheidungen (Ben, 2026-10-22)
 

@@ -10,7 +10,7 @@
  * Everything is pure: no network, no storage.
  */
 
-import { BASIC_FEATURES, TEAM_FEATURES } from '../schema';
+import { DEFAULT_ON_FEATURES, TEAM_FEATURES } from '../schema';
 import type {
   Availability,
   LoadSummaryRow,
@@ -21,6 +21,7 @@ import type {
   AbsenceKind,
   SquadStatus,
   MessageAudience,
+  Playbook,
 } from '../schema';
 import type { LoadTrainingType } from '../loadTypes';
 
@@ -85,6 +86,7 @@ export const TABLES: readonly TableSpec[] = [
   { name: 'carpools', key: ['id'], kinds: { created_at: 'timestamp', depart_at: 'timestamp', seats: 'number', meet_lat: 'number', meet_lng: 'number' } },
   { name: 'carpool_riders', key: ['carpool_id', 'person_id'], kinds: { created_at: 'timestamp' } },
   { name: 'carpool_requests', key: ['session_id', 'person_id'], kinds: { created_at: 'timestamp' } },
+  { name: 'playbooks', key: ['id'], kinds: { created_at: 'timestamp', updated_at: 'timestamp', release_at: 'timestamp', released_at: 'timestamp', file_size: 'number', position: 'number' } },
   { name: 'squad_entries', key: ['session_id', 'person_id'], kinds: { set_at: 'timestamp' } },
   { name: 'messages', key: ['id'], kinds: { created_at: 'timestamp', reminded_at: 'timestamp', pinned_until: 'timestamp', poll_closed_at: 'timestamp' } },
   { name: 'message_reads', key: ['message_id', 'person_id'], kinds: { read_at: 'timestamp' } },
@@ -102,7 +104,7 @@ export const TABLES: readonly TableSpec[] = [
 export type TableName =
   | 'consents' | 'health_consent_status' | 'person_birth_years'
   | 'clubs' | 'club_entitlements' | 'club_feature_settings' | 'departments' | 'facilities' | 'teams' | 'team_join_codes' | 'department_facilities' | 'people' | 'coach_roles'
-  | 'carpools' | 'carpool_riders' | 'carpool_requests'
+  | 'carpools' | 'carpool_riders' | 'carpool_requests' | 'playbooks'
   | 'staff_invites' | 'club_roles' | 'club_role_invites'
   | 'memberships' | 'player_groups' | 'player_group_members' | 'session_series' | 'sessions'
   | 'session_series_week_states' | 'availability' | 'availability_reasons' | 'load_entries'
@@ -158,7 +160,7 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     teams: database.teams.map((t) => ({
       // `features` is the server's result and never sent; the team's choice is.
       id: t.id, club_id: t.clubId, department_id: t.departmentId, name: t.name, default_facility_id: t.defaultFacilityId,
-      feature_choices: t.featureChoices ?? [...new Set([...t.features, ...BASIC_FEATURES])], age_group: t.ageGroup ?? null,
+      feature_choices: t.featureChoices ?? [...new Set([...t.features, ...DEFAULT_ON_FEATURES])], age_group: t.ageGroup ?? null,
       archived_at: t.archivedAt, created_at: t.createdAt,
     })),
     team_join_codes: database.joinCodes.map((c) => ({ team_id: c.teamId, code: c.code, created_at: c.createdAt })),
@@ -234,6 +236,12 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     absence_reasons: (database.absences ?? [])
       .filter((a) => a.kind !== null)
       .map((a) => ({ absence_id: a.id, kind: a.kind, note: a.note })),
+    playbooks: (database.playbooks ?? []).map((b) => ({
+      id: b.id, club_id: b.clubId, team_id: b.teamId, title: b.title, description: b.description, category: b.category,
+      file_path: b.filePath, file_name: b.fileName, file_type: b.fileType, file_size: b.fileSize, status: b.status,
+      group_ids: b.groupIds, release_at: b.releaseAt, released_at: b.releasedAt, position: b.position, created_by: b.createdBy,
+      created_at: b.createdAt, updated_at: b.updatedAt,
+    })),
     carpools: (database.carpools ?? []).map((c) => ({ id: c.id, session_id: c.sessionId, driver_id: c.driverId, seats: c.seats, note: c.note, depart_at: c.departAt ?? null, meet_point: c.meetPoint ?? null, meet_lat: c.meetLat ?? null, meet_lng: c.meetLng ?? null, created_at: c.createdAt })),
     carpool_riders: (database.carpoolRiders ?? []).map((r) => ({ carpool_id: r.carpoolId, person_id: r.personId, created_at: r.createdAt })),
     carpool_requests: (database.carpoolRequests ?? []).map((r) => ({ session_id: r.sessionId, person_id: r.personId, created_at: r.createdAt })),
@@ -392,6 +400,13 @@ export function fromServerRows(
         };
       })
       .sort((a, b) => a.fromDate.localeCompare(b.fromDate)),
+    playbooks: (rows.playbooks ?? []).map((b) => ({
+      id: s(b.id), clubId: s(b.club_id), teamId: s(b.team_id), title: s(b.title), description: sn(b.description),
+      category: s(b.category) as Playbook['category'], filePath: s(b.file_path), fileName: s(b.file_name),
+      fileType: s(b.file_type) as Playbook['fileType'], fileSize: Number(b.file_size), status: s(b.status) as Playbook['status'],
+      groupIds: (b.group_ids as string[]) ?? [], releaseAt: sn(b.release_at), releasedAt: sn(b.released_at), position: Number(b.position ?? 0),
+      createdBy: sn(b.created_by), createdAt: s(b.created_at), updatedAt: s(b.updated_at),
+    })),
     carpools: rows.carpools.map((c) => ({ id: s(c.id), sessionId: s(c.session_id), driverId: s(c.driver_id), seats: Number(c.seats), note: sn(c.note), departAt: sn(c.depart_at), meetPoint: sn(c.meet_point), meetLat: c.meet_lat == null ? null : Number(c.meet_lat), meetLng: c.meet_lng == null ? null : Number(c.meet_lng), createdAt: s(c.created_at) })),
     carpoolRiders: rows.carpool_riders.map((r) => ({ carpoolId: s(r.carpool_id), personId: s(r.person_id), createdAt: s(r.created_at) })),
     carpoolRequests: rows.carpool_requests.map((r) => ({ sessionId: s(r.session_id), personId: s(r.person_id), createdAt: s(r.created_at) })),

@@ -29,6 +29,7 @@ export type DemoTexts = {
   messages: { kit: string; game: string; dinner: string; dinnerOptions: [string, string, string]; general: string; camp: string; volleyball: string; u18: string };
   carpool: { meetPoint: string; note: string };
   reviewNote: string;
+  playbooks: { horns: [string, string]; press: [string, string]; ato: [string, string] };
 };
 
 const EN: DemoTexts = {
@@ -61,6 +62,11 @@ const EN: DemoTexts = {
   },
   carpool: { meetPoint: 'Club car park, Nordring', note: 'Room for one kit bag each.' },
   reviewNote: '90 minutes at RPE 10 – was it really that hard?',
+  playbooks: {
+    horns: ['Horns', 'Our main set: both bigs at the elbows, screen and roll for the point guard.'],
+    press: ['1-2-2 press', 'After made baskets: push the ball to the side line and trap.'],
+    ato: ['ATO side line', 'After a time-out, inbound from the side line: screen for 3.'],
+  },
 };
 
 const DE: DemoTexts = {
@@ -93,6 +99,11 @@ const DE: DemoTexts = {
   },
   carpool: { meetPoint: 'Vereinsparkplatz, Nordring', note: 'Platz für je eine Sporttasche.' },
   reviewNote: '90 Minuten mit RPE 10 – war es wirklich so hart?',
+  playbooks: {
+    horns: ['Horns', 'Unser Hauptspielzug: beide Großen an den Ellenbogen, Block und Abrollen für den Aufbau.'],
+    press: ['1-2-2-Presse', 'Nach eigenen Körben: Ball an die Seitenlinie drängen und doppeln.'],
+    ato: ['Einwurf Seitenlinie', 'Nach der Auszeit, Einwurf von der Seite: Block für die 3.'],
+  },
 };
 
 const FR: DemoTexts = {
@@ -125,6 +136,11 @@ const FR: DemoTexts = {
   },
   carpool: { meetPoint: 'Parking du club, Nordring', note: 'Place pour un sac chacun.' },
   reviewNote: '90 minutes à RPE 10 – était-ce vraiment si dur ?',
+  playbooks: {
+    horns: ['Horns', 'Notre système principal : les deux intérieurs aux coudes, écran et roll pour le meneur.'],
+    press: ['Presse 1-2-2', 'Après un panier marqué : pousser le ballon vers la ligne de touche et piéger.'],
+    ato: ['Remise en jeu latérale', 'Après un temps mort, remise en jeu sur le côté : écran pour le 3.'],
+  },
 };
 
 const ES: DemoTexts = {
@@ -157,6 +173,11 @@ const ES: DemoTexts = {
   },
   carpool: { meetPoint: 'Aparcamiento del club, Nordring', note: 'Sitio para una bolsa cada uno.' },
   reviewNote: '90 minutos con RPE 10: ¿de verdad fue tan duro?',
+  playbooks: {
+    horns: ['Horns', 'Nuestra jugada principal: los dos interiores en los codos, bloqueo y continuación para el base.'],
+    press: ['Presión 1-2-2', 'Tras canasta propia: llevar el balón a la banda y hacer el 2x1.'],
+    ato: ['Saque de banda', 'Tras tiempo muerto, saque desde la banda: bloqueo para el 3.'],
+  },
 };
 
 export const DEMO_TEXTS: Record<Locale, DemoTexts> = { en: EN, de: DE, fr: FR, es: ES };

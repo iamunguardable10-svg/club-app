@@ -74,12 +74,14 @@ export const COACH_PERMISSION_REQUIRES: Partial<Record<CoachPermission, CoachPer
  * chose it (or the club switched it on for all). The server keeps the result
  * in `teams.features`; the app computes the same (`teamHasFeature`).
  */
-export const TEAM_FEATURES = ['load', 'carpools', 'polls', 'squads', 'attendance'] as const;
+export const TEAM_FEATURES = ['load', 'carpools', 'polls', 'squads', 'attendance', 'playbook'] as const;
 export type TeamFeature = (typeof TEAM_FEATURES)[number];
 /** Features that need an entitlement (paid packages; unlocked in the pilot). */
-export const PAID_FEATURES: readonly TeamFeature[] = ['load'];
+export const PAID_FEATURES: readonly TeamFeature[] = ['load', 'playbook'];
 /** Basic features every new team starts with. */
 export const BASIC_FEATURES: readonly TeamFeature[] = ['carpools', 'polls', 'squads', 'attendance'];
+/** On for a new team (or one without own choices), as the server's `app.default_feature_choices` (0049). */
+export const DEFAULT_ON_FEATURES: readonly TeamFeature[] = [...BASIC_FEATURES, 'playbook'];
 
 /** Unlocked for a club by us (pilot, package or by hand), until the end of `validUntil`. */
 export type ClubEntitlement = { clubId: Id; feature: TeamFeature; source: 'pilot' | 'plan' | 'manual'; validUntil: string | null };
@@ -279,6 +281,37 @@ export type SquadEntry = {
   status: SquadStatus;
   setBy: Id | null;
   setAt: Timestamp;
+};
+
+/** Playbooks (0049): plays, tactics or routines a coach uploads and releases to players. */
+export const PLAYBOOK_CATEGORIES = ['offense', 'defense', 'set_pieces', 'other'] as const;
+export type PlaybookCategory = (typeof PLAYBOOK_CATEGORIES)[number];
+export const PLAYBOOK_FILE_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'] as const;
+export type PlaybookFileType = (typeof PLAYBOOK_FILE_TYPES)[number];
+
+export type Playbook = {
+  id: Id;
+  clubId: Id;
+  teamId: Id;
+  title: string;
+  description: string | null;
+  category: PlaybookCategory;
+  /** In the storage bucket `playbooks` (`<club>/<team>/<id>/<name>`); in the local test mode a URL. */
+  filePath: string;
+  fileName: string;
+  fileType: PlaybookFileType;
+  fileSize: number;
+  /** A draft is for the staff only. */
+  status: 'draft' | 'released';
+  /** Empty: the whole team. */
+  groupIds: Id[];
+  /** Released, but players see it only from then on (null: at once). */
+  releaseAt: Timestamp | null;
+  releasedAt: Timestamp | null;
+  position: number;
+  createdBy: Id | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 };
 
 export type Carpool = {
@@ -647,6 +680,7 @@ export type LocalDatabase = {
   carpools?: Carpool[];
   carpoolRiders?: CarpoolRider[];
   carpoolRequests?: CarpoolRequest[];
+  playbooks?: Playbook[];
   messages: Message[];
   messageReads: MessageRead[];
   /** Votes on polls (piece B): players have only their own on the club server. */

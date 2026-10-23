@@ -107,6 +107,8 @@ export function buildPush(t: Translate, format: PushFormat, titles: Record<strin
     case 'push.carpoolOffered':
     case 'push.carpoolCancelled':
       return { title: t(`${key}.title`, { name: str(params.name), seats: str(params.seats) }), body: t('push.carpool.body', { title: title(params.title), when: format.when(str(params.at)) }) };
+    case 'push.playbook':
+      return { title: t('push.playbook.title', { team: str(params.team) }), body: t('push.playbook.body', { title: str(params.title) }) };
     case 'push.joined':
       return { title: t('push.joined.title', { team: str(params.team) }), body: t('push.joined.body', { name: str(params.name) }) };
     default:
