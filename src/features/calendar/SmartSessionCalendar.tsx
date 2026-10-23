@@ -225,7 +225,7 @@ export function SmartSessionCalendar({
             <button type="button" onClick={onNextWeek} className="grid h-8 w-8 place-items-center rounded-full border border-slate-700 bg-slate-950/70 text-sm font-black text-slate-200 hover:border-slate-500" aria-label={t('calendar.nextWeek')}>›</button>
           ) : null}
           {onResetWeek && !isCurrentWeek ? (
-            <button type="button" onClick={onResetWeek} className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-black text-slate-200 hover:border-emerald-300/70">{t('calendar.backToThisWeek')}</button>
+            <button type="button" onClick={onResetWeek} aria-label={t('calendar.backToThisWeek')} className="grid h-8 min-w-8 place-items-center rounded-full border border-slate-700 bg-slate-950/70 px-2 text-xs font-black text-slate-200 hover:border-emerald-300/70 md:px-3">{/* On phones only the arrow, so the edit button stays on the row. */}<span aria-hidden className="md:hidden">↺</span><span aria-hidden className="hidden md:inline">{t('calendar.backToThisWeek')}</span></button>
           ) : null}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -273,7 +273,7 @@ export function SmartSessionCalendar({
 
       <section className={`${mobileCalendarView === 'week' ? 'block' : 'hidden'} overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden`}>
         <div className="grid grid-cols-[34px_repeat(7,minmax(0,1fr))] border-b border-slate-800 text-[9px] font-black uppercase tracking-[0.08em] text-slate-500">
-          <div className="bg-slate-950/95 p-1.5">{t('calendar.time')}</div>
+          <div className="bg-slate-950/95 p-1.5"><span className="sr-only">{t('calendar.time')}</span></div>
           {days.map((day, index) => (
             <button key={day.toISOString()} type="button" onClick={() => { onMobileDaySelect(index); onMobileCalendarViewChange('day'); }} className={`border-l border-slate-800 p-1.5 ${activeDayIndex === index ? 'bg-sky-300 text-slate-950' : ''}`}>
               <span className="block">{formatDay(day).slice(0, 2)}</span>
