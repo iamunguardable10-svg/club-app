@@ -102,6 +102,8 @@ Knopf live. Vorher-/Nachher-Bilder, vier Sprachen.
 
 ## Stück 1: Besprechung und mehrtägiges Turnier (Basis, immer an)
 
+**1a Besprechung: erledigt (Run 88, Migration 0048).** Offen: Video-Link für Serien und im ICS. **1b Turnier** folgt.
+
 - Neue Termin-Arten `meeting` (Ort frei oder Online-Link, keine RPE-Abfrage) und `tournament`
   (Start- und Enddatum über mehrere Tage, optional mehrere Spiele darunter).
 - Kalender: mehrtägige Balken, eine Zusage für das ganze Turnier, optional je Tag. Kader und
@@ -149,7 +151,7 @@ Andockpunkte:
 ## Reihenfolge
 
 1. **F Freischaltung** (erledigt, Run 86)
-2. **1 Besprechung/Turnier**
+2. **1 Besprechung (erledigt, Run 88) / Turnier**
 3. **2 Familienkonto**
 4. Video und Playbook als eigene Projekte
 5. **Z Bezahlung**

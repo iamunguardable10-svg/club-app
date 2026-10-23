@@ -1041,7 +1041,7 @@ export function CoachSessionDetailOverlay({
         answers={!isPast ? ((session.openPlayerIds?.length ?? 0) > 0 ? <OpenAnswers key={`open-${session.id}`} session={session} /> : null) : session.canConfirmAttendance && session.attendanceShared !== false && session.players.length > 0 ? <AttendanceConfirmation key={session.id} session={session} /> : null}
         insights={!isPast ? (session.sessionType === 'game' && (session.canPickSquad || session.squadPublishedAt) ? <SquadPicker key={session.id} session={session} /> : null) : isPast ? (<>
         {!sessionLoadDetailsShared(session) ? (
-          <p className="rounded-2xl border border-slate-800 bg-slate-950/55 p-3 text-xs font-bold text-slate-400">{session.loadTracked === false ? t('insight.noTracking', { team: session.teamName }) : t('insight.notShared')}</p>
+          <p className="rounded-2xl border border-slate-800 bg-slate-950/55 p-3 text-xs font-bold text-slate-400">{session.sessionType === 'meeting' ? t('session.meetingNotRated') : session.loadTracked === false ? t('insight.noTracking', { team: session.teamName }) : t('insight.notShared')}</p>
         ) : isPast ? (
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2">

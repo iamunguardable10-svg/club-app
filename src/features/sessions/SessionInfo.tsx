@@ -3,14 +3,14 @@
 /**
  * What players need to know about a session beyond the time (piece 14):
  * where (hall, or the address of an away game), when and where to meet, the
- * opponent, and the coach's note. One component for players and coaches.
+ * video link, the opponent, and the coach's note. One component for players and coaches.
  */
 
 import { formatTime } from '@/shared/format';
-import type { GameDetails, SessionDetails, SquadStatus } from '@/shared/data';
+import type { GameDetails, OnlineDetails, SessionDetails, SquadStatus } from '@/shared/data';
 import { tr, useT, type MessageKey } from '@/shared/i18n';
 
-export type SessionInfoData = SessionDetails & GameDetails & {
+export type SessionInfoData = SessionDetails & GameDetails & OnlineDetails & {
   startsAt: string;
   sessionType?: string | null;
   facilityName?: string | null;
@@ -55,6 +55,10 @@ function PinIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className={ICON}><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z" /><circle cx="12" cy="9.5" r="2.5" /></svg>;
 }
 
+function VideoIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className={ICON}><rect x="3" y="6" width="13" height="12" rx="2" /><path d="m16 10 5-3v10l-5-3" /></svg>;
+}
+
 function ClockIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className={ICON}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>;
 }
@@ -70,7 +74,8 @@ export function SessionInfo({ info, className = '', hideGame = false }: { info: 
   const meetTime = info.squad === 'not_selected' || !info.meetMinutesBefore ? null : formatTime(new Date(new Date(info.startsAt).getTime() - info.meetMinutesBefore * 60_000));
   const meetPoint = info.squad === 'not_selected' ? null : info.meetPoint?.trim() || null;
   const place = info.homeAway === 'away' && info.venueAddress ? info.venueAddress : info.facilityName ?? null;
-  if (!game && !meetTime && !meetPoint && !place && !info.notes && !info.squad) return null;
+  const online = info.onlineUrl?.trim() || null;
+  if (!game && !meetTime && !meetPoint && !place && !online && !info.notes && !info.squad) return null;
   return (
     <div className={`grid gap-2.5 rounded-2xl border border-slate-800 bg-slate-950/50 p-4 text-sm ${className}`}>
       {info.squad ? (
@@ -94,6 +99,12 @@ export function SessionInfo({ info, className = '', hideGame = false }: { info: 
           <span className="min-w-0 break-words">
             {t('game.meet')}{meetTime ? <> <span className="text-white">{meetTime}</span></> : null}{meetPoint ? ` · ${meetPoint}` : null}
           </span>
+        </p>
+      ) : null}
+      {online ? (
+        <p className="flex gap-2.5 font-bold text-slate-200">
+          <VideoIcon />
+          <a href={online} target="_blank" rel="noreferrer" className="min-w-0 break-words text-sky-300 hover:underline">{t('session.joinOnline')}</a>
         </p>
       ) : null}
       {info.notes ? <p className="whitespace-pre-wrap break-words text-slate-300">{info.notes}</p> : null}

@@ -799,7 +799,7 @@
   "sessionForm.away": "Auswärts",
   "sessionForm.venue": "Adresse des Spielorts",
   "sessionForm.venuePlaceholder": "Straße, Ort",
-  "sessionForm.meet": "Treffpunkt",
+  "sessionForm.meet": "Treffen",
   "sessionForm.atStart": "Zum Beginn",
   "sessionForm.minutesBefore": "{count} Min. vorher",
   "sessionForm.hoursBefore": "{count} Std. vorher",
@@ -1948,5 +1948,11 @@
   "carpools.mapHint": "Adresse suchen oder Karte verschieben: Der Pin in der Mitte zeigt den Treffpunkt.",
   "carpools.removePin": "Pin entfernen",
   "carpools.openInMaps": "In Google Maps öffnen",
-  "carpools.mapMoveHint": "Karte verschieben und zoomen, bis der Pin genau an der Stelle steht."
+  "carpools.mapMoveHint": "Karte verschieben und zoomen, bis der Pin genau an der Stelle steht.",
+  "session.joinOnline": "Online teilnehmen",
+  "session.meetingNotRated": "Eine Besprechung wird nicht bewertet.",
+  "session.error.onlineUrl": "Der Video-Link muss mit https:// beginnen und darf höchstens 500 Zeichen haben.",
+  "session.error.meetingNotRated": "Eine Besprechung wird nicht bewertet.",
+  "sessionForm.noHallMeeting": "Kein Raum",
+  "sessionForm.onlineUrl": "Video-Link (optional)"
 }

@@ -12,6 +12,7 @@ export const coachSessionTypes: { value: string; label: string; key: MessageKey 
   { value: 's_and_c', label: 'Strength', key: 'sessionType.strength' },
   { value: 'other', label: 'Individual', key: 'sessionType.individual' },
   { value: 'recovery', label: 'Recovery', key: 'sessionType.recovery' },
+  { value: 'meeting', label: 'Meeting', key: 'sessionType.meeting' },
 ];
 
 export function normalizeCoachSessionType(value?: string | null) {

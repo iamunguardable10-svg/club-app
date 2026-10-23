@@ -1948,5 +1948,11 @@
   "carpools.mapHint": "Busca una dirección o mueve el mapa: el pin del centro marca el punto de encuentro.",
   "carpools.removePin": "Quitar pin",
   "carpools.openInMaps": "Abrir en Google Maps",
-  "carpools.mapMoveHint": "Mueve y amplía el mapa hasta que el pin quede en el lugar exacto."
+  "carpools.mapMoveHint": "Mueve y amplía el mapa hasta que el pin quede en el lugar exacto.",
+  "session.joinOnline": "Unirse en línea",
+  "session.meetingNotRated": "Una reunión no se valora.",
+  "session.error.onlineUrl": "El enlace de vídeo debe empezar por https:// y tener como máximo 500 caracteres.",
+  "session.error.meetingNotRated": "Una reunión no se valora.",
+  "sessionForm.noHallMeeting": "Sin sala",
+  "sessionForm.onlineUrl": "Enlace de vídeo (opcional)"
 }

@@ -184,6 +184,8 @@ const BASE_RPE: Record<SessionType, number> = {
   game: 8,
   recovery: 3,
   other: 5,
+  // Never rated (0048).
+  meeting: 0,
 };
 
 /** One traffic-light row per athlete with entries, as the repository keeps them. */
@@ -360,6 +362,25 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
       });
     }
   }
+  // A parents' and players' meeting, online (0048): shows the link, asks for no rating.
+  const meetingDay = addDays(today, 2);
+  sessions.push({
+    id: `session-meeting-u16-${dateOnly(meetingDay)}`,
+    clubId: CLUB_ID,
+    departmentId: DEPARTMENT_ID,
+    teamId: TEAM_U16,
+    title: 'Meeting',
+    sessionType: 'meeting',
+    startsAt: at(meetingDay, '19:30').toISOString(),
+    endsAt: at(meetingDay, '20:15').toISOString(),
+    facilityId: null,
+    groupIds: [],
+    seriesId: null,
+    seriesWeekStart: null,
+    createdAt,
+    notes: 'Season plan and tournament weekend.',
+    onlineUrl: 'https://meet.example.com/u16-season',
+  });
   sessions.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 
   const athleteMemberships = memberships.filter((membership) => membership.role === 'athlete');

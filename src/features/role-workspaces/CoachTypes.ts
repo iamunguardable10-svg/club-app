@@ -1,6 +1,6 @@
 import type { AthleteLoadEntry } from '@/features/load/loadTypes';
 import type { LoadAccess, LoadSummary } from '@/features/load/loadAccess';
-import type { CoachPermission, GameDetails, SessionDetails, SquadStatus } from '@/shared/data';
+import type { CoachPermission, GameDetails, OnlineDetails, SessionDetails, SquadStatus } from '@/shared/data';
 
 export type CoachMode = 'today' | 'team' | 'sessions' | 'attendance' | 'load' | 'history' | 'facilities';
 
@@ -85,12 +85,12 @@ export type CoachSession = {
   canPickSquad?: boolean;
   /** Picks changed after the last publish (players were not told yet). */
   squadChangedSincePublish?: number;
-} & SessionDetails & GameDetails;
+} & SessionDetails & GameDetails & OnlineDetails;
 
 export type CoachFacility = { id: string; name: string; departmentIds: string[] };
 export type CoachGroup = { id: string; teamId: string; name: string; playerCount: number };
 
 /** Notes, meeting and game details as the editor sends them (piece 14). */
-export type CoachSessionDetailsInput = SessionDetails & GameDetails;
+export type CoachSessionDetailsInput = SessionDetails & GameDetails & OnlineDetails;
 export type CoachSessionMutation = { sessionId: string; startsAt: string; endsAt: string; facilityId: string; groupIds: string[]; sessionType: string; details?: CoachSessionDetailsInput };
 export type CoachSessionCreateInput = { startsAt: string; endsAt: string; teamId: string; facilityId: string; groupIds: string[]; sessionType: string; details?: CoachSessionDetailsInput };

@@ -195,6 +195,7 @@ export function toServerRows(database: LocalDatabase): ServerRows {
       series_week_start: s.seriesWeekStart, created_at: s.createdAt,
       notes: s.notes ?? null, meet_minutes_before: s.meetMinutesBefore ?? null, meet_point: s.meetPoint ?? null,
       opponent: s.opponent ?? null, home_away: s.homeAway ?? null, venue_address: s.venueAddress ?? null,
+      online_url: s.onlineUrl ?? null,
       squad_published_at: s.squadPublishedAt ?? null,
     })),
     session_series_week_states: database.sessionSeriesWeekStates.map((w) => ({
@@ -338,7 +339,7 @@ export function fromServerRows(
         groupIds: (x.group_ids as string[]) ?? [], seriesId: sn(x.series_id), seriesWeekStart: sn(x.series_week_start), createdAt: s(x.created_at),
         notes: sn(x.notes), meetMinutesBefore: x.meet_minutes_before === null || x.meet_minutes_before === undefined ? null : Number(x.meet_minutes_before),
         meetPoint: sn(x.meet_point), opponent: sn(x.opponent), homeAway: (sn(x.home_away) as 'home' | 'away' | null), venueAddress: sn(x.venue_address),
-        squadPublishedAt: sn(x.squad_published_at),
+        onlineUrl: sn(x.online_url), squadPublishedAt: sn(x.squad_published_at),
       }))
       .sort((a, b) => a.startsAt.localeCompare(b.startsAt)),
     sessionSeries: rows.session_series.map((x) => ({

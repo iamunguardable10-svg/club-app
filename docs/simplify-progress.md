@@ -3007,3 +3007,11 @@ Plan: `docs/plan-features-freischaltung.md` (Entscheidungen von Ben: Teams entsc
 
 - Der Pin steht fest in der Mitte, die Karte bewegt sich darunter: mit einem Finger verschieben, mit zwei Fingern zoomen (immer um die Mitte, damit der Punkt unter dem Pin bleibt), keine +/−-Knöpfe. Beim Bewegen hebt sich der Pin; wenn die Karte steht, ist der Punkt unter der Spitze der Treffpunkt und seine Adresse kommt nach kurzer Pause (Rückwärtssuche). Die Suche springt nah an Straße/Ort (Ort 14, Straße 17, Adresse 18). Der erste Blick in die Nähe des Spiels setzt noch keinen Treffpunkt.
 - Geprüft mit echten Touch-Gesten (Chromium/CDP): 4× Pinchen 5 → 17, Zurückpinchen 17 → 15, Wischen setzt den Treffpunkt.
+- Live auf myclubos.vercel.app geprüft: Suche „Bahnhofstraße Gröbenzell“ → Straße, Pinchen/Wischen → „Bahnhofstraße 42, 82194 Gröbenzell“, gespeichert mit Google-Maps-Link. Dabei gefunden und behoben (#90): Hinweis „Leer lassen …“ steht jetzt unter der Abfahrtszeit, „Fahrt anbieten“ erscheint beim Ausfüllen nicht mehr doppelt. Offen: feine Linie zwischen Kartenkacheln auf scharfen Bildschirmen (nur optisch; halber Pixel größer machte es schlimmer).
+
+## Run 88 — Besprechung als eigener Termin (2026-10-23, Plan Stück 1a)
+
+- **Migration 0048 (live):** Termin-Art `meeting` (Einheiten und Serien), `sessions.online_url` (nur https, ohne Leerzeichen, ≤ 500). Eine Besprechung wird nie bewertet: kein „Wie anstrengend war es?“-Push (Trigger an der Push-Warteschlange, gilt für alle Stellen, die sie füllen), kein Belastungseintrag. Test `29_meetings_test.sql` (gegengeprüft: als Training käme der Push).
+- **App:** „Besprechung“ in der Art-Auswahl. Raum optional („Kein Raum“), Feld „Video-Link (optional)“. Spieler und Trainer sehen „Online teilnehmen“ als Link mit Kamera-Symbol. Keine RPE-Abfrage, keine geplante Belastung; nach dem Termin „Eine Besprechung wird nicht bewertet.“ Demo: Besprechung U16 übermorgen 19:30, online.
+- **Nebenbei:** Eine gespeicherte Besprechung oder ein Auswärtsspiel ohne Halle bekam im Editor wieder die Standardhalle; „Treffpunkt | Treffpunkt“ im Editor heißt auf Deutsch jetzt „Treffen | Treffpunkt“; der Chip im Spieler-Blatt zeigt keine Belastungsart („Team“) für Besprechungen.
+- Nicht enthalten: Video-Link für Serien, Link im Handy-Kalender (ICS). Mehrtägiges Turnier folgt als Stück 1b.

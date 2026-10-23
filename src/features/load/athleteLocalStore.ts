@@ -72,7 +72,7 @@ export function readTeamSessions(database: LocalDatabase, personId: Id): Athlete
     .map((session) => toPendingSession(
       session,
       teamById.get(session.teamId)?.name ?? null,
-      hasHealthConsent(database, personId) && (teamById.get(session.teamId)?.features.includes('load') ?? false),
+      hasHealthConsent(database, personId) && session.sessionType !== 'meeting' && (teamById.get(session.teamId)?.features.includes('load') ?? false),
       session.facilityId ? database.facilities.find((facility) => facility.id === session.facilityId)?.name ?? null : null,
       publishedSquadStatus(database, personId, session),
     ));
@@ -99,6 +99,8 @@ function toPendingSession(session: Session, teamName: string | null, loadTracked
       opponent: session.opponent ?? null,
       homeAway: session.homeAway ?? null,
       venueAddress: session.venueAddress ?? null,
+      onlineUrl: session.onlineUrl ?? null,
+      sessionType: session.sessionType,
       squad,
     },
   };

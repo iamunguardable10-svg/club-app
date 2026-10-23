@@ -315,7 +315,8 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
           ? scopedPlayers.filter((player) => isAnswerOpen(database, session.id, player.id, now)).map((player) => player.id)
           : [],
         attendanceShared: permissions.has('viewAttendance'),
-        loadTracked: team.loadTracked,
+        // A meeting is never rated (0048).
+        loadTracked: team.loadTracked && session.sessionType !== 'meeting',
         // Switched off for the team (0046): stored confirmations and squads stay, hidden.
         confirmations: permissions.has('viewAttendance') && teamHasFeature(database, session.teamId, 'attendance') ? Object.fromEntries(confirmed) : {},
         canConfirmAttendance: permissions.has('viewAttendance') && teamHasFeature(database, session.teamId, 'attendance') && new Date(session.startsAt).getTime() <= now,
@@ -326,6 +327,7 @@ export function buildCoachData(database: LocalDatabase, coachPersonId: Id | null
         opponent: session.opponent ?? null,
         homeAway: session.homeAway ?? null,
         venueAddress: session.venueAddress ?? null,
+        onlineUrl: session.onlineUrl ?? null,
         squadPublishedAt: teamHasFeature(database, session.teamId, 'squads') ? session.squadPublishedAt ?? null : null,
         squad: session.sessionType === 'game' && teamHasFeature(database, session.teamId, 'squads') && (permissions.has('editSessions') || permissions.has('viewAttendance'))
           ? Object.fromEntries(squadForSession(database, session.id)) : {},

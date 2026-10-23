@@ -996,8 +996,8 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         sessionType: normalizeCoachSessionType(input.sessionType) as SessionType,
         startsAt: input.startsAt,
         endsAt: input.endsAt,
-        // An away game may have no hall (piece 14); otherwise an empty hall keeps the old one.
-        ...(input.facilityId ? { facilityId: input.facilityId } : input.details?.homeAway === 'away' ? { facilityId: null } : {}),
+        // An away game or a meeting may have no hall (piece 14, 0048); otherwise an empty hall keeps the old one.
+        ...(input.facilityId ? { facilityId: input.facilityId } : input.details?.homeAway === 'away' || normalizeCoachSessionType(input.sessionType) === 'meeting' ? { facilityId: null } : {}),
         groupIds: input.groupIds,
         ...input.details,
       });
@@ -1374,7 +1374,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
               facilityId: editingSession.facilityId,
               groupIds: editingSession.groupIds,
               sessionType: normalizeCoachSessionType(editingSession.sessionType),
-              details: { notes: editingSession.notes, meetMinutesBefore: editingSession.meetMinutesBefore, meetPoint: editingSession.meetPoint, opponent: editingSession.opponent, homeAway: editingSession.homeAway, venueAddress: editingSession.venueAddress },
+              details: { notes: editingSession.notes, meetMinutesBefore: editingSession.meetMinutesBefore, meetPoint: editingSession.meetPoint, opponent: editingSession.opponent, homeAway: editingSession.homeAway, venueAddress: editingSession.venueAddress, onlineUrl: editingSession.onlineUrl },
             }}
             allowTeamChange={false}
             isSaving={isSavingSessionEdit}
