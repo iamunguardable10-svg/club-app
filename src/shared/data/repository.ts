@@ -3487,6 +3487,11 @@ export function visiblePlaybooks(database: LocalDatabase, teamId: Id, now = Date
     && (playbook.groupIds.length === 0 || playbook.groupIds.some((groupId) => groups.has(groupId))));
 }
 
+/** The player's teams that use the tactics area (today: the playbook). */
+export function athleteTacticsTeams(database: LocalDatabase, personId: Id): Id[] {
+  return database.memberships.filter((m) => m.personId === personId && m.role === 'athlete' && teamHasFeature(database, m.teamId, 'playbook')).map((m) => m.teamId);
+}
+
 /** The player's teams that have released playbooks for them. */
 export function athletePlaybookTeams(database: LocalDatabase, personId: Id): Id[] {
   const teams = database.memberships.filter((m) => m.personId === personId && m.role === 'athlete').map((m) => m.teamId);

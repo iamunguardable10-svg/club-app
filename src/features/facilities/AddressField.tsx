@@ -57,12 +57,19 @@ export function AddressField({
         value={value}
         onChange={(event) => { typedRef.current = true; onChange(event.target.value); }}
         onKeyDown={(event) => {
-          // Enter takes the first suggestion (the map zooms there).
-          if (event.key !== 'Enter' || !onPick || suggestions.length === 0) return;
+          // With a map, Enter is "search": it never submits the form around
+          // the field, and takes the first suggestion (the map zooms there),
+          // looking it up first when the suggestions are not in yet.
+          if (event.key !== 'Enter' || !onPick) return;
           event.preventDefault();
-          const first = suggestions[0];
-          typedRef.current = false; onChange(first.address); onPick(first); setSuggestions([]); setOpen(false);
+          const take = (first: AddressSuggestion | undefined) => {
+            if (!first) return;
+            typedRef.current = false; onChange(first.address); onPick(first); setSuggestions([]); setOpen(false);
+          };
+          if (suggestions.length > 0) take(suggestions[0]);
+          else if (value.trim().length >= 2) void fetchAddressSuggestions(value, { lang: locale }).then(([first]) => take(first)).catch(() => undefined);
         }}
+        enterKeyHint={onPick ? 'search' : undefined}
         onFocus={() => setOpen(true)}
         onBlur={() => window.setTimeout(() => setOpen(false), 150)}
         placeholder={placeholder ?? t('address.placeholder')}

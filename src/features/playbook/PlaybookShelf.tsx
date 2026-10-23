@@ -8,7 +8,7 @@
  * link first (on the server the files are private).
  */
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
 import {
   PLAYBOOK_CATEGORIES,
@@ -39,12 +39,9 @@ const primary = 'rounded-full bg-emerald-300 px-3.5 py-2 text-sm font-black text
 const quiet = 'rounded-full border border-slate-700 px-3.5 py-2 text-sm font-black text-slate-200 transition hover:border-slate-500 active:scale-95';
 
 function FileIcon({ type }: { type: string }) {
-  const pdf = type === 'application/pdf';
   return (
-    <span aria-hidden className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl text-[10px] font-black ${pdf ? 'bg-rose-400/15 text-rose-200' : 'bg-sky-300/15 text-sky-200'}`}>
-      {pdf ? 'PDF' : (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="2" /><path d="m21 17-5-5-9 8" /></svg>
-      )}
+    <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-800 text-[10px] font-black text-slate-300">
+      {type === 'application/pdf' ? 'PDF' : 'IMG'}
     </span>
   );
 }
@@ -65,9 +62,9 @@ async function openPlaybook(playbook: Playbook) {
 }
 
 function audienceText(t: ReturnType<typeof useT>, database: LocalDatabase, playbook: Playbook): string {
-  if (playbook.status === 'draft') return t('playbook.draft');
+  if (playbook.status === 'draft') return t('playbook.draftShort');
   const groups = playbook.groupIds.map((id) => database.playerGroups.find((group) => group.id === id)?.name).filter(Boolean);
-  const who = groups.length > 0 ? t('playbook.forGroups', { groups: groups.join(', ') }) : t('playbook.forTeam');
+  const who = groups.length > 0 ? groups.join(', ') : t('playbook.wholeTeam');
   if (playbook.releaseAt && Date.parse(playbook.releaseAt) > Date.now()) return `${who} · ${t('playbook.from', { date: formatShortDate(playbook.releaseAt) })}`;
   return who;
 }
@@ -112,7 +109,6 @@ function UploadForm({ teamId, onDone }: { teamId: string; onDone: () => void }) 
           }}
           className="block w-full text-sm text-slate-300 file:mr-3 file:rounded-full file:border-0 file:bg-slate-800 file:px-3 file:py-1.5 file:text-sm file:font-black file:text-slate-100"
         />
-        <span className="font-normal text-slate-500">{t('playbook.fileHint')}</span>
       </label>
       <label className="grid gap-1 text-xs font-bold text-slate-300">
         {t('playbook.title')}
@@ -156,7 +152,6 @@ function ReleaseForm({ database, playbook, onDone }: { database: LocalDatabase; 
       <label className="grid gap-1 text-xs font-bold text-slate-300">
         {t('playbook.releaseFrom')}
         <input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="os-field w-44 [color-scheme:dark]" />
-        <span className="font-normal text-slate-500">{t('playbook.releaseFromHint')}</span>
       </label>
       {error ? <p role="alert" className="text-xs font-bold text-rose-200">{error}</p> : null}
       <div className="flex flex-wrap gap-2">
@@ -208,44 +203,47 @@ function PlaybookRow({ database, playbook, manage }: { database: LocalDatabase; 
   const [error, setError] = useState<string | null>(null);
   const released = playbook.status === 'released';
   return (
-    <li className={`${card} p-3`} data-playbook={playbook.id}>
-      <div className="flex items-start gap-3">
-        <FileIcon type={playbook.fileType} />
-        <div className="min-w-0 flex-1">
-          <p className="break-words text-sm font-black text-slate-100">{playbook.title}</p>
-          <p className="mt-0.5 text-xs text-slate-400">
-            {t(CATEGORY_KEY[playbook.category])}
-            {manage ? <> · <span className={released ? 'text-emerald-200' : 'text-amber-200'}>{audienceText(t, database, playbook)}</span></> : null}
-          </p>
-          {playbook.description ? <p className="mt-1 whitespace-pre-wrap break-words text-xs text-slate-300">{playbook.description}</p> : null}
-        </div>
+    <li data-playbook={playbook.id}>
+      <div className="flex items-center gap-2 py-2.5">
         <button
           type="button"
           onClick={() => { void openPlaybook(playbook).catch((caught) => setError(errorText(t, caught))); }}
-          className="shrink-0 rounded-full bg-slate-800 px-3 py-1.5 text-xs font-black text-slate-100 transition hover:bg-slate-700 active:scale-95"
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left transition hover:bg-slate-900/60"
         >
-          {t('playbook.open')}
+          <FileIcon type={playbook.fileType} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-bold text-slate-100">{playbook.title}</span>
+            <span className="block truncate text-xs text-slate-400">
+              {t(CATEGORY_KEY[playbook.category])}
+              {manage ? <> · <span className={released ? 'text-slate-300' : 'text-amber-200'}>{audienceText(t, database, playbook)}</span></> : null}
+            </span>
+          </span>
         </button>
+        {manage ? (
+          <button
+            type="button"
+            aria-label={t('playbook.options')}
+            aria-expanded={mode !== 'view'}
+            onClick={() => setMode(mode === 'view' ? 'more' : 'view')}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-lg font-black text-slate-400 transition hover:bg-slate-800 hover:text-slate-100"
+          >
+            ⋯
+          </button>
+        ) : null}
       </div>
-      {error ? <p role="alert" className="mt-2 text-xs font-bold text-rose-200">{error}</p> : null}
-      {manage && (mode === 'view' || mode === 'more') ? (
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-black">
-          <button type="button" onClick={() => setMode('release')} className="text-emerald-200 hover:underline">{released ? t('playbook.changeRelease') : t('playbook.releaseAction')}</button>
-          {mode === 'view' ? (
-            <button type="button" aria-expanded={false} onClick={() => setMode('more')} className="text-slate-400 hover:text-slate-200">{t('playbook.more')}</button>
-          ) : (
-            <>
-              <button type="button" onClick={() => setMode('edit')} className="text-slate-300 hover:underline">{t('playbook.edit')}</button>
-              {released ? <button type="button" onClick={() => { try { withdrawPlaybook(playbook.id); setMode('view'); } catch (caught) { setError(errorText(t, caught)); } }} className="text-slate-300 hover:underline">{t('playbook.withdraw')}</button> : null}
-              <button type="button" onClick={() => setMode('delete')} className="text-rose-200 hover:underline">{t('playbook.delete')}</button>
-            </>
-          )}
+      {error ? <p role="alert" className="pb-2 text-xs font-bold text-rose-200">{error}</p> : null}
+      {manage && mode === 'more' ? (
+        <div className="flex flex-wrap gap-x-4 gap-y-2 pb-3 pl-12 text-xs font-black">
+          <button type="button" onClick={() => setMode('release')} className="text-emerald-200 hover:underline">{released ? t('playbook.changeRelease') : t('playbook.release')}</button>
+          {released ? <button type="button" onClick={() => { try { withdrawPlaybook(playbook.id); setMode('view'); } catch (caught) { setError(errorText(t, caught)); } }} className="text-slate-300 hover:underline">{t('playbook.withdraw')}</button> : null}
+          <button type="button" onClick={() => setMode('edit')} className="text-slate-300 hover:underline">{t('playbook.edit')}</button>
+          <button type="button" onClick={() => setMode('delete')} className="text-rose-200 hover:underline">{t('playbook.delete')}</button>
         </div>
       ) : null}
-      {manage && mode === 'release' ? <ReleaseForm database={database} playbook={playbook} onDone={() => setMode('view')} /> : null}
-      {manage && mode === 'edit' ? <EditForm playbook={playbook} onDone={() => setMode('view')} /> : null}
+      {manage && mode === 'release' ? <div className="pb-3"><ReleaseForm database={database} playbook={playbook} onDone={() => setMode('view')} /></div> : null}
+      {manage && mode === 'edit' ? <div className="pb-3"><EditForm playbook={playbook} onDone={() => setMode('view')} /></div> : null}
       {manage && mode === 'delete' ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-800 pt-3">
+        <div className="flex flex-wrap items-center gap-2 pb-3 pl-12">
           <p className="min-w-0 flex-1 text-xs font-bold text-slate-300">{t('playbook.deleteConfirm')}</p>
           <button type="button" className="rounded-full bg-rose-400 px-3 py-1.5 text-xs font-black text-slate-950" onClick={() => { void deletePlaybook(playbook.id).catch((caught) => setError(errorText(t, caught))); }}>{t('playbook.delete')}</button>
           <button type="button" onClick={() => setMode('view')} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-200">{t('playbook.cancel')}</button>
@@ -260,31 +258,16 @@ export function PlaybookShelf({ database, teamId }: { database: LocalDatabase; t
   const manage = canManagePlaybooks(database, teamId);
   const playbooks = visiblePlaybooks(database, teamId);
   const [adding, setAdding] = useState(false);
-  const [filter, setFilter] = useState<PlaybookCategory | null>(null);
-  const categories = useMemo(() => PLAYBOOK_CATEGORIES.filter((category) => playbooks.some((playbook) => playbook.category === category)), [playbooks]);
-  const shown = filter ? playbooks.filter((playbook) => playbook.category === filter) : playbooks;
   return (
     <div className="grid gap-3" data-testid="playbook-shelf">
-      {manage ? (
-        adding ? <UploadForm teamId={teamId} onDone={() => setAdding(false)} /> : (
-          <button type="button" onClick={() => setAdding(true)} className={`${primary} justify-self-start`}>{t('playbook.add')}</button>
-        )
+      {manage && !adding ? (
+        <button type="button" onClick={() => setAdding(true)} className="justify-self-start rounded-full border border-slate-700 px-3.5 py-1.5 text-sm font-black text-slate-100 transition hover:border-slate-500 active:scale-95">+ {t('playbook.add')}</button>
       ) : null}
-      {categories.length > 1 ? (
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label={t('playbook.categoryLabel')}>
-          <button type="button" aria-pressed={filter === null} onClick={() => setFilter(null)} className={`rounded-full px-3 py-1.5 text-xs font-black ${filter === null ? 'bg-sky-300 text-slate-950' : 'border border-slate-700 text-slate-300'}`}>{t('playbook.all')}</button>
-          {categories.map((category) => (
-            <button key={category} type="button" aria-pressed={filter === category} onClick={() => setFilter(filter === category ? null : category)} className={`rounded-full px-3 py-1.5 text-xs font-black ${filter === category ? 'bg-sky-300 text-slate-950' : 'border border-slate-700 text-slate-300'}`}>{t(CATEGORY_KEY[category])}</button>
-          ))}
-        </div>
-      ) : null}
-      {shown.length === 0 ? (
-        <div className={`${card} p-4`}>
-          <p className="text-sm font-black text-slate-100">{manage ? t('playbook.emptyCoach') : t('playbook.emptyPlayer')}</p>
-          <p className="mt-1 text-xs text-slate-400">{manage ? t('playbook.emptyCoachDetail') : t('playbook.emptyPlayerDetail')}</p>
-        </div>
+      {manage && adding ? <UploadForm teamId={teamId} onDone={() => setAdding(false)} /> : null}
+      {playbooks.length === 0 ? (
+        <p className="text-sm text-slate-400">{manage ? t('playbook.emptyCoachDetail') : t('playbook.emptyPlayerDetail')}</p>
       ) : (
-        <ul className="grid gap-2">{shown.map((playbook) => <PlaybookRow key={playbook.id} database={database} playbook={playbook} manage={manage} />)}</ul>
+        <ul className={`${card} divide-y divide-slate-800/80 px-3`}>{playbooks.map((playbook) => <PlaybookRow key={playbook.id} database={database} playbook={playbook} manage={manage} />)}</ul>
       )}
     </div>
   );

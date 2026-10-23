@@ -17,13 +17,14 @@ import { useState, type ReactNode } from 'react';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
 import { LimitedConsentNote } from '@/features/legal/HealthConsentPanel';
-import { athleteHasLoad, athletePlaybookTeams, getActivePerson, unreadMessagesFor, useLocalDatabase, type LocalDatabase } from '@/shared/data';
+import { athleteHasLoad, athleteTacticsTeams, getActivePerson, unreadMessagesFor, useLocalDatabase, type LocalDatabase } from '@/shared/data';
+import { PlaybookTeaser } from '@/features/playbook/PlaybookTeaser';
 import { UnreadMessagesCard } from '@/features/messages/UnreadMessagesCard';
 import { countToRate } from '@/features/load/athleteLocalStore';
 import { useT, type MessageKey } from '@/shared/i18n';
 
 export type CoachNavItem = 'today' | 'calendar' | 'team' | 'halls' | 'history';
-export type AthleteNavItem = 'today' | 'calendar' | 'load' | 'playbook' | 'messages';
+export type AthleteNavItem = 'today' | 'calendar' | 'load' | 'tactics' | 'messages';
 export type ClubNavItem = 'club' | 'halls' | 'messages';
 type NavItem = CoachNavItem | AthleteNavItem | ClubNavItem;
 type NavEntry = { item: NavItem; label: MessageKey; href: string };
@@ -32,7 +33,7 @@ const ATHLETE_NAV: NavEntry[] = [
   { item: 'today', label: 'nav.today', href: '/athlete/home' },
   { item: 'calendar', label: 'nav.calendar', href: '/athlete/calendar' },
   { item: 'load', label: 'nav.load', href: '/athlete/load' },
-  { item: 'playbook', label: 'nav.playbook', href: '/athlete/playbook' },
+  { item: 'tactics', label: 'nav.tactics', href: '/athlete/tactics' },
   // Piece 17: announcements from the staff.
   { item: 'messages', label: 'nav.messages', href: '/athlete/messages' },
 ];
@@ -64,7 +65,7 @@ function NavIcon({ item }: { item: NavItem }) {
       {item === 'club' ? <><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6l8-3z" {...common} /><path d="M9 12l2 2 4-4" {...common} /></> : null}
       {item === 'load' ? <path d="M3 12h4l3-7 4 14 3-7h4" {...common} /> : null}
       {item === 'messages' ? <path d="M4 5h16v11H9l-5 4V5z" {...common} /> : null}
-      {item === 'playbook' ? <><path d="M6 3h9l4 4v14H6z" {...common} /><path d="M15 3v4h4M9.5 13.5l2 2 3.5-4" {...common} /></> : null}
+      {item === 'tactics' ? <><rect x="3" y="4" width="18" height="16" rx="2" {...common} /><path d="M7 9l2 2M9 9l-2 2M16 14.5a1.5 1.5 0 1 0 0 .01M8.5 15c2.5-.5 4.5-2.5 5.5-5.5M12.5 9.5h1.8v1.8" {...common} /></> : null}
     </svg>
   );
 }
@@ -85,12 +86,12 @@ export function CoachShell({ active, ...props }: ShellProps & { active: CoachNav
 }
 
 /**
- * The player's tabs: load only when one of their teams tracks it, the
- * playbook only when something is released to them (0049).
+ * The player's tabs: load only when one of their teams tracks it, tactics
+ * (playbook, later statistics and video) only when a team uses it.
  */
 function athleteNav(database: LocalDatabase | null, personId: string | null, showLoad: boolean): NavEntry[] {
-  const playbook = Boolean(database && personId && athletePlaybookTeams(database, personId).length > 0);
-  return ATHLETE_NAV.filter((entry) => (entry.item !== 'load' || showLoad) && (entry.item !== 'playbook' || playbook));
+  const tactics = Boolean(database && personId && athleteTacticsTeams(database, personId).length > 0);
+  return ATHLETE_NAV.filter((entry) => (entry.item !== 'load' || showLoad) && (entry.item !== 'tactics' || tactics));
 }
 
 /** `showLoad` is false for players whose teams do not track training load. */
@@ -215,6 +216,7 @@ function RoleShell({ nav, active: current, title, subtitle, back, actions, menuA
         {/* Keep notification opt-in reachable from each role’s first page. */}
         {active === 'today' || active === 'club' ? <NotificationsHint variant="card" /> : null}
         {active === 'today' && database && person ? <UnreadMessagesCard database={database} personId={person.id} /> : null}
+        {active === 'today' && database && person && database.activeIdentity?.role === 'athlete' ? <PlaybookTeaser database={database} personId={person.id} /> : null}
         {database && person && database.activeIdentity?.role === 'athlete' && active !== 'load' ? <LimitedConsentNote database={database} person={person} /> : null}
         {children}
       </div>

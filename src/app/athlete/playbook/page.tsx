@@ -1,5 +1,6 @@
-import { PlayerPlaybookPage } from '@/features/playbook/PlayerPlaybookPage';
+import { redirect } from 'next/navigation';
 
+// Push notifications for a released playbook (0049) still link here.
 export default function AthletePlaybook() {
-  return <PlayerPlaybookPage />;
+  redirect('/athlete/tactics');
 }
