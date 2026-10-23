@@ -24,6 +24,7 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 
 import { WhoAreYou } from '@/features/onboarding/WhoAreYou';
 import { NewHere } from '@/features/onboarding/NewHere';
+import { actAsDemoRole } from '@/features/onboarding/demoRole';
 import { QuickPlayerRoles } from '@/features/identity/QuickPlayerRoles';
 import {
   coachRolesForTeam,
@@ -32,7 +33,6 @@ import {
   isRemoteMode,
   isServerAvailable,
   ownPersonIds,
-  peopleWithRole,
   readDatabase,
   setActiveIdentity,
   setBackendChoice,
@@ -264,14 +264,7 @@ function LocalStart() {
   const serverAvailable = isServerAvailable();
 
   function start(role: DemoRole) {
-    if (!database) return;
-    // The club admin rather than a department lead: they see the whole club.
-    const person = role === 'club'
-      ? database.people.find((candidate) => isClubAdmin(database, candidate.id))
-      : peopleWithRole(database, role)[0];
-    if (!person) return;
-    setActiveIdentity({ role, personId: person.id });
-    router.push(HOME_FOR_ROLE[role]);
+    if (database && actAsDemoRole(database, role)) router.push(HOME_FOR_ROLE[role]);
   }
 
   // Arriving from server mode with a role already picked: start it, once.

@@ -20,6 +20,7 @@ import { LimitedConsentNote } from '@/features/legal/HealthConsentPanel';
 import { athleteHasLoad, athleteTacticsTeams, getActivePerson, unreadMessagesFor, useLocalDatabase, type LocalDatabase } from '@/shared/data';
 import { PlaybookTeaser } from '@/features/playbook/PlaybookTeaser';
 import { UnreadMessagesCard } from '@/features/messages/UnreadMessagesCard';
+import { DemoBar } from '@/features/onboarding/DemoBar';
 import { countToRate } from '@/features/load/athleteLocalStore';
 import { useT, type MessageKey } from '@/shared/i18n';
 
@@ -213,6 +214,7 @@ function RoleShell({ nav, active: current, title, subtitle, back, actions, menuA
       </header>
 
       <div className="mx-auto w-full max-w-6xl space-y-5 px-4 pt-4 sm:px-8 md:pt-6">
+        <DemoBar />
         {/* Keep notification opt-in reachable from each role’s first page. */}
         {active === 'today' || active === 'club' ? <NotificationsHint variant="card" /> : null}
         {active === 'today' && database && person ? <UnreadMessagesCard database={database} personId={person.id} /> : null}

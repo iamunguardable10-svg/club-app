@@ -22,8 +22,8 @@ async function go(route) {
   await page.waitForTimeout(1600);
 }
 async function shot(name) {
-  // Suppress only Next's development tooling, never product UI.
-  await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
+  // Suppress Next's development tooling and the demo bar (it says "example club"), never other product UI.
+  await page.addStyleTag({ content: 'nextjs-portal, [data-demo-bar] { display: none !important; }' });
   const raw = await page.screenshot();
   const output = await sharp(raw).webp({ quality: 86, effort: 6 }).toBuffer();
   if (output.length >= 250_000) throw new Error(`${name} exceeds the image budget`);
@@ -49,8 +49,8 @@ try {
   await page.getByRole('heading', { name: 'Fahrgemeinschaften', exact: true }).evaluate((heading) => { let sheet = heading.parentElement; while (sheet && sheet.scrollHeight <= sheet.clientHeight) sheet = sheet.parentElement; if (!sheet) throw new Error('No scrollable game sheet'); sheet.scrollTop += heading.getBoundingClientRect().top - sheet.getBoundingClientRect().top - 65; });
   await page.waitForTimeout(300);
   await shot('carpools');
-  await go('/coach/team?teamId=team-u16');
-  await page.getByRole('tab', { name: 'Nachrichten', exact: true }).click();
+  // Coaches open their messages from the header (no tab of their own).
+  await go('/messages');
   await page.locator('[data-message-id="message-demo-3"]').scrollIntoViewIfNeeded();
   await page.waitForTimeout(500);
   await shot('messages');

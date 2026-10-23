@@ -8,6 +8,7 @@
  * founders) stays one tap away.
  */
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -30,16 +31,41 @@ const ROLES: { role: IdentityRole; title: MessageKey; detail: MessageKey; icon: 
   },
 ];
 
+/** Three real screens of the demo club (the landing page's, `npm run landing:shots`), fanned out. */
+function ScreenStrip() {
+  const t = useT();
+  const shots: { src: string; alt: MessageKey; place: string }[] = [
+    { src: 'today', alt: 'landing.today.alt', place: '-rotate-6 translate-x-6 translate-y-5' },
+    { src: 'calendar', alt: 'landing.calendar.alt', place: 'z-10' },
+    { src: 'load', alt: 'landing.load.alt', place: 'rotate-6 -translate-x-6 translate-y-5' },
+  ];
+  return (
+    <figure className="grid justify-items-center gap-3 pt-2">
+      <div className="flex items-start justify-center pb-6">
+        {shots.map((shot) => (
+          <div key={shot.src} className={`w-[31%] max-w-[150px] overflow-hidden rounded-[1.1rem] border border-slate-700/80 bg-slate-950 shadow-[0_18px_50px_rgba(0,0,0,0.5)] motion-safe:transition-transform ${shot.place}`}>
+            <Image src={`/landing/${shot.src}.webp`} alt={t(shot.alt)} width={390} height={844} sizes="150px" priority className="block h-auto w-full" />
+          </div>
+        ))}
+      </div>
+      <figcaption className="text-xs font-bold text-slate-500">{t('start.new.screens')}</figcaption>
+    </figure>
+  );
+}
+
 export function NewHere({ onDemo, canSignIn }: { onDemo: (role: IdentityRole) => void; canSignIn: boolean }) {
   const t = useT();
   const [step, setStep] = useState<'choose' | 'role' | 'code'>('choose');
 
   if (step === 'choose') {
     return (
-      <section className="os-panel grid gap-3 p-5 sm:p-6">
-        <button type="button" onClick={() => setStep('role')} className="os-success text-center text-base">{t('start.new.button')}</button>
-        {canSignIn ? <Link href="/login" className="os-secondary text-center text-base">{t('start.signIn.button')}</Link> : null}
-      </section>
+      <>
+        <section className="os-panel grid gap-3 p-5 sm:p-6">
+          <button type="button" onClick={() => setStep('role')} className="os-success text-center text-base">{t('start.new.button')}</button>
+          {canSignIn ? <Link href="/login" className="os-secondary text-center text-base">{t('start.signIn.button')}</Link> : null}
+        </section>
+        <ScreenStrip />
+      </>
     );
   }
 
