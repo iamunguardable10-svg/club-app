@@ -759,7 +759,7 @@
   "sessionSheet.participants": "Participantes",
   "sessionSheet.lateSuffix": " / {count} tarde",
   "sessionSheet.wholeTeam": "Todo el equipo",
-  "sessionSheet.attendanceFlags": "Avisos de asistencia",
+  "sessionSheet.attendanceFlags": "Ausencias y retrasos",
   "sessionSheet.status.late": "tarde",
   "sessionSheet.status.out": "ausente",
   "sessionSheet.status.expected": "previsto",
@@ -1954,5 +1954,6 @@
   "session.error.onlineUrl": "El enlace de vídeo debe empezar por https:// y tener como máximo 500 caracteres.",
   "session.error.meetingNotRated": "Una reunión no se valora.",
   "sessionForm.noHallMeeting": "Sin sala",
-  "sessionForm.onlineUrl": "Enlace de vídeo (opcional)"
+  "sessionForm.onlineUrl": "Enlace de vídeo (opcional)",
+  "sessionSheet.lateBy": "+{count} min"
 }

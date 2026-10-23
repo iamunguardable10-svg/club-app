@@ -759,7 +759,7 @@
   "sessionSheet.participants": "Teilnehmende",
   "sessionSheet.lateSuffix": " / {count} verspätet",
   "sessionSheet.wholeTeam": "Ganzes Team",
-  "sessionSheet.attendanceFlags": "Anwesenheitsmeldungen",
+  "sessionSheet.attendanceFlags": "Abwesend und verspätet",
   "sessionSheet.status.late": "verspätet",
   "sessionSheet.status.out": "abwesend",
   "sessionSheet.status.expected": "erwartet",
@@ -1954,5 +1954,6 @@
   "session.error.onlineUrl": "Der Video-Link muss mit https:// beginnen und darf höchstens 500 Zeichen haben.",
   "session.error.meetingNotRated": "Eine Besprechung wird nicht bewertet.",
   "sessionForm.noHallMeeting": "Kein Raum",
-  "sessionForm.onlineUrl": "Video-Link (optional)"
+  "sessionForm.onlineUrl": "Video-Link (optional)",
+  "sessionSheet.lateBy": "+{count} Min."
 }

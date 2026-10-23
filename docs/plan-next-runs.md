@@ -405,3 +405,7 @@ Spieler ohne Konto nötig).
 Öffentliche Marketingseite unter `/`, bestehender Einstieg unverändert unter `/start`.
 Demo-Altlinks bleiben gültig. Vier Sprachen, echte Demo-Screenshots, Pilotkontakt,
 Impressum und öffentliche Datenschutzseite; keine Änderungen an Supabase.
+
+## Später: Profilbilder (Ben, 2026-10-23)
+
+- In „Abwesend und verspätet“ (Einheits-Blatt) und anderen Personenlisten kommt in den Kreis links das Profilbild; das Status-Zeichen (✕ abwesend, Uhr verspätet) wird dann ein kleines Abzeichen darauf.

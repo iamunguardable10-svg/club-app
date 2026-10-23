@@ -1034,7 +1034,8 @@ export function CoachSessionDetailOverlay({
             id: item.userId,
             name: item.playerName,
             status: item.status,
-            detail: item.status === 'late' && item.lateMinutes ? t('insight.minutes', { count: item.lateMinutes }) : item.reason,
+            detail: item.reason,
+            minutes: item.status === 'late' ? item.lateMinutes : null,
           })),
         }}
         loadRisks={loadRisks}
