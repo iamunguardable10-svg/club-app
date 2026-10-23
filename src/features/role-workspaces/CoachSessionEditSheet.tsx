@@ -50,7 +50,9 @@ export function CoachSessionEditSheet({
   const [teamId, setTeamId] = useState(initial.teamId ?? (allowTeamChange && teams.length > 1 ? '' : teams[0]?.id ?? ''));
   const selectedTeam = teams.find((team) => team.id === teamId) ?? null;
   const facilityOptions = selectedTeam ? facilities.filter((facility) => facility.departmentIds.includes(selectedTeam.departmentId)) : [];
-  const [facilityId, setFacilityId] = useState(initial.facilityId ?? selectedTeam?.defaultFacilityId ?? facilityOptions[0]?.id ?? '');
+  // A saved meeting or away game without a hall stays without one; a new session starts in the team's hall.
+  const savedWithoutHall = initial.details !== undefined && initial.facilityId === null && (normalizeCoachSessionType(initial.sessionType) === 'meeting' || initial.details.homeAway === 'away');
+  const [facilityId, setFacilityId] = useState(initial.facilityId ?? (savedWithoutHall ? '' : selectedTeam?.defaultFacilityId ?? facilityOptions[0]?.id ?? ''));
   const previousTeamIdRef = useRef(teamId);
   const [groupIds, setGroupIds] = useState<string[]>(initial.groupIds);
   const [dateValue, setDateValue] = useState(() => { const date = new Date(initial.startsAt); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; });
@@ -66,8 +68,12 @@ export function CoachSessionEditSheet({
   const [opponent, setOpponent] = useState(initial.details?.opponent ?? '');
   const [homeAway, setHomeAway] = useState<'home' | 'away' | null>(initial.details?.homeAway ?? null);
   const [venueAddress, setVenueAddress] = useState(initial.details?.venueAddress ?? '');
+  const [onlineUrl, setOnlineUrl] = useState(initial.details?.onlineUrl ?? '');
   const isGame = sessionType === 'game';
   const isAwayGame = isGame && homeAway === 'away';
+  const isMeeting = sessionType === 'meeting';
+  // An away game is played elsewhere, a meeting may be online or anywhere: no hall needed.
+  const hallOptional = isAwayGame || isMeeting;
   const teamGroups = groups.filter((group) => group.teamId === teamId);
   const hasTeam = Boolean(selectedTeam);
 
@@ -85,11 +91,11 @@ export function CoachSessionEditSheet({
     if (teamChanged) {
       previousTeamIdRef.current = teamId;
       setFacilityId(nextTeam?.defaultFacilityId ?? nextFacilities[0]?.id ?? '');
-    } else if (!facilityId || !nextFacilities.some((facility) => facility.id === facilityId)) {
+    } else if ((!facilityId && !hallOptional) || (facilityId && !nextFacilities.some((facility) => facility.id === facilityId))) {
       setFacilityId(nextTeam?.defaultFacilityId ?? nextFacilities[0]?.id ?? '');
     }
     setGroupIds((current) => current.filter((groupId) => groups.some((group) => group.id === groupId && group.teamId === teamId)));
-  }, [facilities, facilityId, groups, teamId, teams]);
+  }, [facilities, facilityId, groups, hallOptional, teamId, teams]);
 
   function handleTeamSelect(nextTeamId: string) {
     const nextTeam = teams.find((team) => team.id === nextTeamId) ?? null;
@@ -147,12 +153,12 @@ export function CoachSessionEditSheet({
   }
 
   async function submit() {
-    // An away game is played elsewhere: no hall needed.
-    if (!hasTeam || !teamId || (!facilityId && !isAwayGame)) return;
+    if (!hasTeam || !teamId || (!facilityId && !hallOptional)) return;
     const next = nextTimeRange(timeValue, endTimeValue);
     const details: CoachSessionDetailsInput = {
       notes, meetMinutesBefore: meetMinutesBefore || null, meetPoint,
       opponent: isGame ? opponent : null, homeAway: isGame ? homeAway : null, venueAddress: isAwayGame ? venueAddress : null,
+      onlineUrl,
     };
     await onSave({ teamId, facilityId, groupIds, sessionType, startsAt: next.startsAt, endsAt: next.endsAt, details });
   }
@@ -181,6 +187,7 @@ export function CoachSessionEditSheet({
             <select value={facilityId} disabled={!hasTeam} onChange={(event) => handleFacilitySelect(event.target.value)} className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-black text-slate-100 outline-none transition focus:border-sky-300 disabled:opacity-60 sm:h-9 sm:px-2.5 sm:text-sm">
               {!hasTeam ? <option value="">{t('sessionForm.chooseTeamFirst')}</option> : null}
               {hasTeam && isAwayGame ? <option value="">{t('sessionForm.noHallAway')}</option> : null}
+              {hasTeam && isMeeting ? <option value="">{t('sessionForm.noHallMeeting')}</option> : null}
               {facilityOptions.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
             </select>
           </label>
@@ -261,6 +268,12 @@ export function CoachSessionEditSheet({
               <input value={meetPoint} onChange={(event) => setMeetPoint(event.target.value)} maxLength={120} placeholder={isAwayGame ? t('sessionForm.meetingPointAway') : t('sessionForm.meetingPointHome')} className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-bold text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm" />
             </label>
           </div>
+          {isMeeting || onlineUrl ? (
+            <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+              {t('sessionForm.onlineUrl')}
+              <input type="url" inputMode="url" value={onlineUrl} onChange={(event) => setOnlineUrl(event.target.value)} maxLength={500} placeholder="https://" className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-bold normal-case tracking-normal text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm" />
+            </label>
+          ) : null}
           <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
             {t('sessionForm.note')}
             <textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} rows={2} placeholder={t('sessionForm.notePlaceholder')} className="mt-1 w-full min-w-0 resize-y rounded-lg border border-slate-700/90 bg-slate-950 px-2 py-1.5 text-[13px] font-bold normal-case tracking-normal text-slate-100 outline-none transition focus:border-sky-300 sm:px-2.5 sm:text-sm" />
@@ -269,7 +282,7 @@ export function CoachSessionEditSheet({
 
         <div className="mt-4 flex flex-wrap justify-between gap-2">
           {onDelete ? <button type="button" onClick={() => setConfirmDelete(true)} className="rounded-lg border border-red-500/60 px-3 py-1.5 text-sm font-black text-red-100 hover:bg-red-950/35">{t('sessionForm.delete')}</button> : <span />}
-          <button type="button" onClick={() => { void submit(); }} disabled={isSaving || !dateValue || !timeValue || !hasTeam || !teamId || (!facilityId && !isAwayGame)} className="rounded-lg bg-emerald-300 px-4 py-1.5 text-sm font-black text-slate-950 disabled:opacity-60">{isSaving ? t('sessionForm.saving') : t('sessionForm.save')}</button>
+          <button type="button" onClick={() => { void submit(); }} disabled={isSaving || !dateValue || !timeValue || !hasTeam || !teamId || (!facilityId && !hallOptional)} className="rounded-lg bg-emerald-300 px-4 py-1.5 text-sm font-black text-slate-950 disabled:opacity-60">{isSaving ? t('sessionForm.saving') : t('sessionForm.save')}</button>
         </div>
       </section>
       <AppConfirmDialog isOpen={confirmDelete} title={t('coach.delete.title')} description={t('coach.delete.detail')} confirmLabel={t('coach.delete.confirm')} cancelLabel={t('coach.delete.keep')} tone="danger" isConfirming={isSaving} onConfirm={() => { setConfirmDelete(false); onDelete?.(); }} onCancel={() => setConfirmDelete(false)} />

@@ -119,9 +119,9 @@ export type CoachRole = {
   createdAt: Timestamp;
 };
 
-export type SessionType = 'training' | 's_and_c' | 'game' | 'recovery' | 'other';
+export type SessionType = 'training' | 's_and_c' | 'game' | 'recovery' | 'other' | 'meeting';
 
-export const SESSION_TYPES: SessionType[] = ['training', 's_and_c', 'game', 'recovery', 'other'];
+export const SESSION_TYPES: SessionType[] = ['training', 's_and_c', 'game', 'recovery', 'other', 'meeting'];
 
 /**
  * How an athlete reports in for a specific session. `late` and `out` are said
@@ -241,7 +241,7 @@ export type Session = {
   seriesId: Id | null;
   seriesWeekStart: DateOnly | null;
   createdAt: Timestamp;
-} & SessionDetails & GameDetails;
+} & SessionDetails & GameDetails & OnlineDetails;
 
 /**
  * What players need to know beyond time and hall (piece 14). Optional, so
@@ -254,6 +254,11 @@ export type SessionDetails = {
   meetMinutesBefore?: number | null;
   /** Where to meet, e.g. "Car park" or "Changing room 2". */
   meetPoint?: string | null;
+};
+
+/** A video call link (https), mostly for meetings (0048). Sessions only, not series. */
+export type OnlineDetails = {
+  onlineUrl?: string | null;
 };
 
 /** Games only (piece 14). An away game has an address instead of a hall. */

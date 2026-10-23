@@ -1900,7 +1900,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               }
               // A team session: what it is, not a form (nothing here can be changed).
               const info = activeComposerSession?.info;
-              const type = loadTypeLabel(planForm.trainingType);
+              // A meeting is no training type (0048).
+              const type = info?.sessionType === 'meeting' ? t('sessionType.meeting') : loadTypeLabel(planForm.trainingType);
               const opponent = planForm.trainingType === 'game' ? info?.opponent?.trim() : null;
               const title = opponent ? t('game.vs', { opponent }) : displayTitle(activeComposerSession?.title ?? activeEntry?.title ?? '') || composerTitle;
               const chips = [title === type ? null : type, info?.homeAway === 'away' ? t('game.away') : info?.homeAway === 'home' ? t('game.home') : null].filter(Boolean) as string[];
@@ -2018,7 +2019,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
             {activeComposerSession?.loadTracked === false && !activeTeamSessionIsFuture ? (
               <p className="mt-5 rounded-2xl border border-slate-700 bg-slate-950/70 p-4 text-sm font-bold text-slate-300">
-                {t('composer.noTracking', { team: activeComposerSession.teamName ?? t('composer.thisTeam') })}
+                {activeComposerSession.info?.sessionType === 'meeting' ? t('session.meetingNotRated') : t('composer.noTracking', { team: activeComposerSession.teamName ?? t('composer.thisTeam') })}
               </p>
             ) : activeTeamSessionIsFuture ? (
               <div className="mt-3 space-y-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-4 text-sm font-bold text-slate-300">

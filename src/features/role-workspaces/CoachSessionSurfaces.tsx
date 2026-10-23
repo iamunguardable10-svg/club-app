@@ -779,16 +779,28 @@ export function OpenAnswers({ session, className = '' }: { session: CoachSession
     }
   }
   return (
-    <div className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-amber-300/35 bg-amber-300/[0.07] px-3 py-2.5 ${className}`}>
-      <p className="min-w-0 flex-1 text-xs font-bold text-amber-100">
-        <span className="font-black">{t('coach.open.count', { count: openIds.length })}</span> · {names.join(', ')}
-      </p>
-      {reminded !== null
-        ? <span role="status" className="text-xs font-black text-emerald-200">{t('coach.open.reminded')}</span>
-        : <button type="button" onClick={() => { void remind(); }} className="rounded-lg border border-amber-300/50 px-2.5 py-1 text-xs font-black text-amber-100 transition hover:bg-amber-300/10 active:scale-95">{t('coach.open.remind')}</button>}
-      {failed ? <p role="alert" className="w-full text-xs font-bold text-rose-200">{failed}</p> : null}
+    <div className={`rounded-xl border border-slate-800 bg-slate-900/45 p-3 ${className}`}>
+      <div className="flex items-center gap-3">
+        <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-800 text-sm font-black text-slate-300">?</span>
+        <p className="min-w-0 flex-1">
+          <span className="block break-words text-sm font-bold text-slate-100">{names.join(', ')}</span>
+          <span className="block text-xs text-slate-400">{t('coach.open.title')}</span>
+        </p>
+        {reminded !== null
+          ? <span role="status" className="flex shrink-0 items-center gap-1 text-xs font-black text-emerald-200"><CheckIcon />{t('coach.open.reminded')}</span>
+          : <button type="button" onClick={() => { void remind(); }} className="flex shrink-0 items-center gap-1.5 rounded-full bg-amber-300 px-3 py-1.5 text-xs font-black text-slate-950 transition hover:bg-amber-200 active:scale-95"><BellIcon />{t('coach.open.remind')}</button>}
+      </div>
+      {failed ? <p role="alert" className="mt-2 text-xs font-bold text-rose-200">{failed}</p> : null}
     </div>
   );
+}
+
+function BellIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="h-3.5 w-3.5"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15Z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></svg>;
+}
+
+function CheckIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="h-3.5 w-3.5"><path d="m6 12.5 4 4 8-9" /></svg>;
 }
 
 function SquadPicker({ session }: { session: CoachSession }) {
@@ -1034,14 +1046,15 @@ export function CoachSessionDetailOverlay({
             id: item.userId,
             name: item.playerName,
             status: item.status,
-            detail: item.status === 'late' && item.lateMinutes ? t('insight.minutes', { count: item.lateMinutes }) : item.reason,
+            detail: item.reason,
+            minutes: item.status === 'late' ? item.lateMinutes : null,
           })),
         }}
         loadRisks={loadRisks}
         answers={!isPast ? ((session.openPlayerIds?.length ?? 0) > 0 ? <OpenAnswers key={`open-${session.id}`} session={session} /> : null) : session.canConfirmAttendance && session.attendanceShared !== false && session.players.length > 0 ? <AttendanceConfirmation key={session.id} session={session} /> : null}
         insights={!isPast ? (session.sessionType === 'game' && (session.canPickSquad || session.squadPublishedAt) ? <SquadPicker key={session.id} session={session} /> : null) : isPast ? (<>
         {!sessionLoadDetailsShared(session) ? (
-          <p className="rounded-2xl border border-slate-800 bg-slate-950/55 p-3 text-xs font-bold text-slate-400">{session.loadTracked === false ? t('insight.noTracking', { team: session.teamName }) : t('insight.notShared')}</p>
+          <p className="rounded-2xl border border-slate-800 bg-slate-950/55 p-3 text-xs font-bold text-slate-400">{session.sessionType === 'meeting' ? t('session.meetingNotRated') : session.loadTracked === false ? t('insight.noTracking', { team: session.teamName }) : t('insight.notShared')}</p>
         ) : isPast ? (
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2">

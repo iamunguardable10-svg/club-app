@@ -74,6 +74,7 @@ import {
   type Session,
   type SessionSeries,
   type SessionDetails,
+  type OnlineDetails,
   type GameDetails,
   type StaffInvite,
   type SessionType,
@@ -1999,7 +2000,7 @@ export type SessionInput = {
   endsAt: string;
   facilityId: Id | null;
   groupIds?: Id[];
-} & SessionDetails & GameDetails;
+} & SessionDetails & GameDetails & OnlineDetails;
 
 function optionalText(value: string | null | undefined, max: number, what: string): string | null {
   const clean = (value ?? '').trim();
@@ -2012,7 +2013,17 @@ function optionalText(value: string | null | undefined, max: number, what: strin
  * Notes, meeting and game details as stored (piece 14): trimmed, empty is
  * none, game fields only on games. Same limits as the database.
  */
-export function cleanSessionDetails(sessionType: SessionType, input: SessionDetails & GameDetails): Required<SessionDetails> & Required<Omit<GameDetails, 'squadPublishedAt'>> {
+const ONLINE_URL = /^https:\/\/\S+$/;
+
+/** A video call link as stored: https only, no spaces, at most 500 characters (0048). */
+export function cleanOnlineUrl(value?: string | null): string | null {
+  const clean = (value ?? '').trim();
+  if (!clean) return null;
+  if (clean.length > 500 || !ONLINE_URL.test(clean)) throw new LocalDataError('The video link must start with https:// and have at most 500 characters.');
+  return clean;
+}
+
+export function cleanSessionDetails(sessionType: SessionType, input: SessionDetails & GameDetails & OnlineDetails): Required<SessionDetails> & Required<Omit<GameDetails, 'squadPublishedAt'>> & Required<OnlineDetails> {
   const meet = input.meetMinutesBefore ?? null;
   if (meet !== null && (!Number.isInteger(meet) || meet < 0 || meet > 240)) {
     throw new LocalDataError('The meeting time can be at most 4 hours before the start.');
@@ -2026,6 +2037,7 @@ export function cleanSessionDetails(sessionType: SessionType, input: SessionDeta
     opponent: game ? optionalText(input.opponent, 80, 'The opponent') : null,
     homeAway,
     venueAddress: game && homeAway === 'away' ? optionalText(input.venueAddress, 200, 'The address') : null,
+    onlineUrl: cleanOnlineUrl(input.onlineUrl),
   };
 }
 
@@ -2054,7 +2066,7 @@ export function createSession(input: SessionInput): Id {
   return id;
 }
 
-const DETAIL_KEYS = ['notes', 'meetMinutesBefore', 'meetPoint', 'opponent', 'homeAway', 'venueAddress'] as const;
+const DETAIL_KEYS = ['notes', 'meetMinutesBefore', 'meetPoint', 'opponent', 'homeAway', 'venueAddress', 'onlineUrl'] as const;
 
 export function updateSession(sessionId: Id, changes: Partial<SessionInput>): void {
   mutate((database) => {

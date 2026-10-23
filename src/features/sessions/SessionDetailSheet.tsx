@@ -7,6 +7,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 import { LoadInfoButton, LoadRiskBadge } from '@/features/load/LoadHints';
 import { useT, type MessageKey } from '@/shared/i18n';
+import { FlagRow } from './AvailabilityStack';
 
 const STATUS_KEY: Record<string, MessageKey> = {
   late: 'sessionSheet.status.late',
@@ -37,7 +38,10 @@ export type SessionDetailAttendance = {
     id: string;
     name: string;
     status: 'late' | 'out' | 'present';
+    /** The player's reason, if any. */
     detail?: string | null;
+    /** Late: by how many minutes. */
+    minutes?: number | null;
   }>;
 };
 
@@ -73,6 +77,34 @@ function statusClass(status?: string) {
   if (status === 'late') return 'text-amber-200';
   if (status === 'open') return 'text-slate-400';
   return 'text-emerald-200';
+}
+
+const FLAG_ORDER: Record<string, number> = { out: 0, late: 1, present: 2 };
+
+/** Who is absent or late, for every session type: absent first, the reason under the name. */
+function AttendanceFlags({ notes, onSelect }: { notes: NonNullable<SessionDetailAttendance['notes']>; onSelect?: (id: string) => void }) {
+  const t = useT();
+  const sorted = [...notes].sort((a, b) => (FLAG_ORDER[a.status] ?? 9) - (FLAG_ORDER[b.status] ?? 9) || a.name.localeCompare(b.name));
+  const statusText = (status: string) => t(STATUS_KEY[status] ?? 'sessionSheet.status.present');
+  return (
+    <div className="mt-2.5 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('sessionSheet.attendanceFlags')}</p>
+      <ul className="mt-1.5 divide-y divide-slate-800/80">
+        {sorted.map((note) => {
+          const body = <FlagRow status={note.status} label={statusText(note.status)} name={note.name} reason={note.detail} minutes={note.minutes} />;
+          return (
+            <li key={note.id}>
+              {onSelect ? (
+                <button type="button" onClick={() => onSelect(note.id)} className="flex w-full items-center gap-3 rounded-lg py-2.5 text-left transition hover:bg-slate-900/70">{body}</button>
+              ) : (
+                <div className="flex items-center gap-3 py-2.5">{body}</div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
 }
 
 function timeValueFromIso(value: string) {
@@ -273,25 +305,7 @@ export function SessionDetailSheet({
         </div>
 
         {attendance?.notes && attendance.notes.length > 0 ? (
-          <div className="mt-2.5 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('sessionSheet.attendanceFlags')}</p>
-            <div className="mt-2.5 grid gap-2">
-              {attendance.notes.map((note) => {
-                const className = `flex w-full items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-left text-sm font-bold transition ${onParticipantSelect ? 'hover:border-emerald-300/50 hover:bg-slate-900' : ''}`;
-                const content = (
-                  <>
-                    <span className="text-slate-100">{note.name}</span>
-                    <span className={statusClass(note.status)}>{statusLabel(note.status)}{note.detail ? ` · ${note.detail}` : ''}</span>
-                  </>
-                );
-                return onParticipantSelect ? (
-                  <button key={note.id} type="button" onClick={() => onParticipantSelect(note.id)} className={className}>{content}</button>
-                ) : (
-                  <div key={note.id} className={className}>{content}</div>
-                );
-              })}
-            </div>
-          </div>
+          <AttendanceFlags notes={attendance.notes} onSelect={onParticipantSelect} />
         ) : null}
 
         {answers ? <div className="mt-2.5">{answers}</div> : null}
