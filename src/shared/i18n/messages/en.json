@@ -1568,7 +1568,6 @@
   "athlete.rsvp.yes": "I'm in",
   "athlete.rsvp.no": "Can't come",
   "composer.openAnswer": "You haven't answered yet. Your coach sees you as open until you do.",
-  "coach.open.count": "{count} no answer",
   "coach.open.remind": "Remind",
   "coach.open.reminded": "Reminded",
   "coach.row.open": "{count} no answer",
@@ -1955,5 +1954,6 @@
   "session.error.meetingNotRated": "A meeting is not rated.",
   "sessionForm.noHallMeeting": "No room",
   "sessionForm.onlineUrl": "Video link (optional)",
-  "sessionSheet.lateBy": "+{count} min"
+  "sessionSheet.lateBy": "+{count} min",
+  "coach.open.title": "No answer"
 }

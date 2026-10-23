@@ -1568,7 +1568,6 @@
   "athlete.rsvp.yes": "Présent",
   "athlete.rsvp.no": "Absent",
   "composer.openAnswer": "Tu n’as pas encore répondu. D’ici là, ton coach te voit sans réponse.",
-  "coach.open.count": "{count} sans réponse",
   "coach.open.remind": "Relancer",
   "coach.open.reminded": "Relancé",
   "coach.row.open": "{count} sans réponse",
@@ -1955,5 +1954,6 @@
   "session.error.meetingNotRated": "Une réunion n’est pas évaluée.",
   "sessionForm.noHallMeeting": "Pas de salle",
   "sessionForm.onlineUrl": "Lien vidéo (facultatif)",
-  "sessionSheet.lateBy": "+{count} min"
+  "sessionSheet.lateBy": "+{count} min",
+  "coach.open.title": "Sans réponse"
 }

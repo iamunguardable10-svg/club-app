@@ -1568,7 +1568,6 @@
   "athlete.rsvp.yes": "Dabei",
   "athlete.rsvp.no": "Absagen",
   "composer.openAnswer": "Du hast noch nicht geantwortet. Bis dahin sieht dein Trainer dich als offen.",
-  "coach.open.count": "{count} offen",
   "coach.open.remind": "Erinnern",
   "coach.open.reminded": "Erinnert",
   "coach.row.open": "{count} offen",
@@ -1955,5 +1954,6 @@
   "session.error.meetingNotRated": "Eine Besprechung wird nicht bewertet.",
   "sessionForm.noHallMeeting": "Kein Raum",
   "sessionForm.onlineUrl": "Video-Link (optional)",
-  "sessionSheet.lateBy": "+{count} Min."
+  "sessionSheet.lateBy": "+{count} Min.",
+  "coach.open.title": "Keine Antwort"
 }
