@@ -1,6 +1,6 @@
 'use client';
 
-import { type MouseEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScreenSkeleton } from '@/shared/components/Skeleton';
 import { Carpools, CarpoolSummary } from '@/features/sessions/Carpools';
 import { SessionInfo, gameLine, meetLine, squadLine } from '@/features/sessions/SessionInfo';
@@ -23,10 +23,10 @@ import { BASELINE_DAYS, acwrAfter, aggregateDailyLoads, backFromBreak, baselineA
 import { LoadInfoButton, LoadLandingChip, LoadRiskBadge } from './LoadHints';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
 import { HealthConsentPanel } from '@/features/legal/HealthConsentPanel';
-import { athleteHasLoad, athleteTeamTracksLoad, hasHealthConsent, clearEntryReview, displayName, getActivePerson, newId, reportAvailability, reviewsForPerson, rsvpModeOf, useLocalDatabase } from '@/shared/data';
+import { athleteHasLoad, dismissHint, isHintDismissed, athleteTeamTracksLoad, hasHealthConsent, clearEntryReview, displayName, getActivePerson, newId, reportAvailability, reviewsForPerson, rsvpModeOf, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
-import { formatDateRange, formatDay, formatDayMonth, formatDayNumber, formatDecimal, formatEntryDate, formatInteger, formatLongDay, formatTime as formatSharedTime, formatWeekday, formatWeekdayDay } from '@/shared/format';
+import { formatDay, formatDayMonth, formatDecimal, formatEntryDate, formatInteger, formatLongDay, formatTime as formatSharedTime, formatWeekday } from '@/shared/format';
 import { errorText, tr, useT, type MessageKey } from '@/shared/i18n';
 import { loadTypeLabel, zoneLabel } from './loadLabels';
 import { displayTitle } from '@/features/sessions/sessionTypeLabels';
@@ -49,6 +49,8 @@ import {
   type AthleteAvailabilityMark,
 } from './athleteLocalStore';
 import { RatePrompt, WARMUP_MINUTES, WARMUP_RPE } from './RatePrompt';
+import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
+import { useSmartCalendar } from '@/features/calendar/useSmartCalendar';
 
 /**
  * Players who were already asked in this visit, so moving between Today,
@@ -487,407 +489,91 @@ function AthleteCalendar({
 }: {
   items: AthleteCalendarItem[];
   /** Missing for players without load tracking: own plans are part of load. */
-  onEmptySlot?: (date: string, time: string) => void;
+  onEmptySlot?: (date: string, time: string, durationMinutes?: number) => void;
   onItemSelect: (item: AthleteCalendarItem, intent: 'view' | 'edit') => void;
   onPlanTimeChange: (session: AthletePendingSession, startsAt: string, durationMinutes: number) => void;
 }) {
   const t = useT();
-  const firstHour = 8;
-  const lastHour = 23;
-  const desktopHourHeight = 48;
-  const mobileHourHeight = 30;
-  const hours = Array.from({ length: lastHour - firstHour + 1 }, (_, index) => firstHour + index);
-  const [weekOffset, setWeekOffset] = useState(0);
-  const weekStartDate = addDays(weekStart(), weekOffset * 7);
-  const days = Array.from({ length: 7 }, (_, index) => addDays(weekStartDate, index));
-  const weekLabel = formatDateRange(days[0], days[6]);
-  const gridMinutes = (lastHour - firstHour + 1) * 60;
-  const gridHeightDesktop = hours.length * desktopHourHeight;
-  const gridHeightMobile = hours.length * mobileHourHeight;
-  const [mode, setMode] = useState<'view' | 'edit'>('view');
-  // One day at a time on phones; seven columns are too narrow to read.
-  const [mobileView, setMobileView] = useState<'week' | 'day'>('day');
-  const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, days.findIndex((day) => isoDate(day) === todayISO())));
-  const [suppressClick, setSuppressClick] = useState(false);
-  const [drag, setDrag] = useState<{
-    item: AthleteCalendarItem;
-    kind: 'move' | 'resize';
-    startedAt: string;
-    durationMinutes: number;
-  } | null>(null);
-  const [dragPreview, setDragPreview] = useState<{ id: string; date: string; startsAt: string; endsAt: string; duration: number } | null>(null);
-
-  function clampDayIndex(index: number) {
-    return Math.max(0, Math.min(days.length - 1, index));
-  }
-
-  // On the phone's day view, a sideways swipe goes to the next or previous
-  // day, across into the next or previous week (as in the coach calendar).
-  const daySwipe = useRef<{ x: number; y: number } | null>(null);
-  const swiped = useRef(false);
-  function startDaySwipe(event: ReactPointerEvent<HTMLDivElement>) {
-    if (mode !== 'view' || event.pointerType === 'mouse' || (event.target as HTMLElement).closest('[data-athlete-calendar-item="true"]')) return;
-    daySwipe.current = { x: event.clientX, y: event.clientY };
-  }
-  function endDaySwipe(event: ReactPointerEvent<HTMLDivElement>) {
-    const start = daySwipe.current;
-    daySwipe.current = null;
-    if (!start) return;
-    const dx = event.clientX - start.x;
-    const dy = event.clientY - start.y;
-    if (Math.abs(dx) < Math.max(80, window.innerWidth * 0.25) || Math.abs(dx) < Math.abs(dy) * 1.4) return;
-    swiped.current = true;
-    const next = clampDayIndex(activeDayIndex) + (dx < 0 ? 1 : -1);
-    if (next < 0) { setWeekOffset((value) => value - 1); setActiveDayIndex(days.length - 1); }
-    else if (next >= days.length) { setWeekOffset((value) => value + 1); setActiveDayIndex(0); }
-    else setActiveDayIndex(next);
-  }
-
-  function minutesToTime(minutes: number) {
-    const hour = firstHour + Math.floor(minutes / 60);
-    const minute = minutes % 60;
-    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-  }
-
-  function dateTimeISO(date: string, minutes: number) {
-    return new Date(`${date}T${minutesToTime(minutes)}`).toISOString();
-  }
-
-  function minutesFromPointer(element: HTMLElement, clientY: number, hourHeight: number) {
-    const rect = element.getBoundingClientRect();
-    const y = Math.max(0, Math.min(rect.height, clientY - rect.top));
-    const rawMinutes = Math.round((y / hourHeight) * 60);
-    return Math.max(0, Math.min(gridMinutes - 15, Math.round(rawMinutes / 15) * 15));
-  }
-
-  function pickSlot(day: Date, event: MouseEvent<HTMLDivElement>, hourHeight: number) {
-    if (swiped.current) { swiped.current = false; return; }
-    if ((event.target as HTMLElement).closest('[data-athlete-calendar-item="true"]')) return;
-    if (!onEmptySlot) return;
-    const minutes = minutesFromPointer(event.currentTarget, event.clientY, hourHeight);
-    onEmptySlot(isoDate(day), minutesToTime(minutes));
-  }
-
-  function itemDuration(item: AthleteCalendarItem) {
-    const start = new Date(item.startsAt);
-    const end = item.endsAt ? new Date(item.endsAt) : new Date(start.getTime() + DEFAULT_DURATION_BY_TYPE[item.trainingType] * 60_000);
-    return Math.max(30, Math.round((end.getTime() - start.getTime()) / 60_000));
-  }
-
-  function itemStyle(item: AthleteCalendarItem, hourHeight: number, gridHeight: number) {
-    const preview = dragPreview?.id === item.id ? dragPreview : null;
-    const startsAt = preview?.startsAt ?? item.startsAt;
-    const endsAt = preview?.endsAt ?? item.endsAt;
-    const start = new Date(startsAt);
-    const topMinutes = Math.max(0, (start.getHours() - firstHour) * 60 + start.getMinutes());
-    const duration = endsAt ? Math.max(30, Math.round((new Date(endsAt).getTime() - start.getTime()) / 60_000)) : itemDuration(item);
-    const top = Math.min(Math.max(0, topMinutes * (hourHeight / 60)), gridHeight - 26);
-    const height = Math.max(26, Math.min(duration * (hourHeight / 60), gridHeight - top));
-    return { top, height };
-  }
+  const [draft, setDraft] = useState<{ startsAt: string; endsAt: string } | null>(null);
+  // Where a dragged plan is right now, until it is saved.
+  const [preview, setPreview] = useState<{ id: string; startsAt: string; endsAt: string } | null>(null);
+  const itemsById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
 
   function canManage(item: AthleteCalendarItem) {
     if (item.session?.trainingType === 'warmup' || item.id.endsWith('-warmup')) return false;
-    return item.source === 'athlete_plan' && item.session && item.status !== 'reported';
+    return Boolean(onEmptySlot) && item.source === 'athlete_plan' && Boolean(item.session) && item.status !== 'reported';
   }
 
-  function dragProjection(activeDrag: { item: AthleteCalendarItem; kind: 'move' | 'resize'; startedAt: string; durationMinutes: number }, pointerEvent: PointerEvent, startClientX: number, startClientY: number) {
-    const element = document.elementFromPoint(pointerEvent.clientX, pointerEvent.clientY) as HTMLElement | null;
-    const dayElement = element?.closest('[data-athlete-day]') as HTMLElement | null;
-    const originalStart = new Date(activeDrag.startedAt);
-    const originalStartMinutes = Math.max(0, (originalStart.getHours() - firstHour) * 60 + originalStart.getMinutes());
-    const isMobileTarget = dayElement?.dataset.density === 'mobile';
-    const hourHeight = dayElement?.dataset.density === 'desktop' ? desktopHourHeight : mobileHourHeight;
-    const pointerMinutes = dayElement ? minutesFromPointer(dayElement, pointerEvent.clientY, hourHeight) : originalStartMinutes;
-    const deltaMinutes = Math.round(((pointerEvent.clientY - startClientY) / hourHeight) * 60 / 15) * 15;
-    const duration = activeDrag.kind === 'move'
-      ? activeDrag.durationMinutes
-      : Math.max(15, Math.round((pointerMinutes - originalStartMinutes) / 15) * 15);
-    const mobileDayElements = Array.from(document.querySelectorAll<HTMLElement>('[data-athlete-day][data-density="mobile"]'));
-    const originalMobileDay = mobileDayElements.find((node) => node.dataset.athleteDay === activeDrag.item.date) ?? null;
-    const horizontalDelta = pointerEvent.clientX - startClientX;
-    const mobileWeekDrag = Boolean(isMobileTarget && originalMobileDay && mobileDayElements.length >= 7);
-    const mobileColumnWidth = originalMobileDay?.getBoundingClientRect().width ?? 56;
-    const mobileHorizontalThreshold = Math.min(34, mobileColumnWidth * 0.62);
-    const horizontalStep = mobileWeekDrag && Math.abs(horizontalDelta) >= mobileHorizontalThreshold
-      ? horizontalDelta > 0
-        ? Math.max(1, Math.round(horizontalDelta / mobileColumnWidth))
-        : Math.min(-1, Math.round(horizontalDelta / mobileColumnWidth))
-      : 0;
-    const originalDayIndex = days.findIndex((day) => isoDate(day) === activeDrag.item.date);
-    const projectedMobileDate = horizontalStep !== 0 && originalDayIndex >= 0
-      ? isoDate(days[clampDayIndex(originalDayIndex + horizontalStep)])
-      : activeDrag.item.date;
-    const date = activeDrag.kind === 'resize'
-      ? activeDrag.item.date
-      : mobileWeekDrag
-        ? projectedMobileDate
-        : dayElement?.dataset.athleteDay ?? activeDrag.item.date;
-    const startMinutes = activeDrag.kind === 'move'
-      ? Math.max(0, Math.min(originalStartMinutes + deltaMinutes, gridMinutes - duration))
-      : Math.max(0, Math.min(gridMinutes - 15, originalStartMinutes));
-    const startsAt = dateTimeISO(date, startMinutes);
-    const endsAt = new Date(new Date(startsAt).getTime() + duration * 60_000).toISOString();
-    return { date, startsAt, endsAt, duration };
+  // The coach's calendar (piece: one calendar): a tap in edit mode puts a
+  // draft down, which is dragged to the right time before it is planned.
+  const calendar = useSmartCalendar({
+    draft,
+    canCreate: Boolean(onEmptySlot),
+    draftMinutes: 60,
+    handlers: {
+      onCreateDraft: (start, end) => setDraft({ startsAt: start.toISOString(), endsAt: end.toISOString() }),
+      onDraftTimes: (start, end) => setDraft((current) => current ? { startsAt: start.toISOString(), endsAt: end.toISOString() } : current),
+      onSessionTimes: (id, start, end) => setPreview({ id, startsAt: start.toISOString(), endsAt: end.toISOString() }),
+      onSessionDrop: (id, start, end) => {
+        const item = itemsById.get(id);
+        if (item?.session) onPlanTimeChange(item.session, start.toISOString(), Math.round((end.getTime() - start.getTime()) / 60_000));
+      },
+      onOpenSession: (session, intent) => {
+        const item = itemsById.get(session.id);
+        if (item) onItemSelect(item, intent);
+      },
+      onWeekChange: () => setDraft(null),
+    },
+  });
+  useEffect(() => { if (!calendar.isDragging) setPreview(null); }, [calendar.isDragging]);
+  // What a tap and a drag do is said once, the first time the edit mode opens.
+  const [editHintShown] = useState(() => !isHintDismissed('calendarEdit'));
+  useEffect(() => { if (calendar.mode === 'edit' && editHintShown) dismissHint('calendarEdit'); }, [calendar.mode, editHintShown]);
+
+  function confirmDraft() {
+    if (!draft || !onEmptySlot) return;
+    const start = new Date(draft.startsAt);
+    onEmptySlot(isoDate(start), timeInputFromISO(draft.startsAt), Math.round((new Date(draft.endsAt).getTime() - start.getTime()) / 60_000));
+    setDraft(null);
   }
 
-  function startDrag(item: AthleteCalendarItem, kind: 'move' | 'resize', event: ReactPointerEvent<HTMLButtonElement | HTMLSpanElement>) {
-    if (mode !== 'edit' || !canManage(item) || (kind === 'resize' && item.trainingType === 'game')) return;
-    event.stopPropagation();
-    const activeDrag = { item, kind, startedAt: item.startsAt, durationMinutes: itemDuration(item) };
-    const startX = event.clientX;
-    const startY = event.clientY;
-    let isDragging = kind === 'resize';
-
-    if (kind === 'resize') {
-      event.preventDefault();
-      setSuppressClick(true);
-      setDrag(activeDrag);
-      const duration = itemDuration(item);
-      setDragPreview({ id: item.id, date: item.date, startsAt: item.startsAt, endsAt: item.endsAt ?? new Date(new Date(item.startsAt).getTime() + duration * 60_000).toISOString(), duration });
-    }
-
-    function cleanup() {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', finish);
-      window.removeEventListener('pointercancel', cancel);
-    }
-
-    function move(pointerEvent: PointerEvent) {
-      if (!isDragging) {
-        const delta = Math.abs(pointerEvent.clientX - startX) + Math.abs(pointerEvent.clientY - startY);
-        if (delta < 7) return;
-        isDragging = true;
-        setSuppressClick(true);
-        setDrag(activeDrag);
-      }
-      pointerEvent.preventDefault();
-      const projection = dragProjection(activeDrag, pointerEvent, startX, startY);
-      setDragPreview({ id: activeDrag.item.id, date: projection.date, startsAt: projection.startsAt, endsAt: projection.endsAt, duration: projection.duration });
-    }
-
-    function finish(pointerEvent: PointerEvent) {
-      cleanup();
-      if (!isDragging) return;
-      const projection = dragProjection(activeDrag, pointerEvent, startX, startY);
-      if (activeDrag.item.session) onPlanTimeChange(activeDrag.item.session, projection.startsAt, projection.duration);
-      setDrag(null);
-      setDragPreview(null);
-      window.setTimeout(() => setSuppressClick(false), 0);
-    }
-
-    function cancel() {
-      cleanup();
-      setDrag(null);
-      setDragPreview(null);
-      window.setTimeout(() => setSuppressClick(false), 0);
-    }
-
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', finish);
-    window.addEventListener('pointercancel', cancel);
-  }
-
-  function itemClass(item: AthleteCalendarItem) {
-    const base = 'absolute left-1 right-1 overflow-hidden rounded-xl border px-2 py-1 text-left shadow-sm transition-[top,height,left,right,filter,box-shadow,transform] duration-100 ease-out hover:brightness-110';
-    const dragClass = drag?.item.id === item.id ? ' z-20 scale-[1.035] ring-2 ring-sky-200 brightness-125 shadow-[0_22px_60px_rgba(56,189,248,0.34)]' : '';
-    if (item.source === 'private_event') return `${base} border-slate-600/70 bg-slate-800/55 text-slate-300`;
-    if (item.status === 'reported') return `${base} bg-slate-950/95 text-white${dragClass}`;
-    if (item.status === 'missing') return `${base} border-amber-300/70 bg-amber-300/12 text-amber-50${dragClass}`;
-    if (item.status === 'open') return `${base} border-dashed border-amber-300/80 bg-amber-300/[0.07] text-amber-50${dragClass}`;
-    if (item.status === 'cancelled') return `${base} border-rose-400/80 bg-rose-500/15 text-rose-100 opacity-90${dragClass}`;
-    if (item.status === 'late') return `${base} border-sky-300/80 bg-sky-400/15 text-sky-100${dragClass}`;
-    return `${base} border-dashed bg-slate-950/55 text-white${dragClass}`;
-  }
-
-  function itemBorderStyle(item: AthleteCalendarItem) {
-    const color = LOAD_TYPE_COLORS[item.trainingType];
-    if (item.source === 'private_event') return { borderColor: 'rgba(148,163,184,0.45)', cursor: 'default', touchAction: 'auto' as const };
+  const sessions = items.map((item): SmartCalendarSession => {
+    const moved = preview?.id === item.id ? preview : null;
+    const startsAt = moved?.startsAt ?? item.startsAt;
+    const endsAt = moved?.endsAt ?? item.endsAt ?? new Date(new Date(item.startsAt).getTime() + DEFAULT_DURATION_BY_TYPE[item.trainingType] * 60_000).toISOString();
+    const isPrivate = item.source === 'private_event';
     return {
-      borderColor: item.status === 'cancelled' ? 'rgba(251,113,133,0.82)' : item.status === 'late' ? 'rgba(125,211,252,0.82)' : item.status === 'missing' || item.status === 'open' ? 'rgba(252,211,77,0.75)' : color,
-      boxShadow: item.status === 'reported' ? `inset 3px 0 0 ${color}` : undefined,
-      cursor: mode === 'edit' && canManage(item) ? 'grab' : 'pointer',
-      touchAction: mode === 'edit' && canManage(item) ? 'none' : 'auto',
+      id: item.id,
+      title: item.title,
+      startsAt,
+      endsAt,
+      sessionType: item.trainingType === 'game' ? 'game' : undefined,
+      teamName: isPrivate ? t('calendar.private') : item.teamName ?? loadTypeLabel(item.trainingType),
+      departmentName: '',
+      tone: 'muted',
+      canManage: canManage(item),
+      look: isPrivate ? 'private' : item.status,
+      color: LOAD_TYPE_COLORS[item.trainingType],
+      shortTitle: isPrivate ? item.title : compactLoadLabel(item.trainingType),
+      detail: item.status === 'cancelled'
+        ? t('calendar.outAt', { time: formatTime(startsAt) })
+        : item.status === 'late' ? t('calendar.lateAt', { time: formatTime(startsAt) }) : undefined,
     };
-  }
-
-  function renderItem(item: AthleteCalendarItem, hourHeight: number, gridHeight: number, compact = false) {
-    const style = itemStyle(item, hourHeight, gridHeight);
-    const manageable = mode === 'edit' && canManage(item);
-    const preview = dragPreview?.id === item.id ? dragPreview : null;
-    const displayStartsAt = preview?.startsAt ?? item.startsAt;
-    const displayEndsAt = preview?.endsAt ?? item.endsAt;
-    const titleClass = compact
-      ? style.height < 32
-        ? 'text-[7px] leading-[1.15]'
-        : style.height < 44
-          ? 'text-[7.5px] leading-[1.15]'
-          : 'text-[8px] leading-[1.18]'
-      : style.height < 36
-        ? 'text-[11px] leading-tight'
-        : style.height < 48
-          ? 'text-xs leading-tight'
-          : 'text-sm leading-tight';
-    const detailClass = compact
-      ? style.height < 42
-        ? 'text-[6.5px] leading-[1.15]'
-        : 'text-[7px] leading-[1.18]'
-      : style.height < 48
-        ? 'text-[10px] leading-none'
-        : 'text-[11px] leading-tight';
-    const resizeClass = compact
-      ? 'absolute inset-x-3 bottom-0 h-3 cursor-ns-resize rounded-t bg-white/35'
-      : 'absolute inset-x-6 bottom-0 h-2.5 cursor-ns-resize rounded-t bg-white/35';
-    return (
-      <button
-        key={item.id}
-        type="button"
-        data-athlete-calendar-item="true"
-        data-item-id={item.id}
-        onPointerDown={(event) => startDrag(item, 'move', event)}
-        onClick={(event) => { event.stopPropagation(); if (!suppressClick) onItemSelect(item, mode); }}
-        className={`${itemClass(item)} ${compact ? 'left-0.5 right-0.5 px-0.5 text-[8px] leading-tight' : ''}`}
-        style={{ ...style, ...itemBorderStyle(item) }}
-      >
-        <span className={`block font-black ${titleClass} ${compact ? 'overflow-hidden whitespace-nowrap' : 'truncate'}`}>{compact ? (item.source === 'private_event' ? item.title : compactLoadLabel(item.trainingType)) : item.source === 'private_event' ? item.title : displayTitle(item.title)}</span>
-        {preview ? (
-          <span className={`absolute right-1 top-1 rounded-md bg-slate-950/85 px-1 font-black text-sky-100 ring-1 ring-sky-200/40 ${compact ? 'text-[7px]' : 'text-[9px]'}`}>
-            {t('calendar.minutesShort', { count: preview.duration })}
-          </span>
-        ) : null}
-        {style.height > (compact ? 28 : 42) ? (
-          <span className={`mt-0.5 block overflow-hidden whitespace-nowrap font-bold opacity-75 ${detailClass} ${compact ? '' : 'truncate'}`}>
-            {item.status === 'cancelled'
-              ? t('calendar.outAt', { time: formatTime(displayStartsAt) })
-              : item.status === 'late'
-                ? t('calendar.lateAt', { time: formatTime(displayStartsAt) })
-              : compact ? formatTime(displayStartsAt) : `${formatTime(displayStartsAt)}${displayEndsAt && item.trainingType !== 'game' ? ` - ${formatTime(displayEndsAt)}` : ''} · ${item.source === 'private_event' ? t('calendar.private') : item.teamName ?? loadTypeLabel(item.trainingType)}`}
-          </span>
-        ) : null}
-        {manageable && item.trainingType !== 'game' ? <span aria-hidden="true" onPointerDown={(event) => startDrag(item, 'resize', event)} className={resizeClass} /> : null}
-      </button>
-    );
-  }
-
-  function itemDisplayDate(item: AthleteCalendarItem) {
-    return dragPreview?.id === item.id ? dragPreview.date : item.date;
-  }
-
-  const activeDay = days[clampDayIndex(activeDayIndex)];
-  const activeDayItems = items.filter((item) => itemDisplayDate(item) === isoDate(activeDay));
+  });
 
   return (
     <section className="min-w-0 rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-3 sm:rounded-[2rem] sm:p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-black text-slate-300">
-            <button type="button" onClick={() => setWeekOffset((value) => value - 1)} className="rounded-full border border-slate-700 px-2 py-1 text-slate-200">‹</button>
-            <span>{weekLabel}</span>
-            <button type="button" onClick={() => setWeekOffset((value) => value + 1)} className="rounded-full border border-slate-700 px-2 py-1 text-slate-200">›</button>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {weekOffset !== 0 ? <button type="button" onClick={() => setWeekOffset(0)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">{t('calendar.backToThisWeek')}</button> : null}
-          {onEmptySlot ? (
-            <button type="button" onClick={() => setMode((current) => (current === 'edit' ? 'view' : 'edit'))} aria-label={mode === 'edit' ? undefined : t('calendar.addOwn')} title={mode === 'edit' ? undefined : t('calendar.addOwn')} className={mode === 'edit' ? 'rounded-full border border-sky-300 bg-sky-300 px-4 py-2 text-xs font-black text-slate-950' : 'flex h-9 w-9 items-center justify-center rounded-full border border-emerald-300 bg-emerald-300 text-lg font-black leading-none text-slate-950'}>
-              {mode === 'edit' ? t('calendar.done') : '+'}
-            </button>
-          ) : null}
-        </div>
-      </div>
-      {dragPreview ? (
-        <div className="mb-3 rounded-2xl border border-sky-300/40 bg-sky-300/10 px-3 py-2 text-xs font-black text-sky-100 shadow-[0_16px_50px_rgba(56,189,248,0.14)]">
-          {formatWeekday(`${dragPreview.date}T12:00:00`)} · {formatTime(dragPreview.startsAt)}
-          {' → '}
-          {t('calendar.minutes', { count: dragPreview.duration })}
-        </div>
-      ) : null}
-
-      {mobileView === 'week' ? (
-        <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden">
-          <div className="grid grid-cols-[36px_repeat(7,minmax(0,1fr))] border-b border-slate-800 text-[9px] font-black uppercase tracking-[0.08em] text-slate-500">
-            <div className="bg-slate-950/95 p-1.5">{t('calendar.time')}</div>
-            {days.map((day, index) => (
-              <button key={day.toISOString()} type="button" onClick={() => { setActiveDayIndex(index); setMobileView('day'); }} className="border-l border-slate-800 p-1.5 text-center hover:bg-slate-900/80">
-                <span className="block">{formatWeekday(day).slice(0, 2)}</span>
-                <span className="block">{formatDayNumber(day)}</span>
-              </button>
-            ))}
-          </div>
-          <div className="overflow-hidden">
-            <div className="grid grid-cols-[36px_repeat(7,minmax(0,1fr))]">
-              <div className="bg-slate-950/95">
-                {hours.map((hour) => <div key={hour} className="border-b border-slate-900 px-1 py-1 text-[9px] font-bold text-slate-500" style={{ height: mobileHourHeight }}>{String(hour).padStart(2, '0')}</div>)}
-              </div>
-              {days.map((day) => {
-                const date = isoDate(day);
-                const dayItems = items.filter((item) => itemDisplayDate(item) === date);
-                return (
-                  <div key={day.toISOString()} data-athlete-day={date} data-density="mobile" onClick={(event) => pickSlot(day, event, mobileHourHeight)} className={`relative border-l border-slate-900 transition-colors ${dragPreview?.date === date ? 'bg-sky-300/[0.07] ring-1 ring-inset ring-sky-300/35' : ''}`} style={{ height: gridHeightMobile }}>
-                    {hours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: mobileHourHeight }} />)}
-                    {dayItems.map((item) => renderItem(item, mobileHourHeight, gridHeightMobile, true))}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden">
-          <div className="border-b border-slate-800 p-2">
-            <div className="grid grid-cols-7 gap-1">
-              {days.map((day, index) => {
-                const hasItems = items.some((item) => itemDisplayDate(item) === isoDate(day));
-                const selected = isoDate(day) === isoDate(activeDay);
-                return (
-                  <button key={day.toISOString()} type="button" onClick={() => setActiveDayIndex(clampDayIndex(index))} aria-pressed={selected} aria-label={formatDay(day)} className={`flex flex-col items-center rounded-xl py-1.5 text-[11px] font-black transition ${selected ? 'bg-emerald-300 text-slate-950' : isoDate(day) === todayISO() ? 'text-emerald-200' : 'text-slate-300'}`}>
-                    <span className="opacity-80">{formatDay(day).slice(0, 2)}</span>
-                    <span className="text-sm">{day.getDate()}</span>
-                    <span className={`mt-0.5 h-1 w-1 rounded-full ${hasItems ? (selected ? 'bg-slate-950' : 'bg-emerald-300') : 'bg-transparent'}`} />
-                  </button>
-                );
-              })}
-            </div>
-            <div className="mt-1.5 flex items-center justify-between px-1">
-              <span className="text-xs font-black text-slate-200">{formatLongDay(activeDay)}</span>
-              <button type="button" onClick={() => setMobileView('week')} className="rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-300">{t('calendar.wholeWeek')}</button>
-            </div>
-          </div>
-          <div onPointerDown={startDaySwipe} onPointerUp={endDaySwipe} onPointerCancel={() => { daySwipe.current = null; }} className="overflow-hidden touch-pan-y">
-            <div className="grid grid-cols-[52px_minmax(0,1fr)]">
-              <div className="bg-slate-950/95">
-                {hours.map((hour) => <div key={hour} className="border-b border-slate-900 px-2 py-1 text-[10px] font-bold text-slate-500" style={{ height: mobileHourHeight }}>{String(hour).padStart(2, '0')}:00</div>)}
-              </div>
-              <div data-athlete-day={isoDate(activeDay)} data-density="mobile" onClick={(event) => pickSlot(activeDay, event, mobileHourHeight)} className={`relative border-l border-slate-900 transition-colors ${dragPreview?.date === isoDate(activeDay) ? 'bg-sky-300/[0.07] ring-1 ring-inset ring-sky-300/35' : ''}`} style={{ height: gridHeightMobile }}>
-                {hours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: mobileHourHeight }} />)}
-                {activeDayItems.map((item) => renderItem(item, mobileHourHeight, gridHeightMobile))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="hidden overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:block">
-        <div className="grid grid-cols-[72px_repeat(7,minmax(120px,1fr))] border-b border-slate-800 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-          <div className="bg-slate-950/95 p-3">{t('calendar.time')}</div>
-          {days.map((day, index) => <button type="button" key={day.toISOString()} onClick={() => setActiveDayIndex(index)} className="border-l border-slate-800 p-3 text-left hover:bg-slate-900/70">{formatWeekdayDay(day)}</button>)}
-        </div>
-        <div className="grid grid-cols-[72px_repeat(7,minmax(120px,1fr))]">
-          <div className="bg-slate-950/95">
-            {hours.map((hour) => <div key={hour} className="border-b border-slate-900 p-3 text-xs font-bold text-slate-500" style={{ height: desktopHourHeight }}>{String(hour).padStart(2, '0')}:00</div>)}
-          </div>
-          {days.map((day) => {
-            const date = isoDate(day);
-            const dayItems = items.filter((item) => itemDisplayDate(item) === date);
-            return (
-              <div key={day.toISOString()} data-athlete-day={date} data-density="desktop" onClick={(event) => pickSlot(day, event, desktopHourHeight)} className={`relative border-l border-slate-900 transition-colors ${dragPreview?.date === date ? 'bg-sky-300/[0.05] ring-1 ring-inset ring-sky-300/30' : ''}`} style={{ height: gridHeightDesktop }}>
-                {hours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: desktopHourHeight }} />)}
-                {dayItems.map((item) => renderItem(item, desktopHourHeight, gridHeightDesktop))}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <SmartSessionCalendar
+        {...calendar.calendarProps}
+        canCreateSessions={Boolean(onEmptySlot)}
+        showEditToggle={Boolean(onEmptySlot)}
+        editHint={editHintShown ? t('calendar.athleteEditHint') : undefined}
+        sessions={sessions}
+        draft={draft ? { ...draft, title: t('calendar.ownDraft'), teamLabel: t('calendar.ownDraftHint') } : null}
+        onClearDraft={() => setDraft(null)}
+        onDraftClick={calendar.draftTap(confirmDraft)}
+        onDraftCancel={() => setDraft(null)}
+      />
     </section>
   );
 }
@@ -1526,7 +1212,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     }));
   }
 
-  function openComposer(date: string, time = '18:00') {
+  function openComposer(date: string, time = '18:00', durationMinutes?: number) {
     setRepeat('once');
     setSeriesScope('one');
     setActiveComposerSession(null);
@@ -1540,7 +1226,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       date,
       time,
       expectedRpe: averageRpeFor(current.trainingType, date),
-      expectedDurationMinutes: averageDurationByType.get(current.trainingType) ?? DEFAULT_DURATION_BY_TYPE[current.trainingType],
+      expectedDurationMinutes: durationMinutes ?? averageDurationByType.get(current.trainingType) ?? DEFAULT_DURATION_BY_TYPE[current.trainingType],
     }));
     setTodayAction(date === todayISO() ? 'plan' : todayAction);
     setComposerOpen(true);

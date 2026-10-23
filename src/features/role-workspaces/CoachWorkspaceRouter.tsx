@@ -7,7 +7,7 @@ import { TeamDot, teamColor } from '@/features/teams/teamColor';
 import { AvailabilityStack } from '@/features/sessions/AvailabilityStack';
 import { CarpoolSummary } from '@/features/sessions/Carpools';
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TeamWorkspace } from '@/features/teams/TeamWorkspace';
 import type { TeamWorkspaceSection } from '@/features/teams/TeamWorkspaceView';
@@ -34,10 +34,11 @@ import { SeriesTemplateEditSheet, type SeriesTemplateInput } from '@/features/se
 import { gameLine, meetLine } from '@/features/sessions/SessionInfo';
 import { buildSeriesWeekItems, getIsoWeekStart, type SeriesTemplate, type SeriesWeekItem, type SeriesWeekState } from '@/features/sessions/sessionSeriesPlanner';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
+import { addMinutes, defaultActiveDayForWeekOffset, sameDay, useSmartCalendar } from '@/features/calendar/useSmartCalendar';
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
 import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
 import { CoachSection, CoachShell, type CoachNavItem } from '@/features/role-workspaces/RoleShell';
-import { formatDateRange, formatDay, formatLongDay, formatSessionTime, formatTimeRange, formatWeekday } from '@/shared/format';
+import { formatDay, formatLongDay, formatTimeRange, formatWeekday } from '@/shared/format';
 import { errorText, useT } from '@/shared/i18n';
 import { displayTitle } from '@/features/sessions/sessionTypeLabels';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
@@ -69,30 +70,6 @@ function isSameLocalDay(value: string, day: Date) {
   return date.getFullYear() === day.getFullYear() && date.getMonth() === day.getMonth() && date.getDate() === day.getDate();
 }
 
-const calendarHours = Array.from({ length: 17 }, (_, index) => index + 7);
-const firstHour = calendarHours[0] ?? 7;
-const lastHour = (calendarHours.at(-1) ?? 23) + 1;
-const baseDesktopHourHeight = 60;
-const mobileHourHeight = 32;
-const mobileVisibleHours = calendarHours.filter((hour) => hour >= 8 && hour <= 23);
-const mobileFirstHour = mobileVisibleHours[0] ?? firstHour;
-const mobileGridHeight = mobileVisibleHours.length * mobileHourHeight;
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function buildWeekDays(weekOffset = 0) {
-  return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date();
-    const day = date.getDay();
-    const mondayOffset = day === 0 ? -6 : 1 - day;
-    date.setDate(date.getDate() + mondayOffset + weekOffset * 7 + index);
-    date.setHours(0, 0, 0, 0);
-    return date;
-  });
-}
-
 function weekOffsetFromIsoWeekStart(weekStart: string) {
   const currentWeekStart = new Date(`${getIsoWeekStart()}T00:00:00`);
   const targetWeekStart = new Date(`${getIsoWeekStart(weekStart)}T00:00:00`);
@@ -100,52 +77,9 @@ function weekOffsetFromIsoWeekStart(weekStart: string) {
   return Math.round((targetWeekStart.getTime() - currentWeekStart.getTime()) / weekMs);
 }
 
-function defaultActiveDayForWeekOffset(weekOffset: number) {
-  const targetDays = buildWeekDays(weekOffset);
-  const todayIndex = targetDays.findIndex((day) => sameDay(day, new Date()));
-  return todayIndex >= 0 ? todayIndex : 0;
-}
-
-function formatWeekLabel(days: Date[]) {
-  const first = days[0];
-  const last = days[6];
-  if (!first || !last) return '';
-  return formatDateRange(first, last);
-}
-
 function localDateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
-
-function sameDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
-function addMinutes(date: Date, minutes: number) {
-  return new Date(date.getTime() + minutes * 60_000);
-}
-
-function roundToSlot(minutes: number) {
-  return Math.round(minutes / 15) * 15;
-}
-
-function minutesFromDayStart(value: string | Date) {
-  const date = typeof value === 'string' ? new Date(value) : value;
-  return (date.getHours() - firstHour) * 60 + date.getMinutes();
-}
-
-function createDateForCalendarMinute(day: Date, minutes: number) {
-  const next = new Date(day);
-  next.setHours(firstHour, 0, 0, 0);
-  next.setMinutes(minutes);
-  return next;
-}
-
-function durationMinutes(start: Date, end: Date) {
-  return Math.max(30, Math.round((end.getTime() - start.getTime()) / 60_000));
-}
-
-
 
 function summarizeAvailability(session: CoachSession) {
   const out = session.availability.filter((item) => item.status === 'out');
@@ -210,7 +144,6 @@ function UpcomingSessionRow({ session, showTeam, onOpen }: { session: CoachSessi
 }
 
 
-type CoachCalendarDrag = { target: 'session' | 'draft'; sessionId?: string; kind: 'move' | 'resize'; startX: number; startY: number; originalStart: Date; originalEnd: Date; minutesPerPixel: number };
 type CoachCalendarDraft = { startsAt: string; endsAt: string; teamId: string | null; facilityId: string | null; groupIds: string[]; sessionType: string };
 type CoachCalendarSave = { kind: 'create'; input: CoachSessionCreateInput } | { kind: 'update'; input: CoachSessionMutation };
 type CoachSeriesSave = { kind: 'create'; input: SeriesTemplateInput } | { kind: 'update'; seriesId: string; input: SeriesTemplateInput };
@@ -269,24 +202,15 @@ export function CoachCalendarSurface({
   const canEditTeam = (teamId: string) => !editableTeamIds || editableTeamIds.has(teamId);
   const editableTeams = teams.filter((team) => canEditTeam(team.id));
   const seriesTeams = teams.filter((team) => !seriesTeamIds || seriesTeamIds.has(team.id));
-  const [weekOffset, setWeekOffset] = useState(0);
-  const days = useMemo(() => buildWeekDays(weekOffset), [weekOffset]);
   const [surfaceMode, setSurfaceMode] = useState<'week' | 'series'>('week');
   const [seriesWeekStart, setSeriesWeekStart] = useState(() => getIsoWeekStart());
   const [seriesEditor, setSeriesEditor] = useState<{ kind: 'new'; weekday: number } | { kind: 'edit'; template: SeriesTemplate } | null>(null);
   const [pendingSeriesConflict, setPendingSeriesConflict] = useState<{ items: SeriesWeekItem[]; item: SeriesWeekItem; description: string; suggestions: ConflictSuggestion[] } | null>(null);
-  const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, buildWeekDays().findIndex((day) => sameDay(day, new Date()))));
-  // Seven columns do not fit a phone; one day at a time does.
-  const [mobileCalendarView, setMobileCalendarView] = useState<'week' | 'day'>('day');
-  const [dayTransitionDirection, setDayTransitionDirection] = useState<'next' | 'previous' | null>(null);
-  const [desktopHourHeight, setDesktopHourHeight] = useState(baseDesktopHourHeight);
-  const [mode, setMode] = useState<'view' | 'edit'>('view');
   // The chosen team stays when the coach leaves the calendar and comes back;
   // a link to one team (?teamId=) wins.
   const linkedTeam = initialTeamId && teams.some((team) => team.id === initialTeamId) ? initialTeamId : null;
   const [rememberedTeam, setTeamFilter] = useRememberedState<string | null>('coach.calendar.team', teams.map((team) => team.id).join(','), null);
   const teamFilter = linkedTeam ?? (rememberedTeam && teams.some((team) => team.id === rememberedTeam) ? rememberedTeam : null);
-  const [drag, setDrag] = useState<CoachCalendarDrag | null>(null);
   const [draft, setDraft] = useState<CoachCalendarDraft | null>(null);
   const [localSessions, setLocalSessions] = useState<CoachSession[]>(sessions);
   const [editor, setEditor] = useState<{ kind: 'draft' } | { kind: 'session'; sessionId: string } | null>(null);
@@ -296,15 +220,32 @@ export function CoachCalendarSurface({
   const [conflictDescription, setConflictDescription] = useState<string | null>(null);
   const [conflictSuggestions, setConflictSuggestions] = useState<ConflictSuggestion[]>([]);
   const [allowedConflictKey, setAllowedConflictKey] = useState<string | null>(null);
-  const didDragRef = useRef(false);
-  const calendarScrollRef = useRef<HTMLDivElement | null>(null);
-  const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const dayTransitionTimeoutRef = useRef<number | null>(null);
-  const mobileDaySwipeRef = useRef<{ startX: number; startY: number } | null>(null);
-  const weekLabel = useMemo(() => formatWeekLabel(days), [days]);
+  const calendar = useSmartCalendar({
+    draft,
+    canCreate: editableTeams.length > 0,
+    handlers: {
+      onCreateDraft: (start, end) => {
+        const team = editableTeams.length === 1 ? editableTeams[0] : editableTeams.find((candidate) => candidate.id === teamFilter) ?? null;
+        setDraft({ startsAt: start.toISOString(), endsAt: end.toISOString(), teamId: team?.id ?? null, facilityId: defaultFacilityForTeam(team), groupIds: [], sessionType: 'training' });
+      },
+      onDraftTimes: (start, end) => setDraft((current) => current ? { ...current, startsAt: start.toISOString(), endsAt: end.toISOString() } : current),
+      onSessionTimes: (sessionId, start, end) => setLocalSessions((current) => current.map((session) => session.id === sessionId ? { ...session, startsAt: start.toISOString(), endsAt: end.toISOString() } : session)),
+      onSessionDrop: (sessionId, start, end) => {
+        const original = localSessions.find((session) => session.id === sessionId);
+        void requestCoachCalendarSaveRef.current({ kind: 'update', input: { sessionId, startsAt: start.toISOString(), endsAt: end.toISOString(), facilityId: original?.facilityId ?? '', groupIds: original?.groupIds ?? [], sessionType: original?.sessionType ?? 'training' } });
+      },
+      onOpenSession: (session, calendarMode) => {
+        if (calendarMode === 'edit') setEditor({ kind: 'session', sessionId: session.id });
+        else { const found = localSessions.find((item) => item.id === session.id); if (found) onDetails(found); }
+      },
+      onInteract: () => setEditor(null),
+      onWeekChange: () => { setAllowedConflictKey(null); setDraft(null); setEditor(null); },
+    },
+  });
+  const { days, setMode, setWeekOffset, setActiveDayIndex } = calendar;
   const visibleWeekStart = useMemo(() => getIsoWeekStart(localDateKey(days[0] ?? new Date())), [days]);
 
-  useEffect(() => { if (!drag) setLocalSessions(sessions); }, [drag, sessions]);
+  useEffect(() => { if (!calendar.isDragging) setLocalSessions(sessions); }, [calendar.isDragging, sessions]);
   useEffect(() => {
     if (!editSessionId) return;
     if (!localSessions.some((session) => session.id === editSessionId)) return;
@@ -312,17 +253,7 @@ export function CoachCalendarSurface({
     setDraft(null);
     setEditor({ kind: 'session', sessionId: editSessionId });
     onEditSessionHandled?.();
-  }, [editSessionId, localSessions, onEditSessionHandled]);
-  useEffect(() => {
-    function updateDesktopScale() {
-      if (window.innerWidth < 768) return;
-      const availableCalendarHeight = Math.max(0, window.innerHeight - 340);
-      setDesktopHourHeight(Math.round(clamp(availableCalendarHeight / calendarHours.length, 52, 68)));
-    }
-    updateDesktopScale();
-    window.addEventListener('resize', updateDesktopScale);
-    return () => window.removeEventListener('resize', updateDesktopScale);
-  }, []);
+  }, [editSessionId, localSessions, onEditSessionHandled, setMode]);
 
   const smartSessions = useMemo<SmartCalendarSession[]>(() => {
     const tones = ['accent1', 'accent2', 'accent3', 'accent4'] as const;
@@ -392,7 +323,6 @@ export function CoachCalendarSurface({
   const showSeriesSurface = useCallback(() => {
     setDraft(null);
     setEditor(null);
-    setDrag(null);
     setPendingSeriesConflict(null);
     setSeriesWeekStart(visibleWeekStart);
     setSurfaceMode('series');
@@ -615,32 +545,6 @@ export function CoachCalendarSurface({
     requestCoachCalendarSaveRef.current = requestCoachCalendarSave;
   }, [requestCoachCalendarSave]);
 
-  function changeWeek(delta: number) { setAllowedConflictKey(null); setDraft(null); setEditor(null); setDrag(null); setWeekOffset((current) => current + delta); }
-  function resetWeek() { setDraft(null); setEditor(null); setDrag(null); setWeekOffset(0); setActiveDayIndex(Math.max(0, buildWeekDays().findIndex((day) => sameDay(day, new Date())))); }
-  function switchMobileDay(nextIndex: number) {
-    const boundedIndex = clamp(nextIndex, 0, days.length - 1);
-    setActiveDayIndex((currentIndex) => {
-      if (boundedIndex === currentIndex) return currentIndex;
-      setDayTransitionDirection(boundedIndex > currentIndex ? 'next' : 'previous');
-      if (dayTransitionTimeoutRef.current) window.clearTimeout(dayTransitionTimeoutRef.current);
-      dayTransitionTimeoutRef.current = window.setTimeout(() => setDayTransitionDirection(null), 220);
-      return boundedIndex;
-    });
-  }
-  function handleMobileDaySwipeStart(event: PointerEvent<HTMLDivElement>) {
-    if (mode !== 'view' || (event.target as HTMLElement).closest('[data-calendar-session]')) { mobileDaySwipeRef.current = null; return; }
-    mobileDaySwipeRef.current = { startX: event.clientX, startY: event.clientY };
-  }
-  function handleMobileDaySwipeEnd(event: PointerEvent<HTMLDivElement>) {
-    const start = mobileDaySwipeRef.current; mobileDaySwipeRef.current = null; if (!start) return;
-    const deltaX = event.clientX - start.startX; const deltaY = event.clientY - start.startY;
-    const threshold = typeof window === 'undefined' ? 120 : Math.max(120, window.innerWidth * 0.34);
-    if (Math.abs(deltaX) < threshold || Math.abs(deltaX) < Math.abs(deltaY) * 1.4) return;
-    const nextDay = activeDayIndex + (deltaX < 0 ? 1 : -1);
-    if (nextDay < 0) { changeWeek(-1); setActiveDayIndex(days.length - 1); }
-    else if (nextDay >= days.length) { changeWeek(1); setActiveDayIndex(0); }
-    else switchMobileDay(nextDay);
-  }
   function defaultTeamForDay(day: Date) {
     if (teams.length === 1) return teams[0] ?? null;
     const teamsWithSession = new Set(localSessions.filter((session) => sameDay(new Date(session.startsAt), day)).map((session) => session.teamId));
@@ -652,106 +556,6 @@ export function CoachCalendarSurface({
       ? team.defaultFacilityId
       : facilities.find((facility) => facility.departmentIds.includes(team.departmentId))?.id ?? null;
   }
-  function handleSlotPointerDown(day: Date, event: PointerEvent<HTMLDivElement>) {
-    if (mode !== 'edit') return;
-    if ((event.target as HTMLElement).closest('[data-calendar-session]')) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const startX = event.clientX; const startY = event.clientY; const pointerId = event.pointerId;
-    const baseHour = window.innerWidth < 768 ? mobileFirstHour : firstHour;
-    const visibleMinutes = window.innerWidth < 768 ? mobileVisibleHours.length * 60 : (lastHour - firstHour) * 60;
-    function createDraftAt(clientY: number) {
-      const clickedMinutes = clamp(roundToSlot(((clientY - rect.top) / Math.max(rect.height, 1)) * visibleMinutes), 0, visibleMinutes - 30);
-      const start = createDateForCalendarMinute(day, (baseHour - firstHour) * 60 + clickedMinutes);
-      const team = editableTeams.length === 1 ? editableTeams[0] : editableTeams.find((candidate) => candidate.id === teamFilter) ?? null;
-      setDraft({ startsAt: start.toISOString(), endsAt: addMinutes(start, 90).toISOString(), teamId: team?.id ?? null, facilityId: defaultFacilityForTeam(team), groupIds: [], sessionType: 'training' });
-      setEditor(null);
-    }
-    if (event.pointerType === 'mouse') { createDraftAt(startY); return; }
-    function createDraftFromTap(upEvent: globalThis.PointerEvent) {
-      if (upEvent.pointerId !== pointerId) return; window.removeEventListener('pointerup', createDraftFromTap);
-      if (Math.abs(upEvent.clientY - startY) > 8 || Math.abs(upEvent.clientX - startX) > 8) return; createDraftAt(startY);
-    }
-    window.addEventListener('pointerup', createDraftFromTap, { once: true });
-  }
-  function handleSessionClick(session: SmartCalendarSession, event: MouseEvent<HTMLElement>) {
-    event.stopPropagation(); if (didDragRef.current) { didDragRef.current = false; return; }
-    if (mode === 'edit') setEditor({ kind: 'session', sessionId: session.id });
-    else { const found = localSessions.find((item) => item.id === session.id); if (found) onDetails(found); }
-  }
-  function handleSessionKeyDown(session: SmartCalendarSession, event: KeyboardEvent<HTMLElement>) { if (event.key !== 'Enter' && event.key !== ' ') return; event.preventDefault(); handleSessionClick(session, event as unknown as MouseEvent<HTMLElement>); }
-  function startSessionDrag(session: SmartCalendarSession, kind: 'move' | 'resize', event: PointerEvent<HTMLElement>) {
-    if (kind === 'resize' && session.sessionType === 'game') return;
-    event.stopPropagation(); if (mode !== 'edit' || !session.canManage) return;
-    const start = new Date(session.startsAt);
-    const nextDrag: CoachCalendarDrag = { target: 'session', sessionId: session.id, kind, startX: event.clientX, startY: event.clientY, originalStart: start, originalEnd: session.endsAt ? new Date(session.endsAt) : addMinutes(start, 60), minutesPerPixel: window.innerWidth < 768 ? 60 / mobileHourHeight : 60 / desktopHourHeight };
-
-    if (event.pointerType !== 'mouse' && kind === 'move') {
-      const pointerId = event.pointerId;
-      const startX = event.clientX;
-      const startY = event.clientY;
-      didDragRef.current = false;
-      function cleanup() {
-        window.removeEventListener('pointermove', handlePendingMove);
-        window.removeEventListener('pointerup', handlePendingUp);
-        window.removeEventListener('pointercancel', handlePendingUp);
-      }
-      function handlePendingMove(moveEvent: globalThis.PointerEvent) {
-        if (moveEvent.pointerId !== pointerId) return;
-        const movedEnough = Math.abs(moveEvent.clientX - startX) > 12 || Math.abs(moveEvent.clientY - startY) > 12;
-        if (!movedEnough) return;
-        didDragRef.current = true;
-        setEditor(null);
-        setDrag(nextDrag);
-        cleanup();
-      }
-      function handlePendingUp(upEvent: globalThis.PointerEvent) {
-        if (upEvent.pointerId !== pointerId) return;
-        cleanup();
-      }
-      window.addEventListener('pointermove', handlePendingMove);
-      window.addEventListener('pointerup', handlePendingUp, { once: true });
-      window.addEventListener('pointercancel', handlePendingUp, { once: true });
-      return;
-    }
-
-    event.preventDefault(); didDragRef.current = false; setEditor(null);
-    setDrag(nextDrag);
-  }
-  function startDraftDrag(kind: 'move' | 'resize', event: PointerEvent<HTMLElement>) {
-    if (!draft || (kind === 'resize' && draft.sessionType === 'game')) return; event.stopPropagation(); event.preventDefault(); didDragRef.current = false; setEditor(null);
-    setDrag({ target: 'draft', kind, startX: event.clientX, startY: event.clientY, originalStart: new Date(draft.startsAt), originalEnd: new Date(draft.endsAt), minutesPerPixel: window.innerWidth < 768 ? 60 / mobileHourHeight : 60 / desktopHourHeight });
-  }
-  useEffect(() => {
-    if (!drag) return;
-    const activeDrag = drag;
-    const originalSession = activeDrag.sessionId ? localSessions.find((session) => session.id === activeDrag.sessionId) ?? null : null;
-    let latestStart = activeDrag.originalStart;
-    let latestEnd = activeDrag.originalEnd;
-    function dayIndexFromPointer(clientX: number) {
-      const hitIndex = dayRefs.current.findIndex((element) => { if (!element) return false; const rect = element.getBoundingClientRect(); return clientX >= rect.left && clientX <= rect.right; });
-      if (window.innerWidth < 768) {
-        const originalIndex = days.findIndex((day) => sameDay(activeDrag.originalStart, day)); const baseIndex = originalIndex >= 0 ? originalIndex : activeDayIndex;
-        if (mobileCalendarView === 'day') { const deltaX = clientX - activeDrag.startX; const threshold = Math.max(120, window.innerWidth * 0.34); if (Math.abs(deltaX) < threshold) return baseIndex; return clamp(baseIndex + (deltaX > 0 ? 1 : -1), 0, days.length - 1); }
-        return clamp(Math.floor((clientX / Math.max(window.innerWidth, 1)) * days.length), 0, days.length - 1);
-      }
-      if (hitIndex >= 0) return hitIndex; const currentIndex = days.findIndex((day) => sameDay(latestStart, day)); return currentIndex >= 0 ? currentIndex : 0;
-    }
-    function applyTimes(start: Date, end: Date) {
-      latestStart = start; latestEnd = end;
-      if (activeDrag.target === 'draft') { setDraft((current) => current ? { ...current, startsAt: start.toISOString(), endsAt: end.toISOString() } : current); return; }
-      setLocalSessions((current) => current.map((session) => session.id === activeDrag.sessionId ? { ...session, startsAt: start.toISOString(), endsAt: end.toISOString() } : session));
-    }
-    function handlePointerMove(event: globalThis.PointerEvent) {
-      const originalDuration = originalSession?.sessionType === 'game' || draft?.sessionType === 'game' ? (activeDrag.originalEnd.getTime() - activeDrag.originalStart.getTime()) / 60_000 : durationMinutes(activeDrag.originalStart, activeDrag.originalEnd); const currentStartMinutes = minutesFromDayStart(activeDrag.originalStart); const deltaMinutes = roundToSlot((event.clientY - activeDrag.startY) * activeDrag.minutesPerPixel); const maxMinutes = (lastHour - firstHour) * 60;
-      if (Math.abs(event.clientY - activeDrag.startY) > 3 || Math.abs(event.clientX - activeDrag.startX) > 3) didDragRef.current = true;
-      if (activeDrag.kind === 'resize') { const nextDuration = clamp(originalDuration + deltaMinutes, 30, maxMinutes - currentStartMinutes); applyTimes(activeDrag.originalStart, addMinutes(activeDrag.originalStart, nextDuration)); return; }
-      const targetDay = days[dayIndexFromPointer(event.clientX)]; const nextStartMinutes = clamp(currentStartMinutes + deltaMinutes, 0, maxMinutes - originalDuration); const nextStart = createDateForCalendarMinute(targetDay, nextStartMinutes); applyTimes(nextStart, addMinutes(nextStart, originalDuration));
-    }
-    function handlePointerUp() { setDrag(null); if (activeDrag.target === 'session' && activeDrag.sessionId) void requestCoachCalendarSaveRef.current({ kind: 'update', input: { sessionId: activeDrag.sessionId, startsAt: latestStart.toISOString(), endsAt: latestEnd.toISOString(), facilityId: originalSession?.facilityId ?? '', groupIds: originalSession?.groupIds ?? [], sessionType: originalSession?.sessionType ?? 'training' } }); }
-    window.addEventListener('pointermove', handlePointerMove); window.addEventListener('pointerup', handlePointerUp, { once: true });
-    return () => { window.removeEventListener('pointermove', handlePointerMove); window.removeEventListener('pointerup', handlePointerUp); };
-  }, [activeDayIndex, days, desktopHourHeight, drag, mobileCalendarView]);
-
 
   const editingSession = editor?.kind === 'session' ? localSessions.find((session) => session.id === editor.sessionId) ?? null : null;
   const editorInitial = editingSession ? { startsAt: editingSession.startsAt, endsAt: editingSession.endsAt ?? addMinutes(new Date(editingSession.startsAt), 90).toISOString(), teamId: editingSession.teamId, facilityId: editingSession.facilityId, groupIds: editingSession.groupIds, sessionType: normalizeCoachSessionType(editingSession.sessionType), details: { notes: editingSession.notes, meetMinutesBefore: editingSession.meetMinutesBefore, meetPoint: editingSession.meetPoint, opponent: editingSession.opponent, homeAway: editingSession.homeAway, venueAddress: editingSession.venueAddress } } : draft;
@@ -789,7 +593,7 @@ export function CoachCalendarSurface({
         {surfaceMode === 'series' ? viewSwitch : null}
       </div> : null}
       {surfaceMode === 'week' ? (
-        <SmartSessionCalendar mode={mode} canCreateSessions={editableTeams.length > 0 && facilities.length > 0} createBlockedHint={editableTeams.length > 0 && facilities.length === 0 ? <>{t('coach.calendar.needsHall')} <Link href="/coach/facilities" className="underline">{t('coach.calendar.addFirstHall')}</Link>{t('coach.calendar.thenEdit')}</> : undefined} days={days} hours={calendarHours} firstHour={firstHour} lastHour={lastHour} mobileVisibleHours={mobileVisibleHours} mobileFirstHour={mobileFirstHour} mobileHourHeight={mobileHourHeight} mobileGridHeight={mobileGridHeight} desktopHourHeight={desktopHourHeight} activeDayIndex={activeDayIndex} mobileCalendarView={mobileCalendarView} dayTransitionDirection={dayTransitionDirection} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, sessionType: draft.sessionType, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} dragSessionId={drag?.target === 'session' ? drag.sessionId ?? null : null} weekLabel={weekLabel} isCurrentWeek={weekOffset === 0} calendarScrollRef={calendarScrollRef} setDayRef={(index, element) => { dayRefs.current[index] = element; }} onSetMode={setMode} onClearDraft={() => setDraft(null)} onPreviousWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onResetWeek={resetWeek} onMobileDaySelect={switchMobileDay} onMobileCalendarViewChange={setMobileCalendarView} onMobileDaySwipeStart={handleMobileDaySwipeStart} onMobileDaySwipeEnd={handleMobileDaySwipeEnd} onMobileDaySwipeCancel={() => { mobileDaySwipeRef.current = null; }} onSlotPointerDown={handleSlotPointerDown} onSessionPointerDown={startSessionDrag} onSessionClick={handleSessionClick} onSessionKeyDown={handleSessionKeyDown} onDraftPointerDown={startDraftDrag} onDraftClick={() => setEditor({ kind: 'draft' })} onDraftCancel={() => setDraft(null)} toolbarAccessory={viewSwitch} />
+        <SmartSessionCalendar {...calendar.calendarProps} canCreateSessions={editableTeams.length > 0 && facilities.length > 0} createBlockedHint={editableTeams.length > 0 && facilities.length === 0 ? <>{t('coach.calendar.needsHall')} <Link href="/coach/facilities" className="underline">{t('coach.calendar.addFirstHall')}</Link>{t('coach.calendar.thenEdit')}</> : undefined} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, sessionType: draft.sessionType, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} onClearDraft={() => setDraft(null)} onDraftClick={calendar.draftTap(() => setEditor({ kind: 'draft' }))} onDraftCancel={() => setDraft(null)} toolbarAccessory={viewSwitch} />
       ) : (
         <div className="mt-7 sm:mt-5">
           <WeeklySeriesBoard
