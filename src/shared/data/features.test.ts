@@ -19,7 +19,7 @@ Object.defineProperty(globalThis, 'window', { value: {
 } });
 const data = await import('./repository');
 const seed = createSeedDatabase();
-seed.carpools = []; seed.carpoolRiders = []; seed.carpoolRequests = [];
+seed.carpools = []; seed.carpoolRiders = []; seed.carpoolRequests = []; seed.clubFeatureSettings = [];
 memory.set(DATABASE_KEY, JSON.stringify(seed));
 const db = () => data.readDatabase()!;
 const TEAM = 'team-u16';

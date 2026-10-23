@@ -3018,3 +3018,13 @@ Plan: `docs/plan-features-freischaltung.md` (Entscheidungen von Ben: Teams entsc
 - **Nachtrag (Ben-Feedback):** „Anwesenheitsmeldungen“ im Einheits-Blatt (alle Einheitstypen) heißt jetzt „Abwesend und verspätet“: Liste mit Trennlinien statt Kasten-in-Kasten, links ein Zeichen (rotes ✕ abwesend, gelbe Uhr verspätet) statt des Worts, Grund als zweite Zeile, bei Verspäteten rechts „+24 Min.“ (vorher ging bei Verspäteten der Grund verloren). Abwesende zuerst. Später kommt in den Kreis das Profilbild.
 - **Nachtrag 2:** „Erinnern“ (Heute-Karte und Einheits-Blatt) im selben Stil: Zeichen „?“ links, Namen fett, „Keine Antwort“ darunter, rechts ein gelber Knopf mit Glocke; danach „✓ Erinnert“.
 - **Nachtrag 3:** Heute-Karte und Team-Übersicht zeigen Abwesende und Verspätete im selben Stil wie das Einheits-Blatt (eine Karte, Zeilen mit Zeichen, Grund darunter, „+24 Min.“; höchstens 4, dann „+2 weitere“) statt roter/gelber Kästen mit Zahl. Gemeinsame Bausteine `FlagSign`/`FlagRow` in `AvailabilityStack.tsx`.
+
+## Run 89 — Demo statt Probe-Verein (2026-10-23)
+
+Ben: kein eigener Probe-Verein vor dem Registrieren, stattdessen eine gute Demo (Plan neu: `docs/plan-onboarding.md`).
+
+- **Erster Bildschirm:** „Neu hier“ und „Anmelden“ statt drei Kästen. „Neu hier“ fragt „Wie willst du Club OS kennenlernen?“ (Verein oder Abteilung · Trainer · Spieler) und öffnet die Demo in dieser Rolle; „Ich habe einen Link oder Code“ führt zu den bisherigen Wegen (Team-Code, Einladung, Gründungscode).
+- **Demo spricht die App-Sprache:** Hallen, Teams, Gruppen, Treffpunkte, Gründe, Notizen, Nachrichten und Umfrage kommen aus `demoTexts.ts` (en/de/fr/es); beim Sprachwechsel wird die Demo neu angelegt, die gewählte Rolle bleibt.
+- **Alle Funktionen abgedeckt** (Tabelle im Plan): zweite Abteilung Volleyball mit Damen 1 und eigener Halle, teilt die Sporthalle Nord; veröffentlichter Kader; bestätigte Anwesenheit mit einem unentschuldigt Fehlenden; Prüfbitte des Trainers an den Demo-Spieler; offene Einladung des Teammanagers; Fahrgemeinschaft mit Abfahrt, Treffpunkt-Pin und Notiz; Urlaub; Vereinsvorgabe „Fahrgemeinschaften an für alle“; Volleyball-News; Nachricht mit Erinnerung.
+- **Belastung glaubwürdig:** Vorher lagen alle Spieler bei ACWR 0,3–0,5, weil die letzten Einheiten absichtlich unbewertet sind. Jetzt: die meisten im grünen Bereich, drei klar zu hoch, ein paar niedrig; der Demo-Spieler bei etwa 1,0.
+- Schema-Version `2026-10-23-demo-v22` (alte lokale Demo wird neu angelegt).

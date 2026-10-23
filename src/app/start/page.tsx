@@ -23,10 +23,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState } from 'react';
 
 import { WhoAreYou } from '@/features/onboarding/WhoAreYou';
+import { NewHere } from '@/features/onboarding/NewHere';
 import { QuickPlayerRoles } from '@/features/identity/QuickPlayerRoles';
 import {
   coachRolesForTeam,
-  displayName,
   hasIdentityRole,
   isClubAdmin,
   isRemoteMode,
@@ -92,19 +92,6 @@ function Card({ children, tone = 'default' }: { children: React.ReactNode; tone?
     <section className={`os-panel grid gap-4 p-5 sm:p-6 ${tone === 'primary' ? 'border-emerald-300/30' : ''}`}>
       {children}
     </section>
-  );
-}
-
-function SignInCard() {
-  const t = useT();
-  return (
-    <Card tone="primary">
-      <div>
-        <p className="text-lg font-black text-white">{t('start.signIn.title')}</p>
-        <p className="mt-1 text-sm text-slate-400">{t('start.signIn.detail')}</p>
-      </div>
-      <Link href="/login" className="os-success text-center">{t('start.signIn.button')}</Link>
-    </Card>
   );
 }
 
@@ -175,9 +162,7 @@ function ServerStart() {
   if (status.phase === 'signedOut') {
     return (
       <Page>
-        <SignInCard />
-        <WhoAreYou />
-        <DemoCard prominent={false} onStart={startDemoFromServer} />
+        <NewHere onDemo={startDemoFromServer} canSignIn />
       </Page>
     );
   }
@@ -316,17 +301,9 @@ function LocalStart() {
     return <Page><Card><p className="text-sm text-slate-400">{t('start.local.preparing')}</p></Card></Page>;
   }
 
-  const coach = peopleWithRole(database, 'coach')[0];
-  const athlete = peopleWithRole(database, 'athlete')[0];
-
   return (
     <Page>
-      {serverAvailable ? <><SignInCard /><WhoAreYou /></> : null}
-      <DemoCard prominent={!serverAvailable} onStart={start} />
-      <p className="px-1 text-xs text-slate-500">
-        {t('start.local.summary', { club: database.club.name, count: database.teams.length, players: peopleWithRole(database, 'athlete').length })}
-        {coach && athlete ? ` ${t('start.local.startsAs', { coach: displayName(coach), athlete: displayName(athlete) })}` : ''}
-      </p>
+      <NewHere onDemo={start} canSignIn={serverAvailable} />
     </Page>
   );
 }
