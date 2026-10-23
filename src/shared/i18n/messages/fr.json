@@ -565,7 +565,6 @@
   "role.default.manager": "Responsable d’équipe",
   "coach.card.out": "Absent·e",
   "coach.card.late": "En retard",
-  "coach.card.lateMinutes": "{count} min",
   "coach.row.out": "{count} absent·e(s)",
   "coach.row.late": "{count} en retard",
   "coach.calendar.showTeam": "Afficher l’équipe",
@@ -1008,7 +1007,6 @@
   "team.acwrValue": "{value} ACWR",
   "team.card.out": "Absent",
   "team.card.late": "En retard",
-  "team.card.lateMinutes": "{count} min",
   "team.assigned": "Attribué",
   "team.notAssigned": "Non attribué",
   "team.coaches": "Entraîneurs",
@@ -1955,5 +1953,6 @@
   "sessionForm.noHallMeeting": "Pas de salle",
   "sessionForm.onlineUrl": "Lien vidéo (facultatif)",
   "sessionSheet.lateBy": "+{count} min",
-  "coach.open.title": "Sans réponse"
+  "coach.open.title": "Sans réponse",
+  "coach.card.more": "+{count} autres"
 }

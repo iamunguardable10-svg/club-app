@@ -7,6 +7,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 import { LoadInfoButton, LoadRiskBadge } from '@/features/load/LoadHints';
 import { useT, type MessageKey } from '@/shared/i18n';
+import { FlagRow } from './AvailabilityStack';
 
 const STATUS_KEY: Record<string, MessageKey> = {
   late: 'sessionSheet.status.late',
@@ -79,20 +80,6 @@ function statusClass(status?: string) {
 }
 
 const FLAG_ORDER: Record<string, number> = { out: 0, late: 1, present: 2 };
-const FLAG_TONE: Record<string, { avatar: string; pill: string }> = {
-  out: { avatar: 'bg-red-400/15 text-red-200', pill: 'bg-red-400/15 text-red-200' },
-  late: { avatar: 'bg-amber-300/15 text-amber-200', pill: 'bg-amber-300/15 text-amber-200' },
-  present: { avatar: 'bg-emerald-300/15 text-emerald-200', pill: 'bg-emerald-300/15 text-emerald-200' },
-};
-
-/**
- * The status as a sign, so the row needs no word for it. Later the circle
- * shows the player's profile photo and the sign moves to a small badge on it.
- */
-function FlagIcon({ status }: { status: string }) {
-  const path = status === 'out' ? <path d="m8 8 8 8M16 8l-8 8" /> : status === 'late' ? <><circle cx="12" cy="12" r="7" /><path d="M12 8.5V12l2.5 1.5" /></> : <path d="m7.5 12.5 3 3 6-7" />;
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">{path}</svg>;
-}
 
 /** Who is absent or late, for every session type: absent first, the reason under the name. */
 function AttendanceFlags({ notes, onSelect }: { notes: NonNullable<SessionDetailAttendance['notes']>; onSelect?: (id: string) => void }) {
@@ -104,19 +91,7 @@ function AttendanceFlags({ notes, onSelect }: { notes: NonNullable<SessionDetail
       <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('sessionSheet.attendanceFlags')}</p>
       <ul className="mt-1.5 divide-y divide-slate-800/80">
         {sorted.map((note) => {
-          const tone = FLAG_TONE[note.status] ?? FLAG_TONE.present;
-          // Absent needs no word (the sign says it); late shows by how much.
-          const lateBy = note.status === 'late' && note.minutes ? t('sessionSheet.lateBy', { count: note.minutes }) : null;
-          const body = (
-            <>
-              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${tone.avatar}`}><FlagIcon status={note.status} /><span className="sr-only">{statusText(note.status)}</span></span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-bold text-slate-100">{note.name}</span>
-                {note.detail ? <span className="block break-words text-xs text-slate-400">{note.detail}</span> : null}
-              </span>
-              {lateBy ? <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ${tone.pill}`}>{lateBy}</span> : null}
-            </>
-          );
+          const body = <FlagRow status={note.status} label={statusText(note.status)} name={note.name} reason={note.detail} minutes={note.minutes} />;
           return (
             <li key={note.id}>
               {onSelect ? (

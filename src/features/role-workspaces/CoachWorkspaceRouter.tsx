@@ -171,7 +171,7 @@ function CoachSessionCard({ session, showTeam, onDetails }: { session: CoachSess
         <span aria-hidden className="text-lg font-black text-slate-500">›</span>
       </div>
 
-      <AvailabilityStack out={out} late={late} outLabel={t('coach.card.out')} lateLabel={t('coach.card.late')} lateMinutes={(count) => t('coach.card.lateMinutes', { count })} />
+      <AvailabilityStack out={out} late={late} outLabel={t('coach.card.out')} lateLabel={t('coach.card.late')} />
     </button>
     <OpenAnswers session={session} className="mx-4 mb-4 -mt-1" />
     </div>

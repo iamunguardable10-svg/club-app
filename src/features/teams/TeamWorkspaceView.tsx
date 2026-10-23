@@ -204,7 +204,7 @@ function TeamDashboardSessionCard({
         </div>
         <span aria-hidden className="text-lg font-black text-slate-500">›</span>
       </div>
-      {attendanceShared ? <AvailabilityStack out={out} late={late} outLabel={t('team.card.out')} lateLabel={t('team.card.late')} lateMinutes={(count) => t('team.card.lateMinutes', { count })} /> : null}
+      {attendanceShared ? <AvailabilityStack out={out} late={late} outLabel={t('team.card.out')} lateLabel={t('team.card.late')} /> : null}
     </button>
   );
 }

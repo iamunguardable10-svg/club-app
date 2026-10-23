@@ -565,7 +565,6 @@
   "role.default.manager": "Team Manager",
   "coach.card.out": "Out",
   "coach.card.late": "Late",
-  "coach.card.lateMinutes": "{count} min",
   "coach.row.out": "{count} out",
   "coach.row.late": "{count} late",
   "coach.calendar.showTeam": "Show team",
@@ -1008,7 +1007,6 @@
   "team.acwrValue": "{value} ACWR",
   "team.card.out": "Out",
   "team.card.late": "Late",
-  "team.card.lateMinutes": "{count} min",
   "team.assigned": "Assigned",
   "team.notAssigned": "Not assigned",
   "team.coaches": "Coaches",
@@ -1955,5 +1953,6 @@
   "sessionForm.noHallMeeting": "No room",
   "sessionForm.onlineUrl": "Video link (optional)",
   "sessionSheet.lateBy": "+{count} min",
-  "coach.open.title": "No answer"
+  "coach.open.title": "No answer",
+  "coach.card.more": "+{count} more"
 }

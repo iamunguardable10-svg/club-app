@@ -565,7 +565,6 @@
   "role.default.manager": "Teammanager",
   "coach.card.out": "Abgemeldet",
   "coach.card.late": "Verspätet",
-  "coach.card.lateMinutes": "{count} Min.",
   "coach.row.out": "{count} abgemeldet",
   "coach.row.late": "{count} verspätet",
   "coach.calendar.showTeam": "Team anzeigen",
@@ -1008,7 +1007,6 @@
   "team.acwrValue": "{value} ACWR",
   "team.card.out": "Abwesend",
   "team.card.late": "Verspätet",
-  "team.card.lateMinutes": "{count} Min.",
   "team.assigned": "Zugewiesen",
   "team.notAssigned": "Nicht zugewiesen",
   "team.coaches": "Trainer",
@@ -1955,5 +1953,6 @@
   "sessionForm.noHallMeeting": "Kein Raum",
   "sessionForm.onlineUrl": "Video-Link (optional)",
   "sessionSheet.lateBy": "+{count} Min.",
-  "coach.open.title": "Keine Antwort"
+  "coach.open.title": "Keine Antwort",
+  "coach.card.more": "+{count} weitere"
 }
