@@ -37,6 +37,7 @@ import { loadAccessFor } from '@/features/load/loadAccess';
 import { TeamHealthSettings } from '@/features/legal/TeamHealthSettings';
 import { TeamStaffPanel } from '@/features/teams/TeamStaffPanel';
 import { TeamSwitch } from '@/features/teams/TeamSwitch';
+import { PlaybookShelf } from '@/features/playbook/PlaybookShelf';
 import { displayRoleName } from '@/features/teams/roleLabels';
 import {
   absenceOn,
@@ -61,6 +62,7 @@ import {
   type Id,
   type LocalDatabase,
   type SessionType,
+  teamHasFeature,
 } from '@/shared/data';
 
 function toWorkspaceSession(session: {
@@ -347,6 +349,9 @@ export function TeamWorkspace({
   const featuresPanel: ReactNode = database && settingsTeam && permissions.has('manageStaff')
     ? <TeamHealthSettings database={database} team={settingsTeam} />
     : null;
+  const playbookPanel: ReactNode = database && teamHasFeature(database, teamId, 'playbook')
+    ? <PlaybookShelf database={database} teamId={teamId} />
+    : null;
 
   return (
     <CoachShell
@@ -370,6 +375,7 @@ export function TeamWorkspace({
       onRemovePlayer={permissions.has('manageStaff') ? (personId) => removeAthleteFromTeam(teamId, personId) : undefined}
       staffPanel={staffPanel}
       featuresPanel={featuresPanel}
+      playbookPanel={playbookPanel}
     />
     </CoachShell>
   );

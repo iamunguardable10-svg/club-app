@@ -776,6 +776,17 @@ export function createSeedDatabase(now: Date = new Date(), locale: Locale = 'en'
     messageReads,
     messageVotes,
     messageWriters,
+    // Playbooks (0049): one for the whole team, one for the starters only, one draft.
+    playbooks: ([
+      ['playbook-demo-horns', 'horns', 'offense', 'released', [], 'horns.pdf'],
+      ['playbook-demo-press', 'press', 'defense', 'released', ['group-u16-starters'], 'press-122.pdf'],
+      ['playbook-demo-ato', 'ato', 'set_pieces', 'draft', [], 'ato-sideline.pdf'],
+    ] as const).map(([id, key, category, status, groupIds, file], index) => ({
+      id, clubId: CLUB_ID, teamId: TEAM_U16, title: T.playbooks[key][0], description: T.playbooks[key][1], category,
+      filePath: `/demo/playbooks/${file}`, fileName: file, fileType: 'application/pdf' as const, fileSize: 50_000,
+      status, groupIds: [...groupIds], releaseAt: null, releasedAt: status === 'released' ? addDays(now, -5 + index).toISOString() : null,
+      position: index, createdBy: 'coach-1', createdAt: addDays(now, -6).toISOString(), updatedAt: addDays(now, -5 + index).toISOString(),
+    })),
     // The club decided carpools for every team (0046); everything else is up to the teams.
     clubFeatureSettings: [{ clubId: CLUB_ID, feature: 'carpools', mode: 'on' }],
     seedLocale: locale,

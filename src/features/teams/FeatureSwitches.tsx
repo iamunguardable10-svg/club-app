@@ -31,6 +31,7 @@ const TITLE: Record<TeamFeature, MessageKey> = {
   polls: 'features.polls.title',
   squads: 'features.squads.title',
   attendance: 'features.attendance.title',
+  playbook: 'features.playbook.title',
 };
 const DETAIL: Record<TeamFeature, MessageKey> = {
   load: 'features.load.detail',
@@ -38,6 +39,7 @@ const DETAIL: Record<TeamFeature, MessageKey> = {
   polls: 'features.polls.detail',
   squads: 'features.squads.detail',
   attendance: 'features.attendance.detail',
+  playbook: 'features.playbook.detail',
 };
 const MODES: { mode: ClubFeatureMode; label: MessageKey }[] = [
   { mode: 'teams', label: 'features.mode.teams' },

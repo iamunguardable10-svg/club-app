@@ -19,7 +19,7 @@ import { formatDecimal, formatSessionTime } from '@/shared/format';
 import { tr, useT } from '@/shared/i18n';
 
 export type TeamWorkspaceRole = 'admin' | 'department_lead' | 'coach' | 'viewer';
-export type TeamWorkspaceSection = 'dashboard' | 'players' | 'groups' | 'settings';
+export type TeamWorkspaceSection = 'dashboard' | 'players' | 'groups' | 'playbook' | 'settings';
 
 export type TeamWorkspaceSession = {
   id: string;
@@ -102,6 +102,7 @@ function SectionIcon({ section }: { section: TeamWorkspaceSection }) {
       {section === 'dashboard' ? <path d="M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-3H4zM14 7h6V4h-6z" {...common} /> : null}
       {section === 'players' ? <><circle cx="9" cy="8" r="3.2" {...common} /><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5M16 11a2.8 2.8 0 1 0 0-5.6M17.5 14.2c1.8.6 2.8 2.2 3 4.8" {...common} /></> : null}
       {section === 'groups' ? <><circle cx="7.5" cy="8" r="2.6" {...common} /><circle cx="16.5" cy="8" r="2.6" {...common} /><path d="M3 18c.5-2.6 2.2-4 4.5-4s4 1.4 4.5 4M12 18c.5-2.6 2.2-4 4.5-4s4 1.4 4.5 4" {...common} /></> : null}
+      {section === 'playbook' ? <><path d="M5 4h10l4 4v12H5z" {...common} /><path d="M15 4v4h4M8.5 13.5l2 2 4-4.5" {...common} /></> : null}
       {section === 'settings' ? <><circle cx="12" cy="12" r="3" {...common} /><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M5.6 18.4l1.6-1.6M16.8 7.2l1.6-1.6" {...common} /></> : null}
     </svg>
   );
@@ -111,6 +112,7 @@ function sectionLabel(section: TeamWorkspaceSection) {
   if (section === 'dashboard') return tr('team.section.overview');
   if (section === 'players') return tr('team.section.players');
   if (section === 'groups') return tr('team.section.groups');
+  if (section === 'playbook') return tr('team.section.playbook');
   return tr('team.section.settings');
 }
 
@@ -244,6 +246,7 @@ export function TeamWorkspaceView({
   onRemovePlayer,
   staffPanel,
   featuresPanel,
+  playbookPanel,
 }: {
   data: TeamWorkspaceData;
   initialSection?: TeamWorkspaceSection;
@@ -268,6 +271,8 @@ export function TeamWorkspaceView({
   staffPanel?: ReactNode;
   /** Age group and the team's features, for whoever may configure the team. */
   featuresPanel?: ReactNode;
+  /** The team's playbooks (0049), when the team uses them. */
+  playbookPanel?: ReactNode;
 }) {
   const t = useT();
   const [activeSection, setActiveSection] = useState<TeamWorkspaceSection>(initialSection);
@@ -345,7 +350,7 @@ export function TeamWorkspaceView({
       : null,
   ].filter(Boolean) as { id: string; label: string; action: 'settings' | 'players' | 'none' }[];
 
-  const sections: TeamWorkspaceSection[] = ['dashboard', 'players', 'groups', 'settings'];
+  const sections: TeamWorkspaceSection[] = playbookPanel ? ['dashboard', 'players', 'groups', 'playbook', 'settings'] : ['dashboard', 'players', 'groups', 'settings'];
   const coachSessionById = useMemo(() => new Map(coachSessions.map((session) => [session.id, session])), [coachSessions]);
   const coachSessionFor = (session: TeamWorkspaceSession) =>
     coachSessionById.get(session.id) ?? coachSessionFromTeamWorkspace(session, data, playersForSession(session));
@@ -690,6 +695,14 @@ export function TeamWorkspaceView({
             </div>
           </section>
         </div>
+      ) : null}
+
+      {activeSection === 'playbook' && playbookPanel ? (
+        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 sm:p-5">
+          <h2 className="text-lg font-black">{t('team.section.playbook')}</h2>
+          <p className="mt-1 text-sm text-slate-400">{t('playbook.coachIntro')}</p>
+          <div className="mt-4">{playbookPanel}</div>
+        </section>
       ) : null}
 
       {activeSection === 'settings' ? (

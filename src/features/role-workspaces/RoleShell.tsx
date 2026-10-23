@@ -17,13 +17,13 @@ import { useState, type ReactNode } from 'react';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
 import { LimitedConsentNote } from '@/features/legal/HealthConsentPanel';
-import { athleteHasLoad, getActivePerson, unreadMessagesFor, useLocalDatabase } from '@/shared/data';
+import { athleteHasLoad, athletePlaybookTeams, getActivePerson, unreadMessagesFor, useLocalDatabase, type LocalDatabase } from '@/shared/data';
 import { UnreadMessagesCard } from '@/features/messages/UnreadMessagesCard';
 import { countToRate } from '@/features/load/athleteLocalStore';
 import { useT, type MessageKey } from '@/shared/i18n';
 
 export type CoachNavItem = 'today' | 'calendar' | 'team' | 'halls' | 'history';
-export type AthleteNavItem = 'today' | 'calendar' | 'load' | 'messages';
+export type AthleteNavItem = 'today' | 'calendar' | 'load' | 'playbook' | 'messages';
 export type ClubNavItem = 'club' | 'halls' | 'messages';
 type NavItem = CoachNavItem | AthleteNavItem | ClubNavItem;
 type NavEntry = { item: NavItem; label: MessageKey; href: string };
@@ -32,6 +32,7 @@ const ATHLETE_NAV: NavEntry[] = [
   { item: 'today', label: 'nav.today', href: '/athlete/home' },
   { item: 'calendar', label: 'nav.calendar', href: '/athlete/calendar' },
   { item: 'load', label: 'nav.load', href: '/athlete/load' },
+  { item: 'playbook', label: 'nav.playbook', href: '/athlete/playbook' },
   // Piece 17: announcements from the staff.
   { item: 'messages', label: 'nav.messages', href: '/athlete/messages' },
 ];
@@ -63,6 +64,7 @@ function NavIcon({ item }: { item: NavItem }) {
       {item === 'club' ? <><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6l8-3z" {...common} /><path d="M9 12l2 2 4-4" {...common} /></> : null}
       {item === 'load' ? <path d="M3 12h4l3-7 4 14 3-7h4" {...common} /> : null}
       {item === 'messages' ? <path d="M4 5h16v11H9l-5 4V5z" {...common} /> : null}
+      {item === 'playbook' ? <><path d="M6 3h9l4 4v14H6z" {...common} /><path d="M15 3v4h4M9.5 13.5l2 2 3.5-4" {...common} /></> : null}
     </svg>
   );
 }
@@ -82,9 +84,19 @@ export function CoachShell({ active, ...props }: ShellProps & { active: CoachNav
   return <RoleShell nav={COACH_NAV} active={active} {...props} />;
 }
 
+/**
+ * The player's tabs: load only when one of their teams tracks it, the
+ * playbook only when something is released to them (0049).
+ */
+function athleteNav(database: LocalDatabase | null, personId: string | null, showLoad: boolean): NavEntry[] {
+  const playbook = Boolean(database && personId && athletePlaybookTeams(database, personId).length > 0);
+  return ATHLETE_NAV.filter((entry) => (entry.item !== 'load' || showLoad) && (entry.item !== 'playbook' || playbook));
+}
+
 /** `showLoad` is false for players whose teams do not track training load. */
 export function AthleteShell({ active, showLoad = true, ...props }: ShellProps & { active: AthleteNavItem; showLoad?: boolean }) {
-  return <RoleShell nav={showLoad ? ATHLETE_NAV : ATHLETE_NAV.filter((entry) => entry.item !== 'load')} active={active} {...props} />;
+  const { database } = useLocalDatabase();
+  return <RoleShell nav={athleteNav(database, database?.activeIdentity?.personId ?? null, showLoad)} active={active} {...props} />;
 }
 
 /** Club admins and department leads (piece 8). */
@@ -100,7 +112,7 @@ export function ActiveRoleShell(props: ShellProps) {
   const { database } = useLocalDatabase();
   const identity = database?.activeIdentity ?? null;
   const nav = identity?.role === 'athlete'
-    ? (athleteHasLoad(database!, identity.personId) ? ATHLETE_NAV : ATHLETE_NAV.filter((entry) => entry.item !== 'load'))
+    ? athleteNav(database, identity.personId, athleteHasLoad(database!, identity.personId))
     : identity?.role === 'club' ? CLUB_NAV : COACH_NAV;
   return <RoleShell nav={nav} active={null} {...props} />;
 }
@@ -215,7 +227,7 @@ function RoleShell({ nav, active: current, title, subtitle, back, actions, menuA
               href={href}
               onClick={() => setTapped(item)}
               aria-current={current === item ? 'page' : undefined}
-              className={`flex min-w-0 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-[11px] font-black transition active:scale-95 ${
+              className={`flex min-w-0 flex-col items-center gap-0.5 rounded-xl py-1.5 font-black transition active:scale-95 ${nav.length > 4 ? 'px-0.5 text-[10px] tracking-tight' : 'px-1 text-[11px]'} ${
                 active === item ? 'text-emerald-300' : 'text-slate-400 hover:text-white'
               }`}
             >

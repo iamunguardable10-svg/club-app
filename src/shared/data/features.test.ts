@@ -73,10 +73,10 @@ data.setClubFeatureMode('squads', 'off');
 const rows = toServerRows(db());
 const team = rows.teams.find((row) => row.id === TEAM)!;
 assert.equal('features' in team, false);
-assert.deepEqual(team.feature_choices, ['load', 'polls', 'squads', 'attendance']);
+assert.deepEqual(team.feature_choices, ['load', 'polls', 'squads', 'attendance', 'playbook']);
 assert.deepEqual(rows.club_feature_settings, [{ club_id: db().club.id, feature: 'squads', mode: 'off' }]);
 const back = fromServerRows({ ...rows, teams: rows.teams.map((row) => ({ ...row, features: ['load', 'polls', 'attendance'] })) }, { userId: 'test', version: seed.version, previous: db() })!;
-assert.deepEqual(back.teams.find((t) => t.id === TEAM)?.featureChoices, ['load', 'polls', 'squads', 'attendance']);
+assert.deepEqual(back.teams.find((t) => t.id === TEAM)?.featureChoices, ['load', 'polls', 'squads', 'attendance', 'playbook']);
 assert.deepEqual(back.clubFeatureSettings, db().clubFeatureSettings);
 
 console.log('all feature unlocking checks passed');
