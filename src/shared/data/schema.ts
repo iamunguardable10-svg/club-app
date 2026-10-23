@@ -608,6 +608,8 @@ export type ParentToken = { personId: Id; expiresAt: Timestamp; usedAt: Timestam
 export type LocalDatabase = {
   /** Schema version this document was written with. */
   version: string;
+  /** Local test mode: the language the demo club's own words were seeded in (`demoTexts.ts`). */
+  seedLocale?: string;
   consents?: Consent[];
   /** Missing in the local test mode: there everything is unlocked. */
   clubEntitlements?: ClubEntitlement[];

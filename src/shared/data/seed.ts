@@ -17,6 +17,9 @@ import { SCHEMA_VERSION } from './migrations';
 import { COACH_PERMISSIONS } from './schema';
 import type {
   Absence,
+  AttendanceConfirmation,
+  LoadEntryReview,
+  SquadEntry,
   MessageRead,
   Message,
   MessageVote,
@@ -44,6 +47,8 @@ import type {
 } from './schema';
 import { sessionTypeToLoadType } from './loadTypes';
 import { summarizeLoadEntries } from './loadCalculations';
+import { DEMO_TEXTS } from './demoTexts';
+import type { Locale } from '@/shared/i18n/locales';
 
 /** Days of load history before today. Must stay above 28 for ACWR to work. */
 const SEED_HISTORY_DAYS = 42;
@@ -53,13 +58,16 @@ const SEED_FUTURE_DAYS = 21;
 
 const CLUB_ID = 'club-ruhrtal';
 const DEPARTMENT_ID = 'dep-basketball';
+const DEPARTMENT_VOLLEYBALL = 'dep-volleyball';
 
 const TEAM_U16 = 'team-u16';
 const TEAM_U18 = 'team-u18';
+const TEAM_W1 = 'team-w1';
 
 const FACILITY_MAIN = 'facility-sporthalle-nord';
 const FACILITY_SMALL = 'facility-gymnastikhalle';
 const FACILITY_GYM = 'facility-kraftraum';
+const FACILITY_SOUTH = 'facility-turnhalle-sued';
 
 /**
  * Deterministic pseudo-random numbers, so a reset reproduces the same club.
@@ -132,6 +140,12 @@ const U18_NAMES: [string, string][] = [
   ['Emma', 'Winkler'], ['Nele', 'Bergmann'], ['Ida', 'Schuster'], ['Frieda', 'Walther'],
 ];
 
+const W1_NAMES: [string, string][] = [
+  ['Anna', 'Krüger'], ['Julia', 'Lange'], ['Katharina', 'Peters'], ['Sarah', 'Jung'],
+  ['Laura', 'Graf'], ['Lisa', 'Haas'], ['Nina', 'Sommer'], ['Eva', 'Fuchs'],
+  ['Carla', 'Wolf'], ['Tina', 'Arnold'],
+];
+
 /**
  * Default coach roles every team starts with. Agreed with the club: head
  * coach, co-trainer and athletic coach see and may do everything; the
@@ -153,6 +167,7 @@ const STAFF: { firstName: string; lastName: string; roles: { teamId: Id; role: s
   { firstName: 'Tobias', lastName: 'Neumann', roles: [{ teamId: 'team-u16', role: 'assistant' }, { teamId: 'team-u18', role: 'assistant' }] },
   { firstName: 'Jana', lastName: 'Vogt', roles: [{ teamId: 'team-u16', role: 'athletic' }] },
   { firstName: 'Uwe', lastName: 'Heller', roles: [{ teamId: 'team-u16', role: 'manager' }] },
+  { firstName: 'Petra', lastName: 'Lindner', roles: [{ teamId: 'team-w1', role: 'head' }] },
 ];
 
 type SeriesTemplate = {
@@ -175,7 +190,13 @@ const SERIES_TEMPLATES: SeriesTemplate[] = [
   { id: 'series-u18-thu', teamId: TEAM_U18, title: 'Team training', sessionType: 'training', weekday: 4, startTime: '19:00', endTime: '20:45', facilityId: FACILITY_SMALL },
   { id: 'series-u18-fri', teamId: TEAM_U18, title: 'Strength', sessionType: 's_and_c', weekday: 5, startTime: '18:00', endTime: '19:00', facilityId: FACILITY_GYM },
   { id: 'series-u18-sun', teamId: TEAM_U18, title: 'Game', sessionType: 'game', weekday: 0, startTime: '15:00', endTime: '17:00', facilityId: FACILITY_MAIN },
+  // Volleyball shares the North Hall right after the U18 (hall calendar, piece 8).
+  { id: 'series-w1-tue', teamId: TEAM_W1, title: 'Team training', sessionType: 'training', weekday: 2, startTime: '20:45', endTime: '22:15', facilityId: FACILITY_MAIN },
+  { id: 'series-w1-thu', teamId: TEAM_W1, title: 'Team training', sessionType: 'training', weekday: 4, startTime: '19:30', endTime: '21:00', facilityId: FACILITY_SOUTH },
+  { id: 'series-w1-sat', teamId: TEAM_W1, title: 'Game', sessionType: 'game', weekday: 6, startTime: '15:00', endTime: '17:00', facilityId: FACILITY_SOUTH },
 ];
+
+const DEPARTMENT_OF_TEAM: Record<Id, Id> = { [TEAM_U16]: DEPARTMENT_ID, [TEAM_U18]: DEPARTMENT_ID, [TEAM_W1]: DEPARTMENT_VOLLEYBALL };
 
 /** Typical RPE per session type, before per-athlete and per-day variation. */
 const BASE_RPE: Record<SessionType, number> = {
@@ -199,7 +220,12 @@ function summariesFor(entries: LoadEntry[], now: Date): LoadSummaryRow[] {
   }));
 }
 
-export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
+/**
+ * The demo club. `locale` picks the language of its own words (`DEMO_TEXTS`);
+ * tests use the English default.
+ */
+export function createSeedDatabase(now: Date = new Date(), locale: Locale = 'en'): LocalDatabase {
+  const T = DEMO_TEXTS[locale];
   const today = startOfDay(now);
   const createdAt = addDays(today, -SEED_HISTORY_DAYS).toISOString();
 
@@ -211,32 +237,36 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     createdAt,
   };
 
+  // Two departments that share the North Hall (piece 8); the South Gym is Volleyball's own.
   const departments: Department[] = [
     { id: DEPARTMENT_ID, clubId: CLUB_ID, name: 'Basketball' },
+    { id: DEPARTMENT_VOLLEYBALL, clubId: CLUB_ID, name: 'Volleyball' },
   ];
 
   const facilities: Facility[] = [
-    { id: FACILITY_MAIN, clubId: CLUB_ID, name: 'North Hall', address: 'Nordring 12, 45141 Essen' },
-    { id: FACILITY_SMALL, clubId: CLUB_ID, name: 'Small Hall', address: 'Nordring 12, 45141 Essen' },
-    { id: FACILITY_GYM, clubId: CLUB_ID, name: 'Weight Room', address: 'Nordring 14, 45141 Essen' },
+    { id: FACILITY_MAIN, clubId: CLUB_ID, name: T.halls.main, address: 'Nordring 12, 45141 Essen' },
+    { id: FACILITY_SMALL, clubId: CLUB_ID, name: T.halls.small, address: 'Nordring 12, 45141 Essen' },
+    { id: FACILITY_GYM, clubId: CLUB_ID, name: T.halls.gym, address: 'Nordring 14, 45141 Essen' },
+    { id: FACILITY_SOUTH, clubId: CLUB_ID, name: T.halls.south, address: 'Rüttenscheider Str. 160, 45131 Essen' },
   ];
 
-  const departmentFacilities: DepartmentFacility[] = facilities.map((facility) => ({
-    departmentId: DEPARTMENT_ID,
-    facilityId: facility.id,
-  }));
+  const departmentFacilities: DepartmentFacility[] = [
+    ...[FACILITY_MAIN, FACILITY_SMALL, FACILITY_GYM].map((facilityId) => ({ departmentId: DEPARTMENT_ID, facilityId })),
+    ...[FACILITY_MAIN, FACILITY_SOUTH].map((facilityId) => ({ departmentId: DEPARTMENT_VOLLEYBALL, facilityId })),
+  ];
 
   const teams: LocalDatabase['teams'] = [
-    { id: TEAM_U16, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: 'U16 Boys', ageGroup: 'U16', defaultFacilityId: FACILITY_MAIN, features: ['load'], archivedAt: null, createdAt },
+    { id: TEAM_U16, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: T.teams.u16, ageGroup: 'U16', defaultFacilityId: FACILITY_MAIN, features: ['load'], archivedAt: null, createdAt },
     // Without load tracking, to show a team that only plans sessions and
     // attendance (piece 3.5). Its players' load history stays, unseen.
-    { id: TEAM_U18, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: 'U18 Girls', ageGroup: 'U18', defaultFacilityId: FACILITY_MAIN, features: [], archivedAt: null, createdAt },
+    { id: TEAM_U18, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: T.teams.u18, ageGroup: 'U18', defaultFacilityId: FACILITY_MAIN, features: [], archivedAt: null, createdAt },
+    { id: TEAM_W1, clubId: CLUB_ID, departmentId: DEPARTMENT_VOLLEYBALL, name: T.teams.women, ageGroup: 'adults', defaultFacilityId: FACILITY_SOUTH, features: ['load'], archivedAt: null, createdAt },
   ];
 
   const people: Person[] = [];
   const memberships: Membership[] = [];
 
-  const coachRoles: CoachRole[] = [TEAM_U16, TEAM_U18].flatMap((teamId) =>
+  const coachRoles: CoachRole[] = [TEAM_U16, TEAM_U18, TEAM_W1].flatMap((teamId) =>
     COACH_ROLE_TEMPLATES.map((template, index) => ({
       id: `role-${teamId}-${template.key}`,
       teamId,
@@ -287,11 +317,12 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
 
   addAthletes(TEAM_U16, U16_NAMES, 'athlete-u16');
   addAthletes(TEAM_U18, U18_NAMES, 'athlete-u18');
+  addAthletes(TEAM_W1, W1_NAMES, 'athlete-w1');
 
   const playerGroups: PlayerGroup[] = [
-    { id: 'group-u16-starters', teamId: TEAM_U16, name: 'Starting Five' },
-    { id: 'group-u16-rehab', teamId: TEAM_U16, name: 'Rehab' },
-    { id: 'group-u18-starters', teamId: TEAM_U18, name: 'Starting Five' },
+    { id: 'group-u16-starters', teamId: TEAM_U16, name: T.groups.starters },
+    { id: 'group-u16-rehab', teamId: TEAM_U16, name: T.groups.rehab },
+    { id: 'group-u18-starters', teamId: TEAM_U18, name: T.groups.starters },
   ];
 
   const playerGroupMembers: PlayerGroupMember[] = [
@@ -303,7 +334,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
   const sessionSeries: SessionSeries[] = SERIES_TEMPLATES.map((template) => ({
     id: template.id,
     clubId: CLUB_ID,
-    departmentId: DEPARTMENT_ID,
+    departmentId: DEPARTMENT_OF_TEAM[template.teamId],
     teamId: template.teamId,
     title: template.title,
     sessionType: template.sessionType,
@@ -329,11 +360,11 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
         venueAddress: away ? 'Sportpark 3, 45127 Essen' : null,
         ...(away ? { facilityId: null } : {}),
         meetMinutesBefore: away ? 90 : 45,
-        meetPoint: away ? 'Club car park (bus)' : 'Changing room 2',
-        notes: away ? 'Bring both kits and a packed lunch.' : null,
+        meetPoint: away ? T.meetAway : T.meetHome,
+        notes: away ? T.noteAway : null,
       };
     }
-    if (sessionType === 'training' && week % 3 === 0) return { notes: 'Indoor shoes. Short video analysis after the session.', meetMinutesBefore: 15 };
+    if (sessionType === 'training' && week % 3 === 0) return { notes: T.noteTraining, meetMinutesBefore: 15 };
     return {};
   }
 
@@ -347,7 +378,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
       sessions.push({
         id: `session-${template.id}-${dateOnly(day)}`,
         clubId: CLUB_ID,
-        departmentId: DEPARTMENT_ID,
+        departmentId: DEPARTMENT_OF_TEAM[template.teamId],
         teamId: template.teamId,
         title: template.title,
         sessionType: template.sessionType,
@@ -378,7 +409,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     seriesId: null,
     seriesWeekStart: null,
     createdAt,
-    notes: 'Season plan and tournament weekend.',
+    notes: T.noteMeeting,
     onlineUrl: 'https://meet.example.com/u16-season',
   });
   sessions.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
@@ -409,31 +440,44 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
   const messages: Message[] = [
     {
       id: 'message-demo-1', clubId: CLUB_ID, ...team, authorId: 'coach-5', important: false, pinnedUntil: null,
-      body: 'Kit collection on Monday after training. Please bring 20 € for the warm-up shirt.',
+      body: T.messages.kit,
       createdAt: addDays(now, -3).toISOString(), remindedAt: null,
     },
     {
       id: 'message-demo-2', clubId: CLUB_ID, ...team, authorId: 'coach-1', important: true, pinnedUntil: addDays(now, 6).toISOString(),
-      body: 'Game on Saturday: be at the hall by 10:15, warm-up starts 10:30. Bring both kits.',
+      body: T.messages.game,
       createdAt: addDays(now, -1).toISOString(), remindedAt: null,
     },
     {
       id: 'message-demo-3', clubId: CLUB_ID, ...team, authorId: 'coach-1', important: false, pinnedUntil: null,
-      body: 'Team dinner after the last game: which days work for you?',
+      body: T.messages.dinner,
       createdAt: addDays(now, -2).toISOString(), remindedAt: null,
-      pollOptions: ['Friday', 'Saturday', 'Sunday'], pollMultiple: true, pollClosedAt: null,
+      pollOptions: [...T.messages.dinnerOptions], pollMultiple: true, pollClosedAt: null,
     },
     {
       id: 'news-demo-1', clubId: CLUB_ID, teamIds: [], groupIds: [], departmentIds: [], wholeClub: true, audience: 'all',
       authorId: 'club-admin-1', important: false, pinnedUntil: null,
-      body: 'General meeting on 12 November at 19:00 in the club house. Everyone is welcome.',
+      body: T.messages.general,
       createdAt: addDays(now, -4).toISOString(), remindedAt: null,
     },
     {
       id: 'news-demo-2', clubId: CLUB_ID, teamIds: [], groupIds: [], departmentIds: [DEPARTMENT_ID], wholeClub: false, audience: 'all',
       authorId: 'department-lead-1', important: false, pinnedUntil: null,
-      body: 'Basketball summer camp: sign-up opens next week. Ask your coach for details.',
+      body: T.messages.camp,
       createdAt: addDays(now, -2).toISOString(), remindedAt: null,
+    },
+    {
+      id: 'news-demo-3', clubId: CLUB_ID, teamIds: [], groupIds: [], departmentIds: [DEPARTMENT_VOLLEYBALL], wholeClub: false, audience: 'all',
+      authorId: 'club-admin-1', important: false, pinnedUntil: null,
+      body: T.messages.volleyball,
+      createdAt: addDays(now, -1).toISOString(), remindedAt: null,
+    },
+    {
+      // Reminded once (piece C): the U18 coach chased the answers.
+      id: 'message-demo-4', clubId: CLUB_ID, teamIds: [TEAM_U18], groupIds: [], departmentIds: [], wholeClub: false, audience: 'players',
+      authorId: 'coach-2', important: false, pinnedUntil: null,
+      body: T.messages.u18,
+      createdAt: addDays(now, -2).toISOString(), remindedAt: addDays(now, -1).toISOString(),
     },
   ];
   const messageWriters: MessageWriter[] = [
@@ -456,7 +500,11 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
   const injured = { personId: 'athlete-u16-7', fromDate: dateOnly(addDays(today, -3)), toDate: dateOnly(addDays(today, 9)) };
   const absences: Absence[] = [{
     id: 'absence-demo-1', personId: injured.personId, fromDate: injured.fromDate, toDate: injured.toDate,
-    kind: 'injured', note: 'Ankle sprain, the physio says about two weeks.', createdBy: injured.personId, createdAt,
+    kind: 'injured', note: T.injuryNote, createdBy: injured.personId, createdAt,
+  }, {
+    // Planned ahead (piece 16): a U18 player is away on holiday next week.
+    id: 'absence-demo-2', personId: 'athlete-u18-3', fromDate: dateOnly(addDays(today, 5)), toDate: dateOnly(addDays(today, 12)),
+    kind: 'holiday', note: T.holidayNote, createdBy: 'athlete-u18-3', createdAt,
   }];
   const loadEntries: LoadEntry[] = [];
   const teamNameById = new Map(teams.map((team) => [team.id, team.name]));
@@ -467,7 +515,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     const athletes = athletesByTeam.get(session.teamId) ?? [];
 
     for (const personId of athletes) {
-      if (personId === injured.personId && dateOnly(sessionDay) >= injured.fromDate && dateOnly(sessionDay) <= injured.toDate) continue;
+      if (absences.some((absence) => absence.personId === personId && dateOnly(sessionDay) >= absence.fromDate && dateOnly(sessionDay) <= absence.toDate)) continue;
       const random = makeRandom(`${session.id}:${personId}`);
       const roll = random();
 
@@ -482,7 +530,7 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
           sessionId: session.id,
           personId,
           status,
-          reason: status === 'out' ? (roll < 0.04 ? 'Sick' : 'Family event') : 'Missed the bus',
+          reason: status === 'out' ? (roll < 0.04 ? T.reasonSick : T.reasonFamily) : roll < 0.11 ? T.reasonBus : T.reasonExam,
           lateMinutes: status === 'late' ? 10 + Math.round(random() * 15) : null,
           reportedAt: addDays(sessionDay, -1).toISOString(),
           seeded: true,
@@ -539,8 +587,44 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
         teamName: teamNameById.get(membership.teamId) ?? null,
         date: dateOnly(day),
         startsAt: null,
-        title: index % 2 === 0 ? 'Run' : 'Shooting practice',
+        title: index % 2 === 0 ? T.soloRun : T.soloShooting,
         trainingType: index % 2 === 0 ? 'individual' : 'individual',
+        rpe,
+        durationMinutes,
+        load: rpe * durationMinutes,
+        note: null,
+        source: 'solo',
+        createdAt: day.toISOString(),
+      });
+    }
+  }
+
+  // The latest sessions are not rated yet (above), which would leave every
+  // week looking too light. Extra work of their own in the last days gives
+  // the traffic lights a real mix: most players in the green, one clearly
+  // too high, a few low.
+  const HEAVY = new Set(['athlete-u16-3', 'athlete-u18-5', 'athlete-w1-2']);
+  for (const membership of athleteMemberships) {
+    const random = makeRandom(`recent:${membership.personId}`);
+    const heavy = HEAVY.has(membership.personId);
+    // Heavy: two extra sessions a day for most of the week.
+    const count = heavy ? 10 : membership.personId === 'athlete-u16-1' ? 5 : random() < 0.8 ? 3 : 0;
+    for (let index = 0; index < count; index += 1) {
+      const day = addDays(today, -(heavy ? Math.floor(index / 2) + 1 : index + 1));
+      // The demo player sits in the green.
+      const demoPlayer = membership.personId === 'athlete-u16-1';
+      const durationMinutes = heavy ? 90 : demoPlayer ? 75 : 50 + Math.round(random() * 30);
+      const rpe = heavy ? 9 : demoPlayer ? 7 : 5 + Math.round(random() * 2);
+      loadEntries.push({
+        id: `load-recent-${membership.personId}-${index}`,
+        personId: membership.personId,
+        sessionId: null,
+        teamId: membership.teamId,
+        teamName: teamNameById.get(membership.teamId) ?? null,
+        date: dateOnly(day),
+        startsAt: null,
+        title: index % 2 === 0 ? T.soloShooting : T.soloRun,
+        trainingType: 'individual',
         rpe,
         durationMinutes,
         load: rpe * durationMinutes,
@@ -604,12 +688,45 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     rideGame.venueAddress = 'Sportpark 3, 45127 Essen';
   }
 
+  // The coach published the squad for that game (piece 15): the injured
+  // player is out, one is a reserve, the rest are in.
+  const squadEntries: SquadEntry[] = rideGame
+    ? (athletesByTeam.get(TEAM_U16) ?? []).map((personId) => ({
+      sessionId: rideGame.id, personId,
+      status: personId === injured.personId ? 'not_selected' as const : personId === 'athlete-u16-12' ? 'reserve' as const : 'squad' as const,
+      setBy: 'coach-1', setAt: addDays(now, -1).toISOString(),
+    }))
+    : [];
+  if (rideGame) rideGame.squadPublishedAt = addDays(now, -1).toISOString();
+
+  // The last U16 training is confirmed (piece 13): everyone who came, and one
+  // player who said nothing and did not show up.
+  const lastTraining = [...sessions].reverse().find((session) => session.teamId === TEAM_U16 && session.sessionType === 'training' && Date.parse(session.endsAt) < now.getTime());
+  const attendanceConfirmations: AttendanceConfirmation[] = lastTraining
+    ? (athletesByTeam.get(TEAM_U16) ?? []).map((personId) => ({
+      sessionId: lastTraining.id, personId,
+      present: personId !== 'athlete-u16-9' && !availability.some((a) => a.sessionId === lastTraining.id && a.personId === personId && a.status === 'out')
+        && !absences.some((a) => a.personId === personId && dateOnly(new Date(lastTraining.startsAt)) >= a.fromDate && dateOnly(new Date(lastTraining.startsAt)) <= a.toDate),
+      confirmedBy: 'coach-1', confirmedAt: lastTraining.endsAt,
+    }))
+    : [];
+
+  // The coach asks the demo player to check an entry that looks too high (piece 13).
+  const doubtful = [...loadEntries].reverse().find((entry) => entry.personId === 'athlete-u16-1' && entry.trainingType === 'team_training');
+  if (doubtful) {
+    doubtful.rpe = 10;
+    doubtful.load = 10 * doubtful.durationMinutes;
+  }
+  const loadEntryReviews: LoadEntryReview[] = doubtful
+    ? [{ entryId: doubtful.id, personId: doubtful.personId, requestedBy: 'coach-1', note: T.reviewNote, createdAt: addDays(now, -1).toISOString() }]
+    : [];
+
   // Two U14 players play up; Paul has parental consent, Ben awaits it.
   for (const person of people) person.birthYear = now.getFullYear() - (['athlete-u16-11', 'athlete-u16-12'].includes(person.id) ? 14 : 18);
   const limited = 'athlete-u16-12';
   const consents: NonNullable<LocalDatabase['consents']> = people.flatMap((person) => [
     { id: `terms-${person.id}`, personId: person.id, userId: null, kind: 'terms' as const, version: LEGAL_VERSION, givenAt: createdAt, withdrawnAt: null, byParentName: null, byParentEmail: null },
-    ...(person.id === limited ? [] : [{ id: `health-${person.id}`, personId: person.id, userId: null, kind: person.id === 'athlete-u16-11' ? 'parent_health' as const : 'health' as const, version: LEGAL_VERSION, givenAt: createdAt, withdrawnAt: null, byParentName: person.id === 'athlete-u16-11' ? 'Demo parent' : null, byParentEmail: person.id === 'athlete-u16-11' ? 'parent@example.test' : null }]),
+    ...(person.id === limited ? [] : [{ id: `health-${person.id}`, personId: person.id, userId: null, kind: person.id === 'athlete-u16-11' ? 'parent_health' as const : 'health' as const, version: LEGAL_VERSION, givenAt: createdAt, withdrawnAt: null, byParentName: person.id === 'athlete-u16-11' ? T.parentName : null, byParentEmail: person.id === 'athlete-u16-11' ? 'parent@example.test' : null }]),
   ]);
   // No historic health data exist for the example awaiting consent.
   const consentedEntries = loadEntries.filter((e) => e.personId !== limited);
@@ -630,7 +747,8 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     // Codes exist locally so the data looks like the server's; joining with
     // them needs accounts and only works there.
     joinCodes: teams.map((team, index) => ({ teamId: team.id, code: ['TESTABCD', 'TESTEFGH'][index] ?? 'TESTJKMN', createdAt })),
-    staffInvites: [],
+    // The Team Manager has not accepted the invitation yet (piece 8b).
+    staffInvites: [{ token: '5eed0000-0000-4000-8000-000000000005', personId: 'coach-5', teamId: TEAM_U16, createdAt: addDays(now, -2).toISOString(), expiresAt: addDays(now, 28).toISOString(), acceptedAt: null }],
     clubRoles,
     clubRoleInvites: [],
     playerGroups,
@@ -643,17 +761,24 @@ export function createSeedDatabase(now: Date = new Date()): LocalDatabase {
     loadSummaries: summariesFor(consentedEntries, now),
     athletePlans: athletePlans.filter((p) => p.personId !== limited),
     acknowledgedSessions: [],
-    loadEntryReviews: [],
-    attendanceConfirmations: [],
+    loadEntryReviews,
+    attendanceConfirmations,
     absences: absences.map((a) => a.personId === limited ? { ...a, kind: null, note: null } : a),
-    squadEntries: [],
-    carpools: rideGame ? [{ id: 'carpool-demo-1', sessionId: rideGame.id, driverId: 'coach-1', seats: 3, note: null, createdAt: now.toISOString() }] : [],
+    squadEntries,
+    // With a departure and a pin (0047): riders open it in Google Maps.
+    carpools: rideGame ? [{
+      id: 'carpool-demo-1', sessionId: rideGame.id, driverId: 'coach-1', seats: 3, note: T.carpool.note, createdAt: now.toISOString(),
+      departAt: new Date(Date.parse(rideGame.startsAt) - 75 * 60_000).toISOString(), meetPoint: T.carpool.meetPoint, meetLat: 51.4627, meetLng: 7.0121,
+    }] : [],
     carpoolRiders: rideGame ? [{ carpoolId: 'carpool-demo-1', personId: 'athlete-u16-2', createdAt: now.toISOString() }] : [],
     carpoolRequests: rideGame ? [{ sessionId: rideGame.id, personId: 'athlete-u16-1', createdAt: now.toISOString() }] : [],
     messages,
     messageReads,
     messageVotes,
     messageWriters,
+    // The club decided carpools for every team (0046); everything else is up to the teams.
+    clubFeatureSettings: [{ clubId: CLUB_ID, feature: 'carpools', mode: 'on' }],
+    seedLocale: locale,
     shareLinks: {},
     // Start as the first coach so the app is usable immediately. Run 3 adds
     // the entry page that asks which role to test as and lets the person

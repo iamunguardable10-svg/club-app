@@ -1,76 +1,45 @@
-# Plan: Onboarding „erst ausprobieren, dann registrieren“ (2026-10-23)
+# Plan: Onboarding über die Demo (2026-10-23)
 
-Auftrag von Ben: Beim ersten Besuch soll jeder (Verein/Abteilung, Trainer, Spieler) die App
-mit den **eigenen** Daten ausprobieren, sehen wie durchdacht sie ist, und sich **erst dann**
-registrieren. Nach dem Registrieren ist alles noch da, nichts muss doppelt eingegeben werden.
+Ben wollte zuerst „erst ausprobieren, dann registrieren“ mit einem eigenen Probe-Verein.
+Entschieden (Ben, 2026-10-23): **kein eigener Probe-Verein**, stattdessen eine gute Demo mit
+guten Daten und einer Einführung im Moment. Gründe: Ein leerer eigener Verein zeigt wenig,
+die Übernahme nach dem Registrieren wäre teuer und fehleranfällig, und im Pilot kommen die
+meisten über einen Team-Code oder eine Einladung.
 
-Ersetzt den zurückgestellten Entwurf `docs/onboarding-concept.md` (Willkommen-Blatt, Tipps);
-dessen Ideen für Tipps im Moment bleiben für später.
+## Stücke
 
-## Warum vorher
+1. **Demo (erledigt, Run 89):** Erster Bildschirm „Neu hier“ / „Anmelden“; „Neu hier“ fragt
+   Verein · Trainer · Spieler und öffnet die passende Demo-Ansicht; „Ich habe einen Link oder
+   Code“ führt zu den bisherigen Wegen. Der Demo-Verein deckt alle Funktionen ab und spricht
+   die App-Sprache (`src/shared/data/demoTexts.ts`, neu angelegt bei Sprachwechsel).
+2. **Einführung im Moment:** Willkommen-Blatt mit drei Zeilen je Rolle und kleine Tipps an den
+   Knöpfen (Ideen in `docs/onboarding-concept.md`, ohne Abdunkeln). Am Ende der Demo immer der
+   nächste Schritt: „Richte deinen Verein ein“ / „Tritt deinem Team bei“.
+3. **Profil zuerst, klein:** Name und Profilbild direkt vor dem Konto (füllt nur das
+   Registrieren vor). Wer gründet, bekommt **nach** dem Registrieren einen kurzen
+   Einrichtungs-Assistenten (Abteilungen, Teams, Hallen), direkt auf dem Server.
+4. **Profilbilder auf dem Server** (Speicher, Regeln wer welches Bild sieht); dann auch in
+   den Kreisen bei „Abwesend und verspätet“.
 
-Wer schon Zeit und Persönliches hineingesteckt hat (Name, Foto, eigener Verein), bricht
-seltener ab (Investitions- bzw. IKEA-Effekt, Konsistenz). Das Konto wird zum letzten Schritt
-„Sichere, was du gebaut hast“ statt zur Hürde am Anfang.
+## Was die Demo zeigt (Abdeckung)
 
-## Ablauf
+| Funktion | Wo im Demo-Verein |
+|---|---|
+| Verein, zwei Abteilungen, geteilte Halle | Basketball und Volleyball teilen die Sporthalle Nord (Di U18, danach Damen 1) |
+| Teams mit und ohne Belastung | U16 und Damen 1 mit, U18 ohne |
+| Trainerrollen, offene Einladung | Head Coach, Co, Athletik, Teammanager (Einladung offen) |
+| Abteilungsleitung, Vereinsadmin, Schreibrechte | Frank Meyer (Basketball), Claudia Brandt; Volleyball ohne Leitung |
+| Funktionen vom Verein festgelegt | Fahrgemeinschaften „an für alle“ |
+| Serien, Einheiten, Spiele heim/auswärts, Besprechung online | Wochenplan, Auswärtsspiel mit Adresse, Besprechung mit Video-Link |
+| Zu-/Absagen, verspätet mit Grund, keine Antwort, selbst zusagen | zufällig verteilt, zwei Spieler sagen selbst zu |
+| Abwesenheiten | Verletzung (U16), Urlaub (U18, nächste Woche) |
+| Kader veröffentlicht | nächstes U16-Auswärtsspiel |
+| Anwesenheit bestätigt | letztes U16-Training |
+| Fahrgemeinschaft | Angebot mit Abfahrt, Treffpunkt-Pin, Mitfahrer, Platzanfrage |
+| Belastung: Ampeln, ACWR, offene Bewertungen, Prüfbitte | gemischt grün/gelb/rot; Demo-Spieler im grünen Bereich; Trainer bittet um Prüfung |
+| Eltern-Einwilligung | Paul (erteilt), Ben (offen) |
+| Nachrichten, wichtig/angeheftet, Umfrage, Erinnerung, News | Team, Verein, beide Abteilungen |
+| Eigene Pläne der Spieler | Kraft-Serie, Regeneration |
 
-**0 Erster Bildschirm** (`/start`, nicht angemeldet): groß „Neu hier“ und „Anmelden“; klein
-„Beispielverein ansehen“ (der bisherige Demo-Verein) und „Ich habe einen Link oder Code“
-(das bisherige „Wer bist du?“).
-
-**1 „Was möchtest du tun?“** (`/welcome`)
-- Verein oder Abteilung einrichten
-- Mein Team einrichten (Trainer)
-- Als Spieler loslegen
-
-**2 „Wie heißt du?“** Vorname, Nachname, Profilbild (freiwillig, wird im Browser auf
-256 px verkleinert).
-
-**3 je Rolle**
-- *Verein/Abteilung:* Vereinsname und Ort → Abteilungen (Vorschläge zum Antippen) → Teams je
-  Abteilung (Vorschläge U12…Herren/Damen) → Hallen mit Adresssuche.
-- *Trainer:* Verein (Name, Ort), Sportart, Teamname, Altersgruppe, Halle (freiwillig);
-  „Mit Beispielspielern ausprobieren“ (an), damit Zu-/Absagen gleich lebendig aussehen.
-- *Spieler:* „Hast du einen Team-Code?“ (Code oder Link) oder „Erst mal umschauen“: dann
-  der Beispielverein, in dem **du** ein Spieler der U16 bist (dein Name, dein Bild).
-
-**4 Ausprobieren** im lokalen Modus mit den eigenen Daten (Vereinsseite, Trainer „Heute“,
-Spieler „Heute“). Oben ein schmaler Streifen: „Probemodus · nur auf diesem Gerät ·
-**Sichern**“.
-
-**5 Sichern** (`/welcome/save`): Konto (E-Mail + Passwort, Einwilligungen wie heute) →
-- Verein/Trainer: Verein auf dem Server gründen, dann Abteilungen, Teams, Hallen,
-  Hallenzuordnungen und Standardhallen übernehmen; Beispielspieler nicht.
-- Spieler mit Code: Team beitreten, Name übernehmen.
-- Danach: „Noch 2 Fragen“ (Geburtsjahr für die Einwilligung, später Größe/Position);
-  Körperdaten und Geburtsjahr erst **nach** dem Konto, weil sie Einwilligungen brauchen.
-
-## Technik
-
-- **Entwurf** (`OnboardingDraft`) in `repository.ts` unter `club-app.onboarding`: Rolle,
-  Name, Bild, Verein, Abteilungen, Teams, Hallen, Team-Code. Jeder Schritt speichert sofort;
-  wer abbricht, macht beim nächsten Öffnen weiter.
-- **Probe-Datenbank:** `startTrial(draft)` baut aus dem Entwurf eine frische lokale
-  Datenbank (dieselben Funktionen wie die Vereinsseite: `createDepartment`, `createTeam`,
-  `createFacility`), merkt `trial` am Dokument und setzt die Identität. Der Beispielverein
-  bleibt über „Beispielverein ansehen“ erreichbar (ersetzt dann die Probe nach Rückfrage).
-- **Übernahme** nach dem Konto: `found_club` (erste Abteilung und erstes Team), danach die
-  übrigen Strukturen über die normalen Repository-Funktionen im Server-Modus.
-- Profilbild: zuerst nur lokal (Entwurf); Server-Speicher (Storage-Bucket, Regeln, wer
-  welches Bild sieht) ist ein eigenes Stück. Dann kommt es auch in die Kreise bei
-  „Abwesend und verspätet“.
-
-## Offene Entscheidung (Ben)
-
-**Gründungscode:** Heute braucht das Gründen eines Vereins einen Einmal-Code von uns.
-Vorschlag: Ausprobieren ist offen für alle; beim **Sichern** fragt die App während des
-Pilots nach dem Code (mit „Code anfragen“ per E-Mail). Nach dem Pilot fällt der Code weg,
-dafür Bot-Schutz und Ratenbegrenzung (siehe `docs/plan-next-runs.md`).
-
-## Reihenfolge
-
-- **A** Startbildschirm, Schritte 1–3, Entwurf, Probe-Datenbank, Probestreifen.
-- **B** Sichern: Konto, Übernahme, Spieler mit Code, „Noch 2 Fragen“.
-- **C** Profilbilder auf dem Server.
-- **D** Feinschliff: Tipps im Moment (aus `onboarding-concept.md`), leere Zustände.
+Nur im Server-Modus und deshalb nicht in der Demo: Apple-Kalender-Import, Push, echte
+Einladungslinks und Beitritt per Code.

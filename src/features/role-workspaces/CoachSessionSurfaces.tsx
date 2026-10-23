@@ -1257,7 +1257,7 @@ export function CoachHistoryInsights({
         </p>
       </div>
 
-      <div className="mt-5 grid gap-3 lg:grid-cols-2">
+      <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
         {filteredSessions.length > 0 ? (
           visibleSessions.map((session) => (
             <CoachHistorySessionCard key={session.id} session={session} onDetails={() => onDetails(session)} onInsight={(selectedSession, insight) => onDetails(selectedSession, insight)} />

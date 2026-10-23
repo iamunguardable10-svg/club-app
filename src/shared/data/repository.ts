@@ -31,6 +31,7 @@ import { LEGAL_VERSION, canSelfConsent, defaultLoadForAge, exportLocalPerson, ha
 import { calculateACWR, getLatestACWR, loadZone, sevenDayLoad, summarizeLoadEntries } from './loadCalculations';
 import { DATABASE_KEY, LEGACY_KEY_PREFIXES, SCHEMA_VERSION, isCurrent } from './migrations';
 import { COACH_ROLE_TEMPLATES, createSeedDatabase } from './seed';
+import { isLocale, matchLocale, type Locale } from '@/shared/i18n/locales';
 import type { OfflineCache, OfflineSnapshot, RejectedNotice, RemoteStore } from './remote/remoteStore';
 import { serverError } from './serverMessages';
 import {
@@ -238,7 +239,39 @@ export function storeLocale(code: string): void {
   } catch {
     // Not remembered: the language follows the browser again next time.
   }
+  reseedDemoInLocale();
   for (const listener of localeListeners) listener();
+}
+
+/** The language the demo club is seeded in: the picked one, else the browser's. */
+function demoLocale(): Locale {
+  const stored = readStoredLocale();
+  if (isLocale(stored)) return stored;
+  return matchLocale(typeof navigator === 'undefined' ? [] : navigator.languages ?? [navigator.language]);
+}
+
+/**
+ * The demo club speaks the app language (`demoTexts.ts`): after a language
+ * change it is seeded again in the new one. Test data is throwaway; who one
+ * is testing as stays (ids do not depend on the language).
+ */
+function reseedDemoInLocale() {
+  if (remote || isRemoteMode()) return;
+  const current = (() => {
+    try {
+      return readDatabase();
+    } catch {
+      return null;
+    }
+  })();
+  const locale = demoLocale();
+  if (!current || current.seedLocale === locale) return;
+  const seeded = createSeedDatabase(new Date(), locale);
+  if (current.activeIdentity && seeded.people.some((person) => person.id === current.activeIdentity?.personId)) {
+    seeded.activeIdentity = current.activeIdentity;
+  }
+  persist(seeded);
+  notify();
 }
 
 export function subscribeLocale(listener: () => void): () => void {
@@ -311,7 +344,7 @@ export function readDatabase(): LocalDatabase | null {
   const raw = window.localStorage.getItem(DATABASE_KEY);
 
   if (raw === null) {
-    const seeded = createSeedDatabase();
+    const seeded = createSeedDatabase(new Date(), demoLocale());
     persist(seeded);
     return seeded;
   }
@@ -329,7 +362,7 @@ export function readDatabase(): LocalDatabase | null {
   // A document from an older schema version is not an error: no data is worth
   // preserving, so the honest move is to reseed rather than to patch it up.
   if (!isCurrent(parsed)) {
-    const seeded = createSeedDatabase();
+    const seeded = createSeedDatabase(new Date(), demoLocale());
     persist(seeded);
     return seeded;
   }
@@ -514,7 +547,7 @@ export function resetDatabase(): void {
   if (!isBrowser()) return;
   cache = null;
   window.localStorage.removeItem(DATABASE_KEY);
-  persist(createSeedDatabase());
+  persist(createSeedDatabase(new Date(), demoLocale()));
   notify();
 }
 
