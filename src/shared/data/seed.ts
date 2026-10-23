@@ -508,6 +508,8 @@ export function createSeedDatabase(now: Date = new Date(), locale: Locale = 'en'
   }];
   const loadEntries: LoadEntry[] = [];
   const teamNameById = new Map(teams.map((team) => [team.id, team.name]));
+  // Each player's usual playing time in a game (starters more, the bench less).
+  const playingMinutes = new Map(memberships.filter((m) => m.role === 'athlete').map((m) => [m.personId, 18 + Math.round(makeRandom(`minutes:${m.personId}`)() * 16)]));
 
   for (const session of sessions) {
     const sessionDay = new Date(session.startsAt);
@@ -545,10 +547,36 @@ export function createSeedDatabase(now: Date = new Date(), locale: Locale = 'en'
         (new Date(session.endsAt).getTime() - new Date(session.startsAt).getTime()) / 60_000,
       );
       const jitter = Math.round((random() - 0.5) * 3);
-      const rpe = Math.min(10, Math.max(1, BASE_RPE[session.sessionType] + jitter));
-      const effectiveDuration = status === 'late'
-        ? Math.max(20, durationMinutes - (20 + Math.round(random() * 20)))
-        : durationMinutes;
+      const isGame = session.sessionType === 'game';
+      // A game counts as RPE 10 for the minutes played, as in the app, with the warmup before it.
+      const rpe = isGame ? 10 : Math.min(10, Math.max(1, BASE_RPE[session.sessionType] + jitter));
+      const effectiveDuration = isGame
+        ? Math.max(5, Math.min(40, (playingMinutes.get(personId) ?? 24) + Math.round((random() - 0.5) * 10)))
+        : status === 'late'
+          ? Math.max(20, durationMinutes - (20 + Math.round(random() * 20)))
+          : durationMinutes;
+      if (isGame) {
+        const warmupStart = new Date(Date.parse(session.startsAt) - 75 * 60_000).toISOString();
+        const warmupRpe = 3 + (random() < 0.3 ? 1 : 0);
+        const warmupMinutes = 20 + (random() < 0.3 ? 5 : 0);
+        loadEntries.push({
+          id: `load-${session.id}-warmup-${personId}`,
+          personId,
+          sessionId: `${session.id}-warmup`,
+          teamId: session.teamId,
+          teamName: teamNameById.get(session.teamId) ?? null,
+          date: dateOnly(new Date(warmupStart)),
+          startsAt: warmupStart,
+          title: 'Warmup',
+          trainingType: 'warmup',
+          rpe: warmupRpe,
+          durationMinutes: warmupMinutes,
+          load: warmupRpe * warmupMinutes,
+          note: null,
+          source: 'planned_session',
+          createdAt: session.startsAt,
+        });
+      }
 
       loadEntries.push({
         id: `load-${session.id}-${personId}`,
@@ -613,7 +641,7 @@ export function createSeedDatabase(now: Date = new Date(), locale: Locale = 'en'
       const day = addDays(today, -(heavy ? Math.floor(index / 2) + 1 : index + 1));
       // The demo player sits in the green.
       const demoPlayer = membership.personId === 'athlete-u16-1';
-      const durationMinutes = heavy ? 90 : demoPlayer ? 75 : 50 + Math.round(random() * 30);
+      const durationMinutes = heavy ? 90 : demoPlayer ? 55 : 30 + Math.round(random() * 15);
       const rpe = heavy ? 9 : demoPlayer ? 7 : 5 + Math.round(random() * 2);
       loadEntries.push({
         id: `load-recent-${membership.personId}-${index}`,

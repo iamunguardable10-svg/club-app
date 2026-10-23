@@ -48,7 +48,7 @@ import {
   saveShareLink,
   type AthleteAvailabilityMark,
 } from './athleteLocalStore';
-import { RatePrompt, WARMUP_MINUTES, WARMUP_RPE } from './RatePrompt';
+import { RatePrompt, WARMUP_MINUTES, WARMUP_RPE, type RateDefaults, type WarmupRating } from './RatePrompt';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { useSmartCalendar } from '@/features/calendar/useSmartCalendar';
 
@@ -843,18 +843,38 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     };
   }
 
-  function saveRating(session: AthletePendingSession, rpe: number, minutes: number, withWarmup: boolean) {
+  /**
+   * What "How hard was it?" starts with: for a game the playing minutes are
+   * the player's average for that team, the warmup their usual effort (rounded)
+   * and length; otherwise the usual effort for this kind of session.
+   */
+  function rateDefaultsFor(session: AthletePendingSession): RateDefaults {
+    const average = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
+    const teamWarmups = sortedEntries.filter((entry) => entry.trainingType === 'warmup' && entry.durationMinutes > 0 && entry.teamId === session.teamId);
+    const warmups = teamWarmups.length > 0 ? teamWarmups : sortedEntries.filter((entry) => entry.trainingType === 'warmup' && entry.durationMinutes > 0);
+    const warmupRpe = warmups.length > 0 ? Math.max(1, Math.min(10, Math.round(average(warmups.map((entry) => entry.rpe))))) : WARMUP_RPE;
+    const warmupMinutes = warmups.length > 0 ? Math.max(5, Math.min(60, Math.round(average(warmups.map((entry) => entry.durationMinutes)) / 5) * 5)) : WARMUP_MINUTES;
+    if (session.trainingType !== 'game') return { rpe: averageRpeFor(session.trainingType, session.date), warmupRpe, warmupMinutes };
+    // Games count playing minutes, which differ from the game's length: the average for this team.
+    const allGames = sortedEntries.filter((entry) => entry.trainingType === 'game' && entry.durationMinutes > 0);
+    const teamGames = allGames.filter((entry) => entry.teamId === session.teamId);
+    const games = teamGames.length > 0 ? teamGames : allGames;
+    const minutes = games.length > 0 ? Math.round(average(games.map((entry) => entry.durationMinutes))) : undefined;
+    return { rpe: 10, minutes, warmupRpe, warmupMinutes };
+  }
+
+  function saveRating(session: AthletePendingSession, rpe: number, minutes: number, warmupRating: WarmupRating | null) {
     if (!activePersonId) return;
     // Own training: the entry replaces the plan.
     if (session.source === 'athlete_plan') {
       void submitPending(session, rpe, minutes);
       return;
     }
-    const warmup = withWarmup ? warmupForSession(session) : null;
+    const warmup = warmupRating ? warmupForSession(session) : null;
     try {
       saveSessionRating(activePersonId, [
         entryFor(session, rpe, minutes),
-        ...(warmup ? [entryFor(warmup, WARMUP_RPE, WARMUP_MINUTES)] : []),
+        ...(warmup && warmupRating ? [entryFor(warmup, warmupRating.rpe, warmupRating.minutes)] : []),
       ]);
       setError(null);
     } catch (caught) {
@@ -1843,7 +1863,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       {ratePromptOpen && rateQueue.length > 0 ? (
         <RatePrompt
           sessions={rateQueue}
-          defaultRpeFor={(session) => averageRpeFor(session.trainingType, session.date)}
+          defaultsFor={rateDefaultsFor}
           onSave={saveRating}
           onMissed={saveMissed}
           onLater={() => setRatePromptOpen(false)}
