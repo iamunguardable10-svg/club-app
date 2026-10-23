@@ -1944,10 +1944,9 @@
   "features.club.allTeams": "Jedes Team entscheidet selbst",
   "features.club.fixed_one": "{count} Funktion für alle Teams festgelegt",
   "features.club.fixed_other": "{count} Funktionen für alle Teams festgelegt",
-  "carpools.meetPointSearch": "Adresse suchen oder auf die Karte tippen",
-  "carpools.mapHint": "Straße oder Ort suchen, dann auf die genaue Stelle tippen.",
-  "carpools.mapDragHint": "Zieh den Pin an die genaue Stelle.",
+  "carpools.meetPointSearch": "Straße oder Ort suchen",
+  "carpools.mapHint": "Adresse suchen oder Karte verschieben: Der Pin in der Mitte zeigt den Treffpunkt.",
   "carpools.removePin": "Pin entfernen",
   "carpools.openInMaps": "In Google Maps öffnen",
-  "carpools.mapTapHint": "Tippe jetzt auf die genaue Stelle auf der Karte."
+  "carpools.mapMoveHint": "Karte verschieben und zoomen, bis der Pin genau an der Stelle steht."
 }

@@ -1944,10 +1944,9 @@
   "features.club.allTeams": "Chaque équipe décide elle-même",
   "features.club.fixed_one": "{count} fonctionnalité fixée pour toutes les équipes",
   "features.club.fixed_other": "{count} fonctionnalités fixées pour toutes les équipes",
-  "carpools.meetPointSearch": "Cherche une adresse ou touche la carte",
-  "carpools.mapHint": "Cherche une rue ou une ville, puis touche l'endroit exact.",
-  "carpools.mapDragHint": "Fais glisser l'épingle à l'endroit exact.",
+  "carpools.meetPointSearch": "Cherche une rue ou un lieu",
+  "carpools.mapHint": "Cherche une adresse ou déplace la carte : l'épingle au centre indique le point de rendez-vous.",
   "carpools.removePin": "Retirer l'épingle",
   "carpools.openInMaps": "Ouvrir dans Google Maps",
-  "carpools.mapTapHint": "Touche maintenant l'endroit exact sur la carte."
+  "carpools.mapMoveHint": "Déplace et zoome la carte jusqu'à ce que l'épingle soit au bon endroit."
 }
