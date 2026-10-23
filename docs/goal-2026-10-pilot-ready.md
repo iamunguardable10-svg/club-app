@@ -29,56 +29,69 @@ Plan und fertige Unterlagen bereit.
 - **Nie:** Geheimnisse ins Repo oder in die Ausgabe, TLS-Prüfung abschalten, Modellnamen in
   Commits/PRs, `localStorage` außerhalb von `src/shared/data/repository.ts`, Rechte aus
   URL-Parametern, Tests überspringen oder abschalten, Funktionen bei UI-Arbeit entfernen.
+- **UI/UX nebenbei:** Wo etwas, neu oder alt, „off“ aussieht (Abstände, Umbrüche, Farben,
+  doppelte Texte, zu volle Kästen), gleich verbessern und vorher/nachher zeigen.
 - **Stil:** ruhig, dunkel, wie die letzten Runs (Karten `rounded-xl border-slate-800
   bg-slate-900/45`, Zeilen mit Zeichen links, eine Primärfarbe). Keine Abdunkel-Touren, kein
   Rundgang mit Schrittzähler (entfernt in Run 73).
 - **Rückfragen** nur bei echten Produktentscheidungen; sonst sinnvolle Annahme treffen, im
   Bericht nennen und weiterbauen. Entscheidungen in `docs/plan-*.md` festhalten.
 
-## Stück 1: Erklärung der Belastungssteuerung (mit Evidenz)
+## Stück 1: Belastungssteuerung erklären, beim ersten Kontakt (je Rolle)
 
-Heute gibt es nur ein kurzes Blatt (`load.explainer.*`, `src/features/load/LoadHints.tsx`).
+Kein eigener Hilfe-Bereich. Die Erklärung kommt **einmal von selbst, wenn jemand zum ersten Mal
+mit der Belastung in Berührung kommt**, und ist danach über ein kleines „?“ an der Belastung
+wieder erreichbar. Heute gibt es nur ein kurzes Blatt (`load.explainer.*`,
+`src/features/load/LoadHints.tsx`), das darin aufgeht.
 
-- **Eigene Seite „So funktioniert die Belastung“**, erreichbar aus dem Belastungs-Tab
-  (Spieler), der Spieler-Belastungsansicht (Trainer) und den Einstellungen. Abschnitte:
-  1. Was gemessen wird: Session-RPE (Anstrengung 0–10 × Minuten = Belastung in AU), warum ein
-     Gefühlswert reicht.
-  2. Akut und chronisch: letzte 7 Tage im Verhältnis zu den letzten 28 (EWMA, wie in
-     `loadCalculations.ts`), was die Zonen bedeuten, warum es eine Eingewöhnung von etwa
-     4 Wochen braucht.
-  3. Monotonie und Strain (Foster), kurz.
-  4. **Was die Forschung sagt, ehrlich:** Session-RPE ist gut belegt (u. a. Foster et al. 2001;
-     Haddad et al. 2017). Das ACWR wurde mit Verletzungsrisiko in Verbindung gebracht (Gabbett
-     2016; Hulin et al.), die EWMA-Variante gilt als genauer (Williams et al. 2017). Es gibt
-     berechtigte Kritik am ACWR als Vorhersagewert (Impellizzeri et al. 2020, 2021). Daraus folgt
-     die Haltung der App: **Orientierung und Gesprächsanlass, keine Diagnose, keine
-     Verletzungsvorhersage.**
-  5. Was Trainer daraus machen (Gespräch, Trainingsplanung) und was nicht (keine Kaderentscheidung
-     allein aus der Ampel).
-  6. Datenschutz: wer welche Belastungsdaten sieht (Einwilligung, Trainerrollen).
-- **Quellen prüfen:** jede Quelle per Websuche nachprüfen (Autor, Jahr, Zeitschrift, DOI); nichts
-  zitieren, was nicht gefunden wurde. Quellenliste am Ende der Seite, mit Links.
-- **Im Moment erklären:** kleine „?“-Infos an ACWR, Zonen, Monotonie, „Eingewöhnung läuft“; die
-  bestehenden Texte durchsehen und an die Seite anbinden.
-- Fertig, wenn: Seite in vier Sprachen, aus allen drei Stellen erreichbar, Quellen geprüft,
-  Screenshots, Smoke-Test grün.
+- **Wann:** Spieler: erste Bewertung „Wie anstrengend war es?“ oder erster Besuch im
+  Belastungs-Tab. Trainer: erster Blick auf Ampel/ACWR eines Spielers oder die
+  Belastungsansicht des Teams. Verein/Abteilung: beim Einschalten der Funktion „Belastung“ für
+  ein Team bzw. im Funktionen-Bereich. Gemerkt pro Konto bzw. Gerät (über `repository.ts`).
+- **Form:** ein Blatt mit 3–4 kurzen Seiten zum Wischen (Bild/Grafik oben, 2–3 Sätze),
+  „Überspringen“ immer sichtbar, letzte Seite mit dem nächsten Schritt.
+- **Texte je Rolle:**
+  - *Spieler:* warum der Trainer fragt, wie man RPE ehrlich einschätzt (Skala mit Beispielen),
+    was die Ampel für einen selbst bedeutet, wer die Daten sieht.
+  - *Trainer:* Monitoring der Spieler: Session-RPE × Minuten, akut/chronisch (EWMA), Zonen,
+    Eingewöhnung ~4 Wochen, Monotonie/Strain kurz; was man daraus macht (Gespräch,
+    Trainingssteuerung) und was nicht (keine Diagnose, keine Kaderentscheidung allein aus der
+    Ampel).
+  - *Verein/Abteilung:* das Werkzeug für ehrgeizige Mannschaften Richtung Leistungssport bzw.
+    Leistungssportteams; Nutzen für den Verein, Datenschutz und Einwilligung, Kosten/Freischaltung.
+- **Kurz die Evidenz** (je Rolle passend dosiert, beim Trainer am ausführlichsten): Session-RPE
+  gut belegt (u. a. Foster et al. 2001; Haddad et al. 2017); ACWR mit Verletzungsrisiko in
+  Verbindung gebracht (Gabbett 2016; Hulin et al.), EWMA genauer (Williams et al. 2017);
+  berechtigte Kritik am ACWR als Vorhersagewert (Impellizzeri et al. 2020, 2021) → Haltung der
+  App: Orientierung und Gesprächsanlass, keine Verletzungsvorhersage. **Jede Quelle per
+  Websuche prüfen** (Autor, Jahr, Zeitschrift, DOI), nichts Erfundenes; Quellen auf der letzten
+  Seite verlinkt.
+- Fertig, wenn: erscheint genau einmal je Rolle an den genannten Stellen, „?“ öffnet es wieder,
+  vier Sprachen, Quellen geprüft, Vorher/Nachher-Bilder.
 
-## Stück 2: Erklärung der App allgemein (Hilfe)
+## Stück 2: Passive, interaktive Tour durch die App
 
-Ben hat entschieden: **kein eigenes Erklär- oder Tour-Programm** (zu aufwendig, sprengt bei
-mehreren Sportarten den Rahmen). Also nichts, was jede Sportart eigens abbilden muss, und keine
-selbst gebaute Tour-Maschine. Stattdessen:
+Ben: **keine durchsuchbare Hilfe-Seite und kein eigenes Tour-Programm je Sportart.** Gewollt ist
+eine passive Tour: einzelne Knöpfe und Abläufe zeigen bzw. sagen selbst, was sie tun, und man
+wird interaktiv geführt, ohne dass etwas blockiert oder abgedunkelt wird.
 
-- **Hilfe-Seite pro Rolle** (Spieler, Trainer, Verein/Abteilung): kurze Antworten auf die
-  20 wichtigsten Fragen („Wie sage ich ab?“, „Wie plane ich eine Serie?“, „Wer sieht meine
-  Gründe?“, „Wie lade ich Spieler ein?“ …), durchsuchbar, mit kleinen Screenshots aus der Demo.
-  Aufrufbar aus dem Konto-Menü und aus jeder leeren Ansicht.
-- **Willkommen-Blatt** einmal nach dem ersten Öffnen je Rolle (drei Zeilen, ein Knopf), Ideen in
-  `docs/onboarding-concept.md` Abschnitt A; gemerkt pro Gerät bzw. Konto.
-- **Leere Zustände**: jede leere Liste sagt, was hinkommt, und hat genau einen Knopf dafür.
-- Wenn für Tipps an Knöpfen eine Bibliothek sinnvoll ist, eine kleine, gepflegte (MIT) nehmen
-  statt selbst bauen, und nur für wenige, allgemeine Stellen.
-- Fertig, wenn: Hilfe in vier Sprachen, Willkommen-Blatt je Rolle, alle leeren Listen geprüft.
+- **Tipps an Knöpfen** (Popover mit Pfeil, wie Apples TipKit): erscheinen beim ersten Besuch
+  einer Seite an genau einem Knopf („Tippe hier, um eine Einheit zu planen“), höchstens einer
+  gleichzeitig, weg mit ✕ oder sobald man es selbst getan hat. Gemerkt pro Konto/Gerät.
+- **Geführte Abläufe** für die wichtigsten ersten Schritte, Schritt für Schritt am echten
+  Bildschirm (nicht abgedunkelt, jederzeit abbrechbar): Spieler „Absagen“, Trainer „Erste Einheit
+  planen“ und „Spieler einladen“, Verein „Team anlegen“ und „Halle anlegen“. Jeder Schritt
+  wartet auf die echte Aktion des Nutzers.
+- **Allgemein formuliert**, damit es für jede Sportart passt. Ideen in
+  `docs/onboarding-concept.md` (Abschnitte B, C, D). Für Popover-Positionierung darf eine kleine,
+  gepflegte Bibliothek (MIT) genutzt werden; die Logik (wann, welcher Tipp) bleibt bei uns,
+  klein und datengetrieben (Liste von Tipps mit Seite, Zielknopf, Text, Bedingung).
+- „Tipps wieder zeigen“ in den Einstellungen.
+- Fertig, wenn: je Rolle die Tipps der wichtigsten Seiten und die genannten geführten Abläufe,
+  auf Handy und Desktop, vier Sprachen, Vorher/Nachher-Bilder.
+
+**Im Zweifel bei Stück 1 und 2 nachfragen statt bauen**: lieber weglassen als etwas bauen, das
+Ben nicht will.
 
 ## Stück 3: Erstnutzer-Onboarding, viel professioneller und flüssiger
 
@@ -122,8 +135,9 @@ Spieler frei, je nach Stand des Teams.
   `managePlaybook` in den Trainerrollen). Größenlimit (z. B. 20 MB), nur PDF/Bilder.
 - **Freischaltung:** als Team-Funktion `playbook` in die Freischaltungs-Schicht (0046) einhängen;
   Entscheidung bezahlt/Basis im Bericht vorschlagen (Vorschlag: bezahlt, im Pilot frei).
-- **Lokaler Modus/Demo:** zwei Beispiel-Playbooks (eines freigegeben, eines Entwurf), ohne
-  echten Upload (kleine eingebaute Beispiel-PDF bzw. Platzhalter).
+- **Lokaler Modus/Demo:** zwei bis drei Beispiel-Playbooks (eines freigegeben, eines Entwurf).
+  PDFs dürfen aus dem Internet kommen, aber nur mit freier Lizenz (gemeinfrei/CC, Quelle und
+  Lizenz notieren); sonst selbst erzeugte, einfache Spielzug-PDFs. Klein halten (unter 1 MB).
 - **Ansehen:** PDF im Browser öffnen (eigene Ansicht mit Blättern auf dem Handy oder
   Systemansicht), „zuletzt angesehen“ für den Trainer optional.
 - Fertig, wenn: Migration live mit SQL-Tests (Spieler sieht keinen Entwurf, fremder Verein sieht
@@ -158,8 +172,8 @@ Landingpage. Nichts wird an Externe verschickt oder veröffentlicht; Entwürfe f
 
 ## Reihenfolge
 
-1 Belastung erklären → 4 Playbook → 3 Onboarding → 2 Hilfe → 5 Marketing (5 kann zwischendurch
-laufen, wenn auf CI gewartet wird). Nach jedem Stück: Bericht an Ben, dann direkt weiter.
+4 Playbook → 3 Onboarding → 1 Belastung beim ersten Kontakt → 2 passive Tour → 5 Marketing
+(5 kann zwischendurch laufen, wenn auf CI gewartet wird). Nach jedem Stück: Bericht an Ben, dann direkt weiter.
 
 ## Ende
 
