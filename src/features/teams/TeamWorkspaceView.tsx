@@ -1,5 +1,6 @@
 'use client';
 
+import { PersonAvatar } from '@/features/people/PersonPhoto';
 import { AvailabilityStack } from '@/features/sessions/AvailabilityStack';
 import Link from 'next/link';
 import { AbsencePanel } from '@/features/absences/AbsencePanel';
@@ -550,7 +551,10 @@ export function TeamWorkspaceView({
                 return (
                   <button key={player.id} type="button" onClick={() => setActivePlayer(player)} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 text-left transition hover:border-emerald-300/55 hover:bg-slate-900">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="truncate font-black text-white">{player.name}</p>
+                      <span className="flex min-w-0 items-center gap-2.5">
+                        <PersonAvatar personId={player.id} name={player.name} size="sm" />
+                        <span className="truncate font-black text-white">{player.name}</span>
+                      </span>
                       {data.loadTracked !== false && player.healthConsent === false ? <span className="text-xs font-bold text-amber-200">{t('consent.noConsent')}</span> : null}
                       {player.birthYear != null ? <span className="text-xs text-slate-400">{t('consent.birthYear')}: {player.birthYear}</span> : null}
                       {data.loadTracked !== false && summary.access !== 'none' && summary.acwr !== null ? <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-black ${acwrToneClass(summary.zone.tone)}`}>{t('team.acwrBadge', { value: formatDecimal(summary.acwr) })}</span> : null}

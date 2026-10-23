@@ -91,7 +91,7 @@ function AttendanceFlags({ notes, onSelect }: { notes: NonNullable<SessionDetail
       <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('sessionSheet.attendanceFlags')}</p>
       <ul className="mt-1.5 divide-y divide-slate-800/80">
         {sorted.map((note) => {
-          const body = <FlagRow status={note.status} label={statusText(note.status)} name={note.name} reason={note.detail} minutes={note.minutes} />;
+          const body = <FlagRow status={note.status} label={statusText(note.status)} name={note.name} reason={note.detail} minutes={note.minutes} personId={note.id} />;
           return (
             <li key={note.id}>
               {onSelect ? (

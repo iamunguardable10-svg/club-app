@@ -198,6 +198,10 @@ export type Person = {
    * as open, and they say "in" themselves. Missing means 'auto'.
    */
   rsvpMode?: RsvpMode;
+  /** When the person last set their profile photo; null or missing: none (0050). */
+  photoAt?: Timestamp | null;
+  /** Local test mode only: the photo itself (a small data URL). On the server it lives in storage. */
+  photo?: string | null;
   createdAt: Timestamp;
 };
 

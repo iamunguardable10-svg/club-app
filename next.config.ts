@@ -4,7 +4,7 @@ const isDev = process.env.NODE_ENV !== 'production';
 
 /**
  * Where the app may talk to: itself and the Supabase project (REST, Auth,
- * Realtime over wss, Edge Functions). Address search goes through our own
+ * Realtime over wss, Edge Functions, storage for photos). Address search goes through our own
  * /api/address, so Geoapify is not listed.
  */
 function supabaseOrigins(): string[] {
@@ -20,7 +20,8 @@ const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  // Profile photos come from Supabase storage through signed links (0050).
+  `img-src 'self' data: blob: ${supabaseOrigins()[0]}`,
   "font-src 'self' data:",
   `connect-src 'self' ${supabaseOrigins().join(' ')}${isDev ? ' ws://localhost:*' : ''}`,
   "worker-src 'self'",
