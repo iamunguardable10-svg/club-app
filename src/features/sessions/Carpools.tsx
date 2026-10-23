@@ -142,7 +142,7 @@ export function Carpools({ sessionId }: { sessionId: string }) {
           </li>;
         })}</ul> : null}
         {requests.length > 0 ? <p className="break-words text-xs font-bold text-slate-400">{t('carpools.requests', { names: requests.map((r) => name(r.personId)).join(', ') })}</p> : null}
-        {!past && !own && !joined ? <div className="grid gap-2 sm:grid-cols-2">
+        {!past && !own && !joined && !editing ? <div className="grid gap-2 sm:grid-cols-2">
           <button type="button" onClick={edit} className={actionClass}>{t('carpools.offer')}</button>
           <button type="button" aria-pressed={Boolean(requested)} onClick={() => run(() => requested ? cancelNeedSeat(sessionId) : needSeat(sessionId))} className={actionClass}>{requested ? t('carpools.cancelNeed') : t('carpools.ask')}</button>
         </div> : null}
@@ -156,12 +156,12 @@ export function Carpools({ sessionId }: { sessionId: string }) {
           </label>
           <label className="block text-xs font-bold text-slate-300">{t('carpools.departure')}
             <input type="time" value={departTime} onChange={(event) => setDepartTime(event.target.value)} className="os-field mt-1 block w-32 [color-scheme:dark]" />
+            <span className="mt-1 block font-normal text-slate-500">{t('carpools.departureHint')}</span>
           </label>
           <div className="grid gap-1 text-xs font-bold text-slate-300">
             {t('carpools.meetPoint')}
             <MeetPointPicker value={meetPin} onChange={setMeetPin} centerHint={session.homeAway === 'away' && session.venueAddress ? session.venueAddress : database.facilities.find((f) => f.id === session.facilityId)?.address ?? null} />
           </div>
-          <p className="text-xs text-slate-500">{t('carpools.departureHint')}</p>
           <label className="block text-xs font-bold text-slate-300">{t('carpools.note')}
             <textarea value={note} maxLength={200} onChange={(event) => setNote(event.target.value)} className="os-field mt-1 min-h-20 w-full resize-y" />
           </label>
