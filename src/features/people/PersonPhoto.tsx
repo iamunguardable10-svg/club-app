@@ -105,13 +105,14 @@ export function PersonAvatar({ personId, name, size = 'md', fallback, badge, src
 }
 
 /** Pick a photo: shrinks it at once and hands over the small version. */
-export function PhotoPicker({ name, src, onPick, onRemove, busy = false }: { name: string; src: string | null; onPick: (photo: Blob) => void | Promise<void>; onRemove?: () => void | Promise<void>; busy?: boolean }) {
+export function PhotoPicker({ name, src, onPick, onRemove, busy = false, hideAvatar = false }: { name: string; src: string | null; onPick: (photo: Blob) => void | Promise<void>; onRemove?: () => void | Promise<void>; busy?: boolean; hideAvatar?: boolean }) {
   const t = useT();
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState(false);
   return (
     <div className="flex items-center gap-4">
-      <PersonAvatar name={name} size="lg" src={src} />
+      {/* Next to a player card that shows the photo already, only the buttons. */}
+      {hideAvatar ? null : <PersonAvatar name={name} size="lg" src={src} />}
       <div className="grid gap-1.5">
         <input
           ref={input}

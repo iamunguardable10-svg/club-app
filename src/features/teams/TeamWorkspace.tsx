@@ -38,6 +38,7 @@ import { TeamHealthSettings } from '@/features/legal/TeamHealthSettings';
 import { TeamStaffPanel } from '@/features/teams/TeamStaffPanel';
 import { TeamSwitch } from '@/features/teams/TeamSwitch';
 import { PlaybookShelf } from '@/features/playbook/PlaybookShelf';
+import { CoachPlayerProfile, playerFactsText } from '@/features/people/PlayerProfile';
 import { displayRoleName } from '@/features/teams/roleLabels';
 import {
   absenceOn,
@@ -349,6 +350,7 @@ export function TeamWorkspace({
   const featuresPanel: ReactNode = database && settingsTeam && permissions.has('manageStaff')
     ? <TeamHealthSettings database={database} team={settingsTeam} />
     : null;
+  const playerFacts = database ? (personId: string) => playerFactsText(database, teamId, personId) : undefined;
   const playbookPanel: ReactNode = database && teamHasFeature(database, teamId, 'playbook')
     ? <PlaybookShelf database={database} teamId={teamId} />
     : null;
@@ -376,6 +378,11 @@ export function TeamWorkspace({
       staffPanel={staffPanel}
       featuresPanel={featuresPanel}
       playbookPanel={playbookPanel}
+      playerFacts={playerFacts}
+      playerProfilePanel={database ? (personId) => {
+        const person = database.people.find((candidate) => candidate.id === personId);
+        return person ? <CoachPlayerProfile key={personId} database={database} teamId={teamId} person={person} canEdit={canManageGroups} /> : null;
+      } : undefined}
     />
     </CoachShell>
   );

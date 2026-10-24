@@ -35,6 +35,12 @@ import { isLocale, matchLocale, type Locale } from '@/shared/i18n/locales';
 import type { OfflineCache, OfflineSnapshot, RejectedNotice, RemoteStore } from './remote/remoteStore';
 import { serverError } from './serverMessages';
 import {
+  SPORT_KEYS,
+  STRONG_SIDES,
+  type SportKey,
+  type PersonDetails,
+  type StrongSide,
+  type TeamPlayerDetails,
   COACH_PERMISSIONS,
   COACH_PERMISSION_REQUIRES,
   CLUB_MANAGEMENT_PERMISSIONS,
@@ -179,7 +185,7 @@ export function setBackendChoice(choice: BackendChoice): void {
  * Functional notification opt-in can be put away with "Not now" on this device;
  * the calendar's edit hint shows only the first time, the demo's "Like it?" once.
  */
-export type HintName = 'notifications' | 'calendarEdit' | 'demoNudge';
+export type HintName = 'notifications' | 'calendarEdit' | 'demoNudge' | 'profileNudge';
 
 const hintKey = (name: HintName) => `club-app.hint-dismissed.${name}`;
 
@@ -210,7 +216,8 @@ const ONBOARDING_DRAFT_KEY = 'club-app.onboarding-draft';
  * code). It outlives the confirmation mail, so nothing is asked twice, and is
  * removed once they are in.
  */
-export type OnboardingDraft = { for: string; firstName: string; lastName: string; consent: AccessConsent };
+export type PendingPlayerDetails = { jerseyNumber: number | null; position: string | null; heightCm: number | null; strongSide: StrongSide | null };
+export type OnboardingDraft = { for: string; firstName: string; lastName: string; consent: AccessConsent; details?: PendingPlayerDetails };
 
 export function readOnboardingDraft(forWay: string): OnboardingDraft | null {
   if (!isBrowser()) return null;
@@ -266,8 +273,50 @@ export function storePendingPhoto(dataUrl: string | null): void {
   }
 }
 
+const PENDING_DETAILS_KEY = 'club-app.pending-player-details';
+
+/** Number, position, height and strong side typed while joining, for the team just joined. */
+export function storePendingPlayerDetails(details: (PendingPlayerDetails & { teamId: Id }) | null): void {
+  if (!isBrowser()) return;
+  try {
+    if (details) window.localStorage.setItem(PENDING_DETAILS_KEY, JSON.stringify(details));
+    else window.localStorage.removeItem(PENDING_DETAILS_KEY);
+  } catch {
+    // Not remembered: the card can still be filled in in the settings.
+  }
+}
+
+function readPendingPlayerDetails(): (PendingPlayerDetails & { teamId: Id }) | null {
+  if (!isBrowser()) return null;
+  try {
+    const raw = window.localStorage.getItem(PENDING_DETAILS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** What was given before the account (photo, player card) goes on one's person once the club has loaded. */
+export async function applyPendingProfile(): Promise<void> {
+  const details = readPendingPlayerDetails();
+  if (details && isRemoteMode()) {
+    const database = readDatabase();
+    const personId = database?.memberships.find((m) => m.teamId === details.teamId && m.role === 'athlete' && ownPersonIds(database).includes(m.personId))?.personId;
+    if (database && personId) {
+      storePendingPlayerDetails(null);
+      try {
+        if (details.jerseyNumber !== null || details.position) setTeamPlayerDetails(details.teamId, personId, { jerseyNumber: details.jerseyNumber, position: details.position });
+      } catch {
+        // A number someone else wears already: the settings show it, the player picks another.
+      }
+      if (details.heightCm !== null || details.strongSide) setOwnPersonDetails(personId, { heightCm: details.heightCm, strongSide: details.strongSide });
+    }
+  }
+  await applyPendingPhoto();
+}
+
 /** Puts a photo picked before the account on one's person, once (club server only). */
-export async function applyPendingPhoto(): Promise<void> {
+async function applyPendingPhoto(): Promise<void> {
   const pending = readPendingPhoto();
   if (!pending || !isRemoteMode()) return;
   const database = readDatabase();
@@ -819,6 +868,15 @@ export async function signOut(options: { everywhere?: boolean } = {}): Promise<v
  */
 export async function deleteMyAccount(): Promise<void> {
   const supabase = await authClient();
+  // Photos live in storage, which the database function cannot reach: remove them first.
+  const database = readDatabase();
+  if (database) {
+    const files = await import('./remote/avatarFiles');
+    const own = new Set(ownPersonIds(database));
+    for (const person of database.people) {
+      if (own.has(person.id) && person.photoAt) await files.removeAvatar(files.avatarPath(person.clubId, person.id)).catch(() => undefined);
+    }
+  }
   const { error } = await supabase.rpc('delete_my_account');
   if (error) throw serverError(error.message, error);
   // The account is gone on the server; this only tidies the device.
@@ -1150,7 +1208,14 @@ export async function previewInvite(token: string): Promise<InvitePreview | null
   };
 }
 
-export type JoinCodePreview = { clubName: string; teamName: string; usable: boolean };
+export type JoinCodePreview = {
+  clubName: string;
+  teamName: string;
+  usable: boolean;
+  /** For the profile step (0053): the team's sport, and whether it has fixed numbers. */
+  sport?: SportKey | null;
+  fixedNumbers?: boolean;
+};
 
 /** Which club and team a join code belongs to; works before signing in. Null for an unknown code. */
 export async function previewJoinCode(code: string): Promise<JoinCodePreview | null> {
@@ -1159,7 +1224,14 @@ export async function previewJoinCode(code: string): Promise<JoinCodePreview | n
   if (error) throw serverError(error.message, error);
   const row = (data as Record<string, unknown>[] | null)?.[0];
   if (!row) return null;
-  return { clubName: String(row.club_name), teamName: String(row.team_name), usable: Boolean(row.usable) };
+  // Only what the profile step asks; without it the step stays general.
+  const profile = await supabase.rpc('join_code_profile', { p_code: code }).then(({ data: rows }) => (rows as Record<string, unknown>[] | null)?.[0] ?? null, () => null);
+  const sport = profile?.sport ? String(profile.sport) : null;
+  return {
+    clubName: String(row.club_name), teamName: String(row.team_name), usable: Boolean(row.usable),
+    sport: sport && (SPORT_KEYS as readonly string[]).includes(sport) ? (sport as SportKey) : null,
+    fixedNumbers: profile ? profile.fixed_numbers !== false : true,
+  };
 }
 
 /** Whether a founding code can still be used; works before signing in. */
@@ -1786,14 +1858,14 @@ function requireName(value: string, what: string) {
   return name;
 }
 
-export function createDepartment(name: string): Id {
+export function createDepartment(name: string, sport: SportKey | null = null): Id {
   const id = newId();
   const clean = requireName(name, 'The department');
   mutate((database) => {
     if (database.departments.some((department) => department.name.toLowerCase() === clean.toLowerCase())) {
       throw new LocalDataError('There is already a department with this name.');
     }
-    database.departments.push({ id, clubId: database.club.id, name: clean });
+    database.departments.push({ id, clubId: database.club.id, name: clean, sport });
   });
   return id;
 }
@@ -3749,4 +3821,111 @@ export async function personPhotoLinks(people: readonly Person[]): Promise<Map<I
     if (link) links.set(person.id, link);
   }
   return links;
+}
+
+// ---------------------------------------------------------------------------
+// Player profile (0051): number and position per team, height and strong side
+// ---------------------------------------------------------------------------
+
+export function playerDetailsFor(database: LocalDatabase, teamId: Id, personId: Id): TeamPlayerDetails | null {
+  return database.teamPlayerDetails?.find((row) => row.teamId === teamId && row.personId === personId) ?? null;
+}
+
+export function personDetailsFor(database: LocalDatabase, personId: Id): PersonDetails | null {
+  return database.personDetails?.find((row) => row.personId === personId) ?? null;
+}
+
+/** The player's own number and position, or a coach who manages the groups. Both empty removes them. */
+export function setTeamPlayerDetails(teamId: Id, personId: Id, input: { jerseyNumber: number | null; position: string | null }): void {
+  const number = input.jerseyNumber;
+  if (number !== null && (!Number.isInteger(number) || number < 0 || number > 99)) {
+    throw new LocalDataError('The number goes from 0 to 99.', undefined, 'profile.error.numberRange');
+  }
+  const position = input.position?.trim() || null;
+  if (position && position.length > 30) throw new LocalDataError('The position can be at most 30 characters.', undefined, 'profile.error.positionLength');
+  mutate((database) => {
+    const own = ownPersonIds(database);
+    const allowed = own.includes(personId) || own.some((me) => hasCoachPermission(database, me, teamId, 'manageGroups'));
+    if (!allowed) throw new LocalDataError('Only the player or a coach of the team can change this.', undefined, 'profile.error.notAllowed');
+    if (!database.memberships.some((m) => m.teamId === teamId && m.personId === personId && m.role === 'athlete')) {
+      throw new LocalDataError('Only a player of the team has a number and position there.');
+    }
+    const rows = (database.teamPlayerDetails ??= []);
+    if (number !== null) {
+      const holder = rows.find((row) => row.teamId === teamId && row.personId !== personId && row.jerseyNumber === number);
+      if (holder) {
+        const name = database.people.find((person) => person.id === holder.personId);
+        throw new LocalDataError('This number is already taken in the team.', undefined, 'profile.error.numberTaken', { number, name: name ? displayName(name) : '' });
+      }
+    }
+    const existing = rows.find((row) => row.teamId === teamId && row.personId === personId);
+    if (number === null && position === null) {
+      database.teamPlayerDetails = rows.filter((row) => row !== existing);
+      return;
+    }
+    const now = new Date().toISOString();
+    if (existing) Object.assign(existing, { jerseyNumber: number, position, updatedAt: now });
+    else rows.push({ teamId, personId, jerseyNumber: number, position, updatedAt: now });
+  });
+}
+
+/** One's own height and strong side. */
+export function setOwnPersonDetails(personId: Id, input: { heightCm: number | null; strongSide: StrongSide | null }): void {
+  const height = input.heightCm;
+  if (height !== null && (!Number.isInteger(height) || height < 100 || height > 230)) {
+    throw new LocalDataError('The height goes from 100 to 230 cm.', undefined, 'profile.error.heightRange');
+  }
+  if (input.strongSide !== null && !STRONG_SIDES.includes(input.strongSide)) throw new LocalDataError('Unknown side.');
+  mutate((database) => {
+    requireOwnPerson(database, personId);
+    const rows = (database.personDetails ??= []);
+    const existing = rows.find((row) => row.personId === personId);
+    if (height === null && input.strongSide === null) {
+      database.personDetails = rows.filter((row) => row !== existing);
+      return;
+    }
+    const now = new Date().toISOString();
+    if (existing) Object.assign(existing, { heightCm: height, strongSide: input.strongSide, updatedAt: now });
+    else rows.push({ personId, heightCm: height, strongSide: input.strongSide, updatedAt: now });
+  });
+}
+
+export type ProfilePart = 'photo' | 'number' | 'position' | 'height' | 'side';
+
+/** How complete a player's profile is: photo, number and position (in the first team), height, strong side. */
+export function profileCompleteness(database: LocalDatabase, personId: Id): { done: number; total: number; missing: ProfilePart[] } {
+  const person = database.people.find((candidate) => candidate.id === personId);
+  const teamId = database.memberships.find((m) => m.personId === personId && m.role === 'athlete')?.teamId ?? null;
+  const team = teamId ? playerDetailsFor(database, teamId, personId) : null;
+  // Teams without fixed numbers (0052) do not ask for one.
+  const fixedNumbers = database.teams.find((candidate) => candidate.id === teamId)?.fixedNumbers !== false;
+  const details = personDetailsFor(database, personId);
+  const parts: [ProfilePart, boolean][] = [
+    ['photo', Boolean(person?.photoAt)],
+    ...(fixedNumbers ? [['number', team?.jerseyNumber != null] as [ProfilePart, boolean]] : []),
+    ['position', Boolean(team?.position)],
+    ['height', details?.heightCm != null],
+    ['side', details?.strongSide != null],
+  ];
+  return { done: parts.filter(([, ok]) => ok).length, total: parts.length, missing: parts.filter(([, ok]) => !ok).map(([part]) => part) };
+}
+
+/** Whether the team's players wear a fixed number (0052): who configures the team (manageStaff). */
+export function setTeamFixedNumbers(teamId: Id, on: boolean): void {
+  mutate((database) => {
+    const team = database.teams.find((t) => t.id === teamId);
+    if (!team || !ownPersonIds(database).some((me) => hasCoachPermission(database, me, teamId, 'manageStaff'))) throw serverError('Not allowed.');
+    team.fixedNumbers = on;
+  });
+}
+
+/** The department's sport (0052): club admins and the department's lead (the update policies of 0011 and 0035). */
+export function setDepartmentSport(departmentId: Id, sport: SportKey | null): void {
+  if (sport !== null && !SPORT_KEYS.includes(sport)) throw new LocalDataError('Unknown sport.');
+  mutate((database) => {
+    const department = database.departments.find((candidate) => candidate.id === departmentId);
+    if (!department) throw new LocalDataError(`Unknown department: ${departmentId}`);
+    if (!ownPersonIds(database).some((me) => managedDepartmentIds(database, me).includes(departmentId))) throw serverError('Not allowed.');
+    department.sport = sport;
+  });
 }

@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { ShareLink } from '@/features/onboarding/ShareLink';
 import { ErrorLine, OnboardingShell as Shell, continueAs } from '@/features/onboarding/OnboardingShell';
-import { Choice, HALL_SUGGESTIONS, SPORTS, TEAM_SUGGESTIONS, ageGroupOf } from '@/features/onboarding/foundSuggestions';
+import { Choice, HALL_SUGGESTIONS, SPORTS, TEAM_SUGGESTIONS, ageGroupOf, sportOfKey } from '@/features/onboarding/foundSuggestions';
 import {
   addStaffMember,
   coachRolesForTeam,
@@ -21,12 +21,15 @@ import {
   createStaffInvite,
   createTeam,
   defaultLoadForAge,
+  hasCoachPermission,
   joinCodeFor,
   openInviteFor,
+  ownPersonIds,
   updateTeamHealthSettings,
   useLocalDatabase,
   type Id,
   type LocalDatabase,
+  type SportKey,
 } from '@/shared/data';
 import { errorText, useT } from '@/shared/i18n';
 
@@ -55,7 +58,9 @@ export function FoundSetup({ labels }: { labels: string[] }) {
     agedFirstTeam.current = true;
     for (const team of database.teams) {
       const age = team.ageGroup ?? ageGroupOf(team.name);
-      if (!team.ageGroup && age) run(() => updateTeamHealthSettings(team.id, age, defaultLoadForAge(age)));
+      // Only who configures the team may (a founder who does not coach it leaves it to its coach).
+      const allowed = ownPersonIds(database).some((me) => hasCoachPermission(database, me, team.id, 'manageStaff'));
+      if (!team.ageGroup && age && allowed) run(() => updateTeamHealthSettings(team.id, age, defaultLoadForAge(age)));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [database]);
@@ -143,12 +148,12 @@ function TeamsSection({ database, run }: { database: LocalDatabase; run: Run }) 
 function DepartmentsSection({ database, run }: { database: LocalDatabase; run: Run }) {
   const t = useT();
   const names = new Set(database.departments.map((department) => department.name.toLowerCase()));
-  const add = (name: string) => run(() => { createDepartment(name); });
+  const add = (name: string, sport: SportKey | null = null) => run(() => { createDepartment(name, sport); });
   return (
     <Section title={t('onboarding.setup.departments')} detail={t('onboarding.setup.departmentsDetail')}>
       <div className="flex flex-wrap gap-2">
         {database.departments.map((department) => <Choice key={department.id} label={department.name} selected onSelect={() => undefined} />)}
-        {SPORTS.map((key) => (names.has(t(key).toLowerCase()) ? null : <Choice key={key} label={`+ ${t(key)}`} onSelect={() => add(t(key))} />))}
+        {SPORTS.map((key) => (names.has(t(key).toLowerCase()) ? null : <Choice key={key} label={`+ ${t(key)}`} onSelect={() => add(t(key), sportOfKey(key))} />))}
       </div>
       <AddByName placeholder={t('onboarding.found.otherSport')} onAdd={add} />
     </Section>

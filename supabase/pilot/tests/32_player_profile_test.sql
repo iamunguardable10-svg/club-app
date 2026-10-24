@@ -37,6 +37,23 @@ select test.expect_rows('… but not his height', $q$update public.person_detail
 select test.act_as('10000000-0000-0000-0000-000000000099');
 select test.expect_count('another club sees nothing', $q$select 1 from public.team_player_details union all select 1 from public.person_details$q$, 0);
 
+-- Fixed numbers (0052): the team setting is the head coach's, not the team manager's.
+select test.act_as('10000000-0000-0000-0000-000000000005');
+select test.expect_rows('the team manager cannot switch fixed numbers off', $q$update public.teams set fixed_numbers = false where id = '70000000-0000-0000-0000-000000000016'$q$, 0);
+select test.act_as('10000000-0000-0000-0000-000000000001');
+select test.expect_rows('the head coach can', $q$update public.teams set fixed_numbers = false where id = '70000000-0000-0000-0000-000000000016'$q$, 1);
+reset role;
+insert into public.club_roles (club_id, person_id, role) values ('c0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000002', 'admin');
+set role authenticated;
+select test.act_as('10000000-0000-0000-0000-000000000002');
+select test.expect_rows('the club admin (Sabine) sets a department''s sport', $q$update public.departments set sport = 'basketball' where id = 'd0000000-0000-0000-0000-000000000001'$q$, 1);
+select test.expect_error('… only a known one', $q$update public.departments set sport = 'quidditch' where id = 'd0000000-0000-0000-0000-000000000001'$q$, 'check');
+
+reset role;
+select code as u16_code from public.team_join_codes where team_id = '70000000-0000-0000-0000-000000000016' \gset
+set role authenticated;
+select test.act_as('10000000-0000-0000-0000-000000000099');
+select test.expect_count('someone outside the club learns the team''s sport and numbers from the code', format($f$select 1 from public.join_code_profile(%L) where sport = 'basketball' and not fixed_numbers$f$, :'u16_code'), 1);
 reset role;
 delete from public.memberships where person_id = 'a0000000-0000-0000-0000-000000000012' and team_id = '70000000-0000-0000-0000-000000000016';
 select test.expect_count('leaving the team frees Ben''s number', $q$select 1 from public.team_player_details where person_id = 'a0000000-0000-0000-0000-000000000012'$q$, 0);

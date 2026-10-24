@@ -239,8 +239,8 @@ export function createSeedDatabase(now: Date = new Date(), locale: Locale = 'en'
 
   // Two departments that share the North Hall (piece 8); the South Gym is Volleyball's own.
   const departments: Department[] = [
-    { id: DEPARTMENT_ID, clubId: CLUB_ID, name: 'Basketball' },
-    { id: DEPARTMENT_VOLLEYBALL, clubId: CLUB_ID, name: 'Volleyball' },
+    { id: DEPARTMENT_ID, clubId: CLUB_ID, name: 'Basketball', sport: 'basketball' },
+    { id: DEPARTMENT_VOLLEYBALL, clubId: CLUB_ID, name: 'Volleyball', sport: 'volleyball' },
   ];
 
   const facilities: Facility[] = [
@@ -259,7 +259,9 @@ export function createSeedDatabase(now: Date = new Date(), locale: Locale = 'en'
     { id: TEAM_U16, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: T.teams.u16, ageGroup: 'U16', defaultFacilityId: FACILITY_MAIN, features: ['load'], archivedAt: null, createdAt },
     // Without load tracking, to show a team that only plans sessions and
     // attendance (piece 3.5). Its players' load history stays, unseen.
-    { id: TEAM_U18, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: T.teams.u18, ageGroup: 'U18', defaultFacilityId: FACILITY_MAIN, features: [], archivedAt: null, createdAt },
+    { id: TEAM_U18, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: T.teams.u18, ageGroup: 'U18', defaultFacilityId: FACILITY_MAIN, features: [], archivedAt: null, createdAt,
+      // Shirts are handed out per game here (0052): no numbers asked.
+      fixedNumbers: false },
     { id: TEAM_W1, clubId: CLUB_ID, departmentId: DEPARTMENT_VOLLEYBALL, name: T.teams.women, ageGroup: 'adults', defaultFacilityId: FACILITY_SOUTH, features: ['load'], archivedAt: null, createdAt },
   ];
 
@@ -318,6 +320,27 @@ export function createSeedDatabase(now: Date = new Date(), locale: Locale = 'en'
   addAthletes(TEAM_U16, U16_NAMES, 'athlete-u16');
   addAthletes(TEAM_U18, U18_NAMES, 'athlete-u18');
   addAthletes(TEAM_W1, W1_NAMES, 'athlete-w1');
+
+  // Player cards (0051): most filled in, a few gaps, so the coach sees both
+  // and the player has something to finish.
+  const teamPlayerDetails: NonNullable<LocalDatabase['teamPlayerDetails']> = [];
+  const personDetails: NonNullable<LocalDatabase['personDetails']> = [];
+  const sides = ['right', 'right', 'left', 'right', 'both'] as const;
+  const addCards = (teamId: Id, prefix: string, count: number, positions: readonly string[], numbers: boolean, heights: [number, number]) => {
+    for (let index = 0; index < count; index += 1) {
+      const personId = `${prefix}-${index + 1}`;
+      if (index % 5 !== 3) {
+        teamPlayerDetails.push({ teamId, personId, jerseyNumber: numbers ? [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15][index] ?? null : null, position: positions[index % positions.length] ?? null, updatedAt: createdAt });
+      }
+      // The first player (the demo's own) leaves height and side open.
+      if (index > 0 && index % 4 !== 2) {
+        personDetails.push({ personId, heightCm: heights[0] + ((index * 7) % (heights[1] - heights[0])), strongSide: sides[index % sides.length], updatedAt: createdAt });
+      }
+    }
+  };
+  addCards(TEAM_U16, 'athlete-u16', U16_NAMES.length, T.positions.basketball, true, [168, 198]);
+  addCards(TEAM_U18, 'athlete-u18', U18_NAMES.length, T.positions.basketball, false, [160, 186]);
+  addCards(TEAM_W1, 'athlete-w1', W1_NAMES.length, T.positions.volleyball, true, [165, 192]);
 
   const playerGroups: PlayerGroup[] = [
     { id: 'group-u16-starters', teamId: TEAM_U16, name: T.groups.starters },
@@ -781,6 +804,8 @@ export function createSeedDatabase(now: Date = new Date(), locale: Locale = 'en'
     clubRoleInvites: [],
     playerGroups,
     playerGroupMembers,
+    teamPlayerDetails,
+    personDetails,
     sessions,
     sessionSeries,
     sessionSeriesWeekStates: [],

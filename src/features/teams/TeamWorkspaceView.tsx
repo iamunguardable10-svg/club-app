@@ -248,6 +248,8 @@ export function TeamWorkspaceView({
   staffPanel,
   featuresPanel,
   playbookPanel,
+  playerFacts,
+  playerProfilePanel,
 }: {
   data: TeamWorkspaceData;
   initialSection?: TeamWorkspaceSection;
@@ -274,6 +276,10 @@ export function TeamWorkspaceView({
   featuresPanel?: ReactNode;
   /** The team's playbooks (0049), when the team uses them. */
   playbookPanel?: ReactNode;
+  /** "#7 · Point guard" under the player's name (0051). */
+  playerFacts?: (playerId: string) => string | null;
+  /** The player's card at the top of their sheet. */
+  playerProfilePanel?: (playerId: string) => ReactNode;
 }) {
   const t = useT();
   const [activeSection, setActiveSection] = useState<TeamWorkspaceSection>(initialSection);
@@ -555,6 +561,7 @@ export function TeamWorkspaceView({
                       {/* Name on top, the small facts under it, so the row never runs wider than the phone. */}
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-black text-white">{player.name}</span>
+                        {playerFacts?.(player.id) ? <span className="block truncate text-xs font-bold text-emerald-200/90">{playerFacts(player.id)}</span> : null}
                         {player.birthYear != null || (data.loadTracked !== false && player.healthConsent === false) ? (
                           <span className="block truncate text-xs text-slate-400">
                             {player.birthYear != null ? `${t('consent.birthYear')}: ${player.birthYear}` : ''}
@@ -805,6 +812,7 @@ export function TeamWorkspaceView({
           teamName={data.name}
           loadTracked={data.loadTracked !== false}
           onClose={() => setActivePlayer(null)}
+          profile={playerProfilePanel?.(activePlayer.id)}
           footer={(activePlayer.attendanceShared !== false || onRemovePlayer || activePlayerOwnTraining) ? (
             <div className="grid gap-4">
               {activePlayerOwnTraining ? (

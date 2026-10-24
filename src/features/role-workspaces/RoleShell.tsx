@@ -17,7 +17,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
 import { LimitedConsentNote } from '@/features/legal/HealthConsentPanel';
-import { applyPendingPhoto, athleteHasLoad, athleteTacticsTeams, getActivePerson, unreadMessagesFor, useLocalDatabase, type LocalDatabase } from '@/shared/data';
+import { applyPendingProfile, athleteHasLoad, athleteTacticsTeams, getActivePerson, unreadMessagesFor, useLocalDatabase, type LocalDatabase } from '@/shared/data';
+import { ProfileTeaser } from '@/features/people/PlayerProfile';
 import { PlaybookTeaser } from '@/features/playbook/PlaybookTeaser';
 import { UnreadMessagesCard } from '@/features/messages/UnreadMessagesCard';
 import { DemoBar } from '@/features/onboarding/DemoBar';
@@ -151,9 +152,9 @@ function RoleShell({ nav, active: current, title, subtitle, back, actions, menuA
   };
   // A single destination needs no tab bar on phones.
   const tabBar = nav.length > 1;
-  // A photo picked while joining goes on the person once the club has loaded.
+  // The photo and player card given while joining go on the person once the club has loaded.
   const loaded = Boolean(database && person);
-  useEffect(() => { if (loaded) void applyPendingPhoto().catch(() => undefined); }, [loaded]);
+  useEffect(() => { if (loaded) void applyPendingProfile().catch(() => undefined); }, [loaded]);
 
   return (
     <main className={`os-page md:pb-10 md:pl-64 ${tabBar ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))]' : 'pb-10'}`}>
@@ -221,6 +222,7 @@ function RoleShell({ nav, active: current, title, subtitle, back, actions, menuA
         {/* Keep notification opt-in reachable from each role’s first page. */}
         {active === 'today' || active === 'club' ? <NotificationsHint variant="card" /> : null}
         {active === 'today' && database && person ? <UnreadMessagesCard database={database} personId={person.id} /> : null}
+        {active === 'today' && database && person && database.activeIdentity?.role === 'athlete' ? <ProfileTeaser database={database} personId={person.id} /> : null}
         {active === 'today' && database && person && database.activeIdentity?.role === 'athlete' ? <PlaybookTeaser database={database} personId={person.id} /> : null}
         {database && person && database.activeIdentity?.role === 'athlete' && active !== 'load' ? <LimitedConsentNote database={database} person={person} /> : null}
         {children}

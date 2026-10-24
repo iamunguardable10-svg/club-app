@@ -48,6 +48,7 @@ import {
   saveShareLink,
   type AthleteAvailabilityMark,
 } from './athleteLocalStore';
+import { gameMaxMinutes, sportOfTeam } from '@/features/sports/sports';
 import { RatePrompt, WARMUP_MINUTES, WARMUP_RPE, type RateDefaults, type WarmupRating } from './RatePrompt';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { useSmartCalendar } from '@/features/calendar/useSmartCalendar';
@@ -860,7 +861,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     const teamGames = allGames.filter((entry) => entry.teamId === session.teamId);
     const games = teamGames.length > 0 ? teamGames : allGames;
     const minutes = games.length > 0 ? Math.round(average(games.map((entry) => entry.durationMinutes))) : undefined;
-    return { rpe: 10, minutes, warmupRpe, warmupMinutes };
+    return { rpe: 10, minutes, warmupRpe, warmupMinutes, maxMinutes: gameMaxMinutes(database ? sportOfTeam(database, session.teamId) : null) };
   }
 
   function saveRating(session: AthletePendingSession, rpe: number, minutes: number, warmupRating: WarmupRating | null) {

@@ -100,6 +100,7 @@ export function PlayerLoadDetail({
   showAttendanceRange = true,
   loadTracked = true,
   footer,
+  profile,
   onClose,
 }: {
   player: PlayerLoadDetailPlayer;
@@ -111,6 +112,8 @@ export function PlayerLoadDetail({
   loadTracked?: boolean;
   /** Actions below the details, e.g. removing the player from the team. */
   footer?: ReactNode;
+  /** The player's card (number, position, height), above the load. */
+  profile?: ReactNode;
   onClose: () => void;
 }) {
   const t = useT();
@@ -164,6 +167,7 @@ export function PlayerLoadDetail({
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
           <div className="space-y-4">
+            {profile}
             {summary.access === 'none' ? (
               <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
                 <p className="text-sm font-black text-white">{player.healthConsent === false ? t('consent.noConsent') : loadTracked ? t('playerLoad.notSharedTitle') : t('playerLoad.noTrackingTitle')}</p>
