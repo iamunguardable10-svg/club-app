@@ -11,10 +11,12 @@
  */
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+import { CardReveal } from '@/features/people/CardReveal';
 
 import { PersonAvatar, usePhotoUrl } from '@/features/people/PersonPhoto';
-import { positionSuggestions, sportOfTeam, strongSideLabel } from '@/features/sports/sports';
+import { isKnownPosition, positionField, positionSuggestions, positionText, sportOfTeam, strongSideLabel } from '@/features/sports/sports';
 import { STRONG_SIDES, dismissHint, displayName, isHintDismissed, profileCompleteness, personDetailsFor, playerDetailsFor, setOwnPersonDetails, setTeamFixedNumbers, setTeamPlayerDetails, type LocalDatabase, type Person, type ProfilePart, type SportKey, type StrongSide, type Team } from '@/shared/data';
 import { errorText, useT, type MessageKey } from '@/shared/i18n';
 
@@ -25,18 +27,18 @@ export const EMPTY_PLAYER_PROFILE: PlayerProfileValue = { jerseyNumber: null, po
 const SIDE_KEY: Record<StrongSide, MessageKey> = { left: 'profile.side.left', right: 'profile.side.right', both: 'profile.side.both' };
 
 /** What is still missing, in the order a player would fill it in. */
-export function missingParts(value: PlayerProfileValue, hasPhoto: boolean, fixedNumbers: boolean): MessageKey[] {
+export function missingParts(value: PlayerProfileValue, hasPhoto: boolean, fixedNumbers: boolean, sport: SportKey | null): MessageKey[] {
   const missing: MessageKey[] = [];
   if (!hasPhoto) missing.push('profile.part.photo');
   if (fixedNumbers && value.jerseyNumber === null) missing.push('profile.part.number');
-  if (!value.position) missing.push('profile.part.position');
+  if (!value.position) missing.push(positionField(sport).part);
   if (value.heightCm === null) missing.push('profile.part.height');
   if (!value.strongSide) missing.push('profile.part.side');
   return missing;
 }
 
 /** The player as the coach sees them; fills in while typing. */
-export function PlayerCard({ name, photo, personId, teamName, value, fixedNumbers, sport }: { name: string; photo?: string | null; personId?: string | null; teamName?: string | null; value: PlayerProfileValue; fixedNumbers: boolean; sport: SportKey | null }) {
+export function PlayerCard({ name, photo, personId, teamName, value, fixedNumbers, sport, showName = true }: { name: string; photo?: string | null; personId?: string | null; teamName?: string | null; value: PlayerProfileValue; fixedNumbers: boolean; sport: SportKey | null; /** Off where the name stands right above (the coach's player sheet). */ showName?: boolean }) {
   const t = useT();
   const facts = [
     value.heightCm !== null ? t('profile.heightShort', { cm: value.heightCm }) : null,
@@ -48,8 +50,8 @@ export function PlayerCard({ name, photo, personId, teamName, value, fixedNumber
         <PersonAvatar personId={personId} name={name || '?'} size="lg" src={photo ?? undefined} />
         <div className="min-w-0 flex-1">
           {teamName ? <p className="truncate text-[11px] font-black uppercase tracking-[0.16em] text-emerald-300">{teamName}</p> : null}
-          <p className="mt-0.5 truncate text-xl font-black text-white">{name || t('profile.yourName')}</p>
-          <p className="truncate text-sm font-bold text-slate-300">{value.position || t('profile.noPosition')}</p>
+          {showName ? <p className="mt-0.5 truncate text-xl font-black text-white">{name || t('profile.yourName')}</p> : null}
+          <p className="truncate text-sm font-bold text-slate-300">{positionText(value.position, t) ?? t('profile.noPosition')}</p>
           {facts.length > 0 ? <p className="mt-1 text-xs text-slate-400">{facts.join(' · ')}</p> : null}
         </div>
         {fixedNumbers ? (
@@ -88,10 +90,47 @@ function Chip({ label, selected, onSelect }: { label: string; selected: boolean;
   );
 }
 
+const OTHER = '__other';
+
+/**
+ * The position as a dropdown of the sport's official ones, plus "Other" to
+ * type one; without a known sport just the text field.
+ */
+export function PositionPicker({ value, onChange, sport, label }: { value: string | null; onChange: (position: string | null) => void; sport: SportKey | null; label?: boolean }) {
+  const t = useT();
+  const options = positionSuggestions(sport);
+  const field = positionField(sport);
+  // "Other" stays open while typing, also before the first letter.
+  const [typing, setTyping] = useState(() => Boolean(value) && !isKnownPosition(value));
+  const showText = options.length === 0 || typing;
+  return (
+    <div className="grid min-w-0 gap-1">
+      {label ? <span className="text-sm font-bold text-slate-200">{t(field.label)}</span> : null}
+      {options.length > 0 ? (
+        <select
+          aria-label={t(field.label)}
+          value={typing ? OTHER : value ?? ''}
+          onChange={(event) => {
+            const picked = event.target.value;
+            if (picked === OTHER) { setTyping(true); onChange(null); return; }
+            setTyping(false);
+            onChange(picked || null);
+          }}
+          className="os-field min-w-0 font-bold"
+        >
+          <option value="">{t('profile.choose')}</option>
+          {options.map((key) => <option key={key} value={key}>{t(key)}</option>)}
+          <option value={OTHER}>{t('profile.other')}</option>
+        </select>
+      ) : null}
+      {showText ? <input value={value ?? ''} maxLength={30} autoFocus={typing} onChange={(event) => onChange(event.target.value || null)} aria-label={t(field.label)} placeholder={t('profile.positionPlaceholder')} className="os-field min-w-0" /> : null}
+    </div>
+  );
+}
+
 /** Number (if the team has fixed ones), position, height, strong side. */
 export function PlayerProfileFields({ value, onChange, sport, fixedNumbers }: { value: PlayerProfileValue; onChange: (value: PlayerProfileValue) => void; sport: SportKey | null; fixedNumbers: boolean }) {
   const t = useT();
-  const suggestions = positionSuggestions(sport).map((key) => t(key));
   const set = (change: Partial<PlayerProfileValue>) => onChange({ ...value, ...change });
   const numberOrNull = (raw: string, min: number, max: number) => {
     if (raw.trim() === '') return null;
@@ -100,23 +139,15 @@ export function PlayerProfileFields({ value, onChange, sport, fixedNumbers }: { 
   };
   return (
     <div className="grid gap-4">
-      <div className={`grid gap-3 ${fixedNumbers ? 'grid-cols-[5.5rem_minmax(0,1fr)]' : 'grid-cols-1'}`}>
+      <div className={`grid items-start gap-3 ${fixedNumbers ? 'grid-cols-[5.5rem_minmax(0,1fr)]' : 'grid-cols-1'}`}>
         {fixedNumbers ? (
           <label className="grid min-w-0 gap-1 text-sm font-bold text-slate-200">
             {t('profile.number')}
-            <input type="number" inputMode="numeric" min={0} max={99} value={value.jerseyNumber ?? ''} onChange={(event) => set({ jerseyNumber: numberOrNull(event.target.value, 0, 99) })} placeholder="7" className="os-field min-w-0 text-center text-lg font-black" />
+            <input type="number" inputMode="numeric" min={0} max={99} value={value.jerseyNumber ?? ''} onChange={(event) => set({ jerseyNumber: numberOrNull(event.target.value, 0, 99) })} placeholder="7" className="os-field min-w-0 text-center font-black" />
           </label>
         ) : null}
-        <label className="grid min-w-0 gap-1 text-sm font-bold text-slate-200">
-          {t('profile.position')}
-          <input value={value.position ?? ''} maxLength={30} onChange={(event) => set({ position: event.target.value || null })} placeholder={suggestions[0] ?? t('profile.positionPlaceholder')} className="os-field min-w-0" />
-        </label>
+        <PositionPicker value={value.position} onChange={(position) => set({ position })} sport={sport} label />
       </div>
-      {suggestions.length > 0 ? (
-        <div className="-mt-2 flex flex-wrap gap-1.5">
-          {suggestions.map((label) => <Chip key={label} label={label} selected={value.position === label} onSelect={() => set({ position: value.position === label ? null : label })} />)}
-        </div>
-      ) : null}
       <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3">
         <label className="grid min-w-0 gap-1 text-sm font-bold text-slate-200">
           {t('profile.height')}
@@ -154,14 +185,24 @@ export function PlayerProfileEditor({ database, person }: { database: LocalDatab
   };
   const [value, setValue] = useState<PlayerProfileValue>(saved);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
+  const [revealing, setRevealing] = useState(false);
   const photo = usePhotoUrl(person);
+  // Completed here for the first time (saved, the photo included): the card's big moment.
+  const savedComplete = team ? missingParts(saved(), Boolean(person.photoAt), team.fixedNumbers !== false, sportOfTeam(database, team.id)).length === 0 : false;
+  const startedIncomplete = useRef(!savedComplete);
+  useEffect(() => {
+    if (savedComplete && startedIncomplete.current && !isHintDismissed('cardReveal')) {
+      startedIncomplete.current = false;
+      setRevealing(true);
+    }
+  }, [savedComplete]);
   if (!team) return null;
   const fixedNumbers = team.fixedNumbers !== false;
   const sport = sportOfTeam(database, team.id);
   const before = saved();
   const dirty = JSON.stringify({ ...value, position: value.position?.trim() || null }) !== JSON.stringify(before);
   const heightOk = value.heightCm === null || (value.heightCm >= 100 && value.heightCm <= 230);
-  const missing = missingParts(value, Boolean(person.photoAt), fixedNumbers);
+  const missing = missingParts(value, Boolean(person.photoAt), fixedNumbers, sport);
   const pick = (id: string) => {
     setTeamId(id);
     const inTeam = playerDetailsFor(database, id, person.id);
@@ -191,8 +232,21 @@ export function PlayerProfileEditor({ database, person }: { database: LocalDatab
           {teams.map((candidate) => <Chip key={candidate.id} label={candidate.name} selected={candidate.id === team.id} onSelect={() => pick(candidate.id)} />)}
         </div>
       ) : null}
+      {revealing ? (
+        <CardReveal
+          name={displayName(person)}
+          personId={person.id}
+          teamName={team.name}
+          value={before}
+          fixedNumbers={fixedNumbers}
+          sport={sport}
+          continueLabel={t('profile.reveal.close')}
+          onDone={() => { dismissHint('cardReveal'); setRevealing(false); }}
+        />
+      ) : null}
       <PlayerCard name={displayName(person)} photo={photo} teamName={team.name} value={value} fixedNumbers={fixedNumbers} sport={sport} />
       <ProfileMeter missing={missing} total={fixedNumbers ? 5 : 4} />
+      {savedComplete && !dirty ? <button type="button" onClick={() => setRevealing(true)} className="justify-self-start text-xs font-black text-emerald-300 underline">{t('profile.reveal.show')}</button> : null}
       <PlayerProfileFields value={value} onChange={(next) => { setValue(next); setMessage(null); }} sport={sport} fixedNumbers={fixedNumbers} />
       <div className="flex flex-wrap items-center gap-3">
         {dirty ? <button type="submit" disabled={!heightOk} className="os-success px-4 py-2 text-sm disabled:opacity-60">{t('profile.save')}</button> : null}
@@ -203,12 +257,12 @@ export function PlayerProfileEditor({ database, person }: { database: LocalDatab
 }
 
 /** "#7 · Point guard" for the coach's player list (height and side are in the sheet), or null. */
-export function playerFactsText(database: LocalDatabase, teamId: string, personId: string): string | null {
+export function playerFactsText(database: LocalDatabase, teamId: string, personId: string, t: (key: MessageKey) => string): string | null {
   const team = database.teams.find((candidate) => candidate.id === teamId);
   const inTeam = playerDetailsFor(database, teamId, personId);
   const facts = [
     team?.fixedNumbers !== false && inTeam?.jerseyNumber != null ? `#${inTeam.jerseyNumber}` : null,
-    inTeam?.position ?? null,
+    positionText(inTeam?.position, t),
   ].filter(Boolean);
   return facts.length > 0 ? facts.join(' · ') : null;
 }
@@ -221,15 +275,15 @@ export function CoachPlayerProfile({ database, teamId, person, canEdit }: { data
   const own = personDetailsFor(database, person.id);
   const value: PlayerProfileValue = { jerseyNumber: inTeam?.jerseyNumber ?? null, position: inTeam?.position ?? null, heightCm: own?.heightCm ?? null, strongSide: own?.strongSide ?? null };
   const [number, setNumber] = useState(value.jerseyNumber === null ? '' : String(value.jerseyNumber));
-  const [position, setPosition] = useState(value.position ?? '');
+  const [position, setPosition] = useState<string | null>(value.position);
   const [error, setError] = useState<unknown>(null);
   const fixedNumbers = team?.fixedNumbers !== false;
   const sport = sportOfTeam(database, teamId);
   const parsed = number.trim() === '' ? null : Number(number);
-  const dirty = (fixedNumbers && parsed !== value.jerseyNumber) || (position.trim() || null) !== value.position;
+  const dirty = (fixedNumbers && parsed !== value.jerseyNumber) || (position?.trim() || null) !== value.position;
   return (
     <div className="grid gap-3">
-      <PlayerCard name={displayName(person)} personId={person.id} value={value} fixedNumbers={fixedNumbers} sport={sport} />
+      <PlayerCard name={displayName(person)} personId={person.id} showName={false} value={value} fixedNumbers={fixedNumbers} sport={sport} />
       {canEdit ? (
         <form
           className="grid gap-2"
@@ -241,10 +295,9 @@ export function CoachPlayerProfile({ database, teamId, person, canEdit }: { data
             } catch (caught) { setError(caught); }
           }}
         >
-          <div className={`grid gap-2 ${fixedNumbers ? 'grid-cols-[5rem_minmax(0,1fr)]' : 'grid-cols-1'}`}>
+          <div className={`grid items-start gap-2 ${fixedNumbers ? 'grid-cols-[5rem_minmax(0,1fr)]' : 'grid-cols-1'}`}>
             {fixedNumbers ? <input type="number" inputMode="numeric" min={0} max={99} value={number} onChange={(event) => { setNumber(event.target.value); setError(null); }} aria-label={t('profile.number')} placeholder="#" className="os-field min-w-0 text-center font-black" /> : null}
-            <input value={position} maxLength={30} onChange={(event) => { setPosition(event.target.value); setError(null); }} aria-label={t('profile.position')} placeholder={t('profile.position')} list={`positions-${teamId}`} className="os-field min-w-0" />
-            <datalist id={`positions-${teamId}`}>{positionSuggestions(sport).map((key) => <option key={key} value={t(key)} />)}</datalist>
+            <PositionPicker value={position} onChange={(next) => { setPosition(next); setError(null); }} sport={sport} />
           </div>
           {dirty ? <button type="submit" className="os-secondary justify-self-start px-4 py-2 text-xs">{t('profile.save')}</button> : null}
           {error ? <p role="alert" className="text-xs font-bold text-red-200">{errorText(t, error)}</p> : null}
@@ -284,6 +337,8 @@ export function ProfileTeaser({ database, personId }: { database: LocalDatabase;
   const [dismissed, setDismissed] = useState(true);
   useEffect(() => setDismissed(isHintDismissed('profileNudge')), []);
   const { done, total, missing } = profileCompleteness(database, personId);
+  const firstTeam = database.memberships.find((membership) => membership.personId === personId && membership.role === 'athlete')?.teamId;
+  const sport = sportOfTeam(database, firstTeam);
   if (dismissed || missing.length === 0) return null;
   return (
     <div className="flex items-center gap-3 rounded-xl border border-emerald-300/25 bg-emerald-300/[0.05] px-3 py-2.5">
@@ -291,7 +346,7 @@ export function ProfileTeaser({ database, personId }: { database: LocalDatabase;
         <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-300/15 text-xs font-black tabular-nums text-emerald-200">{done}/{total}</span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-bold text-slate-100">{t('profile.teaser')}</span>
-          <span className="block truncate text-xs text-slate-400">{t('profile.stillMissing', { parts: missing.map((part) => t(PART_KEY[part])).join(', ') })}</span>
+          <span className="block truncate text-xs text-slate-400">{t('profile.stillMissing', { parts: missing.map((part) => t(part === 'position' ? positionField(sport).part : PART_KEY[part])).join(', ') })}</span>
         </span>
       </Link>
       <button type="button" onClick={() => { dismissHint('profileNudge'); setDismissed(true); }} aria-label={t('profile.teaserLater')} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-slate-500 hover:text-slate-200">×</button>

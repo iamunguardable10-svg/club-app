@@ -1,7 +1,7 @@
 /**
  * What the app knows about a sport: the most a player can play in one game
  * (regular time plus overtime or extra time, with a little room), the usual
- * positions, and whether the strong side is a foot or a hand. Clubs of any
+ * positions (or disciplines), and whether the strong side is a foot or a hand. Clubs of any
  * sport use the app; where it knows nothing, it stays general.
  *
  * The sport comes from the department (`sport`, 0052) or, for departments
@@ -27,12 +27,33 @@ const GAME_MAX_MINUTES: Partial<Record<SportKey, number>> = {
 };
 const DEFAULT_GAME_MAX_MINUTES = 150;
 
-const POSITIONS: Partial<Record<SportKey, MessageKey[]>> = {
+/**
+ * The official positions of each team sport, and for individual sports what
+ * a coach asks instead (discipline, stroke, apparatus, playing style). Stored
+ * as these keys, so every language shows its own name; anything else typed
+ * is kept as written.
+ */
+const POSITIONS: Record<SportKey, MessageKey[]> = {
   basketball: ['position.basketball.pg', 'position.basketball.sg', 'position.basketball.sf', 'position.basketball.pf', 'position.basketball.c'],
-  football: ['position.football.gk', 'position.football.def', 'position.football.mid', 'position.football.fw'],
-  handball: ['position.handball.gk', 'position.handball.back', 'position.handball.centre', 'position.handball.wing', 'position.handball.pivot'],
+  football: ['position.football.gk', 'position.football.cb', 'position.football.fb', 'position.football.dm', 'position.football.cm', 'position.football.am', 'position.football.wing', 'position.football.st'],
+  handball: ['position.handball.gk', 'position.handball.lw', 'position.handball.lb', 'position.handball.cb', 'position.handball.rb', 'position.handball.rw', 'position.handball.pivot'],
   volleyball: ['position.volleyball.setter', 'position.volleyball.outside', 'position.volleyball.middle', 'position.volleyball.opposite', 'position.volleyball.libero'],
   hockey: ['position.hockey.gk', 'position.hockey.def', 'position.hockey.mid', 'position.hockey.fw'],
+  tennis: ['position.tennis.baseline', 'position.tennis.serveVolley', 'position.tennis.allround'],
+  tableTennis: ['position.tableTennis.attack', 'position.tableTennis.defence', 'position.tableTennis.allround'],
+  athletics: ['position.athletics.sprint', 'position.athletics.hurdles', 'position.athletics.middle', 'position.athletics.long', 'position.athletics.jumps', 'position.athletics.throws', 'position.athletics.combined'],
+  swimming: ['position.swimming.free', 'position.swimming.back', 'position.swimming.breast', 'position.swimming.fly', 'position.swimming.medley'],
+  gymnastics: ['position.gymnastics.floor', 'position.gymnastics.vault', 'position.gymnastics.pommel', 'position.gymnastics.rings', 'position.gymnastics.pBars', 'position.gymnastics.highBar', 'position.gymnastics.uneven', 'position.gymnastics.beam'],
+};
+const POSITION_KEYS = new Set<string>(Object.values(POSITIONS).flat());
+
+/** What the field is called: a position in team sports, otherwise what fits the sport. */
+const POSITION_FIELD: Partial<Record<SportKey, { label: MessageKey; part: MessageKey }>> = {
+  tennis: { label: 'profile.playStyle', part: 'profile.part.playStyle' },
+  tableTennis: { label: 'profile.playStyle', part: 'profile.part.playStyle' },
+  athletics: { label: 'profile.discipline', part: 'profile.part.discipline' },
+  swimming: { label: 'profile.stroke', part: 'profile.part.stroke' },
+  gymnastics: { label: 'profile.apparatus', part: 'profile.part.apparatus' },
 };
 
 // Names in the four app languages (and common short forms) that give the sport away.
@@ -65,7 +86,21 @@ export function gameMaxMinutes(sport: SportKey | null): number {
 }
 
 export function positionSuggestions(sport: SportKey | null): MessageKey[] {
-  return (sport && POSITIONS[sport]) || [];
+  return sport ? POSITIONS[sport] : [];
+}
+
+export function positionField(sport: SportKey | null): { label: MessageKey; part: MessageKey } {
+  return (sport && POSITION_FIELD[sport]) || { label: 'profile.position', part: 'profile.part.position' };
+}
+
+/** A stored position as text: a known one in the app's language, anything typed as it is. */
+export function positionText(position: string | null | undefined, t: (key: MessageKey) => string): string | null {
+  if (!position) return null;
+  return POSITION_KEYS.has(position) ? t(position as MessageKey) : position;
+}
+
+export function isKnownPosition(position: string | null | undefined): boolean {
+  return Boolean(position && POSITION_KEYS.has(position));
 }
 
 /** "Strong foot" where the feet play, "strong hand" where the hands do, otherwise both. */

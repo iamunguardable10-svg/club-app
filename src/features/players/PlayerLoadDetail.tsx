@@ -26,7 +26,100 @@ export type PlayerLoadDetailPlayer = PlayerLoadInput & {
     reason?: string | null;
     lateMinutes?: number | null;
   }[];
+  /** When each past session the player was expected at started, for the rate and the strip per period. */
+  sessionTimes?: string[];
 };
+
+type AttendanceEvent = NonNullable<PlayerLoadDetailPlayer['attendanceEvents']>[number];
+
+/**
+ * Attendance at a glance: the rate and counts for the chosen period, one
+ * small mark per session (oldest left), then only the exceptions, one line each.
+ */
+function AttendanceCard({ player, events, sessionTimes, range, contextLabel, emptyLabel, fallbackLabel }: {
+  player: PlayerLoadDetailPlayer;
+  events: AttendanceEvent[];
+  sessionTimes?: string[];
+  range: { days: number; onChange: (days: number) => void } | null;
+  contextLabel: string;
+  emptyLabel: string;
+  fallbackLabel: string;
+}) {
+  const t = useT();
+  const [showAll, setShowAll] = useState(false);
+  const shared = player.attendanceShared !== false;
+  const out = events.filter((event) => event.status === 'out').length;
+  const late = events.filter((event) => event.status === 'late').length;
+  const total = sessionTimes?.length ?? null;
+  const rate = total ? Math.round(((total - out) / total) * 100) : null;
+  const statusAt = new Map(events.map((event) => [event.startsAt, event.status]));
+  const strip = (sessionTimes ?? []).slice().sort();
+  const shown = showAll ? events : events.slice(0, 4);
+  return (
+    <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-black text-white">{t('playerLoad.attendance')}</p>
+          <p className="mt-0.5 text-xs font-bold text-slate-500">{range ? t('playerLoad.lastDays', { count: range.days }) : contextLabel}</p>
+        </div>
+        {range && shared ? (
+          <div className="flex shrink-0 rounded-full border border-slate-800 bg-slate-950/80 p-0.5">
+            {[30, 60, 90].map((days) => (
+              <button key={days} type="button" aria-pressed={range.days === days} onClick={() => range.onChange(days)} className={`rounded-full px-2.5 py-1 text-[11px] font-black ${range.days === days ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}>
+                {t('playerLoad.days', { count: days })}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      {!shared ? <p className="mt-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm font-bold text-slate-500">{t('playerLoad.attendanceNotShared')}</p> : (
+        <>
+          {total !== null ? (
+            <div className="mt-3 flex items-end gap-4">
+              <p className={`text-4xl font-black tabular-nums leading-none ${rate === null ? 'text-slate-500' : rate >= 90 ? 'text-emerald-300' : rate >= 75 ? 'text-amber-200' : 'text-rose-300'}`}>{rate === null ? '–' : t('playerLoad.percent', { value: rate })}</p>
+              <dl className="grid flex-1 grid-cols-3 gap-2 text-center">
+                {([['playerLoad.countPresent', total - out - late, 'text-emerald-200'], ['playerLoad.countLate', late, 'text-sky-200'], ['playerLoad.countOut', out, 'text-rose-200']] as const).map(([label, value, tone]) => (
+                  <div key={label} className="rounded-xl bg-slate-900/70 px-1 py-1.5">
+                    <dd className={`text-base font-black tabular-nums ${tone}`}>{value}</dd>
+                    <dt className="truncate text-[10px] font-bold uppercase tracking-wide text-slate-500">{t(label)}</dt>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ) : <p className="mt-2 text-xs font-black text-slate-300">{fallbackLabel}</p>}
+          {strip.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-1" aria-label={t('playerLoad.sessionsInRange', { count: strip.length })} role="img">
+              {strip.map((time) => {
+                const status = statusAt.get(time);
+                return <span key={time} title={formatDayShortMonth(time)} className={`h-4 w-2.5 rounded-sm ${status === 'out' ? 'bg-rose-400' : status === 'late' ? 'bg-sky-400' : 'bg-emerald-400/70'}`} />;
+              })}
+            </div>
+          ) : null}
+          {events.length === 0 ? <p className="mt-3 text-xs font-bold text-slate-500">{emptyLabel}</p> : (
+            <ul className="mt-3 divide-y divide-slate-800/80 border-t border-slate-800/80">
+              {shown.map((event) => (
+                <li key={`${event.sessionId}-${event.status}`} className="flex items-start gap-2.5 py-2">
+                  <span aria-hidden className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${event.status === 'out' ? 'bg-rose-400' : 'bg-sky-400'}`} />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-baseline justify-between gap-2">
+                      <span className="truncate text-sm font-black text-white">{displayTitle(event.title)}</span>
+                      <span className="shrink-0 text-xs font-bold text-slate-500">{formatDayShortMonth(event.startsAt)}</span>
+                    </span>
+                    <span className="block truncate text-xs font-bold text-slate-400">
+                      <span className={event.status === 'out' ? 'text-rose-200' : 'text-sky-200'}>{event.missed ? t('playerLoad.didNotTakePart') : event.status === 'out' ? t('playerLoad.out') : event.lateMinutes ? t('playerLoad.lateMinutes', { count: event.lateMinutes }) : t('playerLoad.late')}</span>
+                      {event.reason ? ` · ${event.reason}` : ''}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {events.length > 4 ? <button type="button" onClick={() => setShowAll(!showAll)} className="mt-1 text-xs font-black text-sky-300">{showAll ? t('playerLoad.showLess') : t('playerLoad.showAll', { count: events.length })}</button> : null}
+        </>
+      )}
+    </div>
+  );
+}
 
 function acwrToneClass(tone: ReturnType<typeof loadZone>['tone']) {
   if (tone === 'high') return 'border-rose-400/45 bg-rose-400/10 text-rose-100';
@@ -191,37 +284,15 @@ export function PlayerLoadDetail({
               </div>
             )}
 
-            <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-black text-white">{t('playerLoad.attendance')}</p>
-                  <p className="mt-1 text-xs font-bold text-slate-500">{attendanceContextLabel ?? t('playerLoad.defaultRange')}</p>
-                </div>
-                {player.attendanceShared === false ? null : <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-black text-slate-300">{attendanceLabel}</span>}
-              </div>
-              {player.attendanceShared === false ? (
-                <p className="mt-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm font-bold text-slate-500">{t('playerLoad.attendanceNotShared')}</p>
-              ) : null}
-              {showAttendanceRange && player.attendanceShared !== false ? (
-                <div className="mt-3 flex gap-2">
-                  {[30, 60, 90].map((days) => (
-                    <button key={days} type="button" onClick={() => setAttendanceRange(days)} className={`rounded-full border px-3 py-1.5 text-xs font-black ${attendanceRange === days ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>
-                      {t('playerLoad.days', { count: days })}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              <div className="mt-3 space-y-2">
-                {filteredAttendance.length === 0 && player.attendanceShared !== false ? <p className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm font-bold text-slate-500">{emptyAttendanceLabel ?? t('playerLoad.noFlags')}</p> : null}
-                {filteredAttendance.slice(0, 5).map((event) => (
-                  <div key={`${event.sessionId}-${event.status}`} className={`rounded-2xl border p-3 ${event.status === 'out' ? 'border-rose-400/35 bg-rose-400/10' : 'border-sky-400/35 bg-sky-400/10'}`}>
-                    <p className="text-sm font-black text-white">{displayTitle(event.title)}</p>
-                    <p className="mt-1 text-xs font-bold text-slate-400">{formatDayShortMonth(event.startsAt)} · {event.missed ? t('playerLoad.didNotTakePart') : event.status === 'out' ? t('playerLoad.out') : event.lateMinutes ? t('playerLoad.lateMinutes', { count: event.lateMinutes }) : t('playerLoad.late')}</p>
-                    {event.reason ? <p className="mt-2 text-xs font-bold text-slate-300">{event.reason}</p> : null}
-                  </div>
-                ))}
-              </div>
-            </div>
+            <AttendanceCard
+              player={player}
+              events={filteredAttendance}
+              sessionTimes={player.sessionTimes?.filter((time) => !showAttendanceRange || new Date(time) >= since)}
+              range={showAttendanceRange ? { days: attendanceRange, onChange: setAttendanceRange } : null}
+              contextLabel={attendanceContextLabel ?? t('playerLoad.defaultRange')}
+              emptyLabel={emptyAttendanceLabel ?? t('playerLoad.noFlags')}
+              fallbackLabel={attendanceLabel}
+            />
 
             {showDetails ? (
               <>

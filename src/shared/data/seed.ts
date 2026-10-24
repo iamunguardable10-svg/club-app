@@ -326,6 +326,9 @@ export function createSeedDatabase(now: Date = new Date(), locale: Locale = 'en'
   const teamPlayerDetails: NonNullable<LocalDatabase['teamPlayerDetails']> = [];
   const personDetails: NonNullable<LocalDatabase['personDetails']> = [];
   const sides = ['right', 'right', 'left', 'right', 'both'] as const;
+  // Stored as the app's keys (`features/sports/sports.ts`), shown in each language.
+  const BASKETBALL_POSITIONS = ['pg', 'sg', 'sf', 'pf', 'c'].map((key) => `position.basketball.${key}`);
+  const VOLLEYBALL_POSITIONS = ['setter', 'outside', 'middle', 'opposite', 'libero'].map((key) => `position.volleyball.${key}`);
   const addCards = (teamId: Id, prefix: string, count: number, positions: readonly string[], numbers: boolean, heights: [number, number]) => {
     for (let index = 0; index < count; index += 1) {
       const personId = `${prefix}-${index + 1}`;
@@ -338,9 +341,9 @@ export function createSeedDatabase(now: Date = new Date(), locale: Locale = 'en'
       }
     }
   };
-  addCards(TEAM_U16, 'athlete-u16', U16_NAMES.length, T.positions.basketball, true, [168, 198]);
-  addCards(TEAM_U18, 'athlete-u18', U18_NAMES.length, T.positions.basketball, false, [160, 186]);
-  addCards(TEAM_W1, 'athlete-w1', W1_NAMES.length, T.positions.volleyball, true, [165, 192]);
+  addCards(TEAM_U16, 'athlete-u16', U16_NAMES.length, BASKETBALL_POSITIONS, true, [168, 198]);
+  addCards(TEAM_U18, 'athlete-u18', U18_NAMES.length, BASKETBALL_POSITIONS, false, [160, 186]);
+  addCards(TEAM_W1, 'athlete-w1', W1_NAMES.length, VOLLEYBALL_POSITIONS, true, [165, 192]);
 
   const playerGroups: PlayerGroup[] = [
     { id: 'group-u16-starters', teamId: TEAM_U16, name: T.groups.starters },

@@ -9,10 +9,11 @@
 
 import { useState } from 'react';
 
+import { CardReveal } from '@/features/people/CardReveal';
 import { PhotoPicker } from '@/features/people/PersonPhoto';
 import { EMPTY_PLAYER_PROFILE, PlayerCard, PlayerProfileFields, ProfileMeter, missingParts, type PlayerProfileValue } from '@/features/people/PlayerProfile';
 import { ConsentFields, EMPTY_CONSENT, consentComplete } from '@/features/legal/ConsentFields';
-import { readPendingPhoto, storePendingPhoto, type AccessConsent, type SportKey } from '@/shared/data';
+import { dismissHint, isHintDismissed, readPendingPhoto, storePendingPhoto, type AccessConsent, type SportKey } from '@/shared/data';
 import { useT } from '@/shared/i18n';
 
 export type Profile = { firstName: string; lastName: string; consent: AccessConsent; details?: PlayerProfileValue };
@@ -46,11 +47,17 @@ export function ProfileStep({ staff = false, askName, knownName, player, initial
   const [details, setDetails] = useState<PlayerProfileValue>(initial?.details ?? EMPTY_PLAYER_PROFILE);
   const [consent, setConsent] = useState<AccessConsent>(initial?.consent ?? EMPTY_CONSENT);
   const [busy, setBusy] = useState(false);
+  // The finished card's big moment, once per device, before going on.
+  const [revealing, setRevealing] = useState(false);
   // Optional, before the account: kept on the device and put on the person once they are in.
   const [photo, setPhoto] = useState<string | null>(() => readPendingPhoto());
   const name = askName ? `${firstName} ${lastName}`.trim() : knownName ?? '';
   const heightOk = details.heightCm === null || (details.heightCm >= 100 && details.heightCm <= 230);
-  const missing = player ? missingParts(details, Boolean(photo), player.fixedNumbers) : [];
+  const missing = player ? missingParts(details, Boolean(photo), player.fixedNumbers, player.sport) : [];
+  async function submit() {
+    setBusy(true);
+    try { await onDone({ firstName: firstName.trim(), lastName: lastName.trim(), consent, ...(player ? { details: { ...details, position: details.position?.trim() || null } } : {}) }); } finally { setBusy(false); }
+  }
   const picker = (
     <PhotoPicker
       name={name || '?'}
@@ -67,12 +74,24 @@ export function ProfileStep({ staff = false, askName, knownName, player, initial
   return (
     <form
       className="os-panel grid gap-4 p-5"
-      onSubmit={async (event) => {
+      onSubmit={(event) => {
         event.preventDefault();
-        setBusy(true);
-        try { await onDone({ firstName: firstName.trim(), lastName: lastName.trim(), consent, ...(player ? { details: { ...details, position: details.position?.trim() || null } } : {}) }); } finally { setBusy(false); }
+        if (player && missing.length === 0 && !isHintDismissed('cardReveal')) setRevealing(true);
+        else void submit();
       }}
     >
+      {revealing && player ? (
+        <CardReveal
+          name={name}
+          photo={photo}
+          teamName={player.teamName}
+          value={details}
+          fixedNumbers={player.fixedNumbers}
+          sport={player.sport}
+          continueLabel={submitLabel}
+          onDone={() => { dismissHint('cardReveal'); setRevealing(false); void submit(); }}
+        />
+      ) : null}
       {player ? (
         <>
           <PlayerCard name={name} photo={photo} teamName={player.teamName} value={details} fixedNumbers={player.fixedNumbers} sport={player.sport} />

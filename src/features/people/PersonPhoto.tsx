@@ -15,9 +15,9 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { personPhotoLinks, useLocalDatabase, type Id, type Person } from '@/shared/data';
 import { useT } from '@/shared/i18n';
 
-const SIDE = 256;
+const SIDE = 512;
 
-/** A square JPEG of about 256 px from any picture the phone offers. */
+/** A square JPEG of 512 px from any picture the phone offers (sharp enough for the player card). */
 export async function shrinkPhoto(file: Blob): Promise<Blob> {
   const bitmap = await createImageBitmap(file);
   const side = Math.min(bitmap.width, bitmap.height);
