@@ -225,7 +225,6 @@
   "rate.minutesPlayed": "Minutes jouées",
   "rate.duration": "Durée",
   "rate.minutes": "{count} min",
-  "rate.warmup": "Échauffement avant le match ({minutes} min, RPE {rpe})",
   "rate.save": "Enregistrer · {load} AU",
   "rate.didNotDo": "Je ne l’ai pas fait",
   "rate.didNotTakePart": "Je n’ai pas participé",
@@ -2095,5 +2094,14 @@
   "photo.error": "Cette image n'a pas pu être utilisée. Essaie une autre.",
   "photo.hint": "Seul ton club la voit, à côté de ton nom.",
   "photo.saved": "Photo enregistrée.",
-  "photo.removed": "Photo retirée."
+  "photo.removed": "Photo retirée.",
+  "rate.step.warmup": "Étape 1 sur 2 : échauffement",
+  "rate.step.game": "Étape 2 sur 2 : match",
+  "rate.warmupTitle": "L'échauffement était-il dur ?",
+  "rate.warmupBefore": "Échauffement avant : {title}",
+  "rate.toGame": "Suite : le match",
+  "rate.noWarmup": "Je ne me suis pas échauffé",
+  "rate.warmupSummary": "Échauffement : {minutes} min · RPE {rpe}",
+  "rate.warmupNone": "Pas d'échauffement",
+  "rate.change": "Modifier"
 }

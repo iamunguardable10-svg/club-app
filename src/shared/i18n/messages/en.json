@@ -225,7 +225,6 @@
   "rate.minutesPlayed": "Minutes played",
   "rate.duration": "Duration",
   "rate.minutes": "{count} min",
-  "rate.warmup": "Warmup before the game ({minutes} min, RPE {rpe})",
   "rate.save": "Save · {load} AU",
   "rate.didNotDo": "I didn’t do it",
   "rate.didNotTakePart": "I didn’t take part",
@@ -2095,5 +2094,14 @@
   "photo.error": "This picture could not be used. Try another one.",
   "photo.hint": "Only your club sees it, next to your name.",
   "photo.saved": "Photo saved.",
-  "photo.removed": "Photo removed."
+  "photo.removed": "Photo removed.",
+  "rate.step.warmup": "Step 1 of 2: warmup",
+  "rate.step.game": "Step 2 of 2: game",
+  "rate.warmupTitle": "How hard was the warmup?",
+  "rate.warmupBefore": "Warmup before: {title}",
+  "rate.toGame": "Next: the game",
+  "rate.noWarmup": "I did not warm up",
+  "rate.warmupSummary": "Warmup: {minutes} min · RPE {rpe}",
+  "rate.warmupNone": "No warmup",
+  "rate.change": "Change"
 }
