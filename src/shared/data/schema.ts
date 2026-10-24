@@ -141,10 +141,15 @@ export type Club = {
   createdAt: Timestamp;
 };
 
+export const SPORT_KEYS = ['football', 'basketball', 'handball', 'volleyball', 'hockey', 'tennis', 'tableTennis', 'athletics', 'swimming', 'gymnastics'] as const;
+export type SportKey = (typeof SPORT_KEYS)[number];
+
 export type Department = {
   id: Id;
   clubId: Id;
   name: string;
+  /** The sport (0052), for fitting positions and playing minutes; missing: guessed from the name. */
+  sport?: SportKey | null;
 };
 
 export const AGE_GROUPS = ['U8', 'U9', 'U10', 'U11', 'U12', 'U13', 'U14', 'U15', 'U16', 'U17', 'U18', 'U19', 'adults', 'mixed'] as const;
@@ -164,6 +169,8 @@ export type Team = {
   /** Archived teams keep their data but leave every list. */
   archivedAt: Timestamp | null;
   createdAt: Timestamp;
+  /** Whether players wear a fixed number here (0052); missing means yes. */
+  fixedNumbers?: boolean;
 };
 
 export type Facility = {
@@ -184,6 +191,14 @@ export type DepartmentFacility = {
  * identity, club membership and display data at once. Without accounts, a
  * person is just a name; roles live on memberships.
  */
+export const STRONG_SIDES = ['left', 'right', 'both'] as const;
+export type StrongSide = (typeof STRONG_SIDES)[number];
+
+/** A player's number and position in one team (a player can wear another number elsewhere). */
+export type TeamPlayerDetails = { teamId: Id; personId: Id; jerseyNumber: number | null; position: string | null; updatedAt: Timestamp };
+
+export type PersonDetails = { personId: Id; heightCm: number | null; strongSide: StrongSide | null; updatedAt: Timestamp };
+
 export type Person = {
   birthYear?: number | null;
   id: Id;
@@ -685,6 +700,10 @@ export type LocalDatabase = {
   carpoolRiders?: CarpoolRider[];
   carpoolRequests?: CarpoolRequest[];
   playbooks?: Playbook[];
+  /** Number and position per team (0051): the player and the coaches who see the roster. */
+  teamPlayerDetails?: TeamPlayerDetails[];
+  /** Height and strong side per person (0051): the person and the coaches who see the roster. */
+  personDetails?: PersonDetails[];
   messages: Message[];
   messageReads: MessageRead[];
   /** Votes on polls (piece B): players have only their own on the club server. */

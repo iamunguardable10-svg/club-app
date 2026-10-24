@@ -30,6 +30,8 @@ export type DemoTexts = {
   carpool: { meetPoint: string; note: string };
   reviewNote: string;
   playbooks: { horns: [string, string]; press: [string, string]; ato: [string, string] };
+  /** As the app suggests them (`position.*`), so the demo cards match the chips. */
+  positions: { basketball: [string, string, string, string, string]; volleyball: [string, string, string, string, string] };
 };
 
 const EN: DemoTexts = {
@@ -67,6 +69,7 @@ const EN: DemoTexts = {
     press: ['1-2-2 press', 'After made baskets: push the ball to the side line and trap.'],
     ato: ['ATO side line', 'After a time-out, inbound from the side line: screen for 3.'],
   },
+  positions: { basketball: ['Point guard', 'Shooting guard', 'Small forward', 'Power forward', 'Center'], volleyball: ['Setter', 'Outside hitter', 'Middle blocker', 'Opposite', 'Libero'] },
 };
 
 const DE: DemoTexts = {
@@ -104,6 +107,7 @@ const DE: DemoTexts = {
     press: ['1-2-2-Presse', 'Nach eigenen Körben: Ball an die Seitenlinie drängen und doppeln.'],
     ato: ['Einwurf Seitenlinie', 'Nach der Auszeit, Einwurf von der Seite: Block für die 3.'],
   },
+  positions: { basketball: ['Point Guard', 'Shooting Guard', 'Small Forward', 'Power Forward', 'Center'], volleyball: ['Zuspiel', 'Außenangriff', 'Mittelblock', 'Diagonal', 'Libero'] },
 };
 
 const FR: DemoTexts = {
@@ -141,6 +145,7 @@ const FR: DemoTexts = {
     press: ['Presse 1-2-2', 'Après un panier marqué : pousser le ballon vers la ligne de touche et piéger.'],
     ato: ['Remise en jeu latérale', 'Après un temps mort, remise en jeu sur le côté : écran pour le 3.'],
   },
+  positions: { basketball: ['Meneur', 'Arrière', 'Ailier', 'Ailier fort', 'Pivot'], volleyball: ['Passeur', 'Réceptionneur-attaquant', 'Central', 'Pointu', 'Libéro'] },
 };
 
 const ES: DemoTexts = {
@@ -178,6 +183,7 @@ const ES: DemoTexts = {
     press: ['Presión 1-2-2', 'Tras canasta propia: llevar el balón a la banda y hacer el 2x1.'],
     ato: ['Saque de banda', 'Tras tiempo muerto, saque desde la banda: bloqueo para el 3.'],
   },
+  positions: { basketball: ['Base', 'Escolta', 'Alero', 'Ala-pívot', 'Pívot'], volleyball: ['Colocador', 'Receptor', 'Central', 'Opuesto', 'Líbero'] },
 };
 
 export const DEMO_TEXTS: Record<Locale, DemoTexts> = { en: EN, de: DE, fr: FR, es: ES };

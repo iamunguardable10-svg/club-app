@@ -23,6 +23,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { PhoneCalendarSection } from '@/features/calendar/PhoneCalendarSection';
 import { PhotoPicker, usePhotoUrl } from '@/features/people/PersonPhoto';
+import { PlayerProfileEditor } from '@/features/people/PlayerProfile';
 import { InstallHint } from '@/features/install/InstallHint';
 import { SignOutButton } from '@/features/access/SignOutButton';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
@@ -106,6 +107,11 @@ export function SettingsPage() {
     <ActiveRoleShell title={t('settings.title')} subtitle={person ? `${displayName(person)} · ${database.club.name}` : database.club.name}>
       <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         <div className="grid gap-5">
+          {role === 'athlete' && person ? (
+            <CoachSection title={t('profile.title')} description={t('profile.settingsDetail')}>
+              <div id="player-profile"><PlayerProfileEditor key={person.id} database={database} person={person} /></div>
+            </CoachSection>
+          ) : null}
           <AccountSection person={person} remote={remote} />
           {person && database.memberships.some((m) => m.personId === person.id && m.role === 'athlete') ? <HealthConsentPanel database={database} person={person} hideLegalLinks /> : null}
           {remote ? <NotificationSection database={database} /> : null}

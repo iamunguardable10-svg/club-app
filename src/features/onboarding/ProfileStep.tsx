@@ -1,19 +1,40 @@
 'use client';
 
+/**
+ * The profile, asked before the account: photo, name (where not known yet),
+ * for a player their card (number, position, height, strong side, shown
+ * live as the coach will see it), then birth year and consent. Everything
+ * waits on the device until the person is in (`repository.ts`).
+ */
+
 import { useState } from 'react';
 
 import { PhotoPicker } from '@/features/people/PersonPhoto';
-
+import { EMPTY_PLAYER_PROFILE, PlayerCard, PlayerProfileFields, ProfileMeter, missingParts, type PlayerProfileValue } from '@/features/people/PlayerProfile';
 import { ConsentFields, EMPTY_CONSENT, consentComplete } from '@/features/legal/ConsentFields';
-import { readPendingPhoto, storePendingPhoto, type AccessConsent } from '@/shared/data';
+import { readPendingPhoto, storePendingPhoto, type AccessConsent, type SportKey } from '@/shared/data';
 import { useT } from '@/shared/i18n';
 
-export type Profile = { firstName: string; lastName: string; consent: AccessConsent };
+export type Profile = { firstName: string; lastName: string; consent: AccessConsent; details?: PlayerProfileValue };
 
-/** Name (where not known yet), birth year and consent: the profile, asked before the account. */
-export function ProfileStep({ staff = false, askName, initial, knownBirthYear, submitLabel, onDone }: {
+/** A joining player: the team the card is for. */
+export type PlayerContext = { teamName: string; sport: SportKey | null; fixedNumbers: boolean };
+
+function readAsDataUrl(file: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+export function ProfileStep({ staff = false, askName, knownName, player, initial, knownBirthYear, submitLabel, onDone }: {
   staff?: boolean;
   askName: boolean;
+  /** The name when it is known already (an invitation). */
+  knownName?: string;
+  player?: PlayerContext;
   initial: Profile | null;
   knownBirthYear?: number | null;
   submitLabel: string;
@@ -22,32 +43,46 @@ export function ProfileStep({ staff = false, askName, initial, knownBirthYear, s
   const t = useT();
   const [firstName, setFirstName] = useState(initial?.firstName ?? '');
   const [lastName, setLastName] = useState(initial?.lastName ?? '');
+  const [details, setDetails] = useState<PlayerProfileValue>(initial?.details ?? EMPTY_PLAYER_PROFILE);
   const [consent, setConsent] = useState<AccessConsent>(initial?.consent ?? EMPTY_CONSENT);
   const [busy, setBusy] = useState(false);
   // Optional, before the account: kept on the device and put on the person once they are in.
   const [photo, setPhoto] = useState<string | null>(() => readPendingPhoto());
+  const name = askName ? `${firstName} ${lastName}`.trim() : knownName ?? '';
+  const heightOk = details.heightCm === null || (details.heightCm >= 100 && details.heightCm <= 230);
+  const missing = player ? missingParts(details, Boolean(photo), player.fixedNumbers) : [];
+  const picker = (
+    <PhotoPicker
+      name={name || '?'}
+      src={photo}
+      hideAvatar={Boolean(player)}
+      onPick={async (picked) => {
+        const dataUrl = await readAsDataUrl(picked);
+        storePendingPhoto(dataUrl);
+        setPhoto(dataUrl);
+      }}
+      onRemove={() => { storePendingPhoto(null); setPhoto(null); }}
+    />
+  );
   return (
     <form
-      className="os-panel grid gap-3 p-5"
+      className="os-panel grid gap-4 p-5"
       onSubmit={async (event) => {
         event.preventDefault();
         setBusy(true);
-        try { await onDone({ firstName: firstName.trim(), lastName: lastName.trim(), consent }); } finally { setBusy(false); }
+        try { await onDone({ firstName: firstName.trim(), lastName: lastName.trim(), consent, ...(player ? { details: { ...details, position: details.position?.trim() || null } } : {}) }); } finally { setBusy(false); }
       }}
     >
+      {player ? (
+        <>
+          <PlayerCard name={name} photo={photo} teamName={player.teamName} value={details} fixedNumbers={player.fixedNumbers} sport={player.sport} />
+          <ProfileMeter missing={missing} total={player.fixedNumbers ? 5 : 4} />
+        </>
+      ) : null}
+      {picker}
       {askName ? (
         <>
-          <PhotoPicker
-            name={`${firstName} ${lastName}`.trim() || '?'}
-            src={photo}
-            onPick={async (picked) => {
-              const dataUrl = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsDataURL(picked); });
-              storePendingPhoto(dataUrl);
-              setPhoto(dataUrl);
-            }}
-            onRemove={() => { storePendingPhoto(null); setPhoto(null); }}
-          />
-          <p className="text-sm text-slate-400">{t('onboarding.join.nameHelp')}</p>
+          <p className="-mb-1 text-sm text-slate-400">{t('onboarding.join.nameHelp')}</p>
           <div className="grid grid-cols-2 gap-3">
             <label className="grid min-w-0 gap-1 text-sm font-bold text-slate-200">
               {t('common.firstName')}
@@ -60,8 +95,17 @@ export function ProfileStep({ staff = false, askName, initial, knownBirthYear, s
           </div>
         </>
       ) : null}
+      {player ? (
+        <section className="grid gap-3 border-t border-slate-800 pt-4">
+          <div>
+            <p className="text-sm font-black text-white">{t('profile.cardTitle')}</p>
+            <p className="text-xs text-slate-400">{t('profile.cardDetail')}</p>
+          </div>
+          <PlayerProfileFields value={details} onChange={setDetails} sport={player.sport} fixedNumbers={player.fixedNumbers} />
+        </section>
+      ) : null}
       <ConsentFields value={consent} onChange={setConsent} staff={staff} knownBirthYear={knownBirthYear} />
-      <button type="submit" disabled={busy || !consentComplete(consent, staff)} className="os-success justify-center disabled:opacity-60">
+      <button type="submit" disabled={busy || !consentComplete(consent, staff) || !heightOk} className="os-success justify-center disabled:opacity-60">
         {busy ? t('common.oneMoment') : submitLabel}
       </button>
     </form>

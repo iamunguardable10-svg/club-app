@@ -6,13 +6,19 @@
  * other name can be typed. Kept general, so they fit any club.
  */
 
-import { AGE_GROUPS, type AgeGroup } from '@/shared/data';
+import { AGE_GROUPS, SPORT_KEYS, type AgeGroup, type SportKey } from '@/shared/data';
 import type { MessageKey } from '@/shared/i18n';
 
 export const SPORTS: MessageKey[] = [
   'sport.football', 'sport.basketball', 'sport.handball', 'sport.volleyball', 'sport.hockey',
   'sport.tennis', 'sport.tableTennis', 'sport.athletics', 'sport.swimming', 'sport.gymnastics',
 ];
+
+/** `sport.basketball` → `basketball`, the department's sport (0052). */
+export function sportOfKey(key: MessageKey): SportKey | null {
+  const sport = key.slice('sport.'.length);
+  return (SPORT_KEYS as readonly string[]).includes(sport) ? (sport as SportKey) : null;
+}
 
 /** Age classes by name ("U14"), adult teams by their (translated) name. */
 export const TEAM_SUGGESTIONS: { name: string; label?: MessageKey; ageGroup: AgeGroup }[] = [

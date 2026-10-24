@@ -13,6 +13,8 @@
 import { DEFAULT_ON_FEATURES, TEAM_FEATURES } from '../schema';
 import type {
   Availability,
+  SportKey,
+  StrongSide,
   LoadSummaryRow,
   LocalDatabase,
   ClubRoleKind,
@@ -86,6 +88,8 @@ export const TABLES: readonly TableSpec[] = [
   { name: 'carpools', key: ['id'], kinds: { created_at: 'timestamp', depart_at: 'timestamp', seats: 'number', meet_lat: 'number', meet_lng: 'number' } },
   { name: 'carpool_riders', key: ['carpool_id', 'person_id'], kinds: { created_at: 'timestamp' } },
   { name: 'carpool_requests', key: ['session_id', 'person_id'], kinds: { created_at: 'timestamp' } },
+  { name: 'team_player_details', key: ['team_id', 'person_id'], kinds: { updated_at: 'timestamp', jersey_number: 'number' } },
+  { name: 'person_details', key: ['person_id'], kinds: { updated_at: 'timestamp', height_cm: 'number' } },
   { name: 'playbooks', key: ['id'], kinds: { created_at: 'timestamp', updated_at: 'timestamp', release_at: 'timestamp', released_at: 'timestamp', file_size: 'number', position: 'number' } },
   { name: 'squad_entries', key: ['session_id', 'person_id'], kinds: { set_at: 'timestamp' } },
   { name: 'messages', key: ['id'], kinds: { created_at: 'timestamp', reminded_at: 'timestamp', pinned_until: 'timestamp', poll_closed_at: 'timestamp' } },
@@ -104,7 +108,7 @@ export const TABLES: readonly TableSpec[] = [
 export type TableName =
   | 'consents' | 'health_consent_status' | 'person_birth_years'
   | 'clubs' | 'club_entitlements' | 'club_feature_settings' | 'departments' | 'facilities' | 'teams' | 'team_join_codes' | 'department_facilities' | 'people' | 'coach_roles'
-  | 'carpools' | 'carpool_riders' | 'carpool_requests' | 'playbooks'
+  | 'carpools' | 'carpool_riders' | 'carpool_requests' | 'playbooks' | 'team_player_details' | 'person_details'
   | 'staff_invites' | 'club_roles' | 'club_role_invites'
   | 'memberships' | 'player_groups' | 'player_group_members' | 'session_series' | 'sessions'
   | 'session_series_week_states' | 'availability' | 'availability_reasons' | 'load_entries'
@@ -155,13 +159,13 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     clubs: [{ id: database.club.id, name: database.club.name, city: database.club.city, country: database.club.country, created_at: database.club.createdAt }],
     club_entitlements: (database.clubEntitlements ?? []).map((e) => ({ club_id: e.clubId, feature: e.feature, source: e.source, valid_until: e.validUntil })),
     club_feature_settings: (database.clubFeatureSettings ?? []).map((f) => ({ club_id: f.clubId, feature: f.feature, mode: f.mode })),
-    departments: database.departments.map((d) => ({ id: d.id, club_id: d.clubId, name: d.name })),
+    departments: database.departments.map((d) => ({ id: d.id, club_id: d.clubId, name: d.name, sport: d.sport ?? null })),
     facilities: database.facilities.map((f) => ({ id: f.id, club_id: f.clubId, name: f.name, address: f.address })),
     teams: database.teams.map((t) => ({
       // `features` is the server's result and never sent; the team's choice is.
       id: t.id, club_id: t.clubId, department_id: t.departmentId, name: t.name, default_facility_id: t.defaultFacilityId,
       feature_choices: t.featureChoices ?? [...new Set([...t.features, ...DEFAULT_ON_FEATURES])], age_group: t.ageGroup ?? null,
-      archived_at: t.archivedAt, created_at: t.createdAt,
+      archived_at: t.archivedAt, created_at: t.createdAt, fixed_numbers: t.fixedNumbers ?? true,
     })),
     team_join_codes: database.joinCodes.map((c) => ({ team_id: c.teamId, code: c.code, created_at: c.createdAt })),
     staff_invites: database.staffInvites.map((i) => ({
@@ -236,6 +240,12 @@ export function toServerRows(database: LocalDatabase): ServerRows {
     absence_reasons: (database.absences ?? [])
       .filter((a) => a.kind !== null)
       .map((a) => ({ absence_id: a.id, kind: a.kind, note: a.note })),
+    team_player_details: (database.teamPlayerDetails ?? []).map((d) => ({
+      team_id: d.teamId, person_id: d.personId, jersey_number: d.jerseyNumber, position: d.position, updated_at: d.updatedAt,
+    })),
+    person_details: (database.personDetails ?? []).map((d) => ({
+      person_id: d.personId, height_cm: d.heightCm, strong_side: d.strongSide, updated_at: d.updatedAt,
+    })),
     playbooks: (database.playbooks ?? []).map((b) => ({
       id: b.id, club_id: b.clubId, team_id: b.teamId, title: b.title, description: b.description, category: b.category,
       file_path: b.filePath, file_name: b.fileName, file_type: b.fileType, file_size: b.fileSize, status: b.status,
@@ -304,12 +314,13 @@ export function fromServerRows(
     clubFeatureSettings: rows.club_feature_settings.map((f) => ({ clubId: s(f.club_id), feature: f.feature as TeamFeature, mode: f.mode === 'on' ? 'on' : 'off' })),
     seededAt: context.previous?.seededAt ?? new Date().toISOString(),
     club: { id: s(club.id), name: s(club.name), city: s(club.city), country: s(club.country), createdAt: s(club.created_at) },
-    departments: rows.departments.map((d) => ({ id: s(d.id), clubId: s(d.club_id), name: s(d.name) })),
+    departments: rows.departments.map((d) => ({ id: s(d.id), clubId: s(d.club_id), name: s(d.name), sport: sn(d.sport) as SportKey | null })),
     teams: rows.teams.map((t) => ({
       id: s(t.id), clubId: s(t.club_id), departmentId: s(t.department_id), name: s(t.name),
       defaultFacilityId: sn(t.default_facility_id), features: teamFeatures(t.features),
       ...(Array.isArray(t.feature_choices) ? { featureChoices: teamFeatures(t.feature_choices) } : {}),
       ageGroup: (sn(t.age_group) as LocalDatabase['teams'][number]['ageGroup']), archivedAt: sn(t.archived_at), createdAt: s(t.created_at),
+      fixedNumbers: t.fixed_numbers !== false,
     })),
     facilities: rows.facilities.map((f) => ({ id: s(f.id), clubId: s(f.club_id), name: s(f.name), address: s(f.address) })),
     departmentFacilities: rows.department_facilities.map((l) => ({ departmentId: s(l.department_id), facilityId: s(l.facility_id) })),
@@ -400,6 +411,14 @@ export function fromServerRows(
         };
       })
       .sort((a, b) => a.fromDate.localeCompare(b.fromDate)),
+    teamPlayerDetails: (rows.team_player_details ?? []).map((d) => ({
+      teamId: s(d.team_id), personId: s(d.person_id), jerseyNumber: d.jersey_number == null ? null : Number(d.jersey_number),
+      position: sn(d.position), updatedAt: s(d.updated_at),
+    })),
+    personDetails: (rows.person_details ?? []).map((d) => ({
+      personId: s(d.person_id), heightCm: d.height_cm == null ? null : Number(d.height_cm),
+      strongSide: sn(d.strong_side) as StrongSide | null, updatedAt: s(d.updated_at),
+    })),
     playbooks: (rows.playbooks ?? []).map((b) => ({
       id: s(b.id), clubId: s(b.club_id), teamId: s(b.team_id), title: s(b.title), description: sn(b.description),
       category: s(b.category) as Playbook['category'], filePath: s(b.file_path), fileName: s(b.file_name),

@@ -45,10 +45,16 @@ export function rpeWord(value: number): string {
 
 export const WARMUP_MINUTES = 20;
 export const WARMUP_RPE = 3;
-const GAME_MAX_MINUTES = 150;
 
 /** What the prompt starts with, from the player's own history (`AthleteLoadWorkspace`). */
-export type RateDefaults = { rpe: number; minutes?: number; warmupRpe: number; warmupMinutes: number };
+export type RateDefaults = {
+  rpe: number;
+  minutes?: number;
+  warmupRpe: number;
+  warmupMinutes: number;
+  /** Most playing minutes in a game of this sport, overtime included (`sports.ts`). */
+  maxMinutes?: number;
+};
 export type WarmupRating = { rpe: number; minutes: number };
 
 function sessionMinutes(session: AthletePendingSession) {
@@ -132,8 +138,9 @@ function RateForm({
   const t = useT();
   const isGame = session.trainingType === 'game';
   const [rpe, setRpe] = useState(isGame ? 10 : Math.min(10, Math.max(1, Math.round(defaults.rpe))));
-  // Room for overtime or extra time: up to 150 playing minutes.
-  const [minutes, setMinutes] = useState(Math.min(isGame ? GAME_MAX_MINUTES : 240, defaults.minutes ?? sessionMinutes(session)));
+  // Room for overtime or extra time, as far as the sport goes.
+  const maxMinutes = isGame ? defaults.maxMinutes ?? 150 : 240;
+  const [minutes, setMinutes] = useState(Math.min(maxMinutes, defaults.minutes ?? sessionMinutes(session)));
   // A game asks the warmup first, then the game itself.
   const [stage, setStage] = useState<'warmup' | 'main'>(isGame ? 'warmup' : 'main');
   const [warmup, setWarmup] = useState<WarmupRating | null>({ rpe: defaults.warmupRpe, minutes: defaults.warmupMinutes });
@@ -177,7 +184,7 @@ function RateForm({
             ) : (
               <RpePicker value={rpe} onChange={setRpe} />
             )}
-            <MinutesSlider label={isGame ? t('rate.minutesPlayed') : t('rate.duration')} value={minutes} onChange={setMinutes} min={isGame ? 0 : 5} max={isGame ? GAME_MAX_MINUTES : 240} step={isGame ? 1 : 5} />
+            <MinutesSlider label={isGame ? t('rate.minutesPlayed') : t('rate.duration')} value={minutes} onChange={setMinutes} min={isGame ? 0 : 5} max={maxMinutes} step={isGame ? 1 : 5} />
             {isGame ? (
               <button type="button" onClick={() => setStage('warmup')} className="mt-3 flex w-full items-center justify-between rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-left text-sm font-bold text-slate-300">
                 <span>{warmup ? t('rate.warmupSummary', { minutes: warmup.minutes, rpe: warmup.rpe }) : t('rate.warmupNone')}</span>

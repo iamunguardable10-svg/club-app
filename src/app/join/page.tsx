@@ -21,13 +21,14 @@ import { useSearchParams } from 'next/navigation';
 import { AuthForm } from '@/features/access/AuthForm';
 import { AccountLine, ErrorLine, OnboardingShell as Shell, continueAs } from '@/features/onboarding/OnboardingShell';
 import { useAccount, type Account } from '@/features/onboarding/useAccount';
-import { ProfileStep } from '@/features/onboarding/ProfileStep';
+import { ProfileStep, type Profile } from '@/features/onboarding/ProfileStep';
 import { joinCodeFrom } from '@/features/onboarding/WhoAreYou';
 import {
   acceptStaffInvite,
   clearOnboardingDraft,
   readOnboardingDraft,
   storeOnboardingDraft,
+  storePendingPlayerDetails,
   type AccessConsent,
   joinTeamWithCode,
   ownPersonIds,
@@ -110,7 +111,7 @@ function InviteFlow({ token, account }: { token: string; account: Account }) {
           <>
             <AccountLine account={account} />
             <ErrorLine message={error} />
-            <ProfileStep staff askName={false} initial={null} submitLabel={t('onboarding.join.accept')} onDone={(profile) => accept(profile.consent)} />
+            <ProfileStep staff askName={false} knownName={`${preview.firstName} ${preview.lastName}`} initial={null} submitLabel={t('onboarding.join.accept')} onDone={(profile) => accept(profile.consent)} />
           </>
         )
       ) : draft ? (
@@ -124,7 +125,7 @@ function InviteFlow({ token, account }: { token: string; account: Account }) {
         </>
       ) : (
         <ProfileStep
-          staff askName={false} initial={null} submitLabel={t('common.continue')}
+          staff askName={false} knownName={`${preview.firstName} ${preview.lastName}`} initial={null} submitLabel={t('common.continue')}
           onDone={(profile) => {
             const next = { for: draftKey, firstName: preview.firstName, lastName: preview.lastName, consent: profile.consent };
             storeOnboardingDraft(next);
@@ -190,12 +191,14 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
   const database = status.phase === 'ready' ? readDatabase() : null;
   const me = database ? database.people.find((person) => ownPersonIds(database).includes(person.id)) ?? null : null;
   const current = account ? 3 : draft ? 2 : 1;
+  const player = { teamName: preview.teamName, sport: preview.sport ?? null, fixedNumbers: preview.fixedNumbers ?? true };
 
-  async function join(profile: { firstName: string; lastName: string; consent: AccessConsent }) {
+  async function join(profile: Profile) {
     setBusy(true);
     setError(null);
     try {
       const teamId = await joinTeamWithCode(code, me ? me.firstName : profile.firstName, me ? me.lastName : profile.lastName, profile.consent);
+      if (profile.details) storePendingPlayerDetails({ teamId, ...profile.details });
       clearOnboardingDraft();
       continueAs('athlete', teamId);
     } catch (caught) {
@@ -217,7 +220,7 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
             <AccountLine account={account} />
             {me ? <p className="text-sm text-slate-300">{t('onboarding.join.joiningAs', { name: `${me.firstName} ${me.lastName}` })}</p> : null}
             {me && !draft ? (
-              <ProfileStep askName={false} initial={null} knownBirthYear={me.birthYear} submitLabel={t('onboarding.join.submit')} onDone={join} />
+              <ProfileStep askName={false} knownName={`${me.firstName} ${me.lastName}`} player={player} initial={null} knownBirthYear={me.birthYear} submitLabel={t('onboarding.join.submit')} onDone={join} />
             ) : (
               <>
                 <ErrorLine message={error} />
@@ -232,7 +235,7 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
           <>
             <AccountLine account={account} />
             <ErrorLine message={error} />
-            <ProfileStep askName initial={null} submitLabel={t('onboarding.join.submit')} onDone={join} />
+            <ProfileStep askName player={player} initial={null} submitLabel={t('onboarding.join.submit')} onDone={join} />
           </>
         )
       ) : draft ? (
@@ -242,7 +245,7 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
         </>
       ) : (
         <ProfileStep
-          askName initial={null} submitLabel={t('common.continue')}
+          askName player={player} initial={null} submitLabel={t('common.continue')}
           onDone={(profile) => {
             const next = { for: draftKey, ...profile };
             storeOnboardingDraft(next);
