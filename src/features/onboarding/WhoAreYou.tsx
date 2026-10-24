@@ -17,9 +17,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { isRemoteMode, isServerAvailable, setBackendChoice } from '@/shared/data';
 import { useT, type MessageKey } from '@/shared/i18n';
 
-type Persona = 'player' | 'staff' | 'lead' | 'founder';
+export type Persona = 'player' | 'staff' | 'lead' | 'founder';
 
 const PERSONAS: { id: Persona; label: MessageKey; hint: MessageKey }[] = [
   { id: 'player', label: 'onboarding.who.player', hint: 'onboarding.who.playerHint' },
@@ -43,10 +44,24 @@ export function joinCodeFrom(text: string): string {
 
 const fieldClass = 'os-field min-w-0';
 
-export function WhoAreYou({ signedIn = false }: { signedIn?: boolean }) {
+export function WhoAreYou({ signedIn = false, only, title }: {
+  signedIn?: boolean;
+  /** Just these ways in (after "New here" asked the role); the first is open. */
+  only?: Persona[];
+  title?: string;
+}) {
   const t = useT();
   const router = useRouter();
-  const [persona, setPersona] = useState<Persona | null>(null);
+  const [persona, setPersona] = useState<Persona | null>(only?.[0] ?? null);
+  const personas = only ? PERSONAS.filter((entry) => only.includes(entry.id)) : PERSONAS;
+
+  // From the demo club (this device in local mode), the real way runs on the club server.
+  function go(url: string) {
+    if (!isRemoteMode() && isServerAvailable()) {
+      setBackendChoice('server');
+      window.location.assign(url);
+    } else router.push(url);
+  }
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -61,15 +76,15 @@ export function WhoAreYou({ signedIn = false }: { signedIn?: boolean }) {
     if (persona === 'player') {
       const code = joinCodeFrom(value);
       if (code.length < 6) return setError(t('onboarding.who.errorJoinCode'));
-      router.push(`/join?code=${encodeURIComponent(code)}`);
+      go(`/join?code=${encodeURIComponent(code)}`);
     } else if (persona === 'founder') {
       const code = value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
       if (code.length < 6) return setError(t('onboarding.who.errorFoundingCode'));
-      router.push(`/found?code=${encodeURIComponent(code)}`);
+      go(`/found?code=${encodeURIComponent(code)}`);
     } else {
       const token = inviteTokenFrom(value);
       if (!token) return setError(t('onboarding.who.errorInvite'));
-      router.push(`/join?invite=${token}`);
+      go(`/join?invite=${token}`);
     }
   }
 
@@ -104,11 +119,11 @@ export function WhoAreYou({ signedIn = false }: { signedIn?: boolean }) {
   return (
     <section className="os-panel grid gap-4 p-5 sm:p-6">
       <div>
-        <p className="text-lg font-black text-white">{signedIn ? t('onboarding.who.titleSignedIn') : t('onboarding.who.title')}</p>
-        <p className="mt-1 text-sm text-slate-400">{t('onboarding.who.detail')}</p>
+        <p className="text-lg font-black text-white">{title ?? (signedIn ? t('onboarding.who.titleSignedIn') : t('onboarding.who.title'))}</p>
+        {only ? null : <p className="mt-1 text-sm text-slate-400">{t('onboarding.who.detail')}</p>}
       </div>
-      <div className="grid grid-cols-2 gap-2" role="group" aria-label={t('onboarding.who.groupLabel')}>
-        {PERSONAS.map((entry) => (
+      {personas.length > 1 ? <div className="grid grid-cols-2 gap-2" role="group" aria-label={t('onboarding.who.groupLabel')}>
+        {personas.map((entry) => (
           <button
             key={entry.id}
             type="button"
@@ -122,7 +137,7 @@ export function WhoAreYou({ signedIn = false }: { signedIn?: boolean }) {
             <span className="block text-xs text-slate-400">{t(entry.hint)}</span>
           </button>
         ))}
-      </div>
+      </div> : null}
       {persona && current ? (
         <form onSubmit={submit} className="grid grid-cols-[minmax(0,1fr)] gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
           <p className="text-sm text-slate-300">{current.text}</p>

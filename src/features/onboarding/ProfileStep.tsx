@@ -19,7 +19,7 @@ import { useT } from '@/shared/i18n';
 export type Profile = { firstName: string; lastName: string; consent: AccessConsent; details?: PlayerProfileValue };
 
 /** A joining player: the team the card is for. */
-export type PlayerContext = { teamName: string; sport: SportKey | null; fixedNumbers: boolean };
+export type PlayerContext = { teamName: string; sport: SportKey | null; fixedNumbers: boolean; clubName?: string | null; departmentName?: string | null; logoUrl?: string | null };
 
 function readAsDataUrl(file: Blob) {
   return new Promise<string>((resolve, reject) => {
@@ -84,7 +84,7 @@ export function ProfileStep({ staff = false, askName, knownName, player, initial
         <CardReveal
           name={name}
           photo={photo}
-          teamName={player.teamName}
+          team={{ name: player.teamName, clubName: player.clubName, departmentName: player.departmentName, logoUrl: player.logoUrl }}
           value={details}
           fixedNumbers={player.fixedNumbers}
           sport={player.sport}
@@ -94,7 +94,7 @@ export function ProfileStep({ staff = false, askName, knownName, player, initial
       ) : null}
       {player ? (
         <>
-          <PlayerCard name={name} photo={photo} teamName={player.teamName} value={details} fixedNumbers={player.fixedNumbers} sport={player.sport} />
+          <PlayerCard name={name} photo={photo} teamName={player.teamName} teamLogo={player.logoUrl} value={details} fixedNumbers={player.fixedNumbers} sport={player.sport} />
           <ProfileMeter missing={missing} total={player.fixedNumbers ? 5 : 4} />
         </>
       ) : null}

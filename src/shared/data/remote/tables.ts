@@ -60,7 +60,7 @@ export const TABLES: readonly TableSpec[] = [
   // Created and renamed by the club admin (piece 8).
   { name: 'departments', key: ['id'] },
   { name: 'facilities', key: ['id'] },
-  { name: 'teams', key: ['id'], kinds: { created_at: 'timestamp', archived_at: 'timestamp' } },
+  { name: 'teams', key: ['id'], kinds: { created_at: 'timestamp', archived_at: 'timestamp', logo_at: 'timestamp' } },
   { name: 'team_join_codes', key: ['team_id'], kinds: { created_at: 'timestamp' } },
   { name: 'department_facilities', key: ['department_id', 'facility_id'] },
   { name: 'consents', key: ['id'], kinds: { given_at: 'timestamp', withdrawn_at: 'timestamp' }, readOnly: true },
@@ -165,7 +165,7 @@ export function toServerRows(database: LocalDatabase): ServerRows {
       // `features` is the server's result and never sent; the team's choice is.
       id: t.id, club_id: t.clubId, department_id: t.departmentId, name: t.name, default_facility_id: t.defaultFacilityId,
       feature_choices: t.featureChoices ?? [...new Set([...t.features, ...DEFAULT_ON_FEATURES])], age_group: t.ageGroup ?? null,
-      archived_at: t.archivedAt, created_at: t.createdAt, fixed_numbers: t.fixedNumbers ?? true,
+      archived_at: t.archivedAt, created_at: t.createdAt, fixed_numbers: t.fixedNumbers ?? true, logo_at: t.logoAt ?? null,
     })),
     team_join_codes: database.joinCodes.map((c) => ({ team_id: c.teamId, code: c.code, created_at: c.createdAt })),
     staff_invites: database.staffInvites.map((i) => ({
@@ -320,7 +320,7 @@ export function fromServerRows(
       defaultFacilityId: sn(t.default_facility_id), features: teamFeatures(t.features),
       ...(Array.isArray(t.feature_choices) ? { featureChoices: teamFeatures(t.feature_choices) } : {}),
       ageGroup: (sn(t.age_group) as LocalDatabase['teams'][number]['ageGroup']), archivedAt: sn(t.archived_at), createdAt: s(t.created_at),
-      fixedNumbers: t.fixed_numbers !== false,
+      fixedNumbers: t.fixed_numbers !== false, logoAt: sn(t.logo_at),
     })),
     facilities: rows.facilities.map((f) => ({ id: s(f.id), clubId: s(f.club_id), name: s(f.name), address: s(f.address) })),
     departmentFacilities: rows.department_facilities.map((l) => ({ departmentId: s(l.department_id), facilityId: s(l.facility_id) })),

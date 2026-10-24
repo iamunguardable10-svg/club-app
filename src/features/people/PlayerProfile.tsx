@@ -16,8 +16,8 @@ import { useEffect, useRef, useState } from 'react';
 import { CardReveal } from '@/features/people/CardReveal';
 
 import { PersonAvatar, usePhotoUrl } from '@/features/people/PersonPhoto';
-import { isKnownPosition, positionField, positionSuggestions, positionText, sportOfTeam, strongSideLabel } from '@/features/sports/sports';
-import { STRONG_SIDES, dismissHint, displayName, isHintDismissed, profileCompleteness, personDetailsFor, playerDetailsFor, setOwnPersonDetails, setTeamFixedNumbers, setTeamPlayerDetails, type LocalDatabase, type Person, type ProfilePart, type SportKey, type StrongSide, type Team } from '@/shared/data';
+import { isKnownPosition, positionField, positionGroups, positionText, sportOfTeam, strongSideLabel } from '@/features/sports/sports';
+import { STRONG_SIDES, dismissHint, teamLogoUrl, displayName, isHintDismissed, profileCompleteness, personDetailsFor, playerDetailsFor, setOwnPersonDetails, setTeamFixedNumbers, setTeamPlayerDetails, type LocalDatabase, type Person, type ProfilePart, type SportKey, type StrongSide, type Team } from '@/shared/data';
 import { errorText, useT, type MessageKey } from '@/shared/i18n';
 
 export type PlayerProfileValue = { jerseyNumber: number | null; position: string | null; heightCm: number | null; strongSide: StrongSide | null };
@@ -38,7 +38,7 @@ export function missingParts(value: PlayerProfileValue, hasPhoto: boolean, fixed
 }
 
 /** The player as the coach sees them; fills in while typing. */
-export function PlayerCard({ name, photo, personId, teamName, value, fixedNumbers, sport, showName = true }: { name: string; photo?: string | null; personId?: string | null; teamName?: string | null; value: PlayerProfileValue; fixedNumbers: boolean; sport: SportKey | null; /** Off where the name stands right above (the coach's player sheet). */ showName?: boolean }) {
+export function PlayerCard({ name, photo, personId, teamName, teamLogo, value, fixedNumbers, sport, showName = true }: { name: string; photo?: string | null; personId?: string | null; teamName?: string | null; teamLogo?: string | null; value: PlayerProfileValue; fixedNumbers: boolean; sport: SportKey | null; /** Off where the name stands right above (the coach's player sheet). */ showName?: boolean }) {
   const t = useT();
   const facts = [
     value.heightCm !== null ? t('profile.heightShort', { cm: value.heightCm }) : null,
@@ -49,7 +49,13 @@ export function PlayerCard({ name, photo, personId, teamName, value, fixedNumber
       <div className="flex items-center gap-4">
         <PersonAvatar personId={personId} name={name || '?'} size="lg" src={photo ?? undefined} />
         <div className="min-w-0 flex-1">
-          {teamName ? <p className="truncate text-[11px] font-black uppercase tracking-[0.16em] text-emerald-300">{teamName}</p> : null}
+          {teamName ? (
+            <p className="flex min-w-0 items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-emerald-300">
+              {/* eslint-disable-next-line @next/next/no-img-element -- public storage links and data URLs, not optimisable */}
+              {teamLogo ? <img src={teamLogo} alt="" className="h-4 w-4 shrink-0 object-contain" /> : null}
+              <span className="truncate">{teamName}</span>
+            </p>
+          ) : null}
           {showName ? <p className="mt-0.5 truncate text-xl font-black text-white">{name || t('profile.yourName')}</p> : null}
           <p className="truncate text-sm font-bold text-slate-300">{positionText(value.position, t) ?? t('profile.noPosition')}</p>
           {facts.length > 0 ? <p className="mt-1 text-xs text-slate-400">{facts.join(' · ')}</p> : null}
@@ -98,15 +104,15 @@ const OTHER = '__other';
  */
 export function PositionPicker({ value, onChange, sport, label }: { value: string | null; onChange: (position: string | null) => void; sport: SportKey | null; label?: boolean }) {
   const t = useT();
-  const options = positionSuggestions(sport);
+  const groups = positionGroups(sport);
   const field = positionField(sport);
   // "Other" stays open while typing, also before the first letter.
   const [typing, setTyping] = useState(() => Boolean(value) && !isKnownPosition(value));
-  const showText = options.length === 0 || typing;
+  const showText = groups.length === 0 || typing;
   return (
     <div className="grid min-w-0 gap-1">
       {label ? <span className="text-sm font-bold text-slate-200">{t(field.label)}</span> : null}
-      {options.length > 0 ? (
+      {groups.length > 0 ? (
         <select
           aria-label={t(field.label)}
           value={typing ? OTHER : value ?? ''}
@@ -119,7 +125,9 @@ export function PositionPicker({ value, onChange, sport, label }: { value: strin
           className="os-field min-w-0 font-bold"
         >
           <option value="">{t('profile.choose')}</option>
-          {options.map((key) => <option key={key} value={key}>{t(key)}</option>)}
+          {groups.length === 1
+            ? groups[0].keys.map((key) => <option key={key} value={key}>{t(key)}</option>)
+            : groups.map((group) => <optgroup key={group.group} label={t(group.group)}>{group.keys.map((key) => <option key={key} value={key}>{t(key)}</option>)}</optgroup>)}
           <option value={OTHER}>{t('profile.other')}</option>
         </select>
       ) : null}
@@ -236,7 +244,7 @@ export function PlayerProfileEditor({ database, person }: { database: LocalDatab
         <CardReveal
           name={displayName(person)}
           personId={person.id}
-          teamName={team.name}
+          team={{ name: team.name, clubName: database.club.name, departmentName: database.departments.find((department) => department.id === team.departmentId)?.name ?? null, logoUrl: teamLogoUrl(team) }}
           value={before}
           fixedNumbers={fixedNumbers}
           sport={sport}
@@ -244,7 +252,7 @@ export function PlayerProfileEditor({ database, person }: { database: LocalDatab
           onDone={() => { dismissHint('cardReveal'); setRevealing(false); }}
         />
       ) : null}
-      <PlayerCard name={displayName(person)} photo={photo} teamName={team.name} value={value} fixedNumbers={fixedNumbers} sport={sport} />
+      <PlayerCard name={displayName(person)} photo={photo} teamName={team.name} teamLogo={teamLogoUrl(team)} value={value} fixedNumbers={fixedNumbers} sport={sport} />
       <ProfileMeter missing={missing} total={fixedNumbers ? 5 : 4} />
       {savedComplete && !dirty ? <button type="button" onClick={() => setRevealing(true)} className="justify-self-start text-xs font-black text-emerald-300 underline">{t('profile.reveal.show')}</button> : null}
       <PlayerProfileFields value={value} onChange={(next) => { setValue(next); setMessage(null); }} sport={sport} fixedNumbers={fixedNumbers} />
