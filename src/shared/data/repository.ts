@@ -185,7 +185,7 @@ export function setBackendChoice(choice: BackendChoice): void {
  * Functional notification opt-in can be put away with "Not now" on this device;
  * the calendar's edit hint shows only the first time, the demo's "Like it?" once.
  */
-export type HintName = 'notifications' | 'calendarEdit' | 'demoNudge' | 'profileNudge';
+export type HintName = 'notifications' | 'calendarEdit' | 'demoNudge' | 'profileNudge' | 'cardReveal';
 
 const hintKey = (name: HintName) => `club-app.hint-dismissed.${name}`;
 

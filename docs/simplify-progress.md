@@ -3089,3 +3089,14 @@ Ben: Profil vor dem Registrieren ausfüllen, „schöner und more addicting“, 
 - **Konto löschen** entfernt vorher die eigenen Bilder aus dem Speicher.
 - **Gründen-Assistent:** setzt die Altersklasse des ersten Teams nur, wenn die Gründerin das Team einstellen darf (vorher „Not allowed.“, wenn sie es nicht trainiert); neue Abteilungen aus den Sportarten-Chips bekommen ihre Sportart.
 - **Demo:** Abteilungen mit Sportart, Nummern/Positionen/Größen für die meisten Spieler (ein paar Lücken), U18 ohne feste Nummern. Schema-Version `2026-10-24-player-cards-v25`.
+
+## Run 96 — Spielerkarte nachgeschärft: Positionen, Anwesenheit, Karten-Enthüllung (2026-10-24)
+
+Ben: Position stand doppelt (Feld und Chips), „vllt Dropdown“; offizielle Positionen für alle Sportarten; Anwesenheit im Spielerblatt schöner; beim ersten Fertigmachen der Karte (am besten schon vor dem Registrieren) eine Animation wie in NBA 2K, mit dem eigenen Bild und „noch viel besonderer“.
+
+- **Position als Dropdown** mit den offiziellen Positionen der Sportart und „Andere …“ zum Eintippen; ohne bekannte Sportart nur das Textfeld. Gespeichert als Schlüssel (`position.basketball.pg`), so zeigt jede Sprache ihren Namen; Eingetipptes bleibt, wie es ist.
+- **Alle zehn Sportarten:** Fußball (Torwart, Innen-/Außenverteidiger, defensives/zentrales/offensives Mittelfeld, Flügel, Stürmer), Handball (Torwart, Links-/Rechtsaußen, Rückraum links/Mitte/rechts, Kreisläufer), Basketball (1–5), Volleyball (Zuspiel, Außenangriff, Mittelblock, Diagonal, Libero), Hockey; bei Einzelsportarten fragt die App passend: Leichtathletik „Disziplin“, Schwimmen „Lage“, Turnen „Gerät“ (olympische Geräte), Tennis/Tischtennis „Spielstil“.
+- **Anwesenheit im Spielerblatt:** Quote und Zahlen (da · zu spät · gefehlt) jetzt für den gewählten Zeitraum (vorher immer gesamt), eine kleine Markierung je Einheit (grün, blau, rot), darunter nur die Ausnahmen in je einer Zeile; ab fünf „Alle zeigen“. Die Spielerkarte im Blatt zeigt den Namen nicht doppelt.
+- **Karten-Enthüllung** (`features/people/CardReveal.tsx`): wenn die Karte zum ersten Mal vollständig ist, beim Beitreten direkt beim Tippen auf „Weiter“ (vor dem Konto), sonst nach dem Speichern in den Einstellungen. Die Karte kommt verdeckt wie ein Pack, lädt sich auf und wackelt, platzt mit Blitz, Schockwelle und Funken, dreht sich um: großes eigenes Foto, Nummer in Gold aufgestempelt, Position, Name, Größe/starke Seite, „Saison 2026/27“, drehender Foil-Rahmen, Glanz; danach kippt sie mit dem Finger und das Licht folgt. Tippen überspringt; bei „Bewegung reduzieren“ ist die Karte einfach da. Einmal pro Gerät, danach „Meine Karte ansehen“ in den Einstellungen.
+- Profilbilder werden jetzt auf 512 px verkleinert (vorher 256), damit das Foto auf der Karte scharf ist.
+- Demo speichert Positionen als Schlüssel, Schema-Version `2026-10-24-position-keys-v26`.

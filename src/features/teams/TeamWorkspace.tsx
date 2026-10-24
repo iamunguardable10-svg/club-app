@@ -138,7 +138,7 @@ function attendanceForPlayer(database: LocalDatabase, personId: Id, teamId: Id) 
     ? null
     : Math.round(((pastSessions.length - missedSessions) / pastSessions.length) * 100);
 
-  return { attendanceRate, missedSessions, attendanceEvents };
+  return { attendanceRate, missedSessions, attendanceEvents, sessionTimes: pastSessions.map((session) => session.startsAt) };
 }
 
 export function TeamWorkspace({
@@ -223,7 +223,7 @@ export function TeamWorkspace({
                     : 'awayUntil' in event && event.awayUntil ? { ...event, reason: awayUntilLabel({ kind: null, toDate: event.awayUntil }, false) }
                     : { ...event, reason: null })),
             }
-          : { attendanceRate: null, missedSessions: null, attendanceEvents: [] }),
+          : { attendanceRate: null, missedSessions: null, attendanceEvents: [], sessionTimes: undefined }),
       };
     });
 
@@ -350,7 +350,7 @@ export function TeamWorkspace({
   const featuresPanel: ReactNode = database && settingsTeam && permissions.has('manageStaff')
     ? <TeamHealthSettings database={database} team={settingsTeam} />
     : null;
-  const playerFacts = database ? (personId: string) => playerFactsText(database, teamId, personId) : undefined;
+  const playerFacts = database ? (personId: string) => playerFactsText(database, teamId, personId, t) : undefined;
   const playbookPanel: ReactNode = database && teamHasFeature(database, teamId, 'playbook')
     ? <PlaybookShelf database={database} teamId={teamId} />
     : null;
