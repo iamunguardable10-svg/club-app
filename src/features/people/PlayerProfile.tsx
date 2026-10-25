@@ -37,6 +37,11 @@ export function missingParts(value: PlayerProfileValue, hasPhoto: boolean, fixed
   return missing;
 }
 
+/** Whether the card is ready for its reveal: everything there, the number may be left out. */
+export function readyForReveal(missing: MessageKey[]): boolean {
+  return missing.every((part) => part === 'profile.part.number');
+}
+
 /** The player as the coach sees them; fills in while typing. */
 export function PlayerCard({ name, photo, personId, teamName, teamLogo, value, fixedNumbers, sport, showName = true }: { name: string; photo?: string | null; personId?: string | null; teamName?: string | null; teamLogo?: string | null; value: PlayerProfileValue; fixedNumbers: boolean; sport: SportKey | null; /** Off where the name stands right above (the coach's player sheet). */ showName?: boolean }) {
   const t = useT();
@@ -215,7 +220,7 @@ export function PlayerProfileEditor({ database, person }: { database: LocalDatab
   const [revealing, setRevealing] = useState(false);
   const photo = usePhotoUrl(person);
   // Completed here for the first time (saved, the photo included): the card's big moment.
-  const savedComplete = team ? missingParts(saved(), Boolean(person.photoAt), wearsNumbers(team, sportOfTeam(database, team.id)), sportOfTeam(database, team.id)).length === 0 : false;
+  const savedComplete = team ? readyForReveal(missingParts(saved(), Boolean(person.photoAt), wearsNumbers(team, sportOfTeam(database, team.id)), sportOfTeam(database, team.id))) : false;
   const startedIncomplete = useRef(!savedComplete);
   useEffect(() => {
     if (savedComplete && startedIncomplete.current && !isHintDismissed('cardReveal')) {

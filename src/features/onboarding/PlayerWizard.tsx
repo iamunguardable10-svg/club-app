@@ -14,7 +14,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { CardReveal } from '@/features/people/CardReveal';
 import { shrinkPhoto } from '@/features/people/PersonPhoto';
-import { PlayerCard, PositionPicker, SideSwitch, missingParts, type PlayerProfileValue } from '@/features/people/PlayerProfile';
+import { PlayerCard, PositionPicker, SideSwitch, missingParts, readyForReveal, type PlayerProfileValue } from '@/features/people/PlayerProfile';
 import { ConsentFields, consentComplete } from '@/features/legal/ConsentFields';
 import { SPORTS, sportOfKey } from '@/features/onboarding/foundSuggestions';
 import { positionField, sportHasNumbers, strongSideLabel } from '@/features/sports/sports';
@@ -138,7 +138,8 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
     : true;
 
   function finish() {
-    if (missing.length === 0 && !isHintDismissed('cardReveal')) setRevealing(true);
+    // The number may be left out; everything else makes the card.
+    if (readyForReveal(missing) && !isHintDismissed('cardReveal')) setRevealing(true);
     else onFinish(sport);
   }
 
