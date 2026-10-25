@@ -21,7 +21,7 @@ select test.expect_rows('a player cannot remove it', $q$delete from storage.obje
 select test.expect_rows('… nor clear it on the team', $q$update public.teams set logo_at = null where id = '70000000-0000-0000-0000-000000000016'$q$, 0);
 
 select test.act_as('10000000-0000-0000-0000-000000000099');
-select test.expect_count('someone outside the club learns from the code the logo and the department', format($f$select 1 from public.join_code_profile(%L) where logo like 'c0000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000016.png?v=%%' and department_name is not null$f$, :'u16_code'), 1);
+select test.expect_count('someone outside the club learns from the code the logo and the department', format($f$select 1 from public.join_code_card(%L) where logo like 'c0000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000016.png?v=%%' and department_name is not null$f$, :'u16_code'), 1);
 
 select test.act_as('10000000-0000-0000-0000-000000000001');
 select test.expect_rows('the head coach removes it again', $q$delete from storage.objects where bucket_id = 'team-logos'$q$, 1);

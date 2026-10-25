@@ -66,15 +66,15 @@ begin
   end if;
 end $$;
 
--- The join code profile (0053) also tells the logo and the department, for the card before joining.
-drop function if exists public.join_code_profile(text);
-create function public.join_code_profile(p_code text)
-returns table (sport text, fixed_numbers boolean, department_name text, logo text)
+-- Next to the join code profile (0053): the department and the logo, for
+-- the card before joining. Rate-limited the same way.
+create or replace function public.join_code_card(p_code text)
+returns table (department_name text, logo text)
 language plpgsql volatile security definer set search_path = '' as $$
 begin
   perform app.rate_check('join_code_profile', 300, 600);
   return query
-    select d.sport, t.fixed_numbers, d.name,
+    select d.name,
       case when t.logo_at is null then null
         else t.club_id::text || '/' || t.id::text || '.png?v=' || floor(extract(epoch from t.logo_at))::bigint::text end
     from public.team_join_codes c
@@ -83,5 +83,5 @@ begin
     where c.code = upper(btrim(p_code)) and t.archived_at is null;
 end $$;
 
-revoke all on function public.join_code_profile(text) from public;
-grant execute on function public.join_code_profile(text) to anon, authenticated;
+revoke all on function public.join_code_card(text) from public;
+grant execute on function public.join_code_card(text) to anon, authenticated;

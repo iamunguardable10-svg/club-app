@@ -1215,7 +1215,7 @@ export type JoinCodePreview = {
   /** For the profile step (0053): the team's sport, and whether it has fixed numbers. */
   sport?: SportKey | null;
   fixedNumbers?: boolean;
-  /** For the card (0054): the department, and the team's logo link. */
+  /** For the card (`join_code_card`, 0054): the department, and the team's logo link. */
   departmentName?: string | null;
   logoUrl?: string | null;
 };
@@ -1229,13 +1229,14 @@ export async function previewJoinCode(code: string): Promise<JoinCodePreview | n
   if (!row) return null;
   // Only what the profile step asks; without it the step stays general.
   const profile = await supabase.rpc('join_code_profile', { p_code: code }).then(({ data: rows }) => (rows as Record<string, unknown>[] | null)?.[0] ?? null, () => null);
+  const card = await supabase.rpc('join_code_card', { p_code: code }).then(({ data: rows }) => (rows as Record<string, unknown>[] | null)?.[0] ?? null, () => null);
   const sport = profile?.sport ? String(profile.sport) : null;
   return {
     clubName: String(row.club_name), teamName: String(row.team_name), usable: Boolean(row.usable),
     sport: sport && (SPORT_KEYS as readonly string[]).includes(sport) ? (sport as SportKey) : null,
     fixedNumbers: profile ? profile.fixed_numbers !== false : true,
-    departmentName: profile?.department_name ? String(profile.department_name) : null,
-    logoUrl: profile?.logo ? teamLogoLink(String(profile.logo)) : null,
+    departmentName: card?.department_name ? String(card.department_name) : null,
+    logoUrl: card?.logo ? teamLogoLink(String(card.logo)) : null,
   };
 }
 
@@ -3930,7 +3931,7 @@ function teamLogoPath(team: Pick<Team, 'clubId' | 'id'>) {
   return `${team.clubId}/${team.id}.png`;
 }
 
-/** The public link of a stored logo path (`<club>/<team>.png?v=…`), as the join code profile gives it. */
+/** The public link of a stored logo path (`<club>/<team>.png?v=…`), as `join_code_card` gives it. */
 export function teamLogoLink(path: string): string {
   return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/team-logos/${path}`;
 }
