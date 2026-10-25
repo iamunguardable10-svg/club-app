@@ -136,6 +136,27 @@ export function PositionPicker({ value, onChange, sport, label }: { value: strin
   );
 }
 
+/** Left · right · both as one segmented switch; tapping the chosen one clears it. */
+export function SideSwitch({ value, onChange, label, large = false }: { value: StrongSide | null; onChange: (side: StrongSide | null) => void; label: string; large?: boolean }) {
+  const t = useT();
+  return (
+    <div role="radiogroup" aria-label={label} className={`grid grid-cols-3 rounded-2xl border border-slate-700 bg-slate-950/70 p-1 ${large ? 'gap-1' : ''}`}>
+      {STRONG_SIDES.map((side) => (
+        <button
+          key={side}
+          type="button"
+          role="radio"
+          aria-checked={value === side}
+          onClick={() => onChange(value === side ? null : side)}
+          className={`rounded-xl font-black transition active:scale-[0.97] ${large ? 'py-4 text-base' : 'py-2 text-xs'} ${value === side ? 'bg-emerald-300 text-slate-950 shadow-[0_0_20px_rgba(110,231,183,0.35)]' : 'text-slate-300 hover:text-white'}`}
+        >
+          {t(SIDE_KEY[side])}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** Number (if the team has fixed ones), position, height, strong side. */
 export function PlayerProfileFields({ value, onChange, sport, fixedNumbers }: { value: PlayerProfileValue; onChange: (value: PlayerProfileValue) => void; sport: SportKey | null; fixedNumbers: boolean }) {
   const t = useT();
@@ -161,12 +182,10 @@ export function PlayerProfileFields({ value, onChange, sport, fixedNumbers }: { 
           {t('profile.height')}
           <input type="number" inputMode="numeric" min={100} max={230} value={value.heightCm ?? ''} onChange={(event) => set({ heightCm: event.target.value === '' ? null : Number(event.target.value) })} onBlur={(event) => set({ heightCm: numberOrNull(event.target.value, 100, 230) })} placeholder="180" className="os-field min-w-0 text-center" />
         </label>
-        <fieldset className="grid min-w-0 gap-1">
-          <legend className="text-sm font-bold text-slate-200">{t(strongSideLabel(sport))}</legend>
-          <div className="flex flex-wrap items-start gap-1.5 pt-1">
-            {STRONG_SIDES.map((side) => <Chip key={side} label={t(SIDE_KEY[side])} selected={value.strongSide === side} onSelect={() => set({ strongSide: value.strongSide === side ? null : side })} />)}
-          </div>
-        </fieldset>
+        <div className="grid min-w-0 content-start gap-1">
+          <span className="text-sm font-bold text-slate-200">{t(strongSideLabel(sport))}</span>
+          <SideSwitch value={value.strongSide} onChange={(strongSide) => set({ strongSide })} label={t(strongSideLabel(sport))} />
+        </div>
       </div>
       <p className="-mt-1 text-xs text-slate-500">{t('profile.whoSees')}</p>
     </div>

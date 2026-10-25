@@ -286,6 +286,13 @@ a {
   }
 }
 
+/* The player card wizard (PlayerWizard): each step slides in, the card pops when it grows. */
+@keyframes wizard-step { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes wizard-pop { 0% { transform: scale(1); } 40% { transform: scale(1.025); filter: brightness(1.2); } 100% { transform: scale(1); } }
+.wizard-step { animation: wizard-step 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.wizard-pop { animation: wizard-pop 0.45s ease-out; }
+@media (prefers-reduced-motion: reduce) { .wizard-step, .wizard-pop { animation: none; } }
+
 /* The player card reveal (CardReveal), NBA 2K style: the pack charges up, bursts, the card flips to its front. */
 @keyframes reveal-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes reveal-pack-in { 0% { transform: translateY(45vh) scale(0.6) rotate(-8deg); opacity: 0; } 100% { transform: translateY(0) scale(1) rotate(0); opacity: 1; } }

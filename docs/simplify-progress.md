@@ -3120,3 +3120,11 @@ Ben: „Loslegen → Spieler“ verlangte zuerst den Teamcode; besser erst die K
 - **Neu hier → Als Spieler** führt direkt dorthin (statt zur Code-Eingabe).
 - Mit Link bleibt es wie bisher (Team zuerst sichtbar, dann Karte, Konto, Beitreten).
 - **Nebenbei (UI):** Die Profilanzeige „Profil 0 von 5 · Fehlt: …“ drückte bei langem Text die Karte über den Rand (375–390 px); Karte und Liste zeigen Positionen ohne Kürzel („Point Guard“ statt „Point Guard (PG / 1)“), das Dropdown mit.
+
+## Run 99 — Spielerkarte als Assistent (2026-10-25)
+
+Ben: „das komplette UI noch viel besser“, weniger KI-Optik (die Sportart-Chips weg), mehr Fortschritt, damit man dranbleibt.
+
+- **`PlayerWizard`** statt einem langen Formular: eine Frage pro Bildschirm (Name · Foto · Wo spielst du? · Rückennummer · Größe und starke Seite · Abschluss), jeweils mit „Schritt 3 von 6“, großer Frage, einem Satz dazu, Zurück und Weiter; optionale Schritte zeigen „Erst mal überspringen“, bis etwas eingetragen ist. Die Karte oben füllt sich mit jeder Antwort, wächst kurz auf und zeigt „Karte 60 %“ mit Fortschrittsbalken.
+- **Eingaben:** Foto als großer Kreis zum Antippen; Sportart und Position als zwei Auswahllisten (keine Chips mehr); Rückennummer direkt auf ein Trikot getippt; Größe per Schieberegler mit großer Zahl; starke Seite als ein Umschalter (auch in den Einstellungen). Am Ende „Noch eine Sache bis zur vollständigen Karte: + Foto“, ein Tipp springt zurück zu dem Schritt. Vollständig → Karten-Enthüllung.
+- Gilt für Beitreten mit Link und ohne Code; Trainer und Vereinsrollen behalten das kurze Formular (Name, Zustimmung).
