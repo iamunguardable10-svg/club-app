@@ -17,7 +17,7 @@ import { shrinkPhoto } from '@/features/people/PersonPhoto';
 import { PlayerCard, PositionPicker, SideSwitch, missingParts, type PlayerProfileValue } from '@/features/people/PlayerProfile';
 import { ConsentFields, consentComplete } from '@/features/legal/ConsentFields';
 import { SPORTS, sportOfKey } from '@/features/onboarding/foundSuggestions';
-import { positionField, strongSideLabel } from '@/features/sports/sports';
+import { positionField, sportHasNumbers, strongSideLabel } from '@/features/sports/sports';
 import { dismissHint, isHintDismissed, storePendingPhoto, storeWizardProgress, type AccessConsent, type SportKey } from '@/shared/data';
 import { useT, type MessageKey } from '@/shared/i18n';
 import type { PlayerContext } from '@/features/onboarding/ProfileStep';
@@ -67,14 +67,16 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
   resume?: { step: number; sport: SportKey | null } | null;
 }) {
   const t = useT();
+  const [sport, setSport] = useState<SportKey | null>(player.pickSport ? resume?.sport ?? player.sport : player.sport);
+  // No number step where the team has none or the sport knows none (tennis, swimming …).
+  const numbers = player.fixedNumbers && sportHasNumbers(sport);
   const steps: Step[] = [
     ...(askName ? ['name' as const] : []),
     'photo', 'role',
-    ...(player.fixedNumbers ? ['number' as const] : []),
+    ...(numbers ? ['number' as const] : []),
     'body', 'consent',
   ];
   const [index, setIndex] = useState(() => Math.min(resume?.step ?? 0, steps.length - 1));
-  const [sport, setSport] = useState<SportKey | null>(player.pickSport ? resume?.sport ?? player.sport : player.sport);
 
   // Every answer stays on the device until the card is done.
   useEffect(() => {
@@ -106,8 +108,8 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
   const fileInput = useRef<HTMLInputElement>(null);
   const step = steps[Math.min(index, steps.length - 1)];
   const name = askName ? `${firstName} ${lastName}`.trim() : knownName ?? '';
-  const missing = missingParts(details, Boolean(photo), player.fixedNumbers, sport);
-  const total = player.fixedNumbers ? 5 : 4;
+  const missing = missingParts(details, Boolean(photo), numbers, sport);
+  const total = numbers ? 5 : 4;
   const percent = Math.round(((total - missing.length) / total) * 100);
   const set = (change: Partial<PlayerProfileValue>) => onDetails({ ...details, ...change });
   // The history holds exactly the steps up to this one (see above): forward
@@ -196,7 +198,7 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
         {player.pickSport ? (
           <label className="grid gap-1.5 text-sm font-bold text-slate-300">
             {t('profile.yourSport')}
-            <select value={sport ? `sport.${sport}` : ''} onChange={(event) => { const picked = sportOfKey(event.target.value as MessageKey); setSport(picked); if (picked !== sport) set({ position: null }); }} className="os-field font-bold">
+            <select value={sport ? `sport.${sport}` : ''} onChange={(event) => { const picked = sportOfKey(event.target.value as MessageKey); setSport(picked); if (picked !== sport) set({ position: null, ...(sportHasNumbers(picked) ? {} : { jerseyNumber: null }) }); }} className="os-field font-bold">
               <option value="">{t('profile.choose')}</option>
               {SPORTS.map((key) => <option key={key} value={key}>{t(key)}</option>)}
             </select>
@@ -287,7 +289,7 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
           photo={photo}
           team={{ name: player.teamName, clubName: player.clubName, departmentName: player.departmentName, logoUrl: player.logoUrl }}
           value={details}
-          fixedNumbers={player.fixedNumbers}
+          fixedNumbers={numbers}
           sport={sport}
           continueLabel={submitLabel}
           onDone={() => { dismissHint('cardReveal'); setRevealing(false); onFinish(sport); }}
@@ -297,7 +299,7 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
       {/* The card, filling in, and how far it is. */}
       <div className="grid gap-2">
         <div key={`${percent}`} className="wizard-pop">
-          <PlayerCard name={name} photo={photo} teamName={player.teamName} teamLogo={player.logoUrl} value={details} fixedNumbers={player.fixedNumbers} sport={sport} />
+          <PlayerCard name={name} photo={photo} teamName={player.teamName} teamLogo={player.logoUrl} value={details} fixedNumbers={numbers} sport={sport} />
         </div>
         <div className="flex items-center gap-3">
           <div className="flex flex-1 gap-1" aria-hidden>

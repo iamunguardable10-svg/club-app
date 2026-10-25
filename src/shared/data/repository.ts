@@ -3934,12 +3934,13 @@ export function setOwnPersonDetails(personId: Id, input: { heightCm: number | nu
 export type ProfilePart = 'photo' | 'number' | 'position' | 'height' | 'side';
 
 /** How complete a player's profile is: photo, number and position (in the first team), height, strong side. */
-export function profileCompleteness(database: LocalDatabase, personId: Id): { done: number; total: number; missing: ProfilePart[] } {
+export function profileCompleteness(database: LocalDatabase, personId: Id, numbers?: boolean): { done: number; total: number; missing: ProfilePart[] } {
   const person = database.people.find((candidate) => candidate.id === personId);
   const teamId = database.memberships.find((m) => m.personId === personId && m.role === 'athlete')?.teamId ?? null;
   const team = teamId ? playerDetailsFor(database, teamId, personId) : null;
   // Teams without fixed numbers (0052) do not ask for one.
-  const fixedNumbers = database.teams.find((candidate) => candidate.id === teamId)?.fixedNumbers !== false;
+  // `numbers`: the caller knows the sport (tennis and the like have none, `features/sports`).
+  const fixedNumbers = numbers ?? database.teams.find((candidate) => candidate.id === teamId)?.fixedNumbers !== false;
   const details = personDetailsFor(database, personId);
   const parts: [ProfilePart, boolean][] = [
     ['photo', Boolean(person?.photoAt)],

@@ -307,6 +307,7 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
   const database = status.phase === 'ready' ? readDatabase() : null;
   const me = database ? database.people.find((person) => ownPersonIds(database).includes(person.id)) ?? null : null;
   const current = account ? 3 : draft ? 2 : 1;
+  // The wizard leaves the number out where the sport has none (`sportHasNumbers`).
   const player = { teamName: preview.teamName, sport: preview.sport ?? null, fixedNumbers: preview.fixedNumbers ?? true, clubName: preview.clubName, departmentName: preview.departmentName ?? null, logoUrl: preview.logoUrl ?? null };
 
   async function join(profile: Profile) {

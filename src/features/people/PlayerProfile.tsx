@@ -16,7 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CardReveal } from '@/features/people/CardReveal';
 
 import { PersonAvatar, usePhotoUrl } from '@/features/people/PersonPhoto';
-import { isKnownPosition, positionField, positionGroups, positionShort, sportOfTeam, strongSideLabel } from '@/features/sports/sports';
+import { isKnownPosition, positionField, positionGroups, positionShort, sportOfTeam, strongSideLabel, wearsNumbers } from '@/features/sports/sports';
 import { STRONG_SIDES, dismissHint, teamLogoUrl, displayName, isHintDismissed, profileCompleteness, personDetailsFor, playerDetailsFor, setOwnPersonDetails, setTeamFixedNumbers, setTeamPlayerDetails, type LocalDatabase, type Person, type ProfilePart, type SportKey, type StrongSide, type Team } from '@/shared/data';
 import { errorText, useT, type MessageKey } from '@/shared/i18n';
 
@@ -215,7 +215,7 @@ export function PlayerProfileEditor({ database, person }: { database: LocalDatab
   const [revealing, setRevealing] = useState(false);
   const photo = usePhotoUrl(person);
   // Completed here for the first time (saved, the photo included): the card's big moment.
-  const savedComplete = team ? missingParts(saved(), Boolean(person.photoAt), team.fixedNumbers !== false, sportOfTeam(database, team.id)).length === 0 : false;
+  const savedComplete = team ? missingParts(saved(), Boolean(person.photoAt), wearsNumbers(team, sportOfTeam(database, team.id)), sportOfTeam(database, team.id)).length === 0 : false;
   const startedIncomplete = useRef(!savedComplete);
   useEffect(() => {
     if (savedComplete && startedIncomplete.current && !isHintDismissed('cardReveal')) {
@@ -224,8 +224,8 @@ export function PlayerProfileEditor({ database, person }: { database: LocalDatab
     }
   }, [savedComplete]);
   if (!team) return null;
-  const fixedNumbers = team.fixedNumbers !== false;
   const sport = sportOfTeam(database, team.id);
+  const fixedNumbers = wearsNumbers(team, sport);
   const before = saved();
   const dirty = JSON.stringify({ ...value, position: value.position?.trim() || null }) !== JSON.stringify(before);
   const heightOk = value.heightCm === null || (value.heightCm >= 100 && value.heightCm <= 230);
@@ -288,7 +288,7 @@ export function playerFactsText(database: LocalDatabase, teamId: string, personI
   const team = database.teams.find((candidate) => candidate.id === teamId);
   const inTeam = playerDetailsFor(database, teamId, personId);
   const facts = [
-    team?.fixedNumbers !== false && inTeam?.jerseyNumber != null ? `#${inTeam.jerseyNumber}` : null,
+    wearsNumbers(team, sportOfTeam(database, teamId)) && inTeam?.jerseyNumber != null ? `#${inTeam.jerseyNumber}` : null,
     positionShort(inTeam?.position, t),
   ].filter(Boolean);
   return facts.length > 0 ? facts.join(' · ') : null;
@@ -304,8 +304,8 @@ export function CoachPlayerProfile({ database, teamId, person, canEdit }: { data
   const [number, setNumber] = useState(value.jerseyNumber === null ? '' : String(value.jerseyNumber));
   const [position, setPosition] = useState<string | null>(value.position);
   const [error, setError] = useState<unknown>(null);
-  const fixedNumbers = team?.fixedNumbers !== false;
   const sport = sportOfTeam(database, teamId);
+  const fixedNumbers = wearsNumbers(team, sport);
   const parsed = number.trim() === '' ? null : Number(number);
   const dirty = (fixedNumbers && parsed !== value.jerseyNumber) || (position?.trim() || null) !== value.position;
   return (
@@ -363,9 +363,9 @@ export function ProfileTeaser({ database, personId }: { database: LocalDatabase;
   // The device's memory is only read after the first paint, like every hint.
   const [dismissed, setDismissed] = useState(true);
   useEffect(() => setDismissed(isHintDismissed('profileNudge')), []);
-  const { done, total, missing } = profileCompleteness(database, personId);
   const firstTeam = database.memberships.find((membership) => membership.personId === personId && membership.role === 'athlete')?.teamId;
   const sport = sportOfTeam(database, firstTeam);
+  const { done, total, missing } = profileCompleteness(database, personId, wearsNumbers(database.teams.find((team) => team.id === firstTeam), sport));
   if (dismissed || missing.length === 0) return null;
   return (
     <div className="flex items-center gap-3 rounded-xl border border-emerald-300/25 bg-emerald-300/[0.05] px-3 py-2.5">

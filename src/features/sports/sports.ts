@@ -124,6 +124,22 @@ export function sportOfTeam(database: LocalDatabase, teamId: string | null | und
   return team ? sportOfDepartment(database.departments.find((department) => department.id === team.departmentId)) : null;
 }
 
+/**
+ * Sports where players wear a fixed shirt number. Tennis, table tennis,
+ * athletics (a start number per event), swimming and gymnastics do not, so
+ * the app asks for none there. An unknown sport keeps the question.
+ */
+const NUMBERED_SPORTS: SportKey[] = ['football', 'basketball', 'handball', 'volleyball', 'hockey'];
+
+export function sportHasNumbers(sport: SportKey | null): boolean {
+  return sport === null || NUMBERED_SPORTS.includes(sport);
+}
+
+/** Whether to ask for and show a shirt number: the team uses fixed ones (0052) and its sport has them. */
+export function wearsNumbers(team: { fixedNumbers?: boolean } | null | undefined, sport: SportKey | null): boolean {
+  return team?.fixedNumbers !== false && sportHasNumbers(sport);
+}
+
 export function gameMaxMinutes(sport: SportKey | null): number {
   return (sport && GAME_MAX_MINUTES[sport]) || DEFAULT_GAME_MAX_MINUTES;
 }
