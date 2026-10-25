@@ -10,7 +10,7 @@
  * reveal (`CardReveal`), the first time on this device.
  */
 
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { CardReveal } from '@/features/people/CardReveal';
 import { shrinkPhoto } from '@/features/people/PersonPhoto';
@@ -18,7 +18,7 @@ import { PlayerCard, PositionPicker, SideSwitch, missingParts, type PlayerProfil
 import { ConsentFields, consentComplete } from '@/features/legal/ConsentFields';
 import { SPORTS, sportOfKey } from '@/features/onboarding/foundSuggestions';
 import { positionField, strongSideLabel } from '@/features/sports/sports';
-import { dismissHint, isHintDismissed, storePendingPhoto, type AccessConsent, type SportKey } from '@/shared/data';
+import { dismissHint, isHintDismissed, storePendingPhoto, storeWizardProgress, type AccessConsent, type SportKey } from '@/shared/data';
 import { useT, type MessageKey } from '@/shared/i18n';
 import type { PlayerContext } from '@/features/onboarding/ProfileStep';
 
@@ -46,7 +46,7 @@ function readAsDataUrl(file: Blob) {
   });
 }
 
-export function PlayerWizard({ player, askName, knownName, firstName, lastName, onName, details, onDetails, photo, onPhoto, consent, onConsent, knownBirthYear, submitLabel, busy, onFinish }: {
+export function PlayerWizard({ player, askName, knownName, firstName, lastName, onName, details, onDetails, photo, onPhoto, consent, onConsent, knownBirthYear, submitLabel, busy, onFinish, resume }: {
   player: PlayerContext;
   askName: boolean;
   knownName?: string;
@@ -63,6 +63,8 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
   submitLabel: string;
   busy: boolean;
   onFinish: (sport: SportKey | null) => void;
+  /** Where it was left last time. */
+  resume?: { step: number; sport: SportKey | null } | null;
 }) {
   const t = useT();
   const steps: Step[] = [
@@ -71,8 +73,25 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
     ...(player.fixedNumbers ? ['number' as const] : []),
     'body', 'consent',
   ];
-  const [index, setIndex] = useState(0);
-  const [sport, setSport] = useState<SportKey | null>(player.sport);
+  const [index, setIndex] = useState(() => Math.min(resume?.step ?? 0, steps.length - 1));
+  const [sport, setSport] = useState<SportKey | null>(player.pickSport ? resume?.sport ?? player.sport : player.sport);
+
+  // Every answer stays on the device until the card is done.
+  useEffect(() => {
+    storeWizardProgress({ firstName, lastName, details, consent, sport, step: index });
+  }, [firstName, lastName, details, consent, sport, index]);
+
+  // The phone's back (button or swipe) goes one step back, not out of the wizard.
+  useEffect(() => {
+    const onPop = (event: PopStateEvent) => {
+      const step = (event.state as { wizardStep?: number } | null)?.wizardStep;
+      setIndex(typeof step === 'number' ? step : 0);
+    };
+    window.history.replaceState({ ...(window.history.state ?? {}), wizardStep: index }, '');
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [revealing, setRevealing] = useState(false);
   const [photoError, setPhotoError] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -82,8 +101,15 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
   const total = player.fixedNumbers ? 5 : 4;
   const percent = Math.round(((total - missing.length) / total) * 100);
   const set = (change: Partial<PlayerProfileValue>) => onDetails({ ...details, ...change });
-  const next = () => setIndex((current) => Math.min(current + 1, steps.length - 1));
-  const back = () => setIndex((current) => Math.max(current - 1, 0));
+  const next = () => {
+    const step = Math.min(index + 1, steps.length - 1);
+    window.history.pushState({ ...(window.history.state ?? {}), wizardStep: step }, '');
+    setIndex(step);
+  };
+  const back = () => {
+    if ((window.history.state as { wizardStep?: number } | null)?.wizardStep === index && index > 0) window.history.back();
+    else setIndex((current) => Math.max(current - 1, 0));
+  };
   // Where each missing part is asked, to jump back from the last step.
   const stepOfPart: Record<string, Step> = {
     'profile.part.photo': 'photo', 'profile.part.number': 'number',

@@ -3128,3 +3128,11 @@ Ben: „das komplette UI noch viel besser“, weniger KI-Optik (die Sportart-Chi
 - **`PlayerWizard`** statt einem langen Formular: eine Frage pro Bildschirm (Name · Foto · Wo spielst du? · Rückennummer · Größe und starke Seite · Abschluss), jeweils mit „Schritt 3 von 6“, großer Frage, einem Satz dazu, Zurück und Weiter; optionale Schritte zeigen „Erst mal überspringen“, bis etwas eingetragen ist. Die Karte oben füllt sich mit jeder Antwort, wächst kurz auf und zeigt „Karte 60 %“ mit Fortschrittsbalken.
 - **Eingaben:** Foto als großer Kreis zum Antippen; Sportart und Position als zwei Auswahllisten (keine Chips mehr); Rückennummer direkt auf ein Trikot getippt; Größe per Schieberegler mit großer Zahl; starke Seite als ein Umschalter (auch in den Einstellungen). Am Ende „Noch eine Sache bis zur vollständigen Karte: + Foto“, ein Tipp springt zurück zu dem Schritt. Vollständig → Karten-Enthüllung.
 - Gilt für Beitreten mit Link und ohne Code; Trainer und Vereinsrollen behalten das kurze Formular (Name, Zustimmung).
+
+## Run 100 — Assistent: Zurück ohne Verlust, Geburtsjahr per Regler, ruhigere Rechtslinks (2026-10-25)
+
+Ben: Zurück im Assistenten warf alles weg; Geburtsjahr als Schieberegler statt Freitext; Nutzungsbedingungen/Datenschutz/Impressum unten sehen nicht schön aus.
+
+- **Zurück und Weglaufen:** Jeder Schritt ist ein Eintrag im Verlauf, also geht Zurück (Knopf oder Wischgeste) einen Schritt zurück statt aus dem Assistenten. Alle Antworten und der Schritt bleiben auf dem Gerät (`readWizardProgress`/`storeWizardProgress` in `repository.ts`), auch beim Neuladen oder Verlassen der Seite; gelöscht, sobald die Karte abgeschickt ist.
+- **Geburtsjahr:** Schieberegler (vor 90 bis vor 5 Jahren) mit großer Jahreszahl und − / + für das letzte Jahr; überall, wo Zustimmung gefragt wird.
+- **Rechtslinks:** Im Zustimmungstext stecken die Links jetzt im Satz („Ich akzeptiere die Nutzungsbedingungen und die Datenschutzerklärung“); die eigene Linkzeile dort ist weg. Unten auf den Einstiegsseiten nur noch eine kleine graue Zeile Impressum · Datenschutzerklärung · Nutzungsbedingungen (das Impressum muss erreichbar bleiben).
