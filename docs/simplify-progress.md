@@ -3111,3 +3111,12 @@ Ben: von der Landingpage klarer zum Loslegen kommen (nicht nur „Anmelden“ ob
 - **Karte:** Logo als Goldplakette oben rechts und als Wasserzeichen unten, Rückseite mit Logo und Vereinsname; unten „Verein · Abteilung“ und „Saison 26/27“; funkelnde Sterne, aufsteigende Funken hinter der Karte, schimmernder Nachname, pulsierende Goldnummer, Farblicht aufs Foto, innerer Kartenrahmen; die Karte kippt auch mit dem Handy (Lagesensor; iPhone fragt beim ersten Tippen). Kleine Karte zeigt das Logo neben dem Teamnamen.
 - **Positionskatalog** (Bens Liste): Fußball, Handball, Basketball (mit flexiblen Rollen), Volleyball, Hockey, Leichtathletik (Disziplinen nach Gruppen), Schwimmen (Stile, Freiwasser, Staffeln), Turnen (Geräte, Mehrkampf, weitere), Tennis und Tischtennis (Spielstil); im Dropdown nach Gruppen. Spielhand ist die starke Seite; Rückhand, Schlägerhaltung, Wettbewerb und Schwimmstrecken sind (noch) keine eigenen Felder.
 - Demo: SV-Ruhrtal-Wappen als Logo für U16 und Damen 1; Schema-Version `2026-10-24-team-logos-v27`.
+
+## Run 98 — Spieler: erst die Karte, dann das Konto, dann das Team (2026-10-25)
+
+Ben: „Loslegen → Spieler“ verlangte zuerst den Teamcode; besser erst die Karte, dann registrieren, dann den Code eingeben oder per Link beitreten.
+
+- **`/join` ohne Code** (`CardFirstFlow`): Schritte Du · Konto · Beitreten. Zuerst die Spielerkarte mit Name, Bild, Sportart zum Antippen (für passende Positionen), Nummer, Position, Größe, starke Seite, Geburtsjahr und Zustimmung (die Karten-Enthüllung kommt hier schon vor dem Konto); dann das Konto; dann „Jetzt dein Team“: Code oder Link einfügen, Team und Verein werden angezeigt, „Team beitreten“. Ohne Code: „Karte und Konto sind gespeichert, öffne später einfach den Link deines Trainers“; der Link (`/join?code=…`) findet die wartende Karte und braucht nur noch „Beitreten“.
+- **Neu hier → Als Spieler** führt direkt dorthin (statt zur Code-Eingabe).
+- Mit Link bleibt es wie bisher (Team zuerst sichtbar, dann Karte, Konto, Beitreten).
+- **Nebenbei (UI):** Die Profilanzeige „Profil 0 von 5 · Fehlt: …“ drückte bei langem Text die Karte über den Rand (375–390 px); Karte und Liste zeigen Positionen ohne Kürzel („Point Guard“ statt „Point Guard (PG / 1)“), das Dropdown mit.

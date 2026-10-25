@@ -144,6 +144,12 @@ export function positionText(position: string | null | undefined, t: (key: Messa
   return position.startsWith('position.') ? null : position;
 }
 
+/** For cards and lists: the name without the short form the dropdown shows ("Point Guard (PG / 1)" → "Point Guard"). */
+export function positionShort(position: string | null | undefined, t: (key: MessageKey) => string): string | null {
+  const text = positionText(position, t);
+  return text && isKnownPosition(position) ? text.replace(/\s*\([^)]*\)\s*$/, '') : text;
+}
+
 export function isKnownPosition(position: string | null | undefined): boolean {
   return Boolean(position && POSITION_KEYS.has(position));
 }

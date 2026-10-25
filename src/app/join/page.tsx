@@ -7,9 +7,10 @@
  *   Head Coach) and for club roles (department lead, from the club admin).
  *   Shows who it is for, then (after signing in or creating an account)
  *   links the account to that person.
- * - `/join?code=<code>` or `/join`: a player's way in. The code (or the
- *   link, or the QR code that carries it) shows club and team before any
- *   account exists, then account, name, done.
+ * - `/join?code=<code>`: a player's way in with the team's link (or QR
+ *   code): club and team first, then the card, account, done.
+ * - `/join`: a player without a code yet: the card, the account, and then
+ *   the code (or the link opened later, which finds the card waiting).
  *
  * The form for the account appears in place, and the mail confirmation (if
  * the project asks for one) leads back to the same step.
@@ -137,6 +138,121 @@ function InviteFlow({ token, account }: { token: string; account: Account }) {
   );
 }
 
+const CARD_FIRST = 'join:';
+
+/**
+ * A player without a code or link yet (Ben, 2026-10-25): first the card
+ * (name, photo, position … and consent), then the account, and only then
+ * the team's code, or its link opened later. Everything waits on the
+ * device until then (`repository.ts`).
+ */
+function CardFirstFlow({ account }: { account: Account }) {
+  const t = useT();
+  const status = useBackendStatus();
+  useLocalDatabase();
+  const [draft, setDraft] = useState(() => readOnboardingDraft(CARD_FIRST));
+  const [value, setValue] = useState('');
+  const [preview, setPreview] = useState<{ code: string; data: JoinCodePreview } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const labels = [t('onboarding.step.you'), t('onboarding.step.account'), t('onboarding.step.join')];
+  const database = status.phase === 'ready' ? readDatabase() : null;
+  const me = database ? database.people.find((person) => ownPersonIds(database).includes(person.id)) ?? null : null;
+  const current = account && draft ? 2 : draft ? 1 : 0;
+  const title = t('onboarding.join.title');
+
+  if (!draft) {
+    return (
+      <Shell title={title} steps={{ labels, current }}>
+        {account ? <AccountLine account={account} /> : null}
+        <p className="px-1 text-sm text-slate-400">{t('onboarding.join.cardFirst')}</p>
+        <ProfileStep
+          askName={!me} knownName={me ? `${me.firstName} ${me.lastName}` : undefined} knownBirthYear={me?.birthYear}
+          player={{ teamName: null, sport: null, fixedNumbers: true, pickSport: true }} initial={null} submitLabel={t('common.continue')}
+          onDone={(profile) => {
+            const next = { for: CARD_FIRST, ...profile, ...(me ? { firstName: me.firstName, lastName: me.lastName } : {}) };
+            storeOnboardingDraft(next);
+            setDraft(next);
+          }}
+        />
+      </Shell>
+    );
+  }
+
+  if (!account) {
+    return (
+      <Shell title={title} steps={{ labels, current }}>
+        <AuthForm legalLinks={false} initialMode="signUp" consent={draft.consent} returnTo="/join" intro={t('onboarding.join.cardFirstAccount')} />
+        <button type="button" onClick={() => setDraft(null)} className="justify-self-start px-1 text-xs font-bold text-slate-400 underline">{t('onboarding.back')}</button>
+      </Shell>
+    );
+  }
+
+  async function check(event: React.FormEvent) {
+    event.preventDefault();
+    const code = joinCodeFrom(value);
+    if (code.length < 6) return setError(t('onboarding.who.errorJoinCode'));
+    setBusy(true);
+    setError(null);
+    try {
+      const found = await previewJoinCode(code);
+      if (!found) setError(t('onboarding.join.codeUnknown'));
+      else if (!found.usable) setError(t('onboarding.join.teamInactive'));
+      else setPreview({ code, data: found });
+    } catch (caught) {
+      setError(errorText(t, caught));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function join() {
+    if (!preview) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const teamId = await joinTeamWithCode(preview.code, me ? me.firstName : draft!.firstName, me ? me.lastName : draft!.lastName, draft!.consent);
+      if (draft!.details) storePendingPlayerDetails({ teamId, ...draft!.details });
+      clearOnboardingDraft();
+      continueAs('athlete', teamId);
+    } catch (caught) {
+      setError(errorText(t, caught));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Shell title={title} steps={{ labels, current }}>
+      <AccountLine account={account} />
+      {preview ? (
+        <section className="os-panel grid gap-3 p-5">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">{preview.data.clubName}</p>
+          <p className="-mt-2 text-2xl font-black text-white">{preview.data.teamName}</p>
+          <ErrorLine message={error} />
+          <button type="button" disabled={busy || status.phase === 'loading'} onClick={() => void join()} className="os-success justify-center disabled:opacity-60">
+            {busy ? t('common.oneMoment') : t('onboarding.join.submit')}
+          </button>
+          <button type="button" onClick={() => { setPreview(null); setError(null); }} className="justify-self-start text-xs font-bold text-slate-400 underline">{t('onboarding.join.otherCode')}</button>
+        </section>
+      ) : (
+        <form onSubmit={check} className="os-panel grid gap-3 p-5">
+          <div>
+            <p className="text-lg font-black text-white">{t('onboarding.join.nowTeam')}</p>
+            <p className="mt-1 text-sm text-slate-400">{t('onboarding.join.nowTeamDetail')}</p>
+          </div>
+          <label className="grid gap-1 text-sm font-bold text-slate-200">
+            {t('onboarding.join.codeOrLink')}
+            <input value={value} onChange={(event) => { setValue(event.target.value); setError(null); }} placeholder="ABCD-EFGH" autoCapitalize="characters" autoComplete="off" spellCheck={false} className="os-field font-mono tracking-[0.15em]" />
+          </label>
+          <ErrorLine message={error} />
+          <button type="submit" disabled={busy} className="os-success justify-center disabled:opacity-60">{busy ? t('common.checkingCode') : t('common.continue')}</button>
+          <p className="text-xs text-slate-500">{t('onboarding.join.laterHint')}</p>
+        </form>
+      )}
+    </Shell>
+  );
+}
+
 /** Step 1 for players without a link: type the code. */
 function EnterCode({ initial, message }: { initial: string; message?: string }) {
   const t = useT();
@@ -168,7 +284,8 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
   // joining goes through.
   useLocalDatabase();
   const draftKey = `join:${code}`;
-  const [draft, setDraft] = useState(() => (code ? readOnboardingDraft(draftKey) : null));
+  // The card may have been made before the code (`CardFirstFlow`): it counts here too.
+  const [draft, setDraft] = useState(() => (code ? readOnboardingDraft(draftKey) ?? readOnboardingDraft(CARD_FIRST) : null));
   const [preview, setPreview] = useState<JoinCodePreview | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
@@ -182,7 +299,6 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
 
   const title = t('onboarding.join.title');
   const first = { labels, current: 0 };
-  if (!code) return <Shell title={title} steps={first}><EnterCode initial="" /></Shell>;
   if (preview === undefined) return <Shell title={title} steps={first}><p className="text-sm text-slate-400">{t('common.checkingCode')}</p></Shell>;
   if (!preview) return <Shell title={title} steps={first}><EnterCode initial={code} message={loadError ? errorText(t, loadError) : t('onboarding.join.codeUnknown')} /></Shell>;
   if (!preview.usable) return <Shell title={title} steps={first}><EnterCode initial="" message={t('onboarding.join.teamInactive')} /></Shell>;
@@ -265,7 +381,8 @@ function JoinContent() {
   if (account === undefined) return <Shell title={t('start.kicker')}><p className="text-sm text-slate-400">{t('common.oneMoment')}</p></Shell>;
   const invite = params.get('invite');
   if (invite) return <InviteFlow token={invite} account={account} />;
-  return <CodeFlow code={joinCodeFrom(params.get('code') ?? '')} account={account} />;
+  const code = joinCodeFrom(params.get('code') ?? '');
+  return code ? <CodeFlow code={code} account={account} /> : <CardFirstFlow account={account} />;
 }
 
 export default function JoinPage() {
