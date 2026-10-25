@@ -3151,3 +3151,9 @@ Ben: prüfen, welche Sportarten überhaupt Rückennummern haben; bei allen ander
 
 - Feste Rückennummern gibt es in Fußball, Basketball, Handball, Volleyball und Hockey. Tennis, Tischtennis, Schwimmen und Turnen haben keine; in der Leichtathletik gibt es nur Startnummern je Wettkampf. Unbekannte Sportart: die Frage bleibt.
 - `sportHasNumbers`/`wearsNumbers` in `features/sports/sports.ts`: Nummer nur, wenn das Team feste Nummern hat (0052) und die Sportart welche kennt. Gilt im Assistenten (der Schritt „Rückennummer“ fällt weg, „Schritt x von 5“; beim Wechsel auf eine solche Sportart wird eine schon getippte Nummer verworfen), auf der Karte, in der Enthüllung, in den Einstellungen, beim Trainer (Liste, Spielerblatt), im Profil-Hinweis auf Heute, und der Schalter „Feste Rückennummern“ erscheint nur bei Sportarten mit Nummern.
+
+## Run 103 — Enthüllung auch ohne Rückennummer (2026-10-25)
+
+Ben: wer die Nummer überspringt, soll die Karten-Enthüllung trotzdem bekommen (nur die Nummer darf fehlen).
+
+- `readyForReveal` (`PlayerProfile.tsx`): die Enthüllung kommt, wenn alles außer höchstens der Nummer da ist; im Assistenten und in den Einstellungen („Meine Karte ansehen“ ebenso). Fehlt etwas anderes, z. B. das Foto, bleibt sie aus. Im Browser geprüft: mit Foto und ohne Nummer → Enthüllung; ohne Foto → keine.
