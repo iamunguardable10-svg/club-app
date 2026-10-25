@@ -171,6 +171,10 @@ export type Team = {
   createdAt: Timestamp;
   /** Whether players wear a fixed number here (0052); missing means yes. */
   fixedNumbers?: boolean;
+  /** When the team's logo was put in (0054), its file in the public bucket `team-logos`. */
+  logoAt?: Timestamp | null;
+  /** Local mode only: the logo itself, as a data URL. */
+  logo?: string | null;
 };
 
 export type Facility = {

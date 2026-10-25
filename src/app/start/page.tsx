@@ -151,6 +151,8 @@ function ServerStart() {
   const status = useBackendStatus();
   // "Add a role" from the account menu: every way in, also when signed in.
   const addRole = useSearchParams().get('add') === '1';
+  // "Get started" on the landing page: straight to "Who are you?".
+  const newHere = useSearchParams().get('new') === '1';
   // Reading starts the connection to the server.
   useLocalDatabase();
   const database = status.phase === 'ready' ? readDatabase() : null;
@@ -162,7 +164,7 @@ function ServerStart() {
   if (status.phase === 'signedOut') {
     return (
       <Page>
-        <NewHere onDemo={startDemoFromServer} canSignIn />
+        <NewHere onDemo={startDemoFromServer} canSignIn startAt={newHere ? 'role' : 'choose'} />
       </Page>
     );
   }
@@ -296,7 +298,7 @@ function LocalStart() {
 
   return (
     <Page>
-      <NewHere onDemo={start} canSignIn={serverAvailable} />
+      <NewHere onDemo={start} canSignIn={serverAvailable} startAt={params.get('new') === '1' ? 'role' : 'choose'} />
     </Page>
   );
 }

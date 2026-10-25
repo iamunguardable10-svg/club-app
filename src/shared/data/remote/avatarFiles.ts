@@ -32,3 +32,16 @@ export async function avatarLinks(paths: string[]): Promise<Map<string, string>>
   for (const entry of data ?? []) if (entry.path && entry.signedUrl) links.set(entry.path, entry.signedUrl);
   return links;
 }
+
+// Team logos (0054): a public bucket, one PNG per team at `<club>/<team>.png`.
+const LOGO_BUCKET = 'team-logos';
+
+export async function uploadTeamLogo(path: string, file: Blob): Promise<void> {
+  const { error } = await getSupabase().storage.from(LOGO_BUCKET).upload(path, file, { contentType: 'image/png', upsert: true });
+  if (error) throw new Error(error.message);
+}
+
+export async function removeTeamLogo(path: string): Promise<void> {
+  const { error } = await getSupabase().storage.from(LOGO_BUCKET).remove([path]);
+  if (error) throw new Error(error.message);
+}

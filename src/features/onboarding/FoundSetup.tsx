@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { ShareLink } from '@/features/onboarding/ShareLink';
+import { TeamLogoPicker } from '@/features/teams/TeamLogo';
 import { ErrorLine, OnboardingShell as Shell, continueAs } from '@/features/onboarding/OnboardingShell';
 import { Choice, HALL_SUGGESTIONS, SPORTS, TEAM_SUGGESTIONS, ageGroupOf, sportOfKey } from '@/features/onboarding/foundSuggestions';
 import {
@@ -200,6 +201,7 @@ function ShareTeam({ database, teamId, teamName, departmentName, run }: { databa
   const t = useT();
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
   const code = joinCodeFor(database, teamId);
+  const team = database.teams.find((candidate) => candidate.id === teamId);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const staff = database.memberships.filter((membership) => membership.teamId === teamId && membership.role === 'coach');
@@ -213,9 +215,13 @@ function ShareTeam({ database, teamId, teamName, departmentName, run }: { databa
 
   return (
     <section className="os-panel grid grid-cols-[minmax(0,1fr)] gap-3 p-5">
-      <div>
-        <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{departmentName}</p>
-        <p className="text-lg font-black text-white">{teamName}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{departmentName}</p>
+          <p className="text-lg font-black text-white">{teamName}</p>
+        </div>
+        {/* The logo goes on every player's card (0054); optional. */}
+        {team ? <TeamLogoPicker database={database} team={team} compact /> : null}
       </div>
       <div className="grid gap-1.5">
         <p className="text-sm font-black text-slate-200">{t('onboarding.share.players')}</p>

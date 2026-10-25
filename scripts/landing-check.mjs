@@ -18,11 +18,13 @@ try {
     assert.equal(await page.locator('h1').count(), 1);
     assert.equal(await page.locator('html').getAttribute('lang'), locale);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    // "Get started" leads to the real ways in; the demo sits next to it, in the chosen role.
+    assert.equal(await page.locator('.hero-actions').first().locator('a').first().getAttribute('href'), '/start?new=1');
     for (const role of ['coach', 'athlete', 'club']) {
       await page.locator(`.demo-roles button`).nth(['coach', 'athlete', 'club'].indexOf(role)).click();
-      assert.equal(await page.locator('.hero-actions').first().locator('a').first().getAttribute('href'), `/start?demo=${role}`);
+      assert.equal(await page.locator('.hero-actions').first().locator('a').nth(1).getAttribute('href'), `/start?demo=${role}`);
     }
-    const mail = new URL(await page.locator('.hero-actions').first().locator('a').nth(1).getAttribute('href'));
+    const mail = new URL(await page.locator('.pilot-panel a').first().getAttribute('href'));
     const catalog = JSON.parse(await fs.readFile(new URL(`../src/shared/i18n/messages/${locale}.json`, import.meta.url), 'utf8'));
     assert.equal(mail.searchParams.get('subject'), catalog['landing.mail.subject']);
     assert.equal(mail.searchParams.get('body'), catalog['landing.mail.body']);

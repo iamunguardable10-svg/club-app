@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { PILOT_MAIL } from '@/features/landing/pilotMail';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { hasSignedInAccount, isServerAvailable } from '@/shared/data';
@@ -56,7 +57,7 @@ export function LandingPage() {
   const [visible, setVisible] = useState(false);
   const [role, setRole] = useState<(typeof roles)[number]['id']>('coach');
   const root = useRef<HTMLDivElement>(null);
-  const pilot = `mailto:ben.hebling@gmx.de?subject=${encodeURIComponent(t('landing.mail.subject'))}&body=${encodeURIComponent(t('landing.mail.body'))}`;
+  const pilot = `mailto:${PILOT_MAIL}?subject=${encodeURIComponent(t('landing.mail.subject'))}&body=${encodeURIComponent(t('landing.mail.body'))}`;
 
   useEffect(() => {
     let active = true;
@@ -89,7 +90,7 @@ export function LandingPage() {
     <a href="#main" className="marketing-skip">{t('landing.skip')}</a>
     <header className="marketing-nav wrap">
       <Link href="/" className="marketing-brand" aria-label="Club OS"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span>Club OS<span className="brand-beta">{t('landing.pilotBadge')}</span></Link>
-      <nav aria-label={t('landing.navigation')}><a href="#features" className="nav-features">{t('landing.features')}</a><Link href="/start" className="nav-signin">{t('landing.signIn')} <span aria-hidden="true">↗</span></Link></nav>
+      <nav aria-label={t('landing.navigation')}><a href="#features" className="nav-features">{t('landing.features')}</a><Link href="/start" className="nav-features">{t('landing.signIn')}</Link><Link href="/start?new=1" className="nav-signin">{t('landing.getStarted')} <span aria-hidden="true">↗</span></Link></nav>
     </header>
     <main id="main">
       <section className="marketing-hero wrap">
@@ -97,9 +98,10 @@ export function LandingPage() {
           <a href="#pilot" className="hero-eyebrow"><span className="live-dot" />{t('landing.eyebrow')}<span aria-hidden="true">↗</span></a>
           <h1>{t('landing.headline.first')}<br /><span>{t('landing.headline.second')}</span></h1>
           <p className="hero-subline">{t('landing.subline')}</p>
-          <div className="hero-actions"><Link className="marketing-button primary" href={`/start?demo=${role}`}>{t('landing.demo')}<span aria-hidden="true">↗</span></Link><a className="marketing-button secondary" href={pilot}>{t('landing.requestPilot')}</a></div>
+          <div className="hero-actions"><Link className="marketing-button primary" href="/start?new=1">{t('landing.getStarted')}<span aria-hidden="true">↗</span></Link><Link className="marketing-button secondary" href={`/start?demo=${role}`}>{t('landing.demo')}</Link></div>
           <div className="demo-roles" role="group" aria-label={t('landing.demoRole')}><span>{t('landing.exploreAs')}</span>{roles.map((item) => <button key={item.id} type="button" aria-pressed={role === item.id} onClick={() => setRole(item.id)}>{t(item.key)}</button>)}</div>
-          <p className="hero-note">{t('landing.noAccount')} <Link href="/start">{t('landing.signIn')} <span aria-hidden="true">↗</span></Link></p>
+          <p className="hero-note">{t('landing.noAccount')}</p>
+          <p className="hero-note"><Link href="/start">{t('landing.haveAccount')} <span aria-hidden="true">↗</span></Link></p>
         </div>
         <div className="hero-visual" aria-label={t('landing.visualLabel')}>
           <div className="hero-orbit" aria-hidden="true" />
@@ -128,8 +130,8 @@ export function LandingPage() {
       <section className="trust-section wrap" data-reveal><div className="section-heading"><p className="marketing-kicker">{t('landing.trust.kicker')}</p><h2>{t('landing.trust.title')}</h2></div><div className="trust-grid">{(['landing.trust.eu', 'landing.trust.ads', 'landing.trust.consent', 'landing.trust.install'] as const).map((key) => <p key={key}><span aria-hidden="true">✓</span>{t(key)}</p>)}</div><Link href="/terms" className="hover:text-white">{t('legal.terms')}</Link><Link href="/privacy" className="feature-link">{t('landing.privacy')} <span aria-hidden="true">↗</span></Link></section>
       <section id="pilot" className="pilot-section wrap" data-reveal><div className="pilot-panel"><div><p className="marketing-kicker">{t('landing.pilot.kicker')}</p><h2>{t('landing.pilot.title')}</h2><p>{t('landing.pilot.body')}</p><a href={pilot} className="marketing-button primary">{t('landing.requestPilot')} <span aria-hidden="true">↗</span></a></div><ul>{(['landing.pilot.setup', 'landing.pilot.direct', 'landing.pilot.shape'] as const).map((key) => <li key={key}><span aria-hidden="true">↗</span>{t(key)}</li>)}</ul></div></section>
       <section className="faq-section wrap" data-reveal><div className="section-heading"><p className="marketing-kicker">{t('landing.faq.kicker')}</p><h2>{t('landing.faq.title')}</h2></div><div className="faq-list">{faqs.map((faq) => <details key={faq.q}><summary>{t(faq.q)}<span aria-hidden="true">+</span></summary><p>{t(faq.a)}</p></details>)}</div></section>
-      <section className="final-section wrap" data-reveal><p className="marketing-kicker">{t('landing.final.kicker')}</p><h2>{t('landing.final.title')}</h2><div className="hero-actions"><a href={pilot} className="marketing-button primary">{t('landing.requestPilot')} <span aria-hidden="true">↗</span></a><Link href="/start?demo=coach" className="marketing-button secondary">{t('landing.demo')}</Link></div></section>
+      <section className="final-section wrap" data-reveal><p className="marketing-kicker">{t('landing.final.kicker')}</p><h2>{t('landing.final.title')}</h2><div className="hero-actions"><Link href="/start?new=1" className="marketing-button primary">{t('landing.getStarted')} <span aria-hidden="true">↗</span></Link><Link href="/start?demo=coach" className="marketing-button secondary">{t('landing.demo')}</Link></div></section>
     </main>
-    <footer className="marketing-footer wrap"><div className="footer-top"><Link href="/" className="marketing-brand"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span>Club OS</Link><LanguagePicker compact /></div><div className="footer-bottom"><p>{t('landing.copyright')}</p><nav aria-label={t('landing.legal')}><Link href="/imprint">{t('landing.imprint')}</Link><Link href="/terms" className="hover:text-white">{t('legal.terms')}</Link><Link href="/privacy">{t('landing.privacy')}</Link><a href="mailto:ben.hebling@gmx.de">{t('landing.contact')}</a><Link href="/start">{t('landing.signIn')}</Link></nav></div></footer>
+    <footer className="marketing-footer wrap"><div className="footer-top"><Link href="/" className="marketing-brand"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span>Club OS</Link><LanguagePicker compact /></div><div className="footer-bottom"><p>{t('landing.copyright')}</p><nav aria-label={t('landing.legal')}><Link href="/imprint">{t('landing.imprint')}</Link><Link href="/terms" className="hover:text-white">{t('legal.terms')}</Link><Link href="/privacy">{t('landing.privacy')}</Link><a href={`mailto:${PILOT_MAIL}`}>{t('landing.contact')}</a><Link href="/start">{t('landing.signIn')}</Link></nav></div></footer>
   </div>;
 }

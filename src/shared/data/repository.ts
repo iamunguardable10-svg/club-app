@@ -1215,6 +1215,9 @@ export type JoinCodePreview = {
   /** For the profile step (0053): the team's sport, and whether it has fixed numbers. */
   sport?: SportKey | null;
   fixedNumbers?: boolean;
+  /** For the card (`join_code_card`, 0054): the department, and the team's logo link. */
+  departmentName?: string | null;
+  logoUrl?: string | null;
 };
 
 /** Which club and team a join code belongs to; works before signing in. Null for an unknown code. */
@@ -1226,11 +1229,14 @@ export async function previewJoinCode(code: string): Promise<JoinCodePreview | n
   if (!row) return null;
   // Only what the profile step asks; without it the step stays general.
   const profile = await supabase.rpc('join_code_profile', { p_code: code }).then(({ data: rows }) => (rows as Record<string, unknown>[] | null)?.[0] ?? null, () => null);
+  const card = await supabase.rpc('join_code_card', { p_code: code }).then(({ data: rows }) => (rows as Record<string, unknown>[] | null)?.[0] ?? null, () => null);
   const sport = profile?.sport ? String(profile.sport) : null;
   return {
     clubName: String(row.club_name), teamName: String(row.team_name), usable: Boolean(row.usable),
     sport: sport && (SPORT_KEYS as readonly string[]).includes(sport) ? (sport as SportKey) : null,
     fixedNumbers: profile ? profile.fixed_numbers !== false : true,
+    departmentName: card?.department_name ? String(card.department_name) : null,
+    logoUrl: card?.logo ? teamLogoLink(String(card.logo)) : null,
   };
 }
 
@@ -3908,6 +3914,73 @@ export function profileCompleteness(database: LocalDatabase, personId: Id): { do
     ['side', details?.strongSide != null],
   ];
   return { done: parts.filter(([, ok]) => ok).length, total: parts.length, missing: parts.filter(([, ok]) => !ok).map(([part]) => part) };
+}
+
+// ---------------------------------------------------------------------------
+// Team logos (0054): public, one PNG per team, put in by who configures or runs it
+// ---------------------------------------------------------------------------
+
+export const LOGO_MAX_BYTES = 250_000;
+
+/** Whether one may put in or remove this team's logo: configures it (manageStaff) or runs it. */
+export function mayChangeTeamLogo(database: LocalDatabase, teamId: Id): boolean {
+  return ownPersonIds(database).some((me) => hasCoachPermission(database, me, teamId, 'manageStaff') || managesTeam(database, me, teamId));
+}
+
+function teamLogoPath(team: Pick<Team, 'clubId' | 'id'>) {
+  return `${team.clubId}/${team.id}.png`;
+}
+
+/** The public link of a stored logo path (`<club>/<team>.png?v=…`), as `join_code_card` gives it. */
+export function teamLogoLink(path: string): string {
+  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/team-logos/${path}`;
+}
+
+/** The team's logo to show, or null. */
+export function teamLogoUrl(team: Team | null | undefined): string | null {
+  if (!team?.logoAt) return null;
+  if (team.logo) return team.logo;
+  if (!isRemoteMode()) return null;
+  return teamLogoLink(`${teamLogoPath(team)}?v=${Math.floor(Date.parse(team.logoAt) / 1000)}`);
+}
+
+export async function setTeamLogo(teamId: Id, logo: Blob): Promise<void> {
+  const database = readDatabase();
+  if (!database) throw new LocalDataError('The data is not loaded yet.');
+  const team = database.teams.find((candidate) => candidate.id === teamId);
+  if (!team) throw new LocalDataError(`Unknown team: ${teamId}`);
+  if (!mayChangeTeamLogo(database, teamId)) throw serverError('Not allowed.');
+  if (logo.size <= 0 || logo.size > LOGO_MAX_BYTES) throw new LocalDataError('The logo is too large.');
+  const now = new Date().toISOString();
+  const dataUrl = isRemoteMode() ? null : await readAsDataUrl(logo);
+  if (isRemoteMode()) {
+    const files = await import('./remote/avatarFiles');
+    await files.uploadTeamLogo(teamLogoPath(team), logo);
+  }
+  mutate((draft) => {
+    const own = draft.teams.find((candidate) => candidate.id === teamId);
+    if (!own) return;
+    own.logoAt = now;
+    if (dataUrl) own.logo = dataUrl;
+  });
+}
+
+export async function removeTeamLogo(teamId: Id): Promise<void> {
+  const database = readDatabase();
+  if (!database) throw new LocalDataError('The data is not loaded yet.');
+  const team = database.teams.find((candidate) => candidate.id === teamId);
+  if (!team) throw new LocalDataError(`Unknown team: ${teamId}`);
+  if (!mayChangeTeamLogo(database, teamId)) throw serverError('Not allowed.');
+  if (isRemoteMode() && team.logoAt) {
+    const files = await import('./remote/avatarFiles');
+    await files.removeTeamLogo(teamLogoPath(team));
+  }
+  mutate((draft) => {
+    const own = draft.teams.find((candidate) => candidate.id === teamId);
+    if (!own) return;
+    own.logoAt = null;
+    own.logo = null;
+  });
 }
 
 /** Whether the team's players wear a fixed number (0052): who configures the team (manageStaff). */

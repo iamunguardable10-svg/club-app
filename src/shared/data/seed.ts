@@ -255,14 +255,16 @@ export function createSeedDatabase(now: Date = new Date(), locale: Locale = 'en'
     ...[FACILITY_MAIN, FACILITY_SOUTH].map((facilityId) => ({ departmentId: DEPARTMENT_VOLLEYBALL, facilityId })),
   ];
 
+  // The club's crest as the teams' logo (0054), so the player cards show one.
+  const crest = (accent: string) => `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><path d="M60 6 104 20v34c0 28-18 50-44 60C34 104 16 82 16 54V20Z" fill="#0f172a" stroke="${accent}" stroke-width="6"/><path d="M60 22 90 32v22c0 19-12 35-30 43-18-8-30-24-30-43V32Z" fill="${accent}" opacity=".18"/><text x="60" y="70" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="30" fill="#fff" text-anchor="middle">SVR</text></svg>`)}`;
   const teams: LocalDatabase['teams'] = [
-    { id: TEAM_U16, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: T.teams.u16, ageGroup: 'U16', defaultFacilityId: FACILITY_MAIN, features: ['load'], archivedAt: null, createdAt },
+    { id: TEAM_U16, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: T.teams.u16, ageGroup: 'U16', defaultFacilityId: FACILITY_MAIN, features: ['load'], archivedAt: null, createdAt, logoAt: createdAt, logo: crest('#fbbf24') },
     // Without load tracking, to show a team that only plans sessions and
     // attendance (piece 3.5). Its players' load history stays, unseen.
     { id: TEAM_U18, clubId: CLUB_ID, departmentId: DEPARTMENT_ID, name: T.teams.u18, ageGroup: 'U18', defaultFacilityId: FACILITY_MAIN, features: [], archivedAt: null, createdAt,
       // Shirts are handed out per game here (0052): no numbers asked.
       fixedNumbers: false },
-    { id: TEAM_W1, clubId: CLUB_ID, departmentId: DEPARTMENT_VOLLEYBALL, name: T.teams.women, ageGroup: 'adults', defaultFacilityId: FACILITY_SOUTH, features: ['load'], archivedAt: null, createdAt },
+    { id: TEAM_W1, clubId: CLUB_ID, departmentId: DEPARTMENT_VOLLEYBALL, name: T.teams.women, ageGroup: 'adults', defaultFacilityId: FACILITY_SOUTH, features: ['load'], archivedAt: null, createdAt, logoAt: createdAt, logo: crest('#34d399') },
   ];
 
   const people: Person[] = [];

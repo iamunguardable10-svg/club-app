@@ -9,6 +9,7 @@
  * once whether they like it.
  */
 
+import { PILOT_MAIL } from '@/features/landing/pilotMail';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -24,7 +25,6 @@ const ROLES: { role: IdentityRole; label: MessageKey }[] = [
   { role: 'athlete', label: 'demo.bar.player' },
 ];
 
-const PILOT_MAIL = 'ben.hebling@gmx.de';
 
 /** What the visitor did in the demo that shows what the app is for, if anything. */
 function demoMoment(database: LocalDatabase): 'absence' | 'session' | null {

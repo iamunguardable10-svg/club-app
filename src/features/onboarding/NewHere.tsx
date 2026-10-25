@@ -2,17 +2,19 @@
 
 /**
  * The first screen for people who are not signed in: "New here" or "Sign
- * in". New here asks who you are and opens the demo club in that role, so
- * everyone sees the app full of real-looking life before making an account
- * (docs/plan-onboarding.md). A link or code (players, invited staff,
- * founders) stays one tap away.
+ * in". New here asks who you are, then shows that role's real way in
+ * (players: the team's code, coaches: their invitation or founding a club,
+ * clubs: the founding code) with "Look at the demo first" next to it
+ * (Ben, 2026-10-24: after the demo, "New here" must not lead back into it).
+ * Without a club server the demo is all there is, so the role opens it.
  */
 
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { WhoAreYou } from '@/features/onboarding/WhoAreYou';
+import { WhoAreYou, type Persona } from '@/features/onboarding/WhoAreYou';
+import { PILOT_MAIL } from '@/features/landing/pilotMail';
 import type { IdentityRole } from '@/shared/data';
 import { useT, type MessageKey } from '@/shared/i18n';
 
@@ -53,9 +55,32 @@ function ScreenStrip() {
   );
 }
 
-export function NewHere({ onDemo, canSignIn }: { onDemo: (role: IdentityRole) => void; canSignIn: boolean }) {
+/** The ways in for each role, the usual one first. */
+const WAYS: Record<IdentityRole, Persona[]> = { athlete: ['player'], coach: ['staff', 'founder'], club: ['founder', 'lead'] };
+const WAY_TITLE: Record<IdentityRole, MessageKey> = { athlete: 'start.way.player', coach: 'start.way.coach', club: 'start.way.club' };
+
+export function NewHere({ onDemo, canSignIn, startAt = 'choose' }: { onDemo: (role: IdentityRole) => void; canSignIn: boolean; startAt?: 'choose' | 'role' }) {
   const t = useT();
-  const [step, setStep] = useState<'choose' | 'role' | 'code'>('choose');
+  const [step, setStep] = useState<'choose' | 'role' | 'code' | 'way'>(startAt);
+  const [role, setRole] = useState<IdentityRole>('athlete');
+
+  if (step === 'way') {
+    const pilot = `mailto:${PILOT_MAIL}?subject=${encodeURIComponent(t('landing.mail.subject'))}&body=${encodeURIComponent(t('landing.mail.body'))}`;
+    return (
+      <>
+        <WhoAreYou only={WAYS[role]} title={t(WAY_TITLE[role])} />
+        <section className="os-panel-soft grid gap-3 p-4">
+          <div>
+            <p className="text-sm font-black text-slate-100">{t('start.way.demoTitle')}</p>
+            <p className="mt-0.5 text-xs text-slate-400">{t('start.way.demoDetail')}</p>
+          </div>
+          <button type="button" onClick={() => onDemo(role)} className="os-secondary justify-center">{t('start.way.demo')}</button>
+          {role !== 'athlete' ? <p className="text-xs text-slate-400">{t('demo.start.noCode')} <a href={pilot} className="font-bold text-sky-300 underline">{t('demo.start.pilot')}</a></p> : null}
+        </section>
+        <button type="button" onClick={() => setStep('role')} className="justify-self-start px-1 text-sm font-bold text-slate-400 underline">{t('start.new.back')}</button>
+      </>
+    );
+  }
 
   if (step === 'choose') {
     return (
@@ -82,14 +107,18 @@ export function NewHere({ onDemo, canSignIn }: { onDemo: (role: IdentityRole) =>
     <section className="os-panel grid gap-4 p-5 sm:p-6">
       <div>
         <p className="text-lg font-black text-white">{t('start.new.title')}</p>
-        <p className="mt-1 text-sm text-slate-400">{t('start.new.detail')}</p>
+        <p className="mt-1 text-sm text-slate-400">{canSignIn ? t('start.new.detailReal') : t('start.new.detail')}</p>
       </div>
       <ul className="grid gap-2">
         {ROLES.map((entry) => (
           <li key={entry.role}>
             <button
               type="button"
-              onClick={() => onDemo(entry.role)}
+              onClick={() => {
+                if (!canSignIn) { onDemo(entry.role); return; }
+                setRole(entry.role);
+                setStep('way');
+              }}
               className="flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-3 py-3 text-left transition hover:border-emerald-300/50 hover:bg-slate-900 active:scale-[0.99]"
             >
               <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-300/10 text-emerald-200">
@@ -104,7 +133,7 @@ export function NewHere({ onDemo, canSignIn }: { onDemo: (role: IdentityRole) =>
           </li>
         ))}
       </ul>
-      <p className="text-xs text-slate-500">{t('start.new.note')}</p>
+      {canSignIn ? null : <p className="text-xs text-slate-500">{t('start.new.note')}</p>}
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-bold">
         <button type="button" onClick={() => setStep('choose')} className="text-slate-400 underline">{t('start.new.back')}</button>
         {canSignIn ? <button type="button" onClick={() => setStep('code')} className="text-sky-300 underline">{t('start.new.haveCode')}</button> : null}

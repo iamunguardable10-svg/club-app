@@ -191,7 +191,7 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
   const database = status.phase === 'ready' ? readDatabase() : null;
   const me = database ? database.people.find((person) => ownPersonIds(database).includes(person.id)) ?? null : null;
   const current = account ? 3 : draft ? 2 : 1;
-  const player = { teamName: preview.teamName, sport: preview.sport ?? null, fixedNumbers: preview.fixedNumbers ?? true };
+  const player = { teamName: preview.teamName, sport: preview.sport ?? null, fixedNumbers: preview.fixedNumbers ?? true, clubName: preview.clubName, departmentName: preview.departmentName ?? null, logoUrl: preview.logoUrl ?? null };
 
   async function join(profile: Profile) {
     setBusy(true);
