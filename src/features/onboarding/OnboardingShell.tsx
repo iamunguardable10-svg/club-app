@@ -37,8 +37,10 @@ export function OnboardingShell({ title, steps, demoLink = true, children }: { t
           {steps ? <OnboardingSteps labels={steps.labels} current={steps.current} /> : null}
         </header>
         {children}
-        <LegalLinks />
-        {demoLink ? <LocalModeLink /> : null}
+        <div className="grid justify-items-center gap-3 pt-2">
+          {demoLink ? <LocalModeLink /> : null}
+          <LegalLinks quiet />
+        </div>
       </div>
     </main>
   );

@@ -14,7 +14,7 @@ import { PhotoPicker } from '@/features/people/PersonPhoto';
 import { PlayerWizard } from '@/features/onboarding/PlayerWizard';
 import { EMPTY_PLAYER_PROFILE, type PlayerProfileValue } from '@/features/people/PlayerProfile';
 import { ConsentFields, EMPTY_CONSENT, consentComplete } from '@/features/legal/ConsentFields';
-import { readPendingPhoto, storePendingPhoto, type AccessConsent, type SportKey } from '@/shared/data';
+import { readPendingPhoto, readWizardProgress, storePendingPhoto, storeWizardProgress, type AccessConsent, type SportKey } from '@/shared/data';
 import { useT } from '@/shared/i18n';
 
 export type Profile = { firstName: string; lastName: string; consent: AccessConsent; details?: PlayerProfileValue };
@@ -53,17 +53,19 @@ export function ProfileStep({ staff = false, askName, knownName, player, initial
   onDone: (profile: Profile) => void | Promise<void>;
 }) {
   const t = useT();
-  const [firstName, setFirstName] = useState(initial?.firstName ?? '');
-  const [lastName, setLastName] = useState(initial?.lastName ?? '');
-  const [details, setDetails] = useState<PlayerProfileValue>(initial?.details ?? EMPTY_PLAYER_PROFILE);
-  const [consent, setConsent] = useState<AccessConsent>(initial?.consent ?? EMPTY_CONSENT);
+  // A player's wizard picks up where it was left (back button, page left).
+  const [saved] = useState(() => (player && !initial ? readWizardProgress() : null));
+  const [firstName, setFirstName] = useState(initial?.firstName ?? saved?.firstName ?? '');
+  const [lastName, setLastName] = useState(initial?.lastName ?? saved?.lastName ?? '');
+  const [details, setDetails] = useState<PlayerProfileValue>(initial?.details ?? saved?.details ?? EMPTY_PLAYER_PROFILE);
+  const [consent, setConsent] = useState<AccessConsent>(initial?.consent ?? saved?.consent ?? EMPTY_CONSENT);
   const [busy, setBusy] = useState(false);
   // Optional, before the account: kept on the device and put on the person once they are in.
   const [photo, setPhoto] = useState<string | null>(() => readPendingPhoto());
   const name = askName ? `${firstName} ${lastName}`.trim() : knownName ?? '';
   async function submit() {
     setBusy(true);
-    try { await onDone({ firstName: firstName.trim(), lastName: lastName.trim(), consent, ...(player ? { details: { ...details, position: details.position?.trim() || null } } : {}) }); } finally { setBusy(false); }
+    try { if (player) storeWizardProgress(null); await onDone({ firstName: firstName.trim(), lastName: lastName.trim(), consent, ...(player ? { details: { ...details, position: details.position?.trim() || null } } : {}) }); } finally { setBusy(false); }
   }
 
   if (player) {
@@ -74,6 +76,7 @@ export function ProfileStep({ staff = false, askName, knownName, player, initial
         details={details} onDetails={setDetails} photo={photo} onPhoto={setPhoto}
         consent={consent} onConsent={setConsent} knownBirthYear={knownBirthYear}
         submitLabel={submitLabel} busy={busy} onFinish={() => void submit()}
+        resume={saved ? { step: saved.step, sport: saved.sport } : null}
       />
     );
   }

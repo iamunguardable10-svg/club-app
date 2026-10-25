@@ -239,6 +239,41 @@ export function storeOnboardingDraft(draft: OnboardingDraft): void {
   }
 }
 
+/**
+ * The player card wizard while it is being filled in: every answer and the
+ * step, so going back or leaving the page loses nothing (Ben, 2026-10-25).
+ * Gone once the card is done.
+ */
+export type WizardProgress = {
+  firstName: string;
+  lastName: string;
+  details: { jerseyNumber: number | null; position: string | null; heightCm: number | null; strongSide: StrongSide | null };
+  consent: AccessConsent;
+  sport: SportKey | null;
+  step: number;
+};
+const WIZARD_PROGRESS_KEY = 'club-app.wizard-progress';
+
+export function readWizardProgress(): WizardProgress | null {
+  if (!isBrowser()) return null;
+  try {
+    const raw = window.localStorage.getItem(WIZARD_PROGRESS_KEY);
+    return raw ? (JSON.parse(raw) as WizardProgress) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function storeWizardProgress(progress: WizardProgress | null): void {
+  if (!isBrowser()) return;
+  try {
+    if (progress) window.localStorage.setItem(WIZARD_PROGRESS_KEY, JSON.stringify(progress));
+    else window.localStorage.removeItem(WIZARD_PROGRESS_KEY);
+  } catch {
+    // Without storage the wizard simply starts over next time.
+  }
+}
+
 export function clearOnboardingDraft(): void {
   if (!isBrowser()) return;
   try {
