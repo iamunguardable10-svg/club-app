@@ -81,14 +81,23 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
     storeWizardProgress({ firstName, lastName, details, consent, sport, step: index });
   }, [firstName, lastName, details, consent, sport, index]);
 
-  // The phone's back (button or swipe) goes one step back, not out of the wizard.
+  // Every step is an entry in the browser's history, so the phone's back
+  // (button or swipe) and the wizard's own ‹ both go one step back, never
+  // out of the wizard. Picked up later at step 3, the entries for 1 and 2
+  // are put back first.
+  const historyReady = useRef(false);
   useEffect(() => {
     const onPop = (event: PopStateEvent) => {
       const step = (event.state as { wizardStep?: number } | null)?.wizardStep;
-      setIndex(typeof step === 'number' ? step : 0);
+      if (typeof step === 'number') setIndex(step);
     };
-    window.history.replaceState({ ...(window.history.state ?? {}), wizardStep: index }, '');
     window.addEventListener('popstate', onPop);
+    if (!historyReady.current) {
+      historyReady.current = true;
+      const state = window.history.state ?? {};
+      window.history.replaceState({ ...state, wizardStep: 0 }, '');
+      for (let step = 1; step <= index; step += 1) window.history.pushState({ ...state, wizardStep: step }, '');
+    }
     return () => window.removeEventListener('popstate', onPop);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -101,15 +110,15 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
   const total = player.fixedNumbers ? 5 : 4;
   const percent = Math.round(((total - missing.length) / total) * 100);
   const set = (change: Partial<PlayerProfileValue>) => onDetails({ ...details, ...change });
+  // The history holds exactly the steps up to this one (see above): forward
+  // adds one, back and jumping back take them off again.
   const next = () => {
     const step = Math.min(index + 1, steps.length - 1);
     window.history.pushState({ ...(window.history.state ?? {}), wizardStep: step }, '');
     setIndex(step);
   };
-  const back = () => {
-    if ((window.history.state as { wizardStep?: number } | null)?.wizardStep === index && index > 0) window.history.back();
-    else setIndex((current) => Math.max(current - 1, 0));
-  };
+  const backTo = (step: number) => { if (step < index) window.history.go(step - index); };
+  const back = () => backTo(index - 1);
   // Where each missing part is asked, to jump back from the last step.
   const stepOfPart: Record<string, Step> = {
     'profile.part.photo': 'photo', 'profile.part.number': 'number',
@@ -255,7 +264,7 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
             <p className="text-sm font-black text-amber-100">{t('wizard.almost', { count: missing.length })}</p>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
               {missing.map((part) => (
-                <button key={part} type="button" onClick={() => setIndex(Math.max(0, steps.indexOf(stepOfPart[part] ?? 'photo')))} className="text-xs font-black text-amber-200 underline">
+                <button key={part} type="button" onClick={() => backTo(Math.max(0, steps.indexOf(stepOfPart[part] ?? 'photo')))} className="text-xs font-black text-amber-200 underline">
                   + {t(part)}
                 </button>
               ))}
