@@ -3136,3 +3136,11 @@ Ben: Zurück im Assistenten warf alles weg; Geburtsjahr als Schieberegler statt 
 - **Zurück und Weglaufen:** Jeder Schritt ist ein Eintrag im Verlauf, also geht Zurück (Knopf oder Wischgeste) einen Schritt zurück statt aus dem Assistenten. Alle Antworten und der Schritt bleiben auf dem Gerät (`readWizardProgress`/`storeWizardProgress` in `repository.ts`), auch beim Neuladen oder Verlassen der Seite; gelöscht, sobald die Karte abgeschickt ist.
 - **Geburtsjahr:** Schieberegler (vor 90 bis vor 5 Jahren) mit großer Jahreszahl und − / + für das letzte Jahr; überall, wo Zustimmung gefragt wird.
 - **Rechtslinks:** Im Zustimmungstext stecken die Links jetzt im Satz („Ich akzeptiere die Nutzungsbedingungen und die Datenschutzerklärung“); die eigene Linkzeile dort ist weg. Unten auf den Einstiegsseiten nur noch eine kleine graue Zeile Impressum · Datenschutzerklärung · Nutzungsbedingungen (das Impressum muss erreichbar bleiben).
+
+## Run 101 — Assistent: Zurück auch nach dem Wiederaufnehmen (2026-10-25)
+
+Ben: aus dem Profilbild kam man nicht zurück zum Namen.
+
+- Ursache: Wurde der Assistent wieder aufgenommen (neu geöffnet oder neu geladen), fehlten die Verlaufseinträge der früheren Schritte; „‹“ verließ dann die Seite. Jetzt stellt der Assistent beim Öffnen die Einträge bis zum aktuellen Schritt wieder her; vorwärts kommt einer dazu, zurück und das Springen zu einem fehlenden Teil nehmen sie wieder weg. So gehen „‹“ und die Zurück-Geste immer genau einen Schritt zurück.
+- Durchgeprüft (Playwright, 375 px): ‹ und Browser-Zurück auf jedem Schritt, Name ändern und weiter, Positionen je Sportart, Überspringen, Sprung aus „Noch 3 Sachen“ und zurück, Neuladen mitten drin, neuer Tab macht weiter und kommt bis zum Namen zurück, Enthüllung und Kontoformular; Weg per Link (ohne Sportart-Auswahl) und die Einstellungen; nirgends seitliches Scrollen, keine Fehler.
+- Konzept Trainerkarte festgehalten: `docs/concept-trainer-card.md` (noch nicht gebaut).
