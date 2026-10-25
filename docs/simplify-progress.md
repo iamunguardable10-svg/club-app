@@ -3144,3 +3144,10 @@ Ben: aus dem Profilbild kam man nicht zurück zum Namen.
 - Ursache: Wurde der Assistent wieder aufgenommen (neu geöffnet oder neu geladen), fehlten die Verlaufseinträge der früheren Schritte; „‹“ verließ dann die Seite. Jetzt stellt der Assistent beim Öffnen die Einträge bis zum aktuellen Schritt wieder her; vorwärts kommt einer dazu, zurück und das Springen zu einem fehlenden Teil nehmen sie wieder weg. So gehen „‹“ und die Zurück-Geste immer genau einen Schritt zurück.
 - Durchgeprüft (Playwright, 375 px): ‹ und Browser-Zurück auf jedem Schritt, Name ändern und weiter, Positionen je Sportart, Überspringen, Sprung aus „Noch 3 Sachen“ und zurück, Neuladen mitten drin, neuer Tab macht weiter und kommt bis zum Namen zurück, Enthüllung und Kontoformular; Weg per Link (ohne Sportart-Auswahl) und die Einstellungen; nirgends seitliches Scrollen, keine Fehler.
 - Konzept Trainerkarte festgehalten: `docs/concept-trainer-card.md` (noch nicht gebaut).
+
+## Run 102 — Rückennummer nur, wo es sie gibt (2026-10-25)
+
+Ben: prüfen, welche Sportarten überhaupt Rückennummern haben; bei allen anderen weglassen.
+
+- Feste Rückennummern gibt es in Fußball, Basketball, Handball, Volleyball und Hockey. Tennis, Tischtennis, Schwimmen und Turnen haben keine; in der Leichtathletik gibt es nur Startnummern je Wettkampf. Unbekannte Sportart: die Frage bleibt.
+- `sportHasNumbers`/`wearsNumbers` in `features/sports/sports.ts`: Nummer nur, wenn das Team feste Nummern hat (0052) und die Sportart welche kennt. Gilt im Assistenten (der Schritt „Rückennummer“ fällt weg, „Schritt x von 5“; beim Wechsel auf eine solche Sportart wird eine schon getippte Nummer verworfen), auf der Karte, in der Enthüllung, in den Einstellungen, beim Trainer (Liste, Spielerblatt), im Profil-Hinweis auf Heute, und der Schalter „Feste Rückennummern“ erscheint nur bei Sportarten mit Nummern.
