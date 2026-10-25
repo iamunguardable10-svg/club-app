@@ -11,6 +11,7 @@ import { useState } from 'react';
 
 import { CardReveal } from '@/features/people/CardReveal';
 import { PhotoPicker } from '@/features/people/PersonPhoto';
+import { Choice, SPORTS, sportOfKey } from '@/features/onboarding/foundSuggestions';
 import { EMPTY_PLAYER_PROFILE, PlayerCard, PlayerProfileFields, ProfileMeter, missingParts, type PlayerProfileValue } from '@/features/people/PlayerProfile';
 import { ConsentFields, EMPTY_CONSENT, consentComplete } from '@/features/legal/ConsentFields';
 import { dismissHint, isHintDismissed, readPendingPhoto, storePendingPhoto, type AccessConsent, type SportKey } from '@/shared/data';
@@ -19,7 +20,17 @@ import { useT } from '@/shared/i18n';
 export type Profile = { firstName: string; lastName: string; consent: AccessConsent; details?: PlayerProfileValue };
 
 /** A joining player: the team the card is for. */
-export type PlayerContext = { teamName: string; sport: SportKey | null; fixedNumbers: boolean; clubName?: string | null; departmentName?: string | null; logoUrl?: string | null };
+export type PlayerContext = {
+  /** Null while the team is not known yet (the card comes before the code). */
+  teamName: string | null;
+  sport: SportKey | null;
+  fixedNumbers: boolean;
+  clubName?: string | null;
+  departmentName?: string | null;
+  logoUrl?: string | null;
+  /** Without a team: the player picks their sport, for fitting positions. */
+  pickSport?: boolean;
+};
 
 function readAsDataUrl(file: Blob) {
   return new Promise<string>((resolve, reject) => {
@@ -53,7 +64,9 @@ export function ProfileStep({ staff = false, askName, knownName, player, initial
   const [photo, setPhoto] = useState<string | null>(() => readPendingPhoto());
   const name = askName ? `${firstName} ${lastName}`.trim() : knownName ?? '';
   const heightOk = details.heightCm === null || (details.heightCm >= 100 && details.heightCm <= 230);
-  const missing = player ? missingParts(details, Boolean(photo), player.fixedNumbers, player.sport) : [];
+  const [pickedSport, setPickedSport] = useState<SportKey | null>(player?.sport ?? null);
+  const sport = player?.pickSport ? pickedSport : player?.sport ?? null;
+  const missing = player ? missingParts(details, Boolean(photo), player.fixedNumbers, sport) : [];
   async function submit() {
     setBusy(true);
     try { await onDone({ firstName: firstName.trim(), lastName: lastName.trim(), consent, ...(player ? { details: { ...details, position: details.position?.trim() || null } } : {}) }); } finally { setBusy(false); }
@@ -73,7 +86,7 @@ export function ProfileStep({ staff = false, askName, knownName, player, initial
   );
   return (
     <form
-      className="os-panel grid gap-4 p-5"
+      className="os-panel grid grid-cols-[minmax(0,1fr)] gap-4 p-5"
       onSubmit={(event) => {
         event.preventDefault();
         if (player && missing.length === 0 && !isHintDismissed('cardReveal')) setRevealing(true);
@@ -87,14 +100,14 @@ export function ProfileStep({ staff = false, askName, knownName, player, initial
           team={{ name: player.teamName, clubName: player.clubName, departmentName: player.departmentName, logoUrl: player.logoUrl }}
           value={details}
           fixedNumbers={player.fixedNumbers}
-          sport={player.sport}
+          sport={sport}
           continueLabel={submitLabel}
           onDone={() => { dismissHint('cardReveal'); setRevealing(false); void submit(); }}
         />
       ) : null}
       {player ? (
         <>
-          <PlayerCard name={name} photo={photo} teamName={player.teamName} teamLogo={player.logoUrl} value={details} fixedNumbers={player.fixedNumbers} sport={player.sport} />
+          <PlayerCard name={name} photo={photo} teamName={player.teamName} teamLogo={player.logoUrl} value={details} fixedNumbers={player.fixedNumbers} sport={sport} />
           <ProfileMeter missing={missing} total={player.fixedNumbers ? 5 : 4} />
         </>
       ) : null}
@@ -120,7 +133,18 @@ export function ProfileStep({ staff = false, askName, knownName, player, initial
             <p className="text-sm font-black text-white">{t('profile.cardTitle')}</p>
             <p className="text-xs text-slate-400">{t('profile.cardDetail')}</p>
           </div>
-          <PlayerProfileFields value={details} onChange={setDetails} sport={player.sport} fixedNumbers={player.fixedNumbers} />
+          {player.pickSport ? (
+            <div className="grid gap-1.5">
+              <p className="text-sm font-bold text-slate-200">{t('profile.yourSport')}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {SPORTS.map((key) => {
+                  const value = sportOfKey(key);
+                  return <Choice key={key} label={t(key)} selected={pickedSport === value} onSelect={() => setPickedSport(pickedSport === value ? null : value)} />;
+                })}
+              </div>
+            </div>
+          ) : null}
+          <PlayerProfileFields value={details} onChange={setDetails} sport={sport} fixedNumbers={player.fixedNumbers} />
         </section>
       ) : null}
       <ConsentFields value={consent} onChange={setConsent} staff={staff} knownBirthYear={knownBirthYear} />

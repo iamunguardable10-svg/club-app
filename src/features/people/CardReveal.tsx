@@ -14,7 +14,7 @@
 import { useEffect, useState, type CSSProperties, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 
-import { positionText, strongSideLabel } from '@/features/sports/sports';
+import { positionShort, strongSideLabel } from '@/features/sports/sports';
 import type { PlayerProfileValue } from '@/features/people/PlayerProfile';
 import { usePhotoUrl } from '@/features/people/PersonPhoto';
 import { useLocalDatabase, type SportKey } from '@/shared/data';
@@ -62,7 +62,7 @@ function CardFront({ name, photo, team, value, fixedNumbers, sport, light }: { n
   const parts = name.trim().split(/\s+/);
   const lastName = parts.length > 1 ? parts.pop()! : parts[0] ?? '';
   const firstName = parts.length > 0 && parts[0] !== lastName ? parts.join(' ') : '';
-  const position = positionText(value.position, t);
+  const position = positionShort(value.position, t);
   const number = fixedNumbers ? value.jerseyNumber : null;
   const side = value.strongSide === 'left' ? t('profile.side.left') : value.strongSide === 'right' ? t('profile.side.right') : value.strongSide === 'both' ? t('profile.side.both') : null;
   const stats: [string, string][] = [

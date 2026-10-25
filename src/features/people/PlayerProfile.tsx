@@ -16,7 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CardReveal } from '@/features/people/CardReveal';
 
 import { PersonAvatar, usePhotoUrl } from '@/features/people/PersonPhoto';
-import { isKnownPosition, positionField, positionGroups, positionText, sportOfTeam, strongSideLabel } from '@/features/sports/sports';
+import { isKnownPosition, positionField, positionGroups, positionShort, sportOfTeam, strongSideLabel } from '@/features/sports/sports';
 import { STRONG_SIDES, dismissHint, teamLogoUrl, displayName, isHintDismissed, profileCompleteness, personDetailsFor, playerDetailsFor, setOwnPersonDetails, setTeamFixedNumbers, setTeamPlayerDetails, type LocalDatabase, type Person, type ProfilePart, type SportKey, type StrongSide, type Team } from '@/shared/data';
 import { errorText, useT, type MessageKey } from '@/shared/i18n';
 
@@ -57,7 +57,7 @@ export function PlayerCard({ name, photo, personId, teamName, teamLogo, value, f
             </p>
           ) : null}
           {showName ? <p className="mt-0.5 truncate text-xl font-black text-white">{name || t('profile.yourName')}</p> : null}
-          <p className="truncate text-sm font-bold text-slate-300">{positionText(value.position, t) ?? t('profile.noPosition')}</p>
+          <p className="truncate text-sm font-bold text-slate-300">{positionShort(value.position, t) ?? t('profile.noPosition')}</p>
           {facts.length > 0 ? <p className="mt-1 text-xs text-slate-400">{facts.join(' · ')}</p> : null}
         </div>
         {fixedNumbers ? (
@@ -76,10 +76,10 @@ export function ProfileMeter({ missing, total }: { missing: MessageKey[]; total:
   const t = useT();
   const done = total - missing.length;
   return (
-    <div className="grid gap-1.5">
-      <div className="flex items-baseline justify-between text-xs font-black">
-        <span className="text-slate-300">{missing.length === 0 ? t('profile.complete') : t('profile.progress', { done, total })}</span>
-        {missing.length > 0 ? <span className="truncate pl-3 text-slate-500">{t('profile.stillMissing', { parts: missing.map((key) => t(key)).join(', ') })}</span> : null}
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5">
+      <div className="flex min-w-0 items-baseline justify-between text-xs font-black">
+        <span className="shrink-0 whitespace-nowrap text-slate-300">{missing.length === 0 ? t('profile.complete') : t('profile.progress', { done, total })}</span>
+        {missing.length > 0 ? <span className="min-w-0 truncate pl-3 text-slate-500">{t('profile.stillMissing', { parts: missing.map((key) => t(key)).join(', ') })}</span> : null}
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
         <div className="h-full rounded-full bg-emerald-300 transition-all duration-300" style={{ width: `${Math.round((done / total) * 100)}%` }} />
@@ -270,7 +270,7 @@ export function playerFactsText(database: LocalDatabase, teamId: string, personI
   const inTeam = playerDetailsFor(database, teamId, personId);
   const facts = [
     team?.fixedNumbers !== false && inTeam?.jerseyNumber != null ? `#${inTeam.jerseyNumber}` : null,
-    positionText(inTeam?.position, t),
+    positionShort(inTeam?.position, t),
   ].filter(Boolean);
   return facts.length > 0 ? facts.join(' · ') : null;
 }

@@ -3,8 +3,9 @@
 /**
  * The first screen for people who are not signed in: "New here" or "Sign
  * in". New here asks who you are, then shows that role's real way in
- * (players: the team's code, coaches: their invitation or founding a club,
- * clubs: the founding code) with "Look at the demo first" next to it
+ * (players: their card first, the team's code after the account; coaches:
+ * their invitation or founding a club; clubs: the founding code) with
+ * "Look at the demo first" next to it
  * (Ben, 2026-10-24: after the demo, "New here" must not lead back into it).
  * Without a club server the demo is all there is, so the role opens it.
  */
@@ -14,6 +15,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { WhoAreYou, type Persona } from '@/features/onboarding/WhoAreYou';
+import { leaveDemoFor } from '@/features/onboarding/demoRole';
 import { PILOT_MAIL } from '@/features/landing/pilotMail';
 import type { IdentityRole } from '@/shared/data';
 import { useT, type MessageKey } from '@/shared/i18n';
@@ -116,6 +118,8 @@ export function NewHere({ onDemo, canSignIn, startAt = 'choose' }: { onDemo: (ro
               type="button"
               onClick={() => {
                 if (!canSignIn) { onDemo(entry.role); return; }
+                // Players make their card first; the team's code comes after the account.
+                if (entry.role === 'athlete') { leaveDemoFor('/join'); return; }
                 setRole(entry.role);
                 setStep('way');
               }}
