@@ -109,7 +109,6 @@ export function NewHere({ onDemo, canSignIn, startAt = 'choose' }: { onDemo: (ro
     <section className="os-panel grid gap-4 p-5 sm:p-6">
       <div>
         <p className="text-lg font-black text-white">{t('start.new.title')}</p>
-        <p className="mt-1 text-sm text-slate-400">{canSignIn ? t('start.new.detailReal') : t('start.new.detail')}</p>
       </div>
       <ul className="grid gap-2">
         {ROLES.map((entry) => (

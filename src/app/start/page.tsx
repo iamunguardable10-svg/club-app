@@ -79,7 +79,6 @@ function Page({ children }: { children: React.ReactNode }) {
             <LanguagePicker compact />
           </div>
           <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">{t('start.title')}</h1>
-          <p className="os-copy mt-2 max-w-md">{t('start.subtitle')}</p>
         </header>
         {children}
       </div>
