@@ -249,7 +249,6 @@ export type WizardProgress = {
   lastName: string;
   details: { jerseyNumber: number | null; position: string | null; heightCm: number | null; strongSide: StrongSide | null };
   consent: AccessConsent;
-  sport: SportKey | null;
   step: number;
 };
 const WIZARD_PROGRESS_KEY = 'club-app.wizard-progress';
@@ -807,6 +806,24 @@ export async function signInWithPassword(email: string, password: string): Promi
     throw authError(error.message);
   }
   authAttempts.delete(key);
+}
+
+export type EmailAccountStatus = 'confirmed' | 'unconfirmed' | 'none';
+
+/** Whether an address has an account (0055), for the e-mail-first sign-in. */
+export async function emailAccountStatus(email: string): Promise<EmailAccountStatus> {
+  const supabase = await authClient();
+  const { data, error } = await supabase.rpc('email_account_status', { p_email: email.trim() });
+  if (error) throw serverError(error.message, error);
+  return data === 'confirmed' || data === 'unconfirmed' ? data : 'none';
+}
+
+/** Sends the confirmation mail again, for an account that is still waiting for it. */
+export async function resendConfirmation(email: string, returnTo: string): Promise<void> {
+  countAuthAttempt(guardAuthAttempt('resend', email, 3));
+  const supabase = await authClient();
+  const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim(), options: { emailRedirectTo: `${window.location.origin}${returnTo}` } });
+  if (error) throw authError(error.message);
 }
 
 /**

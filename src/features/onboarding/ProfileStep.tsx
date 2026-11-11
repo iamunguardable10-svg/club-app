@@ -28,8 +28,6 @@ export type PlayerContext = {
   clubName?: string | null;
   departmentName?: string | null;
   logoUrl?: string | null;
-  /** Without a team: the player picks their sport, for fitting positions. */
-  pickSport?: boolean;
 };
 
 function readAsDataUrl(file: Blob) {
@@ -76,7 +74,7 @@ export function ProfileStep({ staff = false, askName, knownName, player, initial
         details={details} onDetails={setDetails} photo={photo} onPhoto={setPhoto}
         consent={consent} onConsent={setConsent} knownBirthYear={knownBirthYear}
         submitLabel={submitLabel} busy={busy} onFinish={() => void submit()}
-        resume={saved ? { step: saved.step, sport: saved.sport } : null}
+        resume={saved ? { step: saved.step } : null}
       />
     );
   }

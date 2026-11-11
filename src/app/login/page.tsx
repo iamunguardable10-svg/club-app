@@ -1,15 +1,15 @@
 'use client';
 
 /**
- * Sign-in for the pilot server. `?next=` is where to continue afterwards,
- * `?mode=signUp` opens the "create account" tab.
+ * Signing in or creating an account on the club server, e-mail first
+ * (`AuthForm`). `?next=` is where to continue afterwards.
  */
 
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 import { AuthForm } from '@/features/access/AuthForm';
-import { LocalModeLink } from '@/features/access/LocalModeLink';
+import { LegalLinks } from '@/features/legal/LegalLinks';
 import { useT } from '@/shared/i18n';
 import { LanguagePicker } from '@/shared/i18n/LanguagePicker';
 
@@ -27,17 +27,15 @@ function LoginContent() {
   return (
     <main className="os-page">
       <div className="os-container max-w-md space-y-5">
-        <header className="os-hero p-6">
-          <div className="flex items-center justify-between gap-3">
-            <p className="os-kicker">{t('start.kicker')}</p>
-            <LanguagePicker compact />
-          </div>
-          <h1 className="os-title mt-2">{t('auth.login.title')}</h1>
-          <p className="os-copy mt-3">{t('auth.login.detail')}</p>
+        {/* Less is more: just the name and the language, then straight to the e-mail. */}
+        <header className="flex items-center justify-between gap-3 px-1 pt-2">
+          <p className="os-kicker">{t('start.kicker')}</p>
+          <LanguagePicker compact />
         </header>
-        <AuthForm initialMode={params.get('mode') === 'signUp' ? 'signUp' : 'signIn'} returnTo={next} />
-        <LocalModeLink />
-        <a href="/privacy" className="block text-center text-xs font-bold text-slate-400 underline">{t('auth.privacyLink')}</a>
+        <h1 className="sr-only">{t('auth.login.title')}</h1>
+        <AuthForm returnTo={next} />
+        {/* The imprint and privacy policy must stay reachable from every page; nothing else here. */}
+        <div className="pt-2"><LegalLinks quiet /></div>
       </div>
     </main>
   );

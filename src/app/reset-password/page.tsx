@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react';
 
+import { MIN_PASSWORD, PasswordCheck, PasswordField } from '@/features/access/AuthForm';
 import { currentAccount, setBackendChoice, updatePassword } from '@/shared/data';
 import { errorText, useT } from '@/shared/i18n';
 
@@ -15,6 +16,8 @@ export default function ResetPasswordPage() {
   const t = useT();
   const [account, setAccount] = useState<{ email: string } | null | undefined>(undefined);
   const [password, setPassword] = useState('');
+  const [repeat, setRepeat] = useState('');
+  const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,13 +60,14 @@ export default function ResetPasswordPage() {
         {account ? (
           <form onSubmit={submit} className="os-panel grid gap-4 p-5">
             <p className="text-sm text-slate-400">{t('auth.newPassword.for', { email: account.email })}</p>
-            <label className="grid gap-1.5 text-sm font-bold text-slate-200">
-              {t('auth.newPassword.label')}
-              <input type="password" autoComplete="new-password" required minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} className="os-field" />
-              <span className="text-xs font-medium text-slate-500">{t('auth.passwordHint')}</span>
-            </label>
+            <PasswordField label={t('auth.newPassword.label')} value={password} onChange={setPassword} show={show} onToggle={() => setShow((value) => !value)} autoComplete="new-password" autoFocus />
+            <PasswordField label={t('auth.repeatPassword')} value={repeat} onChange={setRepeat} show={show} autoComplete="new-password" />
+            <ul className="grid gap-1">
+              <PasswordCheck ok={password.length >= MIN_PASSWORD} label={t('auth.check.length', { count: MIN_PASSWORD })} />
+              <PasswordCheck ok={password.length > 0 && password === repeat} label={t('auth.check.match')} />
+            </ul>
             {error ? <p role="alert" className="rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-bold text-red-100">{error}</p> : null}
-            <button type="submit" disabled={busy} className="os-success justify-center disabled:opacity-60">
+            <button type="submit" disabled={busy || password.length < MIN_PASSWORD || password !== repeat} className="os-success justify-center disabled:opacity-60">
               {busy ? t('common.oneMoment') : t('auth.newPassword.save')}
             </button>
           </form>

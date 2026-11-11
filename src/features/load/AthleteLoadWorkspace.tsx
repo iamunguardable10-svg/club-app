@@ -23,7 +23,7 @@ import { BASELINE_DAYS, acwrAfter, aggregateDailyLoads, backFromBreak, baselineA
 import { LoadInfoButton, LoadLandingChip, LoadRiskBadge } from './LoadHints';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
 import { HealthConsentPanel } from '@/features/legal/HealthConsentPanel';
-import { athleteHasLoad, dismissHint, isHintDismissed, athleteTeamTracksLoad, hasHealthConsent, clearEntryReview, displayName, getActivePerson, newId, reportAvailability, reviewsForPerson, rsvpModeOf, useLocalDatabase } from '@/shared/data';
+import { athleteHasLoad, dismissHint, isHintDismissed, athleteTeamTracksLoad, hasHealthConsent, clearEntryReview, displayName, getActivePerson, newId, reportAvailability, reviewsForPerson, rsvpModeOf, isRemoteMode, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
 import { formatDay, formatDayMonth, formatDecimal, formatEntryDate, formatInteger, formatLongDay, formatTime as formatSharedTime, formatWeekday } from '@/shared/format';
@@ -821,7 +821,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   }, [sortedEntries]);
   const [ratePromptOpen, setRatePromptOpen] = useState(false);
   useEffect(() => {
-    if (!activePersonId || rateQueue.length === 0 || askedThisVisit.has(activePersonId)) return;
+    // Not in the demo club: a first look is never blocked by a dialog (Ben, 2026-11-11);
+    // the Today card offers the rating there.
+    if (!activePersonId || rateQueue.length === 0 || askedThisVisit.has(activePersonId) || !isRemoteMode()) return;
     askedThisVisit.add(activePersonId);
     setRatePromptOpen(true);
   }, [activePersonId, rateQueue.length]);
