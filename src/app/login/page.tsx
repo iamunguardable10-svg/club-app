@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Sign-in for the pilot server. `?next=` is where to continue afterwards,
- * `?mode=signUp` opens the "create account" tab.
+ * Signing in or creating an account on the club server, e-mail first
+ * (`AuthForm`). `?next=` is where to continue afterwards.
  */
 
 import { Suspense } from 'react';
@@ -10,6 +10,7 @@ import { useSearchParams } from 'next/navigation';
 
 import { AuthForm } from '@/features/access/AuthForm';
 import { LocalModeLink } from '@/features/access/LocalModeLink';
+import { LegalLinks } from '@/features/legal/LegalLinks';
 import { useT } from '@/shared/i18n';
 import { LanguagePicker } from '@/shared/i18n/LanguagePicker';
 
@@ -35,9 +36,11 @@ function LoginContent() {
           <h1 className="os-title mt-2">{t('auth.login.title')}</h1>
           <p className="os-copy mt-3">{t('auth.login.detail')}</p>
         </header>
-        <AuthForm initialMode={params.get('mode') === 'signUp' ? 'signUp' : 'signIn'} returnTo={next} />
-        <LocalModeLink />
-        <a href="/privacy" className="block text-center text-xs font-bold text-slate-400 underline">{t('auth.privacyLink')}</a>
+        <AuthForm returnTo={next} />
+        <div className="grid justify-items-center gap-3 pt-2">
+          <LocalModeLink />
+          <LegalLinks quiet />
+        </div>
       </div>
     </main>
   );

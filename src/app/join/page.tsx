@@ -117,8 +117,8 @@ function InviteFlow({ token, account }: { token: string; account: Account }) {
         )
       ) : draft ? (
         <>
-          <AuthForm legalLinks={false}
-            initialMode="signUp" staff consent={draft.consent}
+          <AuthForm
+            staff consent={draft.consent}
             returnTo={`/join?invite=${encodeURIComponent(token)}`}
             intro={t('onboarding.join.inviteIntro', { name: preview.firstName })}
           />
@@ -168,7 +168,7 @@ function CardFirstFlow({ account }: { account: Account }) {
         <p className="px-1 text-sm text-slate-400">{t('onboarding.join.cardFirst')}</p>
         <ProfileStep
           askName={!me} knownName={me ? `${me.firstName} ${me.lastName}` : undefined} knownBirthYear={me?.birthYear}
-          player={{ teamName: null, sport: null, fixedNumbers: true, pickSport: true }} initial={null} submitLabel={t('common.continue')}
+          player={{ teamName: null, sport: null, fixedNumbers: true }} initial={null} submitLabel={t('common.continue')}
           onDone={(profile) => {
             const next = { for: CARD_FIRST, ...profile, ...(me ? { firstName: me.firstName, lastName: me.lastName } : {}) };
             storeOnboardingDraft(next);
@@ -182,7 +182,7 @@ function CardFirstFlow({ account }: { account: Account }) {
   if (!account) {
     return (
       <Shell title={title} steps={{ labels, current }}>
-        <AuthForm legalLinks={false} initialMode="signUp" consent={draft.consent} returnTo="/join" intro={t('onboarding.join.cardFirstAccount')} />
+        <AuthForm consent={draft.consent} returnTo="/join" intro={t('onboarding.join.cardFirstAccount')} />
         <button type="button" onClick={() => setDraft(null)} className="justify-self-start px-1 text-xs font-bold text-slate-400 underline">{t('onboarding.back')}</button>
       </Shell>
     );
@@ -357,7 +357,7 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
         )
       ) : draft ? (
         <>
-          <AuthForm legalLinks={false} initialMode="signUp" consent={draft.consent} returnTo={`/join?code=${encodeURIComponent(code)}`} intro={t('onboarding.join.codeIntro')} />
+          <AuthForm consent={draft.consent} returnTo={`/join?code=${encodeURIComponent(code)}`} intro={t('onboarding.join.codeIntro')} />
           <button type="button" onClick={() => setDraft(null)} className="justify-self-start px-1 text-xs font-bold text-slate-400 underline">{t('onboarding.back')}</button>
         </>
       ) : (

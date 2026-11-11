@@ -2,8 +2,8 @@
 
 /**
  * A joining player builds their card one question at a time (Ben,
- * 2026-10-25: "more progress, less form"): name, photo, role (sport and
- * position), number, body (height, strong side), and last the birth year
+ * 2026-10-25: "more progress, less form"): name, photo, position (from the
+ * team's sport; without a team yet it waits until joining), number, body (height, strong side), and last the birth year
  * and consent. The card at the top fills in with every answer and says how
  * complete it is; the optional steps can be skipped, the last one lists
  * what is still missing, one tap back to it. A finished card ends in its
@@ -16,7 +16,6 @@ import { CardReveal } from '@/features/people/CardReveal';
 import { shrinkPhoto } from '@/features/people/PersonPhoto';
 import { PlayerCard, PositionPicker, SideSwitch, missingParts, readyForReveal, type PlayerProfileValue } from '@/features/people/PlayerProfile';
 import { ConsentFields, consentComplete } from '@/features/legal/ConsentFields';
-import { SPORTS, sportOfKey } from '@/features/onboarding/foundSuggestions';
 import { positionField, sportHasNumbers, strongSideLabel } from '@/features/sports/sports';
 import { dismissHint, isHintDismissed, storePendingPhoto, storeWizardProgress, type AccessConsent, type SportKey } from '@/shared/data';
 import { useT, type MessageKey } from '@/shared/i18n';
@@ -64,15 +63,19 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
   busy: boolean;
   onFinish: (sport: SportKey | null) => void;
   /** Where it was left last time. */
-  resume?: { step: number; sport: SportKey | null } | null;
+  resume?: { step: number } | null;
 }) {
   const t = useT();
-  const [sport, setSport] = useState<SportKey | null>(player.pickSport ? resume?.sport ?? player.sport : player.sport);
+  // The sport comes with the team (its join link), never asked (Ben, 2026-11-11).
+  const sport = player.sport;
   // No number step where the team has none or the sport knows none (tennis, swimming …).
   const numbers = player.fixedNumbers && sportHasNumbers(sport);
+  // Without a team yet, the position waits until joining: it depends on the team's sport.
+  const asksPosition = player.teamName !== null;
   const steps: Step[] = [
     ...(askName ? ['name' as const] : []),
-    'photo', 'role',
+    'photo',
+    ...(asksPosition ? ['role' as const] : []),
     ...(numbers ? ['number' as const] : []),
     'body', 'consent',
   ];
@@ -80,8 +83,8 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
 
   // Every answer stays on the device until the card is done.
   useEffect(() => {
-    storeWizardProgress({ firstName, lastName, details, consent, sport, step: index });
-  }, [firstName, lastName, details, consent, sport, index]);
+    storeWizardProgress({ firstName, lastName, details, consent, step: index });
+  }, [firstName, lastName, details, consent, index]);
 
   // Every step is an entry in the browser's history, so the phone's back
   // (button or swipe) and the wizard's own ‹ both go one step back, never
@@ -108,8 +111,8 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
   const fileInput = useRef<HTMLInputElement>(null);
   const step = steps[Math.min(index, steps.length - 1)];
   const name = askName ? `${firstName} ${lastName}`.trim() : knownName ?? '';
-  const missing = missingParts(details, Boolean(photo), numbers, sport);
-  const total = numbers ? 5 : 4;
+  const missing = missingParts(details, Boolean(photo), numbers, sport).filter((part) => asksPosition || part !== positionField(sport).part);
+  const total = (numbers ? 5 : 4) - (asksPosition ? 0 : 1);
   const percent = Math.round(((total - missing.length) / total) * 100);
   const set = (change: Partial<PlayerProfileValue>) => onDetails({ ...details, ...change });
   // The history holds exactly the steps up to this one (see above): forward
@@ -196,15 +199,6 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
   } else if (step === 'role') {
     body = (
       <div className="grid gap-4">
-        {player.pickSport ? (
-          <label className="grid gap-1.5 text-sm font-bold text-slate-300">
-            {t('profile.yourSport')}
-            <select value={sport ? `sport.${sport}` : ''} onChange={(event) => { const picked = sportOfKey(event.target.value as MessageKey); setSport(picked); if (picked !== sport) set({ position: null, ...(sportHasNumbers(picked) ? {} : { jerseyNumber: null }) }); }} className="os-field font-bold">
-              <option value="">{t('profile.choose')}</option>
-              {SPORTS.map((key) => <option key={key} value={key}>{t(key)}</option>)}
-            </select>
-          </label>
-        ) : null}
         <PositionPicker value={details.position} onChange={(position) => set({ position })} sport={sport} label />
       </div>
     );

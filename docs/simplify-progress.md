@@ -3157,3 +3157,13 @@ Ben: prüfen, welche Sportarten überhaupt Rückennummern haben; bei allen ander
 Ben: wer die Nummer überspringt, soll die Karten-Enthüllung trotzdem bekommen (nur die Nummer darf fehlen).
 
 - `readyForReveal` (`PlayerProfile.tsx`): die Enthüllung kommt, wenn alles außer höchstens der Nummer da ist; im Assistenten und in den Einstellungen („Meine Karte ansehen“ ebenso). Fehlt etwas anderes, z. B. das Foto, bleibt sie aus. Im Browser geprüft: mit Foto und ohne Nummer → Enthüllung; ohne Foto → keine.
+
+## Run 104 — Anmelden mit E-Mail zuerst, zwei Passwortfelder, keine Sportart im Spieler-Onboarding (2026-11-11)
+
+Ben: Login und Registrierung cleaner: erst die E-Mail, „Weiter“, dann prüft die Datenbank, ob es ein Konto gibt; ja → Passwort, nein → möglichst schlichte Registrierung (wie bei Trade Republic), mit zwei Passwortzeilen. Die Sportart gehört nicht ins Spieler-Onboarding, sie kommt mit dem Einladungslink.
+
+- **Migration 0055 (live):** `public.email_account_status(email)` sagt vor dem Anmelden 'confirmed', 'unconfirmed' oder 'none'; gelöschte Konten zählen als keins; gleiches Rate-Limit wie die anderen offenen Funktionen (20 pro Aufrufer in 10 Minuten). Test `34_email_account_status_test.sql`; der Test-Shim kennt jetzt `email_confirmed_at` und `deleted_at`.
+- **`AuthForm` neu:** Schritt 1 nur die E-Mail-Adresse („Wir schauen, ob du schon ein Konto hast“) → bekannt: „Willkommen zurück“ mit Passwort, „Passwort vergessen?“, „Noch kein Konto?“; wartet die Adresse noch auf die Bestätigung, steht das dabei, mit „Mail nochmal senden“. Neu: „Konto erstellen“ mit Passwort, Passwort wiederholen und zwei Häkchen (mindestens 8 Zeichen, beide gleich), Zustimmung nur, wenn sie nicht schon im Schritt davor kam. Adresse jederzeit „Ändern“. Keine Tabs mehr. Gilt auf `/login` und im Onboarding (Beitreten, Einladung, Gründen).
+- **Passwort zurücksetzen:** ebenfalls zwei Felder mit denselben Häkchen.
+- **Spieler-Assistent:** keine Sportart-Auswahl mehr; die Sportart kommt immer vom Team. Ohne Code (Karte vor dem Team) entfällt auch der Positionsschritt, die Position fragt danach der Hinweis auf Heute bzw. die Einstellungen mit den Positionen der Teamsportart; die Karten-Enthüllung kommt trotzdem.
+- `/login` unten nur noch die ruhige Zeile Impressum · Datenschutz · Nutzungsbedingungen.

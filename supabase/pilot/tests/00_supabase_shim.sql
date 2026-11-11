@@ -19,6 +19,9 @@ create table if not exists auth.users (
   -- What the app keeps with the account (the app language, area 6b).
   raw_user_meta_data jsonb
 );
+-- As on Supabase: when the address was confirmed, and soft deletion.
+alter table auth.users add column if not exists email_confirmed_at timestamptz;
+alter table auth.users add column if not exists deleted_at timestamptz;
 
 -- Supabase reads the user id from the request's JWT claims; the tests set
 -- the same setting with `set_config('request.jwt.claims', ...)`.

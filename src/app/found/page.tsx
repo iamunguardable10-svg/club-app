@@ -203,7 +203,7 @@ function FoundFlow({ code, account }: { code: string; account: Account }) {
         <FoundForm code={code} account={account} profile={draft} />
       ) : draft ? (
         <>
-          <AuthForm legalLinks={false} initialMode="signUp" staff consent={draft.consent} returnTo={`/found?code=${encodeURIComponent(code)}`} intro={t('onboarding.found.accountIntro')} />
+          <AuthForm staff consent={draft.consent} returnTo={`/found?code=${encodeURIComponent(code)}`} intro={t('onboarding.found.accountIntro')} />
           <button type="button" onClick={() => setDraft(null)} className="justify-self-start px-1 text-xs font-bold text-slate-400 underline">{t('onboarding.back')}</button>
         </>
       ) : (
