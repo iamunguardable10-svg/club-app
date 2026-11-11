@@ -4,8 +4,8 @@
  * Signing in and creating an account on the club server, e-mail first
  * (Ben, 2026-11-11: "like Trade Republic, less is more"): the address
  * alone, "Continue", then the server says whether it has an account (0055).
- * With one: its password. Without: a new password twice (and the consent,
- * unless the step before asked it already). Forgotten passwords and
+ * With one: its password. Without: a new password twice and the terms
+ * (birth year and health data come with joining a team, where they matter). Forgotten passwords and
  * accounts still waiting for their confirmation mail are one tap away.
  *
  * Used on /login and inside onboarding (/join, /found). Signing in also
@@ -15,7 +15,7 @@
 
 import { useId, useState } from 'react';
 
-import { ConsentFields, EMPTY_CONSENT, consentComplete } from '@/features/legal/ConsentFields';
+import { AcceptText, EMPTY_CONSENT, consentComplete } from '@/features/legal/ConsentFields';
 import {
   emailAccountStatus,
   requestPasswordReset,
@@ -163,8 +163,9 @@ export function AuthForm({
   }
 
   const title = step === 'email' ? t('auth.step.email') : step === 'password' ? t('auth.step.password') : step === 'create' ? t('auth.step.create') : t('auth.reset.title');
-  const detail = step === 'email' ? intro ?? t('auth.step.emailDetail') : step === 'create' ? t('auth.step.createDetail') : step === 'reset' ? t('auth.reset.detail') : null;
-  const canSubmit = step === 'create' ? longEnough && matches && consentComplete(consent, staff) : true;
+  // Less is more: only a line where the step is not obvious.
+  const detail = step === 'email' ? intro ?? null : step === 'reset' ? t('auth.reset.detail') : null;
+  const canSubmit = step === 'create' ? longEnough && matches && (givenConsent ? consentComplete(givenConsent, staff) : ownConsent.terms) : true;
 
   return (
     <form key={step} onSubmit={submit} className="wizard-step os-panel grid grid-cols-[minmax(0,1fr)] gap-5 p-6">
@@ -214,7 +215,13 @@ export function AuthForm({
             <PasswordCheck ok={longEnough} label={t('auth.check.length', { count: MIN_PASSWORD })} />
             <PasswordCheck ok={matches} label={t('auth.check.match')} />
           </ul>
-          {givenConsent ? null : <ConsentFields value={consent} onChange={setConsent} staff={staff} />}
+          {/* Only the terms here; birth year and health data come with joining a team, where they matter. */}
+          {givenConsent ? null : (
+            <label className="flex items-start gap-3 text-sm text-slate-300">
+              <input type="checkbox" required checked={ownConsent.terms} onChange={(event) => setConsent({ ...ownConsent, terms: event.target.checked })} className="mt-0.5 h-5 w-5 shrink-0" />
+              <AcceptText />
+            </label>
+          )}
         </div>
       ) : null}
 

@@ -28,14 +28,12 @@ function LoginContent() {
   return (
     <main className="os-page">
       <div className="os-container max-w-md space-y-5">
-        <header className="os-hero p-6">
-          <div className="flex items-center justify-between gap-3">
-            <p className="os-kicker">{t('start.kicker')}</p>
-            <LanguagePicker compact />
-          </div>
-          <h1 className="os-title mt-2">{t('auth.login.title')}</h1>
-          <p className="os-copy mt-3">{t('auth.login.detail')}</p>
+        {/* Less is more: just the name and the language, then straight to the e-mail. */}
+        <header className="flex items-center justify-between gap-3 px-1 pt-2">
+          <p className="os-kicker">{t('start.kicker')}</p>
+          <LanguagePicker compact />
         </header>
+        <h1 className="sr-only">{t('auth.login.title')}</h1>
         <AuthForm returnTo={next} />
         <div className="grid justify-items-center gap-3 pt-2">
           <LocalModeLink />

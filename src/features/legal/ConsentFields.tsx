@@ -17,14 +17,14 @@ export function ConsentFields({ value, onChange, staff = false, knownBirthYear }
     {staff ? <label className="flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" required checked={value.staff16} onChange={(e) => onChange({ ...value, staff16: e.target.checked })} className="mt-1 h-4 w-4 shrink-0" />{t('consent.staff16')}</label>
       : <BirthYearSlider value={value.birthYear} locked={knownBirthYear != null} year={year} onChange={(birthYear) => onChange({ ...value, birthYear, health: false })} />}
     <label className="flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" required checked={value.terms} onChange={(e) => onChange({ ...value, terms: e.target.checked })} className="mt-1 h-4 w-4 shrink-0" /><AcceptText /></label>
-    {!staff && adult ? <p className="text-xs leading-5 text-slate-400">{t('consent.why')}</p> : null}
     {!staff && adult ? <label className="flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" checked={value.health} onChange={(e) => onChange({ ...value, health: e.target.checked })} className="mt-1 h-4 w-4 shrink-0" />{t('consent.health')}</label> : null}
-    {!staff ? <p className="text-xs leading-relaxed text-slate-400">{t('consent.limited')}</p> : null}
+    {/* The small print stays one tap away instead of on the screen (Ben, 2026-11-11). */}
+    {!staff ? <details className="group text-xs text-slate-400"><summary className="cursor-pointer list-none font-bold text-slate-400 underline [&::-webkit-details-marker]:hidden">{t('consent.whatMeans')}</summary><div className="mt-2 grid gap-2 leading-relaxed">{adult ? <p>{t('consent.why')}</p> : null}<p>{t('consent.limited')}</p></div></details> : null}
   </fieldset>;
 }
 
 /** "I accept the terms and the privacy policy", both links in the sentence (open in a new tab, the form stays). */
-function AcceptText() {
+export function AcceptText() {
   const t = useT();
   const text = t('consent.acceptLinked', { terms: '\u0001', privacy: '\u0002' });
   return <span>{text.split(/(\u0001|\u0002)/).map((part, index) => (
