@@ -9,7 +9,6 @@ import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 import { AuthForm } from '@/features/access/AuthForm';
-import { LocalModeLink } from '@/features/access/LocalModeLink';
 import { LegalLinks } from '@/features/legal/LegalLinks';
 import { useT } from '@/shared/i18n';
 import { LanguagePicker } from '@/shared/i18n/LanguagePicker';
@@ -35,10 +34,8 @@ function LoginContent() {
         </header>
         <h1 className="sr-only">{t('auth.login.title')}</h1>
         <AuthForm returnTo={next} />
-        <div className="grid justify-items-center gap-3 pt-2">
-          <LocalModeLink />
-          <LegalLinks quiet />
-        </div>
+        {/* The imprint and privacy policy must stay reachable from every page; nothing else here. */}
+        <div className="pt-2"><LegalLinks quiet /></div>
       </div>
     </main>
   );
