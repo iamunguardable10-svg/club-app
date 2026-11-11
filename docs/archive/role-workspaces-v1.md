@@ -179,4 +179,4 @@ Implementation boundary:
 
 - Coach shell must not expose club Admin Overview, all-department governance, or unscoped staff/facility pages.
 - Department lead and coach can both open Team Workspace, but permissions and navigation context must remain role-scoped.
-- Canonical calendar interaction rules live in `docs/calendar-session-blueprint-v1.md`; this file records only the role-shell consequences.
+- Canonical calendar interaction rules live in `docs/archive/calendar-session-blueprint-v1.md`; this file records only the role-shell consequences.

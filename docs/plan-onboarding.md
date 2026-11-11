@@ -13,7 +13,7 @@ meisten über einen Team-Code oder eine Einladung.
    Code“ führt zu den bisherigen Wegen. Der Demo-Verein deckt alle Funktionen ab und spricht
    die App-Sprache (`src/shared/data/demoTexts.ts`, neu angelegt bei Sprachwechsel).
 2. **Einführung im Moment:** Willkommen-Blatt mit drei Zeilen je Rolle und kleine Tipps an den
-   Knöpfen (Ideen in `docs/onboarding-concept.md`, ohne Abdunkeln). Am Ende der Demo immer der
+   Knöpfen (Ideen in `docs/archive/onboarding-concept.md`, ohne Abdunkeln). Am Ende der Demo immer der
    nächste Schritt: „Richte deinen Verein ein“ / „Tritt deinem Team bei“.
 3. **Profil zuerst, klein:** Name und Profilbild direkt vor dem Konto (füllt nur das
    Registrieren vor). Wer gründet, bekommt **nach** dem Registrieren einen kurzen

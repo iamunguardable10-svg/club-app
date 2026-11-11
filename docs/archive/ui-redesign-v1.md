@@ -265,7 +265,7 @@ Changed:
 - club setup now has an explicit Lean start vs Team-ready setup mode
 - team-code join is exposed as an athlete entry path
 
-Detailed notes: `docs/bottom-up-onboarding-v1.md`.
+Detailed notes: `docs/archive/bottom-up-onboarding-v1.md`.
 
 ## Facilities redesign pass
 

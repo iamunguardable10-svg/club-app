@@ -47,7 +47,7 @@ aufgeräumt werden.
 Das bestehende Supabase-Schema (`teams`, `departments`, `facilities`,
 `team_memberships`, `sessions`, `session_series`, `player_groups`, `load_entries`,
 `availability` und weitere) ist durchdacht und bleibt als Referenz im Repository:
-SQL-Dateien, Migrationen, `docs/database-schema.md` und `docs/rls-access-model.md`
+SQL-Dateien, Migrationen, `docs/archive/database-schema.md` und `docs/archive/rls-access-model.md`
 werden nicht gelöscht.
 
 Weil aber nichts migriert werden muss, ist es **keine bindende Vorlage**. Wo die alte
@@ -80,7 +80,7 @@ Gründe, nachgeprüft vor der Entscheidung:
 
 Die Verwaltungsoberflächen kommen später wieder, dann auf der Datenschicht. Vorlage
 sind dafür die **Supabase-Originale**, nicht die Demo-Versionen: Beim Trainer trugen
-die Live-Varianten die echte Produktlogik (siehe `docs/coach-zwillinge.md`). Das
+die Live-Varianten die echte Produktlogik (siehe `docs/archive/coach-zwillinge.md`). Das
 Datenmodell dafür — Club → Abteilung → Team, Hallen, Hallenzuordnungen — ist schon da.
 
 Alles Gelöschte liegt in Commit `543775f` auf `origin/main`.
@@ -99,7 +99,7 @@ Fake-Daten-Generatoren und eine aus einem URL-Parameter abgeleitete Rechteprüfu
 Aus der Demo-Seite wird nur die Erzeugung von Testdaten übernommen, und die gehört in
 `seed.ts`.
 
-Siehe `docs/coach-zwillinge.md` für die Belege.
+Siehe `docs/archive/coach-zwillinge.md` für die Belege.
 
 ## 6. Gelöscht wird erst, wenn der Ersatz trägt
 
@@ -155,7 +155,7 @@ Rechtemodell dafür, was eine Trainerrolle von Spielern sehen darf; das nachträ
 über acht Monate gewachsene RLS-Regeln einzubauen, ist schwerer, als es von Anfang an
 mitzudenken. Das neue Schema wird aus dem lokalen Datenmodell (`src/shared/data/schema.ts`)
 abgeleitet, das die Oberflächen heute sprechen. Das alte Schema unter `supabase/` und
-`docs/rls-access-model.md` bleiben Referenz, gute Teile werden übernommen.
+`docs/archive/rls-access-model.md` bleiben Referenz, gute Teile werden übernommen.
 
 Die App selbst wird **nicht** neu gebaut: Kalender, Hallenkalender, Serienplanung,
 Spieler-Workspace und die Datenschicht bleiben. Supabase kommt als zweiter Speicher

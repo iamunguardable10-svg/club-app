@@ -318,7 +318,7 @@ FacilityOption
 See also:
 
 ```txt
-docs/facility-accents-and-calendar-context.md
+docs/archive/facility-accents-and-calendar-context.md
 ```
 
 ## Facility links and future calendar context

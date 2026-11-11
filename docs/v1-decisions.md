@@ -282,7 +282,7 @@ Current implementation decision:
 
 - Calendars should share one reusable Untis-style engine instead of diverging per role.
 - View mode is the default. Edit/create mode must be explicit, especially on mobile.
-- Draft session creation and participant editing rules are defined canonically in `docs/calendar-session-blueprint-v1.md`.
+- Draft session creation and participant editing rules are defined canonically in `docs/archive/calendar-session-blueprint-v1.md`.
 - Coach-wide calendars show all sessions from assigned teams and may use subtle team accents.
 - Facility calendars preserve the entry role and context: admin, department lead, coach or team.
 
