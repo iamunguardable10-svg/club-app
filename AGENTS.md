@@ -8,7 +8,7 @@ Codex may implement features, bug fixes, refactors, UI work, Supabase code, test
 
 Codex must keep diffs focused. Do not make unrequested product, UI, database, dependency or architecture changes while solving another task.
 
-## Current state (2026-09-26): one app, two stores
+## Current state (2026-11): one app, two stores, in pilot
 
 The app has **two stores behind one data layer** (`src/shared/data/`):
 
@@ -17,8 +17,9 @@ The app has **two stores behind one data layer** (`src/shared/data/`):
   development, tests and trying things out.
 - **Club server (pilot):** Supabase with sign-in, row-level security and
   database functions. Schema, rules and tests live in `supabase/pilot/`
-  (migrations `0001`–`00NN`, tests in `supabase/pilot/tests/`), Edge Functions in
-  `supabase/functions/`. This is the **live project** real players use.
+  (migrations `0001`–`0055`, tests in `supabase/pilot/tests/`), Edge Functions in
+  `supabase/functions/`. This is the **live project** real players use
+  (`CLUB_ProjectV2`, `tszxeainmwowmixqmphn`, EU), served at myclubos.vercel.app.
 
 One interface, two interchangeable stores — never a second app or a parallel
 implementation. `docs/simplify-decisions.md` (section 8) explains why;
@@ -69,14 +70,9 @@ Follow these steps in order. Each piece is one branch and one pull request.
    `supabase/`: a local Postgres 15+ and
    `PGHOST=… PGPORT=… PGUSER=postgres supabase/pilot/tests/run-local.sh`, then
    `npm run test:pilot` (see `supabase/pilot/README.md`).
-6. ~~**Onboarding:** a new or changed feature plans how new users learn it (who sees
-   it, which page tour step, moment tip or empty state, gesture, one sentence in four
-   languages, a "new" hint for existing users) in its plan, following
-   `docs/onboarding-concept.md`, and adds it to the coverage table there. A feature
-   is done only with its onboarding built and checked (once the tour toolkit exists).~~ (ausgesetzt 2026-10-08, Onboarding wird neu aufgesetzt)
-7. **Document:** a short entry at the end of `docs/simplify-progress.md` (what,
+6. **Document:** a short entry at the end of `docs/simplify-progress.md` (what,
    why, how checked); mark the piece done in `docs/plan-next-runs.md`.
-8. **Pull request** with what changed and which checks ran. CI must be green.
+7. **Pull request** with what changed and which checks ran. CI must be green.
 
 **Never, without the owner's explicit OK:**
 
@@ -97,9 +93,9 @@ For small fixes:
 For feature, auth, role, Supabase, invite, facility, calendar or load work, also read:
 
 - `docs/simplify-decisions.md` (current phase, takes precedence)
-- `README.md`
+- `README.md` and `DESIGN.md` (for anything visible)
 - `.agents/skills/club-os/SKILL.md`
-- `docs/project-log.md`
+- the latest entries of `docs/simplify-progress.md` (the run log)
 - `docs/v1-decisions.md`
 - `docs/core-flows.md`
 - `docs/calendar-qa-guardrails.md` when changing calendar, session edit/detail, Series planner or mobile scheduling behavior
@@ -120,7 +116,7 @@ For feature, auth, role, Supabase, invite, facility, calendar or load work, also
 
 ## Validation
 
-See step 5 above. At minimum for any code change: `npm run typecheck`,
+See step 5 above (CI runs the same on every pull request). At minimum for any code change: `npm run typecheck`,
 `npm run check:i18n && npm run test:i18n`, `npm run build`, `npm run test:smoke`.
 Run `npm run lint` only if it is known to work in the current Next.js setup.
 

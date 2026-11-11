@@ -83,7 +83,7 @@ wird interaktiv geführt, ohne dass etwas blockiert oder abgedunkelt wird.
   planen“ und „Spieler einladen“, Verein „Team anlegen“ und „Halle anlegen“. Jeder Schritt
   wartet auf die echte Aktion des Nutzers.
 - **Allgemein formuliert**, damit es für jede Sportart passt. Ideen in
-  `docs/onboarding-concept.md` (Abschnitte B, C, D). Für Popover-Positionierung darf eine kleine,
+  `docs/archive/onboarding-concept.md` (Abschnitte B, C, D). Für Popover-Positionierung darf eine kleine,
   gepflegte Bibliothek (MIT) genutzt werden; die Logik (wann, welcher Tipp) bleibt bei uns,
   klein und datengetrieben (Liste von Tipps mit Seite, Zielknopf, Text, Bedingung).
 - „Tipps wieder zeigen“ in den Einstellungen.

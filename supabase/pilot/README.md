@@ -4,8 +4,8 @@ The Supabase schema for the club pilot (docs/simplify-decisions.md, point 8).
 Derived from the local data model in `src/shared/data/schema.ts`; the older
 schema in `supabase/migrations` is the pre-pilot one and only a reference.
 
-Project: `CLUB_ProjectV2` (`tszxeainmwowmixqmphn`, eu-west-3). All eleven
-migrations below are applied there (2026-09-24).
+Project: `CLUB_ProjectV2` (`tszxeainmwowmixqmphn`, eu-west-3). All migrations
+below (0001–0055) are applied there.
 
 | File | What it does |
 |---|---|
@@ -41,10 +41,31 @@ migrations below are applied there (2026-09-24).
 | `migrations/0030_pilot_quiet_error_reports.sql` | Quieter error reports: "Script error." without detail (the browser hid the real error) is not stored; the morning summary moves to 07:00 UTC (09:00 in summer, 08:00 in winter) |
 | `migrations/0031_pilot_push_languages.sql` | Push messages in the recipient's language: every outbox row also carries `text_key` and `text_params`; `push_take_due` hands them out with the account's language (`auth.users.raw_user_meta_data ->> 'locale'`, set by the app). The English title and body stay the fallback |
 | `migrations/0032_pilot_message_pinning.sql` | How long an important team message stays pinned: `team_messages.pinned_until` (chosen by the staff, at most a month; a week when not given; fixed once written; never for normal messages) |
+| `migrations/0033_pilot_rsvp_modes.sql` | Answering sessions automatically ("in" unless you say no) or yourself, per player (`people.rsvp_mode`) |
+| `migrations/0034_pilot_message_polls.sql` | Polls in team messages: 2 to 6 answers, one or several |
+| `migrations/0035_pilot_club_news.sql` | Club and department news, with a rule for who may write them |
+| `migrations/0036_pilot_messages.sql` | One `messages` table for team messages, polls and news, to any mix of teams, groups and roles |
+| `migrations/0037_pilot_messages_cleanup.sql` | Removes the tables 0036 replaced; who writes to a department is set per person |
+| `migrations/0038_pilot_messages_link.sql` | Message pushes open `/messages` |
+| `migrations/0039_pilot_message_stats.sql` | Author, read counts and poll results the app could not compute from what it may read |
+| `migrations/0040_pilot_carpools.sql` | Team-only carpools for games |
+| `migrations/0041_pilot_consent.sql` | Legal acceptance, voluntary health data, parental consent for under-16s, data export |
+| `migrations/0042_pilot_rate_limits.sql` | Sliding-window rate limits on everything callable over the API |
+| `migrations/0043_pilot_rate_limit_ip_hash.sql` | Rate limits keep only a hash of the caller's IP |
+| `migrations/0044_pilot_rate_limits_shared_ip.sql` | Room for many phones behind one address (gym Wi-Fi) |
+| `migrations/0045_pilot_live_updates.sql` | Live updates: a small version per club and table instead of reloading everything |
+| `migrations/0046_pilot_feature_unlocking.sql` | Features in three levels: unlocked for the club, decided by the club, chosen by the team |
+| `migrations/0047_pilot_carpool_departure.sql` | Carpools: departure time and meeting point (picked on a map) |
+| `migrations/0048_pilot_meetings.sql` | Meetings as their own session type (place and/or online link, not rated) |
+| `migrations/0049_pilot_playbooks.sql` | Playbooks: plays as PDF or picture, released to the team or groups |
+| `migrations/0050_pilot_profile_photos.sql` | Profile photos (private bucket, signed links, only the own club sees them) |
+| `migrations/0051_pilot_player_profile.sql` | Player profile: number and position per team (number unique in the team), height and strong side |
+| `migrations/0052_pilot_fixed_numbers_and_sport.sql` | Teams with or without fixed numbers; the sport of a department |
+| `migrations/0053_pilot_join_code_profile.sql` | Sport and fixed numbers behind a join code, before signing in |
+| `migrations/0054_pilot_team_logos.sql` | Team logos (public bucket), `join_code_card` with logo and department before joining |
+| `migrations/0055_pilot_email_account_status.sql` | E-mail-first sign-in: whether an address has an account, rate-limited |
 | `tests/00_supabase_shim.sql` | Stand-in for Supabase's `auth` schema and roles, **local tests only** |
-| `tests/01_rls_test.sql` | 105 checks, each acting as one person (Head Coach, Betreuer, athlete, outsider) |
-| `tests/02_access_test.sql` | 35 checks for join codes, invitations and club setup |
-| `tests/03_club_admin_test.sql` | 50 checks for founding a club and running it as admin and department lead |
+| `tests/01_*` – `tests/34_*` | One file per area, each acting as the people involved (Head Coach, staff, players, parents, club admin, department lead, outsiders): access rules, onboarding, club admin, push, messages, consent, rate limits, live updates, features, playbooks, photos, player profile, team logos, e-mail status |
 | `tests/run-local.sh` | Recreates a local test database, applies shim and migrations, runs the checks above |
 | `tests/remote-store.test.ts` | 89 end-to-end checks: the app's real data-layer functions through the server store against the local database, as Head Coach, Betreuer, athlete and two new accounts joining |
 

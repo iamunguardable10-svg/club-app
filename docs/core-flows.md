@@ -3,7 +3,7 @@
 > **Status 2026-09:** Flows that start with an admin, an invite or a login are
 > not active in the local test mode (`docs/simplify-decisions.md`). The session,
 > availability and load flows are active; they are checked end to end in
-> `docs/local-mode-testplan.md`.
+> `docs/archive/local-mode-testplan.md`.
 
 ## Philosophy
 
@@ -104,7 +104,7 @@ Coach
 
 ## Current UX rule
 
-Calendar planning is governed by `docs/calendar-session-blueprint-v1.md`: place the session draft spatially first, then open the compact edit sheet only for missing context such as team, facility, type and groups.
+Calendar planning is governed by `docs/archive/calendar-session-blueprint-v1.md`: place the session draft spatially first, then open the compact edit sheet only for missing context such as team, facility, type and groups.
 
 ---
 

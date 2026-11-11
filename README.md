@@ -1,127 +1,126 @@
-# Club App / TeamLoad OS
+# Club OS
 
-Club App is the foundation for a club operating system for teams, coaches, athletes and club admins.
+**The club app for teams, coaches and players.** Training and game planning,
+"who is coming?", messages, halls, carpools and player load, in one calm app
+for the phone and the desktop.
 
-> **Current state (since 2026-09): local test mode.** The app runs without
-> accounts, login, database or environment variables. Open it, pick
-> *Trainer* or *Spieler*, and you are in a seeded club. Both perspectives
-> share the same data, stored in the browser. See `docs/simplify-decisions.md`
-> for why, and `docs/simplify-progress.md` for how it got here. The sections
-> below on admins, invites and Supabase describe the target product and the
-> previous setup; they are kept as reference.
+Live: **[myclubos.vercel.app](https://myclubos.vercel.app)** · in pilot with a
+real club · English, German, French and Spanish
 
-## Running it
+> **Kurz auf Deutsch.** Club OS ist eine Vereins-App für Trainer, Spieler und
+> Vereinsverwaltung: Einheiten und Spiele planen, Zu- und Absagen mit einem
+> Tipp, Nachrichten und Umfragen, Hallen, Fahrgemeinschaften und die
+> Trainingsbelastung der Spieler (ACWR). Sie läuft als Web-App und lässt sich
+> wie eine native App auf dem Handy installieren. Ein Beispielverein zeigt alles
+> ohne Konto; echte Vereine arbeiten auf einem eigenen Server mit Anmeldung.
+
+<p align="center">
+  <img src="public/landing/today.webp" alt="Today, as a coach" width="220" />
+  <img src="public/landing/calendar.webp" alt="The team calendar" width="220" />
+  <img src="public/landing/load.webp" alt="A player's training load" width="220" />
+</p>
+
+## What it does
+
+| For | What they get |
+|---|---|
+| **Players** | Their sessions and games, answering with one tap (or automatically "in"), saying they are away for a while, rating how hard a session was, their own training load and plans, team messages and polls, carpools to away games, the team's playbook, a player card with photo, number and position |
+| **Coaches** | Today at a glance (who is coming, who is late, who did not answer), a smart calendar to plan sessions and weekly series by drag and drop, squads for games, attendance, every player's load traffic light (who is under- or overloaded), messages to the team or groups, playbooks, staff roles with fine-grained rights |
+| **Club and department leads** | Departments, teams and halls, inviting coaches, club-wide news, which features each team uses, hall plans without double bookings |
+
+Around it: push notifications in the reader's language, a calendar link and an
+Apple Calendar sync, an installable app (PWA) that stays signed in, consent and
+parental consent for health data, data export and account deletion, a problem
+report button.
+
+## Try it
+
+- **Demo club:** open [myclubos.vercel.app](https://myclubos.vercel.app) and
+  choose *Try the demo* (as coach, player or club). No account; everything you
+  change stays in your browser.
+- **Real club:** a club is founded with a founding code from us; players join
+  with their team's link or QR code, coaches with a personal invitation.
+
+## How it is built
+
+```txt
+           one interface (src/features, src/app)
+                          │
+             one data layer (src/shared/data)
+                 ┌────────┴────────┐
+        demo club (local)     club server (Supabase)
+        in the browser,       Postgres with row-level security,
+        seeded, no account    Auth, Storage, Edge Functions, pg_cron
+```
+
+- **One app, two stores.** The demo club and real clubs use the same screens and
+  the same data layer; only the store behind it differs. Nothing is built twice.
+- **The database is the guard.** Every right a coach or player has is enforced
+  by row-level security and database functions (`supabase/pilot/`), with tests
+  that act as each role. The app's own checks only shape the interface.
+- **Privacy by design.** EU region, health data only with consent (parents for
+  under-16s), coaches see players only through a team they share, rate limits on
+  everything that can be called before signing in, no plain IP addresses stored.
+
+| Part | Technology |
+|---|---|
+| App | Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS |
+| Server | Supabase: Postgres 17, row-level security, Auth, Storage, Edge Functions (Deno), pg_cron |
+| Hosting | Vercel (app), Supabase EU (Paris) |
+| Quality | GitHub Actions on every pull request: typecheck, all texts in four languages, build, a browser smoke test of every page, the landing checks, unit tests and the database access tests on Postgres |
+
+### Repository map
+
+```txt
+src/app/               routes (Next.js App Router): /coach, /athlete, /club, /join, /found, /login, …
+src/features/          one folder per product area (calendar, load, messages, onboarding, people, …)
+src/shared/data/       the data layer: schema, repository (the only place that touches storage),
+                       seed of the demo club, server store and its table mappings
+src/shared/i18n/       translations (en, de, fr, es) and formatting
+supabase/pilot/        the club server: migrations 0001–0055, access tests, README
+supabase/functions/    Edge Functions: push, calendar feed, Apple Calendar, login handoff
+scripts/               smoke test, landing checks, screenshot and text tools
+docs/                  decisions, plans and the run log (start at docs/README.md)
+```
+
+## Run it locally
 
 ```bash
 npm install
-npm run dev
+npm run dev          # http://localhost:3000, the demo club works without any setup
 ```
 
-No `.env` file is needed. Test data is created on first start and can be reset
-from the identity switcher ("Testdaten zurücksetzen").
+To use a club server as well, copy `.env.example` to `.env.local` and fill in
+`NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (both are
+public by design). `GEOAPIFY_API_KEY` (server only) is optional and turns on
+address suggestions for halls.
 
-## Product direction
+### Checks
 
-The app is not just an attendance app. It is designed as a structured operating system for clubs:
-
-- Admins create and configure the club.
-- Coaches manage teams, sessions, attendance and load.
-- Athletes see their calendar, submit availability and report load.
-- Club operations manage departments, facilities and responsibilities.
-
-## V1 goal
-
-V1 is a clean product and code foundation with placeholder screens. The priority is architecture, navigation and core flows — not polished analytics or advanced automation.
-
-### V1 core flows
-
-1. Admin creates a club.
-2. Admin creates departments and teams.
-3. Admin invites coaches through invite links.
-4. Coach accepts invite and is assigned to the correct club/team.
-5. Coach invites athletes through team invite links.
-6. Athlete accepts invite and joins the correct team.
-7. Coach plans sessions.
-8. Athlete submits availability: expected, late, maybe, no.
-9. Coach sees live status and finalizes attendance.
-10. Load entries and analytics are built on top of finalized participation.
-
-## Main app areas
-
-Active routes in the local test mode:
-
-```txt
-/            - pick a role to test as
-/coach       - today, sessions (calendar), team, facilities, history, attendance, load
-/athlete     - home, calendar (incl. availability), load
-/share/load  - read-only load view an athlete shares with a coach
+```bash
+npm run typecheck
+npm run check:i18n && npm run test:i18n      # every text in all four languages
+npm run build
+npm run start -- -p 3100 &                   # then:
+npm run test:smoke                           # every page as player, coach and club; SMOKE_FULL=1 for all languages
+npm run test:landing                         # landing page and entry routes
 ```
 
-Removed for the local test mode, recoverable from commit `543775f` on `main`:
+Unit tests: `test:load`, `test:series`, `test:calendar`, `test:store`,
+`test:features`, `test:carpools`, `test:consent`, `test:address`, `test:build`.
+The database tests run all migrations on a local Postgres and act as every role:
+see [`supabase/pilot/README.md`](supabase/pilot/README.md).
 
-```txt
-/admin, /department   - club and department administration
-/invite, /join        - invites and join codes (need accounts)
-/auth, /onboarding    - login, signup, club creation
-/demo                 - the former second, demo-only app
-```
+## Documentation
 
-Role-shell rule:
+- [`docs/README.md`](docs/README.md): where to find what
+- [`DESIGN.md`](DESIGN.md): how Club OS looks and feels
+- [`AGENTS.md`](AGENTS.md) and [`CLAUDE.md`](CLAUDE.md): rules for building and reviewing (also for AI agents)
+- [`docs/simplify-progress.md`](docs/simplify-progress.md): every change, why, and how it was checked
 
-- Coach and department-lead shells are scoped operational surfaces, not alternate admin dashboards.
-- Department-lead routes lived under `/department/...` (documented in `docs/role-workspaces-v1.md`); removed for the local test mode.
-- Team Workspace keeps its own Home / Calendar / Players / Groups / Staff-Settings navigation after a concrete team is opened.
-- Calendars share one Untis-style engine and become smarter through context rather than separate per-role implementations.
+## Status
 
-## Technical direction
+In pilot since autumn 2026. Open work and ideas: [`docs/plan-next-runs.md`](docs/plan-next-runs.md).
+Questions or a pilot for your club: ben.hebling@gmx.de.
 
-Preferred stack:
-
-- Next.js
-- TypeScript
-- Tailwind CSS
-- Supabase Auth + Postgres + RLS — target backend; not wired up in the local test mode. Schema and migrations stay under `supabase/`.
-- Feature-based architecture
-
-## Environment variables
-
-None are needed in the local test mode.
-
-Optional: `GEOAPIFY_API_KEY` (server only, set in Vercel) turns on address
-suggestions in the hall form (`/coach/facilities`, “Edit halls”), asked through
-`/api/address`. Without it the address is a plain text field.
-
-Club pilot (`docs/simplify-decisions.md`, point 8): with
-`NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` set (see
-`.env.example`), the start page offers signing in with the club next to the
-local test mode. Each device chooses and can switch back at any time (start
-page, identity menu); the local test mode needs no account and never touches
-the server. Signed in, the same screens read and write the pilot database.
-Accounts come in through `/join`: athletes with their team's join code, staff
-with a personal invitation link. Database, setup and tests:
-`supabase/pilot/README.md`.
-
-## Facility address input principle
-
-Facility names and facility addresses are intentionally separate:
-
-- The facility name is the internal club or department name, for example `Main Hall` or `U18 Gym`.
-- The address field can search by official venue name, school name, hall name or street address.
-- Address suggestions may fill the address, but they must not automatically overwrite the internal facility name.
-- The hall form on `/coach/facilities` follows this: suggestions only fill the address (`src/features/facilities/AddressField.tsx`).
-
-## Key principle
-
-Every screen must answer a real operational question.
-
-For coaches, the main question is:
-
-> Who is coming today, who is late, who is missing, why, and who needs load attention?
-
-For athletes, the main question is:
-
-> What is next, what do I need to report, and how am I doing?
-
-For admins, the main question is:
-
-> Is the club structure correctly set up and are the right people assigned to the right roles?
+© 2026 Club OS. All rights reserved.

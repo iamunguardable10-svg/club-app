@@ -3,8 +3,8 @@
 Übergabedatei zwischen den sechs Runs. Jeder Run startet kalt und kennt die
 Entscheidungen der vorherigen nur aus dieser Datei. Jeder Run ergänzt sie.
 
-Grundlagen: `docs/simplify-decisions.md`, `docs/simplify-inventar.md`,
-`docs/coach-zwillinge.md`.
+Grundlagen: `docs/simplify-decisions.md`, `docs/archive/simplify-inventar.md`,
+`docs/archive/coach-zwillinge.md`.
 
 ---
 
@@ -139,7 +139,7 @@ Run 3 und 4 sollten dort zuerst nachsehen, bevor sie etwas neu bauen.
 mit eigenen Helfern, `club-app.demo.invites` in fünf. Wer in Run 2 eine dieser Stellen
 anfasst, sollte wissen, dass es die anderen sechs auch gibt.
 
-**Die Attendance-Lücke ist echt.** Laut `docs/coach-zwillinge.md` setzt die
+**Die Attendance-Lücke ist echt.** Laut `docs/archive/coach-zwillinge.md` setzt die
 Live-Variante `attendanceRate` auf `null`, die Demo-Variante erfindet Werte. Mit
 `availability` in der Datenschicht lässt sich die Quote jetzt erstmals **echt**
 berechnen. Run 2 entscheidet das.
@@ -186,7 +186,7 @@ Supabase-Client mehr auf.
 Die geteilte Oberflächenschicht (`TeamWorkspaceView`, `CoachSessionSurfaces`,
 `CoachCalendarSurface`, `CoachSessionEditSheet`, `SmartSessionCalendar`,
 `WeeklySeriesBoard` und die übrigen) wurde **nicht angefasst**. Das war der Punkt der
-Kartierung in `docs/coach-zwillinge.md`: Die Doppelpflege saß nur in den Containern.
+Kartierung in `docs/archive/coach-zwillinge.md`: Die Doppelpflege saß nur in den Containern.
 
 Netto: rund 1100 Zeilen weniger in den Containern, bei gleichem Funktionsumfang — die
 301 neuen Zeilen im Mapper eingerechnet.
@@ -300,7 +300,7 @@ Der Spielerbereich soll dieselbe Form benutzen, keine zweite erfinden:
 |---|---|
 | `npm run typecheck` | grün |
 | `npm run build` | grün |
-| Prüfkette, Schritte 1, 7, 11 | bestanden, siehe `docs/local-mode-testplan.md` |
+| Prüfkette, Schritte 1, 7, 11 | bestanden, siehe `docs/archive/local-mode-testplan.md` |
 | Supabase-Aufrufe in den drei Trainer-Containern | keine mehr |
 | Supabase über Importkette erreichbar | ja, 2 Dateien über `LoadChart` (siehe oben) |
 | Trainerbereich ohne Umgebungsvariablen im Browser | läuft fehlerfrei |
@@ -534,7 +534,7 @@ gewünscht ist, gehört sie in den Workspace, nicht daneben.
 |---|---|
 | `npm run typecheck` | grün |
 | `npm run build` | grün |
-| Prüfkette | Schritte 1–11 bestanden, Details in `docs/local-mode-testplan.md` |
+| Prüfkette | Schritte 1–11 bestanden, Details in `docs/archive/local-mode-testplan.md` |
 | Supabase im aktiven Pfad | 0 Dateien |
 | Laufzeitfehler im Browser | keine |
 
@@ -584,8 +584,8 @@ Varianten), `demoStorage.ts`, `DemoAreaNav`, der Supabase-Client
 `FacilityCalendar`, der `departmentNav`-Zweig in `TeamWorkspaceView`, `CoachTopNav`
 (toter Code), die Karte „Invite players", die Pfadvariante `/demo/coach` in den Typen.
 
-**Bleibt:** `supabase/` mit SQL und Migrationen, `docs/database-schema.md`,
-`docs/rls-access-model.md` — Referenz für ein späteres Backend. `/share/load` und
+**Bleibt:** `supabase/` mit SQL und Migrationen, `docs/archive/database-schema.md`,
+`docs/archive/rls-access-model.md` — Referenz für ein späteres Backend. `/share/load` und
 `AthleteLoadShareView`.
 
 ### Wiederherstellen
@@ -626,7 +626,7 @@ Repository räumt sie einmal pro Seitenaufruf weg (`LEGACY_KEY_PREFIXES` in
   `/coach`.
 
 **Identitätswechsel in der Team-Ansicht auf dem Telefon.** Fehlte seit Run 3, siehe
-`docs/local-mode-testplan.md`.
+`docs/archive/local-mode-testplan.md`.
 
 **„Invite players"** war entgegen meiner Notiz aus Run 2 keine Schaltfläche ins Leere,
 sondern eine statische Karte. Sie versprach eine Funktion, die es ohne Konten nicht
@@ -764,7 +764,7 @@ Supabase-Logik (Abfragen, Rechteprüfung über RLS, Rollback über die Datenbank
 damit ebenfalls nicht mehr im Baum; das Schema unter `supabase/` bleibt.
 
 **Nicht verloren:** Alles, was Trainer und Spieler tun konnten. Der Beleg ist die
-Prüfkette in `docs/local-mode-testplan.md` und der Routen-Durchlauf aus Run 6.
+Prüfkette in `docs/archive/local-mode-testplan.md` und der Routen-Durchlauf aus Run 6.
 
 **Offene Punkte, die bleiben:**
 
@@ -842,7 +842,7 @@ Rechte-Schlüssel sind dafür der Vertrag.
 ### Validierung
 
 `npm run typecheck`, `npm run build` grün; Browserlauf siehe
-`docs/local-mode-testplan.md`, Abschnitt Run 7.
+`docs/archive/local-mode-testplan.md`, Abschnitt Run 7.
 
 ## Run 8 — Hallen (erledigt)
 
@@ -910,7 +910,7 @@ keine Umgebungsvariable.
 ### Validierung
 
 `npm run typecheck`, `npm run build` grün; Browserlauf siehe
-`docs/local-mode-testplan.md`, Abschnitt Run 8.
+`docs/archive/local-mode-testplan.md`, Abschnitt Run 8.
 
 ## Run 9a — Pilot-Datenbank (erledigt)
 
@@ -1012,7 +1012,7 @@ ist. Zusätzlich lädt die App neu, wenn sie wieder in den Vordergrund kommt, un
 
 - `npm run test:pilot`: 38 Prüfungen, die echten Funktionen der Datenschicht über den
   Server-Speicher gegen die lokale Postgres mit den Pilot-Migrationen, als Head Coach,
-  Betreuer und Spieler (Details in `docs/local-mode-testplan.md`).
+  Betreuer und Spieler (Details in `docs/archive/local-mode-testplan.md`).
 - Browser, lokaler Modus, Telefonbreite: alle Routen fehlerfrei; Spieler sagt mit Grund
   ab und korrigiert RPE; Ampel neu berechnet; Head Coach sieht den Grund, Betreuer nicht.
 - Browser, Servermodus ohne Anmeldung: „Nicht angemeldet.“, keine Anfrage an Supabase,
@@ -2621,7 +2621,7 @@ Geprüft: SQL-Tests (neu: Namen, Reichweite, Zahlen), `test:pilot`, Browser gege
 Wunsch (Ben): Für jede Funktion und Seite ein richtiges Onboarding planen, damit neue Nutzer (Spieler,
 Trainer, Abteilungsleitung, Admin) alle Funktionen gezeigt bekommen; erst Konzept, gebaut wird nach
 „Go“; neue Funktionen planen ihr Onboarding ab jetzt mit.
-Neu: `docs/onboarding-concept.md` – Grundsätze (zeigen statt erklären, Gesten am echten Element, kurz,
+Neu: `docs/archive/onboarding-concept.md` – Grundsätze (zeigen statt erklären, Gesten am echten Element, kurz,
 nur was Rolle und Team nutzen, üben ohne Speichern, einmal pro Konto, „?“ zum Wiederholen),
 Bausteine (Willkommen je Rolle, Seiten-Tour, Moment-Tipp, lehrende Leerzustände, Einrichtungs-Liste,
 „Neu“-Hinweis), Touren für jede Seite je Rolle mit Gesten, eine Abdeckungs-Tabelle (jede Funktion hat
@@ -2776,7 +2776,7 @@ und alle bestehenden Tests ohne Postgres (`test:load`, `test:series`, `test:cale
 Zusätzliche Browserprüfung: sechs Willkommen-Fälle auf Desktop/en und Handy/fr,
 gespeicherter Abschluss ohne Tour oder Navigation, zwei dauerhaft gespeicherte Bewertungen
 und beide mobilen Tages-Wischgesten. Seen-State mit Demo und zwei simulierten Konten geprüft.
-Keine Änderungen unter `supabase/` oder an `docs/onboarding-concept.md`, keine Git-Historie
+Keine Änderungen unter `supabase/` oder an `docs/archive/onboarding-concept.md`, keine Git-Historie
 geändert. Eigene Testserver anschließend beendet; `npm run clean:next-env` ausgeführt.
 
 
@@ -3168,3 +3168,15 @@ Ben: Login und Registrierung cleaner: erst die E-Mail, „Weiter“, dann prüft
 - **Spieler-Assistent:** keine Sportart-Auswahl mehr; die Sportart kommt immer vom Team. Ohne Code (Karte vor dem Team) entfällt auch der Positionsschritt, die Position fragt danach der Hinweis auf Heute bzw. die Einstellungen mit den Positionen der Teamsportart; die Karten-Enthüllung kommt trotzdem.
 - `/login` unten nur noch die ruhige Zeile Impressum · Datenschutz · Nutzungsbedingungen.
 - **Nachgeschärft (Ben: „viel zu viel auf einmal“, „das im Kopf brauchen wir auch nicht“):** Registrieren über „Anmelden“ fragt nur noch E-Mail, Passwort zweimal und einen Haken für Nutzungsbedingungen und Datenschutzerklärung (Links im Satz). Geburtsjahr und Gesundheitsdaten kommen erst beim Beitreten zu einem Team, wo sie zählen (der Server legt das Konto auch ohne Geburtsjahr an, `app.assert_access_consent` prüft das Alter beim Beitreten). Keine erklärenden Untertitel mehr; `/login` ohne Kopf-Box und ohne Demo-Link, nur „Club OS“ und die Sprache, darunter direkt „Deine E-Mail-Adresse“, unten die kleine Pflichtzeile Impressum · Datenschutz · Nutzungsbedingungen. Das Kleingedruckte zu Gesundheitsdaten im Assistenten steht hinter „Was heißt das?“.
+
+## Run 105 — Erster Eindruck und ein Repository zum Vorzeigen (2026-11-11)
+
+Ben: Auf der Startseite weg mit dem Kleingedruckten; GitHub, README, DESIGN.md und alle MD-Dateien sollen „auf Zack“ sein, weil sich jemand das Projekt anschaut; die Regeln, nach denen er die Optik hat überarbeiten lassen, gehören in DESIGN.md.
+
+- **Startseite:** ohne Untertitel und ohne „Wähle, was zu dir passt“; „Neu hier“ fragt nur „Wer bist du?“.
+- **Demo als Spieler:** der Bewertungsdialog springt im Beispielverein nicht mehr sofort auf; ein erster Blick wird nie von einem Dialog blockiert (im echten Verein bleibt die Erinnerung).
+- **README** neu: was Club OS ist (mit deutscher Kurzfassung), Bilder, was jede Rolle bekommt, Aufbau (eine Oberfläche, eine Datenschicht, zwei Speicher), Technik, Repository-Karte, lokal starten, Prüfungen, Status.
+- **DESIGN.md** neu, mit dem Abschnitt „Ben's rules“: kein Kleingedrucktes und keine selbsterklärenden Untertitel, Links im Satz, eine ruhige Pflichtzeile unten, keine Chip-Wolken, Schieberegler statt Tippen, nicht fragen, was die App weiß, eine Frage pro Bildschirm mit sichtbarem Fortschritt, Zurück verliert nichts, die Spielerkarte als großer Moment.
+- **AGENTS.md, CLAUDE.md, Skill** auf den Pilotstand gebracht; `docs/README.md` als Wegweiser; 32 überholte Dokumente nach `docs/archive/`, Verweise angepasst; `supabase/pilot/README.md` kennt alle Migrationen bis 0055; `src/features/README.md` listet die echten Bereiche.
+
+Geprüft: `typecheck`, `check:i18n`, `build`, `test:landing`, Smoke (voll), keine toten Links in den MD-Dateien.

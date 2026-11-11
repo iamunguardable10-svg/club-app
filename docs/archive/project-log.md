@@ -819,7 +819,7 @@ Open bug batch before larger feature work:
 
 Next larger feature plan:
 
-- `docs/next-feature-roadmap.md` defines the recommended goal order:
+- `docs/archive/next-feature-roadmap.md` defines the recommended goal order:
   1. Calendar reliability and shared QA
   2. Demo dataset reset and synchronized demo world
   3. Session detail and history V2

@@ -251,4 +251,4 @@ Recommended `/goal`:
 ## Current known bug batch before bigger features
 
 Treat this as Goal 1, not as cleanup. The canonical bug/process list is the
-2026-06-10 entry in `docs/project-log.md`; do not maintain a second copy here.
+2026-06-10 entry in `docs/archive/project-log.md`; do not maintain a second copy here.

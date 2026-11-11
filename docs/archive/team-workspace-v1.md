@@ -216,7 +216,7 @@ Important rule:
 Participant scope is never changed accidentally from the read-only details sheet.
 ```
 
-This is both a UX rule and a regression requirement. The canonical calendar/editing rule lives in `docs/calendar-session-blueprint-v1.md`.
+This is both a UX rule and a regression requirement. The canonical calendar/editing rule lives in `docs/archive/calendar-session-blueprint-v1.md`.
 
 For coach-created team sessions, the default participant scope is the whole team unless groups are selected in the edit sheet.
 

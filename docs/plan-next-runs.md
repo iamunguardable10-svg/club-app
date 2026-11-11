@@ -338,7 +338,7 @@ weiteren Teams oder Vereinen aber nötig:
   verschieben, kürzen, verlängern; zwischen Wochentagen nach links/rechts wischen; Tages-/Wochenansicht;
   zwischen Wochen springen und zurück zur aktuellen Woche. Für jede Seite so planen (Gesten und
   Bedienelemente der Seite, kurz animiert, Schritt für Schritt).
-  → **Konzept (2026-10-03): `docs/onboarding-concept.md`, gebaut in Run 70** (Willkommen, Touren aller
+  → **Konzept (2026-10-03): `docs/archive/onboarding-concept.md`, gebaut in Run 70** (Willkommen, Touren aller
   Seiten mit Gesten, Moment-Tipps). **Run 72: praktische Übungen und neuer persönlicher Einstieg implementiert**
   (echter Kalender, Gruppen, Nachrichten, Spielerantworten/RPE, Team/Halle; Speicher-/Server-Sandbox).
   Round 2: Ziele/Positionierung, Rollen-Einstieg und Welcome korrigiert; vier lokale Checks bestanden.

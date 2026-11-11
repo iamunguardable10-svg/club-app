@@ -34,7 +34,7 @@ The app must work if only one department uses it.
 ## Non-negotiable working rules
 
 - Do not remove functionality during UI work.
-- ~~Keep demo and Supabase-backed standard flows aligned.~~ Suspended since 2026-09: the app runs as one local test mode without Supabase (see `docs/simplify-decisions.md`). Read and write data only through `@/shared/data`; do not reintroduce a parallel demo implementation.
+- The demo club (local) and the club server (Supabase) share the same screens and the same data layer (`docs/simplify-decisions.md`, section 8). Read and write data only through `@/shared/data`; never build a parallel implementation for one of them.
 - Consider desktop and mobile in the same pass.
 - Prefer reusable components for calendars, facility chips, staff actions, team surfaces, and onboarding steps.
 - Avoid browser/native confirms; use app-owned confirmation UI.

@@ -5,7 +5,7 @@
  * backend at runtime: everything below lives in one JSON document in
  * localStorage, written and read exclusively through `repository.ts`.
  *
- * The shapes follow the existing Supabase schema (see docs/database-schema.md)
+ * The shapes follow the existing Supabase schema (see docs/archive/database-schema.md)
  * wherever that schema was sound, and deviate where it was awkward. Because no
  * data needs to be migrated (docs/simplify-decisions.md, point 2), the old
  * schema is a reference rather than a contract. Deviations are noted inline.
