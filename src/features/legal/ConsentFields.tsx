@@ -7,16 +7,16 @@ export const EMPTY_CONSENT: AccessConsent = { terms: false, birthYear: null, hea
 export function consentComplete(value: AccessConsent, staff = false) {
   return value.terms && (staff ? value.staff16 : value.birthYear !== null && value.birthYear >= 1900 && value.birthYear <= new Date().getFullYear());
 }
-export function ConsentFields({ value, onChange, staff = false, knownBirthYear }: { value: AccessConsent; onChange: (value: AccessConsent) => void; staff?: boolean; knownBirthYear?: number | null }) {
+export function ConsentFields({ value, onChange, staff = false, knownBirthYear, hideTerms = false, bare = false }: { value: AccessConsent; onChange: (value: AccessConsent) => void; staff?: boolean; knownBirthYear?: number | null; hideTerms?: boolean; /** Without its own frame, inside a panel that has one. */ bare?: boolean }) {
   const t = useT();
   const [year, setYear] = useState<number | null>(null);
   useEffect(() => setYear(new Date().getFullYear()), []);
   useEffect(() => { if (knownBirthYear != null && value.birthYear !== knownBirthYear) onChange({ ...value, birthYear: knownBirthYear }); }, [knownBirthYear, value, onChange]);
   const adult = year !== null && canSelfConsent(value.birthYear, year);
-  return <fieldset className="grid min-w-0 gap-3 rounded-2xl border border-slate-700 p-4" data-testid="consent-fields">
+  return <fieldset className={`grid min-w-0 gap-3 ${bare ? 'gap-4' : 'rounded-2xl border border-slate-700 p-4'}`} data-testid="consent-fields">
     {staff ? <label className="flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" required checked={value.staff16} onChange={(e) => onChange({ ...value, staff16: e.target.checked })} className="mt-1 h-4 w-4 shrink-0" />{t('consent.staff16')}</label>
       : <BirthYearSlider value={value.birthYear} locked={knownBirthYear != null} year={year} onChange={(birthYear) => onChange({ ...value, birthYear, health: false })} />}
-    <label className="flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" required checked={value.terms} onChange={(e) => onChange({ ...value, terms: e.target.checked })} className="mt-1 h-4 w-4 shrink-0" /><AcceptText /></label>
+    {hideTerms ? null : <label className="flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" required checked={value.terms} onChange={(e) => onChange({ ...value, terms: e.target.checked })} className="mt-1 h-4 w-4 shrink-0" /><AcceptText /></label>}
     {!staff && adult ? <label className="flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" checked={value.health} onChange={(e) => onChange({ ...value, health: e.target.checked })} className="mt-1 h-4 w-4 shrink-0" />{t('consent.health')}</label> : null}
     {/* The small print stays one tap away instead of on the screen (Ben, 2026-11-11). */}
     {!staff ? <details className="group text-xs text-slate-400"><summary className="cursor-pointer list-none font-bold text-slate-400 underline [&::-webkit-details-marker]:hidden">{t('consent.whatMeans')}</summary><div className="mt-2 grid gap-2 leading-relaxed">{adult ? <p>{t('consent.why')}</p> : null}<p>{t('consent.limited')}</p></div></details> : null}

@@ -1,13 +1,13 @@
 'use client';
 
 /**
- * A joining player builds their card one question at a time (Ben,
- * 2026-10-25: "more progress, less form"): name, photo, position (from the
- * team's sport; without a team yet it waits until joining), number, body (height, strong side), and last the birth year
- * and consent. The card at the top fills in with every answer and says how
- * complete it is; the optional steps can be skipped, the last one lists
- * what is still missing, one tap back to it. A finished card ends in its
- * reveal (`CardReveal`), the first time on this device.
+ * A joining player, after the account, one question at a time: first the
+ * plain part (name, then birth year and consent; Ben, 2026-11-12: "more
+ * professional"), then the card: photo, position (from the team's sport),
+ * number, body (height, strong side). The card shows from its first step on,
+ * fills in with every answer and says how complete it is; its steps can be
+ * skipped. A finished card ends in its reveal (`CardReveal`), the first
+ * time on this device.
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -31,10 +31,6 @@ const TITLE: Record<Step, MessageKey> = {
   name: 'wizard.title.name', photo: 'wizard.title.photo', role: 'wizard.title.role',
   number: 'wizard.title.number', body: 'wizard.title.body', consent: 'wizard.title.consent',
 };
-const DETAIL: Record<Step, MessageKey> = {
-  name: 'wizard.detail.name', photo: 'wizard.detail.photo', role: 'wizard.detail.role',
-  number: 'wizard.detail.number', body: 'wizard.detail.body', consent: 'wizard.detail.consent',
-};
 
 function readAsDataUrl(file: Blob) {
   return new Promise<string>((resolve, reject) => {
@@ -45,7 +41,7 @@ function readAsDataUrl(file: Blob) {
   });
 }
 
-export function PlayerWizard({ player, askName, knownName, firstName, lastName, onName, details, onDetails, photo, onPhoto, consent, onConsent, knownBirthYear, submitLabel, busy, onFinish, resume }: {
+export function PlayerWizard({ player, askName, knownName, firstName, lastName, onName, details, onDetails, photo, onPhoto, consent, onConsent, knownBirthYear, hideTerms = false, submitLabel, busy, onFinish, resume }: {
   player: PlayerContext;
   askName: boolean;
   knownName?: string;
@@ -59,6 +55,7 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
   consent: AccessConsent;
   onConsent: (consent: AccessConsent) => void;
   knownBirthYear?: number | null;
+  hideTerms?: boolean;
   submitLabel: string;
   busy: boolean;
   onFinish: (sport: SportKey | null) => void;
@@ -74,10 +71,11 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
   const asksPosition = player.teamName !== null;
   const steps: Step[] = [
     ...(askName ? ['name' as const] : []),
+    'consent',
     'photo',
     ...(asksPosition ? ['role' as const] : []),
     ...(numbers ? ['number' as const] : []),
-    'body', 'consent',
+    'body',
   ];
   const [index, setIndex] = useState(() => Math.min(resume?.step ?? 0, steps.length - 1));
 
@@ -110,6 +108,7 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
   const [photoError, setPhotoError] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const step = steps[Math.min(index, steps.length - 1)];
+  const cardStep = step !== 'name' && step !== 'consent';
   const name = askName ? `${firstName} ${lastName}`.trim() : knownName ?? '';
   const missing = missingParts(details, Boolean(photo), numbers, sport).filter((part) => asksPosition || part !== positionField(sport).part);
   const total = (numbers ? 5 : 4) - (asksPosition ? 0 : 1);
@@ -124,11 +123,6 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
   };
   const backTo = (step: number) => { if (step < index) window.history.go(step - index); };
   const back = () => backTo(index - 1);
-  // Where each missing part is asked, to jump back from the last step.
-  const stepOfPart: Record<string, Step> = {
-    'profile.part.photo': 'photo', 'profile.part.number': 'number',
-    'profile.part.height': 'body', 'profile.part.side': 'body', [positionField(sport).part]: 'role',
-  };
 
   const canGoOn = step === 'name' ? Boolean(firstName.trim() && lastName.trim())
     : step === 'body' ? details.heightCm === null || (details.heightCm >= 100 && details.heightCm <= 230)
@@ -254,25 +248,7 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
       </div>
     );
   } else {
-    body = (
-      <div className="grid gap-4">
-        {missing.length > 0 ? (
-          <div className="rounded-2xl border border-amber-300/30 bg-amber-300/[0.06] p-3">
-            <p className="text-sm font-black text-amber-100">{t('wizard.almost', { count: missing.length })}</p>
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-              {missing.map((part) => (
-                <button key={part} type="button" onClick={() => backTo(Math.max(0, steps.indexOf(stepOfPart[part] ?? 'photo')))} className="text-xs font-black text-amber-200 underline">
-                  + {t(part)}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <p className="rounded-2xl border border-emerald-300/30 bg-emerald-300/[0.07] p-3 text-sm font-black text-emerald-100">{t('wizard.complete')}</p>
-        )}
-        <ConsentFields value={consent} onChange={onConsent} knownBirthYear={knownBirthYear} />
-      </div>
-    );
+    body = <ConsentFields value={consent} onChange={onConsent} knownBirthYear={knownBirthYear} hideTerms={hideTerms} bare />;
   }
 
   const last = index >= steps.length - 1;
@@ -291,19 +267,21 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
         />
       ) : null}
 
-      {/* The card, filling in, and how far it is. */}
+      {/* How far it is; the card, filling in, from its first step on. */}
       <div className="grid gap-2">
-        <div key={`${percent}`} className="wizard-pop">
-          <PlayerCard name={name} photo={photo} teamName={player.teamName} teamLogo={player.logoUrl} value={details} fixedNumbers={numbers} sport={sport} />
-        </div>
-        <div className="flex items-center gap-3">
+        {cardStep ? (
+          <div key={`${percent}`} className="wizard-pop">
+            <PlayerCard name={name} photo={photo} teamName={player.teamName} teamLogo={player.logoUrl} value={details} fixedNumbers={numbers} sport={sport} />
+          </div>
+        ) : null}
+        {cardStep ? <div className="flex items-center gap-3">
           <div className="flex flex-1 gap-1" aria-hidden>
             {steps.map((entry, position) => (
               <span key={entry} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${position < index ? 'bg-emerald-300' : position === index ? 'bg-emerald-300/60' : 'bg-slate-800'}`} />
             ))}
           </div>
           <span className="shrink-0 text-xs font-black tabular-nums text-emerald-200">{t('wizard.cardPercent', { percent })}</span>
-        </div>
+        </div> : null}
       </div>
 
       <form
@@ -318,7 +296,6 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-300">{t('wizard.stepOf', { step: index + 1, total: steps.length })} · {t(KICKER[step])}</p>
           <h2 className="mt-1.5 text-2xl font-black leading-tight text-white">{t(TITLE[step])}</h2>
-          <p className="mt-1 text-sm text-slate-400">{t(DETAIL[step])}</p>
         </div>
         {body}
         <div className="flex items-center gap-3">

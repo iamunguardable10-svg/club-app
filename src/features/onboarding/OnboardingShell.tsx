@@ -1,7 +1,6 @@
 'use client';
 
 import { LegalLinks } from '@/features/legal/LegalLinks';
-import { LocalModeLink } from '@/features/access/LocalModeLink';
 import { HOME_FOR_ROLE } from '@/features/identity/IdentitySwitcher';
 import { ownPersonIds, readDatabase, setActiveIdentity, signOut, type IdentityRole } from '@/shared/data';
 import { useT } from '@/shared/i18n';
@@ -23,11 +22,12 @@ export function OnboardingSteps({ labels, current }: { labels: string[]; current
 }
 
 /** The frame of the onboarding pages (/join, /found). */
-export function OnboardingShell({ title, steps, demoLink = true, children }: { title: string; steps?: { labels: string[]; current: number }; demoLink?: boolean; children: React.ReactNode }) {
+export function OnboardingShell({ title, steps, children }: { title: string; steps?: { labels: string[]; current: number }; children: React.ReactNode }) {
   const t = useT();
   return (
-    <main className="os-page">
-      <div className="os-container max-w-md space-y-5 pb-12">
+    <main className="os-page overflow-x-clip">
+      <div className="os-container flex min-h-[100dvh] max-w-md flex-col pb-6">
+        <div className="space-y-5">
         <header className="os-hero p-6">
           <div className="flex items-center justify-between gap-3">
             <p className="os-kicker">{t('start.kicker')}</p>
@@ -37,8 +37,9 @@ export function OnboardingShell({ title, steps, demoLink = true, children }: { t
           {steps ? <OnboardingSteps labels={steps.labels} current={steps.current} /> : null}
         </header>
         {children}
-        <div className="grid justify-items-center gap-3 pt-2">
-          {demoLink ? <LocalModeLink /> : null}
+        </div>
+        {/* One quiet line, at the very foot of the screen (DESIGN.md, Ben's rules). */}
+        <div className="mt-auto grid justify-items-center pt-10">
           <LegalLinks quiet />
         </div>
       </div>

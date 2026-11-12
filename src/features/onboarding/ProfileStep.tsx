@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * The profile, asked before the account. A player builds their card step by
- * step (`PlayerWizard`: name, photo, role, number, body, consent); staff
- * give name (where not known yet), an optional photo, birth year and
- * consent. Everything waits on the device until the person is in
+ * The profile. A player gives it after the account (`PlayerWizard`: name,
+ * birth year and consent, then the card: photo, position, number, body);
+ * staff give name (where not known yet), an optional photo and consent
+ * before theirs. Everything waits on the device until the person is in
  * (`repository.ts`).
  */
 
@@ -39,8 +39,10 @@ function readAsDataUrl(file: Blob) {
   });
 }
 
-export function ProfileStep({ staff = false, askName, knownName, player, initial, knownBirthYear, submitLabel, onDone }: {
+export function ProfileStep({ staff = false, askName, knownName, player, termsAccepted = false, initial, knownBirthYear, submitLabel, onDone }: {
   staff?: boolean;
+  /** Accepted when the account was made: not asked again. */
+  termsAccepted?: boolean;
   askName: boolean;
   /** The name when it is known already (an invitation). */
   knownName?: string;
@@ -56,7 +58,10 @@ export function ProfileStep({ staff = false, askName, knownName, player, initial
   const [firstName, setFirstName] = useState(initial?.firstName ?? saved?.firstName ?? '');
   const [lastName, setLastName] = useState(initial?.lastName ?? saved?.lastName ?? '');
   const [details, setDetails] = useState<PlayerProfileValue>(initial?.details ?? saved?.details ?? EMPTY_PLAYER_PROFILE);
-  const [consent, setConsent] = useState<AccessConsent>(initial?.consent ?? saved?.consent ?? EMPTY_CONSENT);
+  const [consent, setConsent] = useState<AccessConsent>(() => {
+    const start = initial?.consent ?? saved?.consent ?? EMPTY_CONSENT;
+    return termsAccepted ? { ...start, terms: true } : start;
+  });
   const [busy, setBusy] = useState(false);
   // Optional, before the account: kept on the device and put on the person once they are in.
   const [photo, setPhoto] = useState<string | null>(() => readPendingPhoto());
@@ -72,7 +77,7 @@ export function ProfileStep({ staff = false, askName, knownName, player, initial
         player={player} askName={askName} knownName={knownName}
         firstName={firstName} lastName={lastName} onName={(first, last) => { setFirstName(first); setLastName(last); }}
         details={details} onDetails={setDetails} photo={photo} onPhoto={setPhoto}
-        consent={consent} onConsent={setConsent} knownBirthYear={knownBirthYear}
+        consent={consent} onConsent={setConsent} knownBirthYear={knownBirthYear} hideTerms={termsAccepted}
         submitLabel={submitLabel} busy={busy} onFinish={() => void submit()}
         resume={saved ? { step: saved.step } : null}
       />
@@ -112,7 +117,7 @@ export function ProfileStep({ staff = false, askName, knownName, player, initial
           </div>
         </>
       ) : null}
-      <ConsentFields value={consent} onChange={setConsent} staff={staff} knownBirthYear={knownBirthYear} />
+      <ConsentFields value={consent} onChange={setConsent} staff={staff} knownBirthYear={knownBirthYear} hideTerms={termsAccepted} />
       <button type="submit" disabled={busy || !consentComplete(consent, staff)} className="os-success justify-center disabled:opacity-60">
         {busy ? t('common.oneMoment') : submitLabel}
       </button>

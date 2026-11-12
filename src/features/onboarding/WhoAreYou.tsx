@@ -119,7 +119,7 @@ export function WhoAreYou({ signedIn = false, only, title }: {
   return (
     <section className="os-panel grid gap-4 p-5 sm:p-6">
       <div>
-        <p className="text-lg font-black text-white">{title ?? (signedIn ? t('onboarding.who.titleSignedIn') : t('onboarding.who.title'))}</p>
+        <p className={only ? 'text-2xl font-black leading-tight text-white' : 'text-lg font-black text-white'}>{title ?? (signedIn ? t('onboarding.who.titleSignedIn') : t('onboarding.who.title'))}</p>
         {only ? null : <p className="mt-1 text-sm text-slate-400">{t('onboarding.who.detail')}</p>}
       </div>
       {personas.length > 1 ? <div className="grid grid-cols-2 gap-2" role="group" aria-label={t('onboarding.who.groupLabel')}>
@@ -139,10 +139,11 @@ export function WhoAreYou({ signedIn = false, only, title }: {
         ))}
       </div> : null}
       {persona && current ? (
-        <form onSubmit={submit} className="grid grid-cols-[minmax(0,1fr)] gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-          <p className="text-sm text-slate-300">{current.text}</p>
-          <label className="grid gap-1 text-sm font-bold text-slate-200">
-            {current.field}
+        <form onSubmit={submit} className={`grid grid-cols-[minmax(0,1fr)] gap-3 ${only ? '' : 'rounded-2xl border border-slate-800 bg-slate-950/60 p-4'}`}>
+          {/* After "New here" asked the role, the field says enough (Ben: less text). */}
+          {only ? null : <p className="text-sm text-slate-300">{current.text}</p>}
+          <label className={`grid gap-1 text-sm font-bold text-slate-200 ${only ? '[&>span]:sr-only' : ''}`}>
+            <span>{current.field}</span>
             <input
               value={value}
               onChange={(event) => { setValue(event.target.value); setError(null); }}
@@ -150,12 +151,12 @@ export function WhoAreYou({ signedIn = false, only, title }: {
               autoCapitalize={persona === 'player' || persona === 'founder' ? 'characters' : 'off'}
               autoComplete="off"
               spellCheck={false}
-              className={`${fieldClass} ${persona === 'player' || persona === 'founder' ? 'font-mono tracking-[0.15em]' : ''}`}
+              className={`${fieldClass} ${only ? 'text-lg' : ''} ${persona === 'player' || persona === 'founder' ? 'font-mono tracking-[0.15em]' : ''}`}
             />
           </label>
           {error ? <p role="alert" className="text-sm font-bold text-red-200">{error}</p> : null}
           <button type="submit" className="os-success justify-center">{t('onboarding.who.continue')}</button>
-          {current.note ? <p className="text-xs text-slate-400">{current.note}</p> : null}
+          {current.note && !only ? <p className="text-xs text-slate-400">{current.note}</p> : null}
         </form>
       ) : null}
     </section>

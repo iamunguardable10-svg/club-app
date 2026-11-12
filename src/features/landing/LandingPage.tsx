@@ -11,11 +11,6 @@ import { useT, type MessageKey } from '@/shared/i18n';
 import { LanguagePicker } from '@/shared/i18n/LanguagePicker';
 import './landing.css';
 
-const roles = [
-  { id: 'coach', key: 'landing.coach' },
-  { id: 'athlete', key: 'landing.player' },
-  { id: 'club', key: 'landing.club' },
-] as const;
 const audiences = [
   { title: 'landing.leads.title', body: 'landing.leads.body', icon: 'structure' },
   { title: 'landing.coaches.title', body: 'landing.coaches.body', icon: 'calendar' },
@@ -55,7 +50,6 @@ export function LandingPage() {
   const t = useT();
   const router = useRouter();
   const [visible, setVisible] = useState(false);
-  const [role, setRole] = useState<(typeof roles)[number]['id']>('coach');
   const root = useRef<HTMLDivElement>(null);
   const pilot = `mailto:${PILOT_MAIL}?subject=${encodeURIComponent(t('landing.mail.subject'))}&body=${encodeURIComponent(t('landing.mail.body'))}`;
 
@@ -90,18 +84,15 @@ export function LandingPage() {
     <a href="#main" className="marketing-skip">{t('landing.skip')}</a>
     <header className="marketing-nav wrap">
       <Link href="/" className="marketing-brand" aria-label="Club OS"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span>Club OS<span className="brand-beta">{t('landing.pilotBadge')}</span></Link>
-      <nav aria-label={t('landing.navigation')}><a href="#features" className="nav-features">{t('landing.features')}</a><Link href="/start" className="nav-features">{t('landing.signIn')}</Link><Link href="/start?new=1" className="nav-signin">{t('landing.getStarted')} <span aria-hidden="true">↗</span></Link></nav>
+      <nav aria-label={t('landing.navigation')}><a href="#features" className="nav-features">{t('landing.features')}</a><Link href="/login" className="nav-login">{t('landing.signIn')}</Link><Link href="/start?new=1" className="nav-signin">{t('landing.getStarted')} <span aria-hidden="true">↗</span></Link></nav>
     </header>
     <main id="main">
       <section className="marketing-hero wrap">
         <div className="hero-copy">
           <a href="#pilot" className="hero-eyebrow"><span className="live-dot" />{t('landing.eyebrow')}<span aria-hidden="true">↗</span></a>
           <h1>{t('landing.headline.first')}<br /><span>{t('landing.headline.second')}</span></h1>
-          <p className="hero-subline">{t('landing.subline')}</p>
-          <div className="hero-actions"><Link className="marketing-button primary" href="/start?new=1">{t('landing.getStarted')}<span aria-hidden="true">↗</span></Link><Link className="marketing-button secondary" href={`/start?demo=${role}`}>{t('landing.demo')}</Link></div>
-          <div className="demo-roles" role="group" aria-label={t('landing.demoRole')}><span>{t('landing.exploreAs')}</span>{roles.map((item) => <button key={item.id} type="button" aria-pressed={role === item.id} onClick={() => setRole(item.id)}>{t(item.key)}</button>)}</div>
-          <p className="hero-note">{t('landing.noAccount')}</p>
-          <p className="hero-note"><Link href="/start">{t('landing.haveAccount')} <span aria-hidden="true">↗</span></Link></p>
+          {/* Headline, two buttons, the real screens: the design speaks (Ben, 2026-11-12). */}
+          <div className="hero-actions"><Link className="marketing-button primary" href="/start?new=1">{t('landing.getStarted')}<span aria-hidden="true">↗</span></Link><Link className="marketing-button secondary" href="/start?demo=coach">{t('landing.demo')}</Link></div>
         </div>
         <div className="hero-visual" aria-label={t('landing.visualLabel')}>
           <div className="hero-orbit" aria-hidden="true" />
@@ -116,18 +107,18 @@ export function LandingPage() {
         <span className="pain-arrow" aria-hidden="true">→</span><p><span className="live-dot" />{t('landing.promise')}</p>
       </section>
       <section className="audience-section wrap" data-reveal>
-        <div className="section-heading"><p className="marketing-kicker">{t('landing.audience.kicker')}</p><h2>{t('landing.audience.title')}</h2><p>{t('landing.audience.subline')}</p></div>
+        <div className="section-heading"><p className="marketing-kicker">{t('landing.audience.kicker')}</p><h2>{t('landing.audience.title')}</h2></div>
         <div className="audience-grid">{audiences.map((item) => <article key={item.title} className="audience-card"><div className="marketing-icon"><Icon kind={item.icon} /></div><h3>{t(item.title)}</h3><p>{t(item.body)}</p></article>)}</div>
       </section>
       <section id="features" className="features-section wrap">
         <div className="section-heading" data-reveal><p className="marketing-kicker">{t('landing.features.kicker')}</p><h2>{t('landing.features.title')}</h2></div>
         {features.map((feature, index) => <article key={feature.title} className={`feature-story ${index % 2 ? 'reverse' : ''}`} data-reveal>
-          <div className="feature-copy"><p className="marketing-kicker">{t(feature.tag)}</p><h3>{t(feature.title)}</h3><p>{t(feature.body)}</p><Link href="/start?demo=coach" className="feature-link">{t('landing.seeDemo')} <span aria-hidden="true">↗</span></Link></div>
+          <div className="feature-copy"><p className="marketing-kicker">{t(feature.tag)}</p><h3>{t(feature.title)}</h3><p>{t(feature.body)}</p></div>
           <div className={`feature-visual feature-${feature.image}`}><div className="feature-grid" aria-hidden="true" />{feature.extra && feature.extraAlt ? <Phone shot={feature.extra} alt={t(feature.extraAlt)} className="feature-extra" /> : null}<Phone shot={feature.image} alt={t(feature.alt)} /></div>
         </article>)}
         <div className="essentials-grid" data-reveal><article><div className="marketing-icon"><Icon kind="signal" /></div><h3>{t('landing.offline.title')}</h3><p>{t('landing.offline.body')}</p></article><article><div className="language-glyph" aria-hidden="true">Aa</div><h3>{t('landing.languages.title')}</h3><p>{t('landing.languages.body')}</p></article></div>
       </section>
-      <section className="trust-section wrap" data-reveal><div className="section-heading"><p className="marketing-kicker">{t('landing.trust.kicker')}</p><h2>{t('landing.trust.title')}</h2></div><div className="trust-grid">{(['landing.trust.eu', 'landing.trust.ads', 'landing.trust.consent', 'landing.trust.install'] as const).map((key) => <p key={key}><span aria-hidden="true">✓</span>{t(key)}</p>)}</div><Link href="/terms" className="hover:text-white">{t('legal.terms')}</Link><Link href="/privacy" className="feature-link">{t('landing.privacy')} <span aria-hidden="true">↗</span></Link></section>
+      <section className="trust-section wrap" data-reveal><div className="section-heading"><p className="marketing-kicker">{t('landing.trust.kicker')}</p><h2>{t('landing.trust.title')}</h2></div><div className="trust-grid">{(['landing.trust.eu', 'landing.trust.ads', 'landing.trust.consent', 'landing.trust.install'] as const).map((key) => <p key={key}><span aria-hidden="true">✓</span>{t(key)}</p>)}</div></section>
       <section id="pilot" className="pilot-section wrap" data-reveal><div className="pilot-panel"><div><p className="marketing-kicker">{t('landing.pilot.kicker')}</p><h2>{t('landing.pilot.title')}</h2><p>{t('landing.pilot.body')}</p><a href={pilot} className="marketing-button primary">{t('landing.requestPilot')} <span aria-hidden="true">↗</span></a></div><ul>{(['landing.pilot.setup', 'landing.pilot.direct', 'landing.pilot.shape'] as const).map((key) => <li key={key}><span aria-hidden="true">↗</span>{t(key)}</li>)}</ul></div></section>
       <section className="faq-section wrap" data-reveal><div className="section-heading"><p className="marketing-kicker">{t('landing.faq.kicker')}</p><h2>{t('landing.faq.title')}</h2></div><div className="faq-list">{faqs.map((faq) => <details key={faq.q}><summary>{t(faq.q)}<span aria-hidden="true">+</span></summary><p>{t(faq.a)}</p></details>)}</div></section>
       <section className="final-section wrap" data-reveal><p className="marketing-kicker">{t('landing.final.kicker')}</p><h2>{t('landing.final.title')}</h2><div className="hero-actions"><Link href="/start?new=1" className="marketing-button primary">{t('landing.getStarted')} <span aria-hidden="true">↗</span></Link><Link href="/start?demo=coach" className="marketing-button secondary">{t('landing.demo')}</Link></div></section>

@@ -29,3 +29,4 @@ in `@/shared/components`.
 | `settings` | Settings for everyone |
 | `sports` | What the app knows about each sport (positions, numbers, game length) |
 | `teams` | The team workspace, staff and roles, features, logos |
+| `tips` | First-use tips: one bubble at a time on a real control (`TipLayer`) |

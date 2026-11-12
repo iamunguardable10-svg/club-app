@@ -19,6 +19,8 @@ import { NotificationsHint } from '@/features/notifications/NotificationsHint';
 import { LimitedConsentNote } from '@/features/legal/HealthConsentPanel';
 import { applyPendingProfile, athleteHasLoad, athleteTacticsTeams, getActivePerson, unreadMessagesFor, useLocalDatabase, type LocalDatabase } from '@/shared/data';
 import { ProfileTeaser } from '@/features/people/PlayerProfile';
+import { TipLayer } from '@/features/tips/TipLayer';
+import { tipsFor } from '@/features/tips/tips';
 import { PlaybookTeaser } from '@/features/playbook/PlaybookTeaser';
 import { UnreadMessagesCard } from '@/features/messages/UnreadMessagesCard';
 import { DemoBar } from '@/features/onboarding/DemoBar';
@@ -168,6 +170,7 @@ function RoleShell({ nav, active: current, title, subtitle, back, actions, menuA
             <Link
               key={item}
               href={href}
+              data-tip={`nav-${item}`}
               onClick={() => setTapped(item)}
               aria-current={current === item ? 'page' : undefined}
               className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-black transition ${
@@ -195,7 +198,7 @@ function RoleShell({ nav, active: current, title, subtitle, back, actions, menuA
         <div className="mx-auto flex w-full max-w-6xl items-start justify-between gap-3 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] sm:px-8 md:pb-0 md:pt-8">
           <div className="min-w-0">
             {back ? <Link href={back.href} className="text-xs font-black text-sky-300 hover:text-sky-200">‹ {back.label}</Link> : null}
-            <h1 className="truncate text-xl font-black tracking-tight text-white md:text-3xl">{title}</h1>
+            <h1 data-tip="page" className="truncate text-xl font-black tracking-tight text-white md:text-3xl">{title}</h1>
             {subtitle ? <div className="mt-0.5 truncate text-xs font-bold text-slate-400 md:mt-1 md:text-sm">{subtitle}</div> : null}
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -204,6 +207,7 @@ function RoleShell({ nav, active: current, title, subtitle, back, actions, menuA
             {showMessageIcon ? (
               <Link
                 href="/messages"
+                data-tip="nav-messages"
                 aria-label={unread > 0 ? t('nav.messagesUnread', { count: unread }) : t('nav.messages')}
                 className="relative grid h-10 w-10 place-items-center rounded-full border border-slate-700 bg-slate-900/80 text-slate-200 transition hover:border-slate-500 hover:text-white"
               >
@@ -227,6 +231,7 @@ function RoleShell({ nav, active: current, title, subtitle, back, actions, menuA
         {database && person && database.activeIdentity?.role === 'athlete' && active !== 'load' ? <LimitedConsentNote database={database} person={person} /> : null}
         {children}
       </div>
+      <TipLayer tips={tipsFor(database?.activeIdentity?.role, current, nav.map((entry) => entry.item))} />
 
       {tabBar ? <nav className="fixed inset-x-0 bottom-0 z-[70] border-t border-slate-800 bg-slate-950/95 px-2 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 text-white backdrop-blur-xl md:hidden" aria-label={t('nav.main')}>
         <div className={`mx-auto grid max-w-lg ${columns} gap-1`}>
@@ -234,6 +239,7 @@ function RoleShell({ nav, active: current, title, subtitle, back, actions, menuA
             <Link
               key={item}
               href={href}
+              data-tip={`nav-${item}`}
               onClick={() => setTapped(item)}
               aria-current={current === item ? 'page' : undefined}
               className={`flex min-w-0 flex-col items-center gap-0.5 rounded-xl py-1.5 font-black transition active:scale-95 ${nav.length > 4 ? 'px-0.5 text-[10px] tracking-tight' : 'px-1 text-[11px]'} ${

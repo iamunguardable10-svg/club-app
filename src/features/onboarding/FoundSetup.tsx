@@ -67,11 +67,11 @@ export function FoundSetup({ labels }: { labels: string[] }) {
   }, [database]);
 
   if (!ready || !database) {
-    return <Shell title={t('onboarding.found.title')} steps={{ labels, current: 3 }} demoLink={false}><p className="text-sm text-slate-400">{t('common.oneMoment')}</p></Shell>;
+    return <Shell title={t('onboarding.found.title')} steps={{ labels, current: 3 }}><p className="text-sm text-slate-400">{t('common.oneMoment')}</p></Shell>;
   }
 
   return stage === 'setup' ? (
-    <Shell title={t('onboarding.setup.title', { club: database.club.name })} steps={{ labels, current: 3 }} demoLink={false}>
+    <Shell title={t('onboarding.setup.title', { club: database.club.name })} steps={{ labels, current: 3 }}>
       <p className="px-1 text-sm text-slate-400">{t('onboarding.setup.detail')}</p>
       <TeamsSection database={database} run={run} />
       <DepartmentsSection database={database} run={run} />
@@ -80,7 +80,7 @@ export function FoundSetup({ labels }: { labels: string[] }) {
       <button type="button" onClick={() => setStage('share')} className="os-success w-full justify-center">{t('onboarding.setup.toShare')}</button>
     </Shell>
   ) : (
-    <Shell title={t('onboarding.share.title')} steps={{ labels, current: 4 }} demoLink={false}>
+    <Shell title={t('onboarding.share.title')} steps={{ labels, current: 4 }}>
       <p className="px-1 text-sm text-slate-400">{t('onboarding.share.detail')}</p>
       {database.departments.map((department) => database.teams.filter((team) => team.departmentId === department.id && !team.archivedAt).map((team) => (
         <ShareTeam key={team.id} database={database} teamId={team.id} teamName={team.name} departmentName={department.name} run={run} />

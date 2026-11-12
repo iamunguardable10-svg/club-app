@@ -95,6 +95,11 @@ Shared pieces worth reusing before building new ones: `SmartSessionCalendar`
    Coach and player share one calendar engine that adapts to context.
 9. **Never block a first look.** A new visitor sees the app before any dialog
    asks something of them.
+10. **Teach while they use it.** On a page's first visits, one small bubble at
+    a time points at a real control (`TipLayer`, `data-tip`), the rest dimmed
+    but still usable: tapping the control works and counts as seen. "Got it",
+    "No more tips", and "Show the tips again" in the settings. One short
+    sentence per tip, never a tour that plays by itself.
 
 ## Ben's rules (owner feedback, binding)
 
@@ -137,16 +142,20 @@ apply to every new and changed screen; a review flags any break.
 - One question per screen for anything people fill in for the first time, with
   "Step x of y", a visible progress bar and the result growing live (the player
   card fills in and shows its percentage).
-- Optional steps can be skipped ("Skip for now"); the last step says what is
-  still missing and jumps back to it.
+- Optional steps can be skipped ("Skip for now"); what is still missing is
+  offered later, quietly (the card on Today, "x/5").
 - Back (button and swipe) always goes one step back and never loses what was
   entered, also after a reload or leaving the page.
 - Sign-in starts with the e-mail alone; the server decides "password" or
   "create account".
-- Players make their card first, then the account, then join the team (code or
-  link). The demo is an option next to the real way in, never a loop back into
-  it.
-- The landing page leads with "Get started"; "Try the demo" sits beside it.
+- Joining is professional, not playful (2026-11-12): the team comes first
+  (its link, or the code typed in, shows logo, club, department and team with
+  one "Join"), then sign-in or the account, and only then name, birth year
+  and consent; the player card follows as optional steps. The demo is an
+  option next to the real way in, never a loop back into it.
+- The landing page lets the design speak: headline, "Get started" and "Try
+  the demo", the real screens. No subline, no notes under the buttons, no role
+  chips; "Sign in" sits in the top bar on every screen size.
 - A first visit is never blocked by a dialog (no rating prompt popping up in
   the demo before anything was seen).
 
