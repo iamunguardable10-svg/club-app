@@ -49,7 +49,6 @@ type SmartSessionCalendarProps = {
   /** False: no edit mode at all (nothing to add or move). */
   showEditToggle?: boolean;
   /** Shown in edit mode: what a tap and a drag do. */
-  editHint?: ReactNode;
   /** Why sessions cannot be added yet (e.g. no hall), shown instead of a silent grey button. */
   createBlockedHint?: ReactNode;
   days: Date[];
@@ -137,7 +136,7 @@ function toneClassFor(tone: SmartCalendarTone, density: 'compact' | 'regular') {
 function ResizeGrip({ onPointerDown, label, size = 'regular' }: { onPointerDown: (event: PointerEvent<HTMLElement>) => void; label?: string; size?: 'small' | 'regular' }) {
   const className = `absolute bottom-0 left-1/2 flex w-14 -translate-x-1/2 cursor-ns-resize items-end justify-center ${size === 'small' ? 'h-2.5 pb-px' : 'h-3 pb-0.5'}`;
   const bar = <span aria-hidden className={`rounded-full bg-white/70 ${size === 'small' ? 'h-0.5 w-5' : 'h-1 w-9'}`} />;
-  if (label) return <button type="button" onPointerDown={onPointerDown} className={className} aria-label={label}>{bar}</button>;
+  if (label) return <button type="button" data-tip="calendar-grip" onPointerDown={onPointerDown} className={className} aria-label={label}>{bar}</button>;
   return <span aria-hidden onPointerDown={onPointerDown} className={className}>{bar}</span>;
 }
 
@@ -166,7 +165,6 @@ export function SmartSessionCalendar({
   mode,
   canCreateSessions,
   showEditToggle = true,
-  editHint,
   createBlockedHint,
   days,
   hours,
@@ -243,6 +241,7 @@ export function SmartSessionCalendar({
               }}
               disabled={!canCreateSessions}
               aria-pressed={mode === 'edit'}
+              data-tip={mode === 'edit' ? undefined : 'calendar-edit'}
               aria-label={mode === 'edit' ? t('calendar.done') : t('calendar.edit')}
               title={mode === 'edit' ? t('calendar.done') : t('calendar.edit')}
               className={`rounded-full border px-3 py-1.5 text-xs font-black ${mode === 'edit' ? 'border-sky-300 bg-sky-300 text-slate-950' : 'border-emerald-300 bg-emerald-300 text-slate-950'} disabled:cursor-not-allowed disabled:opacity-50`}
@@ -257,9 +256,6 @@ export function SmartSessionCalendar({
           ) : null}
         </div>
       </div>
-      {mode === 'edit' && editHint ? (
-        <p className="mb-2 rounded-xl border border-sky-300/25 bg-sky-300/[0.07] px-3 py-2 text-xs font-bold text-sky-100">{editHint}</p>
-      ) : null}
       {!canCreateSessions && createBlockedHint ? (
         <div className="mb-2 rounded-xl border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs font-bold text-amber-100">{createBlockedHint}</div>
       ) : null}
@@ -316,7 +312,7 @@ export function SmartSessionCalendar({
                     const start = new Date(draft.startsAt);
                     const top = Math.max(0, ((start.getHours() - mobileFirstHour) * 60 + start.getMinutes()) * (mobileHourHeight / 60));
                     const height = Math.min(Math.max(20, smartDurationMinutes(new Date(draft.startsAt), new Date(draft.endsAt)) * (mobileHourHeight / 60)), mobileGridHeight - top);
-                    return <article data-calendar-session="true" onPointerDown={(event) => onDraftPointerDown('move', event)} onClick={onDraftClick} style={{ top, height, touchAction: 'none' }} className="absolute left-0.5 right-0.5 z-20 cursor-grab overflow-hidden rounded-md border border-sky-300 bg-sky-500/40 px-1 py-0.5 text-[9px] font-black text-sky-50"><span>{draft.title ?? draft.teamLabel ?? t('calendar.chooseTeam')}</span>{draft.sessionType !== 'game' ? <ResizeGrip size="small" label={t('calendar.resizeDraft')} onPointerDown={(event) => onDraftPointerDown('resize', event)} /> : null}</article>;
+                    return <article data-calendar-session="true" data-tip="calendar-draft" onPointerDown={(event) => onDraftPointerDown('move', event)} onClick={onDraftClick} style={{ top, height, touchAction: 'none' }} className="absolute left-0.5 right-0.5 z-20 cursor-grab overflow-hidden rounded-md border border-sky-300 bg-sky-500/40 px-1 py-0.5 text-[9px] font-black text-sky-50"><span>{draft.title ?? draft.teamLabel ?? t('calendar.chooseTeam')}</span>{draft.sessionType !== 'game' ? <ResizeGrip size="small" label={t('calendar.resizeDraft')} onPointerDown={(event) => onDraftPointerDown('resize', event)} /> : null}</article>;
                   })() : null}
                 </div>
               );
@@ -369,7 +365,7 @@ export function SmartSessionCalendar({
               const draftIsOnDay = draft ? smartSameDay(new Date(draft.startsAt), day) : false;
               const isDragPreviewDay = dragPreviewDate === smartIsoDate(day);
               return (
-                <div data-smart-day={smartIsoDate(day)} data-density="mobile" ref={(element) => setDayRef(activeDayIndex, element)} onPointerDown={(event) => onSlotPointerDown(day, event)} className={`relative border-l border-slate-900 transition-colors ${isDragPreviewDay ? 'bg-sky-300/[0.07] ring-1 ring-inset ring-sky-300/35' : ''}`} style={{ height: mobileGridHeight, touchAction: 'pan-y' }}>
+                <div data-smart-day={smartIsoDate(day)} data-density="mobile" data-tip={mode === 'edit' ? 'calendar-day' : undefined} ref={(element) => setDayRef(activeDayIndex, element)} onPointerDown={(event) => onSlotPointerDown(day, event)} className={`relative border-l border-slate-900 transition-colors ${isDragPreviewDay ? 'bg-sky-300/[0.07] ring-1 ring-inset ring-sky-300/35' : ''}`} style={{ height: mobileGridHeight, touchAction: 'pan-y' }}>
                   {mobileVisibleHours.map((hour, index) => <div key={hour} className={`border-b border-slate-900 ${index === 0 ? 'border-t' : ''}`} style={{ height: mobileHourHeight }} />)}
                   {daySessions.length === 0 && !draftIsOnDay && mode === 'view' ? (
                     <p className="pointer-events-none absolute inset-x-3 top-3 rounded-xl border border-slate-800 bg-slate-950/90 px-3 py-2 text-center text-xs font-bold text-slate-400">{t('calendar.noSessionsDay')}</p>
@@ -398,7 +394,7 @@ export function SmartSessionCalendar({
                     const start = new Date(draft.startsAt);
                     const top = Math.max(0, ((start.getHours() - mobileFirstHour) * 60 + start.getMinutes()) * (mobileHourHeight / 60));
                     const height = Math.min(Math.max(24, smartDurationMinutes(new Date(draft.startsAt), new Date(draft.endsAt)) * (mobileHourHeight / 60)), mobileGridHeight - top);
-                    return <article data-calendar-session="true" onPointerDown={(event) => onDraftPointerDown('move', event)} onClick={onDraftClick} style={{ top, height, touchAction: 'none' }} className="absolute left-2 right-2 z-20 cursor-grab overflow-hidden rounded-xl border border-sky-300 bg-sky-500/40 px-2 py-1 text-xs font-black text-sky-50">{height < 40 ? <span className="block truncate">{draft.title ?? draft.teamLabel ?? t('calendar.chooseTeam')} <span className="text-[10px] font-bold opacity-80">· {smartFormatTimeRange(draft.startsAt, draft.endsAt, draft.sessionType)}</span></span> : <><span className="block truncate">{draft.title ?? draft.teamLabel ?? t('calendar.chooseTeam')}</span><span className="block truncate text-[10px] font-bold opacity-80">{smartFormatTimeRange(draft.startsAt, draft.endsAt, draft.sessionType)}</span></>}{draft.sessionType !== 'game' ? <ResizeGrip label={t('calendar.resizeDraft')} onPointerDown={(event) => onDraftPointerDown('resize', event)} /> : null}</article>;
+                    return <article data-calendar-session="true" data-tip="calendar-draft" onPointerDown={(event) => onDraftPointerDown('move', event)} onClick={onDraftClick} style={{ top, height, touchAction: 'none' }} className="absolute left-2 right-2 z-20 cursor-grab overflow-hidden rounded-xl border border-sky-300 bg-sky-500/40 px-2 py-1 text-xs font-black text-sky-50">{height < 40 ? <span className="block truncate">{draft.title ?? draft.teamLabel ?? t('calendar.chooseTeam')} <span className="text-[10px] font-bold opacity-80">· {smartFormatTimeRange(draft.startsAt, draft.endsAt, draft.sessionType)}</span></span> : <><span className="block truncate">{draft.title ?? draft.teamLabel ?? t('calendar.chooseTeam')}</span><span className="block truncate text-[10px] font-bold opacity-80">{smartFormatTimeRange(draft.startsAt, draft.endsAt, draft.sessionType)}</span></>}{draft.sessionType !== 'game' ? <ResizeGrip label={t('calendar.resizeDraft')} onPointerDown={(event) => onDraftPointerDown('resize', event)} /> : null}</article>;
                   })() : null}
                 </div>
               );
@@ -423,7 +419,7 @@ export function SmartSessionCalendar({
                 const draftIsOnDay = draft ? smartSameDay(new Date(draft.startsAt), day) : false;
                 const isDragPreviewDay = dragPreviewDate === smartIsoDate(day);
                 return (
-                  <div key={day.toISOString()} data-smart-day={smartIsoDate(day)} data-density="desktop" ref={(element) => setDayRef(dayIndex, element)} onPointerDown={(event) => onSlotPointerDown(day, event)} className={`relative border-l border-slate-900 transition-colors ${mode === 'edit' ? 'cursor-crosshair' : 'cursor-default'} ${dayIndex === activeDayIndex ? 'block' : 'hidden'} ${isDragPreviewDay ? 'bg-sky-300/[0.05] ring-1 ring-inset ring-sky-300/30' : ''} md:block`} style={{ height: `${hours.length * desktopHourHeight}px`, touchAction: 'pan-y' }}>
+                  <div key={day.toISOString()} data-smart-day={smartIsoDate(day)} data-density="desktop" data-tip={mode === 'edit' && dayIndex === activeDayIndex ? 'calendar-day' : undefined} ref={(element) => setDayRef(dayIndex, element)} onPointerDown={(event) => onSlotPointerDown(day, event)} className={`relative border-l border-slate-900 transition-colors ${mode === 'edit' ? 'cursor-crosshair' : 'cursor-default'} ${dayIndex === activeDayIndex ? 'block' : 'hidden'} ${isDragPreviewDay ? 'bg-sky-300/[0.05] ring-1 ring-inset ring-sky-300/30' : ''} md:block`} style={{ height: `${hours.length * desktopHourHeight}px`, touchAction: 'pan-y' }}>
                     {hours.map((hour) => <div key={hour} className="border-b border-slate-900" style={{ height: desktopHourHeight }} />)}
                     {daySessions.map((session) => {
                       const top = Math.max(0, minutesFromCalendarStart(session.startsAt, firstHour) * (desktopHourHeight / 60));
@@ -443,7 +439,7 @@ export function SmartSessionCalendar({
                       const top = Math.max(0, minutesFromCalendarStart(draft.startsAt, firstHour) * (desktopHourHeight / 60));
                       const height = Math.min(Math.max(44, smartDurationMinutes(new Date(draft.startsAt), new Date(draft.endsAt)) * (desktopHourHeight / 60)), (lastHour - firstHour) * desktopHourHeight - top);
                       return (
-                        <article data-calendar-session="true" onPointerDown={(event) => onDraftPointerDown('move', event)} onClick={onDraftClick} style={{ top, height, touchAction: 'none' }} className="absolute left-2 right-2 z-20 cursor-grab rounded-2xl border border-sky-300 bg-sky-500/20 px-3 py-2 text-left text-sky-50 shadow-[0_0_0_1px_rgba(125,211,252,0.4)] active:cursor-grabbing">
+                        <article data-calendar-session="true" data-tip="calendar-draft" onPointerDown={(event) => onDraftPointerDown('move', event)} onClick={onDraftClick} style={{ top, height, touchAction: 'none' }} className="absolute left-2 right-2 z-20 cursor-grab rounded-2xl border border-sky-300 bg-sky-500/20 px-3 py-2 text-left text-sky-50 shadow-[0_0_0_1px_rgba(125,211,252,0.4)] active:cursor-grabbing">
                           <p className="truncate text-sm font-black">{draft.title ?? t('calendar.training')}</p>
                           <p className="mt-0.5 truncate text-xs">{smartFormatTimeRange(draft.startsAt, draft.endsAt, draft.sessionType)}</p>
                           {/* Above the draft, so a short one keeps room for its text. */}
