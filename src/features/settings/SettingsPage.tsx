@@ -59,6 +59,7 @@ import {
   type NotificationSettings,
   type Person,
   type RsvpMode,
+  setTipsOff,
 } from '@/shared/data';
 import { clubRoleText } from '@/features/club/clubRoleText';
 
@@ -131,6 +132,7 @@ export function SettingsPage() {
                 ? <NotificationsHint variant="settings" />
                 : <p className="text-sm text-slate-400">{t('settings.demoNotifications')}</p>}
               <InstallHint variant="settings" />
+              <TipsAgain />
             </div>
           </CoachSection>
         </div>
@@ -142,6 +144,18 @@ export function SettingsPage() {
 
 /** Whether the account plays in a team (its Apple appointments show in the player calendar). */
 /** Piece A: answer sessions automatically ("in" unless you say no) or yourself. */
+/** The first-use tips (`TipLayer`), all back from the start. */
+function TipsAgain() {
+  const t = useT();
+  const [done, setDone] = useState(false);
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <button type="button" onClick={() => { setTipsOff(false); setDone(true); }} className="os-secondary px-4 py-2 text-sm">{t('tips.again')}</button>
+      {done ? <p role="status" className="text-xs font-bold text-emerald-200">{t('tips.againDone')}</p> : null}
+    </div>
+  );
+}
+
 function RsvpSection({ database, person }: { database: LocalDatabase; person: Person }) {
   const t = useT();
   const mode = rsvpModeOf(database, person.id);

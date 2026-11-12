@@ -1,7 +1,6 @@
 'use client';
 
 import { LegalLinks } from '@/features/legal/LegalLinks';
-import { LocalModeLink } from '@/features/access/LocalModeLink';
 import { HOME_FOR_ROLE } from '@/features/identity/IdentitySwitcher';
 import { ownPersonIds, readDatabase, setActiveIdentity, signOut, type IdentityRole } from '@/shared/data';
 import { useT } from '@/shared/i18n';
@@ -23,7 +22,7 @@ export function OnboardingSteps({ labels, current }: { labels: string[]; current
 }
 
 /** The frame of the onboarding pages (/join, /found). */
-export function OnboardingShell({ title, steps, demoLink = true, children }: { title: string; steps?: { labels: string[]; current: number }; demoLink?: boolean; children: React.ReactNode }) {
+export function OnboardingShell({ title, steps, children }: { title: string; steps?: { labels: string[]; current: number }; children: React.ReactNode }) {
   const t = useT();
   return (
     <main className="os-page">
@@ -37,8 +36,8 @@ export function OnboardingShell({ title, steps, demoLink = true, children }: { t
           {steps ? <OnboardingSteps labels={steps.labels} current={steps.current} /> : null}
         </header>
         {children}
-        <div className="grid justify-items-center gap-3 pt-2">
-          {demoLink ? <LocalModeLink /> : null}
+        {/* One quiet line at the foot, nothing else (DESIGN.md, Ben's rules). */}
+        <div className="grid justify-items-center pt-2">
           <LegalLinks quiet />
         </div>
       </div>

@@ -13,7 +13,7 @@
 .brand-mark span:nth-child(3) { height: 16px; }
 .brand-beta { color: #a5b4c6; font-size: 10px; letter-spacing: 1px; font-weight: 600; border: 1px solid #2c3444; border-radius: 5px; padding: 3px 6px; margin-left: 2px; text-transform: uppercase; }
 .marketing-nav nav { display: flex; align-items: center; gap: 32px; font-size: 13px; font-weight: 600; }
-.nav-features { color: var(--muted); }
+.nav-features, .nav-login { color: var(--muted); }
 .nav-signin { padding: 11px 16px; border: 1px solid #303847; border-radius: 10px; }
 .nav-signin span { margin-left: 12px; color: #6ee7b7; }
 .marketing-hero { position: relative; display: grid; grid-template-columns: 1fr 1fr; align-items: center; min-height: 710px; padding: 45px 0 70px; }
@@ -119,6 +119,7 @@
   .marketing-brand { font-size: 19px; gap: 9px; }
   .brand-beta { font-size: 9px; }
   .nav-features { display: none; }
+  .nav-login { font-size: 12px; }
   .nav-signin { padding: 9px 12px; font-size: 11px; }
   .nav-signin span { margin-left: 5px; }
   .marketing-hero { display: block; padding: 32px 0 34px; min-height: auto; }

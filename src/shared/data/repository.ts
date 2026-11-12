@@ -208,6 +208,38 @@ export function dismissHint(name: HintName): void {
   }
 }
 
+/*
+ * First-use tips (`TipLayer`): each shows once per device; all of them can be
+ * turned off, and back on in the settings.
+ */
+const tipKey = (id: string) => `club-app.tip-seen.${id}`;
+const TIPS_OFF_KEY = 'club-app.tips-off';
+
+export function isTipSeen(id: string): boolean {
+  if (!isBrowser()) return true;
+  try {
+    return window.localStorage.getItem(TIPS_OFF_KEY) === '1' || window.localStorage.getItem(tipKey(id)) === '1';
+  } catch {
+    return true;
+  }
+}
+
+export function markTipSeen(id: string): void {
+  if (!isBrowser()) return;
+  try { window.localStorage.setItem(tipKey(id), '1'); } catch { /* shows again next time */ }
+}
+
+export function setTipsOff(off: boolean): void {
+  if (!isBrowser()) return;
+  try {
+    if (off) window.localStorage.setItem(TIPS_OFF_KEY, '1');
+    else {
+      window.localStorage.removeItem(TIPS_OFF_KEY);
+      for (const key of Object.keys(window.localStorage)) if (key.startsWith('club-app.tip-seen.')) window.localStorage.removeItem(key);
+    }
+  } catch { /* nothing to do */ }
+}
+
 const ONBOARDING_DRAFT_KEY = 'club-app.onboarding-draft';
 
 /**

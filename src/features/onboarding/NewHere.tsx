@@ -3,8 +3,8 @@
 /**
  * The first screen for people who are not signed in: "New here" or "Sign
  * in". New here asks who you are, then shows that role's real way in
- * (players: their card first, the team's code after the account; coaches:
- * their invitation or founding a club; clubs: the founding code) with
+ * (players: the team's code or link; coaches: their invitation or founding
+ * a club; clubs: the founding code) with
  * "Look at the demo first" next to it
  * (Ben, 2026-10-24: after the demo, "New here" must not lead back into it).
  * Without a club server the demo is all there is, so the role opens it.
@@ -15,7 +15,6 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { WhoAreYou, type Persona } from '@/features/onboarding/WhoAreYou';
-import { leaveDemoFor } from '@/features/onboarding/demoRole';
 import { PILOT_MAIL } from '@/features/landing/pilotMail';
 import type { IdentityRole } from '@/shared/data';
 import { useT, type MessageKey } from '@/shared/i18n';
@@ -71,15 +70,11 @@ export function NewHere({ onDemo, canSignIn, startAt = 'choose' }: { onDemo: (ro
     return (
       <>
         <WhoAreYou only={WAYS[role]} title={t(WAY_TITLE[role])} />
-        <section className="os-panel-soft grid gap-3 p-4">
-          <div>
-            <p className="text-sm font-black text-slate-100">{t('start.way.demoTitle')}</p>
-            <p className="mt-0.5 text-xs text-slate-400">{t('start.way.demoDetail')}</p>
-          </div>
-          <button type="button" onClick={() => onDemo(role)} className="os-secondary justify-center">{t('start.way.demo')}</button>
-          {role !== 'athlete' ? <p className="text-xs text-slate-400">{t('demo.start.noCode')} <a href={pilot} className="font-bold text-sky-300 underline">{t('demo.start.pilot')}</a></p> : null}
-        </section>
-        <button type="button" onClick={() => setStep('role')} className="justify-self-start px-1 text-sm font-bold text-slate-400 underline">{t('start.new.back')}</button>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-1 text-sm font-bold">
+          <button type="button" onClick={() => setStep('role')} className="text-slate-400 underline">{t('start.new.back')}</button>
+          <button type="button" onClick={() => onDemo(role)} className="text-sky-300 underline">{t('start.way.demo')}</button>
+        </div>
+        {role !== 'athlete' ? <p className="px-1 text-xs text-slate-500">{t('demo.start.noCode')} <a href={pilot} className="font-bold text-sky-300 underline">{t('demo.start.pilot')}</a></p> : null}
       </>
     );
   }
@@ -117,8 +112,6 @@ export function NewHere({ onDemo, canSignIn, startAt = 'choose' }: { onDemo: (ro
               type="button"
               onClick={() => {
                 if (!canSignIn) { onDemo(entry.role); return; }
-                // Players make their card first; the team's code comes after the account.
-                if (entry.role === 'athlete') { leaveDemoFor('/join'); return; }
                 setRole(entry.role);
                 setStep('way');
               }}
