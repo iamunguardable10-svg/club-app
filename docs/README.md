@@ -19,6 +19,7 @@ Where to find what. Start with the [README](../README.md) for the overview and
 | File | Content |
 |---|---|
 | [simplify-progress.md](simplify-progress.md) | The run log: every change, why, and how it was checked (newest at the end) |
+| [plan-beta-speyer.md](plan-beta-speyer.md) | **Now:** what has to happen before the youth teams start (mail, plan, privacy, fixes, explainer video) |
 | [plan-next-runs.md](plan-next-runs.md) | Open work, ideas and small to-dos |
 | [goal-2026-10-pilot-ready.md](goal-2026-10-pilot-ready.md) | The October goal: ready for the pilot (load explained, tour, onboarding, playbook, marketing) |
 | [plan-features-freischaltung.md](plan-features-freischaltung.md) | Unlocking features per club and team |
