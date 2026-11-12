@@ -25,7 +25,7 @@ export function OnboardingSteps({ labels, current }: { labels: string[]; current
 export function OnboardingShell({ title, steps, children }: { title: string; steps?: { labels: string[]; current: number }; children: React.ReactNode }) {
   const t = useT();
   return (
-    <main className="os-page">
+    <main className="os-page overflow-x-clip">
       <div className="os-container flex min-h-[100dvh] max-w-md flex-col pb-6">
         <div className="space-y-5">
         <header className="os-hero p-6">

@@ -25,7 +25,7 @@ function LoginContent() {
   const params = useSearchParams();
   const next = safeNext(params.get('next'));
   return (
-    <main className="os-page">
+    <main className="os-page overflow-x-clip">
       <div className="os-container flex min-h-[100dvh] max-w-md flex-col pb-6">
         <div className="space-y-5">
         {/* Less is more: just the name and the language, then straight to the e-mail. */}
