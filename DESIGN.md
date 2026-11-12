@@ -95,9 +95,12 @@ Shared pieces worth reusing before building new ones: `SmartSessionCalendar`
    Coach and player share one calendar engine that adapts to context.
 9. **Never block a first look.** A new visitor sees the app before any dialog
    asks something of them.
-10. **Teach while they use it.** On a page's first visits, one small bubble at
-    a time points at a real control (`TipLayer`, `data-tip`), the rest dimmed
-    but still usable: tapping the control works and counts as seen. "Got it",
+10. **Teach while they use it.** A page's tips show when that page is first
+    opened, not all at once on the start page. One small bubble at a time
+    points at a real control (`TipLayer`, `data-tip`), the rest dimmed but
+    usable. Where there is something to do, the tip is a step that waits for
+    it: in the calendar "tap the pencil", "tap a free time", "drag it", "pull
+    the bottom edge", "open it", each moving on when done. "Got it" or "Skip",
     "No more tips", and "Show the tips again" in the settings. One short
     sentence per tip, never a tour that plays by itself.
 

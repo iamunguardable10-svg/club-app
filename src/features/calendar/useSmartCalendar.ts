@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { tipEvent } from '@/features/tips/tipEvents';
 import { formatDateRange } from '@/shared/format';
 import type { SmartCalendarDragKind, SmartCalendarMode, SmartCalendarSession, SmartMobileCalendarView } from './SmartSessionCalendar';
 
@@ -128,6 +129,8 @@ export function useSmartCalendar({
   handlersRef.current = handlers;
   const draftRef = useRef(draft);
   draftRef.current = draft;
+  // The first-use tips in the calendar wait for planning to start.
+  useEffect(() => { if (mode === 'edit') tipEvent('calendar.edit'); }, [mode]);
   const weekLabel = useMemo(() => (days[0] && days[6] ? formatDateRange(days[0], days[6]) : ''), [days]);
 
   useEffect(() => {
@@ -189,6 +192,7 @@ export function useSmartCalendar({
       handlersRef.current.onInteract?.();
       draftPlacedAtRef.current = Date.now();
       handlersRef.current.onCreateDraft(start, addMinutes(start, draftMinutes));
+      tipEvent('calendar.draft');
     }
     if (event.pointerType === 'mouse') { createDraftAt(startY); return; }
     // On touch only a tap puts a draft down; a scroll does not.
@@ -201,6 +205,7 @@ export function useSmartCalendar({
   function handleSessionClick(session: SmartCalendarSession, event: MouseEvent<HTMLElement>) {
     event.stopPropagation(); if (didDragRef.current) { didDragRef.current = false; return; }
     handlersRef.current.onOpenSession(session, mode);
+    tipEvent('calendar.open');
   }
   function handleSessionKeyDown(session: SmartCalendarSession, event: KeyboardEvent<HTMLElement>) {
     if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -252,6 +257,7 @@ export function useSmartCalendar({
       if (didDragRef.current) { didDragRef.current = false; return; }
       if (Date.now() - draftPlacedAtRef.current < 500) return;
       open();
+      tipEvent('calendar.open');
     };
   }
   function startDraftDrag(kind: SmartCalendarDragKind, event: PointerEvent<HTMLElement>) {
@@ -292,6 +298,7 @@ export function useSmartCalendar({
     }
     function handlePointerUp() {
       setDrag(null);
+      if (didDragRef.current) tipEvent(activeDrag.kind === 'resize' ? 'calendar.resize' : 'calendar.move');
       // The click right after the release is swallowed; one that never comes must not swallow the next tap.
       window.setTimeout(() => { didDragRef.current = false; }, 0);
       if (activeDrag.target === 'session' && activeDrag.sessionId && didDragRef.current) handlersRef.current.onSessionDrop(activeDrag.sessionId, latestStart, latestEnd);

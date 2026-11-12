@@ -23,7 +23,7 @@ import { BASELINE_DAYS, acwrAfter, aggregateDailyLoads, backFromBreak, baselineA
 import { LoadInfoButton, LoadLandingChip, LoadRiskBadge } from './LoadHints';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
 import { HealthConsentPanel } from '@/features/legal/HealthConsentPanel';
-import { athleteHasLoad, dismissHint, isHintDismissed, athleteTeamTracksLoad, hasHealthConsent, clearEntryReview, displayName, getActivePerson, newId, reportAvailability, reviewsForPerson, rsvpModeOf, isRemoteMode, useLocalDatabase } from '@/shared/data';
+import { athleteHasLoad, athleteTeamTracksLoad, hasHealthConsent, clearEntryReview, displayName, getActivePerson, newId, reportAvailability, reviewsForPerson, rsvpModeOf, isRemoteMode, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
 import { formatDay, formatDayMonth, formatDecimal, formatEntryDate, formatInteger, formatLongDay, formatTime as formatSharedTime, formatWeekday } from '@/shared/format';
@@ -529,8 +529,6 @@ function AthleteCalendar({
   });
   useEffect(() => { if (!calendar.isDragging) setPreview(null); }, [calendar.isDragging]);
   // What a tap and a drag do is said once, the first time the edit mode opens.
-  const [editHintShown] = useState(() => !isHintDismissed('calendarEdit'));
-  useEffect(() => { if (calendar.mode === 'edit' && editHintShown) dismissHint('calendarEdit'); }, [calendar.mode, editHintShown]);
 
   function confirmDraft() {
     if (!draft || !onEmptySlot) return;
@@ -569,7 +567,6 @@ function AthleteCalendar({
         {...calendar.calendarProps}
         canCreateSessions={Boolean(onEmptySlot)}
         showEditToggle={Boolean(onEmptySlot)}
-        editHint={editHintShown ? t('calendar.athleteEditHint') : undefined}
         sessions={sessions}
         draft={draft ? { ...draft, title: t('calendar.ownDraft'), teamLabel: t('calendar.ownDraftHint') } : null}
         onClearDraft={() => setDraft(null)}

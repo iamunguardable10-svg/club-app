@@ -231,7 +231,7 @@ function RoleShell({ nav, active: current, title, subtitle, back, actions, menuA
         {database && person && database.activeIdentity?.role === 'athlete' && active !== 'load' ? <LimitedConsentNote database={database} person={person} /> : null}
         {children}
       </div>
-      <TipLayer tips={tipsFor(database?.activeIdentity?.role, current, nav.map((entry) => entry.item))} />
+      <TipLayer tips={tipsFor(database?.activeIdentity?.role, current)} />
 
       {tabBar ? <nav className="fixed inset-x-0 bottom-0 z-[70] border-t border-slate-800 bg-slate-950/95 px-2 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 text-white backdrop-blur-xl md:hidden" aria-label={t('nav.main')}>
         <div className={`mx-auto grid max-w-lg ${columns} gap-1`}>

@@ -3191,3 +3191,15 @@ Ben: Der Spieler soll wie Trainer und Verein zuerst den Code oder Link eingeben;
 - DESIGN.md: Muster 10 „Teach while they use it“, die neuen Regeln zu Beitritt und Landing.
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, `test:landing`, Smoke (voll); Beitritt mit dem Link eines Testteams auf dem Pilotserver durchgeklickt (ohne beizutreten), Tipps für alle drei Rollen auf Handy und Desktop.
+
+## Run 107 — Die Tipps führen durch den Kalender (2026-11-12)
+
+Ben: Nicht alles schon auf der Startseite zeigen, sondern erst, wenn man den Bereich selbst öffnet; im Kalender interaktiv durchführen: klicken, hin und her ziehen, verlängern.
+
+- **Tipps pro Seite:** Heute zeigt nur noch seinen eigenen Tipp; Kalender, Team, Hallen, Belastung, Nachrichten und Verein zeigen ihre Tipps erst beim ersten Öffnen. Die Hinweise auf die Tabs entfallen.
+- **Kalender als geführte Schritte** (Trainer und Spieler): „Tippe auf den Stift“ → „Tippe auf eine freie Zeit“ → „Halt sie fest und zieh sie auf die richtige Uhrzeit“ → „Zieh am unteren Rand“ → „Tippe sie an“. Jeder Schritt wartet, bis man ihn wirklich gemacht hat (der Kalender meldet Planen, neue Einheit, Verschieben, Verlängern, Öffnen), und zeigt dann auf das, was dabei entstanden ist; „Überspringen“ geht immer. Der letzte Schritt sagt beim Trainer „Team, Halle und Details“, beim Spieler „wählen, was du machst“.
+- Ein halb verdecktes Ziel (unter der Tab-Leiste) scrollt vorher ins Bild; der grüne Rahmen um das Ziel ist jetzt sichtbar.
+- Der alte einmalige Hinweistext im Spielerkalender entfällt, die Schritte ersetzen ihn.
+- Das noch unbestätigte Konto einer Pilotnutzerin (Bestätigungsmail kam bei GMX nicht an) wurde auf Bens Wunsch direkt bestätigt; ein eigener Mailversand (SMTP) bleibt offen.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, `test:landing`, Smoke (voll); die Kalenderschritte als Trainer und als Spieler auf Handy und Desktop durchgespielt (Stift, Tippen, Ziehen, Verlängern, Öffnen).
