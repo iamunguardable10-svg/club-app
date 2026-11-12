@@ -246,7 +246,6 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
         </>
       ) : (
         <>
-          <AccountLine account={account} />
           <ErrorLine message={error} />
           <ProfileStep
             askName={!me} knownName={me ? `${me.firstName} ${me.lastName}` : undefined} knownBirthYear={me?.birthYear}

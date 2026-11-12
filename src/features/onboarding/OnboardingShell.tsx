@@ -26,7 +26,8 @@ export function OnboardingShell({ title, steps, children }: { title: string; ste
   const t = useT();
   return (
     <main className="os-page">
-      <div className="os-container max-w-md space-y-5 pb-12">
+      <div className="os-container flex min-h-[100dvh] max-w-md flex-col pb-6">
+        <div className="space-y-5">
         <header className="os-hero p-6">
           <div className="flex items-center justify-between gap-3">
             <p className="os-kicker">{t('start.kicker')}</p>
@@ -36,8 +37,9 @@ export function OnboardingShell({ title, steps, children }: { title: string; ste
           {steps ? <OnboardingSteps labels={steps.labels} current={steps.current} /> : null}
         </header>
         {children}
-        {/* One quiet line at the foot, nothing else (DESIGN.md, Ben's rules). */}
-        <div className="grid justify-items-center pt-2">
+        </div>
+        {/* One quiet line, at the very foot of the screen (DESIGN.md, Ben's rules). */}
+        <div className="mt-auto grid justify-items-center pt-10">
           <LegalLinks quiet />
         </div>
       </div>
