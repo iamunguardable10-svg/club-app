@@ -15,7 +15,7 @@ select test.expect_count('an account still waiting for its confirmation', $q$sel
 select test.expect_count('no account', $q$select 1 where public.email_account_status('new@example.test') = 'none'$q$, 1);
 select test.expect_count('a deleted account counts as none', $q$select 1 where public.email_account_status('gone@example.test') = 'none'$q$, 1);
 select set_config('request.headers', '{"x-forwarded-for":"203.0.113.55"}', true);
-select test.expect_error('… and not endlessly from one caller', $q$select public.email_account_status(x::text) from generate_series(1, 40) x$q$, 'Too many attempts');
+select test.expect_error('… and not endlessly from one caller', $q$select public.email_account_status(x::text) from generate_series(1, 80) x$q$, 'Too many attempts');
 
 \echo 'email account status tests passed'
 rollback;

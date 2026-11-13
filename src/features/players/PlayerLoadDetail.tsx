@@ -8,6 +8,7 @@ import { ACWR_ZONES, LOAD_TYPE_COLORS, type AthleteLoadEntry, type LoadTrainingT
 import { LOAD_TYPE_KEYS, loadTypeLabel } from '@/features/load/loadLabels';
 import { formatDayShortMonth, formatDecimal, formatEntryDate } from '@/shared/format';
 import { useT } from '@/shared/i18n';
+import { LoadIntro, useLoadIntro } from '@/features/load/LoadIntro';
 import { displayTitle } from '@/features/sessions/sessionTypeLabels';
 
 export type PlayerLoadDetailPlayer = PlayerLoadInput & {
@@ -216,6 +217,8 @@ export function PlayerLoadDetail({
   // Charts, RPE and monotony come from the raw entries, which only roles
   // with load details receive.
   const showDetails = summary.access === 'full';
+  // The terms, explained the first time a coach opens a player's load (Ben, 2026-11-13).
+  const loadIntro = useLoadIntro('coach', loadTracked && summary.access !== 'none');
   const attendanceEvents = player.attendanceEvents ?? [];
   const since = new Date();
   since.setDate(since.getDate() - attendanceRange);
@@ -247,6 +250,8 @@ export function PlayerLoadDetail({
         : { label: t('playerLoad.stability.stable'), detail: t('playerLoad.stability.stableDetail'), tone: 'border-emerald-400/45 bg-emerald-400/10 text-emerald-100' };
 
   return (
+    <>
+    {loadIntro.open ? <LoadIntro role="coach" onClose={loadIntro.close} /> : null}
     <div className="fixed inset-0 z-[110] flex items-end bg-slate-950/80 px-3 pb-3 pt-8 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
       <div className="max-h-[92vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-5xl sm:rounded-[2rem] sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 pb-4">
@@ -254,6 +259,7 @@ export function PlayerLoadDetail({
             <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">{loadTracked ? t('playerLoad.kicker.load') : t('playerLoad.kicker.player')}</p>
             <h2 className="mt-1 text-3xl font-black tracking-tight text-white">{player.name}</h2>
             <p className="mt-1 text-sm font-bold text-slate-400">{teamName}</p>
+            {loadTracked && summary.access !== 'none' ? <button type="button" onClick={loadIntro.show} className="mt-1 text-xs font-black text-sky-300 underline">{t('loadIntro.again')}</button> : null}
           </div>
           <button type="button" onClick={onClose} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">{t('playerLoad.close')}</button>
         </div>
@@ -405,5 +411,6 @@ export function PlayerLoadDetail({
         {footer ? <div className="mt-5 border-t border-slate-800 pt-4">{footer}</div> : null}
       </div>
     </div>
+    </>
   );
 }

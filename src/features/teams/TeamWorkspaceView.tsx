@@ -95,7 +95,7 @@ function addMinutes(date: Date, minutes: number) {
   return new Date(date.getTime() + minutes * 60_000);
 }
 
-/** Phones only: the tab's symbol (the label is its aria-label and title). */
+/** Phones only: the tab's symbol, above its short word. */
 function SectionIcon({ section }: { section: TeamWorkspaceSection }) {
   const common = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
   return (
@@ -109,7 +109,8 @@ function SectionIcon({ section }: { section: TeamWorkspaceSection }) {
   );
 }
 
-function sectionLabel(section: TeamWorkspaceSection) {
+function sectionLabel(section: TeamWorkspaceSection, short = false) {
+  if (short && section === 'settings') return tr('team.section.settingsShort');
   if (section === 'dashboard') return tr('team.section.overview');
   if (section === 'players') return tr('team.section.players');
   if (section === 'groups') return tr('team.section.groups');
@@ -462,7 +463,7 @@ export function TeamWorkspaceView({
   return (
     <div className="space-y-4">
       {/* Sections of this team: one row, never sideways scrolling. Phones get
-          an icon only (the label is its aria-label and title), wider screens the full text. */}
+          the icon with a short word under it (Ben, 2026-11-13: icons alone say too little). */}
       <div role="tablist" aria-label={t('team.sectionsLabel')} className="grid auto-cols-fr grid-flow-col gap-1 rounded-2xl border border-slate-800 bg-slate-950/70 p-1 sm:flex sm:w-max">
         {sections.map((section) => (
           <button
@@ -476,6 +477,7 @@ export function TeamWorkspaceView({
             className={`flex min-w-0 flex-col items-center gap-0.5 rounded-xl px-1 py-2.5 text-[10px] font-black transition sm:flex-row sm:gap-0 sm:whitespace-nowrap sm:px-3.5 sm:py-2 sm:text-sm ${activeSection === section ? 'bg-sky-300 text-slate-950' : 'text-slate-300 hover:bg-slate-900 hover:text-white'}`}
           >
             <SectionIcon section={section} />
+            <span className="block max-w-full truncate sm:hidden">{sectionLabel(section, true)}</span>
             <span className="hidden sm:inline">{sectionLabel(section)}</span>
             {section === 'players' ? <span className={`hidden text-xs sm:ml-1.5 sm:inline ${activeSection === section ? 'text-slate-800' : 'text-slate-500'}`}>{data.playerCount}</span> : null}
           </button>
