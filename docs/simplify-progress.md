@@ -3203,3 +3203,17 @@ Ben: Nicht alles schon auf der Startseite zeigen, sondern erst, wenn man den Ber
 - Das noch unbestätigte Konto einer Pilotnutzerin (Bestätigungsmail kam bei GMX nicht an) wurde auf Bens Wunsch direkt bestätigt; ein eigener Mailversand (SMTP) bleibt offen.
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, `test:landing`, Smoke (voll); die Kalenderschritte als Trainer und als Spieler auf Handy und Desktop durchgespielt (Stift, Tippen, Ziehen, Verlängern, Öffnen).
+
+## Run 108 — Belastung beim ersten Mal erklärt, Team-Reiter beschriftet, Verlauf lesbar (2026-11-13)
+
+Ben, nach dem Plan für den Beta-Betrieb der Jugend (`docs/plan-beta-speyer.md`): Die Fachbegriffe gehören dazu, aber beim ersten Öffnen von „Belastung“ müssen sie erklärt werden; nach dem ersten Training bekommt der Spieler erklärt, wie er den RPE einträgt, und der Trainer, wie er damit die Belastung steuert. Elternzugang vorerst nicht. Vorher-/Nachher-Bilder vor dem Commit; die neue Reihenfolge auf Spieler-„Heute“ („Als Nächstes“ ganz oben) hat Ben abgelehnt, sie ist nicht drin.
+
+- **`LoadIntro`:** vier kurze Karten, eine nach der anderen. Spieler: RPE (mit 1 / 5 / 10), AU = RPE × Minuten, ACWR (7 gegen 28 Tage, mit der Ampel-Skala), Spielraum / Monotonie / Beanspruchung / „→ ~1,20“. Trainer: was die Spieler eintragen, ACWR, „So steuerst du damit“ (unter 0,8 steigern, 0,8–1,3 passt, über 1,3 leichter oder Pause, über 1,5 Risiko, Vorschau an geplanten Einheiten), Monotonie und Spielraum (stabil nach drei bis vier Wochen). Öffnet sich von selbst beim ersten Öffnen der eigenen Belastung (Spieler) bzw. der Belastung eines Spielers (Trainer), danach über „Was bedeuten die Begriffe?“.
+- **Erste RPE-Abfrage:** einmal der Satz, wie man bewertet (ganze Einheit, 1 / 5 / 10, etwa 30 Minuten danach, ehrlich); weg nach dem ersten Speichern.
+- **Trainer „Heute“:** sobald Spieler die erste Einheit bewertet haben, einmal „Die ersten Bewertungen sind da“ mit „So geht’s“ (öffnet die Trainer-Erklärung).
+- **Team-Reiter:** auf dem Handy unter jedem Symbol ein Wort (Übersicht, Spieler, Gruppen, Taktik, Optionen).
+- **Verlauf:** steht nur die Anwesenheit da, bekommt die Kachel die ganze Zeile („Anwesend 10/12 · 2 abwesend · 1 verspätet“), vier Kacheln stehen auf dem Handy zwei mal zwei.
+- **Migration 0056 (live):** „gibt es diese E-Mail schon“ erlaubt 60 statt 20 Abfragen in 10 Minuten je Aufrufer (Mobilfunk teilt IP-Adressen); Test angepasst.
+- Plan: Domain hevinova.com (Mails `clubos@hevinova.com`, später `clubos.hevinova.com`), Elternzugang vorerst nicht, Supabase Pro offen.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Datenbanktests (alle), `test:features`, `test:landing`, Smoke (voll); Vorher-/Nachher-Bilder auf dem Handy.

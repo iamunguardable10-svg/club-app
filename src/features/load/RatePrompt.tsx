@@ -18,9 +18,9 @@
  * so effort and the real length are asked now.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import type { AthletePendingSession } from '@/shared/data';
+import { dismissHint, isHintDismissed, type AthletePendingSession } from '@/shared/data';
 import { formatSessionTime } from '@/shared/format';
 import { tr, useT, type MessageKey } from '@/shared/i18n';
 import { displayTitle } from '@/features/sessions/sessionTypeLabels';
@@ -145,6 +145,10 @@ function RateForm({
   const [stage, setStage] = useState<'warmup' | 'main'>(isGame ? 'warmup' : 'main');
   const [warmup, setWarmup] = useState<WarmupRating | null>({ rpe: defaults.warmupRpe, minutes: defaults.warmupMinutes });
   const load = rpe * minutes + (isGame && warmup ? warmup.rpe * warmup.minutes : 0);
+  // The first time: how to rate (Ben, 2026-11-13); gone after the first save.
+  const [howTo, setHowTo] = useState(false);
+  useEffect(() => setHowTo(!isHintDismissed('rpeHowTo')), []);
+  const save = () => { dismissHint('rpeHowTo'); onSave(session, rpe, minutes, isGame ? warmup : null); };
   const steps = isGame ? (
     <p className="mt-1 text-xs font-black text-slate-400">{t(stage === 'warmup' ? 'rate.step.warmup' : 'rate.step.game')}</p>
   ) : null;
@@ -179,6 +183,7 @@ function RateForm({
           </>
         ) : (
           <>
+            {howTo && !isGame ? <p className="mt-4 rounded-2xl border border-sky-300/25 bg-sky-300/[0.07] p-3 text-sm font-bold leading-relaxed text-sky-100">{t('rate.howTo')}</p> : null}
             {isGame ? (
               <p className="mt-4 rounded-2xl border border-violet-300/25 bg-violet-300/[0.08] p-3 text-sm font-bold text-violet-100">{t('rate.gameNote')}</p>
             ) : (
@@ -191,7 +196,7 @@ function RateForm({
                 <span className="text-xs font-black text-sky-300">{t('rate.change')}</span>
               </button>
             ) : null}
-            <button type="button" onClick={() => onSave(session, rpe, minutes, isGame ? warmup : null)} className="mt-5 w-full rounded-2xl bg-emerald-300 px-4 py-3 text-sm font-black text-slate-950">
+            <button type="button" onClick={save} className="mt-5 w-full rounded-2xl bg-emerald-300 px-4 py-3 text-sm font-black text-slate-950">
               {t('rate.save', { load })}
             </button>
           </>

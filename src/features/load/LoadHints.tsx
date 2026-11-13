@@ -101,7 +101,7 @@ export function LoadInfoButton() {
 const SCALE_MAX = 2;
 const percent = (value: number) => `${(value / SCALE_MAX) * 100}%`;
 
-function ZoneScale() {
+export function ZoneScale() {
   const t = useT();
   return (
     <div className="mt-4">

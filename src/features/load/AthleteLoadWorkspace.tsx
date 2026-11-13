@@ -49,6 +49,7 @@ import {
   type AthleteAvailabilityMark,
 } from './athleteLocalStore';
 import { gameMaxMinutes, sportOfTeam } from '@/features/sports/sports';
+import { LoadIntro, useLoadIntro } from '@/features/load/LoadIntro';
 import { RatePrompt, WARMUP_MINUTES, WARMUP_RPE, type RateDefaults, type WarmupRating } from './RatePrompt';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { useSmartCalendar } from '@/features/calendar/useSmartCalendar';
@@ -817,6 +818,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     return map;
   }, [sortedEntries]);
   const [ratePromptOpen, setRatePromptOpen] = useState(false);
+  // The terms, explained the first time Load opens (Ben, 2026-11-13).
+  const loadIntro = useLoadIntro('athlete', (initialView ?? 'home') === 'load' && hasLoad);
   useEffect(() => {
     // Not in the demo club: a first look is never blocked by a dialog (Ben, 2026-11-11);
     // the Today card offers the rating there.
@@ -1393,6 +1396,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             <Metric label={t('athlete.metric.status')} value={zone.tone === 'neutral' ? t('athlete.metric.building') : zoneLabel(zone.tone)} tone={zone.tone} />
           </div>
         ) : null}
+
+        {activeView === 'load' && hasLoad ? (
+          <button type="button" onClick={loadIntro.show} className="-mt-2 justify-self-start text-left text-xs font-black text-sky-300 underline">{t('loadIntro.again')}</button>
+        ) : null}
+        {loadIntro.open ? <LoadIntro role="athlete" onClose={loadIntro.close} /> : null}
 
         {activeView === 'home' && todayRisk ? (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl border border-rose-400/30 bg-rose-400/[0.06] px-3 py-2.5">

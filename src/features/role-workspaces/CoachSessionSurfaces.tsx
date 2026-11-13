@@ -1311,7 +1311,8 @@ export function CoachHistorySessionCard({
         <span aria-hidden className="text-lg font-black text-slate-500">›</span>
       </button>
 
-      <div className="mt-3 grid grid-cols-4 gap-1.5">
+      {/* One tile alone gets the whole row; four sit two by two on phones, so nothing is cut off. */}
+      <div className={`mt-3 grid gap-1.5 ${loadShared ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-1'}`}>
         <HistoryStat label={t('history.there')} value={`${presentCount}/${session.players.length}`} detail={t('history.outLate', { out: summary.out.length, late: summary.late.length })} onClick={() => onInsight?.(session, 'expected')} />
         {loadShared ? (
           <>

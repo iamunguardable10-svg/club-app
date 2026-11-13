@@ -17,8 +17,8 @@ Kalender-Führung sind frisch überarbeitet.
 
 | # | Was | Warum | Wer |
 |---|---|---|---|
-| A1 | **Eigener Mailversand (Resend über SMTP)** — gemerkt, kommt bald | Der eingebaute Versand von Supabase schafft nur wenige Mails pro Stunde und landet bei GMX und Co. oft im Spam (so geschehen am 2026-11-11). Meldet sich ein Team mit 15 Spielern an, bleiben die meisten ohne Bestätigungsmail hängen. Resend braucht eine **eigene Domain** (z. B. `clubos.app`, ca. 10–15 € im Jahr), die bei Resend bestätigt wird; dann in Supabase Auth → SMTP eintragen und die Auth-Rate-Limits für Mails anheben. Absender z. B. `Club OS <noreply@…>`, die vier Mailvorlagen (`docs/mail-templates/`) gibt es schon | Ben (Domain, Resend-Konto, Schlüssel in Supabase eintragen; nie in den Chat), Claude führt Schritt für Schritt |
-| A2 | **Supabase Pro** (ca. 25 $/Monat) | Im kostenlosen Plan wird ein Projekt nach einer Woche ohne Nutzung pausiert (das alte Projekt ist so stehen geblieben), es gibt keine täglichen Sicherungen, und der Schutz vor geleakten Passwörtern (Sicherheitsprüfung: „Leaked Password Protection Disabled“) lässt sich erst damit einschalten. Für Gesundheitsdaten Minderjähriger ist eine Sicherung Pflicht | Ben (Entscheidung, Zahlung) |
+| A1 | **Eigener Mailversand (Resend über SMTP)** — gemerkt, kommt bald | Der eingebaute Versand von Supabase schafft nur wenige Mails pro Stunde und landet bei GMX und Co. oft im Spam (so geschehen am 2026-11-11). Meldet sich ein Team mit 15 Spielern an, bleiben die meisten ohne Bestätigungsmail hängen. Resend braucht eine **eigene Domain**. **Entschieden (Ben, 2026-11-13): die vorhandene Domain hevinova.com** als Dachmarke für alle Projekte: Mails von `clubos@hevinova.com` (bei Resend am besten über eine Subdomain wie `mail.hevinova.com` bestätigt, damit die Website-Mails getrennt bleiben), später die App unter `clubos.hevinova.com` (Vercel-Domain plus Supabase Site-URL und Redirects anpassen); dann in Supabase Auth → SMTP eintragen und die Auth-Rate-Limits für Mails anheben. Absender z. B. `Club OS <noreply@…>`, die vier Mailvorlagen (`docs/mail-templates/`) gibt es schon | Ben (Domain, Resend-Konto, Schlüssel in Supabase eintragen; nie in den Chat), Claude führt Schritt für Schritt |
+| A2 | **Supabase Pro** (ca. 25 $/Monat; Ben überlegt noch) | Im kostenlosen Plan wird ein Projekt nach einer Woche ohne Nutzung pausiert (das alte Projekt ist so stehen geblieben), es gibt keine täglichen Sicherungen, und der Schutz vor geleakten Passwörtern (Sicherheitsprüfung: „Leaked Password Protection Disabled“) lässt sich erst damit einschalten. Für Gesundheitsdaten Minderjähriger ist eine Sicherung Pflicht | Ben (Entscheidung, Zahlung) |
 | A3 | **Datenschutz mit dem Verein klären** | Der Verein ist Verantwortlicher, Club OS verarbeitet im Auftrag: es braucht einen **Auftragsverarbeitungsvertrag** (AVV) zwischen Verein und Ben, und die Datenschutzerklärung muss das so sagen. Für unter 16-Jährige laufen Gesundheitsdaten nur mit Zustimmung der Eltern (Link aus der App, gibt es schon). Dazu ein kurzer **Elternbrief**: was die App ist, welche Daten, wozu, wie man widerspricht | Claude entwirft AVV-Vorlage und Elternbrief, Ben und der Verein prüfen (kein Ersatz für Rechtsberatung) |
 | A4 | **Verein aufsetzen** | Gründungscode erzeugen (per SQL, nur im Chat); der Jugendleiter gründet den Verein (oder Ben gründet und lädt ihn als Abteilungsleitung ein); Abteilung, Teams (U10 … U18), Hallen; je Team die Trainer-Einladung; Funktionen je Team festlegen (siehe B2) | Ben mit dem Jugendleiter, Claude bereitet Code und Ablauf vor |
 | A5 | **Belastung (Load) für Jugendteams standardmäßig aus** | Neue Teams starten heute mit Belastung an (`teams.features` = `load`). Für U10–U14 ist RPE, ACWR und „AU“ zu viel; einschalten nur, wo ein Trainer es will | Claude (Voreinstellung für Jugendteams), Entscheidung Ben |
@@ -27,7 +27,9 @@ Kalender-Führung sind frisch überarbeitet.
 
 **Eltern und jüngere Kinder**
 
-- B1 **Eltern-Zugang.** Viele U10–U14-Kinder haben kein eigenes Handy; die Eltern sagen zu
+- B1 **Eltern-Zugang — entschieden (Ben, 2026-11-13): vorerst nicht**, die meisten Kinder
+  haben ab etwa 10 Jahren ein Handy. Für Jüngere bleibt die Übergangslösung.
+  Ursprüngliche Überlegung: **Eltern-Zugang.** Viele U10–U14-Kinder haben kein eigenes Handy; die Eltern sagen zu
   und ab. Heute gibt es nur das eigene Konto des Spielers. Übergangslösung für den Start:
   Ein Elternteil legt das Konto **im Namen des Kindes** an (eigene E-Mail, Name und
   Geburtsjahr des Kindes); die Eltern-Zustimmung läuft wie gehabt. Richtig gelöst: ein
@@ -37,10 +39,13 @@ Kalender-Führung sind frisch überarbeitet.
 
 **Spieler (Heute und Belastung)**
 
-- B2 **„Heute“ beginnt mit dem Wichtigsten.** Ganz oben „Als Nächstes“ mit Zu-/Absage;
+- B2 **Entschieden (Ben, 2026-11-13): bleibt, wie es ist.** Ursprünglich: **„Heute“ beginnt mit dem Wichtigsten.** Ganz oben „Als Nächstes“ mit Zu-/Absage;
   Nachrichten, Karte, Playbook und Kennzahlen danach. Heute steht „Als Nächstes“ unter
   fünf anderen Karten.
-- B3 **Belastung verständlich.** „Spielraum bis hoch 351 AU“, „ACWR 1,14“, „Monotonie“,
+- B3 **Belastung verständlich — entschieden (Ben, 2026-11-13):** die Fachbegriffe bleiben,
+  werden aber beim ersten Öffnen erklärt (Spieler und Trainer getrennt), der Spieler bekommt
+  bei der ersten RPE-Abfrage erklärt, wie man bewertet, der Trainer nach den ersten
+  Bewertungen, wie er damit steuert. Erledigt in Run 108. Ursprünglich: „Spielraum bis hoch 351 AU“, „ACWR 1,14“, „Monotonie“,
   „Beanspruchung“ und die Pfeile „→ ~1,20“ an jeder Einheit versteht ein Jugendspieler
   nicht. Einfache Ansicht als Standard (Ampel und ein Satz: „Du kannst normal trainieren“),
   Zahlen für Fortgeschrittene einklappbar. Das ist das offene Zielstück 1.
@@ -86,7 +91,7 @@ Spielpläne. Erst wenn die Jugend in Speyer zwei, drei Wochen damit arbeitet.
 ## Reihenfolge
 
 1. A1 Mailversand (sobald Ben Domain und Resend-Konto hat) und A2 Pro-Plan.
-2. A5, B2, B3, B4, B5, B7 in einem Durchgang (Code, Claude).
+2. B3, B4, B5, B7 erledigt (Run 108); A5 offen (Ben: Fachbegriffe gehören dazu).
 3. B6 nachstellen und beheben.
 4. C1 Erklärvideo, C2 Material.
 5. A3 und A4 mit dem Jugendleiter; B1 je nach Entscheidung.

@@ -22,7 +22,10 @@ import {
   useLocalDatabase,
   type SessionType,
   readLastCoachTeam,
+  dismissHint,
+  isHintDismissed,
 } from '@/shared/data';
+import { LoadIntro } from '@/features/load/LoadIntro';
 import { buildCoachData, EMPTY_COACH_DATA } from '@/features/role-workspaces/coachData';
 import type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlayer, CoachSession, CoachSessionCreateInput, CoachSessionMutation, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 import { FacilitiesManager } from '@/features/facilities/FacilitiesManager';
@@ -1087,6 +1090,8 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
 
             <CoachTodo sessions={sessions} onOpen={openSessionDetails} />
 
+            <FirstRatingsCard sessions={sessions} />
+
             {upcomingSessions.length > 0 ? (
               <CoachSection title={t('coach.today.comingUp')} actions={<Link href="/coach/sessions" className="text-xs font-black text-sky-300 hover:text-sky-200">{t('coach.today.calendarLink')}</Link>}>
                 <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
@@ -1218,5 +1223,32 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           onCancel={() => setDeleteSessionId(null)}
         />
     </CoachShell>
+  );
+}
+
+/**
+ * After the first session the players rated (Ben, 2026-11-13): once, how to
+ * steer the training load with it. Only for roles that see the players' load.
+ */
+function FirstRatingsCard({ sessions }: { sessions: CoachSession[] }) {
+  const t = useT();
+  const [dismissed, setDismissed] = useState(true);
+  useEffect(() => setDismissed(isHintDismissed('coachFirstRatings')), []);
+  const [open, setOpen] = useState(false);
+  const now = Date.now();
+  const rated = sessions.some((session) => new Date(session.startsAt).getTime() < now
+    && session.players.some((player) => player.loadEntries.some((entry) => entry.sessionId === session.id)));
+  if (dismissed || !rated) return null;
+  const done = () => { dismissHint('coachFirstRatings'); dismissHint('loadIntroCoach'); setDismissed(true); setOpen(false); };
+  return (
+    <section className="rounded-3xl border border-emerald-300/30 bg-emerald-300/[0.06] p-4 sm:p-5">
+      <p className="text-base font-black text-white">{t('coach.firstRatings.title')}</p>
+      <p className="mt-1 text-sm text-slate-300">{t('coach.firstRatings.detail')}</p>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <button type="button" onClick={() => setOpen(true)} className="os-success px-4 py-2 text-sm">{t('coach.firstRatings.open')}</button>
+        <button type="button" onClick={() => { dismissHint('coachFirstRatings'); setDismissed(true); }} className="text-xs font-bold text-slate-400 underline">{t('coach.firstRatings.later')}</button>
+      </div>
+      {open ? <LoadIntro role="coach" onClose={done} /> : null}
+    </section>
   );
 }
