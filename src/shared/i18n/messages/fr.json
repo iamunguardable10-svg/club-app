@@ -2411,6 +2411,5 @@
   "composer.reason.work": "Travail",
   "composer.reason.other": "Autre…",
   "consent.withdrawOpen": "Retirer le consentement…",
-  "profile.editNumberPosition": "Modifier numéro et poste",
-  "club.addTeamOpen": "+ Équipe"
+  "profile.editNumberPosition": "Modifier numéro et poste"
 }

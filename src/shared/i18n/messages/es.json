@@ -2411,6 +2411,5 @@
   "composer.reason.work": "Trabajo",
   "composer.reason.other": "Otro…",
   "consent.withdrawOpen": "Retirar el consentimiento…",
-  "profile.editNumberPosition": "Cambiar número y posición",
-  "club.addTeamOpen": "+ Equipo"
+  "profile.editNumberPosition": "Cambiar número y posición"
 }

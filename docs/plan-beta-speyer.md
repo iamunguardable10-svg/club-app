@@ -95,3 +95,10 @@ Spielpläne. Erst wenn die Jugend in Speyer zwei, drei Wochen damit arbeitet.
 3. B6 nachstellen und beheben.
 4. C1 Erklärvideo, C2 Material.
 5. A3 und A4 mit dem Jugendleiter; B1 je nach Entscheidung.
+
+## Nach dem Audit (2026-11-13, Entscheidungen Ben)
+
+- **Eltern-Bestätigung per Mail (Double-Opt-in) — nicht für die Beta, gemerkt.** Heute kann der Eltern-Link vom Kind selbst geöffnet werden und die Eltern-Adresse wird nicht geprüft (Audit Befund 1). Vor dem breiten Einsatz mit unter 16-Jährigen: Mail an die eingegebene Adresse, Einwilligung erst mit dem Klick darin; Test in `24_consent_test.sql`.
+- **Altersgrenze 16: Variante b** — im Grenzjahr zusätzlich der Geburtsmonat (App und Datenbank).
+- **RPE beim Training:** keine Vorauswahl; Spiele bleiben RPE 10 (Claude entschieden).
+- **Größere Vorschläge des Audits: alle**, in kleinen Schritten, jeweils mit Vorher-/Nachher-Bildern: (1) Zu-/Absage auf der Karte + RPE, (2) Altersgrenze, (3) Demo-Pille + Schritt nach dem Beitritt, (4) Trainer-Tabs und Trainer-„Heute“, (5) Vereins-Checkliste und Nachrichten als Verlauf, (6) Sheets, Zeilen und Schriftskala Seite für Seite.

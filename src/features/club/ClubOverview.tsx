@@ -476,7 +476,7 @@ function DepartmentSection({
           </ul>
           {/* The form only when asked for, or while the department has no team yet (audit 2026-11, 19). */}
           {!addingTeam && teams.length > 0 ? (
-            <button type="button" onClick={() => setAddingTeam(true)} className="justify-self-start text-xs font-black text-sky-300 underline">{t('club.addTeamOpen')}</button>
+            <button type="button" onClick={() => setAddingTeam(true)} className={`${smallButtonClass} justify-self-start border-sky-500/50 text-sky-100 hover:bg-sky-950/35`}>{t('club.addTeam')}</button>
           ) : (
           <form
             className="grid gap-3 rounded-2xl border border-slate-700 p-3"
