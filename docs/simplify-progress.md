@@ -3203,3 +3203,28 @@ Ben: Nicht alles schon auf der Startseite zeigen, sondern erst, wenn man den Ber
 - Das noch unbestätigte Konto einer Pilotnutzerin (Bestätigungsmail kam bei GMX nicht an) wurde auf Bens Wunsch direkt bestätigt; ein eigener Mailversand (SMTP) bleibt offen.
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, `test:landing`, Smoke (voll); die Kalenderschritte als Trainer und als Spieler auf Handy und Desktop durchgespielt (Stift, Tippen, Ziehen, Verlängern, Öffnen).
+
+## Run 108 — Eigene Club-OS-Domain (2026-11-13)
+
+Ben: Club OS unter `clubos.hebinova.de`, Versand mit Brevo als
+`Club OS <clubos@hebinova.de>`, auch die gesamte App auf diese Adresse umstellen.
+
+- Gleiche App, gleiches Vercel-Projekt und gleiche Supabase-Datenbank. Root-Website,
+  IONOS-MX und SPF bleiben unverändert. Neue Domain mit HTTPS verbunden;
+  Brevo-Code, zwei DKIM-CNAMEs und DMARC (weiterhin `p=none`, jetzt mit Berichten
+  an Brevo, von Ben freigegeben) eingerichtet, Domain/Absender in Brevo bestätigt.
+- Supabase Site URL und erlaubte Rücksprungadresse auf die neue Domain gesetzt;
+  alte erlaubte Adressen bleiben während des Umstiegs bestehen.
+- `metadataBase` und Canonical der Landingpage verwenden die eigene Domain.
+  Die bisherigen öffentlichen Vercel-Adressen leiten mit 308 weiter, inklusive
+  Pfad und Query. Vorschauen und lokale Entwicklung bleiben erreichbar.
+  Einladungen und Bestätigungen benutzen bereits `window.location.origin`.
+- README, Projektadresse und Betriebsnotizen aktualisiert. Keine Migrationen,
+  Rollen-, Daten- oder Sicherheitsregeländerungen.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`; lokal per HTTP die beiden
+Altadressen mit Einladungspfad/Query, kein Redirect für einen ähnlich geschriebenen
+fremden Host, Canonical und beide Social-Bilder auf der neuen Domain. Lokaler Smoke-
+Start wird durch die macOS-Prozessberechtigung verhindert; vollständige Browser-
+und Datenbankprüfungen laufen unverändert im CI. SMTP-Anbindung und empfangene
+Testmail werden separat im Domain-Prüfbericht dokumentiert.

@@ -19,7 +19,7 @@ The app has **two stores behind one data layer** (`src/shared/data/`):
   database functions. Schema, rules and tests live in `supabase/pilot/`
   (migrations `0001`–`0055`, tests in `supabase/pilot/tests/`), Edge Functions in
   `supabase/functions/`. This is the **live project** real players use
-  (`CLUB_ProjectV2`, `tszxeainmwowmixqmphn`, EU), served at myclubos.vercel.app.
+  (`CLUB_ProjectV2`, `tszxeainmwowmixqmphn`, EU), served at clubos.hebinova.de.
 
 One interface, two interchangeable stores — never a second app or a parallel
 implementation. `docs/simplify-decisions.md` (section 8) explains why;

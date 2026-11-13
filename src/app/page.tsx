@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { LandingPage } from '@/features/landing/LandingPage';
 
 export const metadata: Metadata = {
+  alternates: { canonical: 'https://clubos.hebinova.de' },
   title: 'Club OS — Your whole club. One app.',
   description: 'Training plans, RSVPs, halls, messages and player load. One calm place for your sports club. Join the first Club OS pilots.',
   openGraph: {
