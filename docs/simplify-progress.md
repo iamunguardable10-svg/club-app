@@ -3240,8 +3240,9 @@ der sie angefordert wird; danach echte Zustellung bei GMX und Gmail vergleichen.
 - Generator erstellt ein schlichtes responsives Tabellenlayout mit Textmarke,
   ohne externe Bilder. Bestätigungs- und E-Mail-Änderungsvorlagen unverändert.
 - Passwortanfrage übergibt die aktuelle Sprache im erlaubten Redirect. Die Vorlage
-  priorisiert diese bei passender Site URL vor der gespeicherten Kontosprache;
-  ältere Links verwenden die Kontosprache bzw. Englisch. Auch die Reset-Seite
+  priorisiert diese unabhängig vom Host vor der gespeicherten Kontosprache;
+  ältere Links verwenden im Inhalt die Kontosprache bzw. Englisch (Betreff Englisch).
+  Der Generator prüft das 255-Zeichen-Limit der Betreffvorlage. Auch die Reset-Seite
   übernimmt gültige Sprachparameter. Kein neuer Maildienst, Hook oder Secret.
 - Der von Supabase erzeugte ConfirmationURL bleibt unverändert. Keine Änderung an
   Passwortregeln, Sitzungen, Rollen, RLS oder DNS.
