@@ -36,7 +36,7 @@ function ShareIcon() {
 
 const bold = (chunk: string) => <span className="font-black text-white">{chunk}</span>;
 
-function Steps({ platform, canPrompt }: { platform: InstallPlatform; canPrompt: boolean }) {
+export function Steps({ platform, canPrompt }: { platform: InstallPlatform; canPrompt: boolean }) {
   const t = useT();
   // iPhone: the app on the home screen has its own storage; a one-time code
   // in its start address keeps the person signed in (installHandoff.ts).
@@ -65,7 +65,7 @@ function Steps({ platform, canPrompt }: { platform: InstallPlatform; canPrompt: 
   return <p>{t('install.desktop')}</p>;
 }
 
-function useInstallState() {
+export function useInstallState() {
   const [state, setState] = useState<{ ready: boolean; standalone: boolean; platform: InstallPlatform; canPrompt: boolean; installed: boolean }>(
     { ready: false, standalone: false, platform: 'desktop', canPrompt: false, installed: false },
   );

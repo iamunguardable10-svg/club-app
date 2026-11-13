@@ -21,6 +21,7 @@ import { errorText, useT } from '@/shared/i18n';
 
 import { currentPushSubscription, disablePush, enablePush, isPushSupported, pushPermission, syncPushSubscription } from './push';
 
+export type PushState = State;
 type State = 'loading' | 'unsupported' | 'needsInstall' | 'denied' | 'on' | 'off';
 
 
@@ -43,7 +44,7 @@ async function readState(): Promise<State> {
   return 'off';
 }
 
-function usePushState() {
+export function usePushState() {
   const [state, setState] = useState<State>('loading');
   const refresh = () => { void readState().then(setState); };
   useEffect(refresh, []);

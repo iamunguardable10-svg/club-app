@@ -240,6 +240,24 @@ export function setTipsOff(off: boolean): void {
   } catch { /* nothing to do */ }
 }
 
+// Right after joining a team: one screen to install the app and allow notifications (audit 2026-11, 14).
+const AFTER_JOIN_KEY = 'club-app.after-join';
+
+export function markAfterJoin(): void {
+  if (!isBrowser()) return;
+  try { window.localStorage.setItem(AFTER_JOIN_KEY, '1'); } catch { /* the hints in settings stay */ }
+}
+
+export function isAfterJoinPending(): boolean {
+  if (!isBrowser()) return false;
+  try { return window.localStorage.getItem(AFTER_JOIN_KEY) === '1'; } catch { return false; }
+}
+
+export function clearAfterJoin(): void {
+  if (!isBrowser()) return;
+  try { window.localStorage.removeItem(AFTER_JOIN_KEY); } catch { /* shows once more */ }
+}
+
 // RPE rating: start at the session's expected value instead of nothing (player's choice, off by default; Ben, 2026-11-13).
 const RPE_PREFILL_KEY = 'club-app.rpe-prefill';
 

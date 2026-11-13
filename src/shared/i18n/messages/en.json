@@ -2418,5 +2418,10 @@
   "settings.rpePrefillDetail": "The rating starts at the value expected for the session",
   "consent.birthMonth": "Month of birth",
   "consent.birthMonthPick": "Choose a month",
-  "consent.saveBirthMonth": "Save month"
+  "consent.saveBirthMonth": "Save month",
+  "afterJoin.title": "So you don't miss anything",
+  "afterJoin.install": "Put Club OS on your home screen",
+  "afterJoin.push": "Turn on notifications",
+  "afterJoin.done": "Done",
+  "afterJoin.pushIos": "On an iPhone this works only in the app: open Club OS from your home screen and we ask you there."
 }

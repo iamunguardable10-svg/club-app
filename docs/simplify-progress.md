@@ -3316,3 +3316,12 @@ Audit-Befund (Variante b, Ben): Bisher galt jeder aus dem Jahrgang „heute minu
 - Live betroffen: niemand (kein Konto aus dem Grenzjahrgang).
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `test:consent`, alle Datenbank-Tests lokal, `test:pilot`, `build`, Smoke; Bilder der Einstellungen.
+
+## Run 116 — Demo-Pille im Seitenkopf, ein Schritt nach dem Beitritt (2026-11-13)
+
+Audit-Vorschläge 13 und 14.
+
+- **Demo-Pille:** Die breite Leiste „DEMO Verein Trainer Spieler Loslegen“ über jedem Inhalt ist weg. Im Seitenkopf neben dem Profil steht eine Pille „DEMO Trainer ▾“; sie öffnet „Ansehen als“ (Verein, Trainer, Spieler, die aktuelle Rolle mit Haken) und „Loslegen“. Escape oder ein Tipp daneben schließt sie. Der Hinweis „Gefällt dir das?“ nach der ersten sinnvollen Aktion bleibt im Inhalt (`DemoNudge`). `DemoBar.tsx` exportiert jetzt `DemoPill` und `DemoNudge`.
+- **Nach dem Beitritt (Plan B8):** Wer einem Team beitritt (Spieler mit Code, Trainer und Vereinsrollen über die Einladung), sieht auf der ersten Seite einmal „Damit du nichts verpasst“: (1) Club OS auf den Home-Bildschirm, mit den Schritten für iPhone oder Android bzw. dem Installieren-Knopf, abgehakt wenn schon installiert; (2) Benachrichtigungen einschalten, auf dem iPhone außerhalb der App mit dem Hinweis, dass es dort erst in der App geht. „Fertig“ schließt für immer (`markAfterJoin`/`clearAfterJoin` in `repository.ts`, `AfterJoin.tsx`). Tipps warten, solange der Dialog offen ist.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke, Landing-Check; Vorher-/Nachher-Bilder Handy und Desktop, iPhone- und Android-Ansicht.

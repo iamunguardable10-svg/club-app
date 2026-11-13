@@ -27,6 +27,7 @@ import { joinCodeFrom } from '@/features/onboarding/WhoAreYou';
 import {
   acceptStaffInvite,
   clearOnboardingDraft,
+  markAfterJoin,
   readOnboardingDraft,
   storeOnboardingDraft,
   storePendingPlayerDetails,
@@ -84,6 +85,7 @@ function InviteFlow({ token, account }: { token: string; account: Account }) {
     try {
       const id = await acceptStaffInvite(token, consent);
       clearOnboardingDraft();
+      markAfterJoin();
       continueAs(clubRole ? 'club' : 'coach', clubRole ? null : id);
     } catch (caught) {
       setError(errorText(t, caught));
@@ -227,6 +229,7 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
     try {
       const teamId = await joinTeamWithCode(code, me ? me.firstName : profile.firstName, me ? me.lastName : profile.lastName, profile.consent);
       if (profile.details) storePendingPlayerDetails({ teamId, ...profile.details });
+      markAfterJoin();
       continueAs('athlete', teamId);
     } catch (caught) {
       setError(errorText(t, caught));
