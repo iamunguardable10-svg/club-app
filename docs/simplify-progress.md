@@ -3347,3 +3347,14 @@ Audit-Vorschlag 5.
 - **Desktop:** „Demnächst“ steht rechts neben der Übersicht.
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke; Bilder Handy (vor Beginn, nach Beginn, bestätigt) und Desktop.
+
+## Run 119 — Verein: Einrichtung als Checkliste (2026-11-13)
+
+Audit-Vorschlag 12 (erster Teil).
+
+- Oben auf `/club` steht, solange etwas fehlt, „Einrichtung 3 von 5“ mit Fortschrittsbalken und fünf Schritten: Abteilung anlegen, Teams anlegen, Hallen eintragen, ein Cheftrainer je Team, Cheftrainer angemeldet (mit „3 fehlen“). Der nächste offene Schritt hat als einzige Aktion „Los“ (springt zur Abteilung, zum Formular „Neue Abteilung“ oder öffnet die Hallen). Gezählt wird nur, was die Vereinsrolle ohnehin sieht, keine Kaderdaten (`ClubSetup.tsx`).
+- Ist alles erledigt, verschwindet die Liste und die drei Zahlen-Kacheln stehen wieder oben.
+- Im Demo-Verein bleibt Schritt 5 offen (dort meldet sich niemand an).
+- Offen aus dem Vorschlag: die Abteilungen darunter als eingeklappter Baum.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke; Vorher-/Nachher-Bilder Handy und Desktop.

@@ -2436,5 +2436,15 @@
   "coach.board.allRight": "C’est bon",
   "coach.today.next": "À venir",
   "coach.todo.answersMany_one": "{count} séance avec des réponses manquantes",
-  "coach.todo.answersMany_other": "{count} séances avec des réponses manquantes"
+  "coach.todo.answersMany_other": "{count} séances avec des réponses manquantes",
+  "club.setup.title": "Configuration {done} sur {total}",
+  "club.setup.departments": "Créer une section",
+  "club.setup.teams": "Ajouter des équipes",
+  "club.setup.halls": "Ajouter des salles",
+  "club.setup.headCoaches": "Un entraîneur principal par équipe",
+  "club.setup.signedIn": "Entraîneurs principaux connectés",
+  "club.setup.missing_one": "{count} manquant",
+  "club.setup.missing_other": "{count} manquants",
+  "club.setup.go": "Go",
+  "club.setup.done": "fait"
 }
