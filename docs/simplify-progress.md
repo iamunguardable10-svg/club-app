@@ -3267,3 +3267,12 @@ Ben, nach dem Plan für den Beta-Betrieb der Jugend (`docs/plan-beta-speyer.md`)
 - Plan: Elternzugang vorerst nicht, Supabase Pro offen; Domain und Mailversand laufen inzwischen über `clubos.hebinova.de` und Brevo (Runs 108/109).
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Datenbanktests (alle), `test:features`, `test:landing`, Smoke (voll); Vorher-/Nachher-Bilder auf dem Handy.
+
+## Run 111 — Audit und geschärftes Designsystem (2026-11-13)
+
+Prüfung der ganzen App (Demo, Handy und Desktop, alle Rollen) und der Regeln in der Datenbank; kein App-Code geändert.
+
+- `docs/audit/2026-11-fable.md`: 30 Befunde nach Schwere (u. a. Eltern-Zustimmung ohne Prüfung der Adresse, Alter nur nach Geburtsjahr, „Fertig“ verwirft eine neue Einheit, Absage lässt den Platz im Auto belegt, RPE vorausgewählt) und 13 Vorschläge.
+- `DESIGN.md`: Farben, Schrift, Abstände, Radien und Tiefe als feste Werte; neue Bausteine (`os-row`, `os-sheet` …), Zustände, Muster 11–14, Glossar, Prüfliste. Bens Regeln unverändert.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`; alle Seiten der Smoke-Liste von Hand im Browser (390 und 1280 px). `test:smoke` lief in diesem Container nicht (kein passender Playwright-Browser).
