@@ -897,12 +897,12 @@ export async function saveAccountLocale(locale: string): Promise<void> {
 }
 
 /** Sends a link to choose a new password; it leads to /reset-password. */
-export async function requestPasswordReset(email: string): Promise<void> {
+export async function requestPasswordReset(email: string, locale?: Locale): Promise<void> {
   // Each request sends a mail: three per address in the window.
   countAuthAttempt(guardAuthAttempt('reset', email, 3));
   const supabase = await authClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: `${window.location.origin}/reset-password`,
+    redirectTo: `${window.location.origin}/reset-password${locale ? `?lang=${locale}` : ''}`,
   });
   if (error) throw authError(error.message);
 }

@@ -9,6 +9,7 @@ import { ErrorReporter } from '@/features/errors/ErrorReporter';
 import { AccountLocaleSync } from '@/shared/i18n/AccountLocaleSync';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://clubos.hebinova.de'),
   title: 'Club OS',
   description: 'A club operating system for coaches and athletes. Sign in with your club, or test locally without an account.',
   applicationName: 'Club OS',

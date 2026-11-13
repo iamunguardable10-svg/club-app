@@ -391,7 +391,8 @@ Spieler ohne Konto nötig).
 - Vercel-Projekt und Adresse.
 - Gründungs-Code für den eigenen Verein (kommt mit Stück 8).
 - **Mail-Vorlagen in vier Sprachen (zurückgestellt, Ben 2026-09-26):** Die Mails von Supabase
-  (Bestätigen, Passwort zurücksetzen, E-Mail ändern) bleiben vorerst Englisch. Später einmal die drei
+  (Bestätigen und E-Mail ändern) bleiben vorerst Englisch. Passwort zurücksetzen wurde
+  am 2026-11-13 mit Club-OS-Gestaltung und Sprache der Anfrage aktiviert (Run 109). Später die übrigen
   Vorlagen aus `docs/mail-templates/` in Supabase → Authentication → Emails einfügen (Inhalt `.html`,
   Betreff `.subject.txt`); Anleitung in `docs/i18n.md`, Abschnitt „Mails (6b)“. Bis dahin nichts tun.
 
@@ -412,3 +413,20 @@ Impressum und öffentliche Datenschutzseite; keine Änderungen an Supabase.
 ## Später: Profilbilder (Ben, 2026-10-23)
 
 - In „Abwesend und verspätet“ (Einheits-Blatt) und anderen Personenlisten kommt in den Kreis links das Profilbild; das Status-Zeichen (✕ abwesend, Uhr verspätet) wird dann ein kleines Abzeichen darauf.
+
+## Domainumstellung 2026-11-13
+
+- [x] Neue App-Hauptadresse `https://clubos.hebinova.de` mit HTTPS am bestehenden
+  Vercel-Projekt; DNS bleibt bei IONOS.
+- [x] Supabase Site URL und Redirect-Allowlist auf die neue Adresse ergänzt.
+- [x] Brevo-Domain `hebinova.de` authentifiziert; Absender
+  `Club OS <clubos@hebinova.de>` verifiziert. MX/SPF und Root-Website unverändert.
+- [ ] App-Code mit Canonical-/Vorschaulinks und Weiterleitung der bisherigen
+  Vercel-Adressen veröffentlichen und live prüfen.
+- [ ] Supabase über den neuen SMTP-Schlüssel anbinden und Testmail prüfen.
+
+## Passwortmail 2026-11-13 (Run 109)
+
+- [x] Club-OS-Passwortmail in Deutsch, Englisch, Französisch und Spanisch; Sprache der aktuellen Anfrage.
+- [x] Sprachübergabe beim Anfordern und Übernahme auf der Reset-Seite, bestehender Auth-Link bleibt unverändert.
+- [ ] Vorlage live einsetzen und empfangene echte Mails bei GMX und Gmail prüfen.

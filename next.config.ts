@@ -54,6 +54,14 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },
+  async redirects() {
+    return ['myclubos.vercel.app', 'club-app-five-rho.vercel.app'].map((host) => ({
+      source: '/:path*',
+      has: [{ type: 'host' as const, value: host.replaceAll('.', '\\.') }],
+      destination: 'https://clubos.hebinova.de/:path*',
+      permanent: true,
+    }));
+  },
 };
 
 export default nextConfig;

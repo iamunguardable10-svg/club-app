@@ -3204,7 +3204,57 @@ Ben: Nicht alles schon auf der Startseite zeigen, sondern erst, wenn man den Ber
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, `test:landing`, Smoke (voll); die Kalenderschritte als Trainer und als Spieler auf Handy und Desktop durchgespielt (Stift, Tippen, Ziehen, Verlängern, Öffnen).
 
-## Run 108 — Belastung beim ersten Mal erklärt, Team-Reiter beschriftet, Verlauf lesbar (2026-11-13)
+## Run 108 — Eigene Club-OS-Domain (2026-11-13)
+
+Ben: Club OS unter `clubos.hebinova.de`, Versand mit Brevo als
+`Club OS <clubos@hebinova.de>`, auch die gesamte App auf diese Adresse umstellen.
+
+- Gleiche App, gleiches Vercel-Projekt und gleiche Supabase-Datenbank. Root-Website,
+  IONOS-MX und SPF bleiben unverändert. Neue Domain mit HTTPS verbunden;
+  Brevo-Code, zwei DKIM-CNAMEs und DMARC (weiterhin `p=none`, jetzt mit Berichten
+  an Brevo, von Ben freigegeben) eingerichtet, Domain/Absender in Brevo bestätigt.
+- Supabase Site URL und erlaubte Rücksprungadresse auf die neue Domain gesetzt;
+  alte erlaubte Adressen bleiben während des Umstiegs bestehen.
+- `metadataBase` und Canonical der Landingpage verwenden die eigene Domain.
+  Die bisherigen öffentlichen Vercel-Adressen leiten mit 308 weiter, inklusive
+  Pfad und Query. Vorschauen und lokale Entwicklung bleiben erreichbar.
+  Einladungen und Bestätigungen benutzen bereits `window.location.origin`.
+- README, Projektadresse und Betriebsnotizen aktualisiert. Keine Migrationen,
+  Rollen-, Daten- oder Sicherheitsregeländerungen.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`; lokal per HTTP die beiden
+Altadressen mit Einladungspfad/Query, kein Redirect für einen ähnlich geschriebenen
+fremden Host, Canonical und beide Social-Bilder auf der neuen Domain. Lokaler Smoke-
+Start wird durch die macOS-Prozessberechtigung verhindert; vollständige Browser-
+und Datenbankprüfungen laufen unverändert im CI. SMTP-Anbindung und empfangene
+Testmail werden separat im Domain-Prüfbericht dokumentiert.
+
+
+## Run 109 — Club-OS-Passwortmail in der Sprache der Anfrage (2026-11-13)
+
+Ben: Passwortmail professionell mit Club OS, auf Deutsch bzw. in der Sprache, in
+der sie angefordert wird; danach echte Zustellung bei GMX und Gmail vergleichen.
+
+- Vier Sprachkataloge: klarer Club-OS-Betreff, Kontobezug, Zurücksetzen-Schaltfläche,
+  einmaliger Link, Hinweis bei fremder Anforderung und erreichbarer Antwortkanal.
+- Generator erstellt ein schlichtes responsives Tabellenlayout mit Textmarke,
+  ohne externe Bilder. Bestätigungs- und E-Mail-Änderungsvorlagen unverändert.
+- Passwortanfrage übergibt die aktuelle Sprache im erlaubten Redirect. Die Vorlage
+  priorisiert diese unabhängig vom Host vor der gespeicherten Kontosprache;
+  ältere Links verwenden im Inhalt die Kontosprache bzw. Englisch (Betreff Englisch).
+  Der Generator prüft das 255-Zeichen-Limit der Betreffvorlage. Auch die Reset-Seite
+  übernimmt gültige Sprachparameter. Kein neuer Maildienst, Hook oder Secret.
+- Der von Supabase erzeugte ConfirmationURL bleibt unverändert. Keine Änderung an
+  Passwortregeln, Sitzungen, Rollen, RLS oder DNS.
+
+Geprüft: Typecheck, Übersetzungsprüfung, i18n-Tests und Produktionsbuild. Die
+generierten Betreff- und HTML-Vorlagen zusätzlich mit Go html/template gerendert:
+alle vier expliziten Sprachen überschreiben die Kontosprache korrekt; ältere
+Anfragen und unbekannte Sprachen fallen zurück. Genau ein unveränderter Auth-Link,
+keine externen Bilder. Browser-Smoke und Landing-Prüfung laufen zusätzlich im CI.
+Empfangene Live-Tests werden im separaten Domain-Prüfbericht dokumentiert.
+
+## Run 110 — Belastung beim ersten Mal erklärt, Team-Reiter beschriftet, Verlauf lesbar (2026-11-13)
 
 Ben, nach dem Plan für den Beta-Betrieb der Jugend (`docs/plan-beta-speyer.md`): Die Fachbegriffe gehören dazu, aber beim ersten Öffnen von „Belastung“ müssen sie erklärt werden; nach dem ersten Training bekommt der Spieler erklärt, wie er den RPE einträgt, und der Trainer, wie er damit die Belastung steuert. Elternzugang vorerst nicht. Vorher-/Nachher-Bilder vor dem Commit; die neue Reihenfolge auf Spieler-„Heute“ („Als Nächstes“ ganz oben) hat Ben abgelehnt, sie ist nicht drin.
 
@@ -3214,6 +3264,6 @@ Ben, nach dem Plan für den Beta-Betrieb der Jugend (`docs/plan-beta-speyer.md`)
 - **Team-Reiter:** auf dem Handy unter jedem Symbol ein Wort (Übersicht, Spieler, Gruppen, Taktik, Optionen).
 - **Verlauf:** steht nur die Anwesenheit da, bekommt die Kachel die ganze Zeile („Anwesend 10/12 · 2 abwesend · 1 verspätet“), vier Kacheln stehen auf dem Handy zwei mal zwei.
 - **Migration 0056 (live):** „gibt es diese E-Mail schon“ erlaubt 60 statt 20 Abfragen in 10 Minuten je Aufrufer (Mobilfunk teilt IP-Adressen); Test angepasst.
-- Plan: Domain hevinova.com (Mails `clubos@hevinova.com`, später `clubos.hevinova.com`), Elternzugang vorerst nicht, Supabase Pro offen.
+- Plan: Elternzugang vorerst nicht, Supabase Pro offen; Domain und Mailversand laufen inzwischen über `clubos.hebinova.de` und Brevo (Runs 108/109).
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Datenbanktests (alle), `test:features`, `test:landing`, Smoke (voll); Vorher-/Nachher-Bilder auf dem Handy.
