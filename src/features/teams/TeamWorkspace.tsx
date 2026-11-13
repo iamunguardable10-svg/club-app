@@ -29,7 +29,7 @@ import {
   type TeamWorkspaceSession,
 } from '@/features/teams/TeamWorkspaceView';
 import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
-import { CoachShell, ShellLink } from '@/features/role-workspaces/RoleShell';
+import { CoachShell } from '@/features/role-workspaces/RoleShell';
 import { missedLabel, buildCoachData } from '@/features/role-workspaces/coachData';
 import { errorText, useT } from '@/shared/i18n';
 import { awayUntilLabel } from '@/features/absences/absenceText';
@@ -358,7 +358,7 @@ export function TeamWorkspace({
   return (
     <CoachShell
       active="team"
-      actions={<ShellLink href="/coach/history" label={t('nav.history')} />}
+      headLink={{ href: '/coach/history', label: t('nav.history'), item: 'history' }}
       title={multiTeam ? t('coach.header.teams') : data.name}
       subtitle={multiTeam ? <TeamSwitch teams={switchTeams} activeId={teamId} /> : `${data.departmentName}${data.defaultFacilityName ? ` · ${data.defaultFacilityName}` : ''}`}
     >
