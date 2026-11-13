@@ -41,7 +41,7 @@ function readAsDataUrl(file: Blob) {
   });
 }
 
-export function PlayerWizard({ player, askName, knownName, firstName, lastName, onName, details, onDetails, photo, onPhoto, consent, onConsent, knownBirthYear, hideTerms = false, submitLabel, busy, onFinish, resume }: {
+export function PlayerWizard({ player, askName, knownName, firstName, lastName, onName, details, onDetails, photo, onPhoto, consent, onConsent, knownBirthYear, knownBirthMonth, hideTerms = false, submitLabel, busy, onFinish, resume }: {
   player: PlayerContext;
   askName: boolean;
   knownName?: string;
@@ -55,6 +55,7 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
   consent: AccessConsent;
   onConsent: (consent: AccessConsent) => void;
   knownBirthYear?: number | null;
+  knownBirthMonth?: number | null;
   hideTerms?: boolean;
   submitLabel: string;
   busy: boolean;
@@ -248,7 +249,7 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
       </div>
     );
   } else {
-    body = <ConsentFields value={consent} onChange={onConsent} knownBirthYear={knownBirthYear} hideTerms={hideTerms} bare />;
+    body = <ConsentFields value={consent} onChange={onConsent} knownBirthYear={knownBirthYear} knownBirthMonth={knownBirthMonth} hideTerms={hideTerms} bare />;
   }
 
   const last = index >= steps.length - 1;

@@ -2415,5 +2415,8 @@
   "rate.pick": "Tippe eine Zahl",
   "rate.pickFirst": "Wähle, wie anstrengend es war",
   "settings.rpePrefill": "RPE vorausfüllen",
-  "settings.rpePrefillDetail": "Die Bewertung startet beim erwarteten Wert der Einheit"
+  "settings.rpePrefillDetail": "Die Bewertung startet beim erwarteten Wert der Einheit",
+  "consent.birthMonth": "Geburtsmonat",
+  "consent.birthMonthPick": "Monat wählen",
+  "consent.saveBirthMonth": "Monat speichern"
 }

@@ -1,13 +1,20 @@
 /** Local consent rules: who may consent, when health data counts, defaults per age. */
 import assert from 'node:assert/strict';
 
-import { canSelfConsent, defaultLoadForAge, exportLocalPerson, hasHealthConsent, LEGAL_VERSION } from './consentRules';
+import { canSelfConsent, defaultLoadForAge, needsBirthMonth, exportLocalPerson, hasHealthConsent, LEGAL_VERSION } from './consentRules';
 import { createSeedDatabase } from './seed';
 
-const year = 2026;
-assert.ok(canSelfConsent(2010, year), '16 this year may consent');
-assert.ok(!canSelfConsent(2011, year), '15 needs a parent');
-assert.ok(!canSelfConsent(null, year), 'no birth year, no consent');
+// Variant b (0057): in the year that is 16 years ago, the month decides.
+const june = new Date(2026, 5, 15);
+const january = new Date(2026, 0, 10);
+assert.ok(canSelfConsent(2009, null, june), 'older than the edge year may consent');
+assert.ok(!canSelfConsent(2010, null, june), 'edge year without month needs a parent');
+assert.ok(canSelfConsent(2010, 5, june), 'born in May, in June: 16');
+assert.ok(!canSelfConsent(2010, 6, june), 'born in June, in June: the birthday may still come');
+assert.ok(!canSelfConsent(2010, 1, january), 'in January no month of the edge year counts yet');
+assert.ok(!canSelfConsent(2011, 1, june), '15 needs a parent');
+assert.ok(!canSelfConsent(null, null, june), 'no birth year, no consent');
+assert.ok(needsBirthMonth(2010, june) && !needsBirthMonth(2009, june) && !needsBirthMonth(2011, june), 'the month is asked only in the edge year');
 
 assert.equal(defaultLoadForAge('U10'), false);
 assert.equal(defaultLoadForAge('U12'), true);

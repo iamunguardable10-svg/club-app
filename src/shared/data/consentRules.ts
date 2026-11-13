@@ -1,17 +1,29 @@
 import type { AgeGroup, Id, LocalDatabase } from './schema';
 
 export const LEGAL_VERSION = '2026-10-08';
-export type AccessConsent = { terms: boolean; birthYear: number | null; health: boolean; staff16: boolean };
+export type AccessConsent = { terms: boolean; birthYear: number | null; birthMonth?: number | null; health: boolean; staff16: boolean };
 
-export function canSelfConsent(birthYear: number | null | undefined, year = new Date().getFullYear()): boolean {
-  return birthYear != null && birthYear >= 1900 && birthYear <= year - 16;
+/**
+ * 16 or older (audit 2026-11, variant b; same rule as `app.is_16` in 0057):
+ * born before the year that is 16 years ago, or in that year and before this
+ * month. Without the month, that year counts as under 16.
+ */
+export function canSelfConsent(birthYear: number | null | undefined, birthMonth?: number | null, now = new Date()): boolean {
+  if (birthYear == null || birthYear < 1900) return false;
+  const edge = now.getFullYear() - 16;
+  if (birthYear < edge) return true;
+  return birthYear === edge && birthMonth != null && birthMonth < now.getMonth() + 1;
+}
+/** Only in the year that is 16 years ago does the birth month decide. */
+export function needsBirthMonth(birthYear: number | null | undefined, now = new Date()): boolean {
+  return birthYear != null && birthYear === now.getFullYear() - 16;
 }
 export function hasHealthConsent(database: LocalDatabase, personId: Id): boolean {
   const status = database.healthConsentStatus?.find((c) => c.personId === personId);
   if (status) return status.active;
   const person = database.people.find((p) => p.id === personId);
   return (database.consents ?? []).some((c) => c.personId === personId && !c.withdrawnAt && c.version === LEGAL_VERSION
-    && (c.kind === 'parent_health' || (c.kind === 'health' && canSelfConsent(person?.birthYear))));
+    && (c.kind === 'parent_health' || (c.kind === 'health' && canSelfConsent(person?.birthYear, person?.birthMonth))));
 }
 export function defaultLoadForAge(ageGroup: AgeGroup | null): boolean {
   return !['U8', 'U9', 'U10', 'U11'].includes(ageGroup ?? '');

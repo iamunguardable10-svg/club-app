@@ -888,7 +888,7 @@ export async function signUpWithPassword(email: string, password: string, return
     email: email.trim(),
     password,
     // The language goes with the account from the start, so the confirmation mail can use it.
-    options: { emailRedirectTo: `${window.location.origin}${returnTo}`, data: { locale, legal_version: LEGAL_VERSION, birth_year: consent.birthYear, health_consent: consent.health, staff_16: consent.staff16 } },
+    options: { emailRedirectTo: `${window.location.origin}${returnTo}`, data: { locale, legal_version: LEGAL_VERSION, birth_year: consent.birthYear, birth_month: consent.birthMonth ?? null, health_consent: consent.health, staff_16: consent.staff16 } },
   });
   if (error) throw authError(error.message);
   return { confirmationNeeded: !data.session };
@@ -3547,7 +3547,7 @@ async function consentRpc<T>(name: string, args: Record<string, unknown> = {}): 
 }
 export async function recordAccessConsent(consent: AccessConsent): Promise<void> {
   if (!consent.terms) throw serverError('Please accept the current terms and privacy policy.');
-  await consentRpc('record_access_consent', { p_version: LEGAL_VERSION, p_birth_year: consent.birthYear, p_health: consent.health, p_staff_16: consent.staff16 });
+  await consentRpc('record_access_consent', { p_version: LEGAL_VERSION, p_birth_year: consent.birthYear, p_health: consent.health, p_staff_16: consent.staff16, p_birth_month: consent.birthMonth ?? null });
 }
 function assertConsentWrites(before: LocalDatabase, after: LocalDatabase): void {
   const changed = <T extends { personId: Id }>(old: T[], next: T[], key: (row: T) => string) => {
@@ -3571,24 +3571,26 @@ function ownConsentPerson(database: LocalDatabase, personId: Id): Person {
   if (!person || !ownPersonIds(database).includes(personId)) throw serverError('You can only change your own consent.');
   return person;
 }
-export async function setOwnBirthYear(personId: Id, birthYear: number): Promise<void> {
+export async function setOwnBirthYear(personId: Id, birthYear: number, birthMonth: number | null = null): Promise<void> {
   const database = readDatabase();
   if (!database) return;
   const person = ownConsentPerson(database, personId);
   if (!Number.isInteger(birthYear) || birthYear < 1900 || birthYear > new Date().getFullYear()) throw serverError('Enter a valid birth year.');
+  if (birthMonth != null && (!Number.isInteger(birthMonth) || birthMonth < 1 || birthMonth > 12)) throw serverError('Enter a valid birth month.');
   if (person.birthYear != null && person.birthYear !== birthYear) throw serverError('Contact the operator to correct your birth year.');
+  if (person.birthMonth != null && birthMonth != null && person.birthMonth !== birthMonth) throw serverError('Contact the operator to correct your birth year.');
   if (isRemoteMode()) {
-    await recordAccessConsent({ terms: true, birthYear, health: false, staff16: false });
-    await consentRpc('save_my_birth_year', { p_person: personId, p_year: birthYear });
+    await recordAccessConsent({ terms: true, birthYear, birthMonth, health: false, staff16: false });
+    await consentRpc('save_my_birth_year', { p_person: personId, p_year: birthYear, p_month: birthMonth });
     return;
   }
-  mutate((draft) => { ownConsentPerson(draft, personId).birthYear = birthYear; });
+  mutate((draft) => { const own = ownConsentPerson(draft, personId); own.birthYear = birthYear; own.birthMonth = own.birthMonth ?? birthMonth; });
 }
 export async function giveHealthConsent(personId: Id): Promise<void> {
   if (isRemoteMode()) { await consentRpc('give_health_consent', { p_person: personId, p_version: LEGAL_VERSION }); return; }
   mutate((database) => {
     const person = ownConsentPerson(database, personId);
-    if (!canSelfConsent(person.birthYear)) throw serverError('A parent must consent for players under 16.');
+    if (!canSelfConsent(person.birthYear, person.birthMonth)) throw serverError('A parent must consent for players under 16.');
     database.consents ??= [];
     database.consents.push({ id: newId(), personId, userId: null, kind: 'health', version: LEGAL_VERSION, givenAt: new Date().toISOString(), withdrawnAt: null, byParentName: null, byParentEmail: null });
   });
@@ -3619,7 +3621,7 @@ export async function createParentConsentLink(personId: Id): Promise<string> {
   const token = randomConsentToken(); const hash = await hashConsentToken(token);
   mutate((database) => {
     const person = ownConsentPerson(database, personId);
-    if (person.birthYear == null || canSelfConsent(person.birthYear)) throw serverError('Parental consent links are for players under 16.');
+    if (person.birthYear == null || canSelfConsent(person.birthYear, person.birthMonth)) throw serverError('Parental consent links are for players under 16.');
     database.parentTokens ??= {};
     for (const previous of Object.values(database.parentTokens)) if (previous.personId === personId) previous.usedAt ??= new Date().toISOString();
     database.parentTokens[hash] = { personId, expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(), usedAt: null, attempts: 0 };
