@@ -2464,5 +2464,8 @@
   "team.consentReminded_one": "{count} rappelé",
   "team.consentReminded_other": "{count} rappelés",
   "push.consentReminder.title": "Consentement pour ta charge",
-  "push.consentReminder.body": "Ton entraîneur te demande de régler le consentement pour ta charge d’entraînement."
+  "push.consentReminder.body": "Ton entraîneur te demande de régler le consentement pour ta charge d’entraînement.",
+  "playerTeam.nextGame": "Prochain match",
+  "playerTeam.coaches": "Entraîneurs",
+  "playerTeam.headCoach": "Entraîneur principal"
 }

@@ -2464,5 +2464,8 @@
   "team.consentReminded_one": "{count} avisado",
   "team.consentReminded_other": "{count} avisados",
   "push.consentReminder.title": "Consentimiento para tu carga",
-  "push.consentReminder.body": "Tu entrenador te pide que resuelvas el consentimiento para tu carga de entrenamiento."
+  "push.consentReminder.body": "Tu entrenador te pide que resuelvas el consentimiento para tu carga de entrenamiento.",
+  "playerTeam.nextGame": "Próximo partido",
+  "playerTeam.coaches": "Entrenadores",
+  "playerTeam.headCoach": "Entrenador principal"
 }
