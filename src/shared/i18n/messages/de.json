@@ -2418,5 +2418,10 @@
   "settings.rpePrefillDetail": "Die Bewertung startet beim erwarteten Wert der Einheit",
   "consent.birthMonth": "Geburtsmonat",
   "consent.birthMonthPick": "Monat wählen",
-  "consent.saveBirthMonth": "Monat speichern"
+  "consent.saveBirthMonth": "Monat speichern",
+  "afterJoin.title": "Damit du nichts verpasst",
+  "afterJoin.install": "Club OS auf den Home-Bildschirm",
+  "afterJoin.push": "Benachrichtigungen einschalten",
+  "afterJoin.done": "Fertig",
+  "afterJoin.pushIos": "Auf dem iPhone geht das nur in der App: Öffne Club OS vom Home-Bildschirm, dort fragen wir dich."
 }

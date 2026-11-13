@@ -2418,5 +2418,10 @@
   "settings.rpePrefillDetail": "La valoración empieza en el valor previsto para la sesión",
   "consent.birthMonth": "Mes de nacimiento",
   "consent.birthMonthPick": "Elige un mes",
-  "consent.saveBirthMonth": "Guardar el mes"
+  "consent.saveBirthMonth": "Guardar el mes",
+  "afterJoin.title": "Para que no te pierdas nada",
+  "afterJoin.install": "Club OS en la pantalla de inicio",
+  "afterJoin.push": "Activar las notificaciones",
+  "afterJoin.done": "Listo",
+  "afterJoin.pushIos": "En el iPhone solo funciona en la app: abre Club OS desde tu pantalla de inicio y te lo preguntamos allí."
 }

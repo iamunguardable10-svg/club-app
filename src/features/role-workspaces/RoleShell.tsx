@@ -23,7 +23,8 @@ import { TipLayer } from '@/features/tips/TipLayer';
 import { tipsFor } from '@/features/tips/tips';
 import { PlaybookTeaser } from '@/features/playbook/PlaybookTeaser';
 import { UnreadMessagesCard } from '@/features/messages/UnreadMessagesCard';
-import { DemoBar } from '@/features/onboarding/DemoBar';
+import { DemoNudge, DemoPill } from '@/features/onboarding/DemoBar';
+import { AfterJoin } from '@/features/onboarding/AfterJoin';
 import { countToRate } from '@/features/load/athleteLocalStore';
 import { useT, type MessageKey } from '@/shared/i18n';
 
@@ -215,6 +216,7 @@ function RoleShell({ nav, active: current, title, subtitle, back, actions, menuA
                 {unread > 0 ? <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-400 px-1 text-[10px] font-black text-slate-950">{unread}</span> : null}
               </Link>
             ) : null}
+            <DemoPill />
             <IdentitySwitcher variant="avatar" className="md:hidden" extraAction={menuAction} />
           </div>
         </div>
@@ -222,7 +224,7 @@ function RoleShell({ nav, active: current, title, subtitle, back, actions, menuA
       </header>
 
       <div className="mx-auto w-full max-w-6xl space-y-5 px-4 pt-4 sm:px-8 md:pt-6">
-        <DemoBar />
+        <DemoNudge />
         {/* Keep notification opt-in reachable from each role’s first page. */}
         {active === 'today' || active === 'club' ? <NotificationsHint variant="card" /> : null}
         {active === 'today' && database && person ? <UnreadMessagesCard database={database} personId={person.id} /> : null}
@@ -231,6 +233,7 @@ function RoleShell({ nav, active: current, title, subtitle, back, actions, menuA
         {database && person && database.activeIdentity?.role === 'athlete' && active !== 'load' ? <LimitedConsentNote database={database} person={person} /> : null}
         {children}
       </div>
+      <AfterJoin />
       <TipLayer tips={tipsFor(database?.activeIdentity?.role, current)} />
 
       {tabBar ? <nav className="fixed inset-x-0 bottom-0 z-[70] border-t border-slate-800 bg-slate-950/95 px-2 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 text-white backdrop-blur-xl md:hidden" aria-label={t('nav.main')}>
