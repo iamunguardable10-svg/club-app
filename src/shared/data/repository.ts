@@ -31,6 +31,7 @@ import { LEGAL_VERSION, canSelfConsent, defaultLoadForAge, exportLocalPerson, ha
 import { calculateACWR, getLatestACWR, loadZone, sevenDayLoad, summarizeLoadEntries } from './loadCalculations';
 import { DATABASE_KEY, LEGACY_KEY_PREFIXES, SCHEMA_VERSION, isCurrent } from './migrations';
 import { COACH_ROLE_TEMPLATES, createSeedDatabase } from './seed';
+import { authEmailRedirect } from './authEmailRedirect';
 import { isLocale, matchLocale, type Locale } from '@/shared/i18n/locales';
 import type { OfflineCache, OfflineSnapshot, RejectedNotice, RemoteStore } from './remote/remoteStore';
 import { serverError } from './serverMessages';
@@ -886,10 +887,10 @@ export async function emailAccountStatus(email: string): Promise<EmailAccountSta
 }
 
 /** Sends the confirmation mail again, for an account that is still waiting for it. */
-export async function resendConfirmation(email: string, returnTo: string): Promise<void> {
+export async function resendConfirmation(email: string, returnTo: string, locale?: Locale): Promise<void> {
   countAuthAttempt(guardAuthAttempt('resend', email, 3));
   const supabase = await authClient();
-  const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim(), options: { emailRedirectTo: `${window.location.origin}${returnTo}` } });
+  const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim(), options: { emailRedirectTo: authEmailRedirect(window.location.origin, returnTo, locale) } });
   if (error) throw authError(error.message);
 }
 
@@ -906,7 +907,7 @@ export async function signUpWithPassword(email: string, password: string, return
     email: email.trim(),
     password,
     // The language goes with the account from the start, so the confirmation mail can use it.
-    options: { emailRedirectTo: `${window.location.origin}${returnTo}`, data: { locale, legal_version: LEGAL_VERSION, birth_year: consent.birthYear, birth_month: consent.birthMonth ?? null, health_consent: consent.health, staff_16: consent.staff16 } },
+    options: { emailRedirectTo: authEmailRedirect(window.location.origin, returnTo, locale), data: { locale, legal_version: LEGAL_VERSION, birth_year: consent.birthYear, birth_month: consent.birthMonth ?? null, health_consent: consent.health, staff_16: consent.staff16 } },
   });
   if (error) throw authError(error.message);
   return { confirmationNeeded: !data.session };
@@ -937,7 +938,7 @@ export async function requestPasswordReset(email: string, locale?: Locale): Prom
   countAuthAttempt(guardAuthAttempt('reset', email, 3));
   const supabase = await authClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: `${window.location.origin}/reset-password${locale ? `?lang=${locale}` : ''}`,
+    redirectTo: authEmailRedirect(window.location.origin, '/reset-password', locale),
   });
   if (error) throw authError(error.message);
 }
@@ -953,11 +954,11 @@ export async function updatePassword(password: string): Promise<void> {
  * Changes the account's e-mail address. Supabase sends a confirmation link;
  * the address changes once it is clicked.
  */
-export async function changeEmail(email: string): Promise<void> {
+export async function changeEmail(email: string, locale?: Locale): Promise<void> {
   const clean = email.trim();
   if (!clean) throw new LocalDataError('Enter the new email address.');
   const supabase = await authClient();
-  const { error } = await supabase.auth.updateUser({ email: clean }, { emailRedirectTo: `${window.location.origin}/settings` });
+  const { error } = await supabase.auth.updateUser({ email: clean }, { emailRedirectTo: authEmailRedirect(window.location.origin, '/settings', locale) });
   if (error) throw authError(error.message);
 }
 

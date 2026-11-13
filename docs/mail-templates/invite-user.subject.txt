@@ -1,0 +1,1 @@
+Club OS – {{if eq .Data.locale "de"}}Deine Einladung{{else if eq .Data.locale "fr"}}Ton invitation{{else if eq .Data.locale "es"}}Tu invitación{{else}}Your invitation{{end}}

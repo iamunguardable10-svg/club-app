@@ -3368,3 +3368,30 @@ Audit-Vorschlag 11.
 - Gilt überall, wo `MessageComposer`/`MessageList` stehen (Nachrichten-Seite, Team-Bereich).
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke; Vorher-/Nachher-Bilder.
+
+## Run 121 — Alle Kontomails in Club-OS-Gestaltung und vier Sprachen (2026-11-14)
+
+Bens Freigabe erweitert die bisherige Passwortmail auf alle Kontomails.
+
+- Ein Generator für alle 13 Supabase-Typen: Konto bestätigen, Einladung, Anmeldelink,
+  E-Mail ändern, Passwort zurücksetzen, Bestätigungscode und sieben Sicherheitsmeldungen.
+  Einheitliche Gestaltung, kurze aktionsbezogene Texte, erreichbarer Absender und
+  `support.clubos@hebinova.com`. Texte in allen vier Sprachdateien; bestehende
+  Impressumsangaben unverändert (Übertragung ausdrücklich freigegeben).
+- Registrierung und erneute Bestätigung sowie E-Mail-Änderung übergeben nun die
+  aktuelle Sprache wie bereits die Passwortmail. Ein gemeinsamer Helfer bewahrt
+  bestehende Pfade und Beitrittsparameter. Ereignisse ohne Anfrage verwenden die
+  gespeicherte Kontosprache; ohne bekannte Sprache Englisch.
+- Auth-Link bleibt unverändert; Bestätigungscode und Ereignisdaten werden pro Mailtyp
+  verwendet. Keine Migration, Rechteänderung, Secrets oder Aktivierung neuer Mailtypen.
+  Die sieben bestehenden ausgeschalteten Sicherheitsmeldungen bleiben ausgeschaltet.
+- Go-Test rendert 195 echte Betreff-/Inhaltsfälle plus 13 Fallbacks ohne Metadaten;
+  prüft Links, Code, HTML-Escaping, Sprache, Support und Betrefflimit. Rücksprungadressen
+  separat geprüft; beide Checks in CI.
+- `docs/ui-before-pilot.md` hält Bens nächsten UI-Auftrag fest, aufbauend auf dem
+  bestehenden Fable-Audit und Runs 112–120. Keine parallele neue UI in diesem Mail-PR.
+
+Lokal bestanden: Generator, Go-Rendering, Rücksprungadressen, Typecheck, Sprachprüfung,
+i18n-Tests und Produktions-Build. Browser-Smoke und Datenbankprüfungen folgen in CI
+(lokaler Browserstart durch Betriebssystem blockiert). Live-Vorlagen und echte Testmails
+werden separat dokumentiert; ein Commit allein ändert Supabase nicht.

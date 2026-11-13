@@ -1,0 +1,1 @@
+Club OS – {{if eq .Data.locale "de"}}Anmeldung entfernt{{else if eq .Data.locale "fr"}}Connexion supprimée{{else if eq .Data.locale "es"}}Acceso eliminado{{else}}Sign-in removed{{end}}

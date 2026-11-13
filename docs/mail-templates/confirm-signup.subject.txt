@@ -1,1 +1,1 @@
-Club OS – {{if eq .Data.locale "de"}}Konto bestätigen{{else if eq .Data.locale "fr"}}Confirme ton compte{{else if eq .Data.locale "es"}}Confirma tu cuenta{{else}}Confirm your account{{end}}
+{{$u:=print "en" .Data.locale (or .RedirectTo "")}}{{$l:=slice $u (len (slice $u 2))}}Club OS – {{if eq $l "de"}}Konto bestätigen{{else if eq $l "fr"}}Confirme ton compte{{else if eq $l "es"}}Confirma tu cuenta{{else}}Confirm your account{{end}}

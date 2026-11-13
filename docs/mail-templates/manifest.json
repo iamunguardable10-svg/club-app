@@ -1,0 +1,137 @@
+[
+  {
+    "file": "confirm-signup",
+    "key": "mail.confirm",
+    "kind": "link",
+    "dashboard": "confirm-sign-up",
+    "requestLanguage": true,
+    "notes": [
+      "mail.confirm.validity",
+      "mail.ignore"
+    ]
+  },
+  {
+    "file": "invite-user",
+    "key": "mail.invite",
+    "kind": "link",
+    "dashboard": "invite-user",
+    "requestLanguage": false,
+    "notes": [
+      "mail.reset.validity",
+      "mail.ignore"
+    ]
+  },
+  {
+    "file": "magic-link",
+    "key": "mail.magic",
+    "kind": "link",
+    "dashboard": "magic-link-or-otp",
+    "requestLanguage": true,
+    "notes": [
+      "mail.reset.validity",
+      "mail.ignore"
+    ]
+  },
+  {
+    "file": "change-email",
+    "key": "mail.change",
+    "kind": "link",
+    "dashboard": "change-email-address",
+    "requestLanguage": true,
+    "notes": [
+      "mail.change.validity",
+      "mail.ignore"
+    ]
+  },
+  {
+    "file": "reset-password",
+    "key": "mail.reset",
+    "kind": "link",
+    "dashboard": "reset-password",
+    "requestLanguage": true,
+    "notes": [
+      "mail.reset.validity",
+      "mail.reset.ignore"
+    ]
+  },
+  {
+    "file": "reauthentication",
+    "key": "mail.reauth",
+    "kind": "code",
+    "dashboard": "reauthentication",
+    "requestLanguage": false,
+    "notes": [
+      "mail.codeSafety"
+    ]
+  },
+  {
+    "file": "password-changed",
+    "key": "mail.passwordChanged",
+    "kind": "notice",
+    "dashboard": "password-changed",
+    "requestLanguage": false,
+    "notes": [
+      "mail.securityUnexpected"
+    ]
+  },
+  {
+    "file": "email-address-changed",
+    "key": "mail.emailChanged",
+    "kind": "notice",
+    "dashboard": "email-address-changed",
+    "requestLanguage": false,
+    "notes": [
+      "mail.securityUnexpected"
+    ]
+  },
+  {
+    "file": "phone-number-changed",
+    "key": "mail.phoneChanged",
+    "kind": "notice",
+    "dashboard": "phone-number-changed",
+    "requestLanguage": false,
+    "notes": [
+      "mail.securityUnexpected"
+    ]
+  },
+  {
+    "file": "sign-in-method-linked",
+    "key": "mail.identityLinked",
+    "kind": "notice",
+    "dashboard": "sign-in-method-linked",
+    "requestLanguage": false,
+    "notes": [
+      "mail.securityUnexpected"
+    ]
+  },
+  {
+    "file": "sign-in-method-removed",
+    "key": "mail.identityUnlinked",
+    "kind": "notice",
+    "dashboard": "sign-in-method-removed",
+    "requestLanguage": false,
+    "notes": [
+      "mail.securityUnexpected"
+    ]
+  },
+  {
+    "file": "mfa-method-added",
+    "key": "mail.mfaAdded",
+    "kind": "notice",
+    "dashboard": "mfa-method-added",
+    "requestLanguage": false,
+    "notes": [
+      "mail.securityUnexpected"
+    ]
+  },
+  {
+    "file": "mfa-method-removed",
+    "key": "mail.mfaRemoved",
+    "kind": "notice",
+    "dashboard": "mfa-method-removed",
+    "requestLanguage": false,
+    "notes": [
+      "mail.securityUnexpected"
+    ]
+  }
+]

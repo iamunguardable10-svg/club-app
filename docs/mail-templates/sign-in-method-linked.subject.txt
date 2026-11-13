@@ -1,0 +1,1 @@
+Club OS – {{if eq .Data.locale "de"}}Anmeldung verknüpft{{else if eq .Data.locale "fr"}}Connexion liée{{else if eq .Data.locale "es"}}Acceso vinculado{{else}}Sign-in linked{{end}}

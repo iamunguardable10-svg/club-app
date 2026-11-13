@@ -1,0 +1,1 @@
+Club OS – {{if eq .Data.locale "de"}}Telefonnummer geändert{{else if eq .Data.locale "fr"}}Téléphone modifié{{else if eq .Data.locale "es"}}Teléfono cambiado{{else}}Phone number changed{{end}}
