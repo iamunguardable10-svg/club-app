@@ -28,7 +28,7 @@ import { AfterJoin } from '@/features/onboarding/AfterJoin';
 import { countToRate } from '@/features/load/athleteLocalStore';
 import { useT, type MessageKey } from '@/shared/i18n';
 
-export type CoachNavItem = 'today' | 'calendar' | 'team' | 'halls' | 'history';
+export type CoachNavItem = 'today' | 'calendar' | 'team' | 'messages' | 'halls' | 'history';
 export type AthleteNavItem = 'today' | 'calendar' | 'load' | 'tactics' | 'messages';
 export type ClubNavItem = 'club' | 'halls' | 'messages';
 type NavItem = CoachNavItem | AthleteNavItem | ClubNavItem;
@@ -47,9 +47,12 @@ const COACH_NAV: NavEntry[] = [
   { item: 'today', label: 'nav.today', href: '/coach/today' },
   { item: 'calendar', label: 'nav.calendar', href: '/coach/sessions' },
   { item: 'team', label: 'nav.team', href: '/coach/team' },
-  { item: 'halls', label: 'nav.halls', href: '/coach/facilities' },
-  { item: 'history', label: 'nav.history', href: '/coach/history' },
+  // Audit 2026-11, proposal 7: what is used daily. Halls open from the
+  // calendar, the history from the team; messages sit where every role has them.
+  { item: 'messages', label: 'nav.messages', href: '/messages' },
 ];
+/** Pages without their own tab light up the tab they open from. */
+const COACH_TAB_OF: Partial<Record<CoachNavItem, CoachNavItem>> = { halls: 'calendar', history: 'team' };
 
 const CLUB_NAV: NavEntry[] = [
   { item: 'club', label: 'nav.club', href: '/club' },
@@ -87,7 +90,7 @@ type ShellProps = {
 };
 
 export function CoachShell({ active, ...props }: ShellProps & { active: CoachNavItem }) {
-  return <RoleShell nav={COACH_NAV} active={active} {...props} />;
+  return <RoleShell nav={COACH_NAV} active={active} tab={COACH_TAB_OF[active] ?? active} {...props} />;
 }
 
 /**
@@ -123,11 +126,11 @@ export function ActiveRoleShell(props: ShellProps) {
   return <RoleShell nav={nav} active={null} {...props} />;
 }
 
-function RoleShell({ nav, active: current, title, subtitle, back, actions, menuAction, children }: ShellProps & { nav: NavEntry[]; active: NavItem | null }) {
+function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, menuAction, children }: ShellProps & { nav: NavEntry[]; active: NavItem | null; tab?: NavItem | null }) {
   const t = useT();
   // The tapped tab lights up at once, while the next screen is being prepared.
   const [tapped, setTapped] = useState<NavItem | null>(null);
-  const active = tapped ?? current;
+  const active = tapped ?? tab ?? current;
   const { database } = useLocalDatabase();
   const person = database ? getActivePerson(database) : null;
   // "Team" or "Teams", depending on what the tab opens.
@@ -143,7 +146,6 @@ function RoleShell({ nav, active: current, title, subtitle, back, actions, menuA
   const toRate = database && person && database.activeIdentity?.role === 'athlete' && athleteHasLoad(database, person.id)
     ? countToRate(database, person.id)
     : 0;
-  const showMessageIcon = database?.activeIdentity?.role === 'coach';
   const badge = (item: NavItem) => {
     if (item === 'messages' && unread > 0) {
       return <span aria-label={t('nav.unread', { count: unread })} className="absolute -right-1.5 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-400 px-1 text-[10px] font-black text-slate-950">{unread}</span>;
@@ -204,18 +206,6 @@ function RoleShell({ nav, active: current, title, subtitle, back, actions, menuA
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {actions ? <div className="hidden items-center gap-2 md:flex">{actions}</div> : null}
-            {/* Coaches have no Messages tab: their messages open from here. */}
-            {showMessageIcon ? (
-              <Link
-                href="/messages"
-                data-tip="nav-messages"
-                aria-label={unread > 0 ? t('nav.messagesUnread', { count: unread }) : t('nav.messages')}
-                className="relative grid h-10 w-10 place-items-center rounded-full border border-slate-700 bg-slate-900/80 text-slate-200 transition hover:border-slate-500 hover:text-white"
-              >
-                <NavIcon item="messages" />
-                {unread > 0 ? <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-400 px-1 text-[10px] font-black text-slate-950">{unread}</span> : null}
-              </Link>
-            ) : null}
             <DemoPill />
             <IdentitySwitcher variant="avatar" className="md:hidden" extraAction={menuAction} />
           </div>
@@ -286,5 +276,14 @@ export function CoachSection({
       ) : null}
       {children}
     </section>
+  );
+}
+
+/** A page that has no tab, opened from the head of the page it belongs to. */
+export function ShellLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link href={href} className="inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-900/80 px-3.5 py-2 text-xs font-black text-slate-200 transition hover:border-slate-500 hover:text-white">
+      {label}<span aria-hidden className="text-slate-400">›</span>
+    </Link>
   );
 }

@@ -11,7 +11,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { ActiveRoleShell, ClubShell } from '@/features/role-workspaces/RoleShell';
+import { ActiveRoleShell, ClubShell, CoachShell } from '@/features/role-workspaces/RoleShell';
 import {
   getActivePerson,
   isMessageRead,
@@ -58,5 +58,7 @@ export function StaffMessagesPage() {
   );
   return role === 'club'
     ? <ClubShell active="messages" title={t('staffMessages.title')}>{content}</ClubShell>
-    : <ActiveRoleShell title={t('staffMessages.title')}>{content}</ActiveRoleShell>;
+    : role === 'coach'
+      ? <CoachShell active="messages" title={t('staffMessages.title')}>{content}</CoachShell>
+      : <ActiveRoleShell title={t('staffMessages.title')}>{content}</ActiveRoleShell>;
 }

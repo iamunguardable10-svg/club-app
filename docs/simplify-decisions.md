@@ -183,3 +183,10 @@ Oberfläche, weil jeder die Identität wechseln kann; mit Anmeldung setzt die Da
 sie durch. Wer eine Ansicht
 ändert, prüft Rechte über `coachPermissions`/`hasCoachPermission` aus `@/shared/data`,
 nie über URL-Parameter.
+
+**Trainer-Tabs (Entscheidung Ben, 2026-11-13, Audit-Vorschlag 7):** Unten bzw. links
+stehen für Trainer nur noch **Heute · Kalender · Team · Nachrichten**. Hallen öffnen sich
+aus dem Kalender („Hallen ›“ im Seitenkopf), der Verlauf aus dem Team („Verlauf ›“);
+beide Seiten führen mit „‹ Kalender“ bzw. „‹ Team“ zurück und markieren den Tab, aus
+dem sie kommen. Nachrichten sind damit für jede Rolle an derselben Stelle. Keine
+Funktion fällt weg, die Adressen bleiben.

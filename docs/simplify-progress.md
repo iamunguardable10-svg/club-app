@@ -3325,3 +3325,13 @@ Audit-Vorschläge 13 und 14.
 - **Nach dem Beitritt (Plan B8):** Wer einem Team beitritt (Spieler mit Code, Trainer und Vereinsrollen über die Einladung), sieht auf der ersten Seite einmal „Damit du nichts verpasst“: (1) Club OS auf den Home-Bildschirm, mit den Schritten für iPhone oder Android bzw. dem Installieren-Knopf, abgehakt wenn schon installiert; (2) Benachrichtigungen einschalten, auf dem iPhone außerhalb der App mit dem Hinweis, dass es dort erst in der App geht. „Fertig“ schließt für immer (`markAfterJoin`/`clearAfterJoin` in `repository.ts`, `AfterJoin.tsx`). Tipps warten, solange der Dialog offen ist.
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke, Landing-Check; Vorher-/Nachher-Bilder Handy und Desktop, iPhone- und Android-Ansicht.
+
+## Run 117 — Trainer-Tabs: Heute · Kalender · Team · Nachrichten (2026-11-13)
+
+Audit-Vorschlag 7, Entscheidung in `simplify-decisions.md`.
+
+- `COACH_NAV` hat vier Einträge; „Hallen“ und „Verlauf“ fallen aus der Leiste, „Nachrichten“ (`/messages`) kommt hinzu, das Nachrichten-Symbol im Kopf für Trainer entfällt (der Tab zeigt die ungelesenen wie bei Spielern).
+- Hallen: „Hallen ›“ im Kopf des Kalenders, auf der Hallenseite „‹ Kalender“; Verlauf: „Verlauf ›“ im Kopf der Team-Seite, dort „‹ Team“. Beide Seiten markieren den Tab, aus dem sie kommen (`COACH_TAB_OF`), die Tipps bleiben seitengenau. `ShellLink` in `RoleShell.tsx`.
+- Trainer-Nachrichten laufen in `CoachShell` mit markiertem Tab statt ohne.
+
+Geprüft: `typecheck`, `build`, Smoke; Vorher-/Nachher-Bilder aller sechs Trainer-Seiten auf Handy und Desktop.
