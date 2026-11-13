@@ -39,7 +39,7 @@ function readAsDataUrl(file: Blob) {
   });
 }
 
-export function ProfileStep({ staff = false, askName, knownName, player, termsAccepted = false, initial, knownBirthYear, submitLabel, onDone }: {
+export function ProfileStep({ staff = false, askName, knownName, player, termsAccepted = false, initial, knownBirthYear, knownBirthMonth, submitLabel, onDone }: {
   staff?: boolean;
   /** Accepted when the account was made: not asked again. */
   termsAccepted?: boolean;
@@ -49,6 +49,7 @@ export function ProfileStep({ staff = false, askName, knownName, player, termsAc
   player?: PlayerContext;
   initial: Profile | null;
   knownBirthYear?: number | null;
+  knownBirthMonth?: number | null;
   submitLabel: string;
   onDone: (profile: Profile) => void | Promise<void>;
 }) {
@@ -77,7 +78,7 @@ export function ProfileStep({ staff = false, askName, knownName, player, termsAc
         player={player} askName={askName} knownName={knownName}
         firstName={firstName} lastName={lastName} onName={(first, last) => { setFirstName(first); setLastName(last); }}
         details={details} onDetails={setDetails} photo={photo} onPhoto={setPhoto}
-        consent={consent} onConsent={setConsent} knownBirthYear={knownBirthYear} hideTerms={termsAccepted}
+        consent={consent} onConsent={setConsent} knownBirthYear={knownBirthYear} knownBirthMonth={knownBirthMonth} hideTerms={termsAccepted}
         submitLabel={submitLabel} busy={busy} onFinish={() => void submit()}
         resume={saved ? { step: saved.step } : null}
       />
@@ -117,7 +118,7 @@ export function ProfileStep({ staff = false, askName, knownName, player, termsAc
           </div>
         </>
       ) : null}
-      <ConsentFields value={consent} onChange={setConsent} staff={staff} knownBirthYear={knownBirthYear} hideTerms={termsAccepted} />
+      <ConsentFields value={consent} onChange={setConsent} staff={staff} knownBirthYear={knownBirthYear} knownBirthMonth={knownBirthMonth} hideTerms={termsAccepted} />
       <button type="submit" disabled={busy || !consentComplete(consent, staff)} className="os-success justify-center disabled:opacity-60">
         {busy ? t('common.oneMoment') : submitLabel}
       </button>

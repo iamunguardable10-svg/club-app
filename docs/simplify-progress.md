@@ -3305,3 +3305,14 @@ Ben: alle größeren Audit-Vorschläge, in kleinen Schritten mit Vorher-/Nachher
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke; Vorher-/Nachher-Bilder auf dem Handy.
 
 **Nachtrag (Ben, 2026-11-13):** Die Antwort bleibt ganz auf der Karte. Nach „Absagen“ klappen die Gründe auf; „Anderes…“ öffnet dort ein Textfeld, „Verspätet“ den Minutenregler mit eigenen Gründen (Schule, Bus oder Bahn, Arbeit, Anderes). Eine beantwortete Einheit zeigt nur noch eine Zeile („Du bist dabei · Ändern“). Der RPE ist beim Training weiter nicht vorausgewählt. In den Einstellungen unter „Dieses Gerät“ gibt es den Schalter „RPE vorausfüllen“ (aus): Dann startet die Bewertung beim erwarteten Wert der Einheit (`expectedRpe`, sonst dem Durchschnitt, wie in der Prognose).
+
+## Run 115 — Altersgrenze 16 mit Geburtsmonat (2026-11-13)
+
+Audit-Befund (Variante b, Ben): Bisher galt jeder aus dem Jahrgang „heute minus 16“ das ganze Jahr als 16, ein 15-Jähriger konnte also selbst in Gesundheitsdaten einwilligen. Jetzt fragt die App **nur in diesem Grenzjahrgang** zusätzlich den Geburtsmonat.
+
+- **Regel (App und Datenbank gleich):** 16 gilt ab dem Monat nach dem Geburtsmonat (ein Tag wird nicht gefragt, im Geburtsmonat selbst braucht es noch die Eltern). Ohne Monat zählt der Grenzjahrgang als unter 16. `canSelfConsent(year, month)` in `consentRules.ts`, `app.is_16(year, month)` in `0057_pilot_birth_month.sql`.
+- **Datenbank (0057, live):** neue Spalten `people.birth_month` und `app.access_consent.birth_month` (nicht über die Namenstabelle lesbar, nur über `person_birth_years` wie das Jahr); `health_active`, `give_health_consent`, Eltern-Link, Anmelde-Trigger und `apply_player_consent` nutzen die neue Regel; neue Überladungen `record_access_consent(…, p_birth_month)` und `save_my_birth_year(…, p_month)`, die alten bleiben für ältere App-Stände (dann „kein Monat“). Der Monat lässt sich wie das Jahr nicht nachträglich ändern. Tests: `35_birth_month_test.sql` (auch Januar, Geburtsmonat, alte Selbsteinwilligung zählt nicht mehr).
+- **App:** Im Beitritt erscheint unter dem Geburtsjahr-Regler „Geburtsmonat“, nur im Grenzjahrgang und dann Pflicht. In den Einstellungen fragt „Gesundheitsdaten“ den Monat einmal nach, wenn er fehlt; erst danach Einwilligung oder Eltern-Link.
+- Live betroffen: niemand (kein Konto aus dem Grenzjahrgang).
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `test:consent`, alle Datenbank-Tests lokal, `test:pilot`, `build`, Smoke; Bilder der Einstellungen.

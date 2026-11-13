@@ -2415,5 +2415,8 @@
   "rate.pick": "Toca un número",
   "rate.pickFirst": "Elige lo dura que fue",
   "settings.rpePrefill": "Rellenar el RPE",
-  "settings.rpePrefillDetail": "La valoración empieza en el valor previsto para la sesión"
+  "settings.rpePrefillDetail": "La valoración empieza en el valor previsto para la sesión",
+  "consent.birthMonth": "Mes de nacimiento",
+  "consent.birthMonthPick": "Elige un mes",
+  "consent.saveBirthMonth": "Guardar el mes"
 }

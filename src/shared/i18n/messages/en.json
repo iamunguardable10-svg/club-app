@@ -2415,5 +2415,8 @@
   "rate.pick": "Tap a number",
   "rate.pickFirst": "Choose how hard it was",
   "settings.rpePrefill": "Prefill RPE",
-  "settings.rpePrefillDetail": "The rating starts at the value expected for the session"
+  "settings.rpePrefillDetail": "The rating starts at the value expected for the session",
+  "consent.birthMonth": "Month of birth",
+  "consent.birthMonthPick": "Choose a month",
+  "consent.saveBirthMonth": "Save month"
 }

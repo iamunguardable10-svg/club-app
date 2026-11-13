@@ -205,6 +205,8 @@ export type PersonDetails = { personId: Id; heightCm: number | null; strongSide:
 
 export type Person = {
   birthYear?: number | null;
+  /** Asked only in the year that is 16 years ago (0057). */
+  birthMonth?: number | null;
   id: Id;
   clubId: Id;
   /** The account this person signs in with (pilot server). Always null in the local test mode. */

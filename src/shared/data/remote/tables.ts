@@ -155,7 +155,7 @@ export function toServerRows(database: LocalDatabase): ServerRows {
   const rows: ServerRows = {
     consents: (database.consents ?? []).map((c) => ({ id: c.id, person_id: c.personId, user_id: c.userId, kind: c.kind, version: c.version, given_at: c.givenAt, withdrawn_at: c.withdrawnAt, by_parent_name: c.byParentName, by_parent_email: c.byParentEmail })),
     health_consent_status: (database.healthConsentStatus ?? []).map((c) => ({ person_id: c.personId, active: c.active })),
-    person_birth_years: database.people.filter((p) => p.birthYear != null).map((p) => ({ person_id: p.id, birth_year: p.birthYear })),
+    person_birth_years: database.people.filter((p) => p.birthYear != null).map((p) => ({ person_id: p.id, birth_year: p.birthYear, birth_month: p.birthMonth ?? null })),
     clubs: [{ id: database.club.id, name: database.club.name, city: database.club.city, country: database.club.country, created_at: database.club.createdAt }],
     club_entitlements: (database.clubEntitlements ?? []).map((e) => ({ club_id: e.clubId, feature: e.feature, source: e.source, valid_until: e.validUntil })),
     club_feature_settings: (database.clubFeatureSettings ?? []).map((f) => ({ club_id: f.clubId, feature: f.feature, mode: f.mode })),
@@ -327,6 +327,7 @@ export function fromServerRows(
     people: rows.people.map((p) => ({
       id: s(p.id), clubId: s(p.club_id), userId: sn(p.user_id), firstName: s(p.first_name), lastName: s(p.last_name),
       birthYear: rows.person_birth_years.find((b) => b.person_id === p.id)?.birth_year as number | null | undefined,
+      birthMonth: rows.person_birth_years.find((b) => b.person_id === p.id)?.birth_month as number | null | undefined,
       rsvpMode: p.rsvp_mode === 'manual' ? 'manual' as const : 'auto' as const, photoAt: sn(p.photo_at), createdAt: s(p.created_at),
     })),
     memberships: rows.memberships.map((m) => ({

@@ -1,21 +1,26 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { canSelfConsent, type AccessConsent } from '@/shared/data';
-import { useT } from '@/shared/i18n';
+import { canSelfConsent, needsBirthMonth, type AccessConsent } from '@/shared/data';
+import { useLocale, useT } from '@/shared/i18n';
 import Link from 'next/link';
 export const EMPTY_CONSENT: AccessConsent = { terms: false, birthYear: null, health: false, staff16: false };
 export function consentComplete(value: AccessConsent, staff = false) {
-  return value.terms && (staff ? value.staff16 : value.birthYear !== null && value.birthYear >= 1900 && value.birthYear <= new Date().getFullYear());
+  return value.terms && (staff ? value.staff16 : value.birthYear !== null && value.birthYear >= 1900 && value.birthYear <= new Date().getFullYear()
+    && (!needsBirthMonth(value.birthYear) || value.birthMonth != null));
 }
-export function ConsentFields({ value, onChange, staff = false, knownBirthYear, hideTerms = false, bare = false }: { value: AccessConsent; onChange: (value: AccessConsent) => void; staff?: boolean; knownBirthYear?: number | null; hideTerms?: boolean; /** Without its own frame, inside a panel that has one. */ bare?: boolean }) {
+export function ConsentFields({ value, onChange, staff = false, knownBirthYear, knownBirthMonth, hideTerms = false, bare = false }: { value: AccessConsent; onChange: (value: AccessConsent) => void; staff?: boolean; knownBirthYear?: number | null; knownBirthMonth?: number | null; hideTerms?: boolean; /** Without its own frame, inside a panel that has one. */ bare?: boolean }) {
   const t = useT();
   const [year, setYear] = useState<number | null>(null);
   useEffect(() => setYear(new Date().getFullYear()), []);
-  useEffect(() => { if (knownBirthYear != null && value.birthYear !== knownBirthYear) onChange({ ...value, birthYear: knownBirthYear }); }, [knownBirthYear, value, onChange]);
-  const adult = year !== null && canSelfConsent(value.birthYear, year);
+  useEffect(() => {
+    if (knownBirthYear != null && (value.birthYear !== knownBirthYear || (knownBirthMonth != null && value.birthMonth !== knownBirthMonth))) onChange({ ...value, birthYear: knownBirthYear, birthMonth: knownBirthMonth ?? value.birthMonth ?? null });
+  }, [knownBirthYear, knownBirthMonth, value, onChange]);
+  const adult = year !== null && canSelfConsent(value.birthYear, value.birthMonth);
+  const askMonth = year !== null && !staff && needsBirthMonth(value.birthYear) && knownBirthMonth == null;
   return <fieldset className={`grid min-w-0 gap-3 ${bare ? 'gap-4' : 'rounded-2xl border border-slate-700 p-4'}`} data-testid="consent-fields">
     {staff ? <label className="flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" required checked={value.staff16} onChange={(e) => onChange({ ...value, staff16: e.target.checked })} className="mt-1 h-4 w-4 shrink-0" />{t('consent.staff16')}</label>
-      : <BirthYearSlider value={value.birthYear} locked={knownBirthYear != null} year={year} onChange={(birthYear) => onChange({ ...value, birthYear, health: false })} />}
+      : <BirthYearSlider value={value.birthYear} locked={knownBirthYear != null} year={year} onChange={(birthYear) => onChange({ ...value, birthYear, birthMonth: null, health: false })} />}
+    {askMonth ? <BirthMonthSelect value={value.birthMonth ?? null} onChange={(birthMonth) => onChange({ ...value, birthMonth, health: false })} /> : null}
     {hideTerms ? null : <label className="flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" required checked={value.terms} onChange={(e) => onChange({ ...value, terms: e.target.checked })} className="mt-1 h-4 w-4 shrink-0" /><AcceptText /></label>}
     {!staff && adult ? <label className="flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" checked={value.health} onChange={(e) => onChange({ ...value, health: e.target.checked })} className="mt-1 h-4 w-4 shrink-0" />{t('consent.health')}</label> : null}
     {/* The small print stays one tap away instead of on the screen (Ben, 2026-11-11). */}
@@ -32,6 +37,25 @@ export function AcceptText() {
     : part === '\u0002' ? <Link key={index} href="/privacy" target="_blank" rel="noopener" className="font-bold text-sky-300 underline">{t('consent.privacyLink')}</Link>
     : part
   ))}</span>;
+}
+
+/**
+ * Asked only in the year that is 16 years ago (audit 2026-11, variant b): the
+ * month decides whether the player may consent for themselves.
+ */
+export function BirthMonthSelect({ value, onChange }: { value: number | null; onChange: (month: number) => void }) {
+  const t = useT();
+  const locale = useLocale();
+  const names = Array.from({ length: 12 }, (_, index) => new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(2000, index, 15)));
+  return (
+    <label className="grid gap-1.5 text-sm font-bold text-slate-200">
+      {t('consent.birthMonth')}
+      <select required value={value ?? ''} onChange={(event) => onChange(Number(event.target.value))} className="os-field">
+        <option value="" disabled>{t('consent.birthMonthPick')}</option>
+        {names.map((name, index) => <option key={name} value={index + 1}>{name}</option>)}
+      </select>
+    </label>
+  );
 }
 
 /** The birth year by sliding (Ben, 2026-10-25: not typed), with − and + for the last year. */

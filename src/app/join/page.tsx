@@ -248,7 +248,7 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
         <>
           <ErrorLine message={error} />
           <ProfileStep
-            askName={!me} knownName={me ? `${me.firstName} ${me.lastName}` : undefined} knownBirthYear={me?.birthYear}
+            askName={!me} knownName={me ? `${me.firstName} ${me.lastName}` : undefined} knownBirthYear={me?.birthYear} knownBirthMonth={me?.birthMonth}
             player={player} termsAccepted initial={null} submitLabel={t('onboarding.join.submit')} onDone={join}
           />
         </>

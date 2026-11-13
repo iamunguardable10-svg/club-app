@@ -2415,5 +2415,8 @@
   "rate.pick": "Touche un chiffre",
   "rate.pickFirst": "Choisis à quel point c’était dur",
   "settings.rpePrefill": "Préremplir le RPE",
-  "settings.rpePrefillDetail": "L’évaluation commence à la valeur prévue pour la séance"
+  "settings.rpePrefillDetail": "L’évaluation commence à la valeur prévue pour la séance",
+  "consent.birthMonth": "Mois de naissance",
+  "consent.birthMonthPick": "Choisis un mois",
+  "consent.saveBirthMonth": "Enregistrer le mois"
 }
