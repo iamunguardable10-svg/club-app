@@ -84,6 +84,8 @@ type ShellProps = {
   back?: { href: string; label: string };
   /** Buttons next to the title (right side on desktop, below it on phones). */
   actions?: ReactNode;
+  /** A page without its own tab that opens from here, as a round icon in the head (halls from the calendar, history from the team). */
+  headLink?: { href: string; label: string; item: NavItem };
   /** One page-specific entry in the profile menu (e.g. the player's share link). */
   menuAction?: { label: string; onSelect: () => void };
   children: ReactNode;
@@ -126,7 +128,7 @@ export function ActiveRoleShell(props: ShellProps) {
   return <RoleShell nav={nav} active={null} {...props} />;
 }
 
-function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, menuAction, children }: ShellProps & { nav: NavEntry[]; active: NavItem | null; tab?: NavItem | null }) {
+function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, headLink, menuAction, children }: ShellProps & { nav: NavEntry[]; active: NavItem | null; tab?: NavItem | null }) {
   const t = useT();
   // The tapped tab lights up at once, while the next screen is being prepared.
   const [tapped, setTapped] = useState<NavItem | null>(null);
@@ -206,6 +208,11 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {actions ? <div className="hidden items-center gap-2 md:flex">{actions}</div> : null}
+            {headLink ? (
+              <Link href={headLink.href} aria-label={headLink.label} title={headLink.label} className="flex h-10 items-center gap-2 rounded-full border border-slate-700 bg-slate-900/80 px-2.5 text-sm font-black text-slate-200 transition hover:border-slate-500 hover:text-white md:px-3.5">
+                <NavIcon item={headLink.item} /><span className="hidden md:inline">{headLink.label}</span>
+              </Link>
+            ) : null}
             <DemoPill />
             <IdentitySwitcher variant="avatar" className="md:hidden" extraAction={menuAction} />
           </div>
@@ -279,11 +286,3 @@ export function CoachSection({
   );
 }
 
-/** A page that has no tab, opened from the head of the page it belongs to. */
-export function ShellLink({ href, label }: { href: string; label: string }) {
-  return (
-    <Link href={href} className="inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-900/80 px-3.5 py-2 text-xs font-black text-slate-200 transition hover:border-slate-500 hover:text-white">
-      {label}<span aria-hidden className="text-slate-400">›</span>
-    </Link>
-  );
-}

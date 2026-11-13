@@ -3368,3 +3368,7 @@ Audit-Vorschlag 11.
 - Gilt überall, wo `MessageComposer`/`MessageList` stehen (Nachrichten-Seite, Team-Bereich).
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke; Vorher-/Nachher-Bilder.
+
+## Run 121 — Hallen und Verlauf als Symbol im Kopf (2026-11-13)
+
+Nachbesserung zu Run 117 (Ben: „sieht schlechter aus“). Die Links „Hallen ›“ und „Verlauf ›“ standen auf dem Handy als eigene Zeile unter dem Titel. Jetzt sind sie ein rundes Symbol im Seitenkopf neben der Demo-Pille (Haus für Hallen im Kalender, Uhr für Verlauf im Team), auf dem Desktop mit Wort. Neue Shell-Option `headLink`, `ShellLink` entfällt.
