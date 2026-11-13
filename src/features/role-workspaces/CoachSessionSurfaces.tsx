@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { formatDateRange, formatDay, formatTimeRange as formatSharedTimeRange } from '@/shared/format';
+import { formatDateRange, formatTimeRange as formatSharedTimeRange } from '@/shared/format';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { SessionDetailSheet, type SessionDetailFacilityOption, type SessionDetailGroup } from '@/features/sessions/SessionDetailSheet';
 import type { CoachEntryReview, CoachSession } from '@/features/role-workspaces/CoachTypes';
@@ -1259,10 +1259,10 @@ export function CoachHistoryInsights({
         </p>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div className="mt-5 grid grid-cols-1 gap-2 lg:grid-cols-2">
         {filteredSessions.length > 0 ? (
           visibleSessions.map((session) => (
-            <CoachHistorySessionCard key={session.id} session={session} onDetails={() => onDetails(session)} onInsight={(selectedSession, insight) => onDetails(selectedSession, insight)} />
+            <CoachHistorySessionCard key={session.id} session={session} onDetails={() => onDetails(session)} />
           ))
         ) : (
           <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">{t('history.none')}</div>
@@ -1279,51 +1279,35 @@ export function CoachHistoryInsights({
   );
 }
 
-function HistoryStat({ label, value, detail, onClick }: { label: string; value: string; detail: string; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} className="min-w-0 rounded-xl border border-slate-800 bg-slate-950/70 px-2 py-2 text-left transition hover:border-violet-300/55 hover:bg-slate-900/80">
-      <p className="truncate text-[10px] font-black text-slate-500">{label}</p>
-      <p className="truncate text-sm font-black text-slate-100">{value}</p>
-      <p className="truncate text-[10px] font-bold text-slate-500">{detail}</p>
-    </button>
-  );
-}
-
-export function CoachHistorySessionCard({
-  session,
-  onDetails,
-  onInsight,
-}: {
-  session: CoachSession;
-  onDetails: () => void;
-  onInsight?: (session: CoachSession, insight: CoachSessionInsight) => void;
-}) {
+/**
+ * A past session as one row (audit 2026-11, proposal 4): the history is the
+ * list of past sessions, each opening the same session view as Today and the
+ * calendar, where attendance, RPE and load are shown in full.
+ */
+export function CoachHistorySessionCard({ session, onDetails }: { session: CoachSession; onDetails: () => void }) {
   const t = useT();
   const summary = summarizeCoachSession(session);
   const presentCount = Math.max(0, session.players.length - summary.out.length);
-  const completionLabel = formatPercent(summary.reportRate);
   const loadShared = sessionLoadDetailsShared(session);
+  const start = new Date(session.startsAt);
+  const facts = [
+    t('history.thereShort', { there: presentCount, total: session.players.length }),
+    summary.late.length > 0 ? t('coach.row.late', { count: summary.late.length }) : null,
+    loadShared && summary.avgRpe !== null ? `RPE ${formatDecimal(summary.avgRpe, 1)}` : null,
+    loadShared ? t('history.reportedShort', { value: formatPercent(summary.reportRate) }) : null,
+  ].filter(Boolean);
   return (
-    <article className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-white transition hover:border-violet-300/35 hover:bg-slate-900/55 sm:p-4">
-      <button type="button" onClick={onDetails} className="flex w-full items-start justify-between gap-3 text-left">
-        <div className="min-w-0">
-          <p className="truncate text-xs font-bold text-slate-400">{formatDay(session.startsAt)} · {formatTimeRange(session.startsAt, session.endsAt, session.sessionType)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
-          <h3 className="mt-0.5 truncate text-base font-black text-white">{displayTitle(session.title)} <span className="text-sm font-bold text-slate-500">{session.teamName}</span></h3>
-        </div>
-        <span aria-hidden className="text-lg font-black text-slate-500">›</span>
-      </button>
-
-      {/* One tile alone gets the whole row; four sit two by two on phones, so nothing is cut off. */}
-      <div className={`mt-3 grid gap-1.5 ${loadShared ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-1'}`}>
-        <HistoryStat label={t('history.there')} value={`${presentCount}/${session.players.length}`} detail={t('history.outLate', { out: summary.out.length, late: summary.late.length })} onClick={() => onInsight?.(session, 'expected')} />
-        {loadShared ? (
-          <>
-            <HistoryStat label={t('history.rpe')} value={summary.avgRpe !== null ? formatDecimal(summary.avgRpe, 1) : '—'} detail={t('history.reportCount', { count: summary.loadReports.length })} onClick={() => onInsight?.(session, 'rpe')} />
-            <HistoryStat label={t('history.load')} value={summary.avgLoad !== null ? `${Math.round(summary.avgLoad)}` : '—'} detail={t('history.avgAu')} onClick={() => onInsight?.(session, 'au')} />
-            <HistoryStat label={t('history.reported')} value={completionLabel} detail={t('history.missing', { count: session.players.length - summary.loadReports.length })} onClick={() => onInsight?.(session, 'completion')} />
-          </>
-        ) : null}
+    <button type="button" data-history-session onClick={onDetails} className="flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 px-3 py-3 text-left transition hover:border-violet-300/45 hover:bg-slate-900/70">
+      <div className="w-12 shrink-0 text-center">
+        <p className="text-xs font-black uppercase text-slate-400">{formatWeekday(start)}</p>
+        <p className="text-lg font-black leading-tight text-white">{start.getDate()}.</p>
       </div>
-    </article>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-black text-white">{displayTitle(session.title)} <span className="font-bold text-slate-400">{session.teamName}</span></p>
+        <p className="truncate text-xs font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt, session.sessionType)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+        <p className="mt-0.5 truncate text-xs font-black text-slate-200">{facts.join(' · ')}</p>
+      </div>
+      <span aria-hidden className="text-lg font-black text-slate-500">›</span>
+    </button>
   );
 }

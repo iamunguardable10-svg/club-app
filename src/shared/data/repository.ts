@@ -240,6 +240,22 @@ export function setTipsOff(off: boolean): void {
   } catch { /* nothing to do */ }
 }
 
+// The phone calendar's view (day grid, week grid or list): starts with the day grid, then the last one used (Ben, 2026-11-13).
+const CALENDAR_VIEW_KEY = 'club-app.calendar-view';
+
+export function readCalendarView(): 'day' | 'week' | 'list' {
+  if (!isBrowser()) return 'day';
+  try {
+    const value = window.localStorage.getItem(CALENDAR_VIEW_KEY);
+    return value === 'week' || value === 'list' ? value : 'day';
+  } catch { return 'day'; }
+}
+
+export function saveCalendarView(view: 'day' | 'week' | 'list'): void {
+  if (!isBrowser()) return;
+  try { window.localStorage.setItem(CALENDAR_VIEW_KEY, view); } catch { /* starts with the grid next time */ }
+}
+
 // Right after joining a team: one screen to install the app and allow notifications (audit 2026-11, 14).
 const AFTER_JOIN_KEY = 'club-app.after-join';
 

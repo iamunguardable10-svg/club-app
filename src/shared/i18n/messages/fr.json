@@ -2467,5 +2467,11 @@
   "push.consentReminder.body": "Ton entraîneur te demande de régler le consentement pour ta charge d’entraînement.",
   "playerTeam.nextGame": "Prochain match",
   "playerTeam.coaches": "Entraîneurs",
-  "playerTeam.headCoach": "Entraîneur principal"
+  "playerTeam.headCoach": "Entraîneur principal",
+  "calendar.listTitle": "Cette semaine",
+  "calendar.gridView": "Grille",
+  "calendar.listView": "Liste",
+  "calendar.listEmpty": "Rien cette semaine.",
+  "history.thereShort": "{there}/{total} présents",
+  "history.reportedShort": "{value} évalué"
 }
