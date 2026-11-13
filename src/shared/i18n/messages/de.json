@@ -2423,5 +2423,18 @@
   "afterJoin.install": "Club OS auf den Home-Bildschirm",
   "afterJoin.push": "Benachrichtigungen einschalten",
   "afterJoin.done": "Fertig",
-  "afterJoin.pushIos": "Auf dem iPhone geht das nur in der App: Öffne Club OS vom Home-Bildschirm, dort fragen wir dich."
+  "afterJoin.pushIos": "Auf dem iPhone geht das nur in der App: Öffne Club OS vom Home-Bildschirm, dort fragen wir dich.",
+  "coach.board.coming_one": "{count} kommt",
+  "coach.board.coming_other": "{count} kommen",
+  "coach.board.missing_one": "{count} fehlt",
+  "coach.board.missing_other": "{count} fehlen",
+  "coach.board.open_one": "{count} offen",
+  "coach.board.open_other": "{count} offen",
+  "coach.board.whoWasThere": "Wer war dabei?",
+  "coach.board.wereThere": "{there} von {total} dabei",
+  "coach.board.confirmed": "Bestätigt: {there} von {total} dabei",
+  "coach.board.allRight": "Stimmt so",
+  "coach.today.next": "Als Nächstes",
+  "coach.todo.answersMany_one": "{count} Einheit mit offenen Antworten",
+  "coach.todo.answersMany_other": "{count} Einheiten mit offenen Antworten"
 }

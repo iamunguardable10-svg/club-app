@@ -3335,3 +3335,15 @@ Audit-Vorschlag 7, Entscheidung in `simplify-decisions.md`.
 - Trainer-Nachrichten laufen in `CoachShell` mit markiertem Tab statt ohne.
 
 Geprüft: `typecheck`, `build`, Smoke; Vorher-/Nachher-Bilder aller sechs Trainer-Seiten auf Handy und Desktop.
+
+## Run 118 — Trainer-„Heute“ als Anwesenheits-Übersicht (2026-11-13)
+
+Audit-Vorschlag 5.
+
+- **Vor der Einheit:** Die Karte zeigt unter Titel und Halle eine Zeile „9 kommen · 3 fehlen · 1 offen“ (Verspätete zählen zu „kommen“, nicht Nominierte bei Spielen zählen nicht), darunter wie bisher nur die Ausnahmen (abgesagt, verspätet) und „Offene erinnern“.
+- **Ab Beginn:** statt „Offene erinnern“ die Zeile „Wer war dabei? 9 von 12 dabei“ mit **Stimmt so** (bestätigt alle, die nicht abgesagt haben und nominiert sind) und **Ändern** (öffnet die Einheit mit der bestehenden Liste zum Abhaken). Danach „Bestätigt: 9 von 12 dabei · Ändern“. Es bleibt eine Anwesenheitsliste (`CoachTodayBoard.tsx`, Logik wie `AttendanceConfirmation`).
+- **Ohne Einheit heute:** eine ruhige Zeile „Heute keine Einheiten“ und darunter „Als Nächstes“ mit der nächsten Einheit als Karte.
+- **Zu erledigen:** Einheiten, die schon auf der Karte stehen, fehlen dort; mehrere Einheiten mit offenen Antworten werden zu einer Zeile „3 Einheiten mit offenen Antworten“, die sich aufklappt.
+- **Desktop:** „Demnächst“ steht rechts neben der Übersicht.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke; Bilder Handy (vor Beginn, nach Beginn, bestätigt) und Desktop.
