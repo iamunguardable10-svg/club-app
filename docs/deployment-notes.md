@@ -38,3 +38,26 @@ Operational note:
 - If the Claude review hook hangs during a push, validate manually with `npm run check:review`.
 - Windows-specific command variants are documented in `docs/agent-workflow.md`.
 - Do not treat `--no-verify` as a normal release path. If the hook itself is broken, fix the hook or record the exception in the task context before pushing.
+
+## Club OS domain (2026-11-13)
+
+The production address is `https://clubos.hebinova.de` on the existing Vercel
+project `club-app`. IONOS remains the DNS provider. Only the `clubos` CNAME
+points to Vercel; the apex website and IONOS MX/SPF records stay in place.
+
+`metadataBase` uses this address for absolute social preview images. The landing
+page has this canonical URL. The two previous public Vercel aliases redirect
+with HTTP 308, preserving paths and query parameters; branch/deployment preview
+URLs and localhost are unaffected. Invitations, shared links and auth return
+URLs use `window.location.origin`, so new links use the new host automatically.
+
+Supabase Auth uses the new address as Site URL, with
+`https://clubos.hebinova.de/**` in its redirect allow list. Keep existing entries
+during the transition. Auth emails use the verified Brevo sender
+`Club OS <clubos@hebinova.de>` through custom SMTP. Keep SMTP credentials only in
+the provider settings, never in this repository.
+
+An origin change cannot transfer browser sessions, cached demo data, installed
+PWAs or push permissions. Server-backed club data stays in the same Supabase
+project. Users sign in on the new domain and can install the app and enable
+notifications there again; do not clear storage on the previous domain.

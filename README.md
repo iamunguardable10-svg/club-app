@@ -4,7 +4,7 @@
 "who is coming?", messages, halls, carpools and player load, in one calm app
 for the phone and the desktop.
 
-Live: **[myclubos.vercel.app](https://myclubos.vercel.app)** · in pilot with a
+Live: **[clubos.hebinova.de](https://clubos.hebinova.de)** · in pilot with a
 real club · English, German, French and Spanish
 
 > **Kurz auf Deutsch.** Club OS ist eine Vereins-App für Trainer, Spieler und
@@ -35,7 +35,7 @@ report button.
 
 ## Try it
 
-- **Demo club:** open [myclubos.vercel.app](https://myclubos.vercel.app) and
+- **Demo club:** open [clubos.hebinova.de](https://clubos.hebinova.de) and
   choose *Try the demo* (as coach, player or club). No account; everything you
   change stays in your browser.
 - **Real club:** a club is founded with a founding code from us; players join

@@ -412,3 +412,14 @@ Impressum und öffentliche Datenschutzseite; keine Änderungen an Supabase.
 ## Später: Profilbilder (Ben, 2026-10-23)
 
 - In „Abwesend und verspätet“ (Einheits-Blatt) und anderen Personenlisten kommt in den Kreis links das Profilbild; das Status-Zeichen (✕ abwesend, Uhr verspätet) wird dann ein kleines Abzeichen darauf.
+
+## Domainumstellung 2026-11-13
+
+- [x] Neue App-Hauptadresse `https://clubos.hebinova.de` mit HTTPS am bestehenden
+  Vercel-Projekt; DNS bleibt bei IONOS.
+- [x] Supabase Site URL und Redirect-Allowlist auf die neue Adresse ergänzt.
+- [x] Brevo-Domain `hebinova.de` authentifiziert; Absender
+  `Club OS <clubos@hebinova.de>` verifiziert. MX/SPF und Root-Website unverändert.
+- [ ] App-Code mit Canonical-/Vorschaulinks und Weiterleitung der bisherigen
+  Vercel-Adressen veröffentlichen und live prüfen.
+- [ ] Supabase über den neuen SMTP-Schlüssel anbinden und Testmail prüfen.
