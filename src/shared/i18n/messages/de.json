@@ -2436,5 +2436,15 @@
   "coach.board.allRight": "Stimmt so",
   "coach.today.next": "Als Nächstes",
   "coach.todo.answersMany_one": "{count} Einheit mit offenen Antworten",
-  "coach.todo.answersMany_other": "{count} Einheiten mit offenen Antworten"
+  "coach.todo.answersMany_other": "{count} Einheiten mit offenen Antworten",
+  "club.setup.title": "Einrichtung {done} von {total}",
+  "club.setup.departments": "Abteilung anlegen",
+  "club.setup.teams": "Teams anlegen",
+  "club.setup.halls": "Hallen eintragen",
+  "club.setup.headCoaches": "Ein Cheftrainer je Team",
+  "club.setup.signedIn": "Cheftrainer angemeldet",
+  "club.setup.missing_one": "{count} fehlt",
+  "club.setup.missing_other": "{count} fehlen",
+  "club.setup.go": "Los",
+  "club.setup.done": "erledigt"
 }

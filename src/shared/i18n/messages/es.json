@@ -2436,5 +2436,15 @@
   "coach.board.allRight": "Está bien",
   "coach.today.next": "Lo próximo",
   "coach.todo.answersMany_one": "{count} sesión con respuestas pendientes",
-  "coach.todo.answersMany_other": "{count} sesiones con respuestas pendientes"
+  "coach.todo.answersMany_other": "{count} sesiones con respuestas pendientes",
+  "club.setup.title": "Configuración {done} de {total}",
+  "club.setup.departments": "Crear una sección",
+  "club.setup.teams": "Añadir equipos",
+  "club.setup.halls": "Añadir pabellones",
+  "club.setup.headCoaches": "Un entrenador principal por equipo",
+  "club.setup.signedIn": "Entrenadores principales conectados",
+  "club.setup.missing_one": "falta {count}",
+  "club.setup.missing_other": "faltan {count}",
+  "club.setup.go": "Ir",
+  "club.setup.done": "hecho"
 }

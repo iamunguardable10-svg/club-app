@@ -2436,5 +2436,15 @@
   "coach.board.allRight": "Looks right",
   "coach.today.next": "Next up",
   "coach.todo.answersMany_one": "{count} session with open answers",
-  "coach.todo.answersMany_other": "{count} sessions with open answers"
+  "coach.todo.answersMany_other": "{count} sessions with open answers",
+  "club.setup.title": "Setup {done} of {total}",
+  "club.setup.departments": "Create a department",
+  "club.setup.teams": "Add teams",
+  "club.setup.halls": "Add halls",
+  "club.setup.headCoaches": "A head coach for every team",
+  "club.setup.signedIn": "Head coaches signed in",
+  "club.setup.missing_one": "{count} missing",
+  "club.setup.missing_other": "{count} missing",
+  "club.setup.go": "Go",
+  "club.setup.done": "done"
 }

@@ -27,6 +27,7 @@ import { TeamStaffPanel } from '@/features/teams/TeamStaffPanel';
 import { ClubFeatureSettings } from '@/features/teams/FeatureSwitches';
 import { displayRoleName } from '@/features/teams/roleLabels';
 import { clubRoleText } from '@/features/club/clubRoleText';
+import { ClubSetup, setupSteps } from '@/features/club/ClubSetup';
 import { formatShortDate } from '@/shared/format';
 import { errorText, useT } from '@/shared/i18n';
 import {
@@ -563,10 +564,13 @@ export function ClubOverview() {
   const departments = database.departments.filter((department) => departmentIds.includes(department.id)).sort((a, b) => a.name.localeCompare(b.name));
   const managedTeams = database.teams.filter((team) => !team.archivedAt && departmentIds.includes(team.departmentId));
   const withoutHeadCoach = managedTeams.filter((team) => !staffSummary(database, team).some((entry) => entry.role?.locked)).length;
+  const steps = setupSteps(database, departments.map((department) => department.id), managedTeams, (team) => staffSummary(database, team).find((entry) => entry.role?.locked)?.person ?? null);
+  const setupDone = steps.every((step) => step.done);
 
   return (
     <ClubShell active="club" title={database.club.name} subtitle={clubRoleText(database, person.id)}>
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+      <ClubSetup steps={steps} />
+      {setupDone ? <div className="grid grid-cols-3 gap-2 sm:gap-3">
         {[
           { label: t('club.tile.departments'), value: departments.length, warn: false },
           { label: t('club.tile.teams'), value: managedTeams.length, warn: false },
@@ -577,19 +581,19 @@ export function ClubOverview() {
             <p className={`mt-1 text-2xl font-black ${tile.warn ? 'text-amber-200' : 'text-white'}`}>{tile.value}</p>
           </div>
         ))}
-      </div>
+      </div> : null}
 
       {actionError ? (
         <p role="alert" className="rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-bold text-red-100">{actionError}</p>
       ) : null}
 
       {departments.map((department) => (
-        <DepartmentSection key={department.id} database={database} department={department} personId={person.id} admin={admin} onRun={run} />
+        <div key={department.id} id={`dept-${department.id}`} className="scroll-mt-24"><DepartmentSection database={database} department={department} personId={person.id} admin={admin} onRun={run} /></div>
       ))}
 
 
       {admin ? (
-        <CoachSection title={t('club.newDepartment')} description={t('club.newDepartmentDetail')}>
+        <div id="new-department" className="scroll-mt-24"><CoachSection title={t('club.newDepartment')} description={t('club.newDepartmentDetail')}>
           <form
             className="grid gap-3 rounded-2xl border border-slate-700 p-3"
             onSubmit={(event) => {
@@ -600,7 +604,7 @@ export function ClubOverview() {
             <input value={newDepartment} onChange={(event) => setNewDepartment(event.target.value)} placeholder={t('club.departmentNamePlaceholder')} aria-label={t('club.newDepartmentName')} className={`${inputClass} flex-1`} />
             <button type="submit" disabled={!newDepartment.trim()} className={`${smallButtonClass} border-sky-500/50 text-sky-100 hover:bg-sky-950/35`}>{t('club.addDepartment')}</button>
           </form>
-        </CoachSection>
+        </CoachSection></div>
       ) : null}
 
       {admin ? (
