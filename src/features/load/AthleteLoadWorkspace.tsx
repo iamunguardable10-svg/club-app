@@ -787,6 +787,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     ];
     // "Anderes" under "Verspätet" stays a late answer, with the minutes.
     const lateReasons = panel === 'late' || (panel === 'other' && otherFromLate);
+    // While "Absagen" or "Verspätet" is open, that one is marked, not the saved answer (Ben, 2026-11-13).
+    const marked = panel ? (lateReasons ? 'late' : 'out') : chosen;
     const save = async (status: 'late' | 'out', reason: string, minutes: number | null = null) => {
       if (await setTeamSessionAvailability(session, status, reason, minutes)) close();
     };
@@ -805,7 +807,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         {open ? <p className="px-1.5 pt-0.5 text-sm font-black text-amber-100">{t('athlete.rsvp.question')}</p> : null}
         <div role="group" aria-label={t('athlete.rsvp.question')} className="grid grid-cols-3 gap-1.5">
           {options.map((option) => (
-            <button key={option.id} type="button" aria-pressed={chosen === option.id} aria-expanded={option.id === 'in' ? undefined : option.id === 'late' ? panel === 'late' || (panel === 'other' && otherFromLate) : panel === 'out' || (panel === 'other' && !otherFromLate)} onClick={option.run} className={`rounded-xl border px-2 py-2.5 text-sm font-black transition active:scale-95 ${chosen === option.id ? tone[option.id] : 'border-slate-700 text-slate-200 hover:border-slate-500'}`}>{option.label}</button>
+            <button key={option.id} type="button" aria-pressed={marked === option.id} aria-expanded={option.id === 'in' ? undefined : option.id === 'late' ? panel === 'late' || (panel === 'other' && otherFromLate) : panel === 'out' || (panel === 'other' && !otherFromLate)} onClick={option.run} className={`rounded-xl border px-2 py-2.5 text-sm font-black transition active:scale-95 ${marked === option.id ? tone[option.id] : 'border-slate-700 text-slate-200 hover:border-slate-500'}`}>{option.label}</button>
           ))}
         </div>
         {lateReasons ? (
