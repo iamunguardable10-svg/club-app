@@ -66,7 +66,8 @@ export function MessageList({
   return (
     <>
       {error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null}
-      <ul className="grid gap-2">
+      {/* A feed, not boxes (audit 2026-11, proposal 11): rows divided by a line. */}
+      <ul className="grid divide-y divide-slate-800/80">
         {messages.map((message) => {
           const manages = managesMessage(database, viewerId, message);
           const recipient = viewerId ? messageRecipientIds(database, message).includes(viewerId) : false;
@@ -84,7 +85,7 @@ export function MessageList({
           const pinnedUntil = messagePinnedUntil(message);
           const pinned = pinnedUntil !== null && Date.parse(pinnedUntil) > Date.now();
           return (
-            <li data-message-id={message.id} key={message.id} className="rounded-2xl border border-slate-800 bg-slate-950/55 p-3.5">
+            <li data-message-id={message.id} key={message.id} className="py-4 first:pt-1 last:pb-1">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 text-sm font-black text-white">
@@ -118,14 +119,14 @@ export function MessageList({
                     {(() => {
                       const done = votes ? votes.voted === votes.total : stats.read === stats.total;
                       const label = votes ? t('poll.voted', { voted: votes.voted, total: votes.total }) : t('teamMessages.read', { read: stats.read, total: stats.total });
-                      // Opens the names; without them (see above) only the count.
-                      return named ? (
-                        <button type="button" onClick={() => setOpenId(open ? null : message.id)} aria-expanded={open} className={done ? 'text-emerald-300' : 'text-sky-300 underline'}>{label}</button>
-                      ) : (
-                        <span className={done ? 'text-emerald-300' : 'text-slate-300'}>{label}</span>
+                      // Opens the reminder, closing and deleting, and the names where they are known.
+                      return (
+                        <button type="button" onClick={() => setOpenId(open ? null : message.id)} aria-expanded={open} className={`flex items-center gap-1 ${done ? 'text-emerald-300' : 'text-sky-300'}`}>
+                          {label}<span aria-hidden className={`text-slate-500 transition ${open ? 'rotate-180' : ''}`}>⌄</span>
+                        </button>
                       );
                     })()}
-                    <div className="flex flex-wrap gap-3">
+                    {open ? <div className="flex flex-wrap gap-3">
                       {pending > 0 && !message.remindedAt && !message.pollClosedAt ? (
                         <button type="button" onClick={() => run(() => remindUnread(message.id))} className="text-slate-300 underline decoration-slate-600 underline-offset-2 hover:text-white">{votes ? t('poll.remind', { count: pending }) : t('teamMessages.remind', { count: pending })}</button>
                       ) : message.remindedAt ? <span className="text-slate-500">{t('teamMessages.reminded')}</span> : null}
@@ -133,7 +134,7 @@ export function MessageList({
                         <button type="button" onClick={() => run(() => closePoll(message.id))} className="text-slate-300 underline decoration-slate-600 underline-offset-2 hover:text-white">{t('poll.close')}</button>
                       ) : null}
                       <button type="button" onClick={() => setDeleting(message)} className="text-slate-500 underline decoration-slate-700 underline-offset-2 hover:text-slate-300">{t('teamMessages.delete')}</button>
-                    </div>
+                    </div> : null}
                   </div>
                   {open && pending > 0 && named ? (
                     <p className="mt-1.5 text-xs text-slate-400">{votes ? t('poll.notVoted', { names: pendingIds.map(nameOf).join(', ') }) : t('teamMessages.notRead', { names: pendingIds.map(nameOf).join(', ') })}</p>

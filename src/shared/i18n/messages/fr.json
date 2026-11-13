@@ -2446,5 +2446,8 @@
   "club.setup.missing_one": "{count} manquant",
   "club.setup.missing_other": "{count} manquants",
   "club.setup.go": "Go",
-  "club.setup.done": "fait"
+  "club.setup.done": "fait",
+  "writeMessage.collapsed": "Écrire un message…",
+  "writeMessage.collapsedTo": "Message à {to}…",
+  "writeMessage.cancel": "Annuler"
 }
