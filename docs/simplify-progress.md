@@ -3278,3 +3278,19 @@ Ben: die offenen Punkte beim Mailversand erledigen.
 - Offen bei Ben (im Plan A1): die zwei Vorlagen in Supabase einfügen, Mail-Rate-Limit anheben, Zustellung bei GMX und Gmail testen, Support-Postfach prüfen.
 
 Geprüft: `mail-templates`, `check:i18n`, `test:i18n`, `typecheck`; alle drei Vorlagen und Betreffe mit Go `html/template` in de, en, fr, es und einer unbekannten Sprache gerendert, je genau ein Link.
+
+## Run 112 — Audit und geschärftes Designsystem (2026-11-13, Fable)
+
+Prüfung der ganzen App (Demo, Handy und Desktop, alle Rollen) und der Regeln in der Datenbank; kein App-Code geändert (PR #115).
+
+- `docs/audit/2026-11-fable.md`: 32 Befunde nach Schwere und 15 Vorschläge.
+- `DESIGN.md`: Farben, Schrift, Abstände, Radien und Tiefe als feste Werte; neue Bausteine (`os-row`, `os-sheet` …), Zustände, Muster 11–14, Glossar, Prüfliste. Bens Regeln unverändert.
+
+## Run 113 — Audit, Teil 1: Fehler und was sofort klar war (2026-11-13)
+
+Ben: alles abarbeiten, dem ich sofort zustimme, beim Rest nachfragen. Befund-Nummern aus `docs/audit/2026-11-fable.md`.
+
+- **Fehler:** „Fertig“ im Kalender öffnet eine hingesetzte, ungespeicherte Einheit statt sie wegzuwerfen; ihr Formular kann sie jetzt auch verwerfen (3). Wer ein Spiel absagt, steigt aus der Fahrgemeinschaft aus und seine Platzanfrage entfällt; wer selbst fährt, wird gefragt „Fahrt auch absagen?“, die Mitfahrer erfahren es (4, mit Test). Beginn und Ende im Formular „Neues Training“ sind auf dem Handy nicht mehr abgeschnitten (14). „Heute“ zählt nach Ortszeit statt UTC (24). Seiten-Untertitel und Kachelbeschriftungen werden nicht mehr abgeschnitten, beschreibende Untertitel entfallen (15). Der Kalender öffnet bei der ersten Einheit des Tages (16). Derselbe Spieler steht nicht mehr zweimal im Einheiten-Blatt (18). Ein Datumsformat, „1,5 Std.“ (22, 23). `/coach/load` und `/coach/attendance` leiten auf das Team (27). Die Push-Funktion bricht ohne Service-Schlüssel sofort mit klarer Meldung ab (28; Wirkung erst mit dem nächsten Deploy der Funktion). Diagramme ohne Breiten-Warnung (30). Ein Auto, das in dem Moment zurückgezogen wurde oder voll war, gilt beim Mitfahren als „inzwischen geändert“, nicht als „nicht gespeichert“ (7; mögliche Ursache der Pilot-Meldung vom 2026-10-23).
+- **Feinschliff:** Inter wird mit der App ausgeliefert (`next/font/local`, OFL) (9). Ein sichtbarer Fokus-Rahmen für jede Bedienung (13). Einheiten-, Serien-, Gruppen- und Rollen-Fenster sind Dialoge und schließen mit Escape, die Bewertung auch (12). Deutsch einheitlich: Trainer / Cheftrainer statt Coach / Head Coach, „Abgesagt“, „Antwort speichern“ (17). Absagen und Verspätung mit einem Tipp: Krank / Schule / Familie bzw. Schule / Bus oder Bahn / Arbeit, Tippen nur bei „Anderes…“ (6). Vereinsseite: „+ Team“ statt immer offenem Formular (19). Einwilligung widerrufen hinter „Einwilligung widerrufen…“ (20). Drei Sätze Kleingedrucktes entfallen (21). Kader ohne Geburtsjahr in jeder Zeile, ACWR nur außerhalb von 0,8–1,3 (25). Spielerblatt: Nummer und Position nur auf der Karte, Felder hinter „Nummer und Position ändern“ (26). Arbeitsseiten ohne das Raster der Landing Page (32).
+- **DESIGN.md** aus dem Audit übernommen; Muster 12 an Bens Entscheidung angepasst (Spieler-„Heute“ behält seine Reihenfolge).
+- **Offen, Ben entscheidet:** Eltern-Bestätigung per Mail (1), Altersgrenze 16 (2), RPE-Vorauswahl beim Training (5), die größeren Vorschläge, Schrift- und Gewichtsskala auf allen Seiten (10, 11, 31).

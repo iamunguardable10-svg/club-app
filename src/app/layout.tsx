@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import localFont from 'next/font/local';
 import './globals.css';
 import { SyncStatusBanner } from '@/shared/components/SyncStatusBanner';
 import { AccessGate } from '@/features/access/AccessGate';
@@ -33,9 +34,12 @@ export const viewport: Viewport = {
   themeColor: '#050712',
 };
 
+// Inter, shipped with the app so every device shows the same letters (audit 2026-11, 9; OFL, see fonts/Inter-LICENSE.txt).
+const inter = localFont({ src: './fonts/InterVariable-latin.woff2', weight: '100 900', display: 'swap', variable: '--font-inter' });
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <body>
         {children}
         <SyncStatusBanner />

@@ -724,10 +724,11 @@ export function ensureFreshLoadSummary(): void {
   const database = readDatabase();
   const identity = database?.activeIdentity;
   if (!database || identity?.role !== 'athlete' || !athleteHasLoad(database, identity.personId)) return;
-  const today = new Date().toISOString().slice(0, 10);
+  // The local day, not UTC: between midnight and 01:00/02:00 UTC is still yesterday (audit 2026-11, 24).
+  const today = sessionDate(new Date().toISOString());
   const row = database.loadSummaries.find((candidate) => candidate.personId === identity.personId);
   const entries = database.loadEntries.filter((entry) => entry.personId === identity.personId);
-  if (entries.length === 0 || row?.updatedAt.slice(0, 10) === today) return;
+  if (entries.length === 0 || (row && sessionDate(row.updatedAt) === today)) return;
   mutate((draft) => {
     draft.loadSummaries = [
       ...draft.loadSummaries.filter((candidate) => candidate.personId !== identity.personId),
@@ -2495,6 +2496,13 @@ export function reportAvailability(input: {
       (entry) => entry.sessionId === input.sessionId && entry.personId === input.personId,
     );
     database.availability = database.availability.filter((entry) => entry !== previous);
+    // Declining frees the seat: out of the car and the seat request for this
+    // session (audit 2026-11, 4). A driver is asked separately (`drivenRide`).
+    if (input.status === 'out') {
+      const cars = new Set((database.carpools ?? []).filter((ride) => ride.sessionId === input.sessionId).map((ride) => ride.id));
+      database.carpoolRiders = (database.carpoolRiders ?? []).filter((rider) => rider.personId !== input.personId || !cars.has(rider.carpoolId));
+      database.carpoolRequests = (database.carpoolRequests ?? []).filter((request) => request.personId !== input.personId || request.sessionId !== input.sessionId);
+    }
     // "In" is normally the absence of a report; during an absence it is said
     // out loud, so it wins over the absence for this session (piece 16).
     const session = database.sessions.find((candidate) => candidate.id === input.sessionId);
@@ -3411,6 +3419,11 @@ function cleanDeparture(session: Session, departure: RideDeparture | undefined) 
   const lat = departure?.meetLat, lng = departure?.meetLng;
   const pinned = typeof lat === 'number' && typeof lng === 'number' && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
   return { departAt, meetPoint, meetLat: pinned ? lat : null, meetLng: pinned ? lng : null };
+}
+
+/** The car the person drives to this game, if any. */
+export function drivenRide(database: LocalDatabase, sessionId: Id, personId: Id) {
+  return database.carpools?.find((ride) => ride.sessionId === sessionId && ride.driverId === personId) ?? null;
 }
 
 /** The person's one car for this game, if joined. */

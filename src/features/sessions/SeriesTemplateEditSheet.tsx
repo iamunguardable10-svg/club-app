@@ -1,5 +1,6 @@
 'use client';
 
+import { useEscape } from '@/shared/hooks/useEscape';
 import { useEffect, useRef, useState } from 'react';
 import type { CoachFacility, CoachGroup, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 import type { SeriesTemplate } from '@/features/sessions/sessionSeriesPlanner';
@@ -7,6 +8,7 @@ import { coachSessionTypes, normalizeCoachSessionType } from '@/features/session
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 import { gameTemplateDuration, gameTemplateEnd } from './gameTiming';
+import { formatDecimal } from '@/shared/format';
 import { useT } from '@/shared/i18n';
 
 export type SeriesTemplateInput = {
@@ -171,7 +173,7 @@ function SeriesTemplateEditorForm({
             {t('sessionForm.meet')}
             <select value={meetMinutesBefore} onChange={(event) => setMeetMinutesBefore(Number(event.target.value))} className={inputClass}>
               <option value={0}>{t('sessionForm.atStart')}</option>
-              {[15, 30, 45, 60, 90, 120].map((minutes) => <option key={minutes} value={minutes}>{minutes < 60 ? t('sessionForm.minutesBefore', { count: minutes }) : t('sessionForm.hoursBefore', { count: minutes / 60 })}</option>)}
+              {[15, 30, 45, 60, 90, 120].map((minutes) => <option key={minutes} value={minutes}>{minutes < 60 ? t('sessionForm.minutesBefore', { count: minutes }) : t('sessionForm.hoursBefore', { hours: formatDecimal(minutes / 60, minutes % 60 === 0 ? 0 : 1) })}</option>)}
             </select>
           </label>
           <label className={labelClass}>
@@ -209,10 +211,11 @@ function SeriesTemplateEditorForm({
 
 export function SeriesTemplateEditSheet(props: SeriesTemplateEditorBaseProps) {
   const t = useT();
+  useEscape(props.onClose);
   useBodyScrollLock(true);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/75 p-2.5 backdrop-blur-sm sm:items-center">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/75 p-2.5 backdrop-blur-sm sm:items-center">
       <section className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950 p-3.5 text-white shadow-2xl sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <div>

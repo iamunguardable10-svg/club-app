@@ -191,7 +191,7 @@ export function IdentitySwitcher({ className = '', variant = 'card', extraAction
 
       {open && mounted
         ? createPortal(
-        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/70 p-0 sm:items-center sm:p-6">
+        <div role="dialog" aria-modal="true" aria-label={t('identity.close')} className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/70 p-0 sm:items-center sm:p-6">
           <button
             type="button"
             aria-label={t('identity.close')}

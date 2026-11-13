@@ -61,6 +61,16 @@ assert.equal(db().carpools?.find((c) => c.id === fourth)?.meetPoint, 'School car
 data.updateRide(fourth, 2, null, { meetPoint: 'Station', meetLat: 51.45, meetLng: null });
 assert.equal(db().carpools?.find((c) => c.id === fourth)?.meetLat, null, 'half a pin is no pin');
 data.withdrawRide(fourth);
+// Declining the game frees the seat and drops the seat request (audit 2026-11, 4); a driver keeps the car until they withdraw it.
+as('athlete-u16-1'); data.joinRide(first);
+assert.ok(data.joinedRide(db(), game.id, 'athlete-u16-1'));
+data.reportAvailability({ sessionId: game.id, personId: 'athlete-u16-1', status: 'out', reason: 'Krank' });
+assert.equal(data.joinedRide(db(), game.id, 'athlete-u16-1'), null, 'declining leaves the car');
+data.reportAvailability({ sessionId: game.id, personId: 'athlete-u16-1', status: 'in' });
+data.needSeat(game.id);
+data.reportAvailability({ sessionId: game.id, personId: 'athlete-u16-1', status: 'out', reason: 'Schule' });
+assert.ok(!db().carpoolRequests?.some((r) => r.personId === 'athlete-u16-1' && r.sessionId === game.id), 'declining drops the request');
+data.reportAvailability({ sessionId: game.id, personId: 'athlete-u16-1', status: 'in' });
 as('coach-1', 'coach');
 const rows = toServerRows(db());
 const roundtrip = fromServerRows(rows, { userId: 'test', version: seed.version, previous: db() })!;

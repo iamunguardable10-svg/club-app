@@ -226,7 +226,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
   };
 
   const chart = (fullscreen = false) => (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
       <ComposedChart data={chartData} margin={chartMargin(fullscreen)} barCategoryGap={range === 7 ? '18%' : range === 14 ? '10%' : range === 30 ? '8%' : '3%'}>
         <CartesianGrid stroke="rgba(148,163,184,0.10)" vertical={false} />
         <XAxis
@@ -530,7 +530,7 @@ export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoa
         {!isMounted ? (
           <div className="h-full rounded-xl border border-slate-800 bg-slate-950/60" />
         ) : (
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
           <ComposedChart
             data={points}
             margin={{ top: 14, right: 8, bottom: 8, left: 0 }}

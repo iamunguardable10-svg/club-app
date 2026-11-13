@@ -32,8 +32,6 @@ const PAGES = [
   '/coach/today',
   '/coach/sessions',
   '/coach/team',
-  '/coach/attendance',
-  '/coach/load',
   '/coach/history',
   '/coach/facilities',
   '/club',

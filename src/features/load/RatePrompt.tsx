@@ -19,6 +19,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useEscape } from '@/shared/hooks/useEscape';
 
 import { dismissHint, isHintDismissed, type AthletePendingSession } from '@/shared/data';
 import { formatSessionTime } from '@/shared/format';
@@ -136,6 +137,7 @@ function RateForm({
   onLater: () => void;
 }) {
   const t = useT();
+  useEscape(onLater);
   const isGame = session.trainingType === 'game';
   const [rpe, setRpe] = useState(isGame ? 10 : Math.min(10, Math.max(1, Math.round(defaults.rpe))));
   // Room for overtime or extra time, as far as the sport goes.
@@ -204,7 +206,6 @@ function RateForm({
         <button type="button" onClick={() => onMissed(session)} className="mt-2 w-full rounded-2xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-200">
           {session.source === 'athlete_plan' ? t('rate.didNotDo') : t('rate.didNotTakePart')}
         </button>
-        <p className="mt-3 text-center text-xs font-bold text-slate-500">{t('rate.laterNote')}</p>
       </section>
     </div>
   );

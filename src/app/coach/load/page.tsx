@@ -1,11 +1,6 @@
-import { Suspense } from 'react';
-import { LoadingPage } from '@/shared/components/LoadingPage';
-import { CoachWorkspaceRouter } from '@/features/role-workspaces/CoachWorkspaceRouter';
+import { redirect } from 'next/navigation';
 
+/** Old address: the team page holds players, attendance and load now (audit 2026-11, 27). */
 export default function CoachLoadPage() {
-  return (
-    <Suspense fallback={<LoadingPage messageKey="coach.loadingWorkspace" />}>
-      <CoachWorkspaceRouter mode="load" />
-    </Suspense>
-  );
+  redirect('/coach/team');
 }

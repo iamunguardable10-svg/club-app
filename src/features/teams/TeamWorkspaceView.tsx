@@ -1,5 +1,6 @@
 'use client';
 
+import { ACWR_ZONES } from '@/shared/data/loadTypes';
 import { PersonAvatar } from '@/features/people/PersonPhoto';
 import { AvailabilityStack } from '@/features/sessions/AvailabilityStack';
 import Link from 'next/link';
@@ -564,14 +565,12 @@ export function TeamWorkspaceView({
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-black text-white">{player.name}</span>
                         {playerFacts?.(player.id) ? <span className="block truncate text-xs font-bold text-emerald-200/90">{playerFacts(player.id)}</span> : null}
-                        {player.birthYear != null || (data.loadTracked !== false && player.healthConsent === false) ? (
-                          <span className="block truncate text-xs text-slate-400">
-                            {player.birthYear != null ? `${t('consent.birthYear')}: ${player.birthYear}` : ''}
-                            {data.loadTracked !== false && player.healthConsent === false ? <span className="font-bold text-amber-200">{player.birthYear != null ? ' · ' : ''}{t('consent.noConsent')}</span> : null}
-                          </span>
+                        {/* Only what differs between rows: a missing consent, not the birth year on every row (audit 2026-11, 25). */}
+                        {data.loadTracked !== false && player.healthConsent === false ? (
+                          <span className="block truncate text-xs font-bold text-amber-200">{t('consent.noConsent')}</span>
                         ) : null}
                       </span>
-                      {data.loadTracked !== false && summary.access !== 'none' && summary.acwr !== null ? <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-black ${acwrToneClass(summary.zone.tone)}`}>{t('team.acwrBadge', { value: formatDecimal(summary.acwr) })}</span> : null}
+                      {data.loadTracked !== false && summary.access !== 'none' && summary.acwr !== null && (summary.acwr < ACWR_ZONES.low || summary.acwr > ACWR_ZONES.high) ? <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-black ${acwrToneClass(summary.zone.tone)}`}>{t('team.acwrBadge', { value: formatDecimal(summary.acwr) })}</span> : null}
                     </div>
                     {groupNames.length > 0 ? <p className="mt-1 truncate text-xs font-bold text-slate-500">{groupNames.join(' · ')}</p> : null}
                     {player.awayUntil ? <p className="mt-2 inline-flex rounded-full border border-amber-300/40 bg-amber-300/10 px-2 py-0.5 text-[11px] font-black text-amber-100">{t('team.awayUntil', { date: shortDate(player.awayUntil) })}</p> : null}
@@ -681,7 +680,7 @@ export function TeamWorkspaceView({
       ) : null}
 
       {activeGroup ? (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/75 p-3 backdrop-blur-sm sm:items-center">
+        <div role="dialog" aria-modal="true" aria-label={activeGroup.name} className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/75 p-3 backdrop-blur-sm sm:items-center">
           <section className="w-full max-w-lg rounded-3xl border border-slate-800 bg-slate-950 p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>

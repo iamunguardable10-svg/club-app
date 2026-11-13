@@ -1,6 +1,6 @@
 'use client';
 
-import type { CSSProperties, KeyboardEvent, MouseEvent, PointerEvent, ReactNode, RefObject } from 'react';
+import { useEffect, useRef, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from 'react';
 import { formatDay, formatLongDay, formatTime, formatTimeRange } from '@/shared/format';
 import { useT } from '@/shared/i18n';
 import { displayTitle } from '@/features/sessions/sessionTypeLabels';
@@ -211,8 +211,24 @@ export function SmartSessionCalendar({
   const dragPreviewDate = dragPreviewSession ? smartIsoDate(new Date(dragPreviewSession.startsAt)) : null;
   const dragPreviewDuration = dragPreviewSession ? sessionDurationMinutes(dragPreviewSession) : null;
 
+  // Opens where the day is (audit 2026-11, 16): the grid starts early, so an
+  // evening session sat at the bottom edge or below it. Once per opening,
+  // the first session of the shown day comes into view, a little below the top.
+  const root = useRef<HTMLDivElement>(null);
+  const scrolled = useRef(false);
+  useEffect(() => {
+    if (scrolled.current || !root.current) return;
+    const first = [...root.current.querySelectorAll<HTMLElement>('[data-calendar-session]')]
+      .filter((element) => element.offsetParent !== null)
+      .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)[0];
+    if (!first) return;
+    scrolled.current = true;
+    const top = first.getBoundingClientRect().top;
+    if (top > window.innerHeight - 160) window.scrollBy({ top: top - Math.min(220, window.innerHeight / 3), behavior: 'auto' });
+  }, [sessions, activeDayIndex]);
+
   return (
-    <>
+    <div ref={root} className="contents">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-1.5">
           {onPreviousWeek ? (
@@ -233,6 +249,8 @@ export function SmartSessionCalendar({
               type="button"
               onClick={() => {
                 if (mode === 'edit') {
+                  // "Done" never throws a placed session away: its form opens to save or discard it (audit 2026-11, 3).
+                  if (draft) { onDraftClick(); return; }
                   onSetMode('view');
                   onClearDraft();
                   return;
@@ -459,6 +477,6 @@ export function SmartSessionCalendar({
           </div>
         </div>
       </section>
-    </>
+    </div>
   );
 }
