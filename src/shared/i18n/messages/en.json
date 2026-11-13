@@ -2423,5 +2423,18 @@
   "afterJoin.install": "Put Club OS on your home screen",
   "afterJoin.push": "Turn on notifications",
   "afterJoin.done": "Done",
-  "afterJoin.pushIos": "On an iPhone this works only in the app: open Club OS from your home screen and we ask you there."
+  "afterJoin.pushIos": "On an iPhone this works only in the app: open Club OS from your home screen and we ask you there.",
+  "coach.board.coming_one": "{count} coming",
+  "coach.board.coming_other": "{count} coming",
+  "coach.board.missing_one": "{count} missing",
+  "coach.board.missing_other": "{count} missing",
+  "coach.board.open_one": "{count} open",
+  "coach.board.open_other": "{count} open",
+  "coach.board.whoWasThere": "Who was there?",
+  "coach.board.wereThere": "{there} of {total} there",
+  "coach.board.confirmed": "Confirmed: {there} of {total} there",
+  "coach.board.allRight": "Looks right",
+  "coach.today.next": "Next up",
+  "coach.todo.answersMany_one": "{count} session with open answers",
+  "coach.todo.answersMany_other": "{count} sessions with open answers"
 }

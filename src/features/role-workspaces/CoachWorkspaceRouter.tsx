@@ -1,6 +1,7 @@
 'use client';
 
 import { CoachTodo } from '@/features/role-workspaces/CoachTodo';
+import { AttendanceTally, WhoWasThere } from '@/features/role-workspaces/CoachTodayBoard';
 import { useRememberedState } from '@/shared/useRememberedState';
 import { ScreenSkeleton } from '@/shared/components/Skeleton';
 import { TeamDot, teamColor } from '@/features/teams/teamColor';
@@ -107,10 +108,12 @@ function CoachSessionCard({ session, showTeam, onDetails }: { session: CoachSess
         </div>
         <span aria-hidden className="text-lg font-black text-slate-500">›</span>
       </div>
+      <AttendanceTally session={session} />
 
       <AvailabilityStack out={out} late={late} outLabel={t('coach.card.out')} lateLabel={t('coach.card.late')} />
     </button>
-    <OpenAnswers session={session} className="mx-4 mb-4 -mt-1" />
+    {new Date(session.startsAt).getTime() > Date.now() ? <OpenAnswers session={session} className="mx-4 mb-4 -mt-1" /> : null}
+    <WhoWasThere session={session} onChange={onDetails} />
     </div>
   );
 }
@@ -754,7 +757,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
   const today = useMemo(() => new Date(), []);
   const todaySessions = sessions.filter((session) => isSameLocalDay(session.startsAt, today));
   const futureSessions = sessions.filter((session) => new Date(session.startsAt).getTime() >= Date.now() && !isSameLocalDay(session.startsAt, today));
-  const upcomingSessions = futureSessions.slice(0, 4);
+  const upcomingSessions = futureSessions.slice(0, 5);
   const nextGame = futureSessions.find((session) => session.sessionType === 'game');
   if (nextGame && !upcomingSessions.some((session) => session.id === nextGame.id)) upcomingSessions.push(nextGame);
   function reportError(error: unknown, fallback: string) {
@@ -1076,40 +1079,40 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           </section>
         ) : null}
 
-        {mode === 'today' && teams.length > 0 ? (
-          <>
-            {todaySessions.length > 0 || upcomingSessions.length === 0 ? (
-              <CoachSection title={todaySessions.length > 0 ? t('coach.today.count', { count: todaySessions.length }) : t('coach.today.none')}>
-                {todaySessions.length > 0 ? (
-                  <div className="grid gap-3 lg:grid-cols-2">
-                    {todaySessions.map((session) => <CoachSessionCard key={session.id} session={session} showTeam={teams.length > 1} onDetails={() => openSessionDetails(session)} />)}
-                  </div>
+        {mode === 'today' && teams.length > 0 ? (() => {
+          // The board (audit 2026-11, proposal 5): today's sessions, or else the next one; the week beside it on desktop.
+          const board = todaySessions.length > 0 ? todaySessions : futureSessions.slice(0, 1);
+          const week = upcomingSessions.filter((session) => !board.some((shown) => shown.id === session.id)).slice(0, 4);
+          return (
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+              <div className="grid min-w-0 gap-5">
+                {todaySessions.length === 0 ? <p className="px-1 text-sm font-black text-slate-400">{t('coach.today.none')}</p> : null}
+                {board.length > 0 ? (
+                  <CoachSection title={todaySessions.length > 0 ? t('coach.today.count', { count: todaySessions.length }) : t('coach.today.next')}>
+                    <div className="grid gap-3">
+                      {board.map((session) => <CoachSessionCard key={session.id} session={session} showTeam={teams.length > 1} onDetails={() => openSessionDetails(session)} />)}
+                    </div>
+                  </CoachSection>
                 ) : (
-                  <p className="text-sm text-slate-400">{t('coach.today.nothing')}</p>
+                  <CoachSection title={t('coach.today.none')}><p className="text-sm text-slate-400">{t('coach.today.nothing')}</p></CoachSection>
                 )}
-              </CoachSection>
-            ) : (
-              // Free today: one quiet line keeps the day visible; the next sessions follow below.
-              <p className="px-1 text-sm font-black text-slate-400">{t('coach.today.none')}</p>
-            )}
-
-            <CoachTodo sessions={sessions} onOpen={openSessionDetails} />
-
-            <FirstRatingsCard sessions={sessions} />
-
-            {upcomingSessions.length > 0 ? (
-              <CoachSection title={t('coach.today.comingUp')} actions={<Link href="/coach/sessions" className="text-xs font-black text-sky-300 hover:text-sky-200">{t('coach.today.calendarLink')}</Link>}>
-                <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
-                  {upcomingSessions.map((session) => (
-                    <li key={session.id}>
-                      <UpcomingSessionRow session={session} showTeam={teams.length > 1} onOpen={() => openSessionDetails(session)} />
-                    </li>
-                  ))}
-                </ul>
-              </CoachSection>
-            ) : null}
-          </>
-        ) : null}
+                <CoachTodo sessions={sessions} skipIds={board.map((session) => session.id)} onOpen={openSessionDetails} />
+                <FirstRatingsCard sessions={sessions} />
+              </div>
+              {week.length > 0 ? (
+                <CoachSection title={t('coach.today.comingUp')} actions={<Link href="/coach/sessions" className="text-xs font-black text-sky-300 hover:text-sky-200">{t('coach.today.calendarLink')}</Link>}>
+                  <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
+                    {week.map((session) => (
+                      <li key={session.id}>
+                        <UpcomingSessionRow session={session} showTeam={teams.length > 1} onOpen={() => openSessionDetails(session)} />
+                      </li>
+                    ))}
+                  </ul>
+                </CoachSection>
+              ) : null}
+            </div>
+          );
+        })() : null}
 
         {mode === 'sessions' && teams.length > 0 ? (
           <CoachCalendarSurface

@@ -2423,5 +2423,18 @@
   "afterJoin.install": "Club OS en la pantalla de inicio",
   "afterJoin.push": "Activar las notificaciones",
   "afterJoin.done": "Listo",
-  "afterJoin.pushIos": "En el iPhone solo funciona en la app: abre Club OS desde tu pantalla de inicio y te lo preguntamos allí."
+  "afterJoin.pushIos": "En el iPhone solo funciona en la app: abre Club OS desde tu pantalla de inicio y te lo preguntamos allí.",
+  "coach.board.coming_one": "{count} viene",
+  "coach.board.coming_other": "{count} vienen",
+  "coach.board.missing_one": "{count} falta",
+  "coach.board.missing_other": "{count} faltan",
+  "coach.board.open_one": "{count} sin respuesta",
+  "coach.board.open_other": "{count} sin respuesta",
+  "coach.board.whoWasThere": "¿Quién estuvo?",
+  "coach.board.wereThere": "{there} de {total} presentes",
+  "coach.board.confirmed": "Confirmado: {there} de {total} presentes",
+  "coach.board.allRight": "Está bien",
+  "coach.today.next": "Lo próximo",
+  "coach.todo.answersMany_one": "{count} sesión con respuestas pendientes",
+  "coach.todo.answersMany_other": "{count} sesiones con respuestas pendientes"
 }
