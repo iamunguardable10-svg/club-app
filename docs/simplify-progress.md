@@ -3412,3 +3412,12 @@ Audit-Vorschlag 7 (Spielerseite), Entscheidung Ben.
 - `/athlete/tactics` und `/athlete/playbook` leiten auf `/athlete/team` weiter (Push-Links für Playbooks bleiben gültig). `PlayerTacticsPage` entfällt, Smoke prüft `/athlete/team`.
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke (64 Seitenaufrufe); Vorher-/Nachher-Bilder.
+
+## Run 126 — Kalender als Wochenliste, Verlauf als Liste vergangener Einheiten (2026-11-13)
+
+Audit-Vorschläge 6 und 4, Entscheidung Ben.
+
+- **Kalender (Handy):** neue dritte Ansicht **Liste**, Standard für Spieler und Trainer: die Woche als Tagesüberschriften mit den Einheiten darunter, leere Tage und Stunden fallen weg, heute ist hervorgehoben. „Raster“ oben rechts wechselt in die Tagesansicht, dort führt ein Listen-Symbol zurück (neben „ganze Woche“). Ein Tipp auf eine Tagesüberschrift öffnet den Tag im Raster. Zum Bearbeiten (Stift) zeigt der Kalender den Tag im Raster, weil Ziehen und Verlängern dort passieren. Der Hallenkalender startet weiter mit dem Tag (freie Zeiten). Desktop unverändert.
+- **Verlauf (Trainer):** jede vergangene Einheit ist eine Zeile wie bei „Demnächst“: Wochentag und Tag, Titel und Team, Uhrzeit und Halle, „12/12 da · 1 verspätet“ (bei geteilter Belastung auch RPE und „92 % bewertet“). Ein Tipp öffnet dieselbe Einheiten-Ansicht wie auf Heute und im Kalender, mit Anwesenheit, RPE und Belastung im Detail. Die Kacheln je Einheit entfallen; die Seite ist auf dem Handy 2370 statt 3518 px lang.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke; Vorher-/Nachher-Bilder.

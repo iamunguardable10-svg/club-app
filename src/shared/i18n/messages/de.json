@@ -2467,5 +2467,11 @@
   "push.consentReminder.body": "Dein Trainer bittet dich, die Einwilligung für deine Trainingsbelastung zu erledigen.",
   "playerTeam.nextGame": "Nächstes Spiel",
   "playerTeam.coaches": "Trainer",
-  "playerTeam.headCoach": "Cheftrainer"
+  "playerTeam.headCoach": "Cheftrainer",
+  "calendar.listTitle": "Diese Woche",
+  "calendar.gridView": "Raster",
+  "calendar.listView": "Liste",
+  "calendar.listEmpty": "Diese Woche steht nichts an.",
+  "history.thereShort": "{there}/{total} da",
+  "history.reportedShort": "{value} bewertet"
 }

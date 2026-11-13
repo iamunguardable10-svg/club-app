@@ -113,7 +113,7 @@ export function useSmartCalendar({
   const days = useMemo(() => buildWeekDays(weekOffset), [weekOffset]);
   const [activeDayIndex, setActiveDayIndex] = useState(() => defaultActiveDayForWeekOffset(0));
   // Seven columns do not fit a phone; one day at a time does.
-  const [mobileCalendarView, setMobileCalendarView] = useState<SmartMobileCalendarView>('day');
+  const [mobileCalendarView, setMobileCalendarView] = useState<SmartMobileCalendarView>('list');
   const [dayTransitionDirection, setDayTransitionDirection] = useState<'next' | 'previous' | null>(null);
   const [desktopHourHeight, setDesktopHourHeight] = useState(baseDesktopHourHeight);
   const [mode, setMode] = useState<SmartCalendarMode>('view');

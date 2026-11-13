@@ -6,7 +6,8 @@ import { useT } from '@/shared/i18n';
 import { displayTitle } from '@/features/sessions/sessionTypeLabels';
 
 export type SmartCalendarMode = 'view' | 'edit';
-export type SmartMobileCalendarView = 'week' | 'day';
+/** `list`: the week as day headings and session rows (audit 2026-11, proposal 6), the default on phones. */
+export type SmartMobileCalendarView = 'list' | 'week' | 'day';
 export type SmartCalendarTone = 'primary' | 'secondary' | 'accent1' | 'accent2' | 'accent3' | 'accent4' | 'muted';
 export type SmartCalendarDragKind = 'move' | 'resize';
 
@@ -206,6 +207,8 @@ export function SmartSessionCalendar({
 }: SmartSessionCalendarProps) {
   const t = useT();
   const lookCompact = (session: SmartCalendarSession) => blockLook(session, 'compact');
+  // Editing works on the grid: in edit mode the list shows the day instead.
+  const shownView: SmartMobileCalendarView = mobileCalendarView === 'list' && mode === 'edit' ? 'day' : mobileCalendarView;
   const lookRegular = (session: SmartCalendarSession) => blockLook(session, 'regular');
   const dragPreviewSession = dragSessionId ? sessions.find((session) => session.id === dragSessionId) ?? null : null;
   const dragPreviewDate = dragPreviewSession ? smartIsoDate(new Date(dragPreviewSession.startsAt)) : null;
@@ -285,7 +288,39 @@ export function SmartSessionCalendar({
         </div>
       ) : null}
 
-      <section className={`${mobileCalendarView === 'week' ? 'block' : 'hidden'} overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden`}>
+      {/* The week as a list: only days with something on them; editing needs the grid, so the pencil shows the day. */}
+      <section className={`${shownView === 'list' ? 'block' : 'hidden'} overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden`} data-testid="calendar-list">
+        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-2.5">
+          <span className="text-xs font-black text-slate-400">{t('calendar.listTitle')}</span>
+          <button type="button" onClick={() => onMobileCalendarViewChange('day')} aria-label={t('calendar.gridView')} title={t('calendar.gridView')} className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1 text-xs font-black text-slate-300"><svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18M3 15h18M9 4v16" /></svg>{t('calendar.gridView')}</button>
+        </div>
+        {days.every((day) => !sessions.some((session) => smartSameDay(new Date(session.startsAt), day))) ? (
+          <p className="px-4 py-6 text-sm font-bold text-slate-400">{t('calendar.listEmpty')}</p>
+        ) : (
+          <ul className="divide-y divide-slate-800/80">
+            {days.map((day, index) => {
+              const daySessions = sessions.filter((session) => smartSameDay(new Date(session.startsAt), day)).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+              if (daySessions.length === 0) return null;
+              const isToday = smartSameDay(day, new Date());
+              return (
+                <li key={day.toISOString()} className="px-3 py-3">
+                  <button type="button" onClick={() => { onMobileDaySelect(index); onMobileCalendarViewChange('day'); }} className={`mb-2 px-1 text-xs font-black uppercase tracking-[0.12em] ${isToday ? 'text-sky-200' : 'text-slate-400'}`}>{formatLongDay(day)}</button>
+                  <div className="grid gap-2">
+                    {daySessions.map((session) => (
+                      <div key={session.id} role="button" tabIndex={0} data-calendar-session="true" data-session-id={session.id} onClick={(event) => onSessionClick(session, event)} onKeyDown={(event) => onSessionKeyDown(session, event)} style={lookCompact(session).style} className={`rounded-xl border px-3 py-2.5 text-left ${lookCompact(session).className}`}>
+                        <p className="truncate text-sm font-black">{displayTitle(session.title)}</p>
+                        <p className="truncate text-xs font-bold opacity-80">{session.detail ?? smartFormatTimeRange(session.startsAt, session.endsAt, session.sessionType)}{session.teamName ? ` · ${session.teamName}` : ''}</p>
+                      </div>
+                    ))}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <section className={`${shownView === 'week' ? 'block' : 'hidden'} overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden`}>
         <div className="grid grid-cols-[34px_repeat(7,minmax(0,1fr))] border-b border-slate-800 text-[9px] font-black uppercase tracking-[0.08em] text-slate-500">
           <div className="bg-slate-950/95 p-1.5"><span className="sr-only">{t('calendar.time')}</span></div>
           {days.map((day, index) => (
@@ -339,7 +374,7 @@ export function SmartSessionCalendar({
         </div>
       </section>
 
-      <section className={`${mobileCalendarView === 'day' ? 'block' : 'hidden'} overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden`}>
+      <section className={`${shownView === 'day' ? 'block' : 'hidden'} overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/80 md:hidden`}>
         <div className="border-b border-slate-800 p-2">
           <div className="grid grid-cols-7 gap-1">
             {days.map((day, index) => {
@@ -363,7 +398,10 @@ export function SmartSessionCalendar({
           </div>
           <div className="mt-1.5 flex items-center justify-between px-1">
             <span className="text-xs font-black text-slate-200">{formatLongDay(days[activeDayIndex])}</span>
+            <span className="flex items-center gap-1.5">
+            <button type="button" onClick={() => onMobileCalendarViewChange('list')} aria-label={t('calendar.listView')} title={t('calendar.listView')} className="rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-300"><svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" /></svg></button>
             <button type="button" onClick={() => onMobileCalendarViewChange('week')} aria-label={t('calendar.wholeWeek')} title={t('calendar.wholeWeek')} className="rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-black text-slate-300"><svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M15 4v16" /></svg><span className="hidden md:inline">{t('calendar.wholeWeek')}</span></button>
+            </span>
           </div>
         </div>
         <div ref={calendarScrollRef} onPointerDown={onMobileDaySwipeStart} onPointerUp={onMobileDaySwipeEnd} onPointerCancel={onMobileDaySwipeCancel} className={`overflow-hidden rounded-b-3xl touch-pan-y transition-all duration-200 ${dayTransitionDirection === 'next' ? 'translate-x-1 scale-[0.99] ring-2 ring-sky-300/40' : dayTransitionDirection === 'previous' ? '-translate-x-1 scale-[0.99] ring-2 ring-sky-300/40' : ''}`}>
