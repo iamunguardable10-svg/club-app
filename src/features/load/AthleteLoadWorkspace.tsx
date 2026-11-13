@@ -611,6 +611,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [availabilityDraft, setAvailabilityDraft] = useState<AvailabilityDraft>('expected');
   const [availabilityReason, setAvailabilityReason] = useState('');
   const [reasonTyped, setReasonTyped] = useState(false);
+  // The session whose decline reasons are open on its card (audit 2026-11, proposal 1).
+  const [declining, setDeclining] = useState<string | null>(null);
   const [lateMinutes, setLateMinutes] = useState(10);
   const [availabilityEditing, setAvailabilityEditing] = useState(false);
 
@@ -757,6 +759,45 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     if (mark?.status === 'late') return { text: t('composer.late') + (mark.lateMinutes ? ` · ${t('composer.minutes', { count: mark.lateMinutes })}` : ''), tone: 'late' };
     if (isOpenSession(session)) return { text: t('athlete.availability.open'), tone: 'open' };
     return { text: t('composer.youAreIn'), tone: 'in' };
+  }
+  /**
+   * The answer on the card (audit 2026-11, proposal 1): "Dabei · Verspätet ·
+   * Absagen" in one row, the current answer marked. Declining shows the usual
+   * reasons, saved with one tap; "late" and "other" open the session for the
+   * minutes or a typed reason.
+   */
+  function answerBar(session: AthletePendingSession) {
+    if (session.source !== 'team_session' || Date.parse(session.startsAt) <= Date.now()) return null;
+    const pill = availabilityPillFor(session);
+    const open = pill.tone === 'open';
+    const mark = availabilityForSession(session.id);
+    const chosen = open ? null : pill.tone === 'out' ? 'out' : pill.tone === 'late' ? 'late' : 'in';
+    const tone = { in: 'border-emerald-300 bg-emerald-300 text-slate-950', late: 'border-amber-300 bg-amber-300 text-slate-950', out: 'border-rose-300 bg-rose-300 text-slate-950' } as const;
+    const options = [
+      { id: 'in' as const, label: t('athlete.rsvp.yes'), run: () => { setDeclining(null); void setTeamSessionAvailability(session, 'expected'); } },
+      { id: 'late' as const, label: t('composer.late'), run: () => { setDeclining(null); openCalendarItem(nextSessionItem(session)); setAvailabilityDraft('late'); } },
+      { id: 'out' as const, label: t('athlete.rsvp.no'), run: () => { if (healthAllowed) setDeclining(declining === session.id ? null : session.id); else void setTeamSessionAvailability(session, 'out'); } },
+    ];
+    return (
+      <div className={`mt-2 grid gap-2 rounded-2xl border p-2 ${open ? 'border-amber-300/40 bg-amber-300/[0.08]' : 'border-slate-800 bg-slate-950/50'}`}>
+        {open ? <p className="px-1.5 pt-0.5 text-sm font-black text-amber-100">{t('athlete.rsvp.question')}</p> : null}
+        <div role="group" aria-label={t('athlete.rsvp.question')} className="grid grid-cols-3 gap-1.5">
+          {options.map((option) => (
+            <button key={option.id} type="button" aria-pressed={chosen === option.id} onClick={option.run} className={`rounded-xl border px-2 py-2.5 text-sm font-black transition active:scale-95 ${chosen === option.id ? tone[option.id] : 'border-slate-700 text-slate-200 hover:border-slate-500'}`}>{option.label}</button>
+          ))}
+        </div>
+        {declining === session.id ? (
+          <div className="grid grid-cols-2 gap-1.5" role="group" aria-label={t('composer.reason')}>
+            {(['composer.reason.ill', 'composer.reason.school', 'composer.reason.family'] as const).map((key) => (
+              <button key={key} type="button" onClick={async () => { if (await setTeamSessionAvailability(session, 'out', t(key))) setDeclining(null); }} className="rounded-xl border border-slate-700 px-2 py-2.5 text-sm font-bold text-slate-200 hover:border-rose-300/60">{t(key)}</button>
+            ))}
+            <button type="button" onClick={() => { setDeclining(null); openCalendarItem(nextSessionItem(session)); setAvailabilityDraft('out'); setReasonTyped(true); setAvailabilityReason(''); }} className="rounded-xl border border-slate-700 px-2 py-2.5 text-sm font-bold text-slate-200 hover:border-rose-300/60">{t('composer.reason.other')}</button>
+          </div>
+        ) : healthAllowed && mark?.reason && (chosen === 'out' || chosen === 'late') ? (
+          <p className="px-1.5 text-xs font-bold text-slate-400">{chosen === 'late' && mark.lateMinutes ? `${t('composer.minutes', { count: mark.lateMinutes })} · ` : ''}{mark.reason}</p>
+        ) : null}
+      </div>
+    );
   }
   const calendarItems = useMemo(() => {
     const reportedSessionIds = new Set(sortedEntries.map((entry) => entry.sessionId).filter(Boolean));
@@ -1524,16 +1565,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   })() : null}
                   <CarpoolSummary sessionId={nextSession.id} />
                   {nextSession.info?.notes ? <p className="mt-1 line-clamp-2 text-xs font-bold text-slate-400">{nextSession.info.notes}</p> : null}
-                  <AvailabilityPill label={availabilityPillFor(nextSession)} />
+                  {nextSession.source !== 'team_session' ? <AvailabilityPill label={availabilityPillFor(nextSession)} /> : null}
                 </button>
-                {/* Piece A: no answer yet from a player who says yes themselves. */}
-                {isOpenSession(nextSession) ? (
-                  <div className="mt-2 flex items-center gap-2 rounded-2xl border border-amber-300/40 bg-amber-300/[0.08] py-2 pl-4 pr-2">
-                    <p className="min-w-0 flex-1 text-sm font-black text-amber-100">{t('athlete.rsvp.question')}</p>
-                    <button type="button" onClick={() => { void setTeamSessionAvailability(nextSession, 'expected'); }} className="rounded-xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950 transition active:scale-95">{t('athlete.rsvp.yes')}</button>
-                    <button type="button" onClick={() => { openCalendarItem(nextSessionItem(nextSession)); setAvailabilityDraft('out'); }} className="rounded-xl border border-rose-300/50 px-3 py-2 text-sm font-black text-rose-100 transition active:scale-95">{t('athlete.rsvp.no')}</button>
-                  </div>
-                ) : null}
+                {answerBar(nextSession)}
                 </>
               ) : <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">{t('athlete.noSessions')}</div>}
               {nextGame && nextGame.id !== nextSession?.id ? <button type="button" data-session-id={nextGame.id} onClick={() => openCalendarItem(nextSessionItem(nextGame))} className="mt-3 w-full rounded-2xl border border-sky-300/25 bg-sky-300/[0.05] p-4 text-left hover:border-sky-300/50">
@@ -1541,6 +1575,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 <p className="mt-1 text-xs font-bold text-slate-400">{formatDay(nextGame.startsAt)} · {formatTime(nextGame.startsAt)}</p>
                 <CarpoolSummary sessionId={nextGame.id} />
               </button> : null}
+              {nextGame && nextGame.id !== nextSession?.id ? answerBar(nextGame) : null}
               {hasLoad && plans.length > 0 ? (
                 <div className="mt-4 space-y-2">
                   {plans.slice(0, 4).map((plan) => (

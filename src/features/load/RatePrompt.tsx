@@ -82,13 +82,13 @@ export function RatePrompt({
   return <RateForm key={session.id} session={session} remaining={sessions.length} defaults={defaultsFor(session)} onSave={onSave} onMissed={onMissed} onLater={onLater} />;
 }
 
-function RpePicker({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+function RpePicker({ value, onChange }: { value: number | null; onChange: (value: number) => void }) {
   const t = useT();
   return (
     <fieldset className="mt-4">
       <legend className="flex w-full items-baseline justify-between text-sm font-black text-slate-200">
         <span>{t('rate.effort')}</span>
-        <span className="text-emerald-200">{value} · {rpeWord(value)}</span>
+        {value !== null ? <span className="text-emerald-200">{value} · {rpeWord(value)}</span> : <span className="text-slate-400">{t('rate.pick')}</span>}
       </legend>
       <div className="mt-2 grid grid-cols-5 gap-1.5">
         {Array.from({ length: 10 }, (_, index) => index + 1).map((option) => (
@@ -139,18 +139,19 @@ function RateForm({
   const t = useT();
   useEscape(onLater);
   const isGame = session.trainingType === 'game';
-  const [rpe, setRpe] = useState(isGame ? 10 : Math.min(10, Math.max(1, Math.round(defaults.rpe))));
+  // Training: nothing chosen until the player taps a value, so no rating is saved unread (audit 2026-11, 5). Games stay RPE 10 (Ben).
+  const [rpe, setRpe] = useState<number | null>(isGame ? 10 : null);
   // Room for overtime or extra time, as far as the sport goes.
   const maxMinutes = isGame ? defaults.maxMinutes ?? 150 : 240;
   const [minutes, setMinutes] = useState(Math.min(maxMinutes, defaults.minutes ?? sessionMinutes(session)));
   // A game asks the warmup first, then the game itself.
   const [stage, setStage] = useState<'warmup' | 'main'>(isGame ? 'warmup' : 'main');
   const [warmup, setWarmup] = useState<WarmupRating | null>({ rpe: defaults.warmupRpe, minutes: defaults.warmupMinutes });
-  const load = rpe * minutes + (isGame && warmup ? warmup.rpe * warmup.minutes : 0);
+  const load = (rpe ?? 0) * minutes + (isGame && warmup ? warmup.rpe * warmup.minutes : 0);
   // The first time: how to rate (Ben, 2026-11-13); gone after the first save.
   const [howTo, setHowTo] = useState(false);
   useEffect(() => setHowTo(!isHintDismissed('rpeHowTo')), []);
-  const save = () => { dismissHint('rpeHowTo'); onSave(session, rpe, minutes, isGame ? warmup : null); };
+  const save = () => { if (rpe === null) return; dismissHint('rpeHowTo'); onSave(session, rpe, minutes, isGame ? warmup : null); };
   const steps = isGame ? (
     <p className="mt-1 text-xs font-black text-slate-400">{t(stage === 'warmup' ? 'rate.step.warmup' : 'rate.step.game')}</p>
   ) : null;
@@ -198,8 +199,8 @@ function RateForm({
                 <span className="text-xs font-black text-sky-300">{t('rate.change')}</span>
               </button>
             ) : null}
-            <button type="button" onClick={save} className="mt-5 w-full rounded-2xl bg-emerald-300 px-4 py-3 text-sm font-black text-slate-950">
-              {t('rate.save', { load })}
+            <button type="button" onClick={save} disabled={rpe === null} className="mt-5 w-full rounded-2xl bg-emerald-300 px-4 py-3 text-sm font-black text-slate-950 disabled:opacity-50">
+              {rpe === null ? t('rate.pickFirst') : t('rate.save', { load })}
             </button>
           </>
         )}

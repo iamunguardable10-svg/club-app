@@ -2411,5 +2411,7 @@
   "composer.reason.work": "Trabajo",
   "composer.reason.other": "Otro…",
   "consent.withdrawOpen": "Retirar el consentimiento…",
-  "profile.editNumberPosition": "Cambiar número y posición"
+  "profile.editNumberPosition": "Cambiar número y posición",
+  "rate.pick": "Toca un número",
+  "rate.pickFirst": "Elige lo dura que fue"
 }
