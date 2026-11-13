@@ -2449,5 +2449,10 @@
   "club.setup.done": "done",
   "writeMessage.collapsed": "Write a message…",
   "writeMessage.collapsedTo": "Message to {to}…",
-  "writeMessage.cancel": "Cancel"
+  "writeMessage.cancel": "Cancel",
+  "load.more": "More numbers",
+  "load.verdict.overload": "Take it easier today",
+  "load.verdict.underload": "You can do a bit more",
+  "load.verdict.ready": "You can train normally",
+  "load.verdict.baseline": "Keep rating your sessions"
 }
