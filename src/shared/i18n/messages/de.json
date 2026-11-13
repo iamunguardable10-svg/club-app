@@ -2411,5 +2411,9 @@
   "composer.reason.work": "Arbeit",
   "composer.reason.other": "Anderes…",
   "consent.withdrawOpen": "Einwilligung widerrufen…",
-  "profile.editNumberPosition": "Nummer und Position ändern"
+  "profile.editNumberPosition": "Nummer und Position ändern",
+  "rate.pick": "Tippe eine Zahl",
+  "rate.pickFirst": "Wähle, wie anstrengend es war",
+  "settings.rpePrefill": "RPE vorausfüllen",
+  "settings.rpePrefillDetail": "Die Bewertung startet beim erwarteten Wert der Einheit"
 }

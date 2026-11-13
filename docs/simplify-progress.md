@@ -3294,3 +3294,14 @@ Ben: alles abarbeiten, dem ich sofort zustimme, beim Rest nachfragen. Befund-Num
 - **Feinschliff:** Inter wird mit der App ausgeliefert (`next/font/local`, OFL) (9). Ein sichtbarer Fokus-Rahmen für jede Bedienung (13). Einheiten-, Serien-, Gruppen- und Rollen-Fenster sind Dialoge und schließen mit Escape, die Bewertung auch (12). Deutsch einheitlich: Trainer / Cheftrainer statt Coach / Head Coach, „Abgesagt“, „Antwort speichern“ (17). Absagen und Verspätung mit einem Tipp: Krank / Schule / Familie bzw. Schule / Bus oder Bahn / Arbeit, Tippen nur bei „Anderes…“ (6). Vereinsseite: „+ Team“ statt immer offenem Formular (19). Einwilligung widerrufen hinter „Einwilligung widerrufen…“ (20). Drei Sätze Kleingedrucktes entfallen (21). Kader ohne Geburtsjahr in jeder Zeile, ACWR nur außerhalb von 0,8–1,3 (25). Spielerblatt: Nummer und Position nur auf der Karte, Felder hinter „Nummer und Position ändern“ (26). Arbeitsseiten ohne das Raster der Landing Page (32).
 - **DESIGN.md** aus dem Audit übernommen; Muster 12 an Bens Entscheidung angepasst (Spieler-„Heute“ behält seine Reihenfolge).
 - **Offen, Ben entscheidet:** Eltern-Bestätigung per Mail (1), Altersgrenze 16 (2), RPE-Vorauswahl beim Training (5), die größeren Vorschläge, Schrift- und Gewichtsskala auf allen Seiten (10, 11, 31).
+
+## Run 114 — Antwort auf der Karte, RPE ohne Vorauswahl (2026-11-13)
+
+Ben: alle größeren Audit-Vorschläge, in kleinen Schritten mit Vorher-/Nachher-Bildern; „Zu-/Absage auf der Karte ist stark“. RPE: Claude entscheidet.
+
+- **Spieler-„Heute“:** Unter der nächsten Einheit und dem nächsten Spiel steht „Dabei · Verspätet · Absagen“, die aktuelle Antwort markiert (ersetzt die Plakette und die alte Frage „Kommst du?“ mit zwei Knöpfen). Ohne Antwort ist die Leiste gelb umrandet mit „Kommst du?“. „Absagen“ klappt die Gründe auf (Krank, Schule, Familie), ein Tipp speichert; „Anderes…“ und „Verspätet“ öffnen die Einheit für Text bzw. Minuten. Ohne Gesundheits-Einwilligung wird ohne Grund abgesagt.
+- **RPE beim Training:** keine Vorauswahl mehr; „Speichern“ erst nach dem Tippen einer Zahl („Wähle, wie anstrengend es war“). Spiele bleiben bei RPE 10 (Bens Regel).
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke; Vorher-/Nachher-Bilder auf dem Handy.
+
+**Nachtrag (Ben, 2026-11-13):** Die Antwort bleibt ganz auf der Karte. Nach „Absagen“ klappen die Gründe auf; „Anderes…“ öffnet dort ein Textfeld, „Verspätet“ den Minutenregler mit eigenen Gründen (Schule, Bus oder Bahn, Arbeit, Anderes). Eine beantwortete Einheit zeigt nur noch eine Zeile („Du bist dabei · Ändern“). Der RPE ist beim Training weiter nicht vorausgewählt. In den Einstellungen unter „Dieses Gerät“ gibt es den Schalter „RPE vorausfüllen“ (aus): Dann startet die Bewertung beim erwarteten Wert der Einheit (`expectedRpe`, sonst dem Durchschnitt, wie in der Prognose).

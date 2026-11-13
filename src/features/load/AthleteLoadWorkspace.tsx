@@ -611,6 +611,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [availabilityDraft, setAvailabilityDraft] = useState<AvailabilityDraft>('expected');
   const [availabilityReason, setAvailabilityReason] = useState('');
   const [reasonTyped, setReasonTyped] = useState(false);
+  // The session whose decline reasons are open on its card (audit 2026-11, proposal 1).
+  // What is open under the card's answer bar: the decline reasons, a typed reason, or the minutes late.
+  const [cardPanel, setCardPanel] = useState<{ id: string; kind: 'out' | 'other' | 'late' } | null>(null);
+  const [cardReason, setCardReason] = useState('');
+  const [otherFromLate, setOtherFromLate] = useState(false);
+  // An answered card shows one line; "Ändern" opens the three answers again.
+  const [answerOpen, setAnswerOpen] = useState<string | null>(null);
   const [lateMinutes, setLateMinutes] = useState(10);
   const [availabilityEditing, setAvailabilityEditing] = useState(false);
 
@@ -758,6 +765,82 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     if (isOpenSession(session)) return { text: t('athlete.availability.open'), tone: 'open' };
     return { text: t('composer.youAreIn'), tone: 'in' };
   }
+  /**
+   * The answer on the card (audit 2026-11, proposal 1): "Dabei · Verspätet ·
+   * Absagen" in one row, the current answer marked. Declining shows the usual
+   * reasons only after "Absagen", saved with one tap; "Anderes" opens a text
+   * field and "Verspätet" the minutes, both right on the card (Ben, 2026-11-13).
+   */
+  function answerBar(session: AthletePendingSession) {
+    if (session.source !== 'team_session' || Date.parse(session.startsAt) <= Date.now()) return null;
+    const pill = availabilityPillFor(session);
+    const open = pill.tone === 'open';
+    const mark = availabilityForSession(session.id);
+    const chosen = open ? null : pill.tone === 'out' ? 'out' : pill.tone === 'late' ? 'late' : 'in';
+    const tone = { in: 'border-emerald-300 bg-emerald-300 text-slate-950', late: 'border-amber-300 bg-amber-300 text-slate-950', out: 'border-rose-300 bg-rose-300 text-slate-950' } as const;
+    const panel = cardPanel?.id === session.id ? cardPanel.kind : null;
+    const close = () => { setCardPanel(null); setCardReason(''); setAnswerOpen(null); };
+    const options = [
+      { id: 'in' as const, label: t('athlete.rsvp.yes'), run: () => { close(); void setTeamSessionAvailability(session, 'expected'); } },
+      { id: 'late' as const, label: t('composer.late'), run: () => { if (panel === 'late' || (panel === 'other' && otherFromLate)) return close(); setOtherFromLate(false); setLateMinutes(mark?.status === 'late' && mark.lateMinutes ? mark.lateMinutes : 10); setCardPanel({ id: session.id, kind: 'late' }); } },
+      { id: 'out' as const, label: t('athlete.rsvp.no'), run: () => { if (!healthAllowed) { close(); void setTeamSessionAvailability(session, 'out'); return; } if (panel === 'out' || (panel === 'other' && !otherFromLate)) return close(); setOtherFromLate(false); setCardPanel({ id: session.id, kind: 'out' }); } },
+    ];
+    // "Anderes" under "Verspätet" stays a late answer, with the minutes.
+    const lateReasons = panel === 'late' || (panel === 'other' && otherFromLate);
+    // While "Absagen" or "Verspätet" is open, that one is marked, not the saved answer (Ben, 2026-11-13).
+    const marked = panel ? (lateReasons ? 'late' : 'out') : chosen;
+    const save = async (status: 'late' | 'out', reason: string, minutes: number | null = null) => {
+      if (await setTeamSessionAvailability(session, status, reason, minutes)) close();
+    };
+    const chip = 'rounded-xl border px-2 py-2.5 text-sm font-bold';
+    if (chosen && !panel && answerOpen !== session.id) {
+      const text = { in: 'text-emerald-200', late: 'text-amber-200', out: 'text-rose-200' } as const;
+      return (
+        <div className="mt-2 flex items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/50 px-3.5 py-2.5">
+          <p className={`min-w-0 text-sm font-black ${text[chosen]}`}>{pill.text}</p>
+          <button type="button" onClick={() => setAnswerOpen(session.id)} className="shrink-0 text-sm font-black text-sky-300">{t('composer.change')}</button>
+        </div>
+      );
+    }
+    return (
+      <div className={`mt-2 grid gap-2 rounded-2xl border p-2 ${open ? 'border-amber-300/40 bg-amber-300/[0.08]' : 'border-slate-800 bg-slate-950/50'}`}>
+        {open ? <p className="px-1.5 pt-0.5 text-sm font-black text-amber-100">{t('athlete.rsvp.question')}</p> : null}
+        <div role="group" aria-label={t('athlete.rsvp.question')} className="grid grid-cols-3 gap-1.5">
+          {options.map((option) => (
+            <button key={option.id} type="button" aria-pressed={marked === option.id} aria-expanded={option.id === 'in' ? undefined : option.id === 'late' ? panel === 'late' || (panel === 'other' && otherFromLate) : panel === 'out' || (panel === 'other' && !otherFromLate)} onClick={option.run} className={`rounded-xl border px-2 py-2.5 text-sm font-black transition active:scale-95 ${marked === option.id ? tone[option.id] : 'border-slate-700 text-slate-200 hover:border-slate-500'}`}>{option.label}</button>
+          ))}
+        </div>
+        {lateReasons ? (
+          <label className="block px-1.5 text-sm font-bold text-slate-300">
+            <span className="flex items-baseline justify-between gap-2">{t('composer.lateMinutes')}<span className="font-black tabular-nums text-white">{t('composer.minutes', { count: lateMinutes })}</span></span>
+            <input type="range" min="5" max="60" step="1" value={lateMinutes} onChange={(event) => setLateMinutes(Number(event.target.value))} className="mt-2 w-full accent-amber-300" />
+          </label>
+        ) : null}
+        {panel === 'late' && !healthAllowed ? (
+          <button type="button" onClick={() => void save('late', '', lateMinutes)} className="w-full rounded-xl bg-amber-300 px-4 py-2.5 text-sm font-black text-slate-950">{t('composer.saveAvailability')}</button>
+        ) : panel ? (
+          <div className="grid gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5" role="group" aria-label={t('composer.reason')}>
+              {(panel === 'late' || (panel === 'other' && lateReasons) ? (['composer.reason.school', 'composer.reason.travel', 'composer.reason.work'] as const) : (['composer.reason.ill', 'composer.reason.school', 'composer.reason.family'] as const)).map((key) => (
+                <button key={key} type="button" onClick={() => void save(lateReasons ? 'late' : 'out', t(key), lateReasons ? lateMinutes : null)} className={`${chip} border-slate-700 text-slate-200 ${lateReasons ? 'hover:border-amber-300/60' : 'hover:border-rose-300/60'}`}>{t(key)}</button>
+              ))}
+              <button type="button" aria-pressed={panel === 'other'} onClick={() => { setOtherFromLate(panel === 'late'); setCardPanel({ id: session.id, kind: 'other' }); }} className={`${chip} ${panel === 'other' ? (lateReasons ? 'border-amber-300 bg-amber-300/15' : 'border-rose-300 bg-rose-300/15') + ' text-white' : 'border-slate-700 text-slate-200'}`}>{t('composer.reason.other')}</button>
+            </div>
+            {panel === 'other' ? (
+              <>
+                <textarea autoFocus value={cardReason} onChange={(event) => setCardReason(event.target.value)} aria-label={t('composer.reason')} placeholder={t('composer.reasonPlaceholder')} className="min-h-16 w-full resize-y rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none placeholder:text-slate-500 focus:border-slate-400" />
+                <button type="button" disabled={!cardReason.trim()} onClick={() => void save(lateReasons ? 'late' : 'out', cardReason.trim(), lateReasons ? lateMinutes : null)} className={`w-full rounded-xl px-4 py-2.5 text-sm font-black text-slate-950 disabled:opacity-40 ${lateReasons ? 'bg-amber-300' : 'bg-rose-300'}`}>{t('composer.saveAvailability')}</button>
+              </>
+            ) : null}
+          </div>
+        ) : healthAllowed && mark?.reason && (chosen === 'out' || chosen === 'late') ? (
+          <p className="px-1.5 text-xs font-bold text-slate-400">{chosen === 'late' && mark.lateMinutes ? `${t('composer.minutes', { count: mark.lateMinutes })} · ` : ''}{mark.reason}</p>
+        ) : chosen === 'late' && mark?.lateMinutes ? (
+          <p className="px-1.5 text-xs font-bold text-slate-400">{t('composer.minutes', { count: mark.lateMinutes })}</p>
+        ) : null}
+      </div>
+    );
+  }
   const calendarItems = useMemo(() => {
     const reportedSessionIds = new Set(sortedEntries.map((entry) => entry.sessionId).filter(Boolean));
     const entryBySessionId = new Map(sortedEntries.filter((entry) => entry.sessionId).map((entry) => [entry.sessionId!, entry]));
@@ -860,7 +943,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     const warmups = teamWarmups.length > 0 ? teamWarmups : sortedEntries.filter((entry) => entry.trainingType === 'warmup' && entry.durationMinutes > 0);
     const warmupRpe = warmups.length > 0 ? Math.max(1, Math.min(10, Math.round(average(warmups.map((entry) => entry.rpe))))) : WARMUP_RPE;
     const warmupMinutes = warmups.length > 0 ? Math.max(5, Math.min(60, Math.round(average(warmups.map((entry) => entry.durationMinutes)) / 5) * 5)) : WARMUP_MINUTES;
-    if (session.trainingType !== 'game') return { rpe: averageRpeFor(session.trainingType, session.date), warmupRpe, warmupMinutes };
+    // Training starts at the session's expected RPE, the same value the forecast uses (Ben, 2026-11-13).
+    if (session.trainingType !== 'game') return { rpe: session.expectedRpe ?? averageRpeFor(session.trainingType, session.date), warmupRpe, warmupMinutes };
     // Games count playing minutes, which differ from the game's length: the average for this team.
     const allGames = sortedEntries.filter((entry) => entry.trainingType === 'game' && entry.durationMinutes > 0);
     const teamGames = allGames.filter((entry) => entry.teamId === session.teamId);
@@ -1524,16 +1608,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   })() : null}
                   <CarpoolSummary sessionId={nextSession.id} />
                   {nextSession.info?.notes ? <p className="mt-1 line-clamp-2 text-xs font-bold text-slate-400">{nextSession.info.notes}</p> : null}
-                  <AvailabilityPill label={availabilityPillFor(nextSession)} />
+                  {nextSession.source !== 'team_session' ? <AvailabilityPill label={availabilityPillFor(nextSession)} /> : null}
                 </button>
-                {/* Piece A: no answer yet from a player who says yes themselves. */}
-                {isOpenSession(nextSession) ? (
-                  <div className="mt-2 flex items-center gap-2 rounded-2xl border border-amber-300/40 bg-amber-300/[0.08] py-2 pl-4 pr-2">
-                    <p className="min-w-0 flex-1 text-sm font-black text-amber-100">{t('athlete.rsvp.question')}</p>
-                    <button type="button" onClick={() => { void setTeamSessionAvailability(nextSession, 'expected'); }} className="rounded-xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950 transition active:scale-95">{t('athlete.rsvp.yes')}</button>
-                    <button type="button" onClick={() => { openCalendarItem(nextSessionItem(nextSession)); setAvailabilityDraft('out'); }} className="rounded-xl border border-rose-300/50 px-3 py-2 text-sm font-black text-rose-100 transition active:scale-95">{t('athlete.rsvp.no')}</button>
-                  </div>
-                ) : null}
+                {answerBar(nextSession)}
                 </>
               ) : <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">{t('athlete.noSessions')}</div>}
               {nextGame && nextGame.id !== nextSession?.id ? <button type="button" data-session-id={nextGame.id} onClick={() => openCalendarItem(nextSessionItem(nextGame))} className="mt-3 w-full rounded-2xl border border-sky-300/25 bg-sky-300/[0.05] p-4 text-left hover:border-sky-300/50">
@@ -1541,6 +1618,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 <p className="mt-1 text-xs font-bold text-slate-400">{formatDay(nextGame.startsAt)} · {formatTime(nextGame.startsAt)}</p>
                 <CarpoolSummary sessionId={nextGame.id} />
               </button> : null}
+              {nextGame && nextGame.id !== nextSession?.id ? answerBar(nextGame) : null}
               {hasLoad && plans.length > 0 ? (
                 <div className="mt-4 space-y-2">
                   {plans.slice(0, 4).map((plan) => (

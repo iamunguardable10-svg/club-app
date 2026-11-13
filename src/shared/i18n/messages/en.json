@@ -2411,5 +2411,9 @@
   "composer.reason.work": "Work",
   "composer.reason.other": "Other…",
   "consent.withdrawOpen": "Withdraw consent…",
-  "profile.editNumberPosition": "Edit number and position"
+  "profile.editNumberPosition": "Edit number and position",
+  "rate.pick": "Tap a number",
+  "rate.pickFirst": "Choose how hard it was",
+  "settings.rpePrefill": "Prefill RPE",
+  "settings.rpePrefillDetail": "The rating starts at the value expected for the session"
 }
