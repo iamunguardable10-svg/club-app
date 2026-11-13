@@ -2464,5 +2464,8 @@
   "team.consentReminded_one": "{count} erinnert",
   "team.consentReminded_other": "{count} erinnert",
   "push.consentReminder.title": "Einwilligung für deine Belastung",
-  "push.consentReminder.body": "Dein Trainer bittet dich, die Einwilligung für deine Trainingsbelastung zu erledigen."
+  "push.consentReminder.body": "Dein Trainer bittet dich, die Einwilligung für deine Trainingsbelastung zu erledigen.",
+  "playerTeam.nextGame": "Nächstes Spiel",
+  "playerTeam.coaches": "Trainer",
+  "playerTeam.headCoach": "Cheftrainer"
 }

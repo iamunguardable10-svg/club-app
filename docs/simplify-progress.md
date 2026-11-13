@@ -3402,3 +3402,13 @@ Audit-Vorschlag 8, Entscheidung Ben: ohne die Gesichter-Bewertung, die ACWR-Kür
 - Tests: `36_youth_mode_test.sql`, `24_consent_test.sql` (U12 jetzt aus, U14 an), `consent.test.ts`.
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `test:consent`, alle Datenbank-Tests lokal, `build`, Smoke; Bilder.
+
+## Run 125 — Spieler-Tab „Team“ statt „Taktik“ (2026-11-13)
+
+Audit-Vorschlag 7 (Spielerseite), Entscheidung Ben.
+
+- Spieler-Tabs: **Heute · Kalender · Belastung · Team · Nachrichten**. „Team“ ist immer da (bisher erschien „Taktik“ nur mit Playbook).
+- `/athlete/team` zeigt je Team: das nächste Spiel mit den Fahrgemeinschaften (dieselbe Ansicht wie in der Einheit), die Trainer mit Rolle (Cheftrainer zuerst) und das Playbook, wenn das Team es nutzt. Die Mitspielerliste sehen Spieler weiterhin nicht (Rechte unverändert, `memberships_read` erlaubt Spielern nur die Trainer).
+- `/athlete/tactics` und `/athlete/playbook` leiten auf `/athlete/team` weiter (Push-Links für Playbooks bleiben gültig). `PlayerTacticsPage` entfällt, Smoke prüft `/athlete/team`.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke (64 Seitenaufrufe); Vorher-/Nachher-Bilder.

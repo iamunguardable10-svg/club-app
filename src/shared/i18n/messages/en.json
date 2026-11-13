@@ -2464,5 +2464,8 @@
   "team.consentReminded_one": "{count} reminded",
   "team.consentReminded_other": "{count} reminded",
   "push.consentReminder.title": "Consent for your load",
-  "push.consentReminder.body": "Your coach asks you to sort out consent for your training load."
+  "push.consentReminder.body": "Your coach asks you to sort out consent for your training load.",
+  "playerTeam.nextGame": "Next game",
+  "playerTeam.coaches": "Coaches",
+  "playerTeam.headCoach": "Head coach"
 }

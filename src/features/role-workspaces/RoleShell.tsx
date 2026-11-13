@@ -17,7 +17,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
 import { LimitedConsentNote } from '@/features/legal/HealthConsentPanel';
-import { applyPendingProfile, athleteHasLoad, athleteTacticsTeams, getActivePerson, unreadMessagesFor, useLocalDatabase, type LocalDatabase } from '@/shared/data';
+import { applyPendingProfile, athleteHasLoad, getActivePerson, unreadMessagesFor, useLocalDatabase, type LocalDatabase } from '@/shared/data';
 import { ProfileTeaser } from '@/features/people/PlayerProfile';
 import { TipLayer } from '@/features/tips/TipLayer';
 import { tipsFor } from '@/features/tips/tips';
@@ -29,7 +29,7 @@ import { countToRate } from '@/features/load/athleteLocalStore';
 import { useT, type MessageKey } from '@/shared/i18n';
 
 export type CoachNavItem = 'today' | 'calendar' | 'team' | 'messages' | 'halls' | 'history';
-export type AthleteNavItem = 'today' | 'calendar' | 'load' | 'tactics' | 'messages';
+export type AthleteNavItem = 'today' | 'calendar' | 'load' | 'team' | 'messages';
 export type ClubNavItem = 'club' | 'halls' | 'messages';
 type NavItem = CoachNavItem | AthleteNavItem | ClubNavItem;
 type NavEntry = { item: NavItem; label: MessageKey; href: string };
@@ -38,7 +38,8 @@ const ATHLETE_NAV: NavEntry[] = [
   { item: 'today', label: 'nav.today', href: '/athlete/home' },
   { item: 'calendar', label: 'nav.calendar', href: '/athlete/calendar' },
   { item: 'load', label: 'nav.load', href: '/athlete/load' },
-  { item: 'tactics', label: 'nav.tactics', href: '/athlete/tactics' },
+  // Coaches, the next game's rides and the playbook (audit 2026-11, proposal 7).
+  { item: 'team', label: 'nav.team', href: '/athlete/team' },
   // Piece 17: announcements from the staff.
   { item: 'messages', label: 'nav.messages', href: '/athlete/messages' },
 ];
@@ -73,7 +74,6 @@ function NavIcon({ item }: { item: NavItem }) {
       {item === 'club' ? <><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6l8-3z" {...common} /><path d="M9 12l2 2 4-4" {...common} /></> : null}
       {item === 'load' ? <path d="M3 12h4l3-7 4 14 3-7h4" {...common} /> : null}
       {item === 'messages' ? <path d="M4 5h16v11H9l-5 4V5z" {...common} /> : null}
-      {item === 'tactics' ? <><rect x="3" y="4" width="18" height="16" rx="2" {...common} /><path d="M7 9l2 2M9 9l-2 2M16 14.5a1.5 1.5 0 1 0 0 .01M8.5 15c2.5-.5 4.5-2.5 5.5-5.5M12.5 9.5h1.8v1.8" {...common} /></> : null}
     </svg>
   );
 }
@@ -100,8 +100,7 @@ export function CoachShell({ active, ...props }: ShellProps & { active: CoachNav
  * (playbook, later statistics and video) only when a team uses it.
  */
 function athleteNav(database: LocalDatabase | null, personId: string | null, showLoad: boolean): NavEntry[] {
-  const tactics = Boolean(database && personId && athleteTacticsTeams(database, personId).length > 0);
-  return ATHLETE_NAV.filter((entry) => (entry.item !== 'load' || showLoad) && (entry.item !== 'tactics' || tactics));
+  return ATHLETE_NAV.filter((entry) => entry.item !== 'load' || showLoad);
 }
 
 /** `showLoad` is false for players whose teams do not track training load. */
