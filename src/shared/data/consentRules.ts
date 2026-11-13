@@ -26,7 +26,8 @@ export function hasHealthConsent(database: LocalDatabase, personId: Id): boolean
     && (c.kind === 'parent_health' || (c.kind === 'health' && canSelfConsent(person?.birthYear, person?.birthMonth))));
 }
 export function defaultLoadForAge(ageGroup: AgeGroup | null): boolean {
-  return !['U8', 'U9', 'U10', 'U11'].includes(ageGroup ?? '');
+  // Youth mode (0058): load starts off up to U13.
+  return !['U8', 'U9', 'U10', 'U11', 'U12', 'U13'].includes(ageGroup ?? '');
 }
 /** Own rows only. Never serialize the whole demo club into a personal export. */
 export function exportLocalPerson(database: LocalDatabase, personId: Id) {

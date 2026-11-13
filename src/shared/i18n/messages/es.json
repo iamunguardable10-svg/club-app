@@ -2457,5 +2457,12 @@
   "load.verdict.baseline": "Sigue valorando tus sesiones",
   "club.setup.withoutHead_one": "{count} sin entrenador principal",
   "club.setup.withoutHead_other": "{count} sin entrenador principal",
-  "club.collapse": "Plegar"
+  "club.collapse": "Plegar",
+  "team.consentMissing": "Falta consentimiento ({count})",
+  "team.consentRemindDetail": "Reciben un recordatorio para resolver el consentimiento.",
+  "team.consentRemind": "Recordar",
+  "team.consentReminded_one": "{count} avisado",
+  "team.consentReminded_other": "{count} avisados",
+  "push.consentReminder.title": "Consentimiento para tu carga",
+  "push.consentReminder.body": "Tu entrenador te pide que resuelvas el consentimiento para tu carga de entrenamiento."
 }

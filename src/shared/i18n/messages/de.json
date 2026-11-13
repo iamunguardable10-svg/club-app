@@ -2457,5 +2457,12 @@
   "load.verdict.baseline": "Bewerte weiter deine Einheiten",
   "club.setup.withoutHead_one": "{count} ohne Cheftrainer",
   "club.setup.withoutHead_other": "{count} ohne Cheftrainer",
-  "club.collapse": "Zuklappen"
+  "club.collapse": "Zuklappen",
+  "team.consentMissing": "Einwilligung fehlt ({count})",
+  "team.consentRemindDetail": "Sie bekommen eine Erinnerung, die Einwilligung zu erledigen.",
+  "team.consentRemind": "Erinnern",
+  "team.consentReminded_one": "{count} erinnert",
+  "team.consentReminded_other": "{count} erinnert",
+  "push.consentReminder.title": "Einwilligung für deine Belastung",
+  "push.consentReminder.body": "Dein Trainer bittet dich, die Einwilligung für deine Trainingsbelastung zu erledigen."
 }

@@ -64,6 +64,7 @@ import {
   type LocalDatabase,
   type SessionType,
   teamHasFeature,
+  remindConsent,
 } from '@/shared/data';
 
 function toWorkspaceSession(session: {
@@ -380,6 +381,7 @@ export function TeamWorkspace({
       featuresPanel={featuresPanel}
       playbookPanel={playbookPanel}
       playerFacts={playerFacts}
+      onRemindConsent={permissions.has('viewRoster') ? () => remindConsent(teamId) : undefined}
       playerProfilePanel={database ? (personId) => {
         const person = database.people.find((candidate) => candidate.id === personId);
         return person ? <CoachPlayerProfile key={personId} database={database} teamId={teamId} person={person} canEdit={canManageGroups} /> : null;
