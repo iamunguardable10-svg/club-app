@@ -28,7 +28,8 @@ type Item = {
 type Batch = { vapid: { public_key: string | null; private_key: string | null; subject: string | null }; items: Item[] };
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
-const KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+// Only the service role may take due pushes (0014); without it, fail at once and say why (audit 2026-11, 28).
+const KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -57,6 +58,7 @@ function localized(item: Item) {
 }
 
 Deno.serve(async (request) => {
+  if (!KEY || !SUPABASE_URL) return json({ error: 'SUPABASE_SERVICE_ROLE_KEY or SUPABASE_URL is not set' }, 500);
   if (request.method !== 'POST') return json({ error: 'POST only' }, 405);
   const secret = request.headers.get('x-dispatch-secret') ?? '';
 

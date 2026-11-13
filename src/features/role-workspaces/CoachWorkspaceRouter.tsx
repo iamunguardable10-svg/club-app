@@ -648,7 +648,7 @@ export function CoachCalendarSurface({
           />
         )
       ) : null}
-      {editor && editorInitial ? <CoachSessionEditSheet key={editor.kind === 'session' ? `session-${editor.sessionId}` : `draft-${editorInitial.startsAt}`} title={editor.kind === 'draft' ? t('coach.session.newTraining') : editingSession ? displayTitle(editingSession.title) : t('coach.session.training')} teams={editableTeams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { if (editor.kind === 'draft') { await requestCoachCalendarSave({ kind: 'create', input: value }); } else if (editingSession) { await requestCoachCalendarSave({ kind: 'update', input: { sessionId: editingSession.id, ...value } }); } }} onDraftUpdate={editor.kind === 'draft' ? (value) => setDraft((current) => current ? { ...current, ...value } : current) : undefined} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : undefined} onClose={() => setEditor(null)} /> : null}
+      {editor && editorInitial ? <CoachSessionEditSheet key={editor.kind === 'session' ? `session-${editor.sessionId}` : `draft-${editorInitial.startsAt}`} title={editor.kind === 'draft' ? t('coach.session.newTraining') : editingSession ? displayTitle(editingSession.title) : t('coach.session.training')} teams={editableTeams} facilities={facilities} groups={groups} initial={editorInitial} allowTeamChange={editor.kind === 'draft'} isSaving={isSaving} onSave={async (value) => { if (editor.kind === 'draft') { await requestCoachCalendarSave({ kind: 'create', input: value }); } else if (editingSession) { await requestCoachCalendarSave({ kind: 'update', input: { sessionId: editingSession.id, ...value } }); } }} onDraftUpdate={editor.kind === 'draft' ? (value) => setDraft((current) => current ? { ...current, ...value } : current) : undefined} onDelete={editor.kind === 'session' && editingSession ? async () => { setIsSaving(true); try { await onDeleteSession(editingSession.id); setEditor(null); } finally { setIsSaving(false); } } : editor.kind === 'draft' ? async () => { setDraft(null); setEditor(null); } : undefined} onClose={() => setEditor(null)} /> : null}
 
       <FacilityConflictDialog
         isOpen={Boolean(pendingConflictSave)}
@@ -1051,8 +1051,9 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     team: { title: t('coach.header.teams'), subtitle: t('coach.header.teamCount', { count: teams.length }) },
     attendance: { title: t('coach.header.teams'), subtitle: t('coach.header.teamCount', { count: teams.length }) },
     load: { title: t('coach.header.teams'), subtitle: t('coach.header.teamCount', { count: teams.length }) },
-    facilities: { title: t('coach.header.halls'), subtitle: t('coach.header.hallsSubtitle') },
-    history: { title: t('coach.header.history'), subtitle: t('coach.header.historySubtitle') },
+    // No subtitle that only describes the page (Ben's rules; audit 2026-11, 15).
+    facilities: { title: t('coach.header.halls'), subtitle: undefined },
+    history: { title: t('coach.header.history'), subtitle: undefined },
   }[mode];
 
   return (

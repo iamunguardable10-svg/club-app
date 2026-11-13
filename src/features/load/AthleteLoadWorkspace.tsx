@@ -23,7 +23,7 @@ import { BASELINE_DAYS, acwrAfter, aggregateDailyLoads, backFromBreak, baselineA
 import { LoadInfoButton, LoadLandingChip, LoadRiskBadge } from './LoadHints';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
 import { HealthConsentPanel } from '@/features/legal/HealthConsentPanel';
-import { athleteHasLoad, athleteTeamTracksLoad, hasHealthConsent, clearEntryReview, displayName, getActivePerson, newId, reportAvailability, reviewsForPerson, rsvpModeOf, isRemoteMode, useLocalDatabase } from '@/shared/data';
+import { athleteHasLoad, athleteTeamTracksLoad, hasHealthConsent, clearEntryReview, displayName, drivenRide, getActivePerson, newId, readDatabase, reportAvailability, sessionDate, withdrawRide, reviewsForPerson, rsvpModeOf, isRemoteMode, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
 import { formatDay, formatDayMonth, formatDecimal, formatEntryDate, formatInteger, formatLongDay, formatTime as formatSharedTime, formatWeekday } from '@/shared/format';
@@ -170,7 +170,7 @@ function warmupForSession(session: AthletePendingSession): AthletePendingSession
     title: 'Warmup',
     teamId: session.teamId,
     teamName: session.teamName,
-    date: startsAt.toISOString().slice(0, 10),
+    date: sessionDate(startsAt.toISOString()),
     startsAt: startsAt.toISOString(),
     endsAt: gameStart.toISOString(),
     trainingType: 'warmup',
@@ -587,6 +587,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [planForm, setPlanForm] = useState<PlanFormState>(emptyPlanForm);
   const [source, setSource] = useState<'loading' | 'local'>('loading');
   const [error, setError] = useState<string | null>(null);
+  // Declined a game you drive to: ask whether the ride goes too (audit 2026-11, 4).
+  const [rideToWithdraw, setRideToWithdraw] = useState<string | null>(null);
   const [activePendingId, setActivePendingId] = useState<string | null>(null);
   const [todayAction, setTodayAction] = useState<'plan' | 'report'>('plan');
   const [athleteName, setAthleteName] = useState('Athlete');
@@ -608,6 +610,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [availabilityBySessionId, setAvailabilityBySessionId] = useState<Map<string, AthleteAvailabilityMark>>(new Map());
   const [availabilityDraft, setAvailabilityDraft] = useState<AvailabilityDraft>('expected');
   const [availabilityReason, setAvailabilityReason] = useState('');
+  const [reasonTyped, setReasonTyped] = useState(false);
   const [lateMinutes, setLateMinutes] = useState(10);
   const [availabilityEditing, setAvailabilityEditing] = useState(false);
 
@@ -1170,6 +1173,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         reason: status === 'expected' ? null : trimmedReason,
         lateMinutes: status === 'late' ? minutes : null,
       });
+      if (status === 'out') { const current = readDatabase(); setRideToWithdraw(current ? drivenRide(current, session.id, activePersonId)?.id ?? null : null); }
     } catch (caught) {
       setError(errorText(t, caught));
       return false;
@@ -1401,6 +1405,16 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           <button type="button" onClick={loadIntro.show} className="-mt-2 justify-self-start text-left text-xs font-black text-sky-300 underline">{t('loadIntro.again')}</button>
         ) : null}
         {loadIntro.open ? <LoadIntro role="athlete" onClose={loadIntro.close} /> : null}
+        <AppConfirmDialog
+          isOpen={rideToWithdraw !== null}
+          title={t('carpools.declineDriver.title')}
+          description={t('carpools.declineDriver.detail')}
+          confirmLabel={t('carpools.declineDriver.confirm')}
+          cancelLabel={t('carpools.declineDriver.keep')}
+          tone="danger"
+          onConfirm={() => { try { if (rideToWithdraw) withdrawRide(rideToWithdraw); } catch (caught) { setError(errorText(t, caught)); } setRideToWithdraw(null); }}
+          onCancel={() => setRideToWithdraw(null)}
+        />
 
         {activeView === 'home' && todayRisk ? (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl border border-rose-400/30 bg-rose-400/[0.06] px-3 py-2.5">
@@ -1746,7 +1760,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   const collapsed = hasAnswer && !availabilityEditing;
                   return (
                     <>
-                      {!collapsed ? <p>
+                      {/* No sentence for a plain planned session: the screen says it already (audit 2026-11, 21). */}
+                      {!collapsed && (isWarmup || (activeComposerSession && isOpenSession(activeComposerSession)) || mark?.status === 'out' || mark?.status === 'late') ? <p>
                         {isWarmup
                           ? t('composer.warmupAttached')
                           : activeComposerSession && isOpenSession(activeComposerSession)
@@ -1755,7 +1770,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                             ? t('composer.markedOut')
                             : mark?.status === 'late'
                               ? (mark.lateMinutes ? t('composer.markedLateBy', { count: mark.lateMinutes }) : t('composer.markedLate'))
-                              : t('composer.scheduled')}
+                              : null}
                       </p> : null}
                       {activeComposerSession && !isWarmup ? collapsed ? (
                         <div className="flex items-center justify-between gap-3" role="status">
@@ -1774,10 +1789,19 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                             <button type="button" aria-pressed={availabilityDraft === 'out'} onClick={() => setAvailabilityDraft('out')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'out' ? 'border-rose-300 bg-rose-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.out')}</button>
                           </div>
                           {healthAllowed && (availabilityDraft === 'late' || availabilityDraft === 'out') ? (
-                            <label className="block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                              {t('composer.reason')}
-                              <textarea value={availabilityReason} onChange={(event) => setAvailabilityReason(event.target.value)} placeholder={t('composer.reasonPlaceholder')} className="mt-2 min-h-20 w-full resize-y rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold normal-case tracking-normal text-white outline-none placeholder:text-slate-600 focus:border-emerald-300" />
-                            </label>
+                            // One tap for the usual reasons, typing only for "Other" (audit 2026-11, 6).
+                            <div className="grid gap-2">
+                              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">{t('composer.reason')}</p>
+                              <div className="grid grid-cols-2 gap-2" role="group" aria-label={t('composer.reason')}>
+                                {(availabilityDraft === 'out' ? (['composer.reason.ill', 'composer.reason.school', 'composer.reason.family'] as const) : (['composer.reason.school', 'composer.reason.travel', 'composer.reason.work'] as const)).map((key) => {
+                                  const word = t(key);
+                                  const chosen = !reasonTyped && availabilityReason === word;
+                                  return <button key={key} type="button" aria-pressed={chosen} onClick={() => { setReasonTyped(false); setAvailabilityReason(word); }} className={`rounded-xl border px-3 py-2.5 text-sm font-bold ${chosen ? 'border-sky-300 bg-sky-300/15 text-white' : 'border-slate-700 text-slate-300'}`}>{word}</button>;
+                                })}
+                                <button type="button" aria-pressed={reasonTyped} onClick={() => { setReasonTyped(true); setAvailabilityReason(''); }} className={`rounded-xl border px-3 py-2.5 text-sm font-bold ${reasonTyped ? 'border-sky-300 bg-sky-300/15 text-white' : 'border-slate-700 text-slate-300'}`}>{t('composer.reason.other')}</button>
+                              </div>
+                              {reasonTyped ? <textarea autoFocus value={availabilityReason} onChange={(event) => setAvailabilityReason(event.target.value)} aria-label={t('composer.reason')} placeholder={t('composer.reasonPlaceholder')} className="min-h-16 w-full resize-y rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none placeholder:text-slate-500 focus:border-emerald-300" /> : null}
+                            </div>
                           ) : null}
                           {availabilityDraft === 'late' ? (
                             <label className="block text-xs font-black uppercase tracking-[0.16em] text-slate-500">

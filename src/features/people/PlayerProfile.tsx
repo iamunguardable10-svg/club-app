@@ -192,7 +192,6 @@ export function PlayerProfileFields({ value, onChange, sport, fixedNumbers }: { 
           <SideSwitch value={value.strongSide} onChange={(strongSide) => set({ strongSide })} label={t(strongSideLabel(sport))} />
         </div>
       </div>
-      <p className="-mt-1 text-xs text-slate-500">{t('profile.whoSees')}</p>
     </div>
   );
 }
@@ -313,10 +312,13 @@ export function CoachPlayerProfile({ database, teamId, person, canEdit }: { data
   const fixedNumbers = wearsNumbers(team, sport);
   const parsed = number.trim() === '' ? null : Number(number);
   const dirty = (fixedNumbers && parsed !== value.jerseyNumber) || (position?.trim() || null) !== value.position;
+  // The card shows number and position; the fields only when editing (audit 2026-11, 26).
+  const [editing, setEditing] = useState(false);
   return (
     <div className="grid gap-3">
       <PlayerCard name={displayName(person)} personId={person.id} showName={false} value={value} fixedNumbers={fixedNumbers} sport={sport} />
-      {canEdit ? (
+      {canEdit && !editing ? <button type="button" onClick={() => setEditing(true)} className="justify-self-start text-xs font-black text-sky-300 underline">{t('profile.editNumberPosition')}</button> : null}
+      {canEdit && editing ? (
         <form
           className="grid gap-2"
           onSubmit={(event) => {
@@ -324,6 +326,7 @@ export function CoachPlayerProfile({ database, teamId, person, canEdit }: { data
             try {
               setTeamPlayerDetails(teamId, person.id, { jerseyNumber: fixedNumbers ? parsed : value.jerseyNumber, position });
               setError(null);
+              setEditing(false);
             } catch (caught) { setError(caught); }
           }}
         >

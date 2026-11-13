@@ -6,6 +6,7 @@ import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 import type { CoachFacility, CoachGroup, CoachSessionDetailsInput, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 import { coachSessionTypes, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { gameDurationMinutes, gameEndAt } from '@/features/sessions/gameTiming';
+import { formatDecimal } from '@/shared/format';
 import { useT } from '@/shared/i18n';
 
 type CoachCalendarDraft = { startsAt: string; endsAt: string; teamId: string | null; facilityId: string | null; groupIds: string[]; sessionType: string };
@@ -197,8 +198,9 @@ export function CoachSessionEditSheet({
           {t('composer.date')}
           <input type="date" value={dateValue} onChange={(event) => { setDateValue(event.target.value); if (event.target.value) onDraftUpdate?.(nextTimeRange(timeValue, endTimeValue, sessionType, event.target.value)); }} className="mt-1 block h-9 w-40 min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-sm font-bold text-slate-100 [color-scheme:dark]" />
         </label> : null}
-        <div className={`mt-2.5 grid min-w-0 gap-2 sm:gap-2.5 ${isGame ? 'grid-cols-[minmax(0,1fr)_7.5rem] sm:grid-cols-[minmax(0,1fr)_8rem]' : 'grid-cols-[minmax(0,1fr)_4.35rem_4.35rem] sm:grid-cols-[minmax(0,1fr)_7rem_7rem]'}`}>
-          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+        <div className={`mt-2.5 grid min-w-0 gap-2 sm:gap-2.5 ${isGame ? 'grid-cols-[minmax(0,1fr)_7.5rem] sm:grid-cols-[minmax(0,1fr)_8rem]' : 'grid-cols-2 sm:grid-cols-[minmax(0,1fr)_7rem_7rem]'}`}>
+          {/* On phones the kind gets its own row, so start and end show the whole time (audit 2026-11, 14). */}
+          <label className={`min-w-0 text-[10px] ${isGame ? '' : 'col-span-2 sm:col-span-1'} font-black uppercase tracking-[0.14em] text-slate-500`}>
             {t('sessionForm.type')}
             <select value={sessionType} onChange={(event) => handleSessionTypeSelect(event.target.value)} className="mt-1 h-8 w-full min-w-0 truncate rounded-lg border border-slate-700/90 bg-slate-950 px-1.5 text-[12px] font-black text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm">
               {coachSessionTypes.map((type) => <option key={type.value} value={type.value}>{t(type.key)}</option>)}
@@ -206,12 +208,12 @@ export function CoachSessionEditSheet({
           </label>
           <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
             {t('sessionForm.start')}
-            <input value={timeValue} onChange={(event) => handleStartTimeChange(event.target.value)} type="time" className="mt-1 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2 sm:text-sm [color-scheme:dark]" />
+            <input value={timeValue} onChange={(event) => handleStartTimeChange(event.target.value)} type="time" className="mt-1 h-10 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-center text-[15px] font-black tabular-nums text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:text-sm [color-scheme:dark]" />
           </label>
           {!isGame ? (
             <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
               {t('sessionForm.end')}
-              <input value={endTimeValue} onChange={(event) => handleEndTimeChange(event.target.value)} type="time" className="mt-1 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2 sm:text-sm [color-scheme:dark]" />
+              <input value={endTimeValue} onChange={(event) => handleEndTimeChange(event.target.value)} type="time" className="mt-1 h-10 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-center text-[15px] font-black tabular-nums text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:text-sm [color-scheme:dark]" />
             </label>
           ) : null}
         </div>
@@ -260,7 +262,7 @@ export function CoachSessionEditSheet({
               {t('sessionForm.meet')}
               <select value={meetMinutesBefore} onChange={(event) => setMeetMinutesBefore(Number(event.target.value))} className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-bold text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm">
                 <option value={0}>{t('sessionForm.atStart')}</option>
-                {[15, 30, 45, 60, 90, 120].map((minutes) => <option key={minutes} value={minutes}>{minutes < 60 ? t('sessionForm.minutesBefore', { count: minutes }) : t('sessionForm.hoursBefore', { count: minutes / 60 })}</option>)}
+                {[15, 30, 45, 60, 90, 120].map((minutes) => <option key={minutes} value={minutes}>{minutes < 60 ? t('sessionForm.minutesBefore', { count: minutes }) : t('sessionForm.hoursBefore', { hours: formatDecimal(minutes / 60, minutes % 60 === 0 ? 0 : 1) })}</option>)}
               </select>
             </label>
             <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">

@@ -60,9 +60,9 @@ export function formatWeekday(value: DateInput) {
   return formatter('weekday').format(toDate(value));
 }
 
-/** "Fri, 25 Sep" for a load entry's date ("2026-09-25"). */
+/** "Fri 25 Sep" for a load entry's date ("2026-09-25"): the same shape as `formatDay` (audit 2026-11, 22). */
 export function formatEntryDate(date: string) {
-  return formatter('entryDate').format(new Date(`${date}T00:00:00`));
+  return formatter('entryDate').format(new Date(`${date}T00:00:00`)).replace(',', '');
 }
 
 /** "25/09" (English), "25.09." (German): chart axes. */

@@ -712,6 +712,13 @@ export class RemoteStore {
           const cars = [...server.carpools, ...this.unchecked.flatMap((op) => op.kind === 'insert' && op.table === 'carpools' ? [op.row] : [])].filter((car) => car.session_id === session_id);
           if (cars.some((car) => car.driver_id === person_id) || [...server.carpool_riders, ...this.unchecked.flatMap((op) => op.kind === 'insert' && op.table === 'carpool_riders' ? [op.row] : [])].some((rider) => rider.person_id === person_id && cars.some((car) => car.id === rider.carpool_id))) continue;
         }
+        // Joining a car that its driver withdrew, filled or removed you from in
+        // that moment is not a refusal of yours: the reloaded state shows the
+        // car as it is now (audit 2026-11, 7; pilot report 2026-10-23).
+        if (operation.table === 'carpool_riders' && operation.kind === 'insert') {
+          const car = server.carpools.find((candidate) => candidate.id === operation.row.carpool_id);
+          if (!car || server.carpool_riders.filter((rider) => rider.carpool_id === car.id).length >= Number(car.seats)) continue;
+        }
         if (operation.kind === 'insert') return operation.table;
         continue;
       }

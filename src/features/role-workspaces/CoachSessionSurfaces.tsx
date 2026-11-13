@@ -1042,7 +1042,9 @@ export function CoachSessionDetailOverlay({
           expected: session.players.length,
           late: summary.late.length,
           out: summary.out.length,
-          notes: session.availability.map((item) => ({
+          // Once "Who was there?" shows, it lists everyone with their status: the
+          // separate absent/late list would show the same players twice (audit 2026-11, 18).
+          notes: isPast && session.canConfirmAttendance && session.players.length > 0 ? [] : session.availability.map((item) => ({
             id: item.userId,
             name: item.playerName,
             status: item.status,

@@ -82,7 +82,7 @@ function AttendanceCard({ player, events, sessionTimes, range, contextLabel, emp
                 {([['playerLoad.countPresent', total - out - late, 'text-emerald-200'], ['playerLoad.countLate', late, 'text-sky-200'], ['playerLoad.countOut', out, 'text-rose-200']] as const).map(([label, value, tone]) => (
                   <div key={label} className="rounded-xl bg-slate-900/70 px-1 py-1.5">
                     <dd className={`text-base font-black tabular-nums ${tone}`}>{value}</dd>
-                    <dt className="truncate text-[10px] font-bold uppercase tracking-wide text-slate-500">{t(label)}</dt>
+                    <dt className="text-xs font-bold text-slate-400">{t(label)}</dt>
                   </div>
                 ))}
               </dl>

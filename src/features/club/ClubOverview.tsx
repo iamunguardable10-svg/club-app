@@ -408,6 +408,7 @@ function DepartmentSection({
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [newTeam, setNewTeam] = useState('');
+  const [addingTeam, setAddingTeam] = useState(false);
   const [ageGroup, setAgeGroup] = useState<AgeGroup | null>(null);
   const [load, setLoad] = useState(true);
   const teams = database.teams.filter((team) => team.departmentId === department.id).sort((a, b) => a.name.localeCompare(b.name));
@@ -473,6 +474,10 @@ function DepartmentSection({
               />
             ))}
           </ul>
+          {/* The form only when asked for, or while the department has no team yet (audit 2026-11, 19). */}
+          {!addingTeam && teams.length > 0 ? (
+            <button type="button" onClick={() => setAddingTeam(true)} className="justify-self-start text-xs font-black text-sky-300 underline">{t('club.addTeamOpen')}</button>
+          ) : (
           <form
             className="grid gap-3 rounded-2xl border border-slate-700 p-3"
             onSubmit={(event) => {
@@ -481,6 +486,7 @@ function DepartmentSection({
               if (onRun(() => { created = createTeam(department.id, newTeam, ageGroup, load); })) {
                 setNewTeam('');
                 setOpenTeamId(created);
+                setAddingTeam(false);
               }
             }}
           >
@@ -488,6 +494,7 @@ function DepartmentSection({
             <AgeLoadFields ageGroup={ageGroup} load={load} onChange={(a,l) => { setAgeGroup(a); setLoad(l); }} />
             <button type="submit" disabled={!newTeam.trim()} className={`${smallButtonClass} border-sky-500/50 text-sky-100 hover:bg-sky-950/35`}>{t('club.addTeam')}</button>
           </form>
+          )}
           {archived.length > 0 ? (
             <div className="grid gap-2">
               <button type="button" onClick={() => setShowArchived((value) => !value)} aria-expanded={showArchived} className="justify-self-start text-xs font-bold text-slate-400 underline">

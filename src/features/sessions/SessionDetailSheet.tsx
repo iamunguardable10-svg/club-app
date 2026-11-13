@@ -1,5 +1,6 @@
 ﻿'use client';
 
+import { useEscape } from '@/shared/hooks/useEscape';
 import { Carpools } from './Carpools';
 import { gameDurationMinutes, gameEndAt } from './gameTiming';
 import { formatSessionTime } from '@/shared/format';
@@ -181,6 +182,7 @@ export function SessionDetailSheet({
   onClose: () => void;
 }) {
   const t = useT();
+  useEscape(onClose);
   const statusLabel = (status?: string) => (status && STATUS_KEY[status] ? t(STATUS_KEY[status]) : status ?? t('sessionSheet.status.expected'));
   useBodyScrollLock(true);
 
@@ -242,7 +244,7 @@ export function SessionDetailSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/75 p-2.5 backdrop-blur-sm sm:items-center">
+    <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/75 p-2.5 backdrop-blur-sm sm:items-center">
       <section className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950 p-3.5 text-white shadow-2xl sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
