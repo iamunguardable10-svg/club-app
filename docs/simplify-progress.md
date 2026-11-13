@@ -3267,3 +3267,14 @@ Ben, nach dem Plan für den Beta-Betrieb der Jugend (`docs/plan-beta-speyer.md`)
 - Plan: Elternzugang vorerst nicht, Supabase Pro offen; Domain und Mailversand laufen inzwischen über `clubos.hebinova.de` und Brevo (Runs 108/109).
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Datenbanktests (alle), `test:features`, `test:landing`, Smoke (voll); Vorher-/Nachher-Bilder auf dem Handy.
+
+## Run 111 — Alle Club-OS-Mails im selben Layout (2026-11-13)
+
+Ben: die offenen Punkte beim Mailversand erledigen.
+
+- **Bestätigungs- und E-Mail-Änderungs-Mail** jetzt im selben gebrandeten Layout wie die Passwort-Mail (Run 109): Tabellenlayout, keine externen Bilder, genau ein Auth-Link, Gruß und Hilfe-Zeile. Neue Hinweise: der Bestätigungslink funktioniert einmal, abgelaufen hilft „Mail nochmal senden“; bei der neuen Adresse bleibt bis zur Bestätigung die alte. Sprache wie bisher aus `.Data.locale` (bei der Registrierung gesetzt), sonst Englisch.
+- **Fehler gefunden:** Die Betreff-Vorlage der Änderungs-Mail war mit allen vier Sprachen länger als die 255 Zeichen, die Supabase erlaubt; die Prüfung galt nur für die Passwort-Mail. Jetzt prüft der Generator alle Betreffe; alle haben die Form „Club OS – …“ mit kompakten Sprach-Weichen (192 / 216 / 250 Zeichen).
+- DNS geprüft: DKIM (zwei Brevo-CNAMEs) und DMARC stehen; SPF nennt nur IONOS, für Brevo genügt das ausgerichtete DKIM.
+- Offen bei Ben (im Plan A1): die zwei Vorlagen in Supabase einfügen, Mail-Rate-Limit anheben, Zustellung bei GMX und Gmail testen, Support-Postfach prüfen.
+
+Geprüft: `mail-templates`, `check:i18n`, `test:i18n`, `typecheck`; alle drei Vorlagen und Betreffe mit Go `html/template` in de, en, fr, es und einer unbekannten Sprache gerendert, je genau ein Link.
