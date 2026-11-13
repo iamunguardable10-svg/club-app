@@ -1561,7 +1561,7 @@
   "push.message.reminder": "Erinnerung: {title}",
   "push.joined.title": "{team} · Neuer Spieler",
   "push.joined.body": "{name} ist mit dem Teamcode beigetreten. Kennst du die Person nicht? Entferne sie unter Team → Spieler.",
-  "mail.confirm.subject": "Bestätige dein Club-OS-Konto",
+  "mail.confirm.subject": "Club OS – Konto bestätigen",
   "mail.confirm.heading": "Willkommen bei Club OS",
   "mail.confirm.text": "Tippe auf die Schaltfläche, um deine E-Mail-Adresse zu bestätigen und die Einrichtung deines Kontos abzuschließen.",
   "mail.confirm.button": "Konto bestätigen",
@@ -1573,7 +1573,7 @@
   "mail.reset.ignore": "Wenn du das nicht angefordert hast, kannst du diese E-Mail ignorieren. Dein Passwort bleibt unverändert.",
   "mail.reset.signoff": "Dein Club-OS-Team",
   "mail.reset.support": "Brauchst du Hilfe? Antworte auf diese E-Mail oder schreibe an support.clubos@hebinova.com.",
-  "mail.change.subject": "Bestätige deine neue E-Mail-Adresse für Club OS",
+  "mail.change.subject": "Club OS – Neue E-Mail bestätigen",
   "mail.change.heading": "Neue E-Mail-Adresse",
   "mail.change.text": "Tippe auf die Schaltfläche, um die E-Mail-Adresse deines Club-OS-Kontos von {email} in {newEmail} zu ändern.",
   "mail.change.button": "Neue E-Mail-Adresse bestätigen",
@@ -2403,5 +2403,7 @@
   "coach.firstRatings.detail": "Deine Spieler haben gesagt, wie anstrengend die Einheit war. So steuerst du damit die Trainingsbelastung.",
   "coach.firstRatings.open": "So geht’s",
   "coach.firstRatings.later": "Nicht jetzt",
-  "team.section.settingsShort": "Optionen"
+  "team.section.settingsShort": "Optionen",
+  "mail.confirm.validity": "Der Link funktioniert einmal. Ist er abgelaufen, gib in Club OS deine E-Mail-Adresse ein und tippe auf „Mail nochmal senden“.",
+  "mail.change.validity": "Der Link funktioniert einmal. Bis du bestätigst, behält dein Konto die bisherige Adresse."
 }
