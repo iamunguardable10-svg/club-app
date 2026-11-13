@@ -40,7 +40,7 @@ import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/cale
 import { addMinutes, defaultActiveDayForWeekOffset, sameDay, useSmartCalendar } from '@/features/calendar/useSmartCalendar';
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
 import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
-import { CoachSection, CoachShell, type CoachNavItem } from '@/features/role-workspaces/RoleShell';
+import { CoachSection, CoachShell, ShellLink, type CoachNavItem } from '@/features/role-workspaces/RoleShell';
 import { formatDay, formatLongDay, formatTimeRange, formatWeekday } from '@/shared/format';
 import { errorText, useT } from '@/shared/i18n';
 import { displayTitle } from '@/features/sessions/sessionTypeLabels';
@@ -1056,8 +1056,12 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     history: { title: t('coach.header.history'), subtitle: undefined },
   }[mode];
 
+  // Halls and history have no tab of their own (audit 2026-11, proposal 7): they open from Calendar and Team.
+  const back = mode === 'facilities' ? { href: '/coach/sessions', label: t('nav.calendar') } : mode === 'history' ? { href: '/coach/team', label: t('nav.team') } : undefined;
+  const actions = mode === 'sessions' ? <ShellLink href="/coach/facilities" label={t('nav.halls')} /> : undefined;
+
   return (
-    <CoachShell active={NAV_FOR_MODE[mode]} title={header.title} subtitle={header.subtitle}>
+    <CoachShell active={NAV_FOR_MODE[mode]} title={header.title} subtitle={header.subtitle} back={back} actions={actions}>
         {error ? (
           <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-500/40 bg-red-950/30 p-4 text-sm text-red-100">
             <span>{error}</span>
@@ -1253,3 +1257,4 @@ function FirstRatingsCard({ sessions }: { sessions: CoachSession[] }) {
     </section>
   );
 }
+
