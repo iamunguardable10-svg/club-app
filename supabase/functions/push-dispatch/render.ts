@@ -60,6 +60,8 @@ export function buildPush(t: Translate, format: PushFormat, titles: Record<strin
           t('push.summary.open', { count: Number(params.open) }),
         ]),
       };
+    case 'push.consentReminder':
+      return { title: t('push.consentReminder.title'), body: t('push.consentReminder.body') };
     case 'push.parentConsent':
       return { title: t('push.parentConsent.title'), body: t('push.parentConsent.body') };
     case 'push.rate':

@@ -18,7 +18,7 @@ import { displayTitle, labelForCoachSessionType, normalizeCoachSessionType } fro
 import { CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessionSurfaces';
 import type { CoachFacility, CoachGroup, CoachSession, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 import { formatDecimal, formatSessionTime } from '@/shared/format';
-import { tr, useT } from '@/shared/i18n';
+import { errorText, tr, useT } from '@/shared/i18n';
 
 export type TeamWorkspaceRole = 'admin' | 'department_lead' | 'coach' | 'viewer';
 export type TeamWorkspaceSection = 'dashboard' | 'players' | 'groups' | 'tactics' | 'settings';
@@ -252,6 +252,7 @@ export function TeamWorkspaceView({
   playbookPanel,
   playerFacts,
   playerProfilePanel,
+  onRemindConsent,
 }: {
   data: TeamWorkspaceData;
   initialSection?: TeamWorkspaceSection;
@@ -280,6 +281,8 @@ export function TeamWorkspaceView({
   playbookPanel?: ReactNode;
   /** "#7 · Point guard" under the player's name (0051). */
   playerFacts?: (playerId: string) => string | null;
+  /** Youth mode (0058): remind the players without health consent; returns how many. */
+  onRemindConsent?: () => Promise<number>;
   /** The player's card at the top of their sheet. */
   playerProfilePanel?: (playerId: string) => ReactNode;
 }) {
@@ -296,6 +299,9 @@ export function TeamWorkspaceView({
   const [isSavingDashboardEdit, setIsSavingDashboardEdit] = useState(false);
   const [isDeletingDashboardSession, setIsDeletingDashboardSession] = useState(false);
   const [playerSort, setPlayerSort] = useState<'risk' | 'az'>('risk');
+  const [consentFilter, setConsentFilter] = useState(false);
+  const [consentReminded, setConsentReminded] = useState<number | null>(null);
+  const [consentError, setConsentError] = useState<string | null>(null);
   const [removePlayerTarget, setRemovePlayerTarget] = useState<TeamWorkspacePlayer | null>(null);
   const [isRemovingPlayer, setIsRemovingPlayer] = useState(false);
   // Same accent as the hall list, seeded by the hall id.
@@ -307,6 +313,8 @@ export function TeamWorkspaceView({
     if (aSummary.riskRank !== bSummary.riskRank) return aSummary.riskRank - bSummary.riskRank;
     return (bSummary.acwr ?? 0) - (aSummary.acwr ?? 0);
   }), [playerSort, players, data.loadTracked]);
+  // Youth mode (audit 2026-11, 8): who still lacks consent, where the team tracks load.
+  const missingConsent = data.loadTracked === false ? [] : players.filter((player) => player.healthConsent === false);
   const coachEditorTeams = useMemo<CoachTeam[]>(() => [{
     id: data.id,
     clubId: 'team-workspace',
@@ -543,6 +551,11 @@ export function TeamWorkspaceView({
         <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-black">{t('team.playerCount', { count: data.playerCount })}</h2>
+            {missingConsent.length > 0 ? (
+              <button type="button" aria-pressed={consentFilter} onClick={() => setConsentFilter(!consentFilter)} className={`rounded-full border px-3 py-1.5 text-xs font-black ${consentFilter ? 'border-amber-300 bg-amber-300 text-slate-950' : 'border-amber-300/50 text-amber-200'}`}>
+                {t('team.consentMissing', { count: missingConsent.length })}
+              </button>
+            ) : null}
             {players.length > 1 && data.loadTracked !== false ? (
               <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1">
                 <button type="button" onClick={() => setPlayerSort('risk')} className={`rounded-full px-3 py-1.5 text-xs font-black ${playerSort === 'risk' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>{t('team.sort.attention')}</button>
@@ -550,11 +563,20 @@ export function TeamWorkspaceView({
               </div>
             ) : null}
           </div>
+          {consentFilter && missingConsent.length > 0 && onRemindConsent ? (
+            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/45 p-3">
+              <p className="min-w-0 flex-1 text-sm text-slate-300">{t('team.consentRemindDetail')}</p>
+              {consentReminded !== null
+                ? <span role="status" className="text-sm font-black text-emerald-200">{t('team.consentReminded', { count: consentReminded })}</span>
+                : <button type="button" onClick={async () => { try { setConsentReminded(await onRemindConsent()); setConsentError(null); } catch (caught) { setConsentError(errorText(t, caught)); } }} className="rounded-full bg-amber-300 px-3.5 py-1.5 text-sm font-black text-slate-950">{t('team.consentRemind')}</button>}
+              {consentError ? <p role="alert" className="w-full text-xs font-bold text-rose-200">{consentError}</p> : null}
+            </div>
+          ) : null}
           {players.length === 0 ? (
             <div className="mt-4"><EmptyCard title={t('team.noPlayers')} description={t('team.noPlayersDetail')} /></div>
           ) : (
             <div className="mt-4 grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-              {sortedPlayers.map((player) => {
+              {(consentFilter ? sortedPlayers.filter((player) => player.healthConsent === false) : sortedPlayers).map((player) => {
                 const summary = playerLoadSummary(player);
                 const groupNames = (player.groups ?? []).map((id) => groupNameById.get(id) ?? id);
                 return (

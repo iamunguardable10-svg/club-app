@@ -17,7 +17,9 @@ assert.ok(!canSelfConsent(null, null, june), 'no birth year, no consent');
 assert.ok(needsBirthMonth(2010, june) && !needsBirthMonth(2009, june) && !needsBirthMonth(2011, june), 'the month is asked only in the edge year');
 
 assert.equal(defaultLoadForAge('U10'), false);
-assert.equal(defaultLoadForAge('U12'), true);
+assert.equal(defaultLoadForAge('U12'), false);
+assert.equal(defaultLoadForAge('U13'), false);
+assert.equal(defaultLoadForAge('U14'), true);
 assert.equal(defaultLoadForAge(null), true);
 
 const db = createSeedDatabase();

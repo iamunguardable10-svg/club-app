@@ -15,7 +15,7 @@
  * data layer and the server check every change again.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScreenSkeleton } from '@/shared/components/Skeleton';
 
 import { AppConfirmDialog } from '@/shared/components/AppConfirmDialog';
@@ -396,14 +396,25 @@ function DepartmentSection({
   personId,
   admin,
   onRun,
+  startOpen = false,
 }: {
   database: LocalDatabase;
   department: Department;
   personId: Id;
   admin: boolean;
   onRun: Run;
+  /** A club with one department shows it open; with several, each is one line (audit 2026-11, proposal 12). */
+  startOpen?: boolean;
 }) {
   const t = useT();
+  const [expanded, setExpanded] = useState(startOpen);
+  // "Los" in the setup checklist jumps here: open on arrival.
+  useEffect(() => {
+    const check = () => { if (window.location.hash === `#dept-${department.id}`) setExpanded(true); };
+    check();
+    window.addEventListener('hashchange', check);
+    return () => window.removeEventListener('hashchange', check);
+  }, [department.id]);
   const [openTeamId, setOpenTeamId] = useState<Id | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -415,16 +426,37 @@ function DepartmentSection({
   const teams = database.teams.filter((team) => team.departmentId === department.id).sort((a, b) => a.name.localeCompare(b.name));
   const active = teams.filter((team) => !team.archivedAt);
   const archived = teams.filter((team) => team.archivedAt);
+  const withoutHead = active.filter((team) => !staffSummary(database, team).some((entry) => entry.role?.locked)).length;
+
+  if (!expanded) {
+    return (
+      <button type="button" onClick={() => setExpanded(true)} aria-expanded={false} data-testid="department-row" className="flex w-full items-center gap-4 rounded-3xl border border-slate-800 bg-slate-950/65 px-5 py-4 text-left transition hover:border-slate-600">
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-lg font-black text-white">{department.name}</span>
+          <span className="mt-0.5 block text-sm font-bold text-slate-400">
+            {t('club.teamCount', { count: active.length })}
+            {withoutHead > 0 ? <span className="text-amber-200"> · {t('club.setup.withoutHead', { count: withoutHead })}</span> : null}
+          </span>
+        </span>
+        <span aria-hidden className="text-xl font-black text-slate-500">›</span>
+      </button>
+    );
+  }
 
   return (
     <CoachSection
       title={department.name}
       description={t('club.teamCount', { count: active.length })}
-      actions={admin ? (
-        <button type="button" onClick={() => setEditing((value) => !value)} aria-expanded={editing} className={`${smallButtonClass} border-slate-700 text-slate-200`}>
-          {editing ? t('club.done') : t('club.departmentSettings')}
-        </button>
-      ) : null}
+      actions={
+        <span className="flex items-center gap-2">
+          {admin ? (
+            <button type="button" onClick={() => setEditing((value) => !value)} aria-expanded={editing} className={`${smallButtonClass} border-slate-700 text-slate-200`}>
+              {editing ? t('club.done') : t('club.departmentSettings')}
+            </button>
+          ) : null}
+          {startOpen ? null : <button type="button" onClick={() => setExpanded(false)} aria-expanded aria-label={t('club.collapse')} className="grid h-9 w-9 place-items-center rounded-xl border border-slate-700 text-slate-300">⌃</button>}
+        </span>
+      }
     >
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
         {editing ? (
@@ -527,6 +559,7 @@ export function ClubOverview() {
   const person = database ? getActivePerson(database) : null;
   const [actionError, setActionError] = useState<string | null>(null);
   const [newDepartment, setNewDepartment] = useState('');
+  const [addingDepartment, setAddingDepartment] = useState(false);
 
   const run: Run = (action) => {
     try {
@@ -588,23 +621,25 @@ export function ClubOverview() {
       ) : null}
 
       {departments.map((department) => (
-        <div key={department.id} id={`dept-${department.id}`} className="scroll-mt-24"><DepartmentSection database={database} department={department} personId={person.id} admin={admin} onRun={run} /></div>
+        <div key={department.id} id={`dept-${department.id}`} className="scroll-mt-24"><DepartmentSection startOpen={departments.length === 1} database={database} department={department} personId={person.id} admin={admin} onRun={run} /></div>
       ))}
 
 
       {admin ? (
-        <div id="new-department" className="scroll-mt-24"><CoachSection title={t('club.newDepartment')} description={t('club.newDepartmentDetail')}>
+        <div id="new-department" className="scroll-mt-24">{departments.length > 0 && !addingDepartment ? (
+          <button type="button" onClick={() => setAddingDepartment(true)} className="w-full rounded-3xl border border-dashed border-slate-700 px-5 py-4 text-left text-sm font-black text-sky-200 transition hover:border-slate-500">+ {t('club.addDepartment')}</button>
+        ) : <CoachSection title={t('club.newDepartment')} description={t('club.newDepartmentDetail')}>
           <form
             className="grid gap-3 rounded-2xl border border-slate-700 p-3"
             onSubmit={(event) => {
               event.preventDefault();
-              if (run(() => { createDepartment(newDepartment); })) setNewDepartment('');
+              if (run(() => { createDepartment(newDepartment); })) { setNewDepartment(''); setAddingDepartment(false); }
             }}
           >
             <input value={newDepartment} onChange={(event) => setNewDepartment(event.target.value)} placeholder={t('club.departmentNamePlaceholder')} aria-label={t('club.newDepartmentName')} className={`${inputClass} flex-1`} />
             <button type="submit" disabled={!newDepartment.trim()} className={`${smallButtonClass} border-sky-500/50 text-sky-100 hover:bg-sky-950/35`}>{t('club.addDepartment')}</button>
           </form>
-        </CoachSection></div>
+        </CoachSection>}</div>
       ) : null}
 
       {admin ? (

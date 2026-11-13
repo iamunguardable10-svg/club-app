@@ -22,7 +22,7 @@ Trainer und Vereinsverantwortliche verständlich bleiben.
 
 1. `AGENTS.md`, `DESIGN.md`, `docs/core-flows.md`, Entscheidungen und Run-Log lesen.
    Das Audit `docs/audit/2026-11-fable.md` ist bereits vorhanden. Zuerst feststellen,
-   welche Befunde durch Runs 112–120 erledigt sind. Nicht erneut umsetzen und keine
+   welche Befunde durch Runs 112–125 erledigt sind. Nicht erneut umsetzen und keine
    damals abgelehnten Produktentscheidungen stillschweigend zurückholen.
 2. Den aktuellen Stand auf Handy und Desktop durchgehen: Einstieg, Registrierung,
    Beitritt, Spieler-Heute, Kalender, Zu-/Absagen, Fahrten, Belastung, Trainer-Heute,

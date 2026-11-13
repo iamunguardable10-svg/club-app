@@ -3369,29 +3369,46 @@ Audit-Vorschlag 11.
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke; Vorher-/Nachher-Bilder.
 
-## Run 121 — Alle Kontomails in Club-OS-Gestaltung und vier Sprachen (2026-11-14)
+## Run 121 — Hallen und Verlauf als Symbol im Kopf (2026-11-13)
 
-Bens Freigabe erweitert die bisherige Passwortmail auf alle Kontomails.
+Nachbesserung zu Run 117 (Ben: „sieht schlechter aus“). Die Links „Hallen ›“ und „Verlauf ›“ standen auf dem Handy als eigene Zeile unter dem Titel. Jetzt sind sie ein rundes Symbol im Seitenkopf neben der Demo-Pille (Haus für Hallen im Kalender, Uhr für Verlauf im Team), auf dem Desktop mit Wort. Neue Shell-Option `headLink`, `ShellLink` entfällt.
 
-- Ein Generator für alle 13 Supabase-Typen: Konto bestätigen, Einladung, Anmeldelink,
-  E-Mail ändern, Passwort zurücksetzen, Bestätigungscode und sieben Sicherheitsmeldungen.
-  Einheitliche Gestaltung, kurze aktionsbezogene Texte, erreichbarer Absender und
-  `support.clubos@hebinova.com`. Texte in allen vier Sprachdateien; bestehende
-  Impressumsangaben unverändert (Übertragung ausdrücklich freigegeben).
-- Registrierung und erneute Bestätigung sowie E-Mail-Änderung übergeben nun die
-  aktuelle Sprache wie bereits die Passwortmail. Ein gemeinsamer Helfer bewahrt
-  bestehende Pfade und Beitrittsparameter. Ereignisse ohne Anfrage verwenden die
-  gespeicherte Kontosprache; ohne bekannte Sprache Englisch.
-- Auth-Link bleibt unverändert; Bestätigungscode und Ereignisdaten werden pro Mailtyp
-  verwendet. Keine Migration, Rechteänderung, Secrets oder Aktivierung neuer Mailtypen.
-  Die sieben bestehenden ausgeschalteten Sicherheitsmeldungen bleiben ausgeschaltet.
-- Go-Test rendert 195 echte Betreff-/Inhaltsfälle plus 13 Fallbacks ohne Metadaten;
-  prüft Links, Code, HTML-Escaping, Sprache, Support und Betrefflimit. Rücksprungadressen
-  separat geprüft; beide Checks in CI.
-- `docs/ui-before-pilot.md` hält Bens nächsten UI-Auftrag fest, aufbauend auf dem
-  bestehenden Fable-Audit und Runs 112–120. Keine parallele neue UI in diesem Mail-PR.
+## Run 122 — Ehrliche Belastungsseite (2026-11-13)
 
-Lokal bestanden: Generator, Go-Rendering, Rücksprungadressen, Typecheck, Sprachprüfung,
-i18n-Tests und Produktions-Build. Browser-Smoke und Datenbankprüfungen folgen in CI
-(lokaler Browserstart durch Betriebssystem blockiert). Live-Vorlagen und echte Testmails
-werden separat dokumentiert; ein Commit allein ändert Supabase nicht.
+Audit-Vorschlag 10.
+
+- Ganz oben auf „Belastung“ steht eine Ampel mit einem Satz: „Du kannst normal trainieren“ (grün), „Du kannst etwas mehr machen“ (gelb), „Heute lieber leichter“ (rot), „Bewerte weiter deine Einheiten“ (grau, solange die Vergleichsbasis fehlt; ersetzt den eigenen Hinweis). Darunter das Diagramm.
+- Die drei Kennzahl-Kacheln (Spielraum, ACWR, Status), „Was bedeuten die Begriffe?“, Spielraum und Risiko, Wochenstabilität, Abwechslung und die letzten Einheiten liegen hinter **Mehr Zahlen**. Auf „Heute“ bleiben die Kacheln (Ben: „Heute“ bleibt, wie es ist).
+- Die Seite ist auf dem Handy 1242 statt 2685 px lang.
+
+Geprüft: `typecheck`, `check:i18n`, `build`, Smoke; Vorher-/Nachher-Bilder Handy und Desktop.
+
+## Run 123 — Verein: Abteilungen eingeklappt (2026-11-13)
+
+Audit-Vorschlag 12 (zweiter Teil).
+
+- Hat ein Verein mehrere Abteilungen, ist jede eine Zeile: Name, „2 Teams“, gelb „1 ohne Cheftrainer“, „›“. Ein Tipp klappt sie mit Leitung, Schreibrechten und Teams auf, „⌃“ wieder zu. Mit nur einer Abteilung bleibt sie offen wie bisher. „Los“ in der Einrichtungs-Liste klappt die Zielabteilung auf.
+- „Neue Abteilung“ ist ein Knopf „+ Abteilung hinzufügen“; das Formular erscheint erst beim Tippen (oder solange es keine Abteilung gibt).
+- Die Seite ist auf dem Handy 1366 statt 2583 px lang.
+
+Geprüft: `typecheck`, `check:i18n`, `build`, Smoke; Vorher-/Nachher-Bilder.
+
+## Run 124 — Jugendmodus (2026-11-13)
+
+Audit-Vorschlag 8, Entscheidung Ben: ohne die Gesichter-Bewertung, die ACWR-Kürzel in der Spielerliste bleiben.
+
+- **Belastung bis U13 standardmäßig aus** (bisher bis U11): `defaultLoadForAge` und `app.team_age_default` (0058, live). Bestehende Teams ändern sich nicht; ein Trainer kann Belastung jederzeit einschalten.
+- **Spielerliste:** Fehlt Spielern eines Teams mit Belastung die Gesundheits-Einwilligung, steht oben „Einwilligung fehlt (2)“. Der Knopf filtert die Liste auf sie und zeigt **Erinnern**: Die Spieler bekommen einmal am Tag eine Push-Nachricht, die Einwilligung in den Einstellungen zu erledigen (unter 16: Eltern-Link schicken). Den Eltern-Link sieht oder erzeugt der Trainer nie. Datenbank: `public.remind_consent(team)` (nur mit `viewRoster`, Grenze 20 je Stunde, je Spieler und Tag einmal), Push-Text `push.consentReminder` in vier Sprachen.
+- Tests: `36_youth_mode_test.sql`, `24_consent_test.sql` (U12 jetzt aus, U14 an), `consent.test.ts`.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `test:consent`, alle Datenbank-Tests lokal, `build`, Smoke; Bilder.
+
+## Run 125 — Spieler-Tab „Team“ statt „Taktik“ (2026-11-13)
+
+Audit-Vorschlag 7 (Spielerseite), Entscheidung Ben.
+
+- Spieler-Tabs: **Heute · Kalender · Belastung · Team · Nachrichten**. „Team“ ist immer da (bisher erschien „Taktik“ nur mit Playbook).
+- `/athlete/team` zeigt je Team: das nächste Spiel mit den Fahrgemeinschaften (dieselbe Ansicht wie in der Einheit), die Trainer mit Rolle (Cheftrainer zuerst) und das Playbook, wenn das Team es nutzt. Die Mitspielerliste sehen Spieler weiterhin nicht (Rechte unverändert, `memberships_read` erlaubt Spielern nur die Trainer).
+- `/athlete/tactics` und `/athlete/playbook` leiten auf `/athlete/team` weiter (Push-Links für Playbooks bleiben gültig). `PlayerTacticsPage` entfällt, Smoke prüft `/athlete/team`.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke (64 Seitenaufrufe); Vorher-/Nachher-Bilder.
