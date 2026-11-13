@@ -10,7 +10,8 @@ import { useEffect, useState } from 'react';
 
 import { MIN_PASSWORD, PasswordCheck, PasswordField } from '@/features/access/AuthForm';
 import { currentAccount, setBackendChoice, updatePassword } from '@/shared/data';
-import { errorText, useT } from '@/shared/i18n';
+import { errorText, setLocale, useT } from '@/shared/i18n';
+import { isLocale } from '@/shared/i18n/locales';
 
 export default function ResetPasswordPage() {
   const t = useT();
@@ -22,6 +23,8 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const language = new URLSearchParams(window.location.search).get('lang');
+    if (isLocale(language)) setLocale(language);
     // The recovery link is handled while the client starts; give it a moment.
     const timer = window.setTimeout(() => {
       currentAccount().then(setAccount).catch(() => setAccount(null));

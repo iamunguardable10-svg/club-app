@@ -3228,3 +3228,27 @@ fremden Host, Canonical und beide Social-Bilder auf der neuen Domain. Lokaler Sm
 Start wird durch die macOS-Prozessberechtigung verhindert; vollständige Browser-
 und Datenbankprüfungen laufen unverändert im CI. SMTP-Anbindung und empfangene
 Testmail werden separat im Domain-Prüfbericht dokumentiert.
+
+
+## Run 109 — Club-OS-Passwortmail in der Sprache der Anfrage (2026-11-13)
+
+Ben: Passwortmail professionell mit Club OS, auf Deutsch bzw. in der Sprache, in
+der sie angefordert wird; danach echte Zustellung bei GMX und Gmail vergleichen.
+
+- Vier Sprachkataloge: klarer Club-OS-Betreff, Kontobezug, Zurücksetzen-Schaltfläche,
+  einmaliger Link, Hinweis bei fremder Anforderung und erreichbarer Antwortkanal.
+- Generator erstellt ein schlichtes responsives Tabellenlayout mit Textmarke,
+  ohne externe Bilder. Bestätigungs- und E-Mail-Änderungsvorlagen unverändert.
+- Passwortanfrage übergibt die aktuelle Sprache im erlaubten Redirect. Die Vorlage
+  priorisiert diese bei passender Site URL vor der gespeicherten Kontosprache;
+  ältere Links verwenden die Kontosprache bzw. Englisch. Auch die Reset-Seite
+  übernimmt gültige Sprachparameter. Kein neuer Maildienst, Hook oder Secret.
+- Der von Supabase erzeugte ConfirmationURL bleibt unverändert. Keine Änderung an
+  Passwortregeln, Sitzungen, Rollen, RLS oder DNS.
+
+Geprüft: Typecheck, Übersetzungsprüfung, i18n-Tests und Produktionsbuild. Die
+generierten Betreff- und HTML-Vorlagen zusätzlich mit Go html/template gerendert:
+alle vier expliziten Sprachen überschreiben die Kontosprache korrekt; ältere
+Anfragen und unbekannte Sprachen fallen zurück. Genau ein unveränderter Auth-Link,
+keine externen Bilder. Browser-Smoke und Landing-Prüfung laufen zusätzlich im CI.
+Empfangene Live-Tests werden im separaten Domain-Prüfbericht dokumentiert.

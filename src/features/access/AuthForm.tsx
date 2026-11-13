@@ -143,7 +143,7 @@ export function AuthForm({
         }
         setMailSent({ to: email.trim(), kind: 'confirm' });
       } else {
-        await requestPasswordReset(email);
+        await requestPasswordReset(email, currentLocale());
         setMailSent({ to: email.trim(), kind: 'reset' });
       }
     });
