@@ -2413,5 +2413,7 @@
   "consent.withdrawOpen": "Retirar el consentimiento…",
   "profile.editNumberPosition": "Cambiar número y posición",
   "rate.pick": "Toca un número",
-  "rate.pickFirst": "Elige lo dura que fue"
+  "rate.pickFirst": "Elige lo dura que fue",
+  "settings.rpePrefill": "Rellenar el RPE",
+  "settings.rpePrefillDetail": "La valoración empieza en el valor previsto para la sesión"
 }

@@ -3303,3 +3303,5 @@ Ben: alle größeren Audit-Vorschläge, in kleinen Schritten mit Vorher-/Nachher
 - **RPE beim Training:** keine Vorauswahl mehr; „Speichern“ erst nach dem Tippen einer Zahl („Wähle, wie anstrengend es war“). Spiele bleiben bei RPE 10 (Bens Regel).
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke; Vorher-/Nachher-Bilder auf dem Handy.
+
+**Nachtrag (Ben, 2026-11-13):** Die Antwort bleibt ganz auf der Karte. Nach „Absagen“ klappen die Gründe auf; „Anderes…“ öffnet dort ein Textfeld, „Verspätet“ den Minutenregler mit eigenen Gründen (Schule, Bus oder Bahn, Arbeit, Anderes). Eine beantwortete Einheit zeigt nur noch eine Zeile („Du bist dabei · Ändern“). Der RPE ist beim Training weiter nicht vorausgewählt. In den Einstellungen unter „Dieses Gerät“ gibt es den Schalter „RPE vorausfüllen“ (aus): Dann startet die Bewertung beim erwarteten Wert der Einheit (`expectedRpe`, sonst dem Durchschnitt, wie in der Prognose).

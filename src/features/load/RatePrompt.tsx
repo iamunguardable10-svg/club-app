@@ -21,7 +21,7 @@
 import { useEffect, useState } from 'react';
 import { useEscape } from '@/shared/hooks/useEscape';
 
-import { dismissHint, isHintDismissed, type AthletePendingSession } from '@/shared/data';
+import { dismissHint, isHintDismissed, isRpePrefillOn, type AthletePendingSession } from '@/shared/data';
 import { formatSessionTime } from '@/shared/format';
 import { tr, useT, type MessageKey } from '@/shared/i18n';
 import { displayTitle } from '@/features/sessions/sessionTypeLabels';
@@ -139,8 +139,9 @@ function RateForm({
   const t = useT();
   useEscape(onLater);
   const isGame = session.trainingType === 'game';
-  // Training: nothing chosen until the player taps a value, so no rating is saved unread (audit 2026-11, 5). Games stay RPE 10 (Ben).
-  const [rpe, setRpe] = useState<number | null>(isGame ? 10 : null);
+  // Training: nothing chosen until the player taps a value, so no rating is saved unread (audit 2026-11, 5),
+  // unless the player turned on starting at the expected value (settings). Games stay RPE 10 (Ben).
+  const [rpe, setRpe] = useState<number | null>(() => (isGame ? 10 : isRpePrefillOn() ? Math.min(10, Math.max(1, Math.round(defaults.rpe))) : null));
   // Room for overtime or extra time, as far as the sport goes.
   const maxMinutes = isGame ? defaults.maxMinutes ?? 150 : 240;
   const [minutes, setMinutes] = useState(Math.min(maxMinutes, defaults.minutes ?? sessionMinutes(session)));

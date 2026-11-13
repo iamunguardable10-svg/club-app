@@ -240,6 +240,22 @@ export function setTipsOff(off: boolean): void {
   } catch { /* nothing to do */ }
 }
 
+// RPE rating: start at the session's expected value instead of nothing (player's choice, off by default; Ben, 2026-11-13).
+const RPE_PREFILL_KEY = 'club-app.rpe-prefill';
+
+export function isRpePrefillOn(): boolean {
+  if (!isBrowser()) return false;
+  try { return window.localStorage.getItem(RPE_PREFILL_KEY) === '1'; } catch { return false; }
+}
+
+export function setRpePrefill(on: boolean): void {
+  if (!isBrowser()) return;
+  try {
+    if (on) window.localStorage.setItem(RPE_PREFILL_KEY, '1');
+    else window.localStorage.removeItem(RPE_PREFILL_KEY);
+  } catch { /* stays as it was */ }
+}
+
 const ONBOARDING_DRAFT_KEY = 'club-app.onboarding-draft';
 
 /**

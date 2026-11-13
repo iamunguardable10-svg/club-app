@@ -60,6 +60,8 @@ import {
   type Person,
   type RsvpMode,
   setTipsOff,
+  isRpePrefillOn,
+  setRpePrefill,
 } from '@/shared/data';
 import { clubRoleText } from '@/features/club/clubRoleText';
 
@@ -132,6 +134,7 @@ export function SettingsPage() {
                 ? <NotificationsHint variant="settings" />
                 : <p className="text-sm text-slate-400">{t('settings.demoNotifications')}</p>}
               <InstallHint variant="settings" />
+              {role === 'athlete' ? <RpePrefill /> : null}
               <TipsAgain />
             </div>
           </CoachSection>
@@ -144,6 +147,14 @@ export function SettingsPage() {
 
 /** Whether the account plays in a team (its Apple appointments show in the player calendar). */
 /** Piece A: answer sessions automatically ("in" unless you say no) or yourself. */
+/** The RPE rating starts at the session's expected value (off by default). */
+function RpePrefill() {
+  const t = useT();
+  const [on, setOn] = useState(false);
+  useEffect(() => setOn(isRpePrefillOn()), []);
+  return <Switch label={t('settings.rpePrefill')} detail={t('settings.rpePrefillDetail')} checked={on} onChange={() => { setRpePrefill(!on); setOn(!on); }} />;
+}
+
 /** The first-use tips (`TipLayer`), all back from the start. */
 function TipsAgain() {
   const t = useT();
