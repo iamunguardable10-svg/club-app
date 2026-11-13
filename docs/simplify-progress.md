@@ -3382,3 +3382,13 @@ Audit-Vorschlag 10.
 - Die Seite ist auf dem Handy 1242 statt 2685 px lang.
 
 Geprüft: `typecheck`, `check:i18n`, `build`, Smoke; Vorher-/Nachher-Bilder Handy und Desktop.
+
+## Run 123 — Verein: Abteilungen eingeklappt (2026-11-13)
+
+Audit-Vorschlag 12 (zweiter Teil).
+
+- Hat ein Verein mehrere Abteilungen, ist jede eine Zeile: Name, „2 Teams“, gelb „1 ohne Cheftrainer“, „›“. Ein Tipp klappt sie mit Leitung, Schreibrechten und Teams auf, „⌃“ wieder zu. Mit nur einer Abteilung bleibt sie offen wie bisher. „Los“ in der Einrichtungs-Liste klappt die Zielabteilung auf.
+- „Neue Abteilung“ ist ein Knopf „+ Abteilung hinzufügen“; das Formular erscheint erst beim Tippen (oder solange es keine Abteilung gibt).
+- Die Seite ist auf dem Handy 1366 statt 2583 px lang.
+
+Geprüft: `typecheck`, `check:i18n`, `build`, Smoke; Vorher-/Nachher-Bilder.
