@@ -3372,3 +3372,13 @@ Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke; Vorher-/Nachhe
 ## Run 121 — Hallen und Verlauf als Symbol im Kopf (2026-11-13)
 
 Nachbesserung zu Run 117 (Ben: „sieht schlechter aus“). Die Links „Hallen ›“ und „Verlauf ›“ standen auf dem Handy als eigene Zeile unter dem Titel. Jetzt sind sie ein rundes Symbol im Seitenkopf neben der Demo-Pille (Haus für Hallen im Kalender, Uhr für Verlauf im Team), auf dem Desktop mit Wort. Neue Shell-Option `headLink`, `ShellLink` entfällt.
+
+## Run 122 — Ehrliche Belastungsseite (2026-11-13)
+
+Audit-Vorschlag 10.
+
+- Ganz oben auf „Belastung“ steht eine Ampel mit einem Satz: „Du kannst normal trainieren“ (grün), „Du kannst etwas mehr machen“ (gelb), „Heute lieber leichter“ (rot), „Bewerte weiter deine Einheiten“ (grau, solange die Vergleichsbasis fehlt; ersetzt den eigenen Hinweis). Darunter das Diagramm.
+- Die drei Kennzahl-Kacheln (Spielraum, ACWR, Status), „Was bedeuten die Begriffe?“, Spielraum und Risiko, Wochenstabilität, Abwechslung und die letzten Einheiten liegen hinter **Mehr Zahlen**. Auf „Heute“ bleiben die Kacheln (Ben: „Heute“ bleibt, wie es ist).
+- Die Seite ist auf dem Handy 1242 statt 2685 px lang.
+
+Geprüft: `typecheck`, `check:i18n`, `build`, Smoke; Vorher-/Nachher-Bilder Handy und Desktop.

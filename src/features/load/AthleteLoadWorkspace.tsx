@@ -1477,17 +1477,14 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           </section>
         ) : null}
 
-        {activeView !== 'calendar' && hasLoad ? (
+        {activeView === 'home' && hasLoad ? (
           <div className="grid w-full min-w-0 grid-cols-3 items-stretch gap-2 [&>*]:min-h-[104px]">
             <LoadRoomMetric latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} />
             <AcwrMetric latest={latest} baselineReady={isBaselineReady} tone={zone.tone} />
             <Metric label={t('athlete.metric.status')} value={zone.tone === 'neutral' ? t('athlete.metric.building') : zoneLabel(zone.tone)} tone={zone.tone} />
           </div>
         ) : null}
-
-        {activeView === 'load' && hasLoad ? (
-          <button type="button" onClick={loadIntro.show} className="-mt-2 justify-self-start text-left text-xs font-black text-sky-300 underline">{t('loadIntro.again')}</button>
-        ) : null}
+        {activeView === 'load' && hasLoad ? <LoadVerdict latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} /> : null}
         {loadIntro.open ? <LoadIntro role="athlete" onClose={loadIntro.close} /> : null}
         <AppConfirmDialog
           isOpen={rideToWithdraw !== null}
@@ -1505,12 +1502,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             <LoadRiskBadge before={todayRisk.before} after={todayRisk.after} label={t('load.risk.today')} />
             <span className="text-xs font-bold text-slate-300">{t('load.risk.lowerIntensity')}</span>
           </div>
-        ) : null}
-
-        {activeView === 'load' && hasLoad && !isBaselineReady ? (
-          <section className="rounded-2xl border border-amber-300/25 bg-amber-300/[0.08] p-4 text-sm font-bold text-amber-100">
-            {t('athlete.baselineNote')}
-          </section>
         ) : null}
 
         {activeView === 'load' && hasLoad ? (
@@ -1541,12 +1532,27 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         ) : null}
 
         {activeView === 'load' && hasLoad ? (
-          <LoadDetailsPanel
-            entries={sortedEntries}
-            pendingSessions={loadPendingSessions}
-            latestEwma={latest}
-            baselineDays={baselineDays}
-          />
+          // Everything beyond the light and the chart, one tap away (audit 2026-11, proposal 10).
+          <details className="group" data-testid="load-more">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/65 px-4 py-3.5 text-sm font-black text-slate-200 [&::-webkit-details-marker]:hidden">
+              {t('load.more')}
+              <span aria-hidden className="text-slate-400 transition-transform group-open:rotate-180">⌄</span>
+            </summary>
+            <div className="mt-4 grid gap-4">
+              <div className="grid w-full min-w-0 grid-cols-3 items-stretch gap-2 [&>*]:min-h-[104px]">
+            <LoadRoomMetric latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} />
+            <AcwrMetric latest={latest} baselineReady={isBaselineReady} tone={zone.tone} />
+            <Metric label={t('athlete.metric.status')} value={zone.tone === 'neutral' ? t('athlete.metric.building') : zoneLabel(zone.tone)} tone={zone.tone} />
+              </div>
+              <button type="button" onClick={loadIntro.show} className="justify-self-start text-left text-xs font-black text-sky-300 underline">{t('loadIntro.again')}</button>
+              <LoadDetailsPanel
+                entries={sortedEntries}
+                pendingSessions={loadPendingSessions}
+                latestEwma={latest}
+                baselineDays={baselineDays}
+              />
+            </div>
+          </details>
         ) : null}
 
         {activeView === 'calendar' ? (
@@ -2145,6 +2151,31 @@ export function weeklyLoadDomain(points: WeeklyLoadProfilePoint[], metric: Weekl
   return [0, Math.max(60, Math.ceil(max / 60) * 60)] as [number, number];
 }
 
+
+/**
+ * The load page in one sentence (audit 2026-11, proposal 10): a traffic light
+ * and what it means for today. The numbers follow below and behind "Mehr Zahlen".
+ */
+function LoadVerdict({ latest, entries, baselineReady }: { latest: ReturnType<typeof getLatestACWR>; entries: AthleteLoadEntry[]; baselineReady: boolean }) {
+  const t = useT();
+  const room = buildLoadRoomSummary(latest, entries, latest?.chronicFull ?? false);
+  const mode = baselineReady ? room.mode : 'baseline';
+  const look = {
+    overload: { dot: 'bg-rose-400', ring: 'border-rose-400/35', title: 'load.verdict.overload', detail: 'load.guidance.overload' },
+    underload: { dot: 'bg-amber-300', ring: 'border-amber-300/35', title: 'load.verdict.underload', detail: 'load.guidance.underload' },
+    ready: { dot: 'bg-emerald-300', ring: 'border-emerald-300/35', title: 'load.verdict.ready', detail: null },
+    baseline: { dot: 'bg-slate-500', ring: 'border-slate-700', title: 'load.verdict.baseline', detail: 'athlete.baselineNote' },
+  }[mode as 'overload' | 'underload' | 'ready' | 'baseline'] ?? { dot: 'bg-slate-500', ring: 'border-slate-700', title: 'load.verdict.baseline', detail: 'athlete.baselineNote' };
+  return (
+    <section className={`flex items-start gap-4 rounded-3xl border ${look.ring} bg-slate-950/65 p-5`} data-testid="load-verdict">
+      <span aria-hidden className={`mt-1.5 h-4 w-4 shrink-0 rounded-full ${look.dot}`} />
+      <div className="min-w-0">
+        <p className="text-xl font-black leading-snug text-white">{t(look.title as MessageKey)}</p>
+        {look.detail ? <p className="mt-1 text-sm text-slate-300">{t(look.detail as MessageKey)}</p> : null}
+      </div>
+    </section>
+  );
+}
 
 function LoadDetailsPanel({
   entries,

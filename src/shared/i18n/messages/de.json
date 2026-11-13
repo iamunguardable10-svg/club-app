@@ -2449,5 +2449,10 @@
   "club.setup.done": "erledigt",
   "writeMessage.collapsed": "Nachricht schreiben…",
   "writeMessage.collapsedTo": "Nachricht an {to}…",
-  "writeMessage.cancel": "Abbrechen"
+  "writeMessage.cancel": "Abbrechen",
+  "load.more": "Mehr Zahlen",
+  "load.verdict.overload": "Heute lieber leichter",
+  "load.verdict.underload": "Du kannst etwas mehr machen",
+  "load.verdict.ready": "Du kannst normal trainieren",
+  "load.verdict.baseline": "Bewerte weiter deine Einheiten"
 }
