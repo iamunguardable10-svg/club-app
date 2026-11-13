@@ -2457,5 +2457,12 @@
   "load.verdict.baseline": "Continue à évaluer tes séances",
   "club.setup.withoutHead_one": "{count} sans entraîneur principal",
   "club.setup.withoutHead_other": "{count} sans entraîneur principal",
-  "club.collapse": "Replier"
+  "club.collapse": "Replier",
+  "team.consentMissing": "Consentement manquant ({count})",
+  "team.consentRemindDetail": "Ils reçoivent un rappel pour régler le consentement.",
+  "team.consentRemind": "Rappeler",
+  "team.consentReminded_one": "{count} rappelé",
+  "team.consentReminded_other": "{count} rappelés",
+  "push.consentReminder.title": "Consentement pour ta charge",
+  "push.consentReminder.body": "Ton entraîneur te demande de régler le consentement pour ta charge d’entraînement."
 }

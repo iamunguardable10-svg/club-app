@@ -2494,6 +2494,16 @@ export function isAnswerOpen(database: LocalDatabase, sessionId: Id, personId: I
  * open for the session. On the club server a push (once per player); the
  * local test mode has no pushes and only counts them. Returns how many.
  */
+/** Youth mode (0058): one push a day to the team's players who still lack health consent. */
+export async function remindConsent(teamId: Id): Promise<number> {
+  if (!isRemoteMode()) {
+    const database = readDatabase();
+    if (!database) return 0;
+    return database.memberships.filter((m) => m.teamId === teamId && m.role === 'athlete' && !hasHealthConsent(database, m.personId)).length;
+  }
+  return Number((await requireRemote().call('remind_consent', { p_team: teamId })) ?? 0);
+}
+
 export async function remindOpenPlayers(sessionId: Id): Promise<number> {
   if (!isRemoteMode()) {
     const database = readDatabase();

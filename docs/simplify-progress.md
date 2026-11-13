@@ -3392,3 +3392,13 @@ Audit-Vorschlag 12 (zweiter Teil).
 - Die Seite ist auf dem Handy 1366 statt 2583 px lang.
 
 Geprüft: `typecheck`, `check:i18n`, `build`, Smoke; Vorher-/Nachher-Bilder.
+
+## Run 124 — Jugendmodus (2026-11-13)
+
+Audit-Vorschlag 8, Entscheidung Ben: ohne die Gesichter-Bewertung, die ACWR-Kürzel in der Spielerliste bleiben.
+
+- **Belastung bis U13 standardmäßig aus** (bisher bis U11): `defaultLoadForAge` und `app.team_age_default` (0058, live). Bestehende Teams ändern sich nicht; ein Trainer kann Belastung jederzeit einschalten.
+- **Spielerliste:** Fehlt Spielern eines Teams mit Belastung die Gesundheits-Einwilligung, steht oben „Einwilligung fehlt (2)“. Der Knopf filtert die Liste auf sie und zeigt **Erinnern**: Die Spieler bekommen einmal am Tag eine Push-Nachricht, die Einwilligung in den Einstellungen zu erledigen (unter 16: Eltern-Link schicken). Den Eltern-Link sieht oder erzeugt der Trainer nie. Datenbank: `public.remind_consent(team)` (nur mit `viewRoster`, Grenze 20 je Stunde, je Spieler und Tag einmal), Push-Text `push.consentReminder` in vier Sprachen.
+- Tests: `36_youth_mode_test.sql`, `24_consent_test.sql` (U12 jetzt aus, U14 an), `consent.test.ts`.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `test:consent`, alle Datenbank-Tests lokal, `build`, Smoke; Bilder.

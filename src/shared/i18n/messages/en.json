@@ -2457,5 +2457,12 @@
   "load.verdict.baseline": "Keep rating your sessions",
   "club.setup.withoutHead_one": "{count} without head coach",
   "club.setup.withoutHead_other": "{count} without head coach",
-  "club.collapse": "Collapse"
+  "club.collapse": "Collapse",
+  "team.consentMissing": "Consent missing ({count})",
+  "team.consentRemindDetail": "They get a reminder to sort out consent.",
+  "team.consentRemind": "Remind",
+  "team.consentReminded_one": "{count} reminded",
+  "team.consentReminded_other": "{count} reminded",
+  "push.consentReminder.title": "Consent for your load",
+  "push.consentReminder.body": "Your coach asks you to sort out consent for your training load."
 }

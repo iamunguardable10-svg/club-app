@@ -89,9 +89,10 @@ select test.expect_count('withdraw + deletion erases load',$q$select 1 from publ
 select test.expect_error('adult withdrawal stops inserts',$q$insert into public.load_entries(person_id,date,title,training_type,rpe,duration_minutes,load,source) values ('a0000000-0000-0000-0000-000000000242',current_date,'Run','conditioning',5,30,150,'solo')$q$,'consent');
 reset role;
 select set_config('request.jwt.claims','',false);
-insert into public.teams(club_id,department_id,name,age_group) values ('c0000000-0000-0000-0000-000000000001','d0000000-0000-0000-0000-000000000001','Consent U8','U8'),('c0000000-0000-0000-0000-000000000001','d0000000-0000-0000-0000-000000000001','Consent U12','U12');
+insert into public.teams(club_id,department_id,name,age_group) values ('c0000000-0000-0000-0000-000000000001','d0000000-0000-0000-0000-000000000001','Consent U8','U8'),('c0000000-0000-0000-0000-000000000001','d0000000-0000-0000-0000-000000000001','Consent U12','U12'),('c0000000-0000-0000-0000-000000000001','d0000000-0000-0000-0000-000000000001','Consent U14','U14');
 select test.expect_count('U8 defaults load off',$q$select 1 from public.teams where name='Consent U8' and not ('load' = any (features))$q$,1);
-select test.expect_count('U12 defaults load on',$q$select 1 from public.teams where name='Consent U12' and 'load' = any (features)$q$,1);
+select test.expect_count('U12 defaults load off (0058)',$q$select 1 from public.teams where name='Consent U12' and not ('load' = any (features))$q$,1);
+select test.expect_count('U14 defaults load on',$q$select 1 from public.teams where name='Consent U14' and 'load' = any (features)$q$,1);
 select test.expect_error('invalid age group refused',$q$update public.teams set age_group='U7' where name='Consent U8'$q$,'check');
 -- A manageFacilities-only coach may update the facility, never health settings.
 update public.coach_roles set permissions='{viewRoster,manageFacilities}' where team_id='70000000-0000-0000-0000-000000000016' and name='Team Manager';
