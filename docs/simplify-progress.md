@@ -3358,3 +3358,13 @@ Audit-Vorschlag 12 (erster Teil).
 - Offen aus dem Vorschlag: die Abteilungen darunter als eingeklappter Baum.
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke; Vorher-/Nachher-Bilder Handy und Desktop.
+
+## Run 120 — Nachrichten als Verlauf (2026-11-13)
+
+Audit-Vorschlag 11.
+
+- **Schreiben:** Oben steht nur noch ein Feld „Nachricht schreiben…“ bzw. „Nachricht an U16 Jungen…“ mit „+“. Ein Tipp öffnet die volle Eingabe (An, Wer, Umfrage, Wichtig, Senden) mit dem Cursor im Text; „Abbrechen“ und Senden klappen sie wieder zu.
+- **Liste:** keine Kästen mehr um jede Nachricht, die Nachrichten sind durch eine Linie getrennt. Unter einer eigenen Nachricht steht nur „Gelesen 3/12 ⌄“ bzw. „Abgestimmt 5/12 ⌄“; ein Tipp zeigt Erinnern, Umfrage beenden, Löschen und, wo bekannt, die Namen.
+- Gilt überall, wo `MessageComposer`/`MessageList` stehen (Nachrichten-Seite, Team-Bereich).
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke; Vorher-/Nachher-Bilder.

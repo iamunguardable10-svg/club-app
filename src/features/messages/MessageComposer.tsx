@@ -53,6 +53,8 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
   const targets = picked ?? { ...EMPTY, teamIds: startTeams.length > 0 ? startTeams : onlyTeam };
   const [audience, setAudience] = useState<MessageAudience>('all');
   const [picking, setPicking] = useState(false);
+  // One field until it is used (audit 2026-11, proposal 11); recipients, poll and "important" open with it.
+  const [expanded, setExpanded] = useState(false);
   const [body, setBody] = useState('');
   const [important, setImportant] = useState(false);
   const [pinDays, setPinDays] = useState<number>(DEFAULT_MESSAGE_PIN_DAYS);
@@ -148,6 +150,7 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
       setPinDays(DEFAULT_MESSAGE_PIN_DAYS);
       setAudience('all');
       setPicking(false);
+      setExpanded(false);
       setError(null);
     } catch (caught) {
       setError(errorText(t, caught));
@@ -173,6 +176,21 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
       {label}
     </button>
   );
+
+  const toNames = [
+    ...(targets.wholeClub ? [database.club.name] : []),
+    ...targets.departmentIds.map(departmentName),
+    ...targets.teamIds.map(teamName),
+    ...targets.groupIds.map(groupLabel),
+  ].filter(Boolean);
+  if (!expanded) {
+    return (
+      <button type="button" onClick={() => setExpanded(true)} data-testid="composer-collapsed" className="flex w-full items-center gap-3 rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3.5 text-left text-sm font-bold text-slate-400 transition hover:border-slate-500">
+        <span className="min-w-0 flex-1 truncate">{toNames.length > 0 ? t('writeMessage.collapsedTo', { to: toNames.join(', ') }) : t('writeMessage.collapsed')}</span>
+        <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-300 text-lg font-black text-slate-950">+</span>
+      </button>
+    );
+  }
 
   return (
     <form className="grid gap-2 rounded-2xl border border-slate-800 bg-slate-950/60 p-3" onSubmit={(event) => { event.preventDefault(); send(); }}>
@@ -238,6 +256,7 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
 
       <div className="grid gap-2">
       <textarea
+        autoFocus
         value={body}
         onChange={(event) => { setBody(event.target.value); setError(null); }}
         maxLength={2000}
@@ -301,6 +320,7 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={!chosen || !body.trim() || !pollReady} className="rounded-xl bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950 disabled:opacity-50">{t('writeMessage.send')}</button>
         <span className="text-xs font-bold text-slate-400">{!chosen ? t('writeMessage.chooseRecipients') : reach === null ? '…' : t('writeMessage.reach', { count: reach })}</span>
+        <button type="button" onClick={() => { setExpanded(false); setPicking(false); }} className="ml-auto text-xs font-bold text-slate-400 underline">{t('writeMessage.cancel')}</button>
       </div>
     </form>
   );
