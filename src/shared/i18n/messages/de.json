@@ -2454,5 +2454,8 @@
   "load.verdict.overload": "Heute lieber leichter",
   "load.verdict.underload": "Du kannst etwas mehr machen",
   "load.verdict.ready": "Du kannst normal trainieren",
-  "load.verdict.baseline": "Bewerte weiter deine Einheiten"
+  "load.verdict.baseline": "Bewerte weiter deine Einheiten",
+  "club.setup.withoutHead_one": "{count} ohne Cheftrainer",
+  "club.setup.withoutHead_other": "{count} ohne Cheftrainer",
+  "club.collapse": "Zuklappen"
 }

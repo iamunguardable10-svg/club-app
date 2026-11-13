@@ -2454,5 +2454,8 @@
   "load.verdict.overload": "Take it easier today",
   "load.verdict.underload": "You can do a bit more",
   "load.verdict.ready": "You can train normally",
-  "load.verdict.baseline": "Keep rating your sessions"
+  "load.verdict.baseline": "Keep rating your sessions",
+  "club.setup.withoutHead_one": "{count} without head coach",
+  "club.setup.withoutHead_other": "{count} without head coach",
+  "club.collapse": "Collapse"
 }
