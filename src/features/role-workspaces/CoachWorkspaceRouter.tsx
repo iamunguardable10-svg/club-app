@@ -96,17 +96,17 @@ function CoachSessionCard({ session, showTeam, onDetails }: { session: CoachSess
   const t = useT();
   const { out, late } = summarizeAvailability(session);
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 transition hover:border-emerald-300/45 hover:bg-slate-900/70">
+    <div className="rounded-2xl bg-white/[0.04] transition hover:bg-white/[0.07]">
     <button type="button" onClick={onDetails} className="block w-full p-4 text-left text-white">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-2xl font-black tabular-nums">{formatTimeRange(session.startsAt, session.endsAt, session.sessionType)}</p>
-          <h3 className="mt-1 text-base font-black">{displayTitle(session.title)}</h3>
-          <p className="mt-0.5 text-sm font-bold text-slate-400">{session.teamName}{session.homeAway !== 'away' && session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+          <p className="text-2xl font-semibold tabular-nums">{formatTimeRange(session.startsAt, session.endsAt, session.sessionType)}</p>
+          <h3 className="mt-1 text-base font-semibold">{displayTitle(session.title)}</h3>
+          <p className="mt-0.5 text-sm font-medium text-slate-400">{session.teamName}{session.homeAway !== 'away' && session.facilityName ? ` · ${session.facilityName}` : ''}</p>
           <CarpoolSummary sessionId={session.id} />
-          {gameLine(session) || meetLine(session) ? <p className="mt-0.5 text-sm font-bold text-amber-100/90">{[gameLine(session), meetLine(session)].filter(Boolean).join(' · ')}</p> : null}
+          {gameLine(session) || meetLine(session) ? <p className="mt-0.5 text-sm text-slate-300">{[gameLine(session), meetLine(session)].filter(Boolean).join(' · ')}</p> : null}
         </div>
-        <span aria-hidden className="text-lg font-black text-slate-500">›</span>
+        <span aria-hidden className="text-lg font-semibold text-slate-400">›</span>
       </div>
       <AttendanceTally session={session} />
 
@@ -130,17 +130,17 @@ function UpcomingSessionRow({ session, showTeam, onOpen }: { session: CoachSessi
     openCount > 0 ? { key: 'open', className: 'text-amber-100', text: t('coach.row.open', { count: openCount }) } : null,
   ].filter((badge): badge is { key: string; className: string; text: string } => badge !== null);
   return (
-    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 px-3 py-3 text-left transition hover:border-sky-300/50 hover:bg-slate-900/70">
+    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl bg-white/[0.04] px-3 py-3 text-left transition hover:bg-white/[0.07]">
       <div className="w-12 shrink-0 text-center">
-        <p className="text-[11px] font-black uppercase text-slate-400">{formatWeekday(start)}</p>
-        <p className="text-lg font-black leading-tight text-white">{start.getDate()}</p>
+        <p className="text-xs font-semibold uppercase text-slate-400">{formatWeekday(start)}</p>
+        <p className="text-lg font-semibold leading-tight text-white">{start.getDate()}</p>
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-black text-white">{displayTitle(session.title)}{session.opponent ? ` ${gameLine(session)}` : ''}</p>
-        <p className="truncate text-xs font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt, session.sessionType)}{showTeam ? <> · {session.teamName}</> : ''}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+        <p className="truncate text-sm font-semibold text-white">{displayTitle(session.title)}{session.opponent ? ` ${gameLine(session)}` : ''}</p>
+        <p className="truncate text-xs font-medium text-slate-400">{formatTimeRange(session.startsAt, session.endsAt, session.sessionType)}{showTeam ? <> · {session.teamName}</> : ''}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
         <CarpoolSummary sessionId={session.id} />
         {badges.length > 0 ? (
-          <p className="mt-0.5 flex flex-wrap gap-x-1 text-[11px] font-black">
+          <p className="mt-0.5 flex flex-wrap gap-x-1 text-xs font-semibold">
             {badges.map((badge, index) => <span key={badge.key} className={badge.className}>{index > 0 ? '· ' : ''}{badge.text}</span>)}
           </p>
         ) : null}
@@ -574,12 +574,12 @@ export function CoachCalendarSurface({
   // In the week view the switch sits in the calendar's own toolbar, next to edit, to save a row.
   const viewSwitch = (
     <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1" role="group" aria-label={t('coach.calendar.view')}>
-          <button type="button" onClick={showWeekSurface} aria-pressed={surfaceMode === 'week'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'week' ? 'bg-sky-300 text-slate-950' : 'text-slate-400'}`} aria-label={t('coach.calendar.sessions')} title={t('coach.calendar.sessions')}><svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg><span className="hidden md:inline">{t('coach.calendar.sessions')}</span></button>
-          <button type="button" onClick={showSeriesSurface} aria-pressed={surfaceMode === 'series'} className={`rounded-full px-3 py-1.5 text-xs font-black ${surfaceMode === 'series' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`} aria-label={t('coach.calendar.weeklyPlan')} title={t('coach.calendar.weeklyPlan')}><svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></svg><span className="hidden md:inline">{t('coach.calendar.weeklyPlan')}</span></button>
+          <button type="button" onClick={showWeekSurface} aria-pressed={surfaceMode === 'week'} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${surfaceMode === 'week' ? 'bg-slate-100 text-slate-950' : 'text-slate-400'}`} aria-label={t('coach.calendar.sessions')} title={t('coach.calendar.sessions')}><svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg><span className="hidden md:inline">{t('coach.calendar.sessions')}</span></button>
+          <button type="button" onClick={showSeriesSurface} aria-pressed={surfaceMode === 'series'} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${surfaceMode === 'series' ? 'bg-slate-100 text-slate-950' : 'text-slate-400'}`} aria-label={t('coach.calendar.weeklyPlan')} title={t('coach.calendar.weeklyPlan')}><svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 md:hidden" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></svg><span className="hidden md:inline">{t('coach.calendar.weeklyPlan')}</span></button>
         </div>
   );
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-white sm:p-5">
+    <section className="os-panel p-4 text-white sm:p-5">
       {teams.length > 1 || surfaceMode === 'series' ? <div className="flex flex-wrap items-center justify-between gap-3">
         {teams.length > 1 ? (
           <div className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1" role="group" aria-label={t('coach.calendar.showTeam')}>
@@ -589,7 +589,7 @@ export function CoachCalendarSurface({
                 type="button"
                 onClick={() => setTeamFilter(team.id)}
                 aria-pressed={teamFilter === team.id}
-                className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-black transition ${teamFilter === team.id ? 'border-sky-300 bg-sky-300/15 text-sky-100' : 'border-slate-800 text-slate-400 hover:text-white'}`}
+                className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition ${teamFilter === team.id ? 'border-sky-300 bg-slate-100/15 text-sky-100' : 'border-slate-800 text-slate-400 hover:text-white'}`}
               >
                 {team.id ? <TeamDot teamId={team.id} /> : null}{team.name}
               </button>
@@ -1029,7 +1029,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
     return (
       <main className="os-page">
         <div className="os-container">
-          <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">
+          <section className="os-panel p-6 text-white">
             <p className="mb-4">{t('coach.noCoach')}</p>
             <Link className="underline" href="/start">{t('coach.chooseRole')}</Link>
           </section>
@@ -1068,14 +1068,14 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
         {error ? (
           <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-500/40 bg-red-950/30 p-4 text-sm text-red-100">
             <span>{error}</span>
-            <button type="button" onClick={() => setError(null)} className="text-xs font-black underline">{t('coach.dismiss')}</button>
+            <button type="button" onClick={() => setError(null)} className="text-xs font-semibold underline">{t('coach.dismiss')}</button>
           </div>
         ) : null}
 
         {teams.length === 0 ? (
           <section className="rounded-3xl border border-amber-500/35 bg-amber-950/20 p-5 text-amber-100">
-            <h2 className="text-xl font-black">{t('coach.noTeam.title')}</h2>
-            <p className="mt-2 text-sm font-bold text-amber-100/80">{t('coach.noTeam.detail')}</p>
+            <h2 className="text-xl font-semibold">{t('coach.noTeam.title')}</h2>
+            <p className="mt-2 text-sm font-medium text-amber-100/80">{t('coach.noTeam.detail')}</p>
           </section>
         ) : null}
 
@@ -1086,7 +1086,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
           return (
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
               <div className="grid min-w-0 gap-5">
-                {todaySessions.length === 0 ? <p className="px-1 text-sm font-black text-slate-400">{t('coach.today.none')}</p> : null}
+                {todaySessions.length === 0 ? <p className="px-1 text-sm font-semibold text-slate-400">{t('coach.today.none')}</p> : null}
                 {board.length > 0 ? (
                   <CoachSection title={todaySessions.length > 0 ? t('coach.today.count', { count: todaySessions.length }) : t('coach.today.next')}>
                     <div className="grid gap-3">
@@ -1100,7 +1100,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
                 <FirstRatingsCard sessions={sessions} />
               </div>
               {week.length > 0 ? (
-                <CoachSection title={t('coach.today.comingUp')} actions={<Link href="/coach/sessions" className="text-xs font-black text-sky-300 hover:text-sky-200">{t('coach.today.calendarLink')}</Link>}>
+                <CoachSection title={t('coach.today.comingUp')} actions={<Link href="/coach/sessions" className="text-xs font-semibold text-sky-300 hover:text-sky-200">{t('coach.today.calendarLink')}</Link>}>
                   <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
                     {week.map((session) => (
                       <li key={session.id}>
@@ -1249,12 +1249,11 @@ function FirstRatingsCard({ sessions }: { sessions: CoachSession[] }) {
   if (dismissed || !rated) return null;
   const done = () => { dismissHint('coachFirstRatings'); dismissHint('loadIntroCoach'); setDismissed(true); setOpen(false); };
   return (
-    <section className="rounded-3xl border border-emerald-300/30 bg-emerald-300/[0.06] p-4 sm:p-5">
-      <p className="text-base font-black text-white">{t('coach.firstRatings.title')}</p>
-      <p className="mt-1 text-sm text-slate-300">{t('coach.firstRatings.detail')}</p>
+    <section className="os-panel p-4 sm:p-5">
+      <p className="text-base font-semibold text-white">{t('coach.firstRatings.title')}</p>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button type="button" onClick={() => setOpen(true)} className="os-success px-4 py-2 text-sm">{t('coach.firstRatings.open')}</button>
-        <button type="button" onClick={() => { dismissHint('coachFirstRatings'); setDismissed(true); }} className="text-xs font-bold text-slate-400 underline">{t('coach.firstRatings.later')}</button>
+        <button type="button" onClick={() => { dismissHint('coachFirstRatings'); setDismissed(true); }} className="text-xs font-medium text-slate-400 underline">{t('coach.firstRatings.later')}</button>
       </div>
       {open ? <LoadIntro role="coach" onClose={done} /> : null}
     </section>

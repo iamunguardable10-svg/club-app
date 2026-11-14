@@ -34,7 +34,7 @@ function initials(name: string) {
 
 export function TeamLogoBadge({ src, name, className = 'h-10 w-10 text-xs' }: { src: string | null; name: string; className?: string }) {
   return (
-    <span className={`grid shrink-0 place-items-center overflow-hidden rounded-xl border border-slate-700 bg-slate-900 font-black text-slate-300 ${className}`}>
+    <span className={`grid shrink-0 place-items-center overflow-hidden rounded-xl border border-slate-700 bg-slate-900 font-semibold text-slate-300 ${className}`}>
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element -- public storage links and data URLs, not optimisable
         <img src={src} alt="" className="h-full w-full object-contain p-0.5" />
@@ -61,7 +61,7 @@ export function TeamLogoPicker({ database, team, compact = false }: { database: 
       <div className="flex items-center gap-3">
         <TeamLogoBadge src={src} name={team.name} className={compact ? 'h-10 w-10 text-xs' : 'h-14 w-14 text-sm'} />
         <div className="grid min-w-0 gap-1">
-          {compact ? null : <p className="text-sm font-black text-white">{t('teamLogo.title')}</p>}
+          {compact ? null : <p className="text-sm font-semibold text-white">{t('teamLogo.title')}</p>}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <input
               ref={input}
@@ -74,15 +74,15 @@ export function TeamLogoPicker({ database, team, compact = false }: { database: 
                 if (file) void run(async () => setTeamLogo(team.id, await shrinkLogo(file)));
               }}
             />
-            <button type="button" disabled={busy} onClick={() => input.current?.click()} className="text-xs font-black text-sky-300 underline disabled:opacity-60">
+            <button type="button" disabled={busy} onClick={() => input.current?.click()} className="text-xs font-semibold text-sky-300 underline disabled:opacity-60">
               {busy ? t('common.oneMoment') : src ? t('teamLogo.change') : t('teamLogo.add')}
             </button>
-            {src && !busy ? <button type="button" onClick={() => void run(() => removeTeamLogo(team.id))} className="text-xs font-bold text-slate-400 underline">{t('teamLogo.remove')}</button> : null}
+            {src && !busy ? <button type="button" onClick={() => void run(() => removeTeamLogo(team.id))} className="text-xs font-medium text-slate-400 underline">{t('teamLogo.remove')}</button> : null}
           </div>
-          {compact ? null : <p className="text-xs text-slate-500">{t('teamLogo.hint')}</p>}
+          {compact ? null : <p className="text-xs text-slate-400">{t('teamLogo.hint')}</p>}
         </div>
       </div>
-      {error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null}
+      {error ? <p role="alert" className="text-xs font-medium text-red-200">{error}</p> : null}
     </div>
   );
 }

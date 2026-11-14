@@ -78,7 +78,7 @@ function Page({ children }: { children: React.ReactNode }) {
             <p className="os-kicker">{t('start.kicker')}</p>
             <LanguagePicker compact />
           </div>
-          <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">{t('start.title')}</h1>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">{t('start.title')}</h1>
         </header>
         {children}
       </div>
@@ -101,7 +101,7 @@ function DemoCard({ prominent, onStart }: { prominent: boolean; onStart: (role: 
   return (
     <section className={prominent ? 'os-panel grid gap-4 p-5 sm:p-6' : 'os-panel-soft grid gap-3 p-4'}>
       <div>
-        <p className={prominent ? 'text-lg font-black text-white' : 'text-sm font-black text-slate-200'}>{t('start.demo.title')}</p>
+        <p className={prominent ? 'text-lg font-semibold text-white' : 'text-sm font-semibold text-slate-200'}>{t('start.demo.title')}</p>
         <p className="mt-1 text-xs text-slate-400">{t('start.demo.detail')}</p>
       </div>
       <div className={`grid gap-2 ${prominent ? 'sm:grid-cols-3' : 'grid-cols-3'}`}>
@@ -169,7 +169,7 @@ function ServerStart() {
   }
 
   const signOutButton = (
-    <button type="button" onClick={async () => { await signOut(); window.location.assign('/start'); }} className="justify-self-start text-xs font-bold text-slate-400 underline">
+    <button type="button" onClick={async () => { await signOut(); window.location.assign('/start'); }} className="justify-self-start text-xs font-medium text-slate-400 underline">
       {t('start.signOut')}
     </button>
   );
@@ -179,7 +179,7 @@ function ServerStart() {
       <Page>
         <Card tone="primary">
           <div>
-            <p className="text-lg font-black text-white">{t('start.unlinked.title')}</p>
+            <p className="text-lg font-semibold text-white">{t('start.unlinked.title')}</p>
             <p className="mt-1 text-sm text-slate-400">{t('start.unlinked.detail')}</p>
           </div>
           {signOutButton}
@@ -213,8 +213,8 @@ function ServerStart() {
     <Page>
       <Card tone="primary">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">{database.club.name}</p>
-          <p className="mt-2 text-2xl font-black text-white">{me ? t('start.welcomeBackName', { name: me.firstName }) : t('start.welcomeBack')}</p>
+          <p className="text-xs font-semibold text-emerald-300">{database.club.name}</p>
+          <p className="mt-2 text-2xl font-semibold text-white">{me ? t('start.welcomeBackName', { name: me.firstName }) : t('start.welcomeBack')}</p>
         </div>
         <div className="grid gap-2">
           {choices.map((choice) => (
@@ -225,26 +225,26 @@ function ServerStart() {
                 setActiveIdentity({ role: choice.role, personId: choice.personId });
                 router.push(HOME_FOR_ROLE[choice.role]);
               }}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-left transition hover:border-emerald-300/60"
+              className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-4 py-3 text-left transition"
             >
               <span className="min-w-0">
-                <span className="block text-sm font-black text-white">{choice.role === 'club' && !isClubAdmin(database, choice.personId) ? t('start.continueAs.departmentLead') : t(CONTINUE_KEY[choice.role])}</span>
+                <span className="block text-sm font-semibold text-white">{choice.role === 'club' && !isClubAdmin(database, choice.personId) ? t('start.continueAs.departmentLead') : t(CONTINUE_KEY[choice.role])}</span>
                 <span className="block truncate text-xs text-slate-400">{choice.detail}</span>
               </span>
-              <span aria-hidden className="text-lg font-black text-emerald-300">›</span>
+              <span aria-hidden className="text-lg font-semibold text-emerald-300">›</span>
             </button>
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           {signOutButton}
-          {addRole ? null : <Link href="/start?add=1" className="text-xs font-bold text-slate-400 underline">{t('start.addRole')}</Link>}
+          {addRole ? null : <Link href="/start?add=1" className="text-xs font-medium text-slate-400 underline">{t('start.addRole')}</Link>}
         </div>
       </Card>
       {addRole ? (
         <>
           <QuickPlayerRoles database={database} />
           <WhoAreYou signedIn />
-          <p className="text-xs text-slate-500">{t('start.oneClubNote', { club: database.club.name })}</p>
+          <p className="text-xs text-slate-400">{t('start.oneClubNote', { club: database.club.name })}</p>
         </>
       ) : null}
       <DemoCard prominent={false} onStart={startDemoFromServer} />
@@ -284,7 +284,7 @@ function LocalStart() {
     return (
       <Page>
         <section className="rounded-3xl border border-red-500/40 bg-red-950/30 p-5 text-sm text-red-100">
-          <p className="font-bold">{t('start.local.readError')}</p>
+          <p className="font-medium">{t('start.local.readError')}</p>
           <p className="mt-2">{errorText(t, error)}</p>
         </section>
       </Page>

@@ -44,7 +44,7 @@ function EnterCode({ initial, message }: { initial: string; message?: string }) 
     >
       {message ? <ErrorLine message={message} /> : null}
       <p className="text-sm text-slate-400">{t('onboarding.who.founderText')}</p>
-      <label className="grid gap-1 text-sm font-bold text-slate-200">
+      <label className="grid gap-1 text-sm font-medium text-slate-200">
         {t('onboarding.who.foundingCode')}
         <input required value={value} onChange={(event) => setValue(event.target.value.toUpperCase())} placeholder="ABCDE-FGHJK" autoCapitalize="characters" autoComplete="off" spellCheck={false} className="os-field font-mono tracking-[0.2em]" />
       </label>
@@ -55,7 +55,7 @@ function EnterCode({ initial, message }: { initial: string; message?: string }) 
 
 function Field({ label, value, onChange, placeholder, autoComplete }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; autoComplete?: string }) {
   return (
-    <label className="grid min-w-0 gap-1 text-sm font-bold text-slate-200">
+    <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-200">
       {label}
       <input required value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} autoComplete={autoComplete ?? 'off'} className="os-field min-w-0" />
     </label>
@@ -121,8 +121,8 @@ function FoundForm({ code, account, profile }: { code: string; account: { email:
       <section className="os-panel grid grid-cols-[minmax(0,1fr)] gap-3 p-5">
         <AccountLine account={account} />
         <Field label={t('onboarding.found.clubName')} value={clubName} onChange={setClubName} placeholder={t('onboarding.found.clubNamePlaceholder')} />
-        <label className="grid min-w-0 gap-1 text-sm font-bold text-slate-200">
-          <span>{t('onboarding.found.city')} <span className="text-xs font-normal text-slate-500">{t('common.optional')}</span></span>
+        <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-200">
+          <span>{t('onboarding.found.city')} <span className="text-xs font-normal text-slate-400">{t('common.optional')}</span></span>
           <input value={city} onChange={(event) => setCity(event.target.value)} autoComplete="address-level2" className="os-field min-w-0" />
         </label>
         {profile ? null : (
@@ -134,7 +134,7 @@ function FoundForm({ code, account, profile }: { code: string; account: { email:
       </section>
       <section className="os-panel grid grid-cols-[minmax(0,1fr)] gap-3 p-5">
         <div>
-          <p className="text-sm font-black text-white">{t('onboarding.found.firstDepartment')}</p>
+          <p className="text-sm font-semibold text-white">{t('onboarding.found.firstDepartment')}</p>
           <p className="text-xs text-slate-400">{t('onboarding.found.sportHelp')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -144,7 +144,7 @@ function FoundForm({ code, account, profile }: { code: string; account: { email:
       </section>
       <section className="os-panel grid grid-cols-[minmax(0,1fr)] gap-3 p-5">
         <div>
-          <p className="text-sm font-black text-white">{t('onboarding.found.firstTeam')}</p>
+          <p className="text-sm font-semibold text-white">{t('onboarding.found.firstTeam')}</p>
           <p className="text-xs text-slate-400">{t('onboarding.found.whereToStartDetail')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -154,10 +154,10 @@ function FoundForm({ code, account, profile }: { code: string; account: { email:
           })}
         </div>
         <input value={teamName} onChange={(event) => setTeamName(event.target.value)} placeholder={t('onboarding.found.otherTeam')} aria-label={t('onboarding.found.otherTeam')} className="os-field min-w-0" />
-        <label className="flex items-start gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-200">
+        <label className="flex items-start gap-3 rounded-2xl bg-white/[0.04] p-3 text-sm text-slate-200">
           <input type="checkbox" checked={coachTeam} onChange={(event) => setCoachTeam(event.target.checked)} className="mt-1 h-4 w-4" />
           <span>
-            <span className="block font-black">{t('onboarding.found.coachTeam')}</span>
+            <span className="block font-semibold">{t('onboarding.found.coachTeam')}</span>
             <span className="block text-xs text-slate-400">{t('onboarding.found.coachTeamDetail')}</span>
           </span>
         </label>
@@ -196,15 +196,15 @@ function FoundFlow({ code, account }: { code: string; account: Account }) {
   return (
     <Shell title={title} steps={{ labels, current }}>
       <section className="os-panel p-5 text-sm text-slate-300">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">{t('onboarding.found.accepted')}</p>
-        <p className="mt-1 font-mono text-lg font-black tracking-[0.2em] text-white">{code}</p>
+        <p className="text-xs font-semibold text-emerald-300">{t('onboarding.found.accepted')}</p>
+        <p className="mt-1 font-mono text-lg font-semibold tracking-[0.2em] text-white">{code}</p>
       </section>
       {account ? (
         <FoundForm code={code} account={account} profile={draft} />
       ) : draft ? (
         <>
           <AuthForm staff consent={draft.consent} returnTo={`/found?code=${encodeURIComponent(code)}`} intro={t('onboarding.found.accountIntro')} />
-          <button type="button" onClick={() => setDraft(null)} className="justify-self-start px-1 text-xs font-bold text-slate-400 underline">{t('onboarding.back')}</button>
+          <button type="button" onClick={() => setDraft(null)} className="justify-self-start px-1 text-xs font-medium text-slate-400 underline">{t('onboarding.back')}</button>
         </>
       ) : (
         <ProfileStep

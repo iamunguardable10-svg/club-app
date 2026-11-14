@@ -998,12 +998,12 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
     >
       <div className="space-y-4">
         {highlightedTeam || highlightedDepartment ? (
-          <div className="flex flex-wrap gap-2 text-xs font-black">
+          <div className="flex flex-wrap gap-2 text-xs font-semibold">
             <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-slate-200">{t('hallCalendar.highlighted', { name: (highlightedTeam ?? highlightedDepartment)!.name })}</span>
           </div>
         ) : null}
         {facilityAssignmentNotice ? (
-          <p className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm font-medium text-slate-300">{facilityAssignmentNotice}</p>
+          <p className="rounded-2xl bg-white/[0.04] px-4 py-3 text-sm font-medium text-slate-300">{facilityAssignmentNotice}</p>
         ) : null}
 
         <SmartSessionCalendar

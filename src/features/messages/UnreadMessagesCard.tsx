@@ -35,15 +35,17 @@ export function UnreadMessagesCard({ database, personId }: { database: LocalData
   if (!shown) return null;
   const pinned = shown.important && messagePinnedUntil(shown) !== null && Date.parse(messagePinnedUntil(shown)!) > now;
   return (
-    <Link href={href} className="block rounded-3xl border border-slate-700 bg-slate-950/70 p-4 text-sm transition hover:border-slate-500">
-      <p className="flex items-center gap-2 font-black text-white">
-        {unread.length > 0 ? <NewDot label={t('messages.new')} /> : null}
-        {unread.length > 0 ? t('messages.newCount', { count: unread.length }) : t('messages.pinned')}
-        {pinned ? <PinIcon className="h-3.5 w-3.5 text-amber-200/80" /> : null}
-      </p>
-      <p className="mt-1 text-xs font-bold text-slate-500">{authorName(database, shown)} · {messageLabel(database, shown)} · {whenPosted(shown.createdAt)}</p>
-      <p className="mt-1.5 line-clamp-2 text-slate-200">{shown.body}</p>
-      <p className="mt-2 text-xs font-black text-sky-300">{t('messages.open')}</p>
+    <Link href={href} aria-label={t('messages.open')} className="flex items-start gap-3 px-4 py-3.5 text-sm transition-colors hover:bg-white/[0.03]">
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2 font-semibold text-white">
+          {unread.length > 0 ? <NewDot label={t('messages.new')} /> : null}
+          {unread.length > 0 ? t('messages.newCount', { count: unread.length }) : t('messages.pinned')}
+          {pinned ? <PinIcon className="h-3.5 w-3.5 text-amber-200/80" /> : null}
+        </span>
+        <span className="mt-0.5 block text-xs text-slate-400">{authorName(database, shown)} · {messageLabel(database, shown)} · {whenPosted(shown.createdAt)}</span>
+        <span className="mt-1.5 line-clamp-2 text-slate-200">{shown.body}</span>
+      </span>
+      <span aria-hidden className="mt-0.5 text-lg leading-none text-slate-400">›</span>
     </Link>
   );
 }

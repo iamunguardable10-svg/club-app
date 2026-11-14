@@ -34,7 +34,7 @@ function ShareIcon() {
   );
 }
 
-const bold = (chunk: string) => <span className="font-black text-white">{chunk}</span>;
+const bold = (chunk: string) => <span className="font-semibold text-white">{chunk}</span>;
 
 export function Steps({ platform, canPrompt }: { platform: InstallPlatform; canPrompt: boolean }) {
   const t = useT();
@@ -93,8 +93,8 @@ export function InstallHint({ variant }: { variant: 'menu' | 'settings' }) {
   return (
     <div className={`grid gap-2 text-sm text-slate-300 ${variant === 'menu' ? 'mt-6 border-t border-slate-800 pt-4' : ''}`}>
       <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="flex items-center justify-between text-left">
-        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{t('install.asApp')}</span>
-        <span aria-hidden className="text-lg font-black text-slate-500">{open ? '−' : '+'}</span>
+        <span className="text-xs font-semibold text-slate-400">{t('install.asApp')}</span>
+        <span aria-hidden className="text-lg font-semibold text-slate-400">{open ? '−' : '+'}</span>
       </button>
       {open ? (
         <>

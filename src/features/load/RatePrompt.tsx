@@ -86,7 +86,7 @@ function RpePicker({ value, onChange }: { value: number | null; onChange: (value
   const t = useT();
   return (
     <fieldset className="mt-4">
-      <legend className="flex w-full items-baseline justify-between text-sm font-black text-slate-200">
+      <legend className="flex w-full items-baseline justify-between text-sm font-semibold text-slate-200">
         <span>{t('rate.effort')}</span>
         {value !== null ? <span className="text-emerald-200">{value} · {rpeWord(value)}</span> : <span className="text-slate-400">{t('rate.pick')}</span>}
       </legend>
@@ -98,7 +98,7 @@ function RpePicker({ value, onChange }: { value: number | null; onChange: (value
             onClick={() => onChange(option)}
             aria-pressed={value === option}
             aria-label={t('rate.rpeAria', { value: option, word: rpeWord(option) })}
-            className={`rounded-xl border py-2.5 text-base font-black transition ${value === option ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-200'}`}
+            className={`rounded-xl border py-2.5 text-base font-semibold transition ${value === option ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-200'}`}
           >
             {option}
           </button>
@@ -112,7 +112,7 @@ function MinutesSlider({ label, value, onChange, min, max, step }: { label: stri
   const t = useT();
   return (
     <label className="mt-4 block">
-      <span className="flex items-baseline justify-between text-sm font-black text-slate-200">
+      <span className="flex items-baseline justify-between text-sm font-semibold text-slate-200">
         <span>{label}</span>
         <span>{t('rate.minutes', { count: value })}</span>
       </span>
@@ -154,58 +154,58 @@ function RateForm({
   useEffect(() => setHowTo(!isHintDismissed('rpeHowTo')), []);
   const save = () => { if (rpe === null) return; dismissHint('rpeHowTo'); onSave(session, rpe, minutes, isGame ? warmup : null); };
   const steps = isGame ? (
-    <p className="mt-1 text-xs font-black text-slate-400">{t(stage === 'warmup' ? 'rate.step.warmup' : 'rate.step.game')}</p>
+    <p className="mt-1 text-xs font-semibold text-slate-400">{t(stage === 'warmup' ? 'rate.step.warmup' : 'rate.step.game')}</p>
   ) : null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/80 p-3 backdrop-blur-sm sm:items-center" role="dialog" aria-modal="true" aria-labelledby="rate-title">
-      <section className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-3xl border border-slate-700 bg-slate-900 p-5 text-white shadow-2xl">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-3 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="rate-title">
+      <section className="os-sheet max-h-[92vh] w-full max-w-md overflow-y-auto p-5 text-white">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-black text-emerald-300">{remaining > 1 ? t('rate.progress', { count: remaining }) : t('rate.afterSession')}</p>
-            <h2 id="rate-title" className="mt-1 text-2xl font-black">{stage === 'warmup' ? t('rate.warmupTitle') : t('rate.title')}</h2>
+            <p className="text-xs font-semibold text-emerald-300">{remaining > 1 ? t('rate.progress', { count: remaining }) : t('rate.afterSession')}</p>
+            <h2 id="rate-title" className="mt-1 text-2xl font-semibold">{stage === 'warmup' ? t('rate.warmupTitle') : t('rate.title')}</h2>
             {steps}
           </div>
-          <button type="button" onClick={onLater} className="shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{t('rate.later')}</button>
+          <button type="button" onClick={onLater} className="shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300">{t('rate.later')}</button>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
-          <p className="text-base font-black">{stage === 'warmup' ? t('rate.warmupBefore', { title: displayTitle(session.title) }) : displayTitle(session.title)}</p>
-          <p className="mt-0.5 text-sm font-bold text-slate-400">{formatSessionTime(session.startsAt, session.endsAt, session.trainingType)}{session.teamName ? ` · ${session.teamName}` : ''}</p>
+        <div className="mt-4 rounded-2xl bg-white/[0.04] p-3">
+          <p className="text-base font-semibold">{stage === 'warmup' ? t('rate.warmupBefore', { title: displayTitle(session.title) }) : displayTitle(session.title)}</p>
+          <p className="mt-0.5 text-sm font-medium text-slate-400">{formatSessionTime(session.startsAt, session.endsAt, session.trainingType)}{session.teamName ? ` · ${session.teamName}` : ''}</p>
         </div>
 
         {stage === 'warmup' ? (
           <>
             <RpePicker value={warmup?.rpe ?? defaults.warmupRpe} onChange={(value) => setWarmup({ rpe: value, minutes: warmup?.minutes ?? defaults.warmupMinutes })} />
             <MinutesSlider label={t('rate.duration')} value={warmup?.minutes ?? defaults.warmupMinutes} onChange={(value) => setWarmup({ rpe: warmup?.rpe ?? defaults.warmupRpe, minutes: value })} min={5} max={60} step={5} />
-            <button type="button" onClick={() => { setWarmup((current) => current ?? { rpe: defaults.warmupRpe, minutes: defaults.warmupMinutes }); setStage('main'); }} className="mt-5 w-full rounded-2xl bg-emerald-300 px-4 py-3 text-sm font-black text-slate-950">
+            <button type="button" onClick={() => { setWarmup((current) => current ?? { rpe: defaults.warmupRpe, minutes: defaults.warmupMinutes }); setStage('main'); }} className="mt-5 w-full rounded-2xl bg-emerald-300 px-4 py-3 text-sm font-semibold text-slate-950">
               {t('rate.toGame')}
             </button>
-            <button type="button" onClick={() => { setWarmup(null); setStage('main'); }} className="mt-2 w-full rounded-2xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-200">
+            <button type="button" onClick={() => { setWarmup(null); setStage('main'); }} className="mt-2 w-full rounded-2xl border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-200">
               {t('rate.noWarmup')}
             </button>
           </>
         ) : (
           <>
-            {howTo && !isGame ? <p className="mt-4 rounded-2xl border border-sky-300/25 bg-sky-300/[0.07] p-3 text-sm font-bold leading-relaxed text-sky-100">{t('rate.howTo')}</p> : null}
+            {howTo && !isGame ? <p className="mt-4 rounded-2xl border border-sky-300/25 bg-slate-100/[0.07] p-3 text-sm font-medium leading-relaxed text-sky-100">{t('rate.howTo')}</p> : null}
             {isGame ? (
-              <p className="mt-4 rounded-2xl border border-violet-300/25 bg-violet-300/[0.08] p-3 text-sm font-bold text-violet-100">{t('rate.gameNote')}</p>
+              <p className="mt-4 rounded-2xl border border-violet-300/25 bg-violet-300/[0.08] p-3 text-sm font-medium text-violet-100">{t('rate.gameNote')}</p>
             ) : (
               <RpePicker value={rpe} onChange={setRpe} />
             )}
             <MinutesSlider label={isGame ? t('rate.minutesPlayed') : t('rate.duration')} value={minutes} onChange={setMinutes} min={isGame ? 0 : 5} max={maxMinutes} step={isGame ? 1 : 5} />
             {isGame ? (
-              <button type="button" onClick={() => setStage('warmup')} className="mt-3 flex w-full items-center justify-between rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-left text-sm font-bold text-slate-300">
+              <button type="button" onClick={() => setStage('warmup')} className="mt-3 flex w-full items-center justify-between rounded-xl bg-white/[0.04] px-3 py-2 text-left text-sm font-medium text-slate-300">
                 <span>{warmup ? t('rate.warmupSummary', { minutes: warmup.minutes, rpe: warmup.rpe }) : t('rate.warmupNone')}</span>
-                <span className="text-xs font-black text-sky-300">{t('rate.change')}</span>
+                <span className="text-xs font-semibold text-sky-300">{t('rate.change')}</span>
               </button>
             ) : null}
-            <button type="button" onClick={save} disabled={rpe === null} className="mt-5 w-full rounded-2xl bg-emerald-300 px-4 py-3 text-sm font-black text-slate-950 disabled:opacity-50">
+            <button type="button" onClick={save} disabled={rpe === null} className="mt-5 w-full rounded-2xl bg-emerald-300 px-4 py-3 text-sm font-semibold text-slate-950 disabled:opacity-50">
               {rpe === null ? t('rate.pickFirst') : t('rate.save', { load })}
             </button>
           </>
         )}
-        <button type="button" onClick={() => onMissed(session)} className="mt-2 w-full rounded-2xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-200">
+        <button type="button" onClick={() => onMissed(session)} className="mt-2 w-full rounded-2xl border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-200">
           {session.source === 'athlete_plan' ? t('rate.didNotDo') : t('rate.didNotTakePart')}
         </button>
       </section>

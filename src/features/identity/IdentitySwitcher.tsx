@@ -122,7 +122,7 @@ export function IdentitySwitcher({ className = '', variant = 'card', extraAction
     if (people.length === 0) return null;
     return (
       <div key={role} className="space-y-2">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{t(ROLE_LABEL[role])}</p>
+        <p className="text-xs font-semibold text-slate-400">{t(ROLE_LABEL[role])}</p>
         <ul className="space-y-1.5">
           {people.map((person) => {
             // Coaches see their role per team, since that decides what they may see.
@@ -147,10 +147,10 @@ export function IdentitySwitcher({ className = '', variant = 'card', extraAction
                   }`}
                 >
                   <span>
-                    <span className="block text-sm font-bold">{displayName(person)}</span>
+                    <span className="block text-sm font-medium">{displayName(person)}</span>
                     <span className="block text-xs text-slate-400">{teams || t('identity.noTeam')}</span>
                   </span>
-                  {isCurrent ? <span className="text-xs font-black text-emerald-300">{t('identity.active')}</span> : null}
+                  {isCurrent ? <span className="text-xs font-semibold text-emerald-300">{t('identity.active')}</span> : null}
                 </button>
               </li>
             );
@@ -171,7 +171,7 @@ export function IdentitySwitcher({ className = '', variant = 'card', extraAction
           type="button"
           onClick={() => setOpen(true)}
           aria-label={`${label}. ${remoteMode ? t('identity.account') : t('identity.switchRole')}`}
-          className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-700 bg-slate-900 text-xs font-black text-slate-100 ${className}`}
+          className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-700 bg-slate-900 text-xs font-semibold text-slate-100 ${className}`}
         >
           {current ? <PersonAvatar personId={current.id} name={displayName(current)} size="sm" /> : initials}
         </button>
@@ -179,32 +179,32 @@ export function IdentitySwitcher({ className = '', variant = 'card', extraAction
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className={`flex min-w-0 items-center gap-2.5 rounded-2xl border border-slate-800 bg-slate-950/70 px-2.5 py-2 text-left text-xs font-bold text-slate-200 transition hover:border-slate-600 ${className}`}
+          className={`flex min-w-0 items-center gap-2.5 rounded-2xl border border-slate-800 bg-slate-950/70 px-2.5 py-2 text-left text-xs font-medium text-slate-200 transition hover:border-slate-600 ${className}`}
         >
-          {current ? <PersonAvatar personId={current.id} name={displayName(current)} size="sm" /> : <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-800 text-[11px] font-black text-slate-100">{initials}</span>}
+          {current ? <PersonAvatar personId={current.id} name={displayName(current)} size="sm" /> : <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-800 text-xs font-semibold text-slate-100">{initials}</span>}
           <span className="min-w-0">
-            <span className="block truncate text-sm font-black text-white">{current ? displayName(current) : t('identity.chooseRole')}</span>
-            <span className="block truncate text-[11px] text-slate-400">{current ? t(ROLE_LABEL[identity!.role]) : ''}{remoteMode ? t('identity.accountSuffix') : t('identity.switchSuffix')}</span>
+            <span className="block truncate text-sm font-semibold text-white">{current ? displayName(current) : t('identity.chooseRole')}</span>
+            <span className="block truncate text-xs text-slate-400">{current ? t(ROLE_LABEL[identity!.role]) : ''}{remoteMode ? t('identity.accountSuffix') : t('identity.switchSuffix')}</span>
           </span>
         </button>
       )}
 
       {open && mounted
         ? createPortal(
-        <div role="dialog" aria-modal="true" aria-label={t('identity.close')} className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/70 p-0 sm:items-center sm:p-6">
+        <div role="dialog" aria-modal="true" aria-label={t('identity.close')} className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6">
           <button
             type="button"
             aria-label={t('identity.close')}
             className="absolute inset-0 h-full w-full cursor-default"
             onClick={() => setOpen(false)}
           />
-          <div className="relative max-h-[85vh] w-full overflow-y-auto rounded-t-3xl border border-slate-800 bg-slate-950 p-5 sm:max-w-md sm:rounded-3xl">
+          <div className="os-sheet rounded-b-none sm:rounded-b-3xl relative max-h-[85vh] w-full overflow-y-auto p-5 sm:max-w-md">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-black text-white">{remoteMode ? t('identity.yourRoles') : t('identity.testAs')}</h2>
+                <h2 className="text-lg font-semibold text-white">{remoteMode ? t('identity.yourRoles') : t('identity.testAs')}</h2>
                 <p className="mt-1 text-xs text-slate-400">{remoteMode ? t('identity.yourRolesDetail') : t('identity.testAsDetail')}</p>
               </div>
-              <button type="button" onClick={() => setOpen(false)} className="rounded-full border border-slate-700 px-3 py-1 text-xs font-bold text-slate-300">
+              <button type="button" onClick={() => setOpen(false)} className="rounded-full border border-slate-700 px-3 py-1 text-xs font-medium text-slate-300">
                 {t('identity.close')}
               </button>
             </div>
@@ -216,49 +216,49 @@ export function IdentitySwitcher({ className = '', variant = 'card', extraAction
 
             {/* The same account can hold more roles: the start page shows every way in (2026-09-25). */}
             {remoteMode ? (
-              <Link href="/start?add=1" onClick={() => setOpen(false)} className="mt-5 flex items-center justify-between rounded-2xl border border-emerald-300/40 px-4 py-3 text-sm font-black text-emerald-100 hover:border-emerald-300">
+              <Link href="/start?add=1" onClick={() => setOpen(false)} className="mt-5 flex items-center justify-between rounded-2xl border border-emerald-300/40 px-4 py-3 text-sm font-semibold text-emerald-100 hover:border-emerald-300">
                 {t('identity.addRole')}
                 <span aria-hidden className="text-emerald-300">+</span>
               </Link>
             ) : null}
 
             {extraAction ? (
-              <button type="button" onClick={extraAction.onSelect} className="mt-6 flex w-full items-center justify-between rounded-2xl border border-sky-400/40 px-4 py-3 text-left text-sm font-black text-sky-100 hover:border-sky-300">
+              <button type="button" onClick={extraAction.onSelect} className="mt-6 flex w-full items-center justify-between rounded-2xl border border-sky-400/40 px-4 py-3 text-left text-sm font-semibold text-sky-100 hover:border-sky-300">
                 {extraAction.label}
                 <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" /><path d="M16 6l-4-4-4 4" /><path d="M12 2v13" /></svg>
               </button>
             ) : null}
             {/* Name, email, password, notifications and the rest (piece 12). */}
             {current ? (
-              <Link href="/settings" onClick={() => setOpen(false)} className="mt-6 flex items-center justify-between rounded-2xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-100 hover:border-slate-500">
+              <Link href="/settings" onClick={() => setOpen(false)} className="mt-6 flex items-center justify-between rounded-2xl border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-100 hover:border-slate-500">
                 {t('identity.settings')}
-                <span aria-hidden className="text-slate-500">›</span>
+                <span aria-hidden className="text-slate-400">›</span>
               </Link>
             ) : null}
             {/* Piece 13: anyone can tell us when something is wrong. */}
             <button
               type="button"
               onClick={() => { setOpen(false); setReporting(true); }}
-              className={`${current ? 'mt-2' : 'mt-6'} flex w-full items-center justify-between rounded-2xl border border-slate-700 px-4 py-3 text-left text-sm font-black text-slate-100 hover:border-slate-500`}
+              className={`${current ? 'mt-2' : 'mt-6'} flex w-full items-center justify-between rounded-2xl border border-slate-700 px-4 py-3 text-left text-sm font-semibold text-slate-100 hover:border-slate-500`}
             >
               {t('identity.reportProblem')}
-              <span aria-hidden className="text-slate-500">›</span>
+              <span aria-hidden className="text-slate-400">›</span>
             </button>
             {operator ? (
-              <Link href="/reports" onClick={() => setOpen(false)} className="mt-2 flex items-center justify-between rounded-2xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-100 hover:border-slate-500">
+              <Link href="/reports" onClick={() => setOpen(false)} className="mt-2 flex items-center justify-between rounded-2xl border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-100 hover:border-slate-500">
                 {t('identity.errorReports')}
-                <span aria-hidden className="text-slate-500">›</span>
+                <span aria-hidden className="text-slate-400">›</span>
               </Link>
             ) : null}
 
             <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-800 pt-4">
               {remoteMode ? (
                 <>
-                  <SignOutButton className="rounded-2xl border border-slate-700 px-4 py-2 text-xs font-black text-slate-200" />
+                  <SignOutButton className="rounded-2xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200" />
                   <LocalModeLink />
                 </>
               ) : isServerAvailable() ? (
-                <Link href="/login" className="text-xs font-bold text-slate-400 underline">{t('identity.signIn')}</Link>
+                <Link href="/login" className="text-xs font-medium text-slate-400 underline">{t('identity.signIn')}</Link>
               ) : null}
             </div>
 
@@ -270,16 +270,16 @@ export function IdentitySwitcher({ className = '', variant = 'card', extraAction
                 <div className="space-y-3">
                   <p className="text-sm text-slate-300">{t('identity.resetWarning')}</p>
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={reset} className="rounded-2xl border border-red-400/60 bg-red-500/20 px-4 py-3 text-xs font-black text-red-100">
+                    <button type="button" onClick={reset} className="rounded-2xl border border-red-400/60 bg-red-500/20 px-4 py-3 text-xs font-semibold text-red-100">
                       {t('identity.resetConfirm')}
                     </button>
-                    <button type="button" onClick={() => setConfirmReset(false)} className="rounded-2xl border border-slate-700 px-4 py-3 text-xs font-black text-slate-300">
+                    <button type="button" onClick={() => setConfirmReset(false)} className="rounded-2xl border border-slate-700 px-4 py-3 text-xs font-semibold text-slate-300">
                       {t('identity.cancel')}
                     </button>
                   </div>
                 </div>
               ) : (
-                <button type="button" onClick={() => setConfirmReset(true)} className="text-xs font-bold text-slate-400 underline">
+                <button type="button" onClick={() => setConfirmReset(true)} className="text-xs font-medium text-slate-400 underline">
                   {t('identity.reset')}
                 </button>
               )}

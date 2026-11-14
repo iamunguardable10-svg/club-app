@@ -49,7 +49,7 @@ function mapsUrl(address: string) {
   return `https://maps.apple.com/?q=${encodeURIComponent(address)}`;
 }
 
-const ICON = 'mt-0.5 h-4 w-4 shrink-0 text-slate-500';
+const ICON = 'mt-0.5 h-4 w-4 shrink-0 text-slate-400';
 
 function PinIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className={ICON}><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z" /><circle cx="12" cy="9.5" r="2.5" /></svg>;
@@ -77,15 +77,15 @@ export function SessionInfo({ info, className = '', hideGame = false }: { info: 
   const online = info.onlineUrl?.trim() || null;
   if (!game && !meetTime && !meetPoint && !place && !online && !info.notes && !info.squad) return null;
   return (
-    <div className={`grid gap-2.5 rounded-2xl border border-slate-800 bg-slate-950/50 p-4 text-sm ${className}`}>
+    <div className={`grid gap-2.5 rounded-2xl bg-white/[0.04] p-4 text-sm ${className}`}>
       {info.squad ? (
-        <p className={`justify-self-start rounded-full px-2.5 py-0.5 text-xs font-black ${info.squad === 'squad' ? 'bg-emerald-300 text-slate-950' : info.squad === 'reserve' ? 'bg-sky-300 text-slate-950' : 'bg-slate-700 text-slate-100'}`}>
+        <p className={`justify-self-start rounded-full px-2.5 py-0.5 text-xs font-semibold ${info.squad === 'squad' ? 'bg-slate-100 text-slate-950' : info.squad === 'reserve' ? 'bg-slate-100 text-slate-950' : 'bg-slate-700 text-slate-100'}`}>
           {squadLine(info.squad)}
         </p>
       ) : null}
-      {game ? <p className="font-black text-white">{game}</p> : null}
+      {game ? <p className="font-semibold text-white">{game}</p> : null}
       {place ? (
-        <p className="flex gap-2.5 font-bold text-slate-200">
+        <p className="flex gap-2.5 font-medium text-slate-200">
           <PinIcon />
           <span className="sr-only">{t('session.where')}</span>
           {info.homeAway === 'away' && info.venueAddress
@@ -94,7 +94,7 @@ export function SessionInfo({ info, className = '', hideGame = false }: { info: 
         </p>
       ) : null}
       {meetTime || meetPoint ? (
-        <p className="flex gap-2.5 font-bold text-slate-200">
+        <p className="flex gap-2.5 font-medium text-slate-200">
           <ClockIcon />
           <span className="min-w-0 break-words">
             {t('game.meet')}{meetTime ? <> <span className="text-white">{meetTime}</span></> : null}{meetPoint ? ` · ${meetPoint}` : null}
@@ -102,7 +102,7 @@ export function SessionInfo({ info, className = '', hideGame = false }: { info: 
         </p>
       ) : null}
       {online ? (
-        <p className="flex gap-2.5 font-bold text-slate-200">
+        <p className="flex gap-2.5 font-medium text-slate-200">
           <VideoIcon />
           <a href={online} target="_blank" rel="noreferrer" className="min-w-0 break-words text-sky-300 hover:underline">{t('session.joinOnline')}</a>
         </p>

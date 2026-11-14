@@ -20,8 +20,8 @@ import {
 import { formatShortDate, formatTime } from '@/shared/format';
 import { errorText, useT, type MessageKey } from '@/shared/i18n';
 
-const buttonClass = 'rounded-2xl border border-slate-700 px-4 py-2 text-xs font-black text-slate-200 disabled:opacity-50';
-const primaryClass = 'rounded-2xl bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950 disabled:opacity-50';
+const buttonClass = 'rounded-2xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 disabled:opacity-50';
+const primaryClass = 'rounded-2xl bg-emerald-300 px-4 py-2 text-xs font-semibold text-slate-950 disabled:opacity-50';
 
 /** A line under the panel; a caught error is turned into text while rendering (docs/i18n.md, rule 9). */
 type Note = { key: MessageKey } | { caught: unknown };
@@ -52,7 +52,7 @@ export function CalendarLinkPanel({ remote, appleConnected }: { remote: boolean;
     };
   }, [remote]);
 
-  const heading = <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{t('calendarLink.heading')}</p>;
+  const heading = <p className="text-xs font-semibold text-slate-400">{t('calendarLink.heading')}</p>;
 
   if (!remote) {
     return (
@@ -110,22 +110,22 @@ export function CalendarLinkPanel({ remote, appleConnected }: { remote: boolean;
               </a>
               <button type="button" disabled={busy} onClick={() => void copy()} className={buttonClass}>{t('calendarLink.copy')}</button>
             </div>
-            <p className="break-all rounded-2xl border border-slate-800 bg-slate-950/60 px-3 py-2 font-mono text-[11px] text-slate-400">{link.url}</p>
+            <p className="break-all rounded-2xl bg-white/[0.04] px-3 py-2 font-mono text-xs text-slate-400">{link.url}</p>
             <p className="text-xs text-slate-400">
               {t('calendarLink.howTo')}
               {link.lastFetchedAt ? ` ${t('calendarLink.lastFetched', { date: formatShortDate(link.lastFetchedAt), time: formatTime(link.lastFetchedAt) })}` : ''}
             </p>
-            <p className="text-xs font-bold text-amber-200">{t('calendarLink.secret')}</p>
+            <p className="text-xs font-medium text-amber-200">{t('calendarLink.secret')}</p>
             {appleConnected ? (
-              <p className="text-xs font-bold text-amber-200">{t('calendarLink.appleToo')}</p>
+              <p className="text-xs font-medium text-amber-200">{t('calendarLink.appleToo')}</p>
             ) : null}
             <div className="flex flex-wrap gap-x-4 gap-y-2">
-              <button type="button" disabled={busy} onClick={() => setConfirm('renew')} className="text-xs font-bold text-slate-400 underline">{t('calendarLink.newLink')}</button>
-              <button type="button" disabled={busy} onClick={() => setConfirm('stop')} className="text-xs font-bold text-slate-400 underline">{t('calendarLink.stopLink')}</button>
+              <button type="button" disabled={busy} onClick={() => setConfirm('renew')} className="text-xs font-medium text-slate-400 underline">{t('calendarLink.newLink')}</button>
+              <button type="button" disabled={busy} onClick={() => setConfirm('stop')} className="text-xs font-medium text-slate-400 underline">{t('calendarLink.stopLink')}</button>
             </div>
           </div>
         ) : null}
-        {message ? <p role={'caught' in message ? 'alert' : 'status'} className={`text-xs font-bold ${'caught' in message ? 'text-red-200' : 'text-emerald-200'}`}>{'caught' in message ? errorText(t, message.caught) : t(message.key)}</p> : null}
+        {message ? <p role={'caught' in message ? 'alert' : 'status'} className={`text-xs font-medium ${'caught' in message ? 'text-red-200' : 'text-emerald-200'}`}>{'caught' in message ? errorText(t, message.caught) : t(message.key)}</p> : null}
       </div>
       <AppConfirmDialog
         isOpen={confirm === 'renew'}

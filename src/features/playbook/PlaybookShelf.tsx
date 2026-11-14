@@ -34,13 +34,13 @@ const CATEGORY_KEY: Record<PlaybookCategory, MessageKey> = {
   other: 'playbook.category.other',
 };
 
-const card = 'rounded-xl border border-slate-800 bg-slate-900/45';
-const primary = 'rounded-full bg-emerald-300 px-3.5 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-200 active:scale-95 disabled:opacity-60';
-const quiet = 'rounded-full border border-slate-700 px-3.5 py-2 text-sm font-black text-slate-200 transition hover:border-slate-500 active:scale-95';
+const card = 'rounded-xl bg-white/[0.04]';
+const primary = 'rounded-full bg-emerald-300 px-3.5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-200 active:scale-95 disabled:opacity-60';
+const quiet = 'rounded-full border border-slate-700 px-3.5 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 active:scale-95';
 
 function FileIcon({ type }: { type: string }) {
   return (
-    <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-800 text-[10px] font-black text-slate-300">
+    <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-800 text-xs font-semibold text-slate-300">
       {type === 'application/pdf' ? 'PDF' : 'IMG'}
     </span>
   );
@@ -94,7 +94,7 @@ function UploadForm({ teamId, onDone }: { teamId: string; onDone: () => void }) 
         }
       }}
     >
-      <label className="grid gap-1 text-xs font-bold text-slate-300">
+      <label className="grid gap-1 text-xs font-medium text-slate-300">
         {t('playbook.file')}
         <input
           type="file"
@@ -107,24 +107,24 @@ function UploadForm({ teamId, onDone }: { teamId: string; onDone: () => void }) 
               setTitle((name.charAt(0).toUpperCase() + name.slice(1)).slice(0, 80));
             }
           }}
-          className="block w-full text-sm text-slate-300 file:mr-3 file:rounded-full file:border-0 file:bg-slate-800 file:px-3 file:py-1.5 file:text-sm file:font-black file:text-slate-100"
+          className="block w-full text-sm text-slate-300 file:mr-3 file:rounded-full file:border-0 file:bg-slate-800 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-100"
         />
       </label>
-      <label className="grid gap-1 text-xs font-bold text-slate-300">
+      <label className="grid gap-1 text-xs font-medium text-slate-300">
         {t('playbook.title')}
         <input value={title} maxLength={80} onChange={(event) => setTitle(event.target.value)} className="os-field" />
       </label>
-      <label className="grid gap-1 text-xs font-bold text-slate-300">
+      <label className="grid gap-1 text-xs font-medium text-slate-300">
         {t('playbook.categoryLabel')}
         <select value={category} onChange={(event) => setCategory(event.target.value as PlaybookCategory)} className="os-field">
           {PLAYBOOK_CATEGORIES.map((value) => <option key={value} value={value}>{t(CATEGORY_KEY[value])}</option>)}
         </select>
       </label>
-      <label className="grid gap-1 text-xs font-bold text-slate-300">
+      <label className="grid gap-1 text-xs font-medium text-slate-300">
         {t('playbook.description')}
         <textarea value={description} maxLength={500} rows={2} onChange={(event) => setDescription(event.target.value)} className="os-field resize-y" />
       </label>
-      {error ? <p role="alert" className="text-xs font-bold text-rose-200">{error}</p> : null}
+      {error ? <p role="alert" className="text-xs font-medium text-rose-200">{error}</p> : null}
       <div className="flex flex-wrap gap-2">
         <button type="submit" disabled={!file || !title.trim() || busy} className={primary}>{busy ? t('playbook.uploading') : t('playbook.upload')}</button>
         <button type="button" onClick={onDone} className={quiet}>{t('playbook.cancel')}</button>
@@ -142,18 +142,18 @@ function ReleaseForm({ database, playbook, onDone }: { database: LocalDatabase; 
   const toggle = (id: string) => setGroupIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
   return (
     <div className="mt-3 grid gap-3 border-t border-slate-800 pt-3">
-      <p className="text-xs font-bold text-slate-300">{t('playbook.releaseTo')}</p>
+      <p className="text-xs font-medium text-slate-300">{t('playbook.releaseTo')}</p>
       <div className="flex flex-wrap gap-1.5">
-        <button type="button" aria-pressed={groupIds.length === 0} onClick={() => setGroupIds([])} className={`rounded-full px-3 py-1.5 text-xs font-black ${groupIds.length === 0 ? 'bg-emerald-300 text-slate-950' : 'border border-slate-700 text-slate-300'}`}>{t('playbook.wholeTeam')}</button>
+        <button type="button" aria-pressed={groupIds.length === 0} onClick={() => setGroupIds([])} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${groupIds.length === 0 ? 'bg-slate-100 text-slate-950' : 'border border-slate-700 text-slate-300'}`}>{t('playbook.wholeTeam')}</button>
         {groups.map((group) => (
-          <button key={group.id} type="button" aria-pressed={groupIds.includes(group.id)} onClick={() => toggle(group.id)} className={`rounded-full px-3 py-1.5 text-xs font-black ${groupIds.includes(group.id) ? 'bg-emerald-300 text-slate-950' : 'border border-slate-700 text-slate-300'}`}>{group.name}</button>
+          <button key={group.id} type="button" aria-pressed={groupIds.includes(group.id)} onClick={() => toggle(group.id)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${groupIds.includes(group.id) ? 'bg-slate-100 text-slate-950' : 'border border-slate-700 text-slate-300'}`}>{group.name}</button>
         ))}
       </div>
-      <label className="grid gap-1 text-xs font-bold text-slate-300">
+      <label className="grid gap-1 text-xs font-medium text-slate-300">
         {t('playbook.releaseFrom')}
         <input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="os-field w-44 [color-scheme:dark]" />
       </label>
-      {error ? <p role="alert" className="text-xs font-bold text-rose-200">{error}</p> : null}
+      {error ? <p role="alert" className="text-xs font-medium text-rose-200">{error}</p> : null}
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -188,7 +188,7 @@ function EditForm({ playbook, onDone }: { playbook: Playbook; onDone: () => void
         {PLAYBOOK_CATEGORIES.map((value) => <option key={value} value={value}>{t(CATEGORY_KEY[value])}</option>)}
       </select>
       <textarea aria-label={t('playbook.description')} value={description} maxLength={500} rows={2} onChange={(event) => setDescription(event.target.value)} className="os-field resize-y" />
-      {error ? <p role="alert" className="text-xs font-bold text-rose-200">{error}</p> : null}
+      {error ? <p role="alert" className="text-xs font-medium text-rose-200">{error}</p> : null}
       <div className="flex flex-wrap gap-2">
         <button type="button" className={primary} onClick={() => { try { updatePlaybook(playbook.id, { title, description, category }); onDone(); } catch (caught) { setError(errorText(t, caught)); } }}>{t('playbook.save')}</button>
         <button type="button" onClick={onDone} className={quiet}>{t('playbook.cancel')}</button>
@@ -212,7 +212,7 @@ function PlaybookRow({ database, playbook, manage }: { database: LocalDatabase; 
         >
           <FileIcon type={playbook.fileType} />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-bold text-slate-100">{playbook.title}</span>
+            <span className="block truncate text-sm font-medium text-slate-100">{playbook.title}</span>
             <span className="block truncate text-xs text-slate-400">
               {t(CATEGORY_KEY[playbook.category])}
               {manage ? <> · <span className={released ? 'text-slate-300' : 'text-amber-200'}>{audienceText(t, database, playbook)}</span></> : null}
@@ -225,15 +225,15 @@ function PlaybookRow({ database, playbook, manage }: { database: LocalDatabase; 
             aria-label={t('playbook.options')}
             aria-expanded={mode !== 'view'}
             onClick={() => setMode(mode === 'view' ? 'more' : 'view')}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-lg font-black text-slate-400 transition hover:bg-slate-800 hover:text-slate-100"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-lg font-semibold text-slate-400 transition hover:bg-slate-800 hover:text-slate-100"
           >
             ⋯
           </button>
         ) : null}
       </div>
-      {error ? <p role="alert" className="pb-2 text-xs font-bold text-rose-200">{error}</p> : null}
+      {error ? <p role="alert" className="pb-2 text-xs font-medium text-rose-200">{error}</p> : null}
       {manage && mode === 'more' ? (
-        <div className="flex flex-wrap gap-x-4 gap-y-2 pb-3 pl-12 text-xs font-black">
+        <div className="flex flex-wrap gap-x-4 gap-y-2 pb-3 pl-12 text-xs font-semibold">
           <button type="button" onClick={() => setMode('release')} className="text-emerald-200 hover:underline">{released ? t('playbook.changeRelease') : t('playbook.release')}</button>
           {released ? <button type="button" onClick={() => { try { withdrawPlaybook(playbook.id); setMode('view'); } catch (caught) { setError(errorText(t, caught)); } }} className="text-slate-300 hover:underline">{t('playbook.withdraw')}</button> : null}
           <button type="button" onClick={() => setMode('edit')} className="text-slate-300 hover:underline">{t('playbook.edit')}</button>
@@ -244,9 +244,9 @@ function PlaybookRow({ database, playbook, manage }: { database: LocalDatabase; 
       {manage && mode === 'edit' ? <div className="pb-3"><EditForm playbook={playbook} onDone={() => setMode('view')} /></div> : null}
       {manage && mode === 'delete' ? (
         <div className="flex flex-wrap items-center gap-2 pb-3 pl-12">
-          <p className="min-w-0 flex-1 text-xs font-bold text-slate-300">{t('playbook.deleteConfirm')}</p>
-          <button type="button" className="rounded-full bg-rose-400 px-3 py-1.5 text-xs font-black text-slate-950" onClick={() => { void deletePlaybook(playbook.id).catch((caught) => setError(errorText(t, caught))); }}>{t('playbook.delete')}</button>
-          <button type="button" onClick={() => setMode('view')} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-200">{t('playbook.cancel')}</button>
+          <p className="min-w-0 flex-1 text-xs font-medium text-slate-300">{t('playbook.deleteConfirm')}</p>
+          <button type="button" className="rounded-full bg-rose-400 px-3 py-1.5 text-xs font-semibold text-slate-950" onClick={() => { void deletePlaybook(playbook.id).catch((caught) => setError(errorText(t, caught))); }}>{t('playbook.delete')}</button>
+          <button type="button" onClick={() => setMode('view')} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200">{t('playbook.cancel')}</button>
         </div>
       ) : null}
     </li>
@@ -261,7 +261,7 @@ export function PlaybookShelf({ database, teamId }: { database: LocalDatabase; t
   return (
     <div className="grid gap-3" data-testid="playbook-shelf">
       {manage && !adding ? (
-        <button type="button" onClick={() => setAdding(true)} className="justify-self-start rounded-full border border-slate-700 px-3.5 py-1.5 text-sm font-black text-slate-100 transition hover:border-slate-500 active:scale-95">+ {t('playbook.add')}</button>
+        <button type="button" onClick={() => setAdding(true)} className="justify-self-start rounded-full border border-slate-700 px-3.5 py-1.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 active:scale-95">+ {t('playbook.add')}</button>
       ) : null}
       {manage && adding ? <UploadForm teamId={teamId} onDone={() => setAdding(false)} /> : null}
       {playbooks.length === 0 ? (

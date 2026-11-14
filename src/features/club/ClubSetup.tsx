@@ -34,7 +34,7 @@ export function ClubSetup({ steps }: { steps: ReturnType<typeof setupSteps> }) {
   return (
     <section className="os-panel grid gap-4 p-5" data-testid="club-setup">
       <div>
-        <h2 className="text-lg font-black text-white">{t('club.setup.title', { done, total: steps.length })}</h2>
+        <h2 className="text-lg font-semibold text-white">{t('club.setup.title', { done, total: steps.length })}</h2>
         <div className="mt-3 flex gap-1" aria-hidden>
           {steps.map((step) => <span key={step.key} className={`h-1.5 flex-1 rounded-full ${step.done ? 'bg-emerald-300' : 'bg-slate-800'}`} />)}
         </div>
@@ -44,18 +44,18 @@ export function ClubSetup({ steps }: { steps: ReturnType<typeof setupSteps> }) {
           const isNext = step === next;
           return (
             <li key={step.key} className={`flex items-center gap-3 rounded-xl px-2 py-2 ${isNext ? 'bg-slate-900/70' : ''}`}>
-              <span aria-hidden className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-black ${step.done ? 'bg-emerald-300 text-slate-950' : isNext ? 'border border-slate-400 text-white' : 'border border-slate-700 text-slate-400'}`}>
+              <span aria-hidden className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-semibold ${step.done ? 'bg-slate-100 text-slate-950' : isNext ? 'border border-slate-400 text-white' : 'border border-slate-700 text-slate-400'}`}>
                 {step.done ? '✓' : steps.indexOf(step) + 1}
               </span>
-              <span className={`min-w-0 flex-1 text-sm font-bold ${step.done ? 'text-slate-400' : 'text-white'}`}>
+              <span className={`min-w-0 flex-1 text-sm font-medium ${step.done ? 'text-slate-400' : 'text-white'}`}>
                 {t(step.label)}
-                {!step.done && step.missing > 0 ? <span className="ml-1.5 font-black text-amber-200">{t('club.setup.missing', { count: step.missing })}</span> : null}
+                {!step.done && step.missing > 0 ? <span className="ml-1.5 font-semibold text-amber-200">{t('club.setup.missing', { count: step.missing })}</span> : null}
                 <span className="sr-only">{step.done ? t('club.setup.done') : ''}</span>
               </span>
               {isNext ? (
                 step.target.startsWith('#')
-                  ? <a href={step.target} className="shrink-0 rounded-full bg-emerald-300 px-3.5 py-1.5 text-sm font-black text-slate-950">{t('club.setup.go')}</a>
-                  : <Link href={step.target} className="shrink-0 rounded-full bg-emerald-300 px-3.5 py-1.5 text-sm font-black text-slate-950">{t('club.setup.go')}</Link>
+                  ? <a href={step.target} className="shrink-0 rounded-full bg-emerald-300 px-3.5 py-1.5 text-sm font-semibold text-slate-950">{t('club.setup.go')}</a>
+                  : <Link href={step.target} className="shrink-0 rounded-full bg-emerald-300 px-3.5 py-1.5 text-sm font-semibold text-slate-950">{t('club.setup.go')}</Link>
               ) : null}
             </li>
           );

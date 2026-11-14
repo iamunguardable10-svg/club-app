@@ -45,7 +45,7 @@ export function PasswordField({ label, value, onChange, show, onToggle, autoComp
   const id = useId();
   return (
     <div className="grid gap-1.5">
-      <label htmlFor={id} className="text-sm font-bold text-slate-300">{label}</label>
+      <label htmlFor={id} className="text-sm font-medium text-slate-300">{label}</label>
       <span className="relative block">
         <input
           id={id}
@@ -58,7 +58,7 @@ export function PasswordField({ label, value, onChange, show, onToggle, autoComp
           className="os-field w-full pr-20 text-base"
         />
         {onToggle ? (
-          <button type="button" onClick={onToggle} aria-pressed={show} className="absolute inset-y-0 right-2 my-auto h-8 rounded-lg px-2 text-xs font-black text-slate-300 hover:text-white">
+          <button type="button" onClick={onToggle} aria-pressed={show} className="absolute inset-y-0 right-2 my-auto h-8 rounded-lg px-2 text-xs font-semibold text-slate-300 hover:text-white">
             {show ? t('auth.hidePassword') : t('auth.showPassword')}
           </button>
         ) : null}
@@ -69,8 +69,8 @@ export function PasswordField({ label, value, onChange, show, onToggle, autoComp
 
 export function PasswordCheck({ ok, label }: { ok: boolean; label: string }) {
   return (
-    <li className={`flex items-center gap-2 text-xs font-bold ${ok ? 'text-emerald-300' : 'text-slate-500'}`}>
-      <span aria-hidden className={`grid h-4 w-4 place-items-center rounded-full text-[10px] ${ok ? 'bg-emerald-300 text-slate-950' : 'border border-slate-600'}`}>{ok ? '✓' : ''}</span>
+    <li className={`flex items-center gap-2 text-xs font-medium ${ok ? 'text-emerald-300' : 'text-slate-400'}`}>
+      <span aria-hidden className={`grid h-4 w-4 place-items-center rounded-full text-xs ${ok ? 'bg-slate-100 text-slate-950' : 'border border-slate-600'}`}>{ok ? '✓' : ''}</span>
       {label}
     </li>
   );
@@ -153,9 +153,9 @@ export function AuthForm({
     return (
       <section className="wizard-step os-panel grid gap-3 p-6 text-sm text-slate-300">
         <span aria-hidden className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-300/15 text-2xl">✉</span>
-        <p className="text-2xl font-black text-white">{t('auth.mail.title')}</p>
+        <p className="text-2xl font-semibold text-white">{t('auth.mail.title')}</p>
         <p>{t('auth.mail.sentTo', { email: mailSent.to })} {mailSent.kind === 'confirm' ? t('auth.mail.confirm') : t('auth.mail.reset')}</p>
-        <button type="button" onClick={() => { setMailSent(null); goTo('email'); }} className="justify-self-start text-xs font-bold text-slate-400 underline">
+        <button type="button" onClick={() => { setMailSent(null); goTo('email'); }} className="justify-self-start text-xs font-medium text-slate-400 underline">
           {t('auth.backToStart')}
         </button>
       </section>
@@ -170,7 +170,7 @@ export function AuthForm({
   return (
     <form key={step} onSubmit={submit} className="wizard-step os-panel grid grid-cols-[minmax(0,1fr)] gap-5 p-6">
       <div>
-        <h2 className="text-2xl font-black leading-tight text-white">{title}</h2>
+        <h2 className="text-2xl font-semibold leading-tight text-white">{title}</h2>
         {detail ? <p className="mt-1.5 text-sm text-slate-400">{detail}</p> : null}
       </div>
 
@@ -188,16 +188,16 @@ export function AuthForm({
           className="os-field text-lg"
         />
       ) : (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3">
-          <span className="min-w-0 truncate text-sm font-bold text-slate-200">{email.trim()}</span>
-          <button type="button" onClick={() => goTo('email')} className="shrink-0 text-xs font-black text-sky-300">{t('auth.changeEmail')}</button>
+        <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-4 py-3">
+          <span className="min-w-0 truncate text-sm font-medium text-slate-200">{email.trim()}</span>
+          <button type="button" onClick={() => goTo('email')} className="shrink-0 text-xs font-semibold text-sky-300">{t('auth.changeEmail')}</button>
         </div>
       )}
 
       {step === 'password' && status === 'unconfirmed' ? (
         <div className="grid gap-2 rounded-2xl border border-amber-300/30 bg-amber-300/[0.06] p-3 text-sm text-amber-100">
-          <p className="font-bold">{t('auth.unconfirmed')}</p>
-          <button type="button" disabled={busy} onClick={() => void run(async () => { await resendConfirmation(email, returnTo, currentLocale()); setNotice(t('auth.resent')); })} className="justify-self-start text-xs font-black text-amber-200 underline disabled:opacity-60">
+          <p className="font-medium">{t('auth.unconfirmed')}</p>
+          <button type="button" disabled={busy} onClick={() => void run(async () => { await resendConfirmation(email, returnTo, currentLocale()); setNotice(t('auth.resent')); })} className="justify-self-start text-xs font-semibold text-amber-200 underline disabled:opacity-60">
             {t('auth.resend')}
           </button>
         </div>
@@ -225,24 +225,24 @@ export function AuthForm({
         </div>
       ) : null}
 
-      {error ? <p role="alert" className="rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-bold text-red-100">{error}</p> : null}
-      {notice ? <p role="status" className="text-sm font-bold text-emerald-200">{notice}</p> : null}
+      {error ? <p role="alert" className="rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-medium text-red-100">{error}</p> : null}
+      {notice ? <p role="status" className="text-sm font-medium text-emerald-200">{notice}</p> : null}
 
       <button type="submit" disabled={busy || !canSubmit} className="os-success justify-center text-base disabled:opacity-50">
         {busy ? t('common.oneMoment') : step === 'email' ? t('common.continue') : step === 'password' ? t('auth.submit.signIn') : step === 'create' ? t('auth.submit.signUp') : t('auth.submit.reset')}
       </button>
 
       {step === 'password' ? (
-        <div className="flex flex-wrap justify-between gap-2 text-xs font-bold text-slate-400">
+        <div className="flex flex-wrap justify-between gap-2 text-xs font-medium text-slate-400">
           <button type="button" onClick={() => goTo('reset')} className="underline">{t('auth.forgotPassword')}</button>
           <button type="button" onClick={() => goTo('create')} className="underline">{t('auth.noAccountYet')}</button>
         </div>
       ) : null}
       {step === 'create' ? (
-        <button type="button" onClick={() => { setStatus('confirmed'); goTo('password'); }} className="justify-self-start text-xs font-bold text-slate-400 underline">{t('auth.haveAccount')}</button>
+        <button type="button" onClick={() => { setStatus('confirmed'); goTo('password'); }} className="justify-self-start text-xs font-medium text-slate-400 underline">{t('auth.haveAccount')}</button>
       ) : null}
       {step === 'reset' ? (
-        <button type="button" onClick={() => goTo('password')} className="justify-self-start text-xs font-bold text-slate-400 underline">{t('auth.backToSignIn')}</button>
+        <button type="button" onClick={() => goTo('password')} className="justify-self-start text-xs font-medium text-slate-400 underline">{t('auth.backToSignIn')}</button>
       ) : null}
     </form>
   );

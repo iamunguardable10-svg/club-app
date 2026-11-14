@@ -121,8 +121,8 @@ function sectionLabel(section: TeamWorkspaceSection, short = false) {
 
 function EmptyCard({ title, description }: { title: string; description?: string }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-      <p className="text-sm font-black text-slate-100">{title}</p>
+    <div className="rounded-2xl bg-white/[0.04] p-4">
+      <p className="text-sm font-semibold text-slate-100">{title}</p>
       {description ? <p className="mt-1 text-sm text-slate-400">{description}</p> : null}
     </div>
   );
@@ -201,13 +201,13 @@ function TeamDashboardSessionCard({
   const late = session.availability.filter((entry) => entry.status === 'late');
 
   return (
-    <button type="button" onClick={onOpen} className="mt-4 block w-full rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-left text-white transition hover:border-emerald-300/45 hover:bg-slate-900/70">
+    <button type="button" onClick={onOpen} className="mt-4 block w-full rounded-2xl bg-white/[0.04] p-4 text-left text-white transition hover:bg-white/[0.07]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-xl font-black">{displayTitle(session.title)}</h3>
-          <p className="mt-1 text-sm font-bold text-slate-400">{formatSessionTime(session.startsAt, session.endsAt, session.sessionType)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+          <h3 className="text-xl font-semibold">{displayTitle(session.title)}</h3>
+          <p className="mt-1 text-sm font-medium text-slate-400">{formatSessionTime(session.startsAt, session.endsAt, session.sessionType)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
         </div>
-        <span aria-hidden className="text-lg font-black text-slate-500">›</span>
+        <span aria-hidden className="text-lg font-semibold text-slate-400">›</span>
       </div>
       {attendanceShared ? <AvailabilityStack out={out} late={late} outLabel={t('team.card.out')} lateLabel={t('team.card.late')} /> : null}
     </button>
@@ -224,9 +224,9 @@ function StaffRoleGrid({ roles }: { roles: TeamWorkspaceStaffRole[] }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       {roles.map((role) => (
-        <div key={role.id} className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{role.label}</p>
-          <p className="mt-2 text-sm text-slate-200">{role.status === 'accepted' ? role.value ?? t('team.assigned') : <span className="text-slate-500">{t('team.notAssigned')}</span>}</p>
+        <div key={role.id} className="rounded-xl bg-white/[0.04] p-3">
+          <p className="text-xs font-medium text-slate-400">{role.label}</p>
+          <p className="mt-2 text-sm text-slate-200">{role.status === 'accepted' ? role.value ?? t('team.assigned') : <span className="text-slate-400">{t('team.notAssigned')}</span>}</p>
         </div>
       ))}
     </div>
@@ -473,7 +473,7 @@ export function TeamWorkspaceView({
     <div className="space-y-4">
       {/* Sections of this team: one row, never sideways scrolling. Phones get
           the icon with a short word under it (Ben, 2026-11-13: icons alone say too little). */}
-      <div role="tablist" aria-label={t('team.sectionsLabel')} className="grid auto-cols-fr grid-flow-col gap-1 rounded-2xl border border-slate-800 bg-slate-950/70 p-1 sm:flex sm:w-max">
+      <div role="tablist" aria-label={t('team.sectionsLabel')} className="grid auto-cols-fr grid-flow-col gap-1 rounded-2xl bg-white/[0.04] p-1 sm:flex sm:w-max">
         {sections.map((section) => (
           <button
             key={section}
@@ -483,12 +483,12 @@ export function TeamWorkspaceView({
             aria-label={sectionLabel(section)}
             title={sectionLabel(section)}
             onClick={() => setActiveSection(section)}
-            className={`flex min-w-0 flex-col items-center gap-0.5 rounded-xl px-1 py-2.5 text-[10px] font-black transition sm:flex-row sm:gap-0 sm:whitespace-nowrap sm:px-3.5 sm:py-2 sm:text-sm ${activeSection === section ? 'bg-sky-300 text-slate-950' : 'text-slate-300 hover:bg-slate-900 hover:text-white'}`}
+            className={`flex min-w-0 flex-col items-center gap-0.5 rounded-xl px-1 py-2.5 text-xs font-semibold transition sm:flex-row sm:gap-0 sm:whitespace-nowrap sm:px-3.5 sm:py-2 sm:text-sm ${activeSection === section ? 'bg-slate-100 text-slate-950' : 'text-slate-300 hover:bg-slate-900 hover:text-white'}`}
           >
             <SectionIcon section={section} />
             <span className="block max-w-full truncate sm:hidden">{sectionLabel(section, true)}</span>
             <span className="hidden sm:inline">{sectionLabel(section)}</span>
-            {section === 'players' ? <span className={`hidden text-xs sm:ml-1.5 sm:inline ${activeSection === section ? 'text-slate-800' : 'text-slate-500'}`}>{data.playerCount}</span> : null}
+            {section === 'players' ? <span className={`hidden text-xs sm:ml-1.5 sm:inline ${activeSection === section ? 'text-slate-800' : 'text-slate-400'}`}>{data.playerCount}</span> : null}
           </button>
         ))}
       </div>
@@ -496,10 +496,10 @@ export function TeamWorkspaceView({
       {activeSection === 'dashboard' ? (
         <div className={`grid grid-cols-[minmax(0,1fr)] gap-4 ${setupActions.length > 0 ? 'lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]' : ''}`}>
           <div className="min-w-0 space-y-4">
-            <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 sm:p-5">
+            <section className="os-panel p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-lg font-black">{nextSession && isSessionRunning(nextSession) ? t('team.now') : t('team.nextSession')}</h2>
-                <Link href={data.calendarHref} aria-label={t('team.calendarLink')} title={t('team.calendarLink')} className="text-xs font-black text-sky-300 hover:text-sky-200">
+                <h2 className="text-lg font-semibold">{nextSession && isSessionRunning(nextSession) ? t('team.now') : t('team.nextSession')}</h2>
+                <Link href={data.calendarHref} aria-label={t('team.calendarLink')} title={t('team.calendarLink')} className="text-xs font-semibold text-sky-300 hover:text-sky-200">
                   <svg aria-hidden viewBox="0 0 24 24" className="grid h-9 w-9 rounded-full border border-slate-700 p-2 sm:hidden" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
                   <span className="hidden sm:inline">{t('team.calendarLink')}</span>
                 </Link>
@@ -512,17 +512,17 @@ export function TeamWorkspaceView({
             </section>
 
             {upcomingSessions.length > 0 ? (
-              <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 sm:p-5">
-                <h2 className="text-lg font-black">{t('team.afterThat')}</h2>
+              <section className="os-panel p-4 sm:p-5">
+                <h2 className="text-lg font-semibold">{t('team.afterThat')}</h2>
                 <ul className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2">
                   {upcomingSessions.map((session) => (
                     <li key={session.id}>
-                      <button type="button" onClick={() => setDashboardSession(session)} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 px-3 py-2.5 text-left transition hover:border-sky-300/50">
+                      <button type="button" onClick={() => setDashboardSession(session)} className="flex w-full items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-3 py-2.5 text-left transition">
                         <span className="min-w-0">
-                          <span className="block truncate text-sm font-black text-white">{displayTitle(session.title)}</span>
-                          <span className="block truncate text-xs font-bold text-slate-400">{formatSessionTime(session.startsAt, session.endsAt, session.sessionType)}{session.facilityName ? ` · ${session.facilityName}` : ''}</span>
+                          <span className="block truncate text-sm font-semibold text-white">{displayTitle(session.title)}</span>
+                          <span className="block truncate text-xs font-medium text-slate-400">{formatSessionTime(session.startsAt, session.endsAt, session.sessionType)}{session.facilityName ? ` · ${session.facilityName}` : ''}</span>
                         </span>
-                        <span aria-hidden className="text-slate-500">›</span>
+                        <span aria-hidden className="text-slate-400">›</span>
                       </button>
                     </li>
                   ))}
@@ -533,10 +533,10 @@ export function TeamWorkspaceView({
 
           {setupActions.length > 0 ? (
             <section className="rounded-3xl border border-amber-500/30 bg-amber-950/10 p-4 sm:p-5">
-              <h2 className="text-lg font-black text-amber-100">{t('team.stillToSetUp')}</h2>
+              <h2 className="text-lg font-semibold text-amber-100">{t('team.stillToSetUp')}</h2>
               <div className="mt-3 grid gap-2">
                 {setupActions.map((item) => {
-                  const className = 'rounded-xl border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-left text-sm font-bold text-amber-100 transition hover:border-amber-300/60';
+                  const className = 'rounded-xl border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-left text-sm font-medium text-amber-100 transition hover:border-amber-300/60';
                   if (item.action === 'settings') return <button key={item.id} type="button" onClick={() => setActiveSection('settings')} className={className}>{item.label}</button>;
                   if (item.action === 'players') return <button key={item.id} type="button" onClick={() => setActiveSection('settings')} className={className}>{item.label}</button>;
                   return <div key={item.id} className={className}>{item.label}</div>;
@@ -548,28 +548,28 @@ export function TeamWorkspaceView({
       ) : null}
 
       {activeSection === 'players' ? (
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 sm:p-5">
+        <section className="os-panel p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-black">{t('team.playerCount', { count: data.playerCount })}</h2>
+            <h2 className="text-lg font-semibold">{t('team.playerCount', { count: data.playerCount })}</h2>
             {missingConsent.length > 0 ? (
-              <button type="button" aria-pressed={consentFilter} onClick={() => setConsentFilter(!consentFilter)} className={`rounded-full border px-3 py-1.5 text-xs font-black ${consentFilter ? 'border-amber-300 bg-amber-300 text-slate-950' : 'border-amber-300/50 text-amber-200'}`}>
+              <button type="button" aria-pressed={consentFilter} onClick={() => setConsentFilter(!consentFilter)} className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${consentFilter ? 'border-amber-300 bg-amber-300 text-slate-950' : 'border-amber-300/50 text-amber-200'}`}>
                 {t('team.consentMissing', { count: missingConsent.length })}
               </button>
             ) : null}
             {players.length > 1 && data.loadTracked !== false ? (
               <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-1">
-                <button type="button" onClick={() => setPlayerSort('risk')} className={`rounded-full px-3 py-1.5 text-xs font-black ${playerSort === 'risk' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>{t('team.sort.attention')}</button>
-                <button type="button" onClick={() => setPlayerSort('az')} className={`rounded-full px-3 py-1.5 text-xs font-black ${playerSort === 'az' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>{t('team.sort.az')}</button>
+                <button type="button" onClick={() => setPlayerSort('risk')} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${playerSort === 'risk' ? 'bg-slate-100 text-slate-950' : 'text-slate-400'}`}>{t('team.sort.attention')}</button>
+                <button type="button" onClick={() => setPlayerSort('az')} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${playerSort === 'az' ? 'bg-slate-100 text-slate-950' : 'text-slate-400'}`}>{t('team.sort.az')}</button>
               </div>
             ) : null}
           </div>
           {consentFilter && missingConsent.length > 0 && onRemindConsent ? (
-            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/45 p-3">
+            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-white/[0.04] p-3">
               <p className="min-w-0 flex-1 text-sm text-slate-300">{t('team.consentRemindDetail')}</p>
               {consentReminded !== null
-                ? <span role="status" className="text-sm font-black text-emerald-200">{t('team.consentReminded', { count: consentReminded })}</span>
-                : <button type="button" onClick={async () => { try { setConsentReminded(await onRemindConsent()); setConsentError(null); } catch (caught) { setConsentError(errorText(t, caught)); } }} className="rounded-full bg-amber-300 px-3.5 py-1.5 text-sm font-black text-slate-950">{t('team.consentRemind')}</button>}
-              {consentError ? <p role="alert" className="w-full text-xs font-bold text-rose-200">{consentError}</p> : null}
+                ? <span role="status" className="text-sm font-semibold text-emerald-200">{t('team.consentReminded', { count: consentReminded })}</span>
+                : <button type="button" onClick={async () => { try { setConsentReminded(await onRemindConsent()); setConsentError(null); } catch (caught) { setConsentError(errorText(t, caught)); } }} className="rounded-full bg-amber-300 px-3.5 py-1.5 text-sm font-semibold text-slate-950">{t('team.consentRemind')}</button>}
+              {consentError ? <p role="alert" className="w-full text-xs font-medium text-rose-200">{consentError}</p> : null}
             </div>
           ) : null}
           {players.length === 0 ? (
@@ -580,22 +580,22 @@ export function TeamWorkspaceView({
                 const summary = playerLoadSummary(player);
                 const groupNames = (player.groups ?? []).map((id) => groupNameById.get(id) ?? id);
                 return (
-                  <button key={player.id} type="button" onClick={() => setActivePlayer(player)} className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/50 p-4 text-left transition hover:border-emerald-300/55 hover:bg-slate-900">
+                  <button key={player.id} type="button" onClick={() => setActivePlayer(player)} className="min-w-0 rounded-2xl bg-white/[0.04] p-4 text-left transition hover:bg-white/[0.07]">
                     <div className="flex items-center gap-2.5">
                       <PersonAvatar personId={player.id} name={player.name} size="sm" />
                       {/* Name on top, the small facts under it, so the row never runs wider than the phone. */}
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate font-black text-white">{player.name}</span>
-                        {playerFacts?.(player.id) ? <span className="block truncate text-xs font-bold text-emerald-200/90">{playerFacts(player.id)}</span> : null}
+                        <span className="block truncate font-semibold text-white">{player.name}</span>
+                        {playerFacts?.(player.id) ? <span className="block truncate text-xs text-slate-400">{playerFacts(player.id)}</span> : null}
                         {/* Only what differs between rows: a missing consent, not the birth year on every row (audit 2026-11, 25). */}
                         {data.loadTracked !== false && player.healthConsent === false ? (
-                          <span className="block truncate text-xs font-bold text-amber-200">{t('consent.noConsent')}</span>
+                          <span className="block truncate text-xs font-medium text-amber-200">{t('consent.noConsent')}</span>
                         ) : null}
                       </span>
-                      {data.loadTracked !== false && summary.access !== 'none' && summary.acwr !== null && (summary.acwr < ACWR_ZONES.low || summary.acwr > ACWR_ZONES.high) ? <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-black ${acwrToneClass(summary.zone.tone)}`}>{t('team.acwrBadge', { value: formatDecimal(summary.acwr) })}</span> : null}
+                      {data.loadTracked !== false && summary.access !== 'none' && summary.acwr !== null && (summary.acwr < ACWR_ZONES.low || summary.acwr > ACWR_ZONES.high) ? <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold ${acwrToneClass(summary.zone.tone)}`}>{t('team.acwrBadge', { value: formatDecimal(summary.acwr) })}</span> : null}
                     </div>
-                    {groupNames.length > 0 ? <p className="mt-1 truncate text-xs font-bold text-slate-500">{groupNames.join(' · ')}</p> : null}
-                    {player.awayUntil ? <p className="mt-2 inline-flex rounded-full border border-amber-300/40 bg-amber-300/10 px-2 py-0.5 text-[11px] font-black text-amber-100">{t('team.awayUntil', { date: shortDate(player.awayUntil) })}</p> : null}
+                    {groupNames.length > 0 ? <p className="mt-1 truncate text-xs font-medium text-slate-400">{groupNames.join(' · ')}</p> : null}
+                    {player.awayUntil ? <p className="mt-2 inline-flex rounded-full border border-amber-300/40 bg-amber-300/10 px-2 py-0.5 text-xs font-semibold text-amber-100">{t('team.awayUntil', { date: shortDate(player.awayUntil) })}</p> : null}
                   </button>
                 );
               })}
@@ -605,10 +605,10 @@ export function TeamWorkspaceView({
       ) : null}
 
       {activeSection === 'groups' ? (
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+        <section className="os-panel p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-lg font-black">{t('team.groupsTitle')}</h2>
+              <h2 className="text-lg font-semibold">{t('team.groupsTitle')}</h2>
               <p className="mt-0.5 text-sm text-slate-400">{t('team.groupsDetail')}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -616,7 +616,7 @@ export function TeamWorkspaceView({
                 <button
                   type="button"
                   onClick={() => setIsGroupEditMode((current) => !current)}
-                  className={`rounded-xl border px-4 py-2 text-xs font-black transition ${isGroupEditMode ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-200 hover:bg-slate-900'}`}
+                  className={`rounded-xl border px-4 py-2 text-xs font-semibold transition ${isGroupEditMode ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-200 hover:bg-slate-900'}`}
                 >
                   {isGroupEditMode ? t('team.done') : t('team.editGroups')}
                 </button>
@@ -629,9 +629,9 @@ export function TeamWorkspaceView({
                 value={newGroupName}
                 onChange={(event) => setNewGroupName(event.target.value)}
                 placeholder={t('team.groupPlaceholder')}
-                className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm font-bold text-slate-100 outline-none focus:border-sky-300"
+                className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm font-medium text-slate-100 outline-none focus:border-sky-300"
               />
-              <button type="button" onClick={handleAddGroup} className="rounded-xl border border-sky-500/50 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/35">
+              <button type="button" onClick={handleAddGroup} className="rounded-xl border border-sky-500/50 px-3 py-2 text-xs font-semibold text-sky-100 hover:bg-sky-950/35">
                 {t('team.add')}
               </button>
             </div>
@@ -649,16 +649,16 @@ export function TeamWorkspaceView({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-black">{group.name}</p>
-                    <p className="mt-1 text-xs font-black text-slate-500">{t('team.playerCount', { count: group.playerCount })} · {t('team.loadFlags', { count: loadFlags.length })}</p>
+                    <p className="font-semibold">{group.name}</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-400">{t('team.playerCount', { count: group.playerCount })} · {t('team.loadFlags', { count: loadFlags.length })}</p>
                   </div>
                   {isGroupEditMode && onRemoveGroup ? (
-                    <button type="button" onClick={() => onRemoveGroup(group.id)} className="rounded-lg border border-red-500/40 px-2 py-1 text-[10px] font-black text-red-100 hover:bg-red-950/30">
+                    <button type="button" onClick={() => onRemoveGroup(group.id)} className="rounded-lg border border-red-500/40 px-2 py-1 text-xs font-semibold text-red-100 hover:bg-red-950/30">
                       {t('team.remove')}
                     </button>
                   ) : null}
                 </div>
-                <div className="mt-3 space-y-2 text-xs font-bold">
+                <div className="mt-3 space-y-2 text-xs font-medium">
                   {loadFlags.slice(0, 3).map((flag) => (
                     <p key={flag.id} className={flag.status === 'high' ? 'text-rose-200' : 'text-sky-200'}>{flag.status === 'high' ? t('team.highLoad') : t('team.lowLoad')} · {flag.name}{flag.detail ? ` · ${flag.detail}` : ''}</p>
                   ))}
@@ -667,14 +667,14 @@ export function TeamWorkspaceView({
                 {groupPlayers.length > 0 ? (
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {groupPlayers.slice(0, 6).map((player) => (
-                      <span key={player.id} className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-bold text-slate-300">{player.name}</span>
+                      <span key={player.id} className="rounded-full border border-slate-700 px-2 py-1 text-xs font-medium text-slate-300">{player.name}</span>
                     ))}
-                    {groupPlayers.length > 6 ? <span className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-bold text-slate-500">+{groupPlayers.length - 6}</span> : null}
+                    {groupPlayers.length > 6 ? <span className="rounded-full border border-slate-700 px-2 py-1 text-xs font-medium text-slate-400">+{groupPlayers.length - 6}</span> : null}
                   </div>
                 ) : null}
                 {isGroupEditMode && players.length > 0 && onTogglePlayerGroup ? (
                   <div className="mt-4 border-t border-slate-800 pt-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('team.members')}</p>
+                    <p className="text-xs font-semibold text-slate-400">{t('team.members')}</p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {players.map((player) => {
                         const selected = Boolean(group.playerIds?.includes(player.id) || player.groups?.includes(group.id) || player.groups?.includes(group.name));
@@ -684,7 +684,7 @@ export function TeamWorkspaceView({
                             type="button"
                             aria-pressed={selected}
                             onClick={() => onTogglePlayerGroup(group.id, player.id)}
-                            className={`rounded-full border px-2 py-1 text-[11px] font-bold transition ${selected ? 'border-emerald-400/60 bg-emerald-950/30 text-emerald-100' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+                            className={`rounded-full border px-2 py-1 text-xs font-medium transition ${selected ? 'border-emerald-400/60 bg-emerald-950/30 text-emerald-100' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
                           >
                             {player.name}
                           </button>
@@ -702,53 +702,53 @@ export function TeamWorkspaceView({
       ) : null}
 
       {activeGroup ? (
-        <div role="dialog" aria-modal="true" aria-label={activeGroup.name} className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/75 p-3 backdrop-blur-sm sm:items-center">
-          <section className="w-full max-w-lg rounded-3xl border border-slate-800 bg-slate-950 p-5 shadow-2xl">
+        <div role="dialog" aria-modal="true" aria-label={activeGroup.name} className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-3 sm:items-center">
+          <section className="os-sheet w-full max-w-lg p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">{t('team.groupInsight')}</p>
-                <h3 className="mt-2 text-2xl font-black text-white">{activeGroup.name}</h3>
+                <p className="text-xs font-semibold text-emerald-300">{t('team.groupInsight')}</p>
+                <h3 className="mt-2 text-2xl font-semibold text-white">{activeGroup.name}</h3>
               </div>
-              <button type="button" onClick={() => setActiveGroupId(null)} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">{t('team.close')}</button>
+              <button type="button" onClick={() => setActiveGroupId(null)} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-900">{t('team.close')}</button>
             </div>
             <div className="mt-5 grid gap-3">
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('team.loadFlagsTitle')}</p>
+              <div className="rounded-2xl bg-white/[0.04] p-3">
+                <p className="text-xs font-semibold text-slate-400">{t('team.loadFlagsTitle')}</p>
                 <div className="mt-3 space-y-2">
-                  {activeGroupLoadFlags.length === 0 ? <p className="text-sm font-bold text-slate-500">{t('team.noLoadFlags')}</p> : null}
+                  {activeGroupLoadFlags.length === 0 ? <p className="text-sm font-medium text-slate-400">{t('team.noLoadFlags')}</p> : null}
                   {activeGroupLoadFlags.map((flag) => (
-                    <p key={flag.id} className={`text-sm font-bold ${flag.status === 'high' ? 'text-rose-200' : 'text-sky-200'}`}>{flag.name} · {flag.status === 'high' ? t('team.high') : t('team.low')}{flag.detail ? ` · ${flag.detail}` : ''}</p>
+                    <p key={flag.id} className={`text-sm font-medium ${flag.status === 'high' ? 'text-rose-200' : 'text-sky-200'}`}>{flag.name} · {flag.status === 'high' ? t('team.high') : t('team.low')}{flag.detail ? ` · ${flag.detail}` : ''}</p>
                   ))}
                 </div>
               </div>
             </div>
-            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/45 p-4">
-              <p className="text-sm font-black text-slate-100">{t('team.players')}</p>
+            <div className="mt-4 rounded-2xl bg-white/[0.04] p-4">
+              <p className="text-sm font-semibold text-slate-100">{t('team.players')}</p>
               {activeGroupPlayers.length > 0 ? (
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {activeGroupPlayers.map((player) => (
-                    <span key={player.id} className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-bold text-slate-300">{player.name}</span>
+                    <span key={player.id} className="rounded-full border border-slate-700 px-2 py-1 text-xs font-medium text-slate-300">{player.name}</span>
                   ))}
                 </div>
-              ) : <p className="mt-2 text-sm font-bold text-slate-500">{t('team.noGroupPlayers')}</p>}
+              ) : <p className="mt-2 text-sm font-medium text-slate-400">{t('team.noGroupPlayers')}</p>}
             </div>
           </section>
         </div>
       ) : null}
 
       {activeSection === 'tactics' && playbookPanel ? (
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 sm:p-5">
-          <h2 className="text-lg font-black">{t('tactics.playbook')}</h2>
+        <section className="os-panel p-4 sm:p-5">
+          <h2 className="text-lg font-semibold">{t('tactics.playbook')}</h2>
           <div className="mt-4">{playbookPanel}</div>
         </section>
       ) : null}
 
       {activeSection === 'settings' ? (
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
-          <h2 className="text-lg font-black">{t('team.section.settings')}</h2>
+        <section className="os-panel p-5">
+          <h2 className="text-lg font-semibold">{t('team.section.settings')}</h2>
           <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-3">
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-              <p className="text-sm font-black text-slate-100">{t('team.defaultHall')}</p>
+            <div className="rounded-2xl bg-white/[0.04] p-4">
+              <p className="text-sm font-semibold text-slate-100">{t('team.defaultHall')}</p>
               {data.availableFacilities && data.availableFacilities.length > 0 ? (
                 <select
                   value={data.defaultFacilityId ?? ''}
@@ -764,8 +764,8 @@ export function TeamWorkspaceView({
               )}
             </div>
             {featuresPanel}
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-              <p className="text-sm font-black text-slate-100">{t('team.staffRoles')}</p>
+            <div className="rounded-2xl bg-white/[0.04] p-4">
+              <p className="text-sm font-semibold text-slate-100">{t('team.staffRoles')}</p>
               <div className="mt-4">
                 {staffPanel ?? <StaffRoleGrid roles={staffRoles} />}
               </div>
@@ -788,7 +788,7 @@ export function TeamWorkspaceView({
             onFacilityChange={handleDashboardSessionFacilityChange}
             onEdit={data.role !== 'viewer' && (onSessionTimeChange || onSessionFacilityChange || onSessionGroupsChange || onSessionTypeChange) ? () => setDashboardEditingSession(dashboardSession) : undefined}
             onDelete={data.role !== 'viewer' && onSessionDelete ? () => setDashboardDeleteTargetId(dashboardSession.id) : undefined}
-            extraActions={<Link href={data.calendarHref} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">{t('team.openCalendar')}</Link>}
+            extraActions={<Link href={data.calendarHref} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-semibold text-sky-100 hover:bg-sky-950/40">{t('team.openCalendar')}</Link>}
             onClose={() => setDashboardSession(null)}
           />
         );
@@ -840,21 +840,21 @@ export function TeamWorkspaceView({
             <div className="grid gap-4">
               {activePlayerOwnTraining ? (
                 <div>
-                  <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('team.ownTraining')}</p>
+                  <p className="mb-2 text-xs font-semibold text-slate-400">{t('team.ownTraining')}</p>
                   <OwnTrainingList items={activePlayerOwnTraining} />
                 </div>
               ) : null}
               {/* Piece 16: roles that see attendance can mark a player away for a period. */}
               {activePlayer.attendanceShared !== false ? (
                 <div>
-                  <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('team.away')}</p>
+                  <p className="mb-2 text-xs font-semibold text-slate-400">{t('team.away')}</p>
                   <AbsencePanel personId={activePlayer.id} viewer="coach" showReasons={Boolean(activePlayer.absenceReasonsShared)} />
                 </div>
               ) : null}
               {onRemovePlayer ? (
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-xs font-bold text-slate-500">{t('team.wrongTeam')}</p>
-                  <button type="button" onClick={() => setRemovePlayerTarget(activePlayer)} className="rounded-xl border border-red-500/50 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">
+                  <p className="text-xs font-medium text-slate-400">{t('team.wrongTeam')}</p>
+                  <button type="button" onClick={() => setRemovePlayerTarget(activePlayer)} className="rounded-xl border border-red-500/50 px-3 py-2 text-xs font-semibold text-red-100 hover:bg-red-950/35">
                     {t('team.removeFromTeam')}
                   </button>
                 </div>

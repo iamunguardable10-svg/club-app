@@ -51,7 +51,7 @@ function ScreenStrip() {
           </div>
         ))}
       </div>
-      <figcaption className="text-xs font-bold text-slate-500">{t('start.new.screens')}</figcaption>
+      <figcaption className="text-xs font-medium text-slate-400">{t('start.new.screens')}</figcaption>
     </figure>
   );
 }
@@ -70,11 +70,11 @@ export function NewHere({ onDemo, canSignIn, startAt = 'choose' }: { onDemo: (ro
     return (
       <>
         <WhoAreYou only={WAYS[role]} title={t(WAY_TITLE[role])} />
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-1 text-sm font-bold">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-1 text-sm font-medium">
           <button type="button" onClick={() => setStep('role')} className="text-slate-400 underline">{t('start.new.back')}</button>
           <button type="button" onClick={() => onDemo(role)} className="text-sky-300 underline">{t('start.way.demo')}</button>
         </div>
-        {role !== 'athlete' ? <p className="px-1 text-xs text-slate-500">{t('demo.start.noCode')} <a href={pilot} className="font-bold text-sky-300 underline">{t('demo.start.pilot')}</a></p> : null}
+        {role !== 'athlete' ? <p className="px-1 text-xs text-slate-400">{t('demo.start.noCode')} <a href={pilot} className="font-medium text-sky-300 underline">{t('demo.start.pilot')}</a></p> : null}
       </>
     );
   }
@@ -95,7 +95,7 @@ export function NewHere({ onDemo, canSignIn, startAt = 'choose' }: { onDemo: (ro
     return (
       <>
         <WhoAreYou />
-        <button type="button" onClick={() => setStep('role')} className="justify-self-start px-1 text-sm font-bold text-slate-400 underline">{t('start.new.back')}</button>
+        <button type="button" onClick={() => setStep('role')} className="justify-self-start px-1 text-sm font-medium text-slate-400 underline">{t('start.new.back')}</button>
       </>
     );
   }
@@ -103,7 +103,7 @@ export function NewHere({ onDemo, canSignIn, startAt = 'choose' }: { onDemo: (ro
   return (
     <section className="os-panel grid gap-4 p-5 sm:p-6">
       <div>
-        <p className="text-lg font-black text-white">{t('start.new.title')}</p>
+        <p className="text-lg font-semibold text-white">{t('start.new.title')}</p>
       </div>
       <ul className="grid gap-2">
         {ROLES.map((entry) => (
@@ -115,22 +115,22 @@ export function NewHere({ onDemo, canSignIn, startAt = 'choose' }: { onDemo: (ro
                 setRole(entry.role);
                 setStep('way');
               }}
-              className="flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-3 py-3 text-left transition hover:border-emerald-300/50 hover:bg-slate-900 active:scale-[0.99]"
+              className="flex w-full items-center gap-3 rounded-2xl bg-white/[0.04] px-3 py-3 text-left transition hover:bg-white/[0.07] active:scale-[0.99]"
             >
               <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-300/10 text-emerald-200">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">{entry.icon}</svg>
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-black text-slate-100">{t(entry.title)}</span>
+                <span className="block text-sm font-semibold text-slate-100">{t(entry.title)}</span>
                 <span className="block text-xs text-slate-400">{t(entry.detail)}</span>
               </span>
-              <span aria-hidden className="text-lg font-black text-slate-500">›</span>
+              <span aria-hidden className="text-lg font-semibold text-slate-400">›</span>
             </button>
           </li>
         ))}
       </ul>
-      {canSignIn ? null : <p className="text-xs text-slate-500">{t('start.new.note')}</p>}
-      <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-bold">
+      {canSignIn ? null : <p className="text-xs text-slate-400">{t('start.new.note')}</p>}
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-medium">
         <button type="button" onClick={() => setStep('choose')} className="text-slate-400 underline">{t('start.new.back')}</button>
         {canSignIn ? <button type="button" onClick={() => setStep('code')} className="text-sky-300 underline">{t('start.new.haveCode')}</button> : null}
       </div>

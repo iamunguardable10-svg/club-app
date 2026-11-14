@@ -4,18 +4,26 @@
 
 :root {
   color-scheme: dark;
-  --background: #070a12;
-  --foreground: #f8fafc;
-  --club-bg: #050712;
-  --club-panel: rgba(15, 23, 42, 0.72);
-  --club-panel-strong: rgba(2, 6, 23, 0.88);
-  --club-border: rgba(51, 65, 85, 0.82);
-  --club-border-soft: rgba(148, 163, 184, 0.16);
-  --club-muted: #94a3b8;
-  --club-soft: #cbd5e1;
-  --club-sky: #7dd3fc;
-  --club-emerald: #34d399;
-  --club-amber: #fcd34d;
+  /* The page, the surfaces that rise from it, and the lines between them. */
+  --ground: #0e0f11;
+  --surface-1: #17191c;
+  --surface-2: #1f2226;
+  --surface-3: #282b31;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.13);
+  --text: #f7f8fa;
+  --text-2: #c2c6cd;
+  --text-3: #a0a5ae;
+  --go: #5fe3a6;
+  --info: #92b8f5;
+  --warn: #fcd34d;
+  --stop: #f27886;
+  --background: var(--ground);
+  --foreground: var(--text);
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* The landing page reads these two. */
+  --club-bg: var(--ground);
+  --club-emerald: var(--go);
 }
 
 * {
@@ -36,8 +44,15 @@ body {
   font-family:
     var(--font-inter), Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  text-rendering: geometricPrecision;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.011em;
 }
 
 a {
@@ -46,46 +61,42 @@ a {
 }
 
 ::selection {
-  background: rgba(125, 211, 252, 0.24);
-  color: #f8fafc;
+  background: rgba(146, 184, 245, 0.28);
+  color: #f7f8fa;
 }
 
 @layer components {
   .os-page {
     /* The visible height (dvh), not 100vh, which on phones is taller than what shows. */
-    @apply min-h-screen min-h-dvh bg-[#050712] text-white;
-    /* Working pages: flat, one soft glow at the top. The grid belongs to the landing page (audit 2026-11, 32). */
-    background-image: radial-gradient(circle at 50% -12%, rgba(56, 189, 248, 0.12), transparent 32rem);
-    background-repeat: no-repeat;
+    @apply min-h-screen min-h-dvh bg-ground text-white;
   }
 
   .os-container {
     @apply mx-auto w-full max-w-6xl px-4 py-6 sm:px-8;
   }
 
+  /* The one surface a section sits on: lighter than the page, no outline, no shadow. */
   .os-panel {
-    @apply rounded-3xl border border-slate-800/90 bg-slate-950/70 shadow-[0_24px_90px_rgba(0,0,0,0.24)] ring-1 ring-white/[0.03] backdrop-blur-xl;
+    @apply rounded-3xl bg-[var(--surface-1)];
+    box-shadow: inset 0 0 0 1px var(--line);
   }
 
+  /* A tile or group inside a panel: one step lighter, no border. */
   .os-panel-soft {
-    @apply rounded-2xl border border-slate-800 bg-slate-950/45 ring-1 ring-white/[0.03];
+    @apply rounded-2xl bg-[var(--surface-2)];
   }
 
+  /* The head of an entry page: a plain bar (name, language, the question), not a box. */
   .os-hero {
-    @apply relative overflow-hidden rounded-[2rem] border border-slate-800/90 bg-[linear-gradient(135deg,rgba(15,23,42,0.92),rgba(2,6,23,0.78))] p-6 shadow-[0_28px_120px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.04] backdrop-blur-xl;
-  }
-
-  .os-hero::before {
-    content: "";
-    @apply pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-sky-200/35 to-transparent;
+    @apply relative px-1 pb-1 pt-2;
   }
 
   .os-kicker {
-    @apply text-xs font-black uppercase tracking-[0.24em] text-sky-300;
+    @apply text-xs font-semibold uppercase tracking-[0.14em] text-emerald-300;
   }
 
   .os-title {
-    @apply mt-3 text-3xl font-black tracking-tight text-white sm:text-5xl;
+    @apply mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl;
   }
 
   .os-copy {
@@ -93,41 +104,91 @@ a {
   }
 
   .os-section {
-    @apply rounded-3xl border border-slate-800/90 bg-slate-950/70 p-5 shadow-[0_24px_90px_rgba(0,0,0,0.24)] ring-1 ring-white/[0.03] backdrop-blur-xl;
+    @apply rounded-3xl bg-[var(--surface-1)] p-5;
+    box-shadow: inset 0 0 0 1px var(--line);
   }
 
   .os-label {
-    @apply text-sm font-bold text-slate-200;
+    @apply text-sm font-medium text-slate-300;
   }
 
   .os-field {
-    @apply mt-2 w-full rounded-xl border border-slate-700/90 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-sky-300 focus:ring-2 focus:ring-sky-400/10;
+    @apply mt-2 w-full rounded-xl border border-[var(--line-strong)] bg-[var(--surface-2)] px-4 py-3 text-[15px] text-slate-50 outline-none transition-colors placeholder:text-slate-500 focus:border-sky-300;
   }
 
   .os-textarea {
-    @apply mt-2 min-h-36 w-full resize-y rounded-xl border border-slate-700/90 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-sky-300 focus:ring-2 focus:ring-sky-400/10;
+    @apply mt-2 min-h-36 w-full resize-y rounded-xl border border-[var(--line-strong)] bg-[var(--surface-2)] px-4 py-3 text-[15px] text-slate-50 outline-none transition-colors placeholder:text-slate-500 focus:border-sky-300;
+  }
+
+  /* Buttons: one filled main action per surface, everything else quiet. A press sinks, nothing floats. */
+  .os-success {
+    @apply rounded-xl bg-emerald-300 px-5 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-200 active:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .os-primary {
-    @apply rounded-2xl bg-sky-300 px-5 py-3 text-sm font-black text-slate-950 shadow-[0_18px_60px_rgba(56,189,248,0.16)] transition hover:-translate-y-0.5 hover:bg-sky-200 disabled:cursor-not-allowed disabled:opacity-60;
-  }
-
-  .os-success {
-    @apply rounded-2xl bg-emerald-300 px-5 py-3 text-sm font-black text-slate-950 shadow-[0_18px_60px_rgba(52,211,153,0.14)] transition hover:-translate-y-0.5 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply rounded-xl bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-white active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .os-demo {
-    @apply rounded-2xl bg-amber-300 px-5 py-3 text-sm font-black text-slate-950 shadow-[0_18px_60px_rgba(251,191,36,0.14)] transition hover:-translate-y-0.5 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply rounded-xl bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .os-secondary {
-    @apply rounded-2xl border border-slate-700/90 bg-slate-950/45 px-5 py-3 text-sm font-black text-slate-200 transition hover:-translate-y-0.5 hover:border-sky-400/60 hover:bg-slate-900/80;
+    @apply rounded-xl border border-[var(--line-strong)] px-5 py-3 text-sm font-semibold text-slate-100 transition-colors hover:bg-white/[0.06] active:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .os-danger {
+    @apply rounded-xl bg-rose-400/10 px-5 py-3 text-sm font-semibold text-rose-300 transition-colors hover:bg-rose-400/20 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .os-link {
+    @apply text-sm font-medium text-sky-300 hover:text-sky-200;
   }
 
   .os-metric {
-    @apply rounded-2xl border border-slate-800 bg-slate-950/55 p-3 ring-1 ring-white/[0.03];
+    @apply rounded-2xl bg-[var(--surface-2)] p-3;
+  }
+
+  /* A list row: the whole row is the target; rows are separated by a line, not boxed. */
+  .os-row {
+    @apply flex min-h-14 w-full items-center gap-3 px-1 py-2.5 text-left;
+  }
+
+  .os-rows > * + * {
+    border-top: 1px solid var(--line);
+  }
+
+  .os-stack:empty {
+    display: none;
+  }
+
+  /* A status: a word on a tint, never colour alone. */
+  .os-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-3)] px-2.5 py-1 text-xs font-medium text-slate-200;
+  }
+  .os-chip-go { @apply bg-emerald-300/[0.12] text-emerald-300; }
+  .os-chip-warn { @apply bg-amber-300/[0.12] text-amber-300; }
+  .os-chip-stop { @apply bg-rose-400/[0.12] text-rose-300; }
+
+  /* A section label inside a panel: small, quiet, sentence case. */
+  .os-caption {
+    @apply text-xs font-medium text-slate-400;
+  }
+
+  /* Everything that opens over the page has this one frame (the scrim behind it is black/60). */
+  .os-sheet {
+    @apply rounded-3xl bg-[var(--surface-1)];
+    box-shadow: inset 0 0 0 1px var(--line-strong), 0 24px 80px rgba(0, 0, 0, 0.55);
+    animation: os-rise 0.28s var(--ease) both;
+  }
+
+  .os-empty {
+    @apply px-4 py-8 text-center text-sm text-slate-400;
   }
 }
+
+@keyframes os-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .os-sheet { animation: none; } }
 
 @keyframes landing-float {
   0%,
@@ -370,7 +431,7 @@ html.standalone-app { touch-action: pan-x pan-y; }
    Text fields keep their own focused border; everything else gets the sky ring,
    also where a component set `outline-none`. */
 :is(a, button, summary, select, [role="button"], [role="tab"], [role="switch"], [tabindex]:not([tabindex="-1"]), input[type="checkbox"], input[type="radio"], input[type="range"]):focus-visible {
-  outline: 2px solid #7dd3fc !important;
+  outline: 2px solid var(--info) !important;
   outline-offset: 2px !important;
 }
 

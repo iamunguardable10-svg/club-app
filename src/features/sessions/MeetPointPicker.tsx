@@ -133,10 +133,10 @@ export default function MeetPointPicker({ value, onChange, centerHint }: { value
           <div className={`mx-auto -mt-0.5 h-1.5 w-3 rounded-full bg-black/40 transition-all duration-150 ${moving ? 'w-4 opacity-50' : ''}`} />
         </div>
       </div>
-      <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
+      <div className="flex items-center justify-between gap-3 text-xs text-slate-400">
         <span>{placed ? t('carpools.mapMoveHint') : t('carpools.mapHint')}</span>
         {placed ? (
-          <button type="button" onClick={() => { autoLabel.current = null; onChange({ label: value.label, lat: null, lng: null }); }} className="shrink-0 font-bold text-slate-300 underline">
+          <button type="button" onClick={() => { autoLabel.current = null; onChange({ label: value.label, lat: null, lng: null }); }} className="shrink-0 font-medium text-slate-300 underline">
             {t('carpools.removePin')}
           </button>
         ) : null}

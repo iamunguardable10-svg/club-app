@@ -34,7 +34,9 @@ try {
   await go('/start');
   await page.evaluate(() => {
     localStorage.setItem('club-app.locale', 'de');
-    for (const role of ['coach', 'athlete', 'club']) localStorage.setItem(`club-app.tour-seen.demo.welcome.${role}.practice-v1`, '1');
+    // The screens as they are in daily use: no first-use tips, no load introduction.
+    localStorage.setItem('club-app.tips-off', '1');
+    for (const hint of ['loadIntroPlayer', 'loadIntroCoach']) localStorage.setItem(`club-app.hint-dismissed.${hint}`, '1');
   });
   await go('/start?demo=coach');
   await page.waitForURL('**/coach/today');

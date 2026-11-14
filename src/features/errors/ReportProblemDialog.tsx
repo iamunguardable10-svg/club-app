@@ -50,10 +50,10 @@ export function ReportProblemDialog({ isOpen, onClose, prefill = '' }: { isOpen:
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/80 p-3 backdrop-blur-sm sm:items-center" role="dialog" aria-modal="true" aria-labelledby="report-title">
-      <div className="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-950 p-5 text-white shadow-2xl">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-300">{t('report.kicker')}</p>
-        <h2 id="report-title" className="mt-1 text-xl font-black">{t('report.title')}</h2>
+    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/60 p-3 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="report-title">
+      <div className="os-sheet w-full max-w-md p-5 text-white">
+        <p className="text-xs font-semibold text-sky-300">{t('report.kicker')}</p>
+        <h2 id="report-title" className="mt-1 text-xl font-semibold">{t('report.title')}</h2>
         {state === 'sent' ? (
           <div className="mt-4 grid gap-4">
             <p className="text-sm text-slate-300">{t('report.thanks')}</p>
@@ -61,7 +61,7 @@ export function ReportProblemDialog({ isOpen, onClose, prefill = '' }: { isOpen:
           </div>
         ) : (
           <form className="mt-4 grid gap-3" onSubmit={(event) => { event.preventDefault(); void send(); }}>
-            <label className="grid gap-1.5 text-sm font-bold text-slate-300">
+            <label className="grid gap-1.5 text-sm font-medium text-slate-300">
               {t('report.question')}
               <textarea
                 value={text}
@@ -73,7 +73,7 @@ export function ReportProblemDialog({ isOpen, onClose, prefill = '' }: { isOpen:
                 className="os-field min-h-28 resize-y"
               />
             </label>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-400">
               {t('report.sentAlong', {
                 page: context.page || '/',
                 role: context.role ? ` · ${t(ROLE_LABEL[context.role])}` : '',
@@ -82,12 +82,12 @@ export function ReportProblemDialog({ isOpen, onClose, prefill = '' }: { isOpen:
                 version: context.version,
               })}
             </p>
-            {error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null}
+            {error ? <p role="alert" className="text-xs font-medium text-red-200">{error}</p> : null}
             <div className="flex flex-wrap gap-2">
               <button type="submit" disabled={state === 'sending' || text.trim().length < 3} className="os-success justify-center px-4 py-2 text-sm disabled:opacity-60">
                 {state === 'sending' ? t('report.sending') : t('report.send')}
               </button>
-              <button type="button" onClick={close} className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-300">{t('report.cancel')}</button>
+              <button type="button" onClick={close} className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300">{t('report.cancel')}</button>
             </div>
           </form>
         )}

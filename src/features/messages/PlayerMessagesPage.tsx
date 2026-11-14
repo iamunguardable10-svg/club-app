@@ -99,19 +99,19 @@ export function PlayerMessagesPage() {
     const pinnedUntil = messagePinnedUntil(message);
     const isPinned = pinnedUntil !== null && Date.parse(pinnedUntil) > now;
     return (
-      <li key={message.id} data-message-id={message.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+      <li key={message.id} data-message-id={message.id} className="rounded-2xl bg-white/[0.04] p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="flex items-center gap-2 text-sm font-black text-white">
+            <p className="flex items-center gap-2 text-sm font-semibold text-white">
               {unread.has(message.id) ? <NewDot label={t('messages.new')} /> : null}
               <span className="truncate">{authorName(database, message)}</span>
             </p>
-            <p className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-slate-500">
+            <p className="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-slate-400">
               <span className="truncate">{messageLabel(database, message)}</span>
               {isPinned ? <><span aria-hidden>·</span><PinIcon className="h-3.5 w-3.5 shrink-0 text-amber-200/80" /><span className="shrink-0">{t('messages.pinnedUntil', { date: formatShortDate(pinnedUntil) })}</span></> : null}
             </p>
           </div>
-          <span className="shrink-0 text-xs font-bold text-slate-500">{whenPosted(message.createdAt)}</span>
+          <span className="shrink-0 text-xs font-medium text-slate-400">{whenPosted(message.createdAt)}</span>
         </div>
         <p className="mt-2.5 whitespace-pre-wrap text-[15px] leading-relaxed text-slate-100">{message.body}</p>
         {isPoll(message) && person ? <div><PollView database={database} message={message} personId={person.id} /></div> : null}
@@ -124,9 +124,9 @@ export function PlayerMessagesPage() {
       {!isPlayer ? (
         <p className="text-sm text-slate-400">{t('messages.switchToPlayer')}</p>
       ) : inbox.length === 0 ? (
-        <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-sm text-slate-400">{t('messages.empty')}</section>
+        <section className="os-panel p-6 text-sm text-slate-400">{t('messages.empty')}</section>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid max-w-3xl gap-4">
           {sources.length > 1 ? (
             <div role="group" aria-label={t('messages.filter')} className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
               {sources.map((key) => {
@@ -139,10 +139,10 @@ export function PlayerMessagesPage() {
                     type="button"
                     aria-pressed={on}
                     onClick={() => setFilter(on ? null : key)}
-                    className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-black transition ${on ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
+                    className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition ${on ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
                   >
                     {sourceLabel(key)}
-                    {unreadHere > 0 ? <span aria-label={t('nav.unread', { count: unreadHere })} className="grid h-4 min-w-4 place-items-center rounded-full bg-rose-400 px-1 text-[10px] font-black text-slate-950">{unreadHere}</span> : null}
+                    {unreadHere > 0 ? <span aria-label={t('nav.unread', { count: unreadHere })} className="grid h-4 min-w-4 place-items-center rounded-full bg-rose-400 px-1 text-xs font-semibold text-slate-950">{unreadHere}</span> : null}
                   </button>
                 );
               })}
@@ -150,7 +150,7 @@ export function PlayerMessagesPage() {
           ) : null}
           {pinned.length > 0 ? (
             <section className="grid gap-2" aria-label={t('messages.pinned')}>
-              <p className="flex items-center gap-1.5 px-1 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500"><PinIcon className="h-3 w-3" />{t('messages.pinned')}</p>
+              <p className="flex items-center gap-1.5 px-1 text-xs font-semibold text-slate-400"><PinIcon className="h-3 w-3" />{t('messages.pinned')}</p>
               <ul className="grid gap-2">{pinned.map(card)}</ul>
             </section>
           ) : null}

@@ -204,15 +204,15 @@ export function WeeklySeriesBoard({
   }
 
   return (
-    <section className="rounded-2xl border border-slate-800/90 bg-slate-950/70 p-2.5 text-slate-100 shadow-2xl shadow-slate-950/30 ring-1 ring-white/[0.03] sm:p-3">
+    <section className="rounded-2xl bg-white/[0.04] p-2.5 text-slate-100 shadow-2xl shadow-slate-950/30 ring-1 ring-white/[0.03] sm:p-3">
       <div className="flex flex-col gap-2.5 border-b border-slate-800/80 pb-2.5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{t('seriesBoard.title')}</p>
+          <p className="text-xs font-semibold text-slate-400">{t('seriesBoard.title')}</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <button type="button" onClick={() => changeWeek('previous')} disabled={!onWeekChange} className="grid h-7 w-7 place-items-center rounded-full border border-slate-700 bg-slate-950/70 text-sm font-black text-slate-200 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-40" aria-label={t('seriesBoard.previousWeek')}>‹</button>
-            <span className="rounded-full border border-slate-800 bg-slate-950/80 px-2.5 py-1 text-xs font-black text-slate-200">{formatWeekRange(monday)}</span>
-            <button type="button" onClick={() => changeWeek('next')} disabled={!onWeekChange} className="grid h-7 w-7 place-items-center rounded-full border border-slate-700 bg-slate-950/70 text-sm font-black text-slate-200 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-40" aria-label={t('seriesBoard.nextWeek')}>›</button>
-            <button type="button" onClick={() => changeWeek('current')} disabled={!onWeekChange || isCurrentWeek} className="rounded-full border border-slate-700 bg-slate-950/70 px-2.5 py-1 text-xs font-black text-slate-200 transition hover:border-emerald-300/70 disabled:cursor-not-allowed disabled:opacity-40">{t('seriesBoard.current')}</button>
+            <button type="button" onClick={() => changeWeek('previous')} disabled={!onWeekChange} className="grid h-7 w-7 place-items-center rounded-full border border-slate-700 bg-slate-950/70 text-sm font-semibold text-slate-200 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-40" aria-label={t('seriesBoard.previousWeek')}>‹</button>
+            <span className="rounded-full border border-slate-800 bg-slate-950/80 px-2.5 py-1 text-xs font-semibold text-slate-200">{formatWeekRange(monday)}</span>
+            <button type="button" onClick={() => changeWeek('next')} disabled={!onWeekChange} className="grid h-7 w-7 place-items-center rounded-full border border-slate-700 bg-slate-950/70 text-sm font-semibold text-slate-200 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-40" aria-label={t('seriesBoard.nextWeek')}>›</button>
+            <button type="button" onClick={() => changeWeek('current')} disabled={!onWeekChange || isCurrentWeek} className="rounded-full border border-slate-700 bg-slate-950/70 px-2.5 py-1 text-xs font-semibold text-slate-200 transition hover:border-emerald-300/70 disabled:cursor-not-allowed disabled:opacity-40">{t('seriesBoard.current')}</button>
           </div>
         </div>
 
@@ -220,7 +220,7 @@ export function WeeklySeriesBoard({
           type="button"
           onClick={onConfirmWeek}
           disabled={!onConfirmWeek || actionableCount === 0 || isConfirming}
-          className="w-full rounded-xl bg-emerald-300 px-3.5 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-50 sm:w-fit"
+          className="w-full rounded-xl bg-emerald-300 px-3.5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-50 sm:w-fit"
         >
           {isConfirming ? t('seriesBoard.creating') : t('seriesBoard.confirmWeek')}
         </button>
@@ -233,11 +233,11 @@ export function WeeklySeriesBoard({
             <section key={day.key} className="min-w-0 border-b border-slate-800/80 py-2.5 last:border-b-0 lg:rounded-xl lg:border lg:border-slate-800/90 lg:bg-slate-950/45 lg:p-2 lg:ring-1 lg:ring-white/[0.03]">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-black text-white">{t(WEEKDAY_SHORT_KEYS[dayIndex])}</p>
-                  <p className="mt-0.5 text-[11px] font-bold text-slate-500">{formatDayDate(monday, dayIndex)}</p>
+                  <p className="text-sm font-semibold text-white">{t(WEEKDAY_SHORT_KEYS[dayIndex])}</p>
+                  <p className="mt-0.5 text-xs font-medium text-slate-400">{formatDayDate(monday, dayIndex)}</p>
                 </div>
                 {onAddTemplate ? (
-                  <button type="button" onClick={() => onAddTemplate(day.index)} className="shrink-0 rounded-full border border-slate-700 px-2 py-1 text-[11px] font-black text-slate-200 transition hover:border-sky-300/70">{t('seriesBoard.add')}</button>
+                  <button type="button" onClick={() => onAddTemplate(day.index)} className="shrink-0 rounded-full border border-slate-700 px-2 py-1 text-xs font-semibold text-slate-200 transition hover:border-sky-300/70">{t('seriesBoard.add')}</button>
                 ) : null}
               </div>
 
@@ -259,19 +259,19 @@ export function WeeklySeriesBoard({
                         />
                         <button type="button" onClick={() => onEditTemplate?.(template)} disabled={!onEditTemplate} className="min-w-0 flex-1 text-left disabled:cursor-default">
                           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                            <span className="max-w-full truncate rounded-full border border-slate-700 bg-slate-900/80 px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-slate-300">{sessionTypeLabel(template)}</span>
-                            {hasCreatedSession ? <span className="max-w-full truncate rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-[10px] font-black text-emerald-100">{t('seriesBoard.created')}</span> : null}
+                            <span className="max-w-full truncate rounded-full border border-slate-700 bg-slate-900/80 px-2 py-1 text-xs font-semibold text-slate-300">{sessionTypeLabel(template)}</span>
+                            {hasCreatedSession ? <span className="max-w-full truncate rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-xs font-semibold text-emerald-100">{t('seriesBoard.created')}</span> : null}
                           </div>
-                          <p className="mt-1.5 truncate text-sm font-black text-white">{templateTime(template, 'start')}{template.sessionType !== 'game' ? ` - ${templateTime(template, 'end')}` : ''}</p>
-                          <p className="mt-0.5 truncate text-xs font-bold text-slate-300">{stringFrom(template, ['teamName', 'team'])}</p>
-                          <p className="mt-1 truncate text-xs text-slate-500">{stringFrom(template, ['facilityName', 'facility'], t('seriesBoard.noHall'))}</p>
-                          <p className="mt-1.5 truncate text-xs font-bold text-slate-400">{participantsSummary(template)}</p>
+                          <p className="mt-1.5 truncate text-sm font-semibold text-white">{templateTime(template, 'start')}{template.sessionType !== 'game' ? ` - ${templateTime(template, 'end')}` : ''}</p>
+                          <p className="mt-0.5 truncate text-xs font-medium text-slate-300">{stringFrom(template, ['teamName', 'team'])}</p>
+                          <p className="mt-1 truncate text-xs text-slate-400">{stringFrom(template, ['facilityName', 'facility'], t('seriesBoard.noHall'))}</p>
+                          <p className="mt-1.5 truncate text-xs font-medium text-slate-400">{participantsSummary(template)}</p>
                         </button>
                       </div>
                     </article>
                   );
                 }) : (
-                  <p className="px-1 py-2 text-xs font-bold text-slate-600 lg:rounded-xl lg:border lg:border-dashed lg:border-slate-800 lg:px-2 lg:py-3">{t('seriesBoard.noTemplates')}</p>
+                  <p className="px-1 py-2 text-xs font-medium text-slate-400 lg:rounded-xl lg:border lg:border-dashed lg:border-slate-800 lg:px-2 lg:py-3">{t('seriesBoard.noTemplates')}</p>
                 )}
               </div>
             </section>

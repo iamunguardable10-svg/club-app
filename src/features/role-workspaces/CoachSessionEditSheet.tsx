@@ -165,27 +165,27 @@ export function CoachSessionEditSheet({
   }
 
   return (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/75 p-2.5 backdrop-blur-sm sm:items-center">
-      <section className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950 p-3.5 text-white shadow-2xl sm:p-4">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-2.5 sm:items-center">
+      <section className="os-sheet max-h-[92vh] w-full max-w-xl overflow-y-auto p-3.5 text-white sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-300">{t('sessionForm.kicker')}</p>
-            <h3 className="mt-1.5 text-xl font-black sm:text-2xl">{title}</h3>
+            <p className="text-xs font-semibold text-sky-300">{t('sessionForm.kicker')}</p>
+            <h3 className="mt-1.5 text-xl font-semibold sm:text-2xl">{title}</h3>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-black text-slate-200 hover:bg-slate-900 sm:text-sm">{t('sessionForm.close')}</button>
+          <button type="button" onClick={onClose} className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-900 sm:text-sm">{t('sessionForm.close')}</button>
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-2.5">
-          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+          <label className="min-w-0 text-xs font-semibold text-slate-400">
             {t('sessionForm.team')}
-            <select value={teamId} disabled={!allowTeamChange} onChange={(event) => handleTeamSelect(event.target.value)} className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-black text-slate-100 outline-none transition focus:border-sky-300 disabled:opacity-60 sm:h-9 sm:px-2.5 sm:text-sm">
+            <select value={teamId} disabled={!allowTeamChange} onChange={(event) => handleTeamSelect(event.target.value)} className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-semibold text-slate-100 outline-none transition focus:border-sky-300 disabled:opacity-60 sm:h-9 sm:px-2.5 sm:text-sm">
               {allowTeamChange && teams.length > 1 ? <option value="">{t('sessionForm.chooseTeam')}</option> : null}
               {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
             </select>
           </label>
-          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+          <label className="min-w-0 text-xs font-semibold text-slate-400">
             {t('sessionForm.hall')}
-            <select value={facilityId} disabled={!hasTeam} onChange={(event) => handleFacilitySelect(event.target.value)} className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-black text-slate-100 outline-none transition focus:border-sky-300 disabled:opacity-60 sm:h-9 sm:px-2.5 sm:text-sm">
+            <select value={facilityId} disabled={!hasTeam} onChange={(event) => handleFacilitySelect(event.target.value)} className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-semibold text-slate-100 outline-none transition focus:border-sky-300 disabled:opacity-60 sm:h-9 sm:px-2.5 sm:text-sm">
               {!hasTeam ? <option value="">{t('sessionForm.chooseTeamFirst')}</option> : null}
               {hasTeam && isAwayGame ? <option value="">{t('sessionForm.noHallAway')}</option> : null}
               {hasTeam && isMeeting ? <option value="">{t('sessionForm.noHallMeeting')}</option> : null}
@@ -194,97 +194,97 @@ export function CoachSessionEditSheet({
           </label>
         </div>
 
-        {isGame ? <label className="mt-2.5 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+        {isGame ? <label className="mt-2.5 block text-xs font-semibold text-slate-400">
           {t('composer.date')}
-          <input type="date" value={dateValue} onChange={(event) => { setDateValue(event.target.value); if (event.target.value) onDraftUpdate?.(nextTimeRange(timeValue, endTimeValue, sessionType, event.target.value)); }} className="mt-1 block h-9 w-40 min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-sm font-bold text-slate-100 [color-scheme:dark]" />
+          <input type="date" value={dateValue} onChange={(event) => { setDateValue(event.target.value); if (event.target.value) onDraftUpdate?.(nextTimeRange(timeValue, endTimeValue, sessionType, event.target.value)); }} className="mt-1 block h-9 w-40 min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-sm font-medium text-slate-100 [color-scheme:dark]" />
         </label> : null}
         <div className={`mt-2.5 grid min-w-0 gap-2 sm:gap-2.5 ${isGame ? 'grid-cols-[minmax(0,1fr)_7.5rem] sm:grid-cols-[minmax(0,1fr)_8rem]' : 'grid-cols-2 sm:grid-cols-[minmax(0,1fr)_7rem_7rem]'}`}>
           {/* On phones the kind gets its own row, so start and end show the whole time (audit 2026-11, 14). */}
-          <label className={`min-w-0 text-[10px] ${isGame ? '' : 'col-span-2 sm:col-span-1'} font-black uppercase tracking-[0.14em] text-slate-500`}>
+          <label className={`min-w-0 text-xs ${isGame ? '' : 'col-span-2 sm:col-span-1'} font-semibold text-slate-400`}>
             {t('sessionForm.type')}
-            <select value={sessionType} onChange={(event) => handleSessionTypeSelect(event.target.value)} className="mt-1 h-8 w-full min-w-0 truncate rounded-lg border border-slate-700/90 bg-slate-950 px-1.5 text-[12px] font-black text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm">
+            <select value={sessionType} onChange={(event) => handleSessionTypeSelect(event.target.value)} className="mt-1 h-8 w-full min-w-0 truncate rounded-lg border border-slate-700/90 bg-slate-950 px-1.5 text-[12px] font-semibold text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm">
               {coachSessionTypes.map((type) => <option key={type.value} value={type.value}>{t(type.key)}</option>)}
             </select>
           </label>
-          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+          <label className="min-w-0 text-xs font-semibold text-slate-400">
             {t('sessionForm.start')}
-            <input value={timeValue} onChange={(event) => handleStartTimeChange(event.target.value)} type="time" className="mt-1 h-10 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-center text-[15px] font-black tabular-nums text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:text-sm [color-scheme:dark]" />
+            <input value={timeValue} onChange={(event) => handleStartTimeChange(event.target.value)} type="time" className="mt-1 h-10 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-center text-[15px] font-semibold tabular-nums text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:text-sm [color-scheme:dark]" />
           </label>
           {!isGame ? (
-            <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+            <label className="min-w-0 text-xs font-semibold text-slate-400">
               {t('sessionForm.end')}
-              <input value={endTimeValue} onChange={(event) => handleEndTimeChange(event.target.value)} type="time" className="mt-1 h-10 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-center text-[15px] font-black tabular-nums text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:text-sm [color-scheme:dark]" />
+              <input value={endTimeValue} onChange={(event) => handleEndTimeChange(event.target.value)} type="time" className="mt-1 h-10 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-center text-[15px] font-semibold tabular-nums text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:text-sm [color-scheme:dark]" />
             </label>
           ) : null}
         </div>
 
         <div className={`mt-3 rounded-xl border p-3 ${hasTeam ? 'border-slate-800 bg-slate-900/45' : 'border-slate-800/70 bg-slate-950/45 opacity-65'}`}>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('sessionForm.participants')}</p>
-            {allowTeamChange && !hasTeam ? <span className="text-[10px] font-black text-slate-600">{t('sessionForm.afterTeam')}</span> : null}
+            <p className="text-xs font-semibold text-slate-400">{t('sessionForm.participants')}</p>
+            {allowTeamChange && !hasTeam ? <span className="text-xs font-semibold text-slate-400">{t('sessionForm.afterTeam')}</span> : null}
           </div>
           {hasTeam ? (
             <div className="mt-2.5 flex flex-wrap gap-1.5">
-              <button type="button" onClick={selectWholeTeam} className={`rounded-full border px-2.5 py-1 text-xs font-black ${groupIds.length === 0 ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:text-white'}`}>{t('sessionForm.wholeTeam')}</button>
+              <button type="button" onClick={selectWholeTeam} className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${groupIds.length === 0 ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:text-white'}`}>{t('sessionForm.wholeTeam')}</button>
               {teamGroups.map((group) => (
-                <button key={group.id} type="button" onClick={() => toggleGroup(group.id)} className={`rounded-full border px-2.5 py-1 text-xs font-black ${groupIds.includes(group.id) ? 'border-sky-300 bg-sky-950/50 text-sky-100' : 'border-slate-700 text-slate-300 hover:text-white'}`}>{group.name}{group.playerCount ? ` · ${group.playerCount}` : ''}</button>
+                <button key={group.id} type="button" onClick={() => toggleGroup(group.id)} className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${groupIds.includes(group.id) ? 'border-sky-300 bg-sky-950/50 text-sky-100' : 'border-slate-700 text-slate-300 hover:text-white'}`}>{group.name}{group.playerCount ? ` · ${group.playerCount}` : ''}</button>
               ))}
             </div>
           ) : (
-            <p className="mt-2.5 text-sm font-bold text-slate-500">{t('sessionForm.chooseTeamForGroups')}</p>
+            <p className="mt-2.5 text-sm font-medium text-slate-400">{t('sessionForm.chooseTeamForGroups')}</p>
           )}
         </div>
 
-        <div className="mt-3 grid gap-2.5 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('sessionForm.forPlayers')}</p>
+        <div className="mt-3 grid gap-2.5 rounded-xl bg-white/[0.04] p-3">
+          <p className="text-xs font-semibold text-slate-400">{t('sessionForm.forPlayers')}</p>
           {isGame ? (
             <div className="grid gap-2">
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
-                <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                <label className="min-w-0 text-xs font-semibold text-slate-400">
                   {t('sessionForm.opponent')}
-                  <input value={opponent} onChange={(event) => setOpponent(event.target.value)} maxLength={80} placeholder={t('sessionForm.opponentPlaceholder')} className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-bold text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm" />
+                  <input value={opponent} onChange={(event) => setOpponent(event.target.value)} maxLength={80} placeholder={t('sessionForm.opponentPlaceholder')} className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-medium text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm" />
                 </label>
-                <div className="flex overflow-hidden rounded-lg border border-slate-700 text-xs font-black" role="group" aria-label={t('sessionForm.homeOrAway')}>
-                  <button type="button" aria-pressed={homeAway === 'home'} onClick={() => setHomeAway(homeAway === 'home' ? null : 'home')} className={`h-8 px-3 sm:h-9 ${homeAway === 'home' ? 'bg-sky-300 text-slate-950' : 'text-slate-300'}`}>{t('sessionForm.home')}</button>
-                  <button type="button" aria-pressed={homeAway === 'away'} onClick={() => setHomeAway(homeAway === 'away' ? null : 'away')} className={`h-8 px-3 sm:h-9 ${homeAway === 'away' ? 'bg-sky-300 text-slate-950' : 'text-slate-300'}`}>{t('sessionForm.away')}</button>
+                <div className="flex overflow-hidden rounded-lg border border-slate-700 text-xs font-semibold" role="group" aria-label={t('sessionForm.homeOrAway')}>
+                  <button type="button" aria-pressed={homeAway === 'home'} onClick={() => setHomeAway(homeAway === 'home' ? null : 'home')} className={`h-8 px-3 sm:h-9 ${homeAway === 'home' ? 'bg-slate-100 text-slate-950' : 'text-slate-300'}`}>{t('sessionForm.home')}</button>
+                  <button type="button" aria-pressed={homeAway === 'away'} onClick={() => setHomeAway(homeAway === 'away' ? null : 'away')} className={`h-8 px-3 sm:h-9 ${homeAway === 'away' ? 'bg-slate-100 text-slate-950' : 'text-slate-300'}`}>{t('sessionForm.away')}</button>
                 </div>
               </div>
               {isAwayGame ? (
-                <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                <label className="min-w-0 text-xs font-semibold text-slate-400">
                   {t('sessionForm.venue')}
-                  <input value={venueAddress} onChange={(event) => setVenueAddress(event.target.value)} maxLength={200} placeholder={t('sessionForm.venuePlaceholder')} className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-bold text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm" />
+                  <input value={venueAddress} onChange={(event) => setVenueAddress(event.target.value)} maxLength={200} placeholder={t('sessionForm.venuePlaceholder')} className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-medium text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm" />
                 </label>
               ) : null}
             </div>
           ) : null}
           <div className="grid grid-cols-[9.5rem_minmax(0,1fr)] gap-2">
-            <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+            <label className="min-w-0 text-xs font-semibold text-slate-400">
               {t('sessionForm.meet')}
-              <select value={meetMinutesBefore} onChange={(event) => setMeetMinutesBefore(Number(event.target.value))} className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-bold text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm">
+              <select value={meetMinutesBefore} onChange={(event) => setMeetMinutesBefore(Number(event.target.value))} className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-medium text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm">
                 <option value={0}>{t('sessionForm.atStart')}</option>
                 {[15, 30, 45, 60, 90, 120].map((minutes) => <option key={minutes} value={minutes}>{minutes < 60 ? t('sessionForm.minutesBefore', { count: minutes }) : t('sessionForm.hoursBefore', { hours: formatDecimal(minutes / 60, minutes % 60 === 0 ? 0 : 1) })}</option>)}
               </select>
             </label>
-            <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+            <label className="min-w-0 text-xs font-semibold text-slate-400">
               {t('sessionForm.meetingPoint')}
-              <input value={meetPoint} onChange={(event) => setMeetPoint(event.target.value)} maxLength={120} placeholder={isAwayGame ? t('sessionForm.meetingPointAway') : t('sessionForm.meetingPointHome')} className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-bold text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm" />
+              <input value={meetPoint} onChange={(event) => setMeetPoint(event.target.value)} maxLength={120} placeholder={isAwayGame ? t('sessionForm.meetingPointAway') : t('sessionForm.meetingPointHome')} className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-medium text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm" />
             </label>
           </div>
           {isMeeting || onlineUrl ? (
-            <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+            <label className="min-w-0 text-xs font-semibold text-slate-400">
               {t('sessionForm.onlineUrl')}
-              <input type="url" inputMode="url" value={onlineUrl} onChange={(event) => setOnlineUrl(event.target.value)} maxLength={500} placeholder="https://" className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-bold normal-case tracking-normal text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm" />
+              <input type="url" inputMode="url" value={onlineUrl} onChange={(event) => setOnlineUrl(event.target.value)} maxLength={500} placeholder="https://" className="mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-medium normal-case tracking-normal text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm" />
             </label>
           ) : null}
-          <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+          <label className="min-w-0 text-xs font-semibold text-slate-400">
             {t('sessionForm.note')}
-            <textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} rows={2} placeholder={t('sessionForm.notePlaceholder')} className="mt-1 w-full min-w-0 resize-y rounded-lg border border-slate-700/90 bg-slate-950 px-2 py-1.5 text-[13px] font-bold normal-case tracking-normal text-slate-100 outline-none transition focus:border-sky-300 sm:px-2.5 sm:text-sm" />
+            <textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} rows={2} placeholder={t('sessionForm.notePlaceholder')} className="mt-1 w-full min-w-0 resize-y rounded-lg border border-slate-700/90 bg-slate-950 px-2 py-1.5 text-[13px] font-medium normal-case tracking-normal text-slate-100 outline-none transition focus:border-sky-300 sm:px-2.5 sm:text-sm" />
           </label>
         </div>
 
         <div className="mt-4 flex flex-wrap justify-between gap-2">
-          {onDelete ? <button type="button" onClick={() => setConfirmDelete(true)} className="rounded-lg border border-red-500/60 px-3 py-1.5 text-sm font-black text-red-100 hover:bg-red-950/35">{t('sessionForm.delete')}</button> : <span />}
-          <button type="button" onClick={() => { void submit(); }} disabled={isSaving || !dateValue || !timeValue || !hasTeam || !teamId || (!facilityId && !hallOptional)} className="rounded-lg bg-emerald-300 px-4 py-1.5 text-sm font-black text-slate-950 disabled:opacity-60">{isSaving ? t('sessionForm.saving') : t('sessionForm.save')}</button>
+          {onDelete ? <button type="button" onClick={() => setConfirmDelete(true)} className="rounded-lg border border-red-500/60 px-3 py-1.5 text-sm font-semibold text-red-100 hover:bg-red-950/35">{t('sessionForm.delete')}</button> : <span />}
+          <button type="button" onClick={() => { void submit(); }} disabled={isSaving || !dateValue || !timeValue || !hasTeam || !teamId || (!facilityId && !hallOptional)} className="rounded-lg bg-emerald-300 px-4 py-1.5 text-sm font-semibold text-slate-950 disabled:opacity-60">{isSaving ? t('sessionForm.saving') : t('sessionForm.save')}</button>
         </div>
       </section>
       <AppConfirmDialog isOpen={confirmDelete} title={t('coach.delete.title')} description={t('coach.delete.detail')} confirmLabel={t('coach.delete.confirm')} cancelLabel={t('coach.delete.keep')} tone="danger" isConfirming={isSaving} onConfirm={() => { setConfirmDelete(false); onDelete?.(); }} onCancel={() => setConfirmDelete(false)} />

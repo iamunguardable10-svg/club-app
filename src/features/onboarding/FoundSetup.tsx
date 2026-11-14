@@ -88,7 +88,7 @@ export function FoundSetup({ labels }: { labels: string[] }) {
       <ErrorLine message={error} />
       <div className="grid gap-2">
         <button type="button" onClick={() => continueAs('club')} className="os-success w-full justify-center">{t('onboarding.share.done')}</button>
-        <button type="button" onClick={() => setStage('setup')} className="justify-self-start px-1 text-xs font-bold text-slate-400 underline">{t('onboarding.back')}</button>
+        <button type="button" onClick={() => setStage('setup')} className="justify-self-start px-1 text-xs font-medium text-slate-400 underline">{t('onboarding.back')}</button>
       </div>
     </Shell>
   );
@@ -100,7 +100,7 @@ function Section({ title, detail, children }: { title: string; detail?: string; 
   return (
     <section className="os-panel grid grid-cols-[minmax(0,1fr)] gap-3 p-5">
       <div>
-        <p className="text-sm font-black text-white">{title}</p>
+        <p className="text-sm font-semibold text-white">{title}</p>
         {detail ? <p className="text-xs text-slate-400">{detail}</p> : null}
       </div>
       {children}
@@ -129,8 +129,8 @@ function TeamsSection({ database, run }: { database: LocalDatabase; run: Run }) 
         const names = new Set(teams.map((team) => team.name.toLowerCase()));
         const add = (name: string, ageGroup = ageGroupOf(name)) => run(() => { createTeam(department.id, name, ageGroup); });
         return (
-          <div key={department.id} className="grid gap-2 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">{department.name}</p>
+          <div key={department.id} className="grid gap-2 rounded-xl bg-white/[0.04] p-3">
+            <p className="text-xs font-semibold text-slate-400">{department.name}</p>
             <div className="flex flex-wrap gap-2">
               {teams.map((team) => <Choice key={team.id} label={team.name} selected onSelect={() => undefined} />)}
               {TEAM_SUGGESTIONS.map((entry) => {
@@ -169,10 +169,10 @@ function HallsSection({ database, run }: { database: LocalDatabase; run: Run }) 
   return (
     <Section title={t('onboarding.setup.halls')} detail={t('onboarding.setup.hallsDetail')}>
       {database.facilities.length > 0 ? (
-        <ul className="divide-y divide-slate-800 rounded-xl border border-slate-800 bg-slate-900/45">
+        <ul className="divide-y divide-slate-800 rounded-xl bg-white/[0.04]">
           {database.facilities.map((facility) => (
             <li key={facility.id} className="px-3 py-2 text-sm">
-              <span className="font-black text-slate-100">✓ {facility.name}</span>
+              <span className="font-semibold text-slate-100">✓ {facility.name}</span>
               {facility.address ? <span className="block text-xs text-slate-400">{facility.address}</span> : null}
             </li>
           ))}
@@ -217,14 +217,14 @@ function ShareTeam({ database, teamId, teamName, departmentName, run }: { databa
     <section className="os-panel grid grid-cols-[minmax(0,1fr)] gap-3 p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{departmentName}</p>
-          <p className="text-lg font-black text-white">{teamName}</p>
+          <p className="text-xs font-semibold text-slate-400">{departmentName}</p>
+          <p className="text-lg font-semibold text-white">{teamName}</p>
         </div>
         {/* The logo goes on every player's card (0054); optional. */}
         {team ? <TeamLogoPicker database={database} team={team} compact /> : null}
       </div>
       <div className="grid gap-1.5">
-        <p className="text-sm font-black text-slate-200">{t('onboarding.share.players')}</p>
+        <p className="text-sm font-semibold text-slate-200">{t('onboarding.share.players')}</p>
         {code ? (
           <>
             <ShareLink label={t('staff.joinLinkLabel')} url={`${origin}/join?code=${code}`} shareText={t('staff.joinShareText', { team: teamName })} qr />
@@ -233,13 +233,13 @@ function ShareTeam({ database, teamId, teamName, departmentName, run }: { databa
         ) : <p className="text-xs text-slate-400">{t('onboarding.share.codeComing')}</p>}
       </div>
       <div className="grid gap-2 border-t border-slate-800 pt-3">
-        <p className="text-sm font-black text-slate-200">{t('onboarding.share.coaches')}</p>
+        <p className="text-sm font-semibold text-slate-200">{t('onboarding.share.coaches')}</p>
         {invited.map(({ membership, person }) => {
           const invite = openInviteFor(database, membership.personId, teamId);
           const name = `${person!.firstName} ${person!.lastName}`;
           return (
             <div key={membership.id} className="grid gap-1.5">
-              <p className="text-xs font-bold text-slate-300">{name}</p>
+              <p className="text-xs font-medium text-slate-300">{name}</p>
               {invite ? <ShareLink label={t('staff.inviteLinkLabel', { name })} url={`${origin}/join?invite=${invite.token}`} shareText={t('staff.inviteShareText', { name })} /> : <p className="text-xs text-slate-400">{t('onboarding.share.inviteComing')}</p>}
             </div>
           );
@@ -257,7 +257,7 @@ function ShareTeam({ database, teamId, teamName, departmentName, run }: { databa
           <input required value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder={t('common.lastName')} aria-label={t('common.lastName')} className="os-field min-w-0" />
           <button type="submit" className="os-secondary px-3">{t('onboarding.share.invite')}</button>
         </form>
-        <p className="text-xs text-slate-500">{hasHead ? t('onboarding.share.asAssistant') : t('onboarding.share.asHead')}</p>
+        <p className="text-xs text-slate-400">{hasHead ? t('onboarding.share.asAssistant') : t('onboarding.share.asHead')}</p>
       </div>
     </section>
   );

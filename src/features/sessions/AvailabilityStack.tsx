@@ -41,10 +41,10 @@ export function FlagRow({ status, label, name, reason, minutes, personId }: { st
     <>
       <PersonAvatar personId={personId} name={name} size="sm" fallback={<FlagSign status={status} label={label} />} badge={<FlagSign status={status} label={label} badge />} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-bold text-slate-100">{name}</span>
+        <span className="block truncate text-sm font-medium text-slate-100">{name}</span>
         {reason ? <span className="block break-words text-xs text-slate-400">{reason}</span> : null}
       </span>
-      {status === 'late' && minutes ? <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ${FLAG_TONE.late}`}>{t('sessionSheet.lateBy', { count: minutes })}</span> : null}
+      {status === 'late' && minutes ? <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${FLAG_TONE.late}`}>{t('sessionSheet.lateBy', { count: minutes })}</span> : null}
     </>
   );
 }
@@ -59,14 +59,14 @@ export function AvailabilityStack({ out, late, outLabel, lateLabel }: {
 }) {
   const t = useT();
   if (out.length === 0 && late.length === 0) {
-    return <p className="mt-4 text-xs font-black text-emerald-200/80">{t('coach.card.nobodyMissing')}</p>;
+    return <p className="mt-4 text-xs font-semibold text-emerald-200/80">{t('coach.card.nobodyMissing')}</p>;
   }
   const rows = [
     ...out.map((item) => ({ ...item, status: 'out', label: outLabel })),
     ...late.map((item) => ({ ...item, status: 'late', label: lateLabel })),
   ];
   return (
-    <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/45 px-3 py-1">
+    <div className="mt-4 rounded-xl bg-white/[0.04] px-3 py-1">
       <ul className="divide-y divide-slate-800/80">
         {rows.slice(0, SHOWN).map((item) => (
           <li key={`${item.status}-${item.id}`} className="flex items-center gap-3 py-2.5">
@@ -74,7 +74,7 @@ export function AvailabilityStack({ out, late, outLabel, lateLabel }: {
           </li>
         ))}
       </ul>
-      {rows.length > SHOWN ? <p className="border-t border-slate-800/80 py-2 text-xs font-bold text-slate-500">{t('coach.card.more', { count: rows.length - SHOWN })}</p> : null}
+      {rows.length > SHOWN ? <p className="border-t border-slate-800/80 py-2 text-xs font-medium text-slate-400">{t('coach.card.more', { count: rows.length - SHOWN })}</p> : null}
     </div>
   );
 }

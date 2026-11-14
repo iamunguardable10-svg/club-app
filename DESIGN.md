@@ -6,16 +6,25 @@ components) and in the feature folders.
 
 ## Feel
 
-A calm, dark sports cockpit: precise like Linear, as clear as a good calendar,
-with a little stadium energy where a moment deserves it (the player card).
+**Graphite.** A quiet, near-neutral dark surface, white type in a few clear
+weights, and one green. Colour appears only where something has a status.
+Think of a well-kept scoreboard at night: almost everything is calm, so the
+one thing that matters is seen at once. The stadium energy is saved for the
+one moment that deserves it (the player card).
 
 Club OS should feel **calm, fast, operational and premium**. It should not
 feel playful for its own sake, over-coloured, form-heavy, or like a generic
 dashboard or a spreadsheet.
 
 **Less is more.** Every screen answers one real question and shows the one
-next step. If a sentence only explains what the screen already shows, it goes
-(Ben, 2026-11: "das ist doch selbsterklärend").
+next step.
+
+**A text stays** if it lets the reader decide something, explains a real
+error, or makes a flow understandable that is not obvious (a chart whose bars
+can be tapped, what "automatically in" means). **It goes** if the field name,
+the picture, the status or the action already says it: under "E-mail" there
+is no "Enter your e-mail address" (Ben, 2026-11: "das ist doch
+selbsterklärend").
 
 | Who | The question their screens answer |
 |---|---|
@@ -25,142 +34,170 @@ next step. If a sentence only explains what the screen already shows, it goes
 
 ## Foundations
 
-The values below are the system. Where today's code differs (see
-`docs/audit/2026-11-fable.md`), the code moves to these values; new and changed
-screens use nothing else. Each token gets one name in `globals.css` /
-`tailwind.config.ts`, so a screen never spells a raw value.
+The tokens live in `tailwind.config.ts` (the palette and radii behind the
+Tailwind names) and at the top of `src/app/globals.css` (CSS variables and
+the `os-*` classes). A screen uses these and never spells a raw colour.
 
 **Colour** (dark only, `color-scheme: dark`)
 
-| Token | Value | Use |
-|---|---|---|
-| `bg` | `#050712` | page background |
-| `surface-1` | `slate-950/70` + `slate-800` border | the one panel a section sits on |
-| `surface-2` | `white/[0.04]`, no border | a row or tile inside a panel |
-| `line` | `slate-800` | dividers between rows |
-| `text` | `slate-50` | headlines, values, anything to act on |
-| `text-2` | `slate-300` | body copy |
-| `text-3` | `slate-400` | secondary and meta text; the dimmest text allowed |
-| `go` | `emerald-300` | the main action, "done", good load, progress |
-| `info` | `sky-300` | links, focus rings, selection, information |
-| `warn` | `amber-300` | attention (overdue, unanswered), and the gold of the player card |
-| `stop` | `rose-400` | absences, overload, destructive actions only |
-
-- Colour carries meaning, never decoration: green = good or go, amber = look at
-  this, red = missing or dangerous, blue = information. A screen that is all
-  well shows no amber and no red.
-- `slate-500` and darker are not text colours: on `bg` they fall below 4.5:1.
-  They are for borders, icons that repeat a label, and disabled controls.
-- One accent per surface. A panel with a coloured border or tint (amber, rose,
-  emerald) is a status, so at most one per screen is tinted.
-- Hall colours and session-type colours are data colours; they appear only as
-  a 3–4 px edge or a dot, never as a fill behind text.
-- The page background is flat `bg` with one soft glow at the top. The grid
-  pattern belongs to the landing page only.
-
-**Type.** Inter, shipped with the app (`next/font`, self-hosted), so every
-device shows the same letters; numbers `tabular-nums`.
-
-| Role | Size / line | Weight | Use |
+| Token | Value | In code | Use |
 |---|---|---|---|
-| `display` | 30 / 36 (desktop 36 / 40) | 800 | the page title, one per page (`h1`) |
-| `title` | 20 / 28 | 700 | panel and sheet titles |
-| `heading` | 16 / 24 | 700 | a row's main line, card titles |
-| `body` | 15 / 22 | 400 | sentences, messages, explanations |
-| `label` | 13 / 18 | 600 | buttons, chips, field labels, meta lines |
-| `caption` | 12 / 16 | 500 | time stamps, axis labels, kickers; the smallest size |
-| `metric` | 28 / 32 | 800, tabular | the one number a tile is about |
+| `ground` | `#0e0f11` | `bg-ground`, `--ground` | the page |
+| `surface-1` | `#17191c` | `os-panel`, `os-sheet`, `--surface-1` (`slate-950`) | the one panel a section sits on; sheets; the side bar |
+| `surface-2` | one step lighter | `bg-white/[0.04]`, `os-panel-soft`, `--surface-2` | a row, tile or group inside a panel |
+| `surface-3` | `#282b31` | `bg-white/[0.08]`, `--surface-3` | chips, the active nav item, pressed states |
+| `line` | white 7 % | `--line`, `border-white/[0.06]`, `border-slate-800` | dividers between rows, the hairline of a panel |
+| `line-strong` | white 13 % | `--line-strong`, `border-slate-700` | the outline of fields and quiet buttons |
+| `text` | `#f7f8fa` | `text-white`, `text-slate-50` | headlines, values, anything to act on |
+| `text-2` | `#c2c6cd` | `text-slate-300` | body copy |
+| `text-3` | `#a0a5ae` | `text-slate-400` | secondary and meta text; the dimmest text allowed |
+| `go` | `#5fe3a6` | `emerald-300`, `--go` | the main action, "in", "done", good load |
+| `info` | `#92b8f5` | `sky-300`, `--info` | links, the focus ring, information |
+| `warn` | `#fcd34d` | `amber-300`, `--warn` | attention (overdue, unanswered), and the gold of the player card |
+| `stop` | `#f27886` | `rose-400`, `--stop` (`red` is the same ramp) | absences, overload, destroying something |
 
-- Nothing below 12 px, anywhere (charts and calendar blocks included). If it
-  does not fit at 12 px, show less.
-- Weight makes the hierarchy: 800 only for `display` and `metric`, 700 for
-  titles, 400 for anything read as a sentence. A screen where everything is
-  bold has no headline.
-- Kickers (`os-kicker`: caption, uppercase, tracking `0.12em`) are rare: at
-  most one per panel, never above every group. Sentence case everywhere else.
+- **Surfaces rise by getting lighter, not by getting an outline.** The page is
+  the darkest thing; a panel is lighter; a tile in it lighter again. The
+  `slate` ramp is a graphite ramp (hue kept near neutral), so nothing reads
+  navy.
+- **Colour is status.** Green = good or go, amber = look at this, red =
+  missing or dangerous, blue = information. A screen where all is well is
+  white on graphite with one green button. Tiles, cards and meta text are
+  neutral; only the value, a chip or a dot carries the tone.
+- **Selection is neutral.** The chosen tab, segment or day is a light fill
+  with dark text (`bg-slate-100 text-slate-950`) or a `surface-3` fill; the
+  icon of the active tab is green. Blue and green fills are not selection.
+- `slate-500` and darker are not text colours. They are for borders, icons
+  that repeat a label, and disabled controls.
+- At most one tinted panel per screen, and only for a real status (an error,
+  an overload). Reminders and requests are neutral panels with a chip.
+- Hall colours and session-type colours are data colours; they appear as a
+  3–4 px edge, a dot or a chart series, never as a fill behind text.
+- The page is flat `ground`: no grid, no glow. Those belong to the landing
+  page.
+
+**Type.** Inter, shipped with the app (`next/font`), numbers `tabular-nums`.
+
+| Role | Size / line | Weight | In code | Use |
+|---|---|---|---|---|
+| `display` | 22 / 28 (desktop 28 / 36) | 700 | the shell's `h1`; `os-title` on entry pages | the page title, one per page |
+| `title` | 18–20 / 28 | 600 | `text-lg font-semibold` | panel and sheet titles |
+| `heading` | 16 / 24 | 600 | `text-base font-semibold` | a row's main line, card titles |
+| `body` | 14–15 / 22 | 400–500 | `text-sm` | sentences, messages, explanations |
+| `label` | 13–14 / 18 | 600 | `text-sm font-semibold` | buttons, chips, field labels |
+| `caption` | 12 / 16 | 500 | `text-xs font-medium`, `os-caption` | meta lines, time stamps, section labels |
+| `metric` | 24–28 / 32 | 600, tabular | `text-2xl font-semibold tabular-nums` | the one number a tile is about |
+
+- **Three weights:** 700 for the page title, 600 (`font-semibold`) for titles,
+  labels and numbers, 400–500 (`font-medium` at most) for everything read as
+  a sentence or a meta line. `font-black` and `font-bold` on body text are
+  gone and do not come back.
+- **12 px is the floor.** Two exceptions, because the alternative is no label
+  at all: chart axis labels (11 px) and the seven-day grid on a phone, whose
+  columns are 45 px wide (10 px). Everything else that does not fit at 12 px
+  shows less.
+- **Sentence case.** Section labels inside a panel are small quiet captions
+  ("Fahrgemeinschaften"), not spaced capitals. The only uppercase is the
+  "CLUB OS" kicker on entry pages (`os-kicker`).
 - Text never truncates where it is the answer (names, times, places, status).
   Titles wrap to two lines; only meta lines may end in "…".
 
 **Space.** A 4 px base; only these steps: 4, 8, 12, 16, 24, 32, 48.
 
-- Page gutter 16 (phone), 32 (desktop). Panel padding 16 (phone), 24 (desktop).
-- Between panels 16; between a panel title and its content 12; between rows 8
-  or a `line` divider with 12 above and below; inside a control 12 × 16.
+- Page gutter 16 (phone), 32 (desktop). Panel padding 16 (phone), 20–24
+  (desktop). Between panels 20; between a panel title and its content 12;
+  between tiles 8–12; inside a control 12 × 16.
 - Reading width is at most 720 px for forms, feeds and single-column pages; a
   wide screen gets a second column, not wider lines.
 
-**Shape.** Three radii, by size of the thing: panels and sheets 24
-(`rounded-3xl`), rows, tiles, fields and buttons 14 (`rounded-2xl`), chips,
-avatars and switches full. No other radius.
+**Shape.** Quieter corners than before, three sizes by the size of the thing:
+panels and sheets 18 (`rounded-3xl`), tiles, rows, fields and buttons 10–12
+(`rounded-xl`, `rounded-2xl`), chips, avatars and switches full. The Tailwind
+radius names are remapped in `tailwind.config.ts`; no arbitrary radius.
 
 **Depth.** Two levels and no more: the page, and one panel on it. Inside a
-panel, content is rows separated by a `line` or `surface-2` tiles without a
-border. **Never a bordered box inside a bordered box** (the box-in-box-in-box
-look is the main thing that makes a screen feel heavy). Shadows only on
-things that float: sheets, dialogs, the tip bubble, the tab bar.
+panel, content is `surface-2` tiles without a border, or rows separated by a
+`line`. **Never a bordered box inside a bordered box.** Outlines are for
+things you type into or press (fields, quiet buttons), not for grouping.
+Only things that float have a shadow: sheets, dialogs, the tip bubble. Panels
+do not blur what is behind them; the sticky page head and the tab bar do.
 
 **Layout.** Mobile first and checked at 375 px: nothing may scroll sideways
 (the smoke test fails if it does). On the phone a bottom tab bar; from `md` a
-side layout with more columns. Safe areas on iPhone are respected. Touch
-targets are 44 × 44 px, with 8 px between neighbours.
+fixed side bar. Safe areas on iPhone are respected. Touch targets are
+44 × 44 px, with 8 px between neighbours.
 
 ## Components (`src/app/globals.css`)
 
 | Class | What it is |
 |---|---|
-| `os-page`, `os-container` | the page and its width |
-| `os-panel`, `os-panel-soft` | the working surface (`surface-1`), and the tile inside it (`surface-2`) |
-| `os-hero`, `os-kicker`, `os-title`, `os-copy` | page heads |
-| `os-field`, `os-textarea`, `os-label` | inputs |
-| `os-success` | the one main action of a surface (filled emerald) |
-| `os-primary` | a filled blue action, where emerald would mean "done" |
-| `os-secondary` | everything else (border only) |
-| `os-metric` | a small number tile |
+| `os-page`, `os-container` | the page (flat `ground`) and its width |
+| `os-panel` | the working surface: `surface-1`, 18 px corners, a hairline, no shadow |
+| `os-panel-soft`, `os-metric` | a tile inside a panel: `surface-2`, no border |
+| `os-rows` | children separated by a `line` (lists, the "what is new" panel) |
+| `os-row` | a list row: 56 px min, the whole row is the target |
+| `os-stack` | a panel that hides itself when it has no children |
+| `os-sheet` | the frame of everything that opens over the page (see below) |
+| `os-hero`, `os-kicker`, `os-title`, `os-copy` | the head of an entry page: a plain bar, not a box |
+| `os-field`, `os-textarea`, `os-label` | inputs: `surface-2`, a `line-strong` outline, blue when focused |
+| `os-success` | the one main action of a surface (filled green) |
+| `os-primary` | a filled light action, where green would mean "done" |
+| `os-secondary` | everything else: outline only |
+| `os-danger` | destroying something: red text on a red tint, inside a confirm step or at the end of a page |
+| `os-link` | a text action in `info` |
+| `os-chip`, `os-chip-go`, `os-chip-warn`, `os-chip-stop` | a status: a word on a tint, never colour alone |
+| `os-caption` | a section label inside a panel |
+| `os-empty` | an empty state |
 
 Shared pieces worth reusing before building new ones: `SmartSessionCalendar`
 (one calendar engine for every role), `PersonAvatar` / `PhotoPicker`,
 `PlayerCard` / `CardReveal`, `SideSwitch` (segmented control), `PositionPicker`,
 `AppConfirmDialog`, `TeamLogoBadge`, `ProfileMeter`.
 
-Use the `os-*` classes; do not rebuild a panel, button or field from utility
-classes in a feature file. What is missing is added here first, then used:
+Use the `os-*` classes; do not rebuild a panel, tile, button or field from
+utility classes in a feature file. Older screens still spell some of them out
+(`rounded-2xl bg-white/[0.04]` is a tile, `rounded-xl border border-slate-700`
+a quiet button); they render the same and move to the classes when touched.
 
-| To add | What it is |
-|---|---|
-| `os-row` | the list row: 56 px min, avatar or icon · main line (`heading`) + one meta line (`caption`, `text-3`) · one trailing thing (status chip, value or chevron). The whole row is the tap target |
-| `os-chip` | a status: `label` size, full radius, tinted background in `go` / `warn` / `stop` / neutral, always with a word or icon, never colour alone |
-| `os-link` | a text action: `info`, `label` size, no underline, 44 px tall hit area |
-| `os-danger` | the destructive button: `stop` border and text, only inside a confirm step or a "danger" group at the end of a page |
-| `os-sheet` | everything that opens over a page (see below) |
-| `os-empty` | an empty state |
-
-**Buttons.** Height 48 (main), 40 (inside rows and toolbars). One `os-success`
-per surface. Destructive actions never sit as a link next to everyday content
+**Buttons.** Height 44–48 (main), 36–40 (inside rows and toolbars). One
+`os-success` per surface. A press changes the fill; nothing lifts or floats on
+hover. Destructive actions never sit as a link next to everyday content
 ("Leave team", "Remove", "Delete"): they live at the end of the page or behind
 "…", and always confirm with `AppConfirmDialog`.
 
-**Sheets (`os-sheet`).** One implementation for session details, rating,
-editing, player details: `role="dialog"`, `aria-modal`, focus moves in and
-returns, Escape and a swipe down close it, the page behind does not scroll.
-On the phone it rises from the bottom edge with a grab handle and 24 px top
-corners; on desktop it is a 480 px side panel. The title and an "×" (44 px)
-stay fixed at the top, the one main action stays fixed at the bottom, above
-the safe area; content scrolls between them.
+**Sheets (`os-sheet`).** Session details, rating, editing, player details,
+the role switch, confirmations: one frame (`surface-1`, 18 px corners, a
+`line-strong` hairline, one deep shadow, a 280 ms rise) over a `black/60`
+scrim without blur. Each is `role="dialog"`, labelled, closed by Escape.
+Inside, the same rules as on a page: tiles without borders, one green action.
+Sheets anchored to the bottom edge have square bottom corners
+(`rounded-b-none sm:rounded-b-3xl`).
+
+**The shell.** Phone: a sticky head (title, one meta line, the demo pill, the
+avatar) and a bottom tab bar; the active tab is white with a green icon, the
+others `text-3`. Desktop: a fixed side bar on `surface-1`; the active item is
+a `surface-3` pill with a green icon. No full-green navigation.
+
+**What is new.** Unread messages, the player-card nudge and a new playbook
+are rows of one panel at the top of Today (`os-panel os-rows os-stack`), not
+three cards in three styles. The whole row is the link; there is no "Open"
+text next to a chevron.
 
 **Page head.** Title (`display`) and at most one meta line that carries
 information the page does not show elsewhere (the date, the team). No
 subtitle that describes the page. The demo switch is a single small pill in
 the head ("Demo · Coach ▾"), not a full-width bar above the content.
 
-**Lists.** One row height and one row anatomy per list. Meta shows only what
-differs between rows or what the reader came for (a birth year on every
-roster row is noise). Status sits right, as one `os-chip`. Lists longer than
-about eight rows get a filter or a "Show all".
+**Lists.** One row height and one row anatomy per list. Meta is `text-3`,
+never coloured, and shows only what differs between rows or what the reader
+came for. Status sits right, as one chip. Lists longer than about eight rows
+get a filter or a "Show all".
 
-**Numbers and charts.** A tile shows one number, its unit, and one word that
-says whether it is good. Technical terms keep their first-use explanation.
-Charts: axis labels 12 px, at most five ticks per axis, a legend in words,
-the selected value written out above the chart; never rely on colour alone.
+**Numbers and charts.** A tile is neutral; its value carries the tone (green,
+red, blue) and one word says whether it is good. Technical terms keep their
+first-use explanation. Charts: axis labels 11–12 px in `text-3`, at most five
+ticks per axis, a legend in words, the selected value written out above the
+chart; never rely on colour alone.
 
 ## States
 
@@ -182,8 +219,8 @@ Every surface that shows data defines all five; a review checks each.
 
 ## Patterns
 
-1. **One dominant action per surface.** Filled for the main action, border for
-   the rest, red only for destroying something.
+1. **One dominant action per surface.** Filled green for the main action,
+   outline for the rest, red only for destroying something.
 2. **Context beats questions.** Where the team, department or hall is known, do
    not ask again. Forms ask only for what is missing.
 3. **One question per screen** for anything new people fill in (the player card
@@ -303,7 +340,8 @@ apply to every new and changed screen; a review flags any break.
 Short, purposeful, and always off with `prefers-reduced-motion`.
 
 - Durations: 120 ms for a press or toggle, 200 ms for a chip or row changing,
-  280 ms for a sheet or a step. One easing: `cubic-bezier(0.2, 0.8, 0.2, 1)`.
+  280 ms for a sheet or a step. One easing: `cubic-bezier(0.2, 0.8, 0.2, 1)`
+  (`--ease`).
 - Only `transform` and `opacity` move. Nothing loops on a working screen
   (loops belong to the landing page and the card reveal).
 - A press answers at once (the control dims or sinks 1 px); the result may
@@ -314,7 +352,7 @@ Short, purposeful, and always off with `prefers-reduced-motion`.
   card arrives face down, charges and shakes, bursts with a flash, sparks and a
   shock wave, flips to its front; afterwards it tilts with the finger or the
   phone. A tap skips it. It plays once per device, then on demand.
-- Hover lifts only on things that can be clicked.
+- Hover changes a fill, only on things that can be clicked; nothing lifts.
 
 ## Writing
 
@@ -346,7 +384,7 @@ Short, purposeful, and always off with `prefers-reduced-motion`.
 
 - Every control has a name (labels, `aria-label` where there is no visible
   text, no buttons inside labels), and every page has one `h1`.
-- Focus is visible on every control: a 2 px `sky-300` ring with 2 px offset
+- Focus is visible on every control: a 2 px `info` ring with 2 px offset
   (`:focus-visible`), set once in `globals.css`, never removed with
   `outline-none` without a replacement.
 - Touch targets are 44 × 44 px. Text is at least 12 px and at least 4.5:1
@@ -362,9 +400,11 @@ Short, purposeful, and always off with `prefers-reduced-motion`.
 A screen is ready when all of these are true at 375 px and 1280 px:
 
 1. One `h1`, one filled main action, the next step visible without scrolling.
-2. No box inside a box; no text under 12 px; no `slate-500` text.
+2. No outlined box inside a box; no text under 12 px (chart axes and the
+   phone's seven-day grid excepted); no `slate-500` text; colour only where
+   something has a status.
 3. Nothing truncated that the reader needs; nothing scrolls sideways.
-4. Nothing shown twice; no sentence that repeats the screen.
+4. Nothing shown twice; every sentence passes the "a text stays if" test.
 5. Loading, empty, error, saved and unsaved are defined.
 6. Words match the glossary; dates match the one shape.
 7. Keyboard: every control reachable, focus visible, Escape closes.

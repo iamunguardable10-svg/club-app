@@ -44,7 +44,7 @@ function DepartureLine({ departAt, meetPoint, meetLat, meetLng, startsAt }: { de
   const dayBefore = departAt ? new Date(departAt).toDateString() !== new Date(startsAt).toDateString() : false;
   const when = departAt ? (dayBefore ? t('carpools.departsDayBefore', { time: formatTime(departAt) }) : t('carpools.departs', { time: formatTime(departAt) })) : null;
   return (
-    <div className="mt-1 grid gap-0.5 text-sm font-bold">
+    <div className="mt-1 grid gap-0.5 text-sm font-medium">
       {when ? <p className="text-slate-300">{when}</p> : null}
       {link ? (
         <a href={link} target="_blank" rel="noreferrer" className="min-w-0 break-words text-sky-300 hover:underline">
@@ -76,12 +76,12 @@ export function CarpoolSummary({ sessionId }: { sessionId: string }) {
   if (!ready || !database || !me || !session || session.sessionType !== 'game' || !teamHasFeature(database, session.teamId, 'carpools')) return null;
   if (!database.memberships.some((m) => m.personId === me && m.teamId === session.teamId)) return null;
   const text = rideState(database, sessionId, me, t, true);
-  return text ? <p className="mt-1 text-xs font-bold text-sky-200">{text}</p> : null;
+  return text ? <p className="mt-1 text-xs font-medium text-sky-200">{text}</p> : null;
 }
 
-const actionClass = 'min-h-10 rounded-xl border border-slate-700 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800 disabled:opacity-40';
-const primaryClass = 'min-h-10 rounded-xl bg-emerald-300 px-4 py-2 text-xs font-black text-slate-950 disabled:opacity-40';
-const labelClass = 'text-[11px] font-black uppercase tracking-[0.16em] text-slate-500';
+const actionClass = 'min-h-10 rounded-xl border border-slate-700 px-3 py-2 text-xs font-medium text-slate-200 hover:bg-slate-800 disabled:opacity-40';
+const primaryClass = 'min-h-10 rounded-xl bg-emerald-300 px-4 py-2 text-xs font-semibold text-slate-950 disabled:opacity-40';
+const labelClass = 'text-xs font-semibold text-slate-400';
 
 export function Carpools({ sessionId }: { sessionId: string }) {
   const t = useT();
@@ -114,24 +114,24 @@ export function Carpools({ sessionId }: { sessionId: string }) {
     setSeats(own?.seats ?? 3); setNote(own?.note ?? ''); setDepartTime(timeOf(own?.departAt)); setMeetPin({ label: own?.meetPoint ?? '', lat: own?.meetLat ?? null, lng: own?.meetLng ?? null }); setEditing(true); setError(null);
   }
   return (
-    <section className="mt-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
+    <section className="mt-3 rounded-2xl bg-white/[0.04] p-4">
       {session.homeAway === 'away' ? <h3 className={labelClass}>{t('carpools.title')}</h3> : (
         <button type="button" aria-expanded={open} onClick={() => setExpanded(!expanded)} className="-my-1 flex min-h-10 w-full items-center justify-between text-left">
           <span className={labelClass}>{t('carpools.optional')}</span>
-          <span aria-hidden className={`text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
+          <span aria-hidden className={`text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
         </button>
       )}
       {open ? <div className="mt-3 space-y-3">
-        {state ? <p role="status" className="inline-flex rounded-full bg-sky-300/10 px-3 py-1 text-xs font-black text-sky-200">{state}</p> : null}
+        {state ? <p role="status" className="inline-flex rounded-full bg-slate-100/10 px-3 py-1 text-xs font-semibold text-sky-200">{state}</p> : null}
         {past ? <p className="text-xs text-slate-400">{t('carpools.closed')}</p> : null}
         {offers.length > 0 ? <ul className="divide-y divide-slate-800 border-y border-slate-800">{offers.map((offer) => {
           const riders = (database.carpoolRiders ?? []).filter((r) => r.carpoolId === offer.id);
           const free = offer.seats - riders.length;
           return <li key={offer.id} className="py-3">
-            <p className="text-sm font-black text-white">{name(offer.driverId)} <span className="font-bold text-slate-400">· {t('carpools.free', { free: formatInteger(free), seats: formatInteger(offer.seats) })}</span></p>
+            <p className="text-sm font-semibold text-white">{name(offer.driverId)} <span className="font-medium text-slate-400">· {t('carpools.free', { free: formatInteger(free), seats: formatInteger(offer.seats) })}</span></p>
             <DepartureLine departAt={offer.departAt} meetPoint={offer.meetPoint} meetLat={offer.meetLat} meetLng={offer.meetLng} startsAt={session.startsAt} />
             {offer.note ? <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-300 [overflow-wrap:anywhere]">{offer.note}</p> : null}
-            {riders.length > 0 ? <ul className="mt-2 flex flex-wrap gap-1.5">{riders.map((r) => <li key={r.personId} className="flex items-center gap-1 rounded-full bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-200">
+            {riders.length > 0 ? <ul className="mt-2 flex flex-wrap gap-1.5">{riders.map((r) => <li key={r.personId} className="flex items-center gap-1 rounded-full bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-200">
               {name(r.personId)}
               {!past && offer.driverId === me ? <button type="button" aria-label={t('carpools.removeName', { name: name(r.personId) })} onClick={() => run(() => removeRider(offer.id, r.personId))} className="-my-1 -mr-1 grid h-7 w-7 place-items-center text-slate-400 hover:text-rose-200">×</button> : null}
             </li>)}</ul> : null}
@@ -141,7 +141,7 @@ export function Carpools({ sessionId }: { sessionId: string }) {
             </div> : null}
           </li>;
         })}</ul> : null}
-        {requests.length > 0 ? <p className="break-words text-xs font-bold text-slate-400">{t('carpools.requests', { names: requests.map((r) => name(r.personId)).join(', ') })}</p> : null}
+        {requests.length > 0 ? <p className="break-words text-xs font-medium text-slate-400">{t('carpools.requests', { names: requests.map((r) => name(r.personId)).join(', ') })}</p> : null}
         {!past && !own && !joined && !editing ? <div className="grid gap-2 sm:grid-cols-2">
           <button type="button" onClick={edit} className={actionClass}>{t('carpools.offer')}</button>
           <button type="button" aria-pressed={Boolean(requested)} onClick={() => run(() => requested ? cancelNeedSeat(sessionId) : needSeat(sessionId))} className={actionClass}>{requested ? t('carpools.cancelNeed') : t('carpools.ask')}</button>
@@ -151,23 +151,23 @@ export function Carpools({ sessionId }: { sessionId: string }) {
             if (own) updateRide(own.id, seats, note, departure); else offerRide(sessionId, seats, note, departure);
             setEditing(false);
           }); }}>
-          <label className="block text-xs font-bold text-slate-300">{t('carpools.seats')}
+          <label className="block text-xs font-medium text-slate-300">{t('carpools.seats')}
             <select value={seats} onChange={(event) => setSeats(Number(event.target.value))} className="os-field mt-1 w-full">{Array.from({ length: 8 }, (_, i) => i + 1).map((value) => <option key={value} value={value}>{formatInteger(value)}</option>)}</select>
           </label>
-          <label className="block text-xs font-bold text-slate-300">{t('carpools.departure')}
+          <label className="block text-xs font-medium text-slate-300">{t('carpools.departure')}
             <input type="time" value={departTime} onChange={(event) => setDepartTime(event.target.value)} className="os-field mt-1 block w-32 [color-scheme:dark]" />
-            <span className="mt-1 block font-normal text-slate-500">{t('carpools.departureHint')}</span>
+            <span className="mt-1 block font-normal text-slate-400">{t('carpools.departureHint')}</span>
           </label>
-          <div className="grid gap-1 text-xs font-bold text-slate-300">
+          <div className="grid gap-1 text-xs font-medium text-slate-300">
             {t('carpools.meetPoint')}
             <MeetPointPicker value={meetPin} onChange={setMeetPin} centerHint={session.homeAway === 'away' && session.venueAddress ? session.venueAddress : database.facilities.find((f) => f.id === session.facilityId)?.address ?? null} />
           </div>
-          <label className="block text-xs font-bold text-slate-300">{t('carpools.note')}
+          <label className="block text-xs font-medium text-slate-300">{t('carpools.note')}
             <textarea value={note} maxLength={200} onChange={(event) => setNote(event.target.value)} className="os-field mt-1 min-h-20 w-full resize-y" />
           </label>
           <div className="flex flex-wrap gap-2"><button type="submit" className={primaryClass}>{own ? t('carpools.save') : t('carpools.offer')}</button><button type="button" onClick={() => setEditing(false)} className={actionClass}>{t('carpools.cancel')}</button></div>
         </form> : null}
-        {error ? <p role="alert" className="text-sm font-bold text-rose-200">{errorText(t, error)}</p> : null}
+        {error ? <p role="alert" className="text-sm font-medium text-rose-200">{errorText(t, error)}</p> : null}
       </div> : null}
     </section>
   );

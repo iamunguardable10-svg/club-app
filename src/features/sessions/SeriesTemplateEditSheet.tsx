@@ -116,9 +116,9 @@ function SeriesTemplateEditorForm({
     });
   }
 
-  const inputClass = 'mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-black text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm [color-scheme:dark]';
-  const timeInputClass = 'mt-1 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-black tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2 sm:text-sm [color-scheme:dark]';
-  const labelClass = 'min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500';
+  const inputClass = 'mt-1 h-8 w-full min-w-0 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-[13px] font-semibold text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2.5 sm:text-sm [color-scheme:dark]';
+  const timeInputClass = 'mt-1 h-8 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-0.5 text-center text-[13px] font-semibold tracking-tight text-slate-100 outline-none transition focus:border-sky-300 sm:h-9 sm:px-2 sm:text-sm [color-scheme:dark]';
+  const labelClass = 'min-w-0 text-xs font-semibold text-slate-400';
 
   return (
     <div className={compact ? 'space-y-2.5' : 'mt-4 space-y-3'}>
@@ -157,17 +157,17 @@ function SeriesTemplateEditorForm({
       </div>
 
       <div className="border-t border-slate-800/80 pt-3">
-        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t('sessionForm.participants')}</p>
+        <p className="text-xs font-semibold text-slate-400">{t('sessionForm.participants')}</p>
         <div className="mt-2 flex flex-wrap gap-1.5">
-          <button type="button" onClick={() => setGroupIds([])} className={`rounded-full border px-2.5 py-1 text-xs font-black ${groupIds.length === 0 ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:text-white'}`}>{t('sessionForm.wholeTeam')}</button>
+          <button type="button" onClick={() => setGroupIds([])} className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${groupIds.length === 0 ? 'border-slate-100 bg-slate-100 text-slate-950' : 'border-slate-700 text-slate-300 hover:text-white'}`}>{t('sessionForm.wholeTeam')}</button>
           {teamGroups.map((group) => (
-            <button key={group.id} type="button" onClick={() => toggleGroup(group.id)} className={`rounded-full border px-2.5 py-1 text-xs font-black ${groupIds.includes(group.id) ? 'border-sky-300 bg-sky-950/50 text-sky-100' : 'border-slate-700 text-slate-300 hover:text-white'}`}>{group.name}{group.playerCount ? ` · ${group.playerCount}` : ''}</button>
+            <button key={group.id} type="button" onClick={() => toggleGroup(group.id)} className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${groupIds.includes(group.id) ? 'border-sky-300 bg-sky-950/50 text-sky-100' : 'border-slate-700 text-slate-300 hover:text-white'}`}>{group.name}{group.playerCount ? ` · ${group.playerCount}` : ''}</button>
           ))}
         </div>
       </div>
 
       <div className="grid gap-2 border-t border-slate-800/80 pt-3">
-        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t('series.forPlayersWeekly')}</p>
+        <p className="text-xs font-semibold text-slate-400">{t('series.forPlayersWeekly')}</p>
         <div className="grid grid-cols-[9.5rem_minmax(0,1fr)] gap-2">
           <label className={labelClass}>
             {t('sessionForm.meet')}
@@ -183,15 +183,15 @@ function SeriesTemplateEditorForm({
         </div>
         <label className={labelClass}>
           {t('sessionForm.note')}
-          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} rows={2} placeholder={t('series.notePlaceholder')} className="mt-1 w-full min-w-0 resize-y rounded-lg border border-slate-700/90 bg-slate-950 px-2 py-1.5 text-[13px] font-bold normal-case tracking-normal text-slate-100 outline-none transition focus:border-sky-300 sm:text-sm" />
+          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} rows={2} placeholder={t('series.notePlaceholder')} className="mt-1 w-full min-w-0 resize-y rounded-lg border border-slate-700/90 bg-slate-950 px-2 py-1.5 text-[13px] font-medium normal-case tracking-normal text-slate-100 outline-none transition focus:border-sky-300 sm:text-sm" />
         </label>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-        {onDelete ? <button type="button" onClick={() => setConfirmDelete(true)} className="rounded-xl border border-red-500/60 px-3 py-2 text-sm font-black text-red-100 hover:bg-red-950/35">{t('sessionForm.delete')}</button> : <span />}
+        {onDelete ? <button type="button" onClick={() => setConfirmDelete(true)} className="rounded-xl border border-red-500/60 px-3 py-2 text-sm font-semibold text-red-100 hover:bg-red-950/35">{t('sessionForm.delete')}</button> : <span />}
         <div className="flex gap-2">
-          <button type="button" onClick={onClose} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">{t('series.cancel')}</button>
-          <button type="button" onClick={() => { void submit(); }} disabled={isSaving || !canSave} className="rounded-xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950 disabled:opacity-60">{isSaving ? t('sessionForm.saving') : compact ? t('series.save') : t('series.saveTemplate')}</button>
+          <button type="button" onClick={onClose} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-900">{t('series.cancel')}</button>
+          <button type="button" onClick={() => { void submit(); }} disabled={isSaving || !canSave} className="rounded-xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-60">{isSaving ? t('sessionForm.saving') : compact ? t('series.save') : t('series.saveTemplate')}</button>
         </div>
       </div>
       <AppConfirmDialog
@@ -215,14 +215,14 @@ export function SeriesTemplateEditSheet(props: SeriesTemplateEditorBaseProps) {
   useBodyScrollLock(true);
 
   return (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/75 p-2.5 backdrop-blur-sm sm:items-center">
-      <section className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950 p-3.5 text-white shadow-2xl sm:p-4">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-2.5 sm:items-center">
+      <section className="os-sheet max-h-[92vh] w-full max-w-xl overflow-y-auto p-3.5 text-white sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">{t('series.kicker')}</p>
-            <h3 className="mt-2 text-2xl font-black">{props.title}</h3>
+            <p className="text-xs font-semibold text-emerald-300">{t('series.kicker')}</p>
+            <h3 className="mt-2 text-2xl font-semibold">{props.title}</h3>
           </div>
-          <button type="button" onClick={props.onClose} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-black text-slate-200 hover:bg-slate-900">{t('sessionForm.close')}</button>
+          <button type="button" onClick={props.onClose} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-900">{t('sessionForm.close')}</button>
         </div>
         <SeriesTemplateEditorForm {...props} />
       </section>

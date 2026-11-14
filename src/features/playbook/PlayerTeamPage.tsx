@@ -36,27 +36,27 @@ function TeamBlock({ database, teamId, showName }: { database: LocalDatabase; te
 
   return (
     <div className="grid gap-4">
-      {showName ? <h2 className="px-1 text-xl font-black text-white">{team?.name}</h2> : null}
+      {showName ? <h2 className="px-1 text-xl font-semibold text-white">{team?.name}</h2> : null}
       {nextGame ? (
         <section className="os-panel grid gap-3 p-5">
-          <h3 className="text-lg font-black text-white">{t('playerTeam.nextGame')}</h3>
+          <h3 className="text-lg font-semibold text-white">{t('playerTeam.nextGame')}</h3>
           <div>
-            <p className="font-black text-white">{displayTitle(nextGame.title)}{gameLine(nextGame) ? ` · ${gameLine(nextGame)}` : ''}</p>
-            <p className="text-sm font-bold text-slate-400">{formatLongDay(new Date(nextGame.startsAt))} · {formatTimeRange(nextGame.startsAt, nextGame.endsAt, nextGame.sessionType)}</p>
+            <p className="font-semibold text-white">{displayTitle(nextGame.title)}{gameLine(nextGame) ? ` · ${gameLine(nextGame)}` : ''}</p>
+            <p className="text-sm font-medium text-slate-400">{formatLongDay(new Date(nextGame.startsAt))} · {formatTimeRange(nextGame.startsAt, nextGame.endsAt, nextGame.sessionType)}</p>
           </div>
           <Carpools sessionId={nextGame.id} />
         </section>
       ) : null}
       {coaches.length > 0 ? (
         <section className="os-panel grid gap-3 p-5">
-          <h3 className="text-lg font-black text-white">{t('playerTeam.coaches')}</h3>
+          <h3 className="text-lg font-semibold text-white">{t('playerTeam.coaches')}</h3>
           <ul className="grid gap-2">
             {coaches.map(({ person, role }) => (
               <li key={person.id} className="flex items-center gap-3">
                 <PersonAvatar personId={person.id} name={displayName(person)} size="sm" />
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-black text-white">{displayName(person)}</span>
-                  {role ? <span className="block truncate text-xs font-bold text-slate-400">{role.locked ? t('playerTeam.headCoach') : role.name}</span> : null}
+                  <span className="block truncate text-sm font-semibold text-white">{displayName(person)}</span>
+                  {role ? <span className="block truncate text-xs font-medium text-slate-400">{role.locked ? t('playerTeam.headCoach') : role.name}</span> : null}
                 </span>
               </li>
             ))}
@@ -65,7 +65,7 @@ function TeamBlock({ database, teamId, showName }: { database: LocalDatabase; te
       ) : null}
       {playbook ? (
         <section className="os-panel grid gap-3 p-5">
-          <h3 className="text-lg font-black text-white">{t('tactics.playbook')}</h3>
+          <h3 className="text-lg font-semibold text-white">{t('tactics.playbook')}</h3>
           <PlaybookShelf database={database} teamId={teamId} />
         </section>
       ) : null}

@@ -78,7 +78,7 @@ export function AddressField({
         role="combobox"
         aria-expanded={open && suggestions.length > 0}
         aria-controls={listId}
-        className="w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm font-bold text-slate-100 outline-none focus:border-sky-300"
+        className="w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm font-medium text-slate-100 outline-none focus:border-sky-300"
       />
       {open && suggestions.length > 0 ? (
         <ul id={listId} role="listbox" className="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl">
@@ -88,7 +88,7 @@ export function AddressField({
                 type="button"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => { typedRef.current = false; onChange(suggestion.address); onPick?.(suggestion); setSuggestions([]); setOpen(false); }}
-                className="block w-full px-3 py-2 text-left text-sm font-bold text-slate-200 hover:bg-slate-900"
+                className="block w-full px-3 py-2 text-left text-sm font-medium text-slate-200 hover:bg-slate-900"
               >
                 {suggestion.name ? <span className="block text-white">{suggestion.name}</span> : null}
                 <span className={suggestion.name ? 'block text-xs text-slate-400' : ''}>{suggestion.address}</span>

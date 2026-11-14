@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react';
 import { useT } from '@/shared/i18n';
 
-const buttonClass = 'shrink-0 rounded-lg border px-2 py-1.5 text-[11px] font-black transition';
+const buttonClass = 'shrink-0 rounded-lg border px-2 py-1.5 text-xs font-semibold transition';
 
 export function ShareLink({ label, url, shareText, qr = false }: { label: string; url: string; shareText?: string; qr?: boolean }) {
   const t = useT();
@@ -21,7 +21,7 @@ export function ShareLink({ label, url, shareText, qr = false }: { label: string
   return (
     <div className="grid gap-2">
       <div className="flex items-center gap-2">
-        <input readOnly value={url} aria-label={label} onFocus={(event) => event.currentTarget.select()} className="min-w-0 flex-1 rounded-lg border border-slate-800 bg-slate-950 px-2 py-1.5 font-mono text-[11px] text-slate-300" />
+        <input readOnly value={url} aria-label={label} onFocus={(event) => event.currentTarget.select()} className="min-w-0 flex-1 rounded-lg border border-slate-800 bg-slate-950 px-2 py-1.5 font-mono text-xs text-slate-300" />
         <button
           type="button"
           onClick={() => navigator.clipboard?.writeText(url).then(() => setCopied(true)).catch(() => undefined)}
@@ -69,9 +69,9 @@ function QrCode({ value, label }: { value: string; label: string }) {
         // Generated locally from our own URL, not user HTML.
         <div role="img" aria-label={t('share.qrLabel', { label })} className="h-56 w-56 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />
       ) : (
-        <div className="grid h-56 w-56 place-items-center text-xs font-bold text-slate-500">{t('share.creatingQr')}</div>
+        <div className="grid h-56 w-56 place-items-center text-xs font-medium text-slate-400">{t('share.creatingQr')}</div>
       )}
-      <p className="text-center text-xs font-bold text-slate-700">{t('share.scan')}</p>
+      <p className="text-center text-xs font-medium text-slate-700">{t('share.scan')}</p>
     </div>
   );
 }

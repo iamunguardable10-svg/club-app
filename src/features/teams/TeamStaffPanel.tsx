@@ -91,19 +91,19 @@ function JoinCodeSection({ database, teamId, onRun }: { database: LocalDatabase;
   if (!code) return null;
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
   return (
-    <div className="grid gap-2 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
-      <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('staff.invitePlayers')}</p>
-      <p className="font-mono text-2xl font-black tracking-[0.25em] text-white">{code.slice(0, 4)}-{code.slice(4)}</p>
-      <p className="text-xs font-bold text-slate-400">{t('staff.invitePlayersDetail')}</p>
+    <div className="grid gap-2 rounded-xl bg-white/[0.04] p-3">
+      <p className="text-xs font-semibold text-slate-400">{t('staff.invitePlayers')}</p>
+      <p className="font-mono text-2xl font-semibold tracking-[0.25em] text-white">{code.slice(0, 4)}-{code.slice(4)}</p>
+      <p className="text-xs font-medium text-slate-400">{t('staff.invitePlayersDetail')}</p>
       <ShareLink label={t('staff.joinLinkLabel')} url={`${origin}/join?code=${code}`} shareText={t('staff.joinShareText', { team: teamName })} qr />
       {confirmRotate ? (
-        <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-300">
+        <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-300">
           {t('staff.oldCodeStops')}
           <button type="button" onClick={() => { onRun(() => { rotateJoinCode(teamId); }); setConfirmRotate(false); }} className={`${smallButtonClass} border-amber-400/60 text-amber-100`}>{t('staff.newCode')}</button>
           <button type="button" onClick={() => setConfirmRotate(false)} className={`${smallButtonClass} border-slate-700 text-slate-300`}>{t('staff.cancel')}</button>
         </div>
       ) : (
-        <button type="button" onClick={() => setConfirmRotate(true)} className="justify-self-start text-xs font-bold text-slate-400 underline">{t('staff.replaceCode')}</button>
+        <button type="button" onClick={() => setConfirmRotate(true)} className="justify-self-start text-xs font-medium text-slate-400 underline">{t('staff.replaceCode')}</button>
       )}
     </div>
   );
@@ -114,7 +114,7 @@ function StaffAccess({ database, teamId, personId, name, onRun }: { database: Lo
   const person = database.people.find((candidate) => candidate.id === personId);
   const invite = openInviteFor(database, personId, teamId);
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
-  if (person?.userId) return <p className="text-[11px] font-bold text-emerald-300">{t('staff.accountConnected')}</p>;
+  if (person?.userId) return <p className="text-xs font-medium text-emerald-300">{t('staff.accountConnected')}</p>;
   if (!invite) {
     return (
       <button type="button" onClick={() => onRun(() => { createStaffInvite(personId, teamId); })} className={`${smallButtonClass} justify-self-start border-sky-500/50 text-sky-100`}>
@@ -124,15 +124,15 @@ function StaffAccess({ database, teamId, personId, name, onRun }: { database: Lo
   }
   return (
     <div className="grid gap-1">
-      <p className="text-[11px] font-bold text-amber-200">{t('staff.invitedUntil', { date: formatShortDate(invite.expiresAt) })}</p>
+      <p className="text-xs font-medium text-amber-200">{t('staff.invitedUntil', { date: formatShortDate(invite.expiresAt) })}</p>
       <ShareLink label={t('staff.inviteLinkLabel', { name })} url={`${origin}/join?invite=${invite.token}`} shareText={t('staff.inviteShareText', { name })} />
-      <button type="button" onClick={() => onRun(() => revokeStaffInvite(invite.token))} className="justify-self-start text-[11px] font-bold text-slate-400 underline">{t('staff.revokeLink')}</button>
+      <button type="button" onClick={() => onRun(() => revokeStaffInvite(invite.token))} className="justify-self-start text-xs font-medium text-slate-400 underline">{t('staff.revokeLink')}</button>
     </div>
   );
 }
 
-const inputClass = 'min-w-0 rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm font-bold text-slate-100 outline-none focus:border-sky-300';
-const smallButtonClass = 'rounded-xl border px-3 py-2 text-xs font-black transition disabled:opacity-50';
+const inputClass = 'min-w-0 rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm font-medium text-slate-100 outline-none focus:border-sky-300';
+const smallButtonClass = 'rounded-xl border px-3 py-2 text-xs font-semibold transition disabled:opacity-50';
 
 export function TeamStaffPanel({ database, teamId, canManage }: { database: LocalDatabase; teamId: Id; canManage: boolean }) {
   const t = useT();
@@ -171,18 +171,18 @@ export function TeamStaffPanel({ database, teamId, canManage }: { database: Loca
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
       {error ? (
-        <p role="alert" className="rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-bold text-red-100">{error}</p>
+        <p role="alert" className="rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-medium text-red-100">{error}</p>
       ) : null}
 
       {serverMode && canManage ? <JoinCodeSection database={database} teamId={teamId} onRun={run} /> : null}
 
       <div className="grid gap-2">
         {staff.map((member) => (
-          <div key={member.membershipId} className="grid gap-2 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+          <div key={member.membershipId} className="grid gap-2 rounded-xl bg-white/[0.04] p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate text-sm font-black text-slate-100">{member.name}</p>
-              {!canManage ? <p className="mt-0.5 text-xs font-bold text-slate-500">{member.roleName ? displayRoleName(member.roleName) : t('staff.noRole')}</p> : null}
+              <p className="truncate text-sm font-semibold text-slate-100">{member.name}</p>
+              {!canManage ? <p className="mt-0.5 text-xs font-medium text-slate-400">{member.roleName ? displayRoleName(member.roleName) : t('staff.noRole')}</p> : null}
             </div>
             {canManage ? (
               <div className="flex flex-wrap items-center gap-2">
@@ -209,7 +209,7 @@ export function TeamStaffPanel({ database, teamId, canManage }: { database: Loca
           {serverMode && canManage ? <StaffAccess database={database} teamId={teamId} personId={member.personId} name={member.name} onRun={run} /> : null}
           </div>
         ))}
-        {staff.length === 0 ? <p className="text-sm font-bold text-slate-500">{t('staff.none')}</p> : null}
+        {staff.length === 0 ? <p className="text-sm font-medium text-slate-400">{t('staff.none')}</p> : null}
       </div>
 
       {canManage && roles.length > 0 ? (
@@ -231,7 +231,7 @@ export function TeamStaffPanel({ database, teamId, canManage }: { database: Loca
       ) : null}
 
       <div>
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('staff.rolesAndRights')}</p>
+        <p className="text-xs font-semibold text-slate-400">{t('staff.rolesAndRights')}</p>
         <div className="mt-2 grid grid-cols-[minmax(0,1fr)] gap-2">
           {roles.map((role) => (
             <RoleCard
@@ -290,20 +290,20 @@ function RoleCard({
   const [name, setName] = useState(role.name);
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950/70">
+    <div className="rounded-xl bg-white/[0.04]">
       <button type="button" onClick={onToggleOpen} aria-expanded={open} className="flex w-full items-center justify-between gap-3 p-3 text-left">
         <div className="min-w-0">
-          <p className="truncate text-sm font-black text-slate-100">{displayRoleName(role.name)}</p>
-          <p className="mt-0.5 text-xs font-bold text-slate-500">
+          <p className="truncate text-sm font-semibold text-slate-100">{displayRoleName(role.name)}</p>
+          <p className="mt-0.5 text-xs font-medium text-slate-400">
             {role.locked ? t('staff.allRightsFixed') : t('staff.rightsCount', { granted: granted.length, total: COACH_PERMISSIONS.length })} · {t('staff.people', { count: memberCount })}
           </p>
         </div>
-        <span className="text-lg font-black text-slate-500">{open ? '−' : '+'}</span>
+        <span className="text-lg font-semibold text-slate-400">{open ? '−' : '+'}</span>
       </button>
       {open ? (
         <div className="border-t border-slate-800 p-3">
           {role.locked ? (
-            <p className="mb-3 text-xs font-bold text-slate-400">{t('staff.headCoachNote')}</p>
+            <p className="mb-3 text-xs font-medium text-slate-400">{t('staff.headCoachNote')}</p>
           ) : null}
           {editable ? (
             <form
@@ -317,13 +317,13 @@ function RoleCard({
           <div className="grid gap-3">
             {PERMISSION_GROUPS.map((group) => (
               <fieldset key={group.key}>
-                <legend className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t(group.label)}</legend>
+                <legend className="text-xs font-semibold text-slate-400">{t(group.label)}</legend>
                 <div className="mt-1 grid gap-1 sm:grid-cols-2">
                   {group.permissions.map((permission) => {
                     const inactive = !loadTracked && LOAD_PERMISSIONS.includes(permission.key);
                     const canToggle = editable && !inactive;
                     return (
-                      <label key={permission.key} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-bold ${canToggle ? 'cursor-pointer text-slate-200 hover:bg-slate-900' : 'text-slate-500'}`}>
+                      <label key={permission.key} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium ${canToggle ? 'cursor-pointer text-slate-200 hover:bg-slate-900' : 'text-slate-400'}`}>
                         <input
                           type="checkbox"
                           checked={granted.includes(permission.key)}
@@ -337,7 +337,7 @@ function RoleCard({
                   })}
                 </div>
                 {group.key === 'players' && !loadTracked ? (
-                  <p className="mt-1 px-2 text-xs font-bold text-slate-500">{t('staff.noLoadRights')}</p>
+                  <p className="mt-1 px-2 text-xs font-medium text-slate-400">{t('staff.noLoadRights')}</p>
                 ) : null}
               </fieldset>
             ))}

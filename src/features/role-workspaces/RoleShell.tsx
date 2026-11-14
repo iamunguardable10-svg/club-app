@@ -149,10 +149,10 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
     : 0;
   const badge = (item: NavItem) => {
     if (item === 'messages' && unread > 0) {
-      return <span aria-label={t('nav.unread', { count: unread })} className="absolute -right-1.5 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-400 px-1 text-[10px] font-black text-slate-950">{unread}</span>;
+      return <span aria-label={t('nav.unread', { count: unread })} className="absolute -right-2 -top-1.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-rose-400 px-1 text-xs font-semibold leading-none text-slate-950">{unread}</span>;
     }
     if (item === 'today' && toRate > 0) {
-      return <span aria-label={t('nav.toRate', { count: toRate })} className="absolute -right-1.5 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-amber-300 px-1 text-[10px] font-black text-slate-950">{toRate}</span>;
+      return <span aria-label={t('nav.toRate', { count: toRate })} className="absolute -right-2 -top-1.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-amber-300 px-1 text-xs font-semibold leading-none text-slate-950">{toRate}</span>;
     }
     return null;
   };
@@ -163,11 +163,11 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
   useEffect(() => { if (loaded) void applyPendingProfile().catch(() => undefined); }, [loaded]);
 
   return (
-    <main className={`os-page md:pb-10 md:pl-64 ${tabBar ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))]' : 'pb-10'}`}>
-      <aside className="fixed bottom-3 left-3 top-3 z-[70] hidden w-56 flex-col rounded-3xl border border-white/10 bg-slate-950/85 p-2 text-white shadow-[0_24px_100px_rgba(0,0,0,0.34)] backdrop-blur-xl md:flex" aria-label={t('nav.main')}>
+    <main className={`os-page md:pb-10 md:pl-60 ${tabBar ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))]' : 'pb-10'}`}>
+      <aside className="fixed bottom-0 left-0 top-0 z-[70] hidden w-60 flex-col border-r border-white/[0.06] bg-[var(--surface-1)] p-3 text-white md:flex" aria-label={t('nav.main')}>
         <div className="px-3 pb-3 pt-2">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">{t('start.kicker')}</p>
-          {database ? <p className="mt-1 truncate text-sm font-black text-white">{database.club.name}</p> : null}
+          <p className="text-xs font-semibold text-emerald-300">{t('start.kicker')}</p>
+          {database ? <p className="mt-1 truncate text-sm font-semibold text-white">{database.club.name}</p> : null}
         </div>
         <nav className="grid gap-1">
           {nav.map(({ item, label, href }) => (
@@ -177,11 +177,11 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
               data-tip={`nav-${item}`}
               onClick={() => setTapped(item)}
               aria-current={current === item ? 'page' : undefined}
-              className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-black transition ${
-                active === item ? 'bg-emerald-300 text-slate-950' : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                active === item ? 'bg-white/[0.08] text-white' : 'text-slate-400 hover:bg-white/[0.04] hover:text-white'
               }`}
             >
-              <span className="relative"><NavIcon item={item} />{badge(item)}</span>
+              <span className={`relative ${active === item ? 'text-emerald-300' : ''}`}><NavIcon item={item} />{badge(item)}</span>
               {labelFor(item, label)}
             </Link>
           ))}
@@ -190,7 +190,7 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
           <Link
             href="/settings"
             aria-current={active === null ? 'page' : undefined}
-            className={`rounded-2xl px-3 py-2 text-xs font-black transition ${active === null ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900 hover:text-white'}`}
+            className={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${active === null ? 'bg-white/[0.08] text-white' : 'text-slate-400 hover:bg-white/[0.04] hover:text-white'}`}
           >
             {t('nav.settings')}
           </Link>
@@ -198,17 +198,17 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
         </div>
       </aside>
 
-      <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-[#050712]/90 backdrop-blur-xl md:static md:border-0 md:bg-transparent md:backdrop-blur-0">
+      <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-ground/85 backdrop-blur-xl md:static md:border-0 md:bg-transparent md:backdrop-blur-0">
         <div className="mx-auto flex w-full max-w-6xl items-start justify-between gap-3 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] sm:px-8 md:pb-0 md:pt-8">
           <div className="min-w-0">
-            {back ? <Link href={back.href} className="text-xs font-black text-sky-300 hover:text-sky-200">‹ {back.label}</Link> : null}
-            <h1 data-tip="page" className="truncate text-xl font-black tracking-tight text-white md:text-3xl">{title}</h1>
-            {subtitle ? <div className="mt-0.5 truncate text-xs font-bold text-slate-400 md:mt-1 md:text-sm">{subtitle}</div> : null}
+            {back ? <Link href={back.href} className="text-xs font-semibold text-sky-300 hover:text-sky-200">‹ {back.label}</Link> : null}
+            <h1 data-tip="page" className="truncate text-[22px] font-bold leading-7 tracking-tight text-white md:text-[28px] md:leading-9">{title}</h1>
+            {subtitle ? <div className="truncate text-[13px] text-slate-400 md:mt-0.5 md:text-sm">{subtitle}</div> : null}
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {actions ? <div className="hidden items-center gap-2 md:flex">{actions}</div> : null}
             {headLink ? (
-              <Link href={headLink.href} aria-label={headLink.label} title={headLink.label} className="flex h-10 items-center gap-2 rounded-full border border-slate-700 bg-slate-900/80 px-2.5 text-sm font-black text-slate-200 transition hover:border-slate-500 hover:text-white md:px-3.5">
+              <Link href={headLink.href} aria-label={headLink.label} title={headLink.label} className="flex h-10 items-center gap-2 rounded-full bg-white/[0.06] px-2.5 text-sm font-medium text-slate-200 transition-colors hover:bg-white/[0.1] hover:text-white md:px-3.5">
                 <NavIcon item={headLink.item} /><span className="hidden md:inline">{headLink.label}</span>
               </Link>
             ) : null}
@@ -223,17 +223,22 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
         <DemoNudge />
         {/* Keep notification opt-in reachable from each role’s first page. */}
         {active === 'today' || active === 'club' ? <NotificationsHint variant="card" /> : null}
-        {active === 'today' && database && person ? <UnreadMessagesCard database={database} personId={person.id} /> : null}
-        {active === 'today' && database && person && database.activeIdentity?.role === 'athlete' ? <ProfileTeaser database={database} personId={person.id} /> : null}
-        {active === 'today' && database && person && database.activeIdentity?.role === 'athlete' ? <PlaybookTeaser database={database} personId={person.id} /> : null}
+        {/* What is new, as rows of one quiet panel (it hides itself when nothing is). */}
+        {active === 'today' && database && person ? (
+          <div className="os-panel os-rows os-stack overflow-hidden">
+            <UnreadMessagesCard database={database} personId={person.id} />
+            {database.activeIdentity?.role === 'athlete' ? <ProfileTeaser database={database} personId={person.id} /> : null}
+            {database.activeIdentity?.role === 'athlete' ? <PlaybookTeaser database={database} personId={person.id} /> : null}
+          </div>
+        ) : null}
         {database && person && database.activeIdentity?.role === 'athlete' && active !== 'load' ? <LimitedConsentNote database={database} person={person} /> : null}
         {children}
       </div>
       <AfterJoin />
       <TipLayer tips={tipsFor(database?.activeIdentity?.role, current)} />
 
-      {tabBar ? <nav className="fixed inset-x-0 bottom-0 z-[70] border-t border-slate-800 bg-slate-950/95 px-2 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 text-white backdrop-blur-xl md:hidden" aria-label={t('nav.main')}>
-        <div className={`mx-auto grid max-w-lg ${columns} gap-1`}>
+      {tabBar ? <nav className="fixed inset-x-0 bottom-0 z-[70] border-t border-white/[0.06] bg-[#141618]/90 px-1 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 text-white backdrop-blur-xl md:hidden" aria-label={t('nav.main')}>
+        <div className={`mx-auto grid max-w-lg ${columns}`}>
           {nav.map(({ item, label, href }) => (
             <Link
               key={item}
@@ -241,11 +246,11 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
               data-tip={`nav-${item}`}
               onClick={() => setTapped(item)}
               aria-current={current === item ? 'page' : undefined}
-              className={`flex min-w-0 flex-col items-center gap-0.5 rounded-xl py-1.5 font-black transition active:scale-95 ${nav.length > 4 ? 'px-0.5 text-[10px] tracking-tight' : 'px-1 text-[11px]'} ${
-                active === item ? 'text-emerald-300' : 'text-slate-400 hover:text-white'
+              className={`flex min-w-0 flex-col items-center gap-1 rounded-xl py-1.5 text-xs font-medium tracking-tight transition-colors ${
+                active === item ? 'text-white' : 'text-slate-400 hover:text-white'
               }`}
             >
-              <span className="relative"><NavIcon item={item} />{badge(item)}</span>
+              <span className={`relative ${active === item ? 'text-emerald-300' : ''}`}><NavIcon item={item} />{badge(item)}</span>
               <span className="block max-w-full truncate">{labelFor(item, label)}</span>
             </Link>
           ))}
@@ -270,11 +275,11 @@ export function CoachSection({
   className?: string;
 }) {
   return (
-    <section className={`rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-white sm:p-5 ${className}`}>
+    <section className={`os-panel p-4 text-white sm:p-5 ${className}`}>
       {title || actions ? (
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            {title ? <h2 className="text-lg font-black">{title}</h2> : null}
+            {title ? <h2 className="text-lg font-semibold">{title}</h2> : null}
             {description ? <p className="mt-0.5 text-sm text-slate-400">{description}</p> : null}
           </div>
           {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}

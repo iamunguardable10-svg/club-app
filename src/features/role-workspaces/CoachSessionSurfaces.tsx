@@ -298,9 +298,9 @@ function InsightMetricCard({
   const className = `rounded-2xl border p-3 text-left transition ${active ? 'border-violet-300 bg-violet-300/15' : 'border-slate-800 bg-slate-950/70'} ${onClick ? 'hover:border-violet-300/55 hover:bg-slate-900/80' : ''}`;
   const content = (
     <>
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
-      <p className="mt-1 text-lg font-black text-white">{value}</p>
-      {detail ? <p className="mt-0.5 text-[11px] font-bold text-slate-500">{detail}</p> : null}
+      <p className="text-xs font-semibold text-slate-400">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-white">{value}</p>
+      {detail ? <p className="mt-0.5 text-xs font-medium text-slate-400">{detail}</p> : null}
     </>
   );
   return onClick ? (
@@ -314,7 +314,7 @@ function InsightMetricCard({
 
 function TrendValue({ label, value, colorClass }: { label: string; value: string; colorClass: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-slate-400">
+    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400">
       <span className={`h-2 w-2 rounded-full ${colorClass}`} />
       {label}{value ? ` ${value}` : ''}
     </span>
@@ -324,7 +324,7 @@ function TrendValue({ label, value, colorClass }: { label: string; value: string
 const HISTORY_METRIC_META: Record<CoachHistoryMetric, { label: MessageKey; color: string; tone: string; dot: string }> = {
   rpe: { label: 'coach.history.metric.rpe', color: '#34d399', tone: 'border-emerald-300 bg-emerald-300 text-slate-950', dot: 'bg-emerald-300' },
   au: { label: 'coach.history.metric.au', color: '#a78bfa', tone: 'border-violet-300 bg-violet-300 text-slate-950', dot: 'bg-violet-300' },
-  attendance: { label: 'coach.history.metric.attendance', color: '#38bdf8', tone: 'border-sky-300 bg-sky-300 text-slate-950', dot: 'bg-sky-300' },
+  attendance: { label: 'coach.history.metric.attendance', color: '#38bdf8', tone: 'border-sky-300 bg-slate-100 text-slate-950', dot: 'bg-slate-100' },
   completion: { label: 'coach.history.metric.completion', color: '#fbbf24', tone: 'border-amber-300 bg-amber-300 text-slate-950', dot: 'bg-amber-300' },
 };
 
@@ -408,10 +408,10 @@ function CoachHistoryTrendGraph({
   }, [selectedPeriodKey, onPeriodSelect]);
 
   return (
-    <div className="mt-4 rounded-3xl border border-slate-800 bg-slate-950/70 p-3 shadow-[0_18px_70px_rgba(0,0,0,0.18)] sm:p-4">
+    <div className="mt-4 os-panel p-3 sm:p-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h3 className="text-base font-black text-white">{t('coach.history.byWeek')}</h3>
+          <h3 className="text-base font-semibold text-white">{t('coach.history.byWeek')}</h3>
           <p className="text-xs text-slate-400">{t('coach.history.tapWeek')}</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -422,7 +422,7 @@ function CoachHistoryTrendGraph({
                 key={metric}
                 type="button"
                 onClick={() => setActiveMetric(metric)}
-                className={`rounded-full border px-3 py-1.5 text-[11px] font-black transition ${active ? HISTORY_METRIC_META[metric].tone : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${active ? HISTORY_METRIC_META[metric].tone : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
               >
                 {t(HISTORY_METRIC_META[metric].label)}
               </button>
@@ -432,14 +432,14 @@ function CoachHistoryTrendGraph({
       </div>
 
       <div className="mt-4 pb-1">
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3" style={{ minWidth: minChartWidth }}>
+        <div className="rounded-2xl bg-white/[0.04] p-3" style={{ minWidth: minChartWidth }}>
           <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-80 w-full overflow-visible">
             {yTicks.map((tick) => {
               const y = top + usableHeight - (tick / maxValue) * usableHeight;
               return (
                 <g key={tick.toFixed(2)}>
                   <line x1={left} x2={chartWidth - right} y1={y} y2={y} stroke="rgba(148,163,184,0.14)" strokeWidth="1" />
-                  <text x={left - 10} y={y + 4} textAnchor="end" className="fill-slate-500 text-[11px] font-black">
+                  <text x={left - 10} y={y + 4} textAnchor="end" className="fill-slate-500 text-xs font-semibold">
                     {formatHistoryMetricValue(activeMetric, tick)}
                   </text>
                 </g>
@@ -476,7 +476,7 @@ function CoachHistoryTrendGraph({
                     className="cursor-pointer transition-opacity hover:opacity-100"
                     onClick={() => onPeriodSelect(selected ? null : point.key)}
                   />
-                  <text x={x + barWidth / 2} y={chartHeight - 18} textAnchor="middle" className="fill-slate-400 text-[11px] font-black">{point.label}</text>
+                  <text x={x + barWidth / 2} y={chartHeight - 18} textAnchor="middle" className="fill-slate-400 text-xs font-semibold">{point.label}</text>
                 </g>
               );
             })}
@@ -494,8 +494,8 @@ function CoachHistoryTrendGraph({
                   onClick={() => onPeriodSelect(selected ? null : point.key)}
                   className={`shrink-0 rounded-xl border px-2.5 py-2 text-left transition ${selected ? 'border-violet-300 bg-violet-300/15 text-violet-100' : 'border-slate-800 bg-slate-950/55 text-slate-400 hover:border-slate-600'}`}
                 >
-                  <p className="text-[11px] font-black">{point.label}</p>
-                  <p className="mt-0.5 text-[10px] font-bold opacity-70">{t('coach.history.rangeSessions', { range: point.dateRange, count: point.sessionCount })}</p>
+                  <p className="text-xs font-semibold">{point.label}</p>
+                  <p className="mt-0.5 text-xs font-medium opacity-70">{t('coach.history.rangeSessions', { range: point.dateRange, count: point.sessionCount })}</p>
                 </button>
               );
             })}
@@ -504,15 +504,15 @@ function CoachHistoryTrendGraph({
       </div>
 
       {activePoint ? (
-        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/82 p-3 backdrop-blur-xl sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="coach-history-week-detail-title" onClick={() => onPeriodSelect(null)}>
-          <section className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-950 p-4 text-white shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:rounded-[2rem] sm:p-5" onClick={(event) => event.stopPropagation()}>
+        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="coach-history-week-detail-title" onClick={() => onPeriodSelect(null)}>
+          <section className="os-sheet max-h-[90vh] w-full max-w-3xl overflow-y-auto p-4 text-white sm:p-5" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">{t('coach.history.weekDetail')}</p>
-                <h3 id="coach-history-week-detail-title" className="mt-1 text-2xl font-black">{activePoint.label}</h3>
-                <p className="mt-1 text-sm font-bold text-slate-500">{t('coach.history.detailSessions', { range: activePoint.dateRange, count: activePoint.sessionCount })}</p>
+                <p className="text-xs font-semibold text-violet-300">{t('coach.history.weekDetail')}</p>
+                <h3 id="coach-history-week-detail-title" className="mt-1 text-2xl font-semibold">{activePoint.label}</h3>
+                <p className="mt-1 text-sm font-medium text-slate-400">{t('coach.history.detailSessions', { range: activePoint.dateRange, count: activePoint.sessionCount })}</p>
               </div>
-              <button type="button" onClick={() => onPeriodSelect(null)} className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200 transition hover:border-violet-300/50">
+              <button type="button" onClick={() => onPeriodSelect(null)} className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-violet-300/50">
                 {t('coach.history.close')}
               </button>
             </div>
@@ -522,24 +522,24 @@ function CoachHistoryTrendGraph({
                   key={metric}
                   type="button"
                   onClick={() => setActiveMetric(metric)}
-                  className={`rounded-full border px-3 py-1.5 text-[11px] font-black transition ${historyMetricButtonClass(metric, activeMetric)}`}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${historyMetricButtonClass(metric, activeMetric)}`}
                 >
                   {t(HISTORY_METRIC_META[metric].label)}
                 </button>
               ))}
             </div>
-            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
+            <div className="mt-4 rounded-2xl bg-white/[0.04] p-3">
               <div className="grid grid-cols-7 items-end gap-1.5 sm:gap-2">
                 {activePoint.days.map((day) => {
                   const value = valueForHistoryMetric(day, activeMetric);
                   const height = value === null ? 4 : Math.max(10, Math.round((Math.min(value, activeDayMax) / activeDayMax) * 170));
                   return (
                     <div key={day.key} className="min-w-0 text-center" title={`${day.label}: ${formatHistoryMetricValue(activeMetric, value)}`}>
-                      <div className="flex h-44 items-end justify-center rounded-xl border border-slate-800 bg-slate-900/55 px-1 py-1.5">
+                      <div className="flex h-44 items-end justify-center rounded-xl bg-white/[0.04] px-1 py-1.5">
                         <div className="w-full max-w-9 rounded-t-lg" style={{ height, backgroundColor: color, opacity: value === null ? 0.16 : 0.86 }} />
                       </div>
-                      <p className="mt-1 truncate text-[10px] font-black text-slate-300">{day.label}</p>
-                      <p className="text-[9px] font-bold text-slate-600">{formatHistoryMetricValue(activeMetric, value)}</p>
+                      <p className="mt-1 truncate text-xs font-semibold text-slate-300">{day.label}</p>
+                      <p className="text-[11px] font-medium tracking-tight text-slate-400">{formatHistoryMetricValue(activeMetric, value)}</p>
                     </div>
                   );
                 })}
@@ -552,10 +552,10 @@ function CoachHistoryTrendGraph({
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <TrendValue label={t(HISTORY_METRIC_META[activeMetric].label)} value={activePoint ? formatHistoryMetricValue(activeMetric, valueForHistoryMetric(activePoint, activeMetric)) : ''} colorClass={HISTORY_METRIC_META[activeMetric].dot} />
-          {activePoint ? <span className="text-[11px] font-black text-slate-500">{t('coach.history.lateOut', { late: activePoint.lateCount, out: activePoint.outCount })}</span> : null}
+          {activePoint ? <span className="text-xs font-semibold text-slate-400">{t('coach.history.lateOut', { late: activePoint.lateCount, out: activePoint.outCount })}</span> : null}
         </div>
         {selectedPeriodKey !== null ? (
-          <button type="button" onClick={() => onPeriodSelect(null)} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 transition hover:border-violet-300/50 hover:bg-slate-900">
+          <button type="button" onClick={() => onPeriodSelect(null)} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-violet-300/50 hover:bg-slate-900">
             {t('coach.history.clearWeek')}
           </button>
         ) : null}
@@ -585,7 +585,7 @@ function EntryReviewControl({ entryId, review, playerName }: { entryId: string; 
   };
   if (review) {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 px-2.5 py-1.5 text-[11px] font-bold text-amber-200">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 px-2.5 py-1.5 text-xs font-medium text-amber-200">
         <span>{t('coach.review.requested')}{review.note ? ` · “${review.note}”` : ''}</span>
         <button type="button" onClick={() => run(() => clearEntryReview(entryId))} className="text-slate-400 underline">{t('coach.review.withdraw')}</button>
       </div>
@@ -594,7 +594,7 @@ function EntryReviewControl({ entryId, review, playerName }: { entryId: string; 
   if (!open) {
     return (
       <div className="flex justify-end border-t border-slate-800 px-2.5 py-1">
-        <button type="button" onClick={() => setOpen(true)} className="text-[11px] font-black text-sky-300 hover:text-sky-200">{t('coach.review.ask')}</button>
+        <button type="button" onClick={() => setOpen(true)} className="text-xs font-semibold text-sky-300 hover:text-sky-200">{t('coach.review.ask')}</button>
       </div>
     );
   }
@@ -606,12 +606,12 @@ function EntryReviewControl({ entryId, review, playerName }: { entryId: string; 
         maxLength={300}
         placeholder={t('coach.review.notePlaceholder', { name: playerName.split(' ')[0] })}
         aria-label={t('coach.review.noteAria', { name: playerName })}
-        className="min-w-0 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs font-bold text-slate-100 outline-none focus:border-sky-300"
+        className="min-w-0 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs font-medium text-slate-100 outline-none focus:border-sky-300"
       />
-      {error ? <p role="alert" className="text-[11px] font-bold text-red-200">{error}</p> : null}
+      {error ? <p role="alert" className="text-xs font-medium text-red-200">{error}</p> : null}
       <div className="flex gap-2">
-        <button type="button" onClick={() => run(() => requestEntryReview(entryId, note))} className="rounded-lg bg-sky-300 px-3 py-1.5 text-[11px] font-black text-slate-950">{t('coach.review.send')}</button>
-        <button type="button" onClick={() => { setOpen(false); setNote(''); }} className="rounded-lg border border-slate-700 px-3 py-1.5 text-[11px] font-black text-slate-300">{t('coach.review.cancel')}</button>
+        <button type="button" onClick={() => run(() => requestEntryReview(entryId, note))} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-950">{t('coach.review.send')}</button>
+        <button type="button" onClick={() => { setOpen(false); setNote(''); }} className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300">{t('coach.review.cancel')}</button>
       </div>
     </div>
   );
@@ -672,8 +672,8 @@ function AttendanceConfirmation({ session }: { session: CoachSession }) {
     <div className="mb-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.06] p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">{t('attendance.title')}</p>
-          <p className="mt-0.5 text-xs font-bold text-slate-300">
+          <p className="text-xs font-semibold text-emerald-200">{t('attendance.title')}</p>
+          <p className="mt-0.5 text-xs font-medium text-slate-300">
             {confirmedCount === 0
               ? t('attendance.notConfirmed', { count: there.length })
               : t('attendance.confirmed', { there: thereCount, total: session.players.length })}
@@ -681,21 +681,21 @@ function AttendanceConfirmation({ session }: { session: CoachSession }) {
           </p>
         </div>
         {confirmedCount > 0 || !open ? (
-          <button type="button" onClick={() => { setPresent(initial()); setAsking(null); setOpen((value) => !value); setSaved(false); }} aria-expanded={open} className="rounded-full border border-emerald-200/40 px-3 py-1.5 text-xs font-black text-emerald-100">
+          <button type="button" onClick={() => { setPresent(initial()); setAsking(null); setOpen((value) => !value); setSaved(false); }} aria-expanded={open} className="rounded-full border border-emerald-200/40 px-3 py-1.5 text-xs font-semibold text-emerald-100">
             {open ? t('attendance.close') : confirmedCount === 0 ? t('attendance.confirm') : t('attendance.change')}
           </button>
         ) : null}
       </div>
       {open ? (
         <div className="mt-3 grid gap-1.5">
-          <p className="text-[11px] font-bold text-slate-400">{t('attendance.tapHint')}</p>
+          <p className="text-xs font-medium text-slate-400">{t('attendance.tapHint')}</p>
           {there.map((player) => {
             const label = reportLabel(player.id);
             if (asking === player.id) {
               return (
                 <div key={player.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-300/50 bg-rose-300/[0.08] px-2.5 py-1.5">
-                  <span className="min-w-0 text-xs font-black text-rose-100">{t('attendance.wasNotThere', { name: player.name })}</span>
-                  <div className="flex shrink-0 gap-1.5 text-[11px] font-black">
+                  <span className="min-w-0 text-xs font-semibold text-rose-100">{t('attendance.wasNotThere', { name: player.name })}</span>
+                  <div className="flex shrink-0 gap-1.5 text-xs font-semibold">
                     <button type="button" onClick={() => mark(player.id, false)} className="rounded-lg bg-rose-300 px-2.5 py-1 text-slate-950">{t('attendance.notThereButton')}</button>
                     <button type="button" onClick={() => setAsking(null)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-slate-300">{t('attendance.cancel')}</button>
                   </div>
@@ -708,37 +708,37 @@ function AttendanceConfirmation({ session }: { session: CoachSession }) {
                 type="button"
                 onClick={() => setAsking(player.id)}
                 aria-label={t('attendance.wasThereAria', { name: player.name })}
-                className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-left hover:border-rose-300/50"
+                className="flex items-center justify-between gap-2 rounded-xl bg-white/[0.04] px-2.5 py-2 text-left"
               >
                 <span className="flex min-w-0 items-center gap-2">
-                  <span aria-hidden className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-300 text-[11px] font-black text-slate-950">✓</span>
-                  <span className="min-w-0 truncate text-xs font-black text-slate-100">{player.name}</span>
+                  <span aria-hidden className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-300 text-xs font-semibold text-slate-950">✓</span>
+                  <span className="min-w-0 truncate text-xs font-semibold text-slate-100">{player.name}</span>
                 </span>
                 <span className="flex shrink-0 items-center gap-2">
-                  {label ? <span className="text-[11px] font-bold text-amber-200">{label}</span> : null}
-                  <span aria-hidden className="text-sm font-black text-slate-500">×</span>
+                  {label ? <span className="text-xs font-medium text-amber-200">{label}</span> : null}
+                  <span aria-hidden className="text-sm font-semibold text-slate-400">×</span>
                 </span>
               </button>
             );
           })}
           {notThere.length > 0 ? (
             <>
-              <p className="mt-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{t('attendance.notThereCount', { count: notThere.length })}</p>
+              <p className="mt-2 text-xs font-semibold text-slate-400">{t('attendance.notThereCount', { count: notThere.length })}</p>
               {notThere.map((player) => {
                 const label = reportLabel(player.id);
                 return (
                   <div key={player.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 px-2.5 py-1.5">
-                    <span className="min-w-0 truncate text-xs font-bold text-slate-400">
-                      {player.name}{label ? <span className="text-slate-500"> · {label}</span> : null}
+                    <span className="min-w-0 truncate text-xs font-medium text-slate-400">
+                      {player.name}{label ? <span className="text-slate-400"> · {label}</span> : null}
                     </span>
-                    <button type="button" onClick={() => mark(player.id, true)} className="shrink-0 rounded-lg border border-emerald-200/40 px-2.5 py-1 text-[11px] font-black text-emerald-100">{t('attendance.wasThere')}</button>
+                    <button type="button" onClick={() => mark(player.id, true)} className="shrink-0 rounded-lg border border-emerald-200/40 px-2.5 py-1 text-xs font-semibold text-emerald-100">{t('attendance.wasThere')}</button>
                   </div>
                 );
               })}
             </>
           ) : null}
-          {error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null}
-          <button type="button" onClick={save} className="mt-1 rounded-xl bg-emerald-300 px-3 py-2.5 text-xs font-black text-slate-950">
+          {error ? <p role="alert" className="text-xs font-medium text-red-200">{error}</p> : null}
+          <button type="button" onClick={save} className="mt-1 rounded-xl bg-emerald-300 px-3 py-2.5 text-xs font-semibold text-slate-950">
             {notThere.length === 0 ? t('attendance.allThere', { count: there.length }) : t('attendance.confirmCount', { there: there.length, total: session.players.length })}
           </button>
         </div>
@@ -749,7 +749,7 @@ function AttendanceConfirmation({ session }: { session: CoachSession }) {
 
 const SQUAD_OPTIONS: { value: SquadStatus; label: MessageKey; on: string }[] = [
   { value: 'squad', label: 'squad.option.squad', on: 'bg-emerald-300 text-slate-950' },
-  { value: 'reserve', label: 'squad.option.reserve', on: 'bg-sky-300 text-slate-950' },
+  { value: 'reserve', label: 'squad.option.reserve', on: 'bg-slate-100 text-slate-950' },
   { value: 'not_selected', label: 'squad.option.out', on: 'bg-slate-600 text-white' },
 ];
 
@@ -779,18 +779,18 @@ export function OpenAnswers({ session, className = '' }: { session: CoachSession
     }
   }
   return (
-    <div className={`rounded-xl border border-slate-800 bg-slate-900/45 p-3 ${className}`}>
+    <div className={`rounded-xl bg-white/[0.04] p-3 ${className}`}>
       <div className="flex items-center gap-3">
-        <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-800 text-sm font-black text-slate-300">?</span>
+        <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-800 text-sm font-semibold text-slate-300">?</span>
         <p className="min-w-0 flex-1">
-          <span className="block break-words text-sm font-bold text-slate-100">{names.join(', ')}</span>
+          <span className="block break-words text-sm font-medium text-slate-100">{names.join(', ')}</span>
           <span className="block text-xs text-slate-400">{t('coach.open.title')}</span>
         </p>
         {reminded !== null
-          ? <span role="status" className="flex shrink-0 items-center gap-1 text-xs font-black text-emerald-200"><CheckIcon />{t('coach.open.reminded')}</span>
-          : <button type="button" onClick={() => { void remind(); }} className="flex shrink-0 items-center gap-1.5 rounded-full bg-amber-300 px-3 py-1.5 text-xs font-black text-slate-950 transition hover:bg-amber-200 active:scale-95"><BellIcon />{t('coach.open.remind')}</button>}
+          ? <span role="status" className="flex shrink-0 items-center gap-1 text-xs font-semibold text-emerald-200"><CheckIcon />{t('coach.open.reminded')}</span>
+          : <button type="button" onClick={() => { void remind(); }} className="flex shrink-0 items-center gap-1.5 rounded-full bg-amber-300 px-3 py-1.5 text-xs font-semibold text-slate-950 transition hover:bg-amber-200 active:scale-95"><BellIcon />{t('coach.open.remind')}</button>}
       </div>
-      {failed ? <p role="alert" className="mt-2 text-xs font-bold text-rose-200">{failed}</p> : null}
+      {failed ? <p role="alert" className="mt-2 text-xs font-medium text-rose-200">{failed}</p> : null}
     </div>
   );
 }
@@ -833,11 +833,11 @@ function SquadPicker({ session }: { session: CoachSession }) {
     const current = squad[player.id] ?? null;
     return (
       <div key={player.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 px-2.5 py-1.5 ${muted ? 'opacity-70' : 'bg-slate-950/55'}`}>
-        <span className="min-w-0 text-xs font-black text-slate-100">
-          {player.name}{hint ? <span className="font-bold text-slate-500"> · {hint}</span> : null}
+        <span className="min-w-0 text-xs font-semibold text-slate-100">
+          {player.name}{hint ? <span className="font-medium text-slate-400"> · {hint}</span> : null}
         </span>
         {editable ? (
-          <div className="flex shrink-0 overflow-hidden rounded-lg border border-slate-700 text-[11px] font-black" role="group" aria-label={t('squad.statusAria', { name: player.name })}>
+          <div className="flex shrink-0 overflow-hidden rounded-lg border border-slate-700 text-xs font-semibold" role="group" aria-label={t('squad.statusAria', { name: player.name })}>
             {SQUAD_OPTIONS.map((option) => (
               <button
                 key={option.value}
@@ -851,7 +851,7 @@ function SquadPicker({ session }: { session: CoachSession }) {
             ))}
           </div>
         ) : (
-          <span className="text-[11px] font-black text-slate-400">{current ? t(SQUAD_OPTIONS.find((option) => option.value === current)!.label) : '—'}</span>
+          <span className="text-xs font-semibold text-slate-400">{current ? t(SQUAD_OPTIONS.find((option) => option.value === current)!.label) : '—'}</span>
         )}
       </div>
     );
@@ -862,30 +862,30 @@ function SquadPicker({ session }: { session: CoachSession }) {
     <div className="mb-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.05] p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">{t('squad.title')}</p>
-          <p className="mt-0.5 text-xs font-bold text-slate-300">
+          <p className="text-xs font-semibold text-emerald-200">{t('squad.title')}</p>
+          <p className="mt-0.5 text-xs font-medium text-slate-300">
             {t('squad.count.squad', { count: count('squad') })} · {t('squad.count.reserve', { count: count('reserve') })} · {t('squad.count.out', { count: count('not_selected') })}{unpicked > 0 ? ` · ${t('squad.count.notPicked', { count: unpicked })}` : ''}
           </p>
-          <p className="mt-0.5 text-[11px] font-bold text-slate-500">
+          <p className="mt-0.5 text-xs font-medium text-slate-400">
             {session.squadPublishedAt
               ? changed > 0 ? t('squad.published.changes', { count: changed }) : t('squad.published.known')
               : t('squad.notPublished')}
           </p>
         </div>
         {editable && autoPick.some((player) => !squad[player.id]) ? (
-          <button type="button" onClick={() => run(() => { for (const player of autoPick) if (!squad[player.id]) setSquadStatus(session.id, player.id, 'squad'); })} className="rounded-full border border-emerald-200/40 px-3 py-1.5 text-[11px] font-black text-emerald-100">
+          <button type="button" onClick={() => run(() => { for (const player of autoPick) if (!squad[player.id]) setSquadStatus(session.id, player.id, 'squad'); })} className="rounded-full border border-emerald-200/40 px-3 py-1.5 text-xs font-semibold text-emerald-100">
             {t('squad.everyoneAvailable')}
           </button>
         ) : null}
       </div>
       <div className="mt-3 grid gap-1.5">
         {available.map((player) => row(player, false))}
-        {unavailable.length > 0 ? <p className="mt-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('squad.saidNoOrAway', { count: unavailable.length })}</p> : null}
+        {unavailable.length > 0 ? <p className="mt-2 text-xs font-semibold text-slate-400">{t('squad.saidNoOrAway', { count: unavailable.length })}</p> : null}
         {unavailable.map((player) => row(player, true))}
       </div>
-      {error ? <p role="alert" className="mt-2 text-xs font-bold text-red-200">{error}</p> : null}
+      {error ? <p role="alert" className="mt-2 text-xs font-medium text-red-200">{error}</p> : null}
       {editable && (!session.squadPublishedAt || changed > 0) ? (
-        <button type="button" onClick={() => setConfirm(true)} className="mt-3 w-full rounded-xl bg-emerald-300 px-3 py-2.5 text-xs font-black text-slate-950">
+        <button type="button" onClick={() => setConfirm(true)} className="mt-3 w-full rounded-xl bg-emerald-300 px-3 py-2.5 text-xs font-semibold text-slate-950">
           {session.squadPublishedAt ? t('squad.notifyChanges') : t('squad.publish')}
         </button>
       ) : null}
@@ -1056,12 +1056,12 @@ export function CoachSessionDetailOverlay({
         answers={!isPast ? ((session.openPlayerIds?.length ?? 0) > 0 ? <OpenAnswers key={`open-${session.id}`} session={session} /> : null) : session.canConfirmAttendance && session.attendanceShared !== false && session.players.length > 0 ? <AttendanceConfirmation key={session.id} session={session} /> : null}
         insights={!isPast ? (session.sessionType === 'game' && (session.canPickSquad || session.squadPublishedAt) ? <SquadPicker key={session.id} session={session} /> : null) : isPast ? (<>
         {!sessionLoadDetailsShared(session) ? (
-          <p className="rounded-2xl border border-slate-800 bg-slate-950/55 p-3 text-xs font-bold text-slate-400">{session.sessionType === 'meeting' ? t('session.meetingNotRated') : session.loadTracked === false ? t('insight.noTracking', { team: session.teamName }) : t('insight.notShared')}</p>
+          <p className="rounded-2xl bg-white/[0.04] p-3 text-xs font-medium text-slate-400">{session.sessionType === 'meeting' ? t('session.meetingNotRated') : session.loadTracked === false ? t('insight.noTracking', { team: session.teamName }) : t('insight.notShared')}</p>
         ) : isPast ? (
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-300">{t('insight.title')}</p>
-              <span className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-black text-slate-300">
+              <p className="text-xs font-semibold text-violet-300">{t('insight.title')}</p>
+              <span className="rounded-full border border-slate-700 px-2 py-1 text-xs font-semibold text-slate-300">
                 {t('insight.reportCount', { done: summary.loadReports.length, total: session.players.length })}
               </span>
             </div>
@@ -1072,27 +1072,27 @@ export function CoachSessionDetailOverlay({
             {activeInsight ? (
               <div className="mt-3 rounded-2xl border border-violet-300/25 bg-violet-300/10 p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-violet-200">{insightTitle(activeInsight)}</p>
-                  <button type="button" onClick={() => setActiveInsight(null)} className="rounded-full border border-violet-200/35 px-2 py-1 text-[11px] font-black text-violet-100 hover:bg-violet-200/10">{t('insight.hide')}</button>
+                  <p className="text-xs font-semibold text-violet-200">{insightTitle(activeInsight)}</p>
+                  <button type="button" onClick={() => setActiveInsight(null)} className="rounded-full border border-violet-200/35 px-2 py-1 text-xs font-semibold text-violet-100 hover:bg-violet-200/10">{t('insight.hide')}</button>
                 </div>
                 <div className="mt-2 grid gap-1.5">
                   {activeInsight === 'expected' ? expectedInsightRows.map((row) => (
-                    <button key={row.id} type="button" onClick={() => setActivePlayerId(row.id)} className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-left text-xs font-black text-slate-100 transition hover:border-violet-200/50">
+                    <button key={row.id} type="button" onClick={() => setActivePlayerId(row.id)} className="flex items-center justify-between gap-2 rounded-xl bg-white/[0.04] px-2.5 py-2 text-left text-xs font-semibold text-slate-100 transition">
                       <span>{row.name}</span>
                       <span className={statusClassName(row.status)}>{t(row.status === 'late' ? 'insight.status.late' : row.status === 'out' ? 'insight.status.out' : 'insight.status.expected')}{row.detail ? ` · ${row.detail}` : ''}</span>
                     </button>
                   )) : null}
                   {activeInsight === 'rpe' ? (
                     rpeInsightRows.length > 0 ? rpeInsightRows.map(({ player, entry }) => (
-                      <button key={`${player.id}-${entry.id}`} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-left text-xs font-black text-slate-100 transition hover:border-violet-200/50">
+                      <button key={`${player.id}-${entry.id}`} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl bg-white/[0.04] px-2.5 py-2 text-left text-xs font-semibold text-slate-100 transition">
                         <span>{player.name}</span>
                         <span>{t('insight.rpeLoad', { rpe: entry.rpe, load: entry.load })}</span>
                       </button>
-                    )) : <p className="rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-xs font-bold text-slate-500">{t('insight.noRpe')}</p>
+                    )) : <p className="rounded-xl bg-white/[0.04] px-2.5 py-2 text-xs font-medium text-slate-400">{t('insight.noRpe')}</p>
                   ) : null}
                   {activeInsight === 'au' ? auInsightRows.map(({ player, report }) => (
-                    <div key={player.id} className="rounded-xl border border-slate-800 bg-slate-950/55">
-                      <button type="button" onClick={() => setActivePlayerId(player.id)} className="flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-black text-slate-100 transition hover:bg-slate-900/60">
+                    <div key={player.id} className="rounded-xl bg-white/[0.04]">
+                      <button type="button" onClick={() => setActivePlayerId(player.id)} className="flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-semibold text-slate-100 transition hover:bg-slate-900/60">
                         <span>{player.name}</span>
                         <span>{report ? t('insight.auRow', { load: report.entry.load, rpe: report.entry.rpe, minutes: report.entry.durationMinutes }) : t('insight.missingReport')}</span>
                       </button>
@@ -1102,7 +1102,7 @@ export function CoachSessionDetailOverlay({
                     </div>
                   )) : null}
                   {activeInsight === 'completion' ? completionInsightRows.map(({ player, report }) => (
-                    <button key={player.id} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/55 px-2.5 py-2 text-left text-xs font-black text-slate-100 transition hover:border-violet-200/50">
+                    <button key={player.id} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl bg-white/[0.04] px-2.5 py-2 text-left text-xs font-semibold text-slate-100 transition">
                       <span>{player.name}</span>
                       <span className={report ? 'text-emerald-200' : 'text-amber-200'}>{report ? t('insight.completed', { rpe: report.entry.rpe, load: report.entry.load }) : t('insight.missingInput')}</span>
                     </button>
@@ -1115,16 +1115,16 @@ export function CoachSessionDetailOverlay({
                 {hardReports.length > 0 ? (
                   <div className="rounded-2xl border border-rose-400/25 bg-rose-400/10 p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-rose-200">{t('insight.hardest')}</p>
+                      <p className="text-xs font-semibold text-rose-200">{t('insight.hardest')}</p>
                       {hardReports.length > 4 ? (
-                        <button type="button" onClick={() => setShowAllHardReports((current) => !current)} className="rounded-full border border-rose-200/35 px-2 py-1 text-[11px] font-black text-rose-100 hover:bg-rose-200/10">
+                        <button type="button" onClick={() => setShowAllHardReports((current) => !current)} className="rounded-full border border-rose-200/35 px-2 py-1 text-xs font-semibold text-rose-100 hover:bg-rose-200/10">
                           {showAllHardReports ? t('insight.showLess') : t('insight.showAll')}
                         </button>
                       ) : null}
                     </div>
                     <div className="mt-2 grid gap-1.5">
                       {visibleHardReports.map(({ player, entry }) => (
-                        <button key={`${player.id}-${entry.id}`} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl border border-rose-300/20 bg-slate-950/45 px-2.5 py-1.5 text-left text-xs font-black text-rose-50">
+                        <button key={`${player.id}-${entry.id}`} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl border border-rose-300/20 bg-slate-950/45 px-2.5 py-1.5 text-left text-xs font-semibold text-rose-50">
                           <span>{player.name}</span>
                           <span>{t('insight.rpeLoad', { rpe: entry.rpe, load: entry.load })}</span>
                         </button>
@@ -1134,10 +1134,10 @@ export function CoachSessionDetailOverlay({
                 ) : null}
                 {lightReports.length > 0 ? (
                   <div className="rounded-2xl border border-sky-400/25 bg-sky-400/10 p-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-sky-200">{t('insight.lightest')}</p>
+                    <p className="text-xs font-semibold text-sky-200">{t('insight.lightest')}</p>
                     <div className="mt-2 grid gap-1.5">
                       {lightReports.map(({ player, entry }) => (
-                        <button key={`${player.id}-${entry.id}`} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl border border-sky-300/20 bg-slate-950/45 px-2.5 py-1.5 text-left text-xs font-black text-sky-50">
+                        <button key={`${player.id}-${entry.id}`} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl border border-sky-300/20 bg-slate-950/45 px-2.5 py-1.5 text-left text-xs font-semibold text-sky-50">
                           <span>{player.name}</span>
                           <span>{t('insight.rpeLoad', { rpe: entry.rpe, load: entry.load })}</span>
                         </button>
@@ -1163,9 +1163,9 @@ export function CoachSessionDetailOverlay({
         showExpectedParticipants={!isPast}
         onParticipantSelect={setActivePlayerId}
         actions={<>
-          {onEdit && !hideSessionActions ? <button type="button" onClick={onEdit} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">{t('insight.editSession')}</button> : null}
-          {onDelete && !hideSessionActions ? <button type="button" onClick={onDelete} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-black text-red-100 hover:bg-red-950/35">{t('insight.deleteSession')}</button> : null}
-          {calendarHref ? <Link href={calendarHref} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-black text-sky-100 hover:bg-sky-950/40">{t('insight.openCalendar')}</Link> : null}
+          {onEdit && !hideSessionActions ? <button type="button" onClick={onEdit} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-semibold text-sky-100 hover:bg-sky-950/40">{t('insight.editSession')}</button> : null}
+          {onDelete && !hideSessionActions ? <button type="button" onClick={onDelete} className="rounded-xl border border-red-500/60 px-3 py-2 text-xs font-semibold text-red-100 hover:bg-red-950/35">{t('insight.deleteSession')}</button> : null}
+          {calendarHref ? <Link href={calendarHref} className="rounded-xl border border-sky-500/55 px-3 py-2 text-xs font-semibold text-sky-100 hover:bg-sky-950/40">{t('insight.openCalendar')}</Link> : null}
           {extraActions}
         </>}
         onClose={onClose}
@@ -1219,16 +1219,16 @@ export function CoachHistoryInsights({
   }, [rangeWeeks, teamId]);
 
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-white sm:p-5">
+    <section className="os-panel p-4 text-white sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-black">{t('history.lastWeeks', { count: rangeWeeks })}</h2>
+        <h2 className="text-lg font-semibold">{t('history.lastWeeks', { count: rangeWeeks })}</h2>
         <div className="flex flex-wrap gap-1.5">
           {[4, 8, 12].map((weeks) => (
             <button
               key={weeks}
               type="button"
               onClick={() => setRangeWeeks(weeks)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${rangeWeeks === weeks ? 'border-violet-300 bg-violet-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${rangeWeeks === weeks ? 'border-violet-300 bg-violet-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
             >
               {t('history.weeksShort', { count: weeks })}
             </button>
@@ -1238,9 +1238,9 @@ export function CoachHistoryInsights({
 
       {teams.length > 1 ? (
         <div className="mt-4 flex gap-1.5 overflow-x-auto pb-1">
-          <button type="button" onClick={() => setTeamId('all')} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-black ${teamId === 'all' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('history.allTeams')}</button>
+          <button type="button" onClick={() => setTeamId('all')} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${teamId === 'all' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('history.allTeams')}</button>
           {teams.map((team) => (
-            <button key={team.id} type="button" onClick={() => setTeamId(team.id)} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-black ${teamId === team.id ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>
+            <button key={team.id} type="button" onClick={() => setTeamId(team.id)} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${teamId === team.id ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>
               {team.name}
             </button>
           ))}
@@ -1254,7 +1254,7 @@ export function CoachHistoryInsights({
       />
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-bold text-slate-500">
+        <p className="text-xs font-medium text-slate-400">
           {t('history.sessionCount', { count: filteredSessions.length })}{selectedPeriodKey !== null ? ` · ${formatHistoryWeekLabel(selectedPeriodKey)}` : ''}
         </p>
       </div>
@@ -1265,12 +1265,12 @@ export function CoachHistoryInsights({
             <CoachHistorySessionCard key={session.id} session={session} onDetails={() => onDetails(session)} />
           ))
         ) : (
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">{t('history.none')}</div>
+          <div className="rounded-2xl bg-white/[0.04] p-4 text-sm font-medium text-slate-400">{t('history.none')}</div>
         )}
       </div>
       {filteredSessions.length > visibleSessions.length ? (
         <div className="mt-4 flex justify-center">
-          <button type="button" onClick={() => setVisibleCount((count) => count + 12)} className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-black text-slate-200 transition hover:border-violet-300/50 hover:bg-slate-900">
+          <button type="button" onClick={() => setVisibleCount((count) => count + 12)} className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-violet-300/50 hover:bg-slate-900">
             {t('history.showMore', { count: filteredSessions.length - visibleSessions.length })}
           </button>
         </div>
@@ -1297,17 +1297,17 @@ export function CoachHistorySessionCard({ session, onDetails }: { session: Coach
     loadShared ? t('history.reportedShort', { value: formatPercent(summary.reportRate) }) : null,
   ].filter(Boolean);
   return (
-    <button type="button" data-history-session onClick={onDetails} className="flex w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 px-3 py-3 text-left transition hover:border-violet-300/45 hover:bg-slate-900/70">
+    <button type="button" data-history-session onClick={onDetails} className="flex w-full items-center gap-3 rounded-2xl bg-white/[0.04] px-3 py-3 text-left transition hover:bg-white/[0.07]">
       <div className="w-12 shrink-0 text-center">
-        <p className="text-xs font-black uppercase text-slate-400">{formatWeekday(start)}</p>
-        <p className="text-lg font-black leading-tight text-white">{start.getDate()}.</p>
+        <p className="text-xs font-semibold uppercase text-slate-400">{formatWeekday(start)}</p>
+        <p className="text-lg font-semibold leading-tight text-white">{start.getDate()}.</p>
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-black text-white">{displayTitle(session.title)} <span className="font-bold text-slate-400">{session.teamName}</span></p>
-        <p className="truncate text-xs font-bold text-slate-400">{formatTimeRange(session.startsAt, session.endsAt, session.sessionType)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
-        <p className="mt-0.5 truncate text-xs font-black text-slate-200">{facts.join(' · ')}</p>
+        <p className="truncate text-sm font-semibold text-white">{displayTitle(session.title)} <span className="font-medium text-slate-400">{session.teamName}</span></p>
+        <p className="truncate text-xs font-medium text-slate-400">{formatTimeRange(session.startsAt, session.endsAt, session.sessionType)}{session.facilityName ? ` · ${session.facilityName}` : ''}</p>
+        <p className="mt-0.5 truncate text-xs font-semibold text-slate-200">{facts.join(' · ')}</p>
       </div>
-      <span aria-hidden className="text-lg font-black text-slate-500">›</span>
+      <span aria-hidden className="text-lg font-semibold text-slate-400">›</span>
     </button>
   );
 }

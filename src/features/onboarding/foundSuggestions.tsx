@@ -43,7 +43,7 @@ export function Choice({ label, selected = false, onSelect, disabled = false }: 
       onClick={onSelect}
       disabled={disabled}
       aria-pressed={selected}
-      className={`rounded-full border px-3 py-1.5 text-sm font-black transition active:scale-95 disabled:opacity-50 ${selected ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500'}`}
+      className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition active:scale-95 disabled:opacity-50 ${selected ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500'}`}
     >
       {selected ? '✓ ' : ''}{label}
     </button>

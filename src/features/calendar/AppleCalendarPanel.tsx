@@ -32,8 +32,8 @@ import { formatShortDate, formatTime } from '@/shared/format';
 import { errorText, useT, type MessageKey } from '@/shared/i18n';
 import { rich } from '@/shared/i18n/rich';
 
-const buttonClass = 'rounded-2xl border border-slate-700 px-4 py-2 text-xs font-black text-slate-200 disabled:opacity-50';
-const primaryClass = 'rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950 disabled:opacity-50';
+const buttonClass = 'rounded-2xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 disabled:opacity-50';
+const primaryClass = 'rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50';
 const APPLE_ACCOUNT_URL = 'https://account.apple.com/account/manage';
 
 /** A line under the panel; a caught error is turned into text while rendering (docs/i18n.md, rule 9). */
@@ -88,7 +88,7 @@ export function AppleCalendarPanel({ canRead, onConnectedChange }: { canRead: bo
 
   return (
     <div id="apple-calendar" className="grid scroll-mt-24 gap-3">
-      <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{t('apple.heading')}</p>
+      <p className="text-xs font-semibold text-slate-400">{t('apple.heading')}</p>
       <div className="grid gap-4">
         {status === undefined ? <p className="text-sm text-slate-400">{t('apple.loading')}</p> : null}
 
@@ -106,9 +106,9 @@ export function AppleCalendarPanel({ canRead, onConnectedChange }: { canRead: bo
         {status ? (
           <div className="grid gap-4">
             <div className="grid gap-1">
-              <p className="text-sm font-black text-white">{t('apple.connectedAs', { appleId: status.appleId })}</p>
+              <p className="text-sm font-semibold text-white">{t('apple.connectedAs', { appleId: status.appleId })}</p>
               {status.status === 'error' ? (
-                <p role="alert" className="text-xs font-bold text-amber-200">
+                <p role="alert" className="text-xs font-medium text-amber-200">
                   {t('apple.lastSyncFailed', { error: status.lastError ? errorText(t, serverError(status.lastError)) : t('apple.unknownError') })}{' '}
                   <button type="button" onClick={() => setGuideOpen(true)} className="underline">{t('apple.enterAgain')}</button>
                 </p>
@@ -118,16 +118,16 @@ export function AppleCalendarPanel({ canRead, onConnectedChange }: { canRead: bo
             </div>
 
             {canRead ? <div className="grid gap-2">
-              <p className="text-sm font-black text-white">{t('apple.ownTitle')}</p>
+              <p className="text-sm font-semibold text-white">{t('apple.ownTitle')}</p>
               <p className="text-xs text-slate-400">{t('apple.ownDetail')}</p>
               {sources.length === 0 ? <p className="text-sm text-slate-400">{t('apple.noCalendars')}</p> : null}
               {sources.map((source) => (
-                <label key={source.url} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-3 py-2.5">
+                <label key={source.url} className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-3 py-2.5">
                   <span className="flex min-w-0 items-center gap-2">
                     <span aria-hidden className="h-3 w-3 shrink-0 rounded-full" style={{ background: source.color ?? '#64748b' }} />
-                    <span className="truncate text-sm font-black text-slate-100">{source.name}</span>
+                    <span className="truncate text-sm font-semibold text-slate-100">{source.name}</span>
                   </span>
-                  <span className="flex shrink-0 items-center gap-2 text-xs font-bold text-slate-400">
+                  <span className="flex shrink-0 items-center gap-2 text-xs font-medium text-slate-400">
                     {source.import ? t('apple.shown') : t('apple.off')}
                     <input type="checkbox" role="switch" checked={source.import} disabled={busy} onChange={() => void toggle(source)} className="h-5 w-5 accent-emerald-300" />
                   </span>
@@ -137,12 +137,12 @@ export function AppleCalendarPanel({ canRead, onConnectedChange }: { canRead: bo
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <button type="button" disabled={busy} onClick={() => void run(syncAppleCalendar, 'apple.syncedDone')} className={buttonClass}>{busy ? t('apple.oneMoment') : t('apple.syncNow')}</button>
-              <button type="button" disabled={busy} onClick={() => setConfirmDisconnect(true)} className="text-xs font-bold text-slate-400 underline">{t('apple.disconnect')}</button>
+              <button type="button" disabled={busy} onClick={() => setConfirmDisconnect(true)} className="text-xs font-medium text-slate-400 underline">{t('apple.disconnect')}</button>
             </div>
           </div>
         ) : null}
 
-        {message ? <p role={'caught' in message ? 'alert' : 'status'} className={`text-xs font-bold ${'caught' in message ? 'text-red-200' : 'text-emerald-200'}`}>{'caught' in message ? errorText(t, message.caught) : message.keys.map((key) => t(key)).join(' ')}</p> : null}
+        {message ? <p role={'caught' in message ? 'alert' : 'status'} className={`text-xs font-medium ${'caught' in message ? 'text-red-200' : 'text-emerald-200'}`}>{'caught' in message ? errorText(t, message.caught) : message.keys.map((key) => t(key)).join(' ')}</p> : null}
       </div>
 
       {guideOpen ? (
@@ -174,7 +174,7 @@ export function AppleCalendarPanel({ canRead, onConnectedChange }: { canRead: bo
   );
 }
 
-const strong = (chunk: string) => <span className="font-black text-white">{chunk}</span>;
+const strong = (chunk: string) => <span className="font-semibold text-white">{chunk}</span>;
 
 /** The guided connection: what it does, the app-specific password, then connect. */
 export function ConnectGuide({ initialAppleId, onClose, onConnected }: { initialAppleId: string; onClose: () => void; onConnected: () => Promise<void> }) {
@@ -200,16 +200,16 @@ export function ConnectGuide({ initialAppleId, onClose, onConnected }: { initial
   }
 
   const sheet = (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/80 p-0 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="apple-guide-title">
-      <div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-slate-700 bg-slate-950 p-5 sm:max-w-md sm:rounded-3xl">
+    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="apple-guide-title">
+      <div className="os-sheet rounded-b-none sm:rounded-b-3xl max-h-[92dvh] w-full overflow-y-auto p-5 sm:max-w-md">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-black text-emerald-300">{t('apple.guide.step', { step })}</p>
-            <h2 id="apple-guide-title" className="mt-1 text-xl font-black text-white">
+            <p className="text-xs font-semibold text-emerald-300">{t('apple.guide.step', { step })}</p>
+            <h2 id="apple-guide-title" className="mt-1 text-xl font-semibold text-white">
               {step === 1 ? t('apple.guide.title1') : step === 2 ? t('apple.guide.title2') : t('apple.guide.title3')}
             </h2>
           </div>
-          <button type="button" onClick={onClose} className="rounded-full border border-slate-700 px-3 py-1 text-xs font-bold text-slate-300">{t('apple.guide.close')}</button>
+          <button type="button" onClick={onClose} className="rounded-full border border-slate-700 px-3 py-1 text-xs font-medium text-slate-300">{t('apple.guide.close')}</button>
         </div>
 
         {step === 1 ? (
@@ -224,7 +224,7 @@ export function ConnectGuide({ initialAppleId, onClose, onConnected }: { initial
         {step === 2 ? (
           <div className="mt-4 grid gap-3 text-sm text-slate-300">
             <ol className="grid list-decimal gap-2 pl-5">
-              <li>{rich(t('apple.guide.open'), strong, { link: <a href={APPLE_ACCOUNT_URL} target="_blank" rel="noreferrer" className="font-black text-sky-300 underline">account.apple.com</a> })}</li>
+              <li>{rich(t('apple.guide.open'), strong, { link: <a href={APPLE_ACCOUNT_URL} target="_blank" rel="noreferrer" className="font-semibold text-sky-300 underline">account.apple.com</a> })}</li>
               <li>{rich(t('apple.guide.goTo'), strong)}</li>
               <li>{rich(t('apple.guide.tap'), strong)}</li>
               <li>{rich(t('apple.guide.copy'), strong, { example: <span className="font-mono text-white">abcd-efgh-ijkl-mnop</span> })}</li>
@@ -239,16 +239,16 @@ export function ConnectGuide({ initialAppleId, onClose, onConnected }: { initial
 
         {step === 3 ? (
           <form onSubmit={(event) => void submit(event)} className="mt-4 grid gap-3 text-sm text-slate-300">
-            <label className="grid gap-1 text-xs font-black uppercase tracking-[0.16em] text-slate-400">
+            <label className="grid gap-1 text-xs font-semibold text-slate-400">
               {t('apple.guide.appleId')}
               <input required type="email" autoComplete="username" value={appleId} onChange={(event) => setAppleId(event.target.value)} placeholder="you@icloud.com" className="os-field normal-case tracking-normal" />
             </label>
-            <label className="grid gap-1 text-xs font-black uppercase tracking-[0.16em] text-slate-400">
+            <label className="grid gap-1 text-xs font-semibold text-slate-400">
               {t('apple.guide.appPassword')}
               <input required autoComplete="off" autoCapitalize="none" spellCheck={false} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="abcd-efgh-ijkl-mnop" className="os-field font-mono normal-case tracking-normal" />
             </label>
             <p className="text-xs text-slate-400">{t('apple.guide.notNormal')}</p>
-            {error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null}
+            {error ? <p role="alert" className="text-xs font-medium text-red-200">{error}</p> : null}
             <div className="flex gap-2">
               {initialAppleId ? null : <button type="button" onClick={() => setStep(2)} className={buttonClass}>{t('apple.guide.back')}</button>}
               <button type="submit" disabled={busy} className={`grow ${primaryClass}`}>{busy ? t('apple.guide.checking') : t('apple.guide.connect')}</button>

@@ -55,18 +55,18 @@ export function PlayerCard({ name, photo, personId, teamName, teamLogo, value, f
         <PersonAvatar personId={personId} name={name || '?'} size="lg" src={photo ?? undefined} />
         <div className="min-w-0 flex-1">
           {teamName ? (
-            <p className="flex min-w-0 items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-emerald-300">
+            <p className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-emerald-300">
               {/* eslint-disable-next-line @next/next/no-img-element -- public storage links and data URLs, not optimisable */}
               {teamLogo ? <img src={teamLogo} alt="" className="h-4 w-4 shrink-0 object-contain" /> : null}
               <span className="truncate">{teamName}</span>
             </p>
           ) : null}
-          {showName ? <p className="mt-0.5 truncate text-xl font-black text-white">{name || t('profile.yourName')}</p> : null}
-          <p className="truncate text-sm font-bold text-slate-300">{positionShort(value.position, t) ?? t('profile.noPosition')}</p>
+          {showName ? <p className="mt-0.5 truncate text-xl font-semibold text-white">{name || t('profile.yourName')}</p> : null}
+          <p className="truncate text-sm font-medium text-slate-300">{positionShort(value.position, t) ?? t('profile.noPosition')}</p>
           {facts.length > 0 ? <p className="mt-1 text-xs text-slate-400">{facts.join(' · ')}</p> : null}
         </div>
         {fixedNumbers ? (
-          <span className={`shrink-0 text-5xl font-black tabular-nums leading-none ${value.jerseyNumber !== null ? 'text-emerald-300' : 'text-slate-700'}`}>
+          <span className={`shrink-0 text-5xl font-semibold tabular-nums leading-none ${value.jerseyNumber !== null ? 'text-emerald-300' : 'text-slate-700'}`}>
             <span aria-hidden>{value.jerseyNumber ?? '#'}</span>
             {value.jerseyNumber !== null ? <span className="sr-only">{t('profile.numberAria', { number: value.jerseyNumber })}</span> : null}
           </span>
@@ -82,9 +82,9 @@ export function ProfileMeter({ missing, total }: { missing: MessageKey[]; total:
   const done = total - missing.length;
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5">
-      <div className="flex min-w-0 items-baseline justify-between text-xs font-black">
+      <div className="flex min-w-0 items-baseline justify-between text-xs font-semibold">
         <span className="shrink-0 whitespace-nowrap text-slate-300">{missing.length === 0 ? t('profile.complete') : t('profile.progress', { done, total })}</span>
-        {missing.length > 0 ? <span className="min-w-0 truncate pl-3 text-slate-500">{t('profile.stillMissing', { parts: missing.map((key) => t(key)).join(', ') })}</span> : null}
+        {missing.length > 0 ? <span className="min-w-0 truncate pl-3 text-slate-400">{t('profile.stillMissing', { parts: missing.map((key) => t(key)).join(', ') })}</span> : null}
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
         <div className="h-full rounded-full bg-emerald-300 transition-all duration-300" style={{ width: `${Math.round((done / total) * 100)}%` }} />
@@ -95,7 +95,7 @@ export function ProfileMeter({ missing, total }: { missing: MessageKey[]; total:
 
 function Chip({ label, selected, onSelect }: { label: string; selected: boolean; onSelect: () => void }) {
   return (
-    <button type="button" onClick={onSelect} aria-pressed={selected} className={`rounded-full border px-3 py-1.5 text-xs font-black transition active:scale-95 ${selected ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500'}`}>
+    <button type="button" onClick={onSelect} aria-pressed={selected} className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition active:scale-95 ${selected ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500'}`}>
       {label}
     </button>
   );
@@ -116,7 +116,7 @@ export function PositionPicker({ value, onChange, sport, label }: { value: strin
   const showText = groups.length === 0 || typing;
   return (
     <div className="grid min-w-0 gap-1">
-      {label ? <span className="text-sm font-bold text-slate-200">{t(field.label)}</span> : null}
+      {label ? <span className="text-sm font-medium text-slate-200">{t(field.label)}</span> : null}
       {groups.length > 0 ? (
         <select
           aria-label={t(field.label)}
@@ -127,7 +127,7 @@ export function PositionPicker({ value, onChange, sport, label }: { value: strin
             setTyping(false);
             onChange(picked || null);
           }}
-          className="os-field min-w-0 font-bold"
+          className="os-field min-w-0 font-medium"
         >
           <option value="">{t('profile.choose')}</option>
           {groups.length === 1
@@ -145,7 +145,7 @@ export function PositionPicker({ value, onChange, sport, label }: { value: strin
 export function SideSwitch({ value, onChange, label, large = false }: { value: StrongSide | null; onChange: (side: StrongSide | null) => void; label: string; large?: boolean }) {
   const t = useT();
   return (
-    <div role="radiogroup" aria-label={label} className={`grid grid-cols-3 rounded-2xl border border-slate-700 bg-slate-950/70 p-1 ${large ? 'gap-1' : ''}`}>
+    <div role="radiogroup" aria-label={label} className={`grid grid-cols-3 rounded-2xl bg-white/[0.04] p-1 ${large ? 'gap-1' : ''}`}>
       {STRONG_SIDES.map((side) => (
         <button
           key={side}
@@ -153,7 +153,7 @@ export function SideSwitch({ value, onChange, label, large = false }: { value: S
           role="radio"
           aria-checked={value === side}
           onClick={() => onChange(value === side ? null : side)}
-          className={`rounded-xl font-black transition active:scale-[0.97] ${large ? 'py-4 text-base' : 'py-2 text-xs'} ${value === side ? 'bg-emerald-300 text-slate-950 shadow-[0_0_20px_rgba(110,231,183,0.35)]' : 'text-slate-300 hover:text-white'}`}
+          className={`rounded-xl font-semibold transition active:scale-[0.97] ${large ? 'py-4 text-base' : 'py-2 text-xs'} ${value === side ? 'bg-slate-100 text-slate-950' : 'text-slate-300 hover:text-white'}`}
         >
           {t(SIDE_KEY[side])}
         </button>
@@ -175,20 +175,20 @@ export function PlayerProfileFields({ value, onChange, sport, fixedNumbers }: { 
     <div className="grid gap-4">
       <div className={`grid items-start gap-3 ${fixedNumbers ? 'grid-cols-[5.5rem_minmax(0,1fr)]' : 'grid-cols-1'}`}>
         {fixedNumbers ? (
-          <label className="grid min-w-0 gap-1 text-sm font-bold text-slate-200">
+          <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-200">
             {t('profile.number')}
-            <input type="number" inputMode="numeric" min={0} max={99} value={value.jerseyNumber ?? ''} onChange={(event) => set({ jerseyNumber: numberOrNull(event.target.value, 0, 99) })} placeholder="7" className="os-field min-w-0 text-center font-black" />
+            <input type="number" inputMode="numeric" min={0} max={99} value={value.jerseyNumber ?? ''} onChange={(event) => set({ jerseyNumber: numberOrNull(event.target.value, 0, 99) })} placeholder="7" className="os-field min-w-0 text-center font-semibold" />
           </label>
         ) : null}
         <PositionPicker value={value.position} onChange={(position) => set({ position })} sport={sport} label />
       </div>
       <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3">
-        <label className="grid min-w-0 gap-1 text-sm font-bold text-slate-200">
+        <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-200">
           {t('profile.height')}
           <input type="number" inputMode="numeric" min={100} max={230} value={value.heightCm ?? ''} onChange={(event) => set({ heightCm: event.target.value === '' ? null : Number(event.target.value) })} onBlur={(event) => set({ heightCm: numberOrNull(event.target.value, 100, 230) })} placeholder="180" className="os-field min-w-0 text-center" />
         </label>
         <div className="grid min-w-0 content-start gap-1">
-          <span className="text-sm font-bold text-slate-200">{t(strongSideLabel(sport))}</span>
+          <span className="text-sm font-medium text-slate-200">{t(strongSideLabel(sport))}</span>
           <SideSwitch value={value.strongSide} onChange={(strongSide) => set({ strongSide })} label={t(strongSideLabel(sport))} />
         </div>
       </div>
@@ -277,11 +277,11 @@ export function PlayerProfileEditor({ database, person }: { database: LocalDatab
       ) : null}
       <PlayerCard name={displayName(person)} photo={photo} teamName={team.name} teamLogo={teamLogoUrl(team)} value={value} fixedNumbers={fixedNumbers} sport={sport} />
       <ProfileMeter missing={missing} total={fixedNumbers ? 5 : 4} />
-      {savedComplete && !dirty ? <button type="button" onClick={() => setRevealing(true)} className="justify-self-start text-xs font-black text-emerald-300 underline">{t('profile.reveal.show')}</button> : null}
+      {savedComplete && !dirty ? <button type="button" onClick={() => setRevealing(true)} className="justify-self-start text-xs font-semibold text-emerald-300 underline">{t('profile.reveal.show')}</button> : null}
       <PlayerProfileFields value={value} onChange={(next) => { setValue(next); setMessage(null); }} sport={sport} fixedNumbers={fixedNumbers} />
       <div className="flex flex-wrap items-center gap-3">
         {dirty ? <button type="submit" disabled={!heightOk} className="os-success px-4 py-2 text-sm disabled:opacity-60">{t('profile.save')}</button> : null}
-        {message ? <p role={message.error ? 'alert' : 'status'} className={`text-xs font-bold ${message.error ? 'text-red-200' : 'text-emerald-200'}`}>{message.text}</p> : null}
+        {message ? <p role={message.error ? 'alert' : 'status'} className={`text-xs font-medium ${message.error ? 'text-red-200' : 'text-emerald-200'}`}>{message.text}</p> : null}
       </div>
     </form>
   );
@@ -317,7 +317,7 @@ export function CoachPlayerProfile({ database, teamId, person, canEdit }: { data
   return (
     <div className="grid gap-3">
       <PlayerCard name={displayName(person)} personId={person.id} showName={false} value={value} fixedNumbers={fixedNumbers} sport={sport} />
-      {canEdit && !editing ? <button type="button" onClick={() => setEditing(true)} className="justify-self-start text-xs font-black text-sky-300 underline">{t('profile.editNumberPosition')}</button> : null}
+      {canEdit && !editing ? <button type="button" onClick={() => setEditing(true)} className="justify-self-start text-xs font-semibold text-sky-300 underline">{t('profile.editNumberPosition')}</button> : null}
       {canEdit && editing ? (
         <form
           className="grid gap-2"
@@ -331,11 +331,11 @@ export function CoachPlayerProfile({ database, teamId, person, canEdit }: { data
           }}
         >
           <div className={`grid items-start gap-2 ${fixedNumbers ? 'grid-cols-[5rem_minmax(0,1fr)]' : 'grid-cols-1'}`}>
-            {fixedNumbers ? <input type="number" inputMode="numeric" min={0} max={99} value={number} onChange={(event) => { setNumber(event.target.value); setError(null); }} aria-label={t('profile.number')} placeholder="#" className="os-field min-w-0 text-center font-black" /> : null}
+            {fixedNumbers ? <input type="number" inputMode="numeric" min={0} max={99} value={number} onChange={(event) => { setNumber(event.target.value); setError(null); }} aria-label={t('profile.number')} placeholder="#" className="os-field min-w-0 text-center font-semibold" /> : null}
             <PositionPicker value={position} onChange={(next) => { setPosition(next); setError(null); }} sport={sport} />
           </div>
           {dirty ? <button type="submit" className="os-secondary justify-self-start px-4 py-2 text-xs">{t('profile.save')}</button> : null}
-          {error ? <p role="alert" className="text-xs font-bold text-red-200">{errorText(t, error)}</p> : null}
+          {error ? <p role="alert" className="text-xs font-medium text-red-200">{errorText(t, error)}</p> : null}
         </form>
       ) : null}
     </div>
@@ -351,7 +351,7 @@ export function FixedNumbersSwitch({ team }: { team: Team }) {
     <div className="grid gap-1">
       <button type="button" role="switch" aria-checked={on} onClick={() => { try { setTeamFixedNumbers(team.id, !on); setError(null); } catch (caught) { setError(caught); } }} className="flex items-center justify-between gap-3 text-left">
         <span className="min-w-0">
-          <span className="block text-sm font-black text-white">{t('profile.fixedNumbers')}</span>
+          <span className="block text-sm font-semibold text-white">{t('profile.fixedNumbers')}</span>
           <span className="block text-xs text-slate-400">{t('profile.fixedNumbersDetail')}</span>
         </span>
         <span aria-hidden className={`relative h-6 w-11 shrink-0 rounded-full transition ${on ? 'bg-emerald-300' : 'bg-slate-700'}`}>
@@ -376,15 +376,15 @@ export function ProfileTeaser({ database, personId }: { database: LocalDatabase;
   const { done, total, missing } = profileCompleteness(database, personId, wearsNumbers(database.teams.find((team) => team.id === firstTeam), sport));
   if (dismissed || missing.length === 0) return null;
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-emerald-300/25 bg-emerald-300/[0.05] px-3 py-2.5">
+    <div className="flex items-center gap-3 px-4 py-3">
       <Link href="/settings#player-profile" className="flex min-w-0 flex-1 items-center gap-3">
-        <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-300/15 text-xs font-black tabular-nums text-emerald-200">{done}/{total}</span>
+        <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/[0.06] text-xs font-semibold tabular-nums text-emerald-300">{done}/{total}</span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-bold text-slate-100">{t('profile.teaser')}</span>
+          <span className="block text-sm font-medium text-slate-100">{t('profile.teaser')}</span>
           <span className="block truncate text-xs text-slate-400">{t('profile.stillMissing', { parts: missing.map((part) => t(part === 'position' ? positionField(sport).part : PART_KEY[part])).join(', ') })}</span>
         </span>
       </Link>
-      <button type="button" onClick={() => { dismissHint('profileNudge'); setDismissed(true); }} aria-label={t('profile.teaserLater')} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-slate-500 hover:text-slate-200">×</button>
+      <button type="button" onClick={() => { dismissHint('profileNudge'); setDismissed(true); }} aria-label={t('profile.teaserLater')} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-slate-400 hover:text-slate-200">×</button>
     </div>
   );
 }

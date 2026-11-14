@@ -31,17 +31,17 @@ export function SyncStatusBanner() {
   return (
     <div className="pointer-events-none fixed inset-x-3 bottom-24 z-[130] mx-auto grid max-w-md justify-items-center gap-2 sm:bottom-6">
       {offline ? (
-        <p role="status" className="pointer-events-auto rounded-full border border-amber-300/50 bg-amber-950/95 px-3 py-1.5 text-xs font-black text-amber-100 shadow-2xl">
+        <p role="status" className="pointer-events-auto rounded-full border border-amber-300/50 bg-amber-950/95 px-3 py-1.5 text-xs font-semibold text-amber-100 shadow-2xl">
           {t('sync.offline')}
           {status.savedAt ? t('sync.asOf', { time: since(status.savedAt) }) : ''}
           {status.pending > 0 ? t('sync.waiting', { count: status.pending }) : ''}
         </p>
       ) : null}
       {status.rejected ? (
-        <div role="alert" className="pointer-events-auto w-full rounded-2xl border border-red-500/50 bg-red-950/95 p-3 text-sm font-bold text-red-100 shadow-2xl">
+        <div role="alert" className="pointer-events-auto w-full rounded-2xl border border-red-500/50 bg-red-950/95 p-3 text-sm font-medium text-red-100 shadow-2xl">
           <div className="flex items-start justify-between gap-3">
             <p>{status.rejectedNotice ? errorText(t, status.rejectedNotice) : status.rejected}</p>
-            <button type="button" onClick={dismissRejectedChange} className="shrink-0 rounded-full border border-red-300/40 px-2 py-1 text-xs font-black">{t('sync.ok')}</button>
+            <button type="button" onClick={dismissRejectedChange} className="shrink-0 rounded-full border border-red-300/40 px-2 py-1 text-xs font-semibold">{t('sync.ok')}</button>
           </div>
         </div>
       ) : null}

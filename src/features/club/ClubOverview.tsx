@@ -63,8 +63,8 @@ import {
   type Team,
 } from '@/shared/data';
 
-const inputClass = 'min-w-0 rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm font-bold text-slate-100 outline-none focus:border-sky-300';
-const smallButtonClass = 'rounded-xl border px-3 py-2 text-xs font-black transition disabled:opacity-50';
+const inputClass = 'min-w-0 rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm font-medium text-slate-100 outline-none focus:border-sky-300';
+const smallButtonClass = 'rounded-xl border px-3 py-2 text-xs font-semibold transition disabled:opacity-50';
 
 type Run = (action: () => void) => boolean;
 
@@ -74,7 +74,7 @@ function Badge({ children, tone = 'default' }: { children: React.ReactNode; tone
     amber: 'border-amber-300/40 text-amber-200',
     emerald: 'border-emerald-300/40 text-emerald-200',
   };
-  return <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-black ${tones[tone]}`}>{children}</span>;
+  return <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold ${tones[tone]}`}>{children}</span>;
 }
 
 /** A name field and a button, for renaming in place. */
@@ -117,9 +117,9 @@ function RoleHolderAccess({ database, clubRole, onRun }: { database: LocalDataba
   const t = useT();
   const person = database.people.find((candidate) => candidate.id === clubRole.personId);
   if (!person) return null;
-  if (person.userId) return <p className="text-[11px] font-bold text-emerald-300">{t('staff.accountConnected')}</p>;
+  if (person.userId) return <p className="text-xs font-medium text-emerald-300">{t('staff.accountConnected')}</p>;
   // Links only work with the club server; in the demo club nobody signs in.
-  if (!isRemoteMode()) return <p className="text-[11px] font-bold text-slate-500">{t('club.noAccountDemo')}</p>;
+  if (!isRemoteMode()) return <p className="text-xs font-medium text-slate-400">{t('club.noAccountDemo')}</p>;
   const invite = openClubRoleInviteFor(database, clubRole.id);
   if (!invite) {
     return (
@@ -131,9 +131,9 @@ function RoleHolderAccess({ database, clubRole, onRun }: { database: LocalDataba
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
   return (
     <div className="grid gap-1">
-      <p className="text-[11px] font-bold text-amber-200">{t('staff.invitedUntil', { date: formatShortDate(invite.expiresAt) })}</p>
+      <p className="text-xs font-medium text-amber-200">{t('staff.invitedUntil', { date: formatShortDate(invite.expiresAt) })}</p>
       <ShareLink label={t('staff.inviteLinkLabel', { name: displayName(person) })} url={`${origin}/join?invite=${invite.token}`} shareText={t('staff.inviteShareText', { name: person.firstName })} />
-      <button type="button" onClick={() => onRun(() => revokeClubRoleInvite(invite.token))} className="justify-self-start text-[11px] font-bold text-slate-400 underline">{t('staff.revokeLink')}</button>
+      <button type="button" onClick={() => onRun(() => revokeClubRoleInvite(invite.token))} className="justify-self-start text-xs font-medium text-slate-400 underline">{t('staff.revokeLink')}</button>
     </div>
   );
 }
@@ -165,16 +165,16 @@ function RoleHolders({
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
-      {holders.length === 0 ? <p className="text-sm font-bold text-amber-200">{t(role === 'admin' ? 'club.noAdmin' : 'club.noLead')}</p> : null}
+      {holders.length === 0 ? <p className="text-sm font-medium text-amber-200">{t(role === 'admin' ? 'club.noAdmin' : 'club.noLead')}</p> : null}
       {holders.map((clubRole) => (
-        <div key={clubRole.id} className="grid gap-2 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+        <div key={clubRole.id} className="grid gap-2 rounded-xl bg-white/[0.04] p-3">
           <div className="flex items-center justify-between gap-2">
-            <p className="min-w-0 truncate text-sm font-black text-slate-100">
+            <p className="min-w-0 truncate text-sm font-semibold text-slate-100">
               {nameOf(clubRole)}
-              {clubRole.personId === selfId ? <span className="ml-2 text-xs font-bold text-slate-500">{t('club.you')}</span> : null}
+              {clubRole.personId === selfId ? <span className="ml-2 text-xs font-medium text-slate-400">{t('club.you')}</span> : null}
             </p>
             {canManage ? (
-              <button type="button" onClick={() => setConfirmRemove(clubRole)} className="shrink-0 text-xs font-bold text-slate-400 underline">
+              <button type="button" onClick={() => setConfirmRemove(clubRole)} className="shrink-0 text-xs font-medium text-slate-400 underline">
                 {t('club.remove')}
               </button>
             ) : null}
@@ -183,7 +183,7 @@ function RoleHolders({
         </div>
       ))}
       {canManage && holders.length > 0 && !adding ? (
-        <button type="button" onClick={() => setAdding(true)} className="justify-self-start text-xs font-bold text-sky-300 underline">
+        <button type="button" onClick={() => setAdding(true)} className="justify-self-start text-xs font-medium text-sky-300 underline">
           {role === 'admin' ? t('club.addAnotherAdmin') : t('club.addAnotherLead')}
         </button>
       ) : null}
@@ -289,13 +289,13 @@ function MessageWritersPanel({
       .map((person) => ({ person, detail: '', lead: false })),
   ];
   return (
-    <div className="grid gap-2 rounded-2xl border border-slate-800 bg-slate-950/50 p-3">
+    <div className="grid gap-2 rounded-2xl bg-white/[0.04] p-3">
       <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="flex items-center justify-between gap-3 text-left">
         <span className="grid gap-0.5">
-          <span className="text-sm font-black text-slate-100">{departmentId === null ? t('club.writers.clubTitle') : t('club.writers.title')}</span>
+          <span className="text-sm font-semibold text-slate-100">{departmentId === null ? t('club.writers.clubTitle') : t('club.writers.title')}</span>
           <span className="text-xs text-slate-400">{departmentId === null ? t('club.writers.clubDetail') : t('club.writers.detail')}</span>
         </span>
-        <span className="shrink-0 text-xs font-black text-sky-300">{t('club.writers.count', { count: allowed.size })} {open ? '▴' : '▾'}</span>
+        <span className="shrink-0 text-xs font-semibold text-sky-300">{t('club.writers.count', { count: allowed.size })} {open ? '▴' : '▾'}</span>
       </button>
       {open ? (
         listed.length === 0 ? <p className="text-xs text-slate-400">{departmentId === null ? t('club.writers.noLeads') : t('club.writers.noCoaches')}</p> : (
@@ -310,7 +310,7 @@ function MessageWritersPanel({
                     className="mt-0.5 h-4 w-4 shrink-0 accent-teal-300"
                   />
                   <span className="grid min-w-0 gap-0.5">
-                    <span className="text-sm font-bold text-slate-100">{candidate.person.firstName} {candidate.person.lastName}</span>
+                    <span className="text-sm font-medium text-slate-100">{candidate.person.firstName} {candidate.person.lastName}</span>
                     {candidate.detail ? <span className="text-xs text-slate-400">{candidate.detail}</span> : null}
                   </span>
                 </label>
@@ -344,11 +344,11 @@ function TeamCard({
   const hasHeadCoach = staff.some((entry) => entry.role?.locked);
 
   return (
-    <li data-club-team-id={team.id} className="rounded-2xl border border-slate-800 bg-slate-950/60">
+    <li data-club-team-id={team.id} className="rounded-2xl bg-white/[0.04]">
       <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left">
         <span className="min-w-0">
           <span className="flex flex-wrap items-center gap-2">
-            <span className="min-w-0 truncate text-sm font-black text-white">{team.name}</span>
+            <span className="min-w-0 truncate text-sm font-semibold text-white">{team.name}</span>
             {teamHasFeature(database, team.id, 'load') ? <Badge tone="emerald">{t('club.badge.load')}</Badge> : null}
             {!hasHeadCoach ? <Badge tone="amber">{t('club.badge.noHeadCoach')}</Badge> : null}
           </span>
@@ -361,18 +361,18 @@ function TeamCard({
                 }).join(', ')}
           </span>
         </span>
-        <span aria-hidden className="shrink-0 text-lg font-black text-slate-500">{open ? '−' : '+'}</span>
+        <span aria-hidden className="shrink-0 text-lg font-semibold text-slate-400">{open ? '−' : '+'}</span>
       </button>
       {open ? (
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4 border-t border-slate-800 p-4">
           <RenameForm label={t('club.teamName', { name: team.name })} current={team.name} onSave={(name) => onRun(() => renameTeam(team.id, name))} />
           {!hasHeadCoach ? (
-            <p className="rounded-xl border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs font-bold text-amber-100">
+            <p className="rounded-xl border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs font-medium text-amber-100">
               {isRemoteMode() ? t('club.addHeadCoachServer') : t('club.addHeadCoach')}
             </p>
           ) : null}
           {hasCoachPermission(database, personId, team.id, 'manageStaff') ? <TeamHealthSettings database={database} team={team} /> : null}<TeamStaffPanel database={database} teamId={team.id} canManage={hasCoachPermission(database, personId, team.id, 'manageStaff')} />
-          <button type="button" onClick={() => setConfirmArchive(true)} className="justify-self-start text-xs font-bold text-slate-400 underline">
+          <button type="button" onClick={() => setConfirmArchive(true)} className="justify-self-start text-xs font-medium text-slate-400 underline">
             {t('club.archiveTeam')}
           </button>
           <AppConfirmDialog
@@ -432,13 +432,13 @@ function DepartmentSection({
     return (
       <button type="button" onClick={() => setExpanded(true)} aria-expanded={false} data-testid="department-row" className="flex w-full items-center gap-4 rounded-3xl border border-slate-800 bg-slate-950/65 px-5 py-4 text-left transition hover:border-slate-600">
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-lg font-black text-white">{department.name}</span>
-          <span className="mt-0.5 block text-sm font-bold text-slate-400">
+          <span className="block truncate text-lg font-semibold text-white">{department.name}</span>
+          <span className="mt-0.5 block text-sm font-medium text-slate-400">
             {t('club.teamCount', { count: active.length })}
             {withoutHead > 0 ? <span className="text-amber-200"> · {t('club.setup.withoutHead', { count: withoutHead })}</span> : null}
           </span>
         </span>
-        <span aria-hidden className="text-xl font-black text-slate-500">›</span>
+        <span aria-hidden className="text-xl font-semibold text-slate-400">›</span>
       </button>
     );
   }
@@ -463,11 +463,11 @@ function DepartmentSection({
           <div className="grid gap-3">
             <RenameForm label={t('club.departmentName', { name: department.name })} current={department.name} onSave={(name) => onRun(() => renameDepartment(department.id, name))} />
             {teams.length === 0 ? (
-              <button type="button" onClick={() => setConfirmDelete(true)} className="justify-self-start text-xs font-bold text-red-300 underline">
+              <button type="button" onClick={() => setConfirmDelete(true)} className="justify-self-start text-xs font-medium text-red-300 underline">
                 {t('club.deleteDepartment')}
               </button>
             ) : (
-              <p className="text-xs text-slate-500">{t('club.deleteDepartmentHint')}</p>
+              <p className="text-xs text-slate-400">{t('club.deleteDepartmentHint')}</p>
             )}
           </div>
         ) : null}
@@ -485,14 +485,14 @@ function DepartmentSection({
         />
 
         <div className="grid gap-2">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('club.departmentLead')}</p>
+          <p className="text-xs font-semibold text-slate-400">{t('club.departmentLead')}</p>
           <RoleHolders database={database} role="department_lead" departmentId={department.id} canManage={admin} selfId={personId} onRun={onRun} />
         </div>
 
         <MessageWritersPanel database={database} departmentId={department.id} candidates={departmentWriterCandidates(database, department.id)} onRun={onRun} />
 
         <div className="grid gap-2">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('club.teams')}</p>
+          <p className="text-xs font-semibold text-slate-400">{t('club.teams')}</p>
           {active.length === 0 ? <p className="text-sm text-slate-400">{t('club.noTeams')}</p> : null}
           <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
             {active.map((team) => (
@@ -530,14 +530,14 @@ function DepartmentSection({
           )}
           {archived.length > 0 ? (
             <div className="grid gap-2">
-              <button type="button" onClick={() => setShowArchived((value) => !value)} aria-expanded={showArchived} className="justify-self-start text-xs font-bold text-slate-400 underline">
+              <button type="button" onClick={() => setShowArchived((value) => !value)} aria-expanded={showArchived} className="justify-self-start text-xs font-medium text-slate-400 underline">
                 {showArchived ? t('club.hideArchived') : t('club.showArchived', { count: archived.length })}
               </button>
               {showArchived ? (
                 <ul className="grid gap-2">
                   {archived.map((team) => (
                     <li key={team.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 px-3 py-2">
-                      <span className="min-w-0 truncate text-sm font-bold text-slate-400">{team.name}</span>
+                      <span className="min-w-0 truncate text-sm font-medium text-slate-400">{team.name}</span>
                       <button type="button" onClick={() => onRun(() => setTeamArchived(team.id, false))} className={`${smallButtonClass} border-slate-700 text-slate-200`}>
                         {t('club.restore')}
                       </button>
@@ -609,15 +609,15 @@ export function ClubOverview() {
           { label: t('club.tile.teams'), value: managedTeams.length, warn: false },
           { label: t('club.tile.withoutHeadCoach'), value: withoutHeadCoach, warn: withoutHeadCoach > 0 },
         ].map((tile) => (
-          <div key={tile.label} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-3 sm:p-4">
-            <p className="text-[10px] font-black uppercase leading-tight tracking-normal text-slate-400 sm:text-xs sm:tracking-[0.12em]">{tile.label}</p>
-            <p className={`mt-1 text-2xl font-black ${tile.warn ? 'text-amber-200' : 'text-white'}`}>{tile.value}</p>
+          <div key={tile.label} className="os-panel p-3 sm:p-4">
+            <p className="text-xs font-semibold uppercase leading-tight tracking-normal text-slate-400 sm:text-xs sm:tracking-[0.12em]">{tile.label}</p>
+            <p className={`mt-1 text-2xl font-semibold ${tile.warn ? 'text-amber-200' : 'text-white'}`}>{tile.value}</p>
           </div>
         ))}
       </div> : null}
 
       {actionError ? (
-        <p role="alert" className="rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-bold text-red-100">{actionError}</p>
+        <p role="alert" className="rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-medium text-red-100">{actionError}</p>
       ) : null}
 
       {departments.map((department) => (
@@ -627,7 +627,7 @@ export function ClubOverview() {
 
       {admin ? (
         <div id="new-department" className="scroll-mt-24">{departments.length > 0 && !addingDepartment ? (
-          <button type="button" onClick={() => setAddingDepartment(true)} className="w-full rounded-3xl border border-dashed border-slate-700 px-5 py-4 text-left text-sm font-black text-sky-200 transition hover:border-slate-500">+ {t('club.addDepartment')}</button>
+          <button type="button" onClick={() => setAddingDepartment(true)} className="w-full rounded-3xl border border-dashed border-slate-700 px-5 py-4 text-left text-sm font-semibold text-sky-200 transition hover:border-slate-500">+ {t('club.addDepartment')}</button>
         ) : <CoachSection title={t('club.newDepartment')} description={t('club.newDepartmentDetail')}>
           <form
             className="grid gap-3 rounded-2xl border border-slate-700 p-3"
@@ -649,7 +649,7 @@ export function ClubOverview() {
       ) : null}
 
       {admin ? (
-        <CoachSection title={t('club.admins')} description={t('club.adminsDetail')}>
+        <CoachSection title={t('club.admins')}>
           <RoleHolders database={database} role="admin" departmentId={null} canManage selfId={person.id} onRun={run} />
           <MessageWritersPanel database={database} departmentId={null} candidates={clubWriterCandidates(database)} onRun={run} />
         </CoachSection>

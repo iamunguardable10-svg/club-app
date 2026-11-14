@@ -49,7 +49,7 @@ export default function ResetPasswordPage() {
   return (
     <main className="os-page">
       <div className="os-container max-w-md space-y-5">
-        <header className="os-hero p-6">
+        <header className="os-hero">
           <p className="os-kicker">{t('start.kicker')}</p>
           <h1 className="os-title mt-2">{t('auth.newPassword.title')}</h1>
         </header>
@@ -69,7 +69,7 @@ export default function ResetPasswordPage() {
               <PasswordCheck ok={password.length >= MIN_PASSWORD} label={t('auth.check.length', { count: MIN_PASSWORD })} />
               <PasswordCheck ok={password.length > 0 && password === repeat} label={t('auth.check.match')} />
             </ul>
-            {error ? <p role="alert" className="rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-bold text-red-100">{error}</p> : null}
+            {error ? <p role="alert" className="rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-medium text-red-100">{error}</p> : null}
             <button type="submit" disabled={busy || password.length < MIN_PASSWORD || password !== repeat} className="os-success justify-center disabled:opacity-60">
               {busy ? t('common.oneMoment') : t('auth.newPassword.save')}
             </button>

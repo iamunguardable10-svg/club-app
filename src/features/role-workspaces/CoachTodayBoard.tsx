@@ -39,8 +39,8 @@ export function AttendanceTally({ session }: { session: CoachSession }) {
     open > 0 ? { key: 'open', text: t('coach.board.open', { count: open }), tone: 'text-amber-200' } : null,
   ].filter((part): part is { key: string; text: string; tone: string } => part !== null);
   return (
-    <p className="mt-3 flex flex-wrap gap-x-2 text-base font-black tabular-nums" data-testid="attendance-tally">
-      {parts.map((part, index) => <span key={part.key} className={part.tone}>{index > 0 ? <span aria-hidden className="mr-2 text-slate-600">·</span> : null}{part.text}</span>)}
+    <p className="mt-3 flex flex-wrap gap-x-2 text-base font-semibold tabular-nums" data-testid="attendance-tally">
+      {parts.map((part, index) => <span key={part.key} className={part.tone}>{index > 0 ? <span aria-hidden className="mr-2 text-slate-400">·</span> : null}{part.text}</span>)}
     </p>
   );
 }
@@ -71,18 +71,18 @@ export function WhoWasThere({ session, onChange }: { session: CoachSession; onCh
   }
 
   return (
-    <div className="mx-4 mb-4 -mt-1 rounded-xl border border-slate-800 bg-slate-900/45 p-3">
+    <div className="mx-4 mb-4 -mt-1 rounded-xl bg-white/[0.04] p-3">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <p className="min-w-0 text-sm">
-          <span className="font-black text-white">{confirmed || saved ? t('coach.board.confirmed', { there, total: session.players.length }) : t('coach.board.whoWasThere')}</span>
-          {confirmed || saved ? null : <span className="ml-2 font-bold tabular-nums text-slate-300">{t('coach.board.wereThere', { there, total: session.players.length })}</span>}
+          <span className="font-semibold text-white">{confirmed || saved ? t('coach.board.confirmed', { there, total: session.players.length }) : t('coach.board.whoWasThere')}</span>
+          {confirmed || saved ? null : <span className="ml-2 font-medium tabular-nums text-slate-300">{t('coach.board.wereThere', { there, total: session.players.length })}</span>}
         </p>
         <span className="ml-auto flex shrink-0 items-center gap-1">
-          <button type="button" onClick={onChange} className="rounded-full px-2.5 py-1.5 text-sm font-black text-sky-300">{t('composer.change')}</button>
-          {confirmed || saved ? null : <button type="button" onClick={confirm} className="rounded-full bg-emerald-300 px-3.5 py-1.5 text-sm font-black text-slate-950 transition hover:bg-emerald-200 active:scale-95">{t('coach.board.allRight')}</button>}
+          <button type="button" onClick={onChange} className="rounded-full px-2.5 py-1.5 text-sm font-semibold text-sky-300">{t('composer.change')}</button>
+          {confirmed || saved ? null : <button type="button" onClick={confirm} className="rounded-full bg-emerald-300 px-3.5 py-1.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-200 active:scale-95">{t('coach.board.allRight')}</button>}
         </span>
       </div>
-      {error ? <p role="alert" className="mt-2 text-xs font-bold text-rose-200">{error}</p> : null}
+      {error ? <p role="alert" className="mt-2 text-xs font-medium text-rose-200">{error}</p> : null}
     </div>
   );
 }

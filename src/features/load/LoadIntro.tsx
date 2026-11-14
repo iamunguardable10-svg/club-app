@@ -53,9 +53,9 @@ function RpeScale() {
   return (
     <div className="mt-4 grid grid-cols-3 gap-2 text-center">
       {([[1, 'rpe.1'], [5, 'rpe.5'], [10, 'rpe.10']] as const).map(([value, word]) => (
-        <div key={value} className="rounded-2xl border border-slate-800 bg-slate-900/70 px-2 py-3">
-          <p className="text-2xl font-black tabular-nums text-emerald-200">{value}</p>
-          <p className="mt-0.5 text-[11px] font-bold text-slate-400">{t(word)}</p>
+        <div key={value} className="rounded-2xl bg-white/[0.04] px-2 py-3">
+          <p className="text-2xl font-semibold tabular-nums text-emerald-200">{value}</p>
+          <p className="mt-0.5 text-xs font-medium text-slate-400">{t(word)}</p>
         </div>
       ))}
     </div>
@@ -80,14 +80,14 @@ export function LoadIntro({ role, onClose }: { role: LoadIntroRole; onClose: () 
     : <ul className="mt-3 grid gap-2.5">{page.body.map((key) => <li key={key} className="text-sm leading-relaxed text-slate-300">{t(key)}</li>)}</ul>;
 
   return (
-    <div className="fixed inset-0 z-[130] flex items-end justify-center bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="load-intro-title">
-      <div className="max-h-full w-full max-w-md overflow-y-auto rounded-3xl border border-slate-700 bg-slate-950 p-5 shadow-2xl">
+    <div className="fixed inset-0 z-[130] flex items-end justify-center bg-black/60 px-3 pb-3 pt-10 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="load-intro-title">
+      <div className="os-sheet max-h-full w-full max-w-md overflow-y-auto p-5">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-300">{t('loadIntro.kicker', { step: index + 1, total: pages.length })}</p>
-          <button type="button" onClick={onClose} className="text-xs font-bold text-slate-400 underline">{t('loadIntro.skip')}</button>
+          <p className="text-xs font-semibold text-emerald-300">{t('loadIntro.kicker', { step: index + 1, total: pages.length })}</p>
+          <button type="button" onClick={onClose} className="text-xs font-medium text-slate-400 underline">{t('loadIntro.skip')}</button>
         </div>
         <div key={index} className="wizard-step">
-          <h2 id="load-intro-title" className="mt-2 text-2xl font-black leading-tight text-white">{t(page.title)}</h2>
+          <h2 id="load-intro-title" className="mt-2 text-2xl font-semibold leading-tight text-white">{t(page.title)}</h2>
           {lines}
           {page.extra === 'scale' ? <ZoneScale /> : page.extra === 'rpe' ? <RpeScale /> : null}
         </div>
@@ -95,8 +95,8 @@ export function LoadIntro({ role, onClose }: { role: LoadIntroRole; onClose: () 
           <div className="flex flex-1 gap-1" aria-hidden>
             {pages.map((entry, position) => <span key={entry.title + position} className={`h-1.5 flex-1 rounded-full ${position <= index ? 'bg-emerald-300' : 'bg-slate-800'}`} />)}
           </div>
-          {index > 0 ? <button type="button" onClick={() => setIndex(index - 1)} aria-label={t('onboarding.back')} className="grid h-11 w-11 place-items-center rounded-2xl border border-slate-700 text-lg font-black text-slate-300">‹</button> : null}
-          <button type="button" onClick={() => (last ? onClose() : setIndex(index + 1))} className="rounded-2xl bg-emerald-300 px-5 py-3 text-sm font-black text-slate-950">
+          {index > 0 ? <button type="button" onClick={() => setIndex(index - 1)} aria-label={t('onboarding.back')} className="grid h-11 w-11 place-items-center rounded-2xl border border-slate-700 text-lg font-semibold text-slate-300">‹</button> : null}
+          <button type="button" onClick={() => (last ? onClose() : setIndex(index + 1))} className="rounded-2xl bg-emerald-300 px-5 py-3 text-sm font-semibold text-slate-950">
             {last ? t('loadIntro.done') : t('common.continue')}
           </button>
         </div>

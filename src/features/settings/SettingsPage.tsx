@@ -65,8 +65,8 @@ import {
 } from '@/shared/data';
 import { clubRoleText } from '@/features/club/clubRoleText';
 
-const labelClass = 'text-xs font-black uppercase tracking-[0.18em] text-slate-400';
-const quietButtonClass = 'rounded-2xl border border-slate-700 px-4 py-2 text-xs font-black text-slate-200 disabled:opacity-50';
+const labelClass = 'text-xs font-semibold text-slate-400';
+const quietButtonClass = 'rounded-2xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 disabled:opacity-50';
 
 export function SettingsPage() {
   const t = useT();
@@ -111,7 +111,7 @@ export function SettingsPage() {
       <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         <div className="grid gap-5">
           {role === 'athlete' && person ? (
-            <CoachSection title={t('profile.title')} description={t('profile.settingsDetail')}>
+            <CoachSection title={t('profile.title')}>
               <div id="player-profile"><PlayerProfileEditor key={person.id} database={database} person={person} /></div>
             </CoachSection>
           ) : null}
@@ -162,7 +162,7 @@ function TipsAgain() {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <button type="button" onClick={() => { setTipsOff(false); setDone(true); }} className="os-secondary px-4 py-2 text-sm">{t('tips.again')}</button>
-      {done ? <p role="status" className="text-xs font-bold text-emerald-200">{t('tips.againDone')}</p> : null}
+      {done ? <p role="status" className="text-xs font-medium text-emerald-200">{t('tips.againDone')}</p> : null}
     </div>
   );
 }
@@ -191,13 +191,13 @@ function RsvpSection({ database, person }: { database: LocalDatabase; person: Pe
               {mode === option.value ? <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" /> : null}
             </span>
             <span className="min-w-0">
-              <span className="block text-sm font-black text-white">{t(option.title)}</span>
-              <span className="mt-0.5 block text-xs font-bold text-slate-400">{t(option.detail)}</span>
+              <span className="block text-sm font-semibold text-white">{t(option.title)}</span>
+              <span className="mt-0.5 block text-xs font-medium text-slate-400">{t(option.detail)}</span>
             </span>
           </button>
         ))}
       </div>
-      {error ? <p role="alert" className="mt-2 text-xs font-bold text-red-200">{error}</p> : null}
+      {error ? <p role="alert" className="mt-2 text-xs font-medium text-red-200">{error}</p> : null}
     </CoachSection>
   );
 }
@@ -230,7 +230,7 @@ function AccountSection({ person, remote }: { person: Person | null; remote: boo
 
 function Message({ text, error }: { text: string | null; error?: boolean }) {
   if (!text) return null;
-  return <p role={error ? 'alert' : 'status'} className={`text-xs font-bold ${error ? 'text-red-200' : 'text-emerald-200'}`}>{text}</p>;
+  return <p role={error ? 'alert' : 'status'} className={`text-xs font-medium ${error ? 'text-red-200' : 'text-emerald-200'}`}>{text}</p>;
 }
 
 /** Runs a form action and turns the outcome into one line of text. */
@@ -285,7 +285,6 @@ function NameForm({ person }: { person: Person }) {
         <input value={first} onChange={(event) => { setFirst(event.target.value); clear(); }} aria-label={t('settings.firstName')} autoComplete="given-name" className="os-field" />
         <input value={last} onChange={(event) => { setLast(event.target.value); clear(); }} aria-label={t('settings.lastName')} autoComplete="family-name" className="os-field" />
       </div>
-      <p className="text-xs text-slate-500">{t('settings.nameHint')}</p>
       <div className="flex flex-wrap items-center gap-3">
         {dirty ? <button type="submit" className={quietButtonClass}>{t('settings.saveName')}</button> : null}
         <Message text={result?.text ?? null} error={result?.error} />
@@ -305,8 +304,8 @@ function EmailForm() {
     <div className="grid gap-2">
       <p className={labelClass}>{t('settings.email')}</p>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="min-w-0 truncate text-sm font-bold text-slate-100">{current ?? '…'}</span>
-        {!editing ? <button type="button" onClick={() => { setEditing(true); clear(); }} className="text-xs font-bold text-sky-300 underline">{t('settings.changeEmail')}</button> : null}
+        <span className="min-w-0 truncate text-sm font-medium text-slate-100">{current ?? '…'}</span>
+        {!editing ? <button type="button" onClick={() => { setEditing(true); clear(); }} className="text-xs font-medium text-sky-300 underline">{t('settings.changeEmail')}</button> : null}
       </div>
       {editing ? (
         <form
@@ -323,7 +322,7 @@ function EmailForm() {
           <input type="email" value={email} onChange={(event) => { setEmail(event.target.value); clear(); }} aria-label={t('settings.newEmail')} placeholder={t('settings.newEmail')} autoComplete="email" className="os-field" required />
           <div className="flex flex-wrap gap-2">
             <button type="submit" disabled={busy || !email.trim()} className={quietButtonClass}>{busy ? t('settings.sending') : t('settings.sendConfirmation')}</button>
-            <button type="button" onClick={() => { setEditing(false); setEmail(''); clear(); }} className="text-xs font-bold text-slate-400 underline">{t('settings.cancel')}</button>
+            <button type="button" onClick={() => { setEditing(false); setEmail(''); clear(); }} className="text-xs font-medium text-slate-400 underline">{t('settings.cancel')}</button>
           </div>
         </form>
       ) : null}
@@ -342,7 +341,7 @@ function PasswordForm() {
     <div className="grid gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className={labelClass}>{t('settings.password')}</p>
-        {!editing ? <button type="button" onClick={() => { setEditing(true); clear(); }} className="text-xs font-bold text-sky-300 underline">{t('settings.changePassword')}</button> : null}
+        {!editing ? <button type="button" onClick={() => { setEditing(true); clear(); }} className="text-xs font-medium text-sky-300 underline">{t('settings.changePassword')}</button> : null}
       </div>
       {editing ? (
         <form
@@ -363,7 +362,7 @@ function PasswordForm() {
           <input type="password" value={repeat} onChange={(event) => { setRepeat(event.target.value); clear(); }} aria-label={t('settings.repeatPassword')} placeholder={t('settings.repeatPassword')} autoComplete="new-password" className="os-field" />
           <div className="flex flex-wrap gap-2">
             <button type="submit" disabled={busy || !password} className={quietButtonClass}>{busy ? t('settings.saving') : t('settings.savePassword')}</button>
-            <button type="button" onClick={() => { setEditing(false); setPassword(''); setRepeat(''); clear(); }} className="text-xs font-bold text-slate-400 underline">{t('settings.cancel')}</button>
+            <button type="button" onClick={() => { setEditing(false); setPassword(''); setRepeat(''); clear(); }} className="text-xs font-medium text-slate-400 underline">{t('settings.cancel')}</button>
           </div>
         </form>
       ) : null}
@@ -388,7 +387,7 @@ function SignOutButtons() {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-800 pt-4">
       <SignOutButton className={quietButtonClass} />
-      <button type="button" disabled={busy} onClick={() => setConfirmAll(true)} className="text-xs font-bold text-slate-400 underline">{t('settings.signOutAll')}</button>
+      <button type="button" disabled={busy} onClick={() => setConfirmAll(true)} className="text-xs font-medium text-slate-400 underline">{t('settings.signOutAll')}</button>
       <AppConfirmDialog
         isOpen={confirmAll}
         title={t('settings.signOutAllTitle')}
@@ -423,8 +422,8 @@ function DeleteAccount() {
   }
   return (
     <div className="grid gap-2 border-t border-slate-800 pt-4">
-      <button type="button" disabled={busy} onClick={() => setConfirm(true)} className="justify-self-start text-xs font-bold text-red-300 underline">{t('settings.deleteAccount')}</button>
-      {error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null}
+      <button type="button" disabled={busy} onClick={() => setConfirm(true)} className="justify-self-start text-xs font-medium text-red-300 underline">{t('settings.deleteAccount')}</button>
+      {error ? <p role="alert" className="text-xs font-medium text-red-200">{error}</p> : null}
       <AppConfirmDialog
         isOpen={confirm}
         title={t('settings.deleteAccountTitle')}
@@ -511,7 +510,7 @@ function NotificationSection({ database }: { database: LocalDatabase }) {
               onChange={() => { clear(); setDraft((current) => quiet ? { ...current, quietFrom: null, quietTo: null } : { ...current, quietFrom: 22, quietTo: 7 }); }}
             />
             {quiet ? (
-              <div className="flex flex-wrap items-center gap-2 pl-1 text-sm font-bold text-slate-300">
+              <div className="flex flex-wrap items-center gap-2 pl-1 text-sm font-medium text-slate-300">
                 <label className="flex items-center gap-2">{t('settings.quietFrom')}
                   <select value={draft.quietFrom ?? 22} onChange={(event) => { clear(); setDraft((current) => ({ ...current, quietFrom: Number(event.target.value) })); }} className="os-field w-auto py-1.5">
                     {HOURS.map((hour) => <option key={hour} value={hour}>{hourLabel(hour)}</option>)}
@@ -554,7 +553,7 @@ function Switch({ label, detail, checked, disabled = false, onChange }: { label:
       className={`flex items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/55 px-3 py-2.5 text-left ${disabled ? 'cursor-default opacity-70' : 'hover:border-slate-600'}`}
     >
       <span className="min-w-0">
-        <span className="block text-sm font-black text-slate-100">{label}</span>
+        <span className="block text-sm font-semibold text-slate-100">{label}</span>
         <span className="block text-xs text-slate-400">{detail}</span>
       </span>
       <span aria-hidden className={`relative h-6 w-11 shrink-0 rounded-full transition ${checked ? 'bg-emerald-300' : 'bg-slate-700'}`}>
@@ -570,9 +569,9 @@ function Switch({ label, detail, checked, disabled = false, onChange }: { label:
 
 function TeamRow({ name, detail, children }: { name: string; detail: string; children?: ReactNode }) {
   return (
-    <li className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-800 bg-slate-950/55 px-3 py-2.5">
+    <li className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white/[0.04] px-3 py-2.5">
       <span className="min-w-0">
-        <span className="block truncate text-sm font-black text-slate-100">{name}</span>
+        <span className="block truncate text-sm font-semibold text-slate-100">{name}</span>
         <span className="block truncate text-xs text-slate-400">{detail}</span>
       </span>
       {children}
@@ -608,7 +607,7 @@ function PlayerTeamsSection({ database, person }: { database: LocalDatabase; per
           <ul className="grid gap-2">
             {teams.map(({ team }) => (
               <TeamRow key={team.id} name={team.name} detail={departmentName(database, team.departmentId)}>
-                <button type="button" onClick={() => { setError(null); setLeaving({ id: team.id, name: team.name }); }} className="text-xs font-bold text-slate-400 underline">{t('settings.leaveTeam')}</button>
+                <button type="button" onClick={() => { setError(null); setLeaving({ id: team.id, name: team.name }); }} className="text-xs font-medium text-slate-400 underline">{t('settings.leaveTeam')}</button>
               </TeamRow>
             ))}
           </ul>
@@ -646,12 +645,12 @@ function CoachTeamsSection({ database, person }: { database: LocalDatabase; pers
     return role ? displayRoleName(role.name) : t('settings.coachRoleFallback');
   };
   return (
-    <CoachSection title={t('settings.yourTeams')} description={t('settings.coachTeamsDetail')}>
+    <CoachSection title={t('settings.yourTeams')}>
       {teams.length === 0 ? <p className="text-sm text-slate-400">{t('settings.noCoachTeams')}</p> : (
         <ul className="grid gap-2">
           {teams.map(({ team, membership }) => (
             <TeamRow key={team.id} name={team.name} detail={`${departmentName(database, team.departmentId)} · ${roleName(membership.coachRoleId)}`}>
-              <Link href={`/coach/team?teamId=${team.id}&section=settings`} className="text-xs font-bold text-sky-300 underline">{t('settings.teamSettings')}</Link>
+              <Link href={`/coach/team?teamId=${team.id}&section=settings`} className="text-xs font-medium text-sky-300 underline">{t('settings.teamSettings')}</Link>
             </TeamRow>
           ))}
         </ul>
@@ -679,9 +678,8 @@ function ClubSection({ database, person }: { database: LocalDatabase; person: Pe
           </form>
         ) : null}
         <div className="grid gap-1 text-sm text-slate-300">
-          <p>{t('settings.clubAreaNote')}</p>
           {admin ? <p className="text-xs text-slate-400">{t('settings.handOver')}</p> : null}
-          <Link href="/club" className="mt-1 justify-self-start text-xs font-bold text-sky-300 underline">{t('settings.openClubArea')}</Link>
+          <Link href="/club" className="mt-1 justify-self-start text-xs font-medium text-sky-300 underline">{t('settings.openClubArea')}</Link>
         </div>
       </div>
     </CoachSection>

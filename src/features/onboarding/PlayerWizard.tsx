@@ -145,13 +145,13 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
   if (step === 'name') {
     body = (
       <div className="grid grid-cols-2 gap-3">
-        <label className="grid min-w-0 gap-1.5 text-sm font-bold text-slate-300">
+        <label className="grid min-w-0 gap-1.5 text-sm font-medium text-slate-300">
           {t('common.firstName')}
-          <input autoFocus required value={firstName} onChange={(event) => onName(event.target.value, lastName)} autoComplete="given-name" className="os-field min-w-0 text-lg font-black" />
+          <input autoFocus required value={firstName} onChange={(event) => onName(event.target.value, lastName)} autoComplete="given-name" className="os-field min-w-0 text-lg font-semibold" />
         </label>
-        <label className="grid min-w-0 gap-1.5 text-sm font-bold text-slate-300">
+        <label className="grid min-w-0 gap-1.5 text-sm font-medium text-slate-300">
           {t('common.lastName')}
-          <input required value={lastName} onChange={(event) => onName(firstName, event.target.value)} autoComplete="family-name" className="os-field min-w-0 text-lg font-black" />
+          <input required value={lastName} onChange={(event) => onName(firstName, event.target.value)} autoComplete="family-name" className="os-field min-w-0 text-lg font-semibold" />
         </label>
       </div>
     );
@@ -182,13 +182,13 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
           ) : (
             <span className="grid justify-items-center gap-1 text-emerald-200">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10"><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
-              <span className="text-xs font-black uppercase tracking-[0.16em]">{t('photo.add')}</span>
+              <span className="text-xs font-semibold ">{t('photo.add')}</span>
             </span>
           )}
-          {photo ? <span className="absolute -bottom-1 right-3 rounded-full bg-emerald-300 px-3 py-1 text-[11px] font-black text-slate-950">{t('photo.change')}</span> : null}
+          {photo ? <span className="absolute -bottom-1 right-3 rounded-full bg-emerald-300 px-3 py-1 text-xs font-semibold text-slate-950">{t('photo.change')}</span> : null}
         </button>
-        {photo ? <button type="button" onClick={() => { storePendingPhoto(null); onPhoto(null); }} className="text-xs font-bold text-slate-400 underline">{t('photo.remove')}</button> : null}
-        {photoError ? <p role="alert" className="text-xs font-bold text-red-200">{t('photo.error')}</p> : <p className="text-center text-xs text-slate-500">{t('photo.hint')}</p>}
+        {photo ? <button type="button" onClick={() => { storePendingPhoto(null); onPhoto(null); }} className="text-xs font-medium text-slate-400 underline">{t('photo.remove')}</button> : null}
+        {photoError ? <p role="alert" className="text-xs font-medium text-red-200">{t('photo.error')}</p> : <p className="text-center text-xs text-slate-400">{t('photo.hint')}</p>}
       </div>
     );
   } else if (step === 'role') {
@@ -217,7 +217,7 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
               set({ jerseyNumber: raw === '' ? null : Number(raw) });
             }}
             placeholder="00"
-            className="relative mt-8 w-28 bg-transparent text-center text-7xl font-black tabular-nums text-white placeholder:text-emerald-200/20 focus:outline-none"
+            className="relative mt-8 w-28 bg-transparent text-center text-7xl font-semibold tabular-nums text-white placeholder:text-emerald-200/20 focus:outline-none"
           />
         </label>
       </div>
@@ -228,8 +228,8 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
       <div className="grid gap-6">
         <div className="grid gap-2">
           <div className="flex items-baseline justify-between">
-            <span className="text-sm font-bold text-slate-300">{t('profile.cardHeight')}</span>
-            <span className="text-4xl font-black tabular-nums text-white">{height ?? '–'}<span className="ml-1 text-base font-bold text-slate-400">cm</span></span>
+            <span className="text-sm font-medium text-slate-300">{t('profile.cardHeight')}</span>
+            <span className="text-4xl font-semibold tabular-nums text-white">{height ?? '–'}<span className="ml-1 text-base font-medium text-slate-400">cm</span></span>
           </div>
           <input
             type="range"
@@ -240,10 +240,10 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
             aria-label={t('profile.height')}
             className={`w-full accent-emerald-300 ${height === null ? 'opacity-50' : ''}`}
           />
-          <div className="flex justify-between text-[11px] font-bold text-slate-500"><span>140</span><span>215</span></div>
+          <div className="flex justify-between text-xs font-medium text-slate-400"><span>140</span><span>215</span></div>
         </div>
         <div className="grid gap-2">
-          <span className="text-sm font-bold text-slate-300">{t(strongSideLabel(sport))}</span>
+          <span className="text-sm font-medium text-slate-300">{t(strongSideLabel(sport))}</span>
           <SideSwitch value={details.strongSide} onChange={(strongSide) => set({ strongSide })} label={t(strongSideLabel(sport))} large />
         </div>
       </div>
@@ -281,7 +281,7 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
               <span key={entry} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${position < index ? 'bg-emerald-300' : position === index ? 'bg-emerald-300/60' : 'bg-slate-800'}`} />
             ))}
           </div>
-          <span className="shrink-0 text-xs font-black tabular-nums text-emerald-200">{t('wizard.cardPercent', { percent })}</span>
+          <span className="shrink-0 text-xs font-semibold tabular-nums text-emerald-200">{t('wizard.cardPercent', { percent })}</span>
         </div> : null}
       </div>
 
@@ -295,13 +295,13 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
         }}
       >
         <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-300">{t('wizard.stepOf', { step: index + 1, total: steps.length })} · {t(KICKER[step])}</p>
-          <h2 className="mt-1.5 text-2xl font-black leading-tight text-white">{t(TITLE[step])}</h2>
+          <p className="text-xs font-semibold text-emerald-300">{t('wizard.stepOf', { step: index + 1, total: steps.length })} · {t(KICKER[step])}</p>
+          <h2 className="mt-1.5 text-2xl font-semibold leading-tight text-white">{t(TITLE[step])}</h2>
         </div>
         {body}
         <div className="flex items-center gap-3">
           {index > 0 ? (
-            <button type="button" onClick={back} aria-label={t('onboarding.back')} className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-slate-700 text-lg font-black text-slate-300 hover:text-white">‹</button>
+            <button type="button" onClick={back} aria-label={t('onboarding.back')} className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-slate-700 text-lg font-semibold text-slate-300 hover:text-white">‹</button>
           ) : null}
           <button type="submit" disabled={!canGoOn || busy} className="os-success flex-1 justify-center disabled:opacity-50">
             {busy ? t('common.oneMoment') : last ? submitLabel : answered ? t('common.continue') : t('wizard.skip')}

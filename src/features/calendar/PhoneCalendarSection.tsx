@@ -32,7 +32,6 @@ export function PhoneCalendarSection({ remote, canRead }: { remote: boolean; can
   return (
     <CoachSection
       title={t('phoneCalendar.title')}
-      description={t('phoneCalendar.detail')}
       className="scroll-mt-24"
     >
       <div id="phone-calendar" className="grid gap-5">

@@ -57,37 +57,37 @@ function AttendanceCard({ player, events, sessionTimes, range, contextLabel, emp
   const strip = (sessionTimes ?? []).slice().sort();
   const shown = showAll ? events : events.slice(0, 4);
   return (
-    <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
+    <div className="os-panel p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-black text-white">{t('playerLoad.attendance')}</p>
-          <p className="mt-0.5 text-xs font-bold text-slate-500">{range ? t('playerLoad.lastDays', { count: range.days }) : contextLabel}</p>
+          <p className="text-sm font-semibold text-white">{t('playerLoad.attendance')}</p>
+          <p className="mt-0.5 text-xs font-medium text-slate-400">{range ? t('playerLoad.lastDays', { count: range.days }) : contextLabel}</p>
         </div>
         {range && shared ? (
           <div className="flex shrink-0 rounded-full border border-slate-800 bg-slate-950/80 p-0.5">
             {[30, 60, 90].map((days) => (
-              <button key={days} type="button" aria-pressed={range.days === days} onClick={() => range.onChange(days)} className={`rounded-full px-2.5 py-1 text-[11px] font-black ${range.days === days ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}>
+              <button key={days} type="button" aria-pressed={range.days === days} onClick={() => range.onChange(days)} className={`rounded-full px-2.5 py-1 text-xs font-semibold ${range.days === days ? 'bg-slate-100 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}>
                 {t('playerLoad.days', { count: days })}
               </button>
             ))}
           </div>
         ) : null}
       </div>
-      {!shared ? <p className="mt-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm font-bold text-slate-500">{t('playerLoad.attendanceNotShared')}</p> : (
+      {!shared ? <p className="mt-3 rounded-2xl bg-white/[0.04] p-3 text-sm font-medium text-slate-400">{t('playerLoad.attendanceNotShared')}</p> : (
         <>
           {total !== null ? (
             <div className="mt-3 flex items-end gap-4">
-              <p className={`text-4xl font-black tabular-nums leading-none ${rate === null ? 'text-slate-500' : rate >= 90 ? 'text-emerald-300' : rate >= 75 ? 'text-amber-200' : 'text-rose-300'}`}>{rate === null ? '–' : t('playerLoad.percent', { value: rate })}</p>
+              <p className={`text-4xl font-semibold tabular-nums leading-none ${rate === null ? 'text-slate-400' : rate >= 90 ? 'text-emerald-300' : rate >= 75 ? 'text-amber-200' : 'text-rose-300'}`}>{rate === null ? '–' : t('playerLoad.percent', { value: rate })}</p>
               <dl className="grid flex-1 grid-cols-3 gap-2 text-center">
                 {([['playerLoad.countPresent', total - out - late, 'text-emerald-200'], ['playerLoad.countLate', late, 'text-sky-200'], ['playerLoad.countOut', out, 'text-rose-200']] as const).map(([label, value, tone]) => (
                   <div key={label} className="rounded-xl bg-slate-900/70 px-1 py-1.5">
-                    <dd className={`text-base font-black tabular-nums ${tone}`}>{value}</dd>
-                    <dt className="text-xs font-bold text-slate-400">{t(label)}</dt>
+                    <dd className={`text-base font-semibold tabular-nums ${tone}`}>{value}</dd>
+                    <dt className="text-xs font-medium text-slate-400">{t(label)}</dt>
                   </div>
                 ))}
               </dl>
             </div>
-          ) : <p className="mt-2 text-xs font-black text-slate-300">{fallbackLabel}</p>}
+          ) : <p className="mt-2 text-xs font-semibold text-slate-300">{fallbackLabel}</p>}
           {strip.length > 0 ? (
             <div className="mt-3 flex flex-wrap gap-1" aria-label={t('playerLoad.sessionsInRange', { count: strip.length })} role="img">
               {strip.map((time) => {
@@ -96,17 +96,17 @@ function AttendanceCard({ player, events, sessionTimes, range, contextLabel, emp
               })}
             </div>
           ) : null}
-          {events.length === 0 ? <p className="mt-3 text-xs font-bold text-slate-500">{emptyLabel}</p> : (
+          {events.length === 0 ? <p className="mt-3 text-xs font-medium text-slate-400">{emptyLabel}</p> : (
             <ul className="mt-3 divide-y divide-slate-800/80 border-t border-slate-800/80">
               {shown.map((event) => (
                 <li key={`${event.sessionId}-${event.status}`} className="flex items-start gap-2.5 py-2">
                   <span aria-hidden className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${event.status === 'out' ? 'bg-rose-400' : 'bg-sky-400'}`} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline justify-between gap-2">
-                      <span className="truncate text-sm font-black text-white">{displayTitle(event.title)}</span>
-                      <span className="shrink-0 text-xs font-bold text-slate-500">{formatDayShortMonth(event.startsAt)}</span>
+                      <span className="truncate text-sm font-semibold text-white">{displayTitle(event.title)}</span>
+                      <span className="shrink-0 text-xs font-medium text-slate-400">{formatDayShortMonth(event.startsAt)}</span>
                     </span>
-                    <span className="block truncate text-xs font-bold text-slate-400">
+                    <span className="block truncate text-xs font-medium text-slate-400">
                       <span className={event.status === 'out' ? 'text-rose-200' : 'text-sky-200'}>{event.missed ? t('playerLoad.didNotTakePart') : event.status === 'out' ? t('playerLoad.out') : event.lateMinutes ? t('playerLoad.lateMinutes', { count: event.lateMinutes }) : t('playerLoad.late')}</span>
                       {event.reason ? ` · ${event.reason}` : ''}
                     </span>
@@ -115,7 +115,7 @@ function AttendanceCard({ player, events, sessionTimes, range, contextLabel, emp
               ))}
             </ul>
           )}
-          {events.length > 4 ? <button type="button" onClick={() => setShowAll(!showAll)} className="mt-1 text-xs font-black text-sky-300">{showAll ? t('playerLoad.showLess') : t('playerLoad.showAll', { count: events.length })}</button> : null}
+          {events.length > 4 ? <button type="button" onClick={() => setShowAll(!showAll)} className="mt-1 text-xs font-semibold text-sky-300">{showAll ? t('playerLoad.showLess') : t('playerLoad.showAll', { count: events.length })}</button> : null}
         </>
       )}
     </div>
@@ -150,13 +150,13 @@ function PlayerLoadRoom({ summary }: { summary: PlayerLoadSummary }) {
   const label = lowGap > 0 ? t('playerLoad.underloadGap') : t('playerLoad.overloadRoom');
   const value = lowGap > 0 ? lowGap : headroom;
   const percent = value === null ? 0 : Math.min(100, Math.max(8, (value / Math.max(averageLoad * 2, 1)) * 100));
-  const color = lowGap > 0 ? 'bg-sky-300' : value !== null && value < averageLoad * 0.5 ? 'bg-rose-300' : 'bg-emerald-300';
+  const color = lowGap > 0 ? 'bg-slate-100' : value !== null && value < averageLoad * 0.5 ? 'bg-rose-300' : 'bg-emerald-300';
 
   return (
-    <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/55 p-3">
+    <div className="mt-4 rounded-2xl bg-white/[0.04] p-3">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{label}</p>
-        <span className="text-sm font-black text-white">{value === null ? '—' : t('playerLoad.au', { value })}</span>
+        <p className="text-xs font-semibold text-slate-400">{label}</p>
+        <span className="text-sm font-semibold text-white">{value === null ? '—' : t('playerLoad.au', { value })}</span>
       </div>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-900">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${percent}%` }} />
@@ -178,7 +178,7 @@ function TeamAcwrGauge({ acwr }: { acwr: number | null }) {
           />
         ) : null}
       </div>
-      <div className="relative h-4 text-[10px] font-black text-slate-400">
+      <div className="relative h-4 text-xs font-semibold text-slate-400">
         <span className="absolute left-[40%] -translate-x-1/2">{formatDecimal(ACWR_ZONES.low, 1)}</span>
         <span className="absolute left-[65%] -translate-x-1/2">{formatDecimal(ACWR_ZONES.high, 1)}</span>
       </div>
@@ -252,37 +252,37 @@ export function PlayerLoadDetail({
   return (
     <>
     {loadIntro.open ? <LoadIntro role="coach" onClose={loadIntro.close} /> : null}
-    <div className="fixed inset-0 z-[110] flex items-end bg-slate-950/80 px-3 pb-3 pt-8 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
-      <div className="max-h-[92vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-5xl sm:rounded-[2rem] sm:p-5">
+    <div className="fixed inset-0 z-[110] flex items-end bg-black/60 px-3 pb-3 pt-8 sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
+      <div className="os-sheet max-h-[92vh] w-full overflow-y-auto p-4 sm:max-w-5xl sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 pb-4">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">{loadTracked ? t('playerLoad.kicker.load') : t('playerLoad.kicker.player')}</p>
-            <h2 className="mt-1 text-3xl font-black tracking-tight text-white">{player.name}</h2>
-            <p className="mt-1 text-sm font-bold text-slate-400">{teamName}</p>
-            {loadTracked && summary.access !== 'none' ? <button type="button" onClick={loadIntro.show} className="mt-1 text-xs font-black text-sky-300 underline">{t('loadIntro.again')}</button> : null}
+            <p className="text-xs font-semibold text-emerald-300">{loadTracked ? t('playerLoad.kicker.load') : t('playerLoad.kicker.player')}</p>
+            <h2 className="mt-1 text-3xl font-semibold tracking-tight text-white">{player.name}</h2>
+            <p className="mt-1 text-sm font-medium text-slate-400">{teamName}</p>
+            {loadTracked && summary.access !== 'none' ? <button type="button" onClick={loadIntro.show} className="mt-1 text-xs font-semibold text-sky-300 underline">{t('loadIntro.again')}</button> : null}
           </div>
-          <button type="button" onClick={onClose} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">{t('playerLoad.close')}</button>
+          <button type="button" onClick={onClose} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300">{t('playerLoad.close')}</button>
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
           <div className="space-y-4">
             {profile}
             {summary.access === 'none' ? (
-              <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
-                <p className="text-sm font-black text-white">{player.healthConsent === false ? t('consent.noConsent') : loadTracked ? t('playerLoad.notSharedTitle') : t('playerLoad.noTrackingTitle')}</p>
-                <p className="mt-1 text-sm font-bold text-slate-400">{player.healthConsent === false ? t('consent.withdrawDetail') : loadTracked ? t('playerLoad.notSharedDetail') : t('playerLoad.noTrackingDetail', { team: teamName })}</p>
+              <div className="os-panel p-4">
+                <p className="text-sm font-semibold text-white">{player.healthConsent === false ? t('consent.noConsent') : loadTracked ? t('playerLoad.notSharedTitle') : t('playerLoad.noTrackingTitle')}</p>
+                <p className="mt-1 text-sm font-medium text-slate-400">{player.healthConsent === false ? t('consent.withdrawDetail') : loadTracked ? t('playerLoad.notSharedDetail') : t('playerLoad.noTrackingDetail', { team: teamName })}</p>
               </div>
             ) : (
               <div className={`rounded-3xl border p-4 ${acwrToneClass(zone.tone)}`}>
                 <div className="flex items-center gap-4">
                   <div className="grid h-20 w-20 shrink-0 place-items-center rounded-3xl border border-current/25 bg-slate-950/40">
                     <div className="text-center">
-                      <p className="text-2xl font-black leading-none">{acwr !== null ? formatDecimal(acwr) : '?'}</p>
-                      <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] opacity-70">ACWR</p>
+                      <p className="text-2xl font-semibold leading-none">{acwr !== null ? formatDecimal(acwr) : '?'}</p>
+                      <p className="mt-1 text-xs font-semibold opacity-70">ACWR</p>
                     </div>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xl font-black text-white">{acwrDisplayLabel(summary)}</p>
+                    <p className="text-xl font-semibold text-white">{acwrDisplayLabel(summary)}</p>
                   </div>
                 </div>
                 <TeamAcwrGauge acwr={acwr} />
@@ -304,7 +304,7 @@ export function PlayerLoadDetail({
               <>
                 <div>
                   <WeeklyLoadProfileGraph entries={entries} title={t('playerLoad.weeklyProfile')} />
-                  <p className="mt-2 text-xs font-bold text-slate-500">
+                  <p className="mt-2 text-xs font-medium text-slate-400">
                     {avgTrainingMinutes === null ? t('playerLoad.noTrainingAverage') : t('playerLoad.perTraining', { count: avgTrainingMinutes })}{avgGameMinutes === null ? '' : t('playerLoad.perGame', { count: avgGameMinutes })}
                   </p>
                 </div>
@@ -312,18 +312,18 @@ export function PlayerLoadDetail({
                 <div className={`rounded-3xl border p-4 ${stabilityState.tone}`}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] opacity-70">{t('playerLoad.monotonyStrain')}</p>
-                      <p className="mt-2 text-xl font-black text-white">{stabilityState.label}</p>
-                      <p className="mt-1 text-xs font-bold text-slate-300">{stabilityState.detail}</p>
+                      <p className="text-xs font-semibold opacity-70">{t('playerLoad.monotonyStrain')}</p>
+                      <p className="mt-2 text-xl font-semibold text-white">{stabilityState.label}</p>
+                      <p className="mt-1 text-xs font-medium text-slate-300">{stabilityState.detail}</p>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-center">
                       <div className="rounded-2xl border border-current/20 bg-slate-950/35 px-3 py-2">
-                        <p className="text-[10px] font-black uppercase tracking-[0.12em] opacity-70">{t('playerLoad.monotony')}</p>
-                        <p className="mt-1 text-lg font-black text-white">{monotony === null ? '—' : formatDecimal(monotony)}</p>
+                        <p className="text-xs font-semibold opacity-70">{t('playerLoad.monotony')}</p>
+                        <p className="mt-1 text-lg font-semibold text-white">{monotony === null ? '—' : formatDecimal(monotony)}</p>
                       </div>
                       <div className="rounded-2xl border border-current/20 bg-slate-950/35 px-3 py-2">
-                        <p className="text-[10px] font-black uppercase tracking-[0.12em] opacity-70">{t('playerLoad.strain')}</p>
-                        <p className="mt-1 text-lg font-black text-white">{strain === null ? '—' : t('playerLoad.au', { value: Math.round(strain) })}</p>
+                        <p className="text-xs font-semibold opacity-70">{t('playerLoad.strain')}</p>
+                        <p className="mt-1 text-lg font-semibold text-white">{strain === null ? '—' : t('playerLoad.au', { value: Math.round(strain) })}</p>
                       </div>
                     </div>
                   </div>
@@ -334,31 +334,31 @@ export function PlayerLoadDetail({
 
           {showDetails ? (
             <div className="min-w-0 space-y-4">
-              <div className="rounded-3xl border border-slate-800 bg-slate-950/55 p-3">
+              <div className="os-panel p-3">
                 {entries.length > 0 ? <LoadChart entries={entries} pendingSessions={[]} /> : (
-                  <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/50 p-6 text-sm font-bold text-slate-400">
+                  <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/50 p-6 text-sm font-medium text-slate-400">
                     {t('playerLoad.noGraph')}
                   </div>
                 )}
               </div>
 
-              <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="os-panel p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-black text-white">{t('playerLoad.mix')}</p>
-                    <p className="mt-1 text-xs font-bold text-slate-500">{t('playerLoad.mixDetail')}</p>
+                    <p className="text-sm font-semibold text-white">{t('playerLoad.mix')}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-400">{t('playerLoad.mixDetail')}</p>
                   </div>
-                  <span className="text-xs font-black text-slate-500">{t('playerLoad.au', { value: mixTotal })}</span>
+                  <span className="text-xs font-semibold text-slate-400">{t('playerLoad.au', { value: mixTotal })}</span>
                 </div>
                 <div className="mt-4 space-y-3">
-                  {mix.length === 0 ? <p className="text-sm font-bold text-slate-500">{t('playerLoad.noLoad')}</p> : null}
+                  {mix.length === 0 ? <p className="text-sm font-medium text-slate-400">{t('playerLoad.noLoad')}</p> : null}
                   {mix.slice(0, 6).map(([type, load]) => {
                     const percent = Math.round((load / Math.max(mixTotal, 1)) * 100);
                     const label = type in LOAD_TYPE_KEYS ? loadTypeLabel(type as LoadTrainingType) : type;
                     const color = LOAD_TYPE_COLORS[type as keyof typeof LOAD_TYPE_COLORS] ?? '#94a3b8';
                     return (
                       <div key={type}>
-                        <div className="flex justify-between text-xs font-black text-slate-300">
+                        <div className="flex justify-between text-xs font-semibold text-slate-300">
                           <span>{label}</span>
                           <span>{percent}%</span>
                         </div>
@@ -371,26 +371,26 @@ export function PlayerLoadDetail({
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="os-panel p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-black text-white">{t('playerLoad.completed')}</p>
-                    <p className="mt-1 text-xs font-bold text-slate-500">{t('playerLoad.completedDetail')}</p>
+                    <p className="text-sm font-semibold text-white">{t('playerLoad.completed')}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-400">{t('playerLoad.completedDetail')}</p>
                   </div>
-                  <span className="text-xs font-black text-slate-500">{completedEntries.length}</span>
+                  <span className="text-xs font-semibold text-slate-400">{completedEntries.length}</span>
                 </div>
                 <div className="mt-3 grid gap-2">
-                  {completedEntries.length === 0 ? <p className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm font-bold text-slate-500">{t('playerLoad.noCompleted')}</p> : null}
+                  {completedEntries.length === 0 ? <p className="rounded-2xl bg-white/[0.04] p-3 text-sm font-medium text-slate-400">{t('playerLoad.noCompleted')}</p> : null}
                   {completedEntries.map((entry) => (
-                    <div key={entry.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
+                    <div key={entry.id} className="rounded-2xl bg-white/[0.04] p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-black text-white">{displayTitle(entry.title)}</p>
-                          <p className="mt-1 text-xs font-bold text-slate-500">{formatEntryDate(entry.date)} · {loadTypeLabel(entry.trainingType)}</p>
+                          <p className="truncate text-sm font-semibold text-white">{displayTitle(entry.title)}</p>
+                          <p className="mt-1 text-xs font-medium text-slate-400">{formatEntryDate(entry.date)} · {loadTypeLabel(entry.trainingType)}</p>
                         </div>
                         <div className="shrink-0 text-right">
-                          <p className="text-sm font-black text-slate-100">{t('playerLoad.minutes', { count: entry.durationMinutes })}</p>
-                          <p className="mt-1 text-xs font-black text-slate-500">{t('playerLoad.rpeLoad', { rpe: entry.rpe, load: entry.load })}</p>
+                          <p className="text-sm font-semibold text-slate-100">{t('playerLoad.minutes', { count: entry.durationMinutes })}</p>
+                          <p className="mt-1 text-xs font-semibold text-slate-400">{t('playerLoad.rpeLoad', { rpe: entry.rpe, load: entry.load })}</p>
                         </div>
                       </div>
                     </div>
@@ -400,7 +400,7 @@ export function PlayerLoadDetail({
             </div>
           ) : (
             <div className="min-w-0">
-              <div className="rounded-3xl border border-dashed border-slate-700 bg-slate-950/50 p-6 text-sm font-bold text-slate-400">
+              <div className="rounded-3xl border border-dashed border-slate-700 bg-slate-950/50 p-6 text-sm font-medium text-slate-400">
                 {summary.access === 'summary'
                   ? t('playerLoad.summaryOnly')
                   : loadTracked ? t('playerLoad.detailsNotShared') : t('playerLoad.sessionsOnly', { team: teamName })}

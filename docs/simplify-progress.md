@@ -3477,3 +3477,21 @@ Sprachhinweis korrekt die Kontosprache beziehungsweise Englisch verwendete.
 
 Keine Auth-, SMTP-, Rechte- oder Datenbankänderung. Vier anfragebezogene Vorlagen
 werden nach dieser Korrektur live erneut übernommen und mit echter Mail geprüft.
+
+## Run 129 — Neue Designsprache „Graphite“ (2026-11-14)
+
+Ben: UI, Farbskala, Schrift und Sheets noch einmal deutlich überarbeiten; ruhiger, übersichtlicher, intuitiver; volle Freiheit bis zu einem neuen Designsystem, nur dürfen keine Funktionen wegfallen. Ein Text bleibt, wenn er eine Entscheidung ermöglicht, einen echten Fehler erklärt oder einen nicht offensichtlichen Ablauf verständlich macht.
+
+- **Farben** (`tailwind.config.ts`, `globals.css`): neutrales Graphit statt Marineblau. Die Seite ist am dunkelsten, Flächen werden nach oben heller; Rahmen gruppieren nicht mehr. Ein Grün für die Hauptaktion, Blau nur für Links und Fokus, Gelb und Rot nur für Status. Auswahl (Tab, Segment, Tag) ist hell und neutral, nicht blau oder grün. Rot und Rosé sind eine Skala.
+- **Schrift:** drei Gewichte statt „alles fett“ (730× `font-black` → `font-semibold`, 391× `font-bold` → `font-medium`), nichts unter 12 px außer Diagrammachsen (11 px) und dem 7-Tage-Raster auf dem Handy (10 px), keine gesperrten Großbuchstaben mehr als Abschnittslabel, Nebentext mindestens `slate-400`.
+- **Flächen:** rund 150 umrandete Kästen sind randlose Kacheln (`bg-white/[0.04]`) oder `os-panel`; getönte Kästen für Hinweise sind neutral, der Status sitzt im Chip oder im Wert. Kleinere Radien (18 / 12 / 10 px).
+- **Sheets:** alle 19 Dialoge und Sheets haben einen Rahmen (`os-sheet`) über einem schwarzen Schleier ohne Unschärfe.
+- **Gerüst:** Tab-Leiste und Seitenleiste neutral, aktiver Eintrag weiß mit grünem Symbol; „Nachrichten“ passt mit 12 px in fünf Tabs. Seitenkopf der Einstiegsseiten ist eine Zeile, kein Kasten.
+- **Heute:** neue Nachrichten, Spielerkarten-Hinweis und Playbook sind Zeilen eines Panels statt drei Karten in drei Stilen; die Belastungskacheln sind neutral, der Wert trägt die Farbe.
+- **Texte entfernt** (acht Sätze, in allen vier Sprachen): u. a. „Deine Karte, so wie dein Trainer sie sieht“, „So sehen dich dein Team und dein Verein“, „Wähle eine Möglichkeit“, die Erklärsätze unter „Deine Teams“, „Vereinsadmins“, der Trainer-Prüfung und den ersten Bewertungen. Geblieben sind Sätze, die eine Wahl erklären (Zusage-Modus, wer das Foto sieht, antippbare Diagramme).
+- Nachrichten-Verlauf auf dem Desktop in Lesebreite. Landing-Bilder neu aufgenommen; `landing-shots.mjs` schaltet dafür die Tipps aus.
+- `DESIGN.md`: Abschnitte Feel, Foundations und Components neu (Graphite), Regel „Ein Text bleibt, wenn …“.
+
+Keine Funktion entfernt, keine Änderung an Daten, Rechten oder Migrationen.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke voll (256 Seitenaufrufe, 4 Sprachen, Handy und Desktop), `test:landing`, `test:load`, `test:series`, `test:features`, `test:consent`, `test:carpools`, `test:store`; alle Hauptseiten, Sheets und Dialoge je Rolle bei 390 und 1280 px angesehen.

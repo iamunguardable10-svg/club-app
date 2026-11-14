@@ -20,8 +20,8 @@ export function LanguagePicker({ compact = false }: { compact?: boolean }) {
       onChange={(event) => change(event.target.value as Locale)}
       aria-label={t('language.label')}
       className={compact
-        ? 'rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-black text-slate-200'
-        : 'w-full rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-sm font-bold text-white sm:w-auto'}
+        ? 'rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-slate-200'
+        : 'w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm font-medium text-white sm:w-auto'}
     >
       {LOCALES.map((option) => <option key={option.code} value={option.code}>{option.name}</option>)}
     </select>
@@ -29,7 +29,7 @@ export function LanguagePicker({ compact = false }: { compact?: boolean }) {
   if (compact) return select;
   return (
     <div className="grid gap-2">
-      <p className="text-sm font-black text-white">{t('language.label')}</p>
+      <p className="text-sm font-semibold text-white">{t('language.label')}</p>
       {select}
     </div>
   );

@@ -96,8 +96,8 @@ function InviteFlow({ token, account }: { token: string; account: Account }) {
   return (
     <Shell title={t('onboarding.join.yourInvitation')} steps={{ labels, current }}>
       <section className="os-panel p-5 text-sm text-slate-300">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('onboarding.join.invitationFor')}</p>
-        <p className="mt-1 text-lg font-black text-white">{preview.firstName} {preview.lastName}</p>
+        <p className="text-xs font-semibold text-slate-400">{t('onboarding.join.invitationFor')}</p>
+        <p className="mt-1 text-lg font-semibold text-white">{preview.firstName} {preview.lastName}</p>
         <p className="mt-1">{preview.roleName ?? t('onboarding.join.staff')} · {place}</p>
         {current === 0 ? <p className="mt-3 text-xs text-slate-400">{clubRole ? t('onboarding.join.clubRoleNote') : t('onboarding.join.staffNote')}</p> : null}
       </section>
@@ -124,7 +124,7 @@ function InviteFlow({ token, account }: { token: string; account: Account }) {
             returnTo={`/join?invite=${encodeURIComponent(token)}`}
             intro={t('onboarding.join.inviteIntro', { name: preview.firstName })}
           />
-          <button type="button" onClick={() => setDraft(null)} className="justify-self-start px-1 text-xs font-bold text-slate-400 underline">{t('onboarding.back')}</button>
+          <button type="button" onClick={() => setDraft(null)} className="justify-self-start px-1 text-xs font-medium text-slate-400 underline">{t('onboarding.back')}</button>
         </>
       ) : (
         <ProfileStep
@@ -155,7 +155,7 @@ function EnterCode({ initial, message }: { initial: string; message?: string }) 
         window.location.assign(`/join?code=${encodeURIComponent(code)}`);
       }}
     >
-      <h2 className="text-2xl font-black leading-tight text-white">{t('onboarding.join.codeTitle')}</h2>
+      <h2 className="text-2xl font-semibold leading-tight text-white">{t('onboarding.join.codeTitle')}</h2>
       <input
         required autoFocus value={value}
         onChange={(event) => { setValue(event.target.value); setError(null); }}
@@ -178,12 +178,12 @@ function TeamCard({ preview }: { preview: JoinCodePreview }) {
         // eslint-disable-next-line @next/next/no-img-element -- the team's own logo from storage
         <img src={preview.logoUrl} alt="" className="h-16 w-16 shrink-0 rounded-2xl border border-slate-700 bg-slate-950 object-contain p-1" />
       ) : (
-        <span aria-hidden className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-emerald-300/10 text-2xl font-black text-emerald-200">{preview.teamName.slice(0, 1).toUpperCase()}</span>
+        <span aria-hidden className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-emerald-300/10 text-2xl font-semibold text-emerald-200">{preview.teamName.slice(0, 1).toUpperCase()}</span>
       )}
       <div className="min-w-0">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">{preview.clubName}</p>
-        <p className="mt-1 text-2xl font-black leading-tight text-white">{preview.teamName}</p>
-        {preview.departmentName ? <p className="mt-0.5 text-sm font-bold text-slate-400">{preview.departmentName}</p> : null}
+        <p className="text-xs font-semibold text-emerald-300">{preview.clubName}</p>
+        <p className="mt-1 text-2xl font-semibold leading-tight text-white">{preview.teamName}</p>
+        {preview.departmentName ? <p className="mt-0.5 text-sm font-medium text-slate-400">{preview.departmentName}</p> : null}
       </div>
     </section>
   );
@@ -245,7 +245,7 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
       ) : !account ? (
         <>
           <AuthForm returnTo={`/join?code=${encodeURIComponent(code)}&go=1`} />
-          <button type="button" onClick={() => setJoining(false)} className="justify-self-start px-1 text-xs font-bold text-slate-400 underline">{t('onboarding.back')}</button>
+          <button type="button" onClick={() => setJoining(false)} className="justify-self-start px-1 text-xs font-medium text-slate-400 underline">{t('onboarding.back')}</button>
         </>
       ) : (
         <>

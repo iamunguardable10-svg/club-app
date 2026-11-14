@@ -55,13 +55,13 @@ export function QuickPlayerRoles({ database }: { database: LocalDatabase }) {
           type="button"
           disabled={busy !== null}
           onClick={() => void joinAsPlayer(team.id, team.name)}
-          className="flex items-center justify-between rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-left text-sm font-black text-slate-100 hover:border-emerald-300/60 disabled:opacity-60"
+          className="flex items-center justify-between rounded-2xl bg-white/[0.04] px-4 py-3 text-left text-sm font-semibold text-slate-100 disabled:opacity-60"
         >
           {busy === team.id ? t('quickRoles.oneMoment') : t('quickRoles.alsoPlay', { team: team.name })}
           <span aria-hidden className="text-emerald-300">+</span>
         </button>
       ))}
-      {message ? <p role={message.error ? 'alert' : 'status'} className={`text-xs font-bold ${message.error ? 'text-red-200' : 'text-emerald-200'}`}>{message.text}</p> : null}
+      {message ? <p role={message.error ? 'alert' : 'status'} className={`text-xs font-medium ${message.error ? 'text-red-200' : 'text-emerald-200'}`}>{message.text}</p> : null}
     </div>
   );
 }

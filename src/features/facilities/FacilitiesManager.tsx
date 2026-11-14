@@ -37,8 +37,8 @@ import {
   type Team,
 } from '@/shared/data';
 
-const inputClass = 'w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm font-bold text-slate-100 outline-none focus:border-sky-300';
-const smallButtonClass = 'rounded-xl border px-3 py-2 text-xs font-black transition disabled:opacity-50';
+const inputClass = 'w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm font-medium text-slate-100 outline-none focus:border-sky-300';
+const smallButtonClass = 'rounded-xl border px-3 py-2 text-xs font-semibold transition disabled:opacity-50';
 
 function mapsHref(address: string) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
@@ -104,9 +104,9 @@ export function FacilitiesManager({
   const deletingUsage = deleting ? facilityUsage(database, deleting.id) : null;
 
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-white sm:p-5">
+    <section className="os-panel p-4 text-white sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-black">{t('facilities.count', { count: facilities.length })}</h2>
+        <h2 className="text-lg font-semibold">{t('facilities.count', { count: facilities.length })}</h2>
         {isManager ? (
           <button
             type="button"
@@ -118,7 +118,7 @@ export function FacilitiesManager({
         ) : null}
       </div>
 
-      {error ? <p role="alert" className="mt-4 rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-bold text-red-100">{error}</p> : null}
+      {error ? <p role="alert" className="mt-4 rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-medium text-red-100">{error}</p> : null}
 
       {editMode ? (
         <NewFacilityForm database={database} managedDepartmentIds={managedDepartmentIds} onRun={run} />
@@ -140,7 +140,7 @@ export function FacilitiesManager({
           />
         ))}
         {facilities.length === 0 ? (
-          <p className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">
+          <p className="rounded-2xl bg-white/[0.04] p-4 text-sm font-medium text-slate-400">
             {!isManager ? t('facilities.empty.notShared') : editMode ? t('facilities.empty.editing') : t('facilities.empty.reading')}
           </p>
         ) : null}
@@ -196,15 +196,15 @@ function NewFacilityForm({
         if (ok) { setName(''); setAddress(''); }
       }}
     >
-      <p className="text-sm font-black text-slate-100">{t('facilities.add')}</p>
+      <p className="text-sm font-semibold text-slate-100">{t('facilities.add')}</p>
       <input value={name} onChange={(event) => setName(event.target.value)} placeholder={t('facilities.hallName')} aria-label={t('facilities.hallName')} className={inputClass} />
       <AddressField value={address} onChange={setAddress} label={t('facilities.hallAddress')} />
-      {match ? <p className="rounded-xl border border-amber-400/35 bg-amber-400/10 px-3 py-2 text-xs font-bold text-amber-100">{getFacilityMatchWarning(match)}</p> : null}
+      {match ? <p className="rounded-xl border border-amber-400/35 bg-amber-400/10 px-3 py-2 text-xs font-medium text-amber-100">{getFacilityMatchWarning(match)}</p> : null}
       {managedDepartments.length > 1 ? (
         <fieldset className="grid gap-1">
-          <legend className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('facilities.bookableFor')}</legend>
+          <legend className="text-xs font-semibold text-slate-400">{t('facilities.bookableFor')}</legend>
           {managedDepartments.map((department) => (
-            <label key={department.id} className="flex items-center gap-2 text-sm font-bold text-slate-200">
+            <label key={department.id} className="flex items-center gap-2 text-sm font-medium text-slate-200">
               <input
                 type="checkbox"
                 checked={selectedDepartmentIds.includes(department.id)}
@@ -258,9 +258,9 @@ function FacilityCard({
 
   const summary = (
     <>
-      <p className="text-lg font-black text-white">{facility.name}</p>
-      {facility.address ? <p className="mt-1 text-xs font-bold text-slate-400">{facility.address}</p> : <p className="mt-1 text-xs font-bold text-slate-600">{t('facilities.noAddress')}</p>}
-      <p className="mt-3 text-xs font-bold text-slate-500">
+      <p className="text-lg font-semibold text-white">{facility.name}</p>
+      {facility.address ? <p className="mt-1 text-xs font-medium text-slate-400">{facility.address}</p> : <p className="mt-1 text-xs font-medium text-slate-400">{t('facilities.noAddress')}</p>}
+      <p className="mt-3 text-xs font-medium text-slate-400">
         {defaultFor.length > 0 ? t('facilities.defaultFor', { teams: defaultFor.map((team) => team.name).join(', ') }) : ''}
         {t('facilities.upcoming', { count: usage.upcomingSessions })}
       </p>
@@ -273,7 +273,7 @@ function FacilityCard({
       <div data-facility-id={facility.id} className="rounded-3xl border border-slate-800 bg-slate-950/70 transition hover:border-sky-300/45 hover:bg-slate-900/70" style={style}>
         <Link href={href} className="block p-5">{summary}</Link>
         {facility.address ? (
-          <a href={mapsHref(facility.address)} target="_blank" rel="noreferrer" className="mx-5 mb-4 inline-block text-xs font-black text-sky-300 hover:text-sky-200">
+          <a href={mapsHref(facility.address)} target="_blank" rel="noreferrer" className="mx-5 mb-4 inline-block text-xs font-semibold text-sky-300 hover:text-sky-200">
             {t('facilities.openMaps')}
           </a>
         ) : null}
@@ -282,11 +282,11 @@ function FacilityCard({
   }
 
   return (
-    <div data-facility-id={facility.id} className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4" style={style}>
+    <div data-facility-id={facility.id} className="os-panel p-4" style={style}>
       {!manageable ? (
         <>
           {summary}
-          <p className="mt-3 text-xs font-bold text-slate-500">{t('facilities.sharedReadOnly')}</p>
+          <p className="mt-3 text-xs font-medium text-slate-400">{t('facilities.sharedReadOnly')}</p>
         </>
       ) : (
         <form
@@ -301,9 +301,9 @@ function FacilityCard({
 
       {manageable && database.departments.some((department) => managedDepartmentIds.has(department.id)) ? (
         <fieldset className="mt-3 grid gap-1">
-          <legend className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('facilities.bookableFor')}</legend>
+          <legend className="text-xs font-semibold text-slate-400">{t('facilities.bookableFor')}</legend>
           {database.departments.filter((department) => managedDepartmentIds.has(department.id)).map((department) => (
-            <label key={department.id} className="flex items-center gap-2 text-sm font-bold text-slate-200">
+            <label key={department.id} className="flex items-center gap-2 text-sm font-medium text-slate-200">
               <input
                 type="checkbox"
                 checked={linkedDepartmentIds.includes(department.id)}
@@ -318,11 +318,11 @@ function FacilityCard({
 
       {defaultableTeams.length > 0 ? (
         <div className="mt-3 grid gap-1">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('facilities.defaultHallOf')}</p>
+          <p className="text-xs font-semibold text-slate-400">{t('facilities.defaultHallOf')}</p>
           {defaultableTeams.map((team) => {
             const isDefault = team.defaultFacilityId === facility.id;
             return (
-              <label key={team.id} className="flex items-center gap-2 text-sm font-bold text-slate-200">
+              <label key={team.id} className="flex items-center gap-2 text-sm font-medium text-slate-200">
                 <input
                   type="checkbox"
                   checked={isDefault}

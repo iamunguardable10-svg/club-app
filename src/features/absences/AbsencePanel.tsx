@@ -80,7 +80,7 @@ export function AbsencePanel({
     }
   }
 
-  const fieldClass = 'mt-1 h-9 w-full min-w-0 rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm font-bold text-slate-100 outline-none focus:border-sky-300 [color-scheme:dark]';
+  const fieldClass = 'mt-1 h-9 w-full min-w-0 rounded-lg border border-slate-700 bg-slate-950 px-2 text-sm font-medium text-slate-100 outline-none focus:border-sky-300 [color-scheme:dark]';
 
   return (
     <div className={`grid gap-2 ${className}`}>
@@ -91,16 +91,16 @@ export function AbsencePanel({
           <div key={absence.id} className={`rounded-2xl border p-3 ${now ? 'border-amber-300/40 bg-amber-300/[0.07]' : 'border-slate-800 bg-slate-950/55'}`}>
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-sm font-black text-white">
+                <p className="text-sm font-semibold text-white">
                   {showReasons && absence.kind ? absenceKindLabel(absence.kind) : t('absence.kind.other')} · {absenceRange(absence)}
                 </p>
                 {showReasons && absence.note ? <p className="mt-0.5 text-xs text-slate-300">{absence.note}</p> : null}
-                <p className="mt-0.5 text-[11px] font-bold text-slate-500">
+                <p className="mt-0.5 text-xs font-medium text-slate-400">
                   {now ? t('absence.now') : t('absence.comingUp')}{enteredBy ? ` · ${t('absence.enteredBy', { name: enteredBy })}` : ''}
                 </p>
               </div>
               {editable ? (
-                <div className="flex shrink-0 gap-3 text-xs font-bold">
+                <div className="flex shrink-0 gap-3 text-xs font-medium">
                   <button type="button" onClick={() => { setError(null); setDraft({ id: absence.id, fromDate: absence.fromDate, toDate: absence.toDate, kind: absence.kind, note: absence.note ?? '' }); }} className="text-sky-300 underline">{t('absence.change')}</button>
                   <button type="button" onClick={() => setRemoving(absence)} className="text-slate-400 underline">{t('absence.remove')}</button>
                 </div>
@@ -111,13 +111,13 @@ export function AbsencePanel({
       })}
 
       {draft ? (
-        <form className="grid gap-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-3" onSubmit={(event) => { event.preventDefault(); save(); }}>
+        <form className="grid gap-2 rounded-2xl bg-white/[0.04] p-3" onSubmit={(event) => { event.preventDefault(); save(); }}>
           <div className="grid grid-cols-2 gap-2">
-            <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+            <label className="min-w-0 text-xs font-semibold text-slate-400">
               {t('absence.from')}
               <input type="date" value={draft.fromDate} onChange={(event) => setDraft({ ...draft, fromDate: event.target.value })} className={fieldClass} required />
             </label>
-            <label className="min-w-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+            <label className="min-w-0 text-xs font-semibold text-slate-400">
               {t('absence.untilIncl')}
               <input type="date" value={draft.toDate} min={draft.fromDate} onChange={(event) => setDraft({ ...draft, toDate: event.target.value })} className={fieldClass} required />
             </label>
@@ -126,7 +126,7 @@ export function AbsencePanel({
             <>
               <div className="flex flex-wrap gap-1.5" role="group" aria-label={t('absence.why')}>
                 {ABSENCE_KINDS.map((kind) => (
-                  <button key={kind} type="button" aria-pressed={draft.kind === kind} onClick={() => setDraft({ ...draft, kind })} className={`rounded-full border px-3 py-1 text-xs font-black ${draft.kind === kind ? 'border-amber-200 bg-amber-200 text-slate-950' : 'border-slate-700 text-slate-300'}`}>
+                  <button key={kind} type="button" aria-pressed={draft.kind === kind} onClick={() => setDraft({ ...draft, kind })} className={`rounded-full border px-3 py-1 text-xs font-semibold ${draft.kind === kind ? 'border-amber-200 bg-amber-200 text-slate-950' : 'border-slate-700 text-slate-300'}`}>
                     {absenceKindLabel(kind)}
                   </button>
                 ))}
@@ -134,29 +134,29 @@ export function AbsencePanel({
               <input value={draft.note} onChange={(event) => setDraft({ ...draft, note: event.target.value })} maxLength={300} placeholder={t('absence.notePlaceholder')} aria-label={t('absence.note')} className={fieldClass} />
             </>
           ) : (
-            <p className="text-xs text-slate-500">{t('absence.onlyPeriod', { name: firstName })}</p>
+            <p className="text-xs text-slate-400">{t('absence.onlyPeriod', { name: firstName })}</p>
           )}
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-400">
             {viewer === 'self'
               ? t('absence.selfEffect')
               : t('absence.coachEffect', { name: firstName })}
           </p>
-          {error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null}
+          {error ? <p role="alert" className="text-xs font-medium text-red-200">{error}</p> : null}
           <div className="flex flex-wrap gap-2">
-            <button type="submit" disabled={showReasons && !draft.kind} className="rounded-xl bg-amber-200 px-4 py-2 text-xs font-black text-slate-950 disabled:opacity-50">{draft.id ? t('absence.save') : viewer === 'self' ? t('absence.saveAbsence') : t('absence.markAway', { name: firstName })}</button>
-            <button type="button" onClick={() => { setDraft(null); setError(null); }} className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-black text-slate-300">{t('absence.cancel')}</button>
+            <button type="submit" disabled={showReasons && !draft.kind} className="rounded-xl bg-amber-200 px-4 py-2 text-xs font-semibold text-slate-950 disabled:opacity-50">{draft.id ? t('absence.save') : viewer === 'self' ? t('absence.saveAbsence') : t('absence.markAway', { name: firstName })}</button>
+            <button type="button" onClick={() => { setDraft(null); setError(null); }} className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-300">{t('absence.cancel')}</button>
           </div>
         </form>
       ) : editable ? (
         <button
           type="button"
           onClick={() => { setError(null); setDraft({ fromDate: today, toDate: addDaysISO(today, 6), kind: null, note: '' }); }}
-          className="justify-self-start rounded-xl border border-amber-200/40 px-3 py-2 text-xs font-black text-amber-100 hover:bg-amber-200/10"
+          className="justify-self-start rounded-xl border border-amber-200/40 px-3 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-200/10"
         >
           {viewer === 'self' ? t('absence.selfAway') : t('absence.markAway', { name: firstName })}
         </button>
       ) : null}
-      {error && !draft ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null}
+      {error && !draft ? <p role="alert" className="text-xs font-medium text-red-200">{error}</p> : null}
 
       <AppConfirmDialog
         isOpen={removing !== null}

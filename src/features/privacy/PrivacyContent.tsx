@@ -17,7 +17,7 @@ import { useT, type MessageKey } from '@/shared/i18n';
 function Part({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="os-panel grid gap-2 p-5 text-sm leading-relaxed text-slate-300">
-      <h2 className="text-base font-black text-white">{title}</h2>
+      <h2 className="text-base font-semibold text-white">{title}</h2>
       {children}
     </section>
   );
@@ -37,7 +37,7 @@ export function PrivacyContent() {
   return (
     <main className="os-page">
       <div className="os-container max-w-2xl space-y-4">
-        <header className="os-hero p-6">
+        <header className="os-hero">
           <div className="flex items-center justify-between"><p className="os-kicker">Club OS</p><LanguagePicker compact /></div>
           <h1 className="os-title mt-2">{t('privacy.title')}</h1>
           <p className="os-copy mt-3">{t('privacy.intro')}</p><p className="mt-3 text-xs text-slate-400">{t('legal.version', { version: LEGAL_VERSION })}</p>
@@ -64,8 +64,8 @@ export function PrivacyContent() {
         </Part>
 
         <LegalDocument kind="privacy" />
-        <p className="text-xs text-slate-500">
-          {t('privacy.lastChanged')} <Link href="/start" className="font-bold text-sky-300 underline">{t('privacy.back')}</Link>
+        <p className="text-xs text-slate-400">
+          {t('privacy.lastChanged')} <Link href="/start" className="font-medium text-sky-300 underline">{t('privacy.back')}</Link>
         </p>
       </div>
     </main>

@@ -43,40 +43,40 @@ function LoadTooltip({ active, payload }: LoadTooltipProps) {
   const forecastSegments = LOAD_TRAINING_TYPES.filter((type) => (Number(point[`${type}_p`]) || 0) > 0);
 
   return (
-    <div className="min-w-56 rounded-2xl border border-slate-700 bg-slate-950/95 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.45)] ring-1 ring-white/[0.04] backdrop-blur-xl">
+    <div className="min-w-56 rounded-2xl bg-white/[0.04] p-3 shadow-[0_24px_80px_rgba(0,0,0,0.45)] ring-1 ring-white/[0.04] backdrop-blur-xl">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-black text-white">{formatEntryDate(point.date)}</p>
-          <p className="mt-1 text-[11px] font-bold text-slate-500">{point.isProjected ? (point.forecastBasis && FORECAST_BASIS_KEY[point.forecastBasis] ? t(FORECAST_BASIS_KEY[point.forecastBasis]) : point.forecastBasis) : t('load.chart.entries', { count: point.entryCount })}</p>
+          <p className="text-xs font-semibold text-white">{formatEntryDate(point.date)}</p>
+          <p className="mt-1 text-xs font-medium text-slate-400">{point.isProjected ? (point.forecastBasis && FORECAST_BASIS_KEY[point.forecastBasis] ? t(FORECAST_BASIS_KEY[point.forecastBasis]) : point.forecastBasis) : t('load.chart.entries', { count: point.entryCount })}</p>
         </div>
         <div className="text-right">
-          <p className="text-lg font-black text-emerald-200">{point.isProjected ? point.forecastLoad : point.totalLoad}</p>
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">AU</p>
+          <p className="text-lg font-semibold text-emerald-200">{point.isProjected ? point.forecastLoad : point.totalLoad}</p>
+          <p className="text-xs font-semibold text-slate-400">AU</p>
         </div>
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-2">
-          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">ACWR</p>
-          <p className="mt-1 text-sm font-black text-white">{(point.acwr ?? point.projectedAcwr) ? formatDecimal((point.acwr ?? point.projectedAcwr)!) : '—'}</p>
+        <div className="rounded-xl bg-white/[0.04] p-2">
+          <p className="text-[11px] font-medium text-slate-400">ACWR</p>
+          <p className="mt-1 text-sm font-semibold text-white">{(point.acwr ?? point.projectedAcwr) ? formatDecimal((point.acwr ?? point.projectedAcwr)!) : '—'}</p>
         </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-2">
-          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">{t('load.chart.acute')}</p>
-          <p className="mt-1 text-sm font-black text-white">{point.acuteLoad !== null && !point.isProjected ? Math.round(point.acuteLoad) : '—'}</p>
+        <div className="rounded-xl bg-white/[0.04] p-2">
+          <p className="text-[11px] font-medium text-slate-400">{t('load.chart.acute')}</p>
+          <p className="mt-1 text-sm font-semibold text-white">{point.acuteLoad !== null && !point.isProjected ? Math.round(point.acuteLoad) : '—'}</p>
         </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-2">
-          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">{t('load.chart.chronic')}</p>
-          <p className="mt-1 text-sm font-black text-white">{point.chronicLoad !== null && !point.isProjected ? Math.round(point.chronicLoad) : '—'}</p>
+        <div className="rounded-xl bg-white/[0.04] p-2">
+          <p className="text-[11px] font-medium text-slate-400">{t('load.chart.chronic')}</p>
+          <p className="mt-1 text-sm font-semibold text-white">{point.chronicLoad !== null && !point.isProjected ? Math.round(point.chronicLoad) : '—'}</p>
         </div>
       </div>
       {!point.chronicFull ? (
-        <div className="mt-3 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-[11px] font-bold text-amber-100">
+        <div className="mt-3 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-xs font-medium text-amber-100">
           {t('load.chart.baselineBuilding', { count: BASELINE_DAYS })}
         </div>
       ) : null}
       {segments.length > 0 ? (
         <div className="mt-3 space-y-1.5">
           {segments.map((type) => (
-            <div key={type} className="flex items-center justify-between gap-3 text-[11px] font-bold text-slate-300">
+            <div key={type} className="flex items-center justify-between gap-3 text-xs font-medium text-slate-300">
               <span className="inline-flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full" style={{ backgroundColor: LOAD_TYPE_COLORS[type] }} />
                 {loadTypeLabel(type)}
@@ -89,7 +89,7 @@ function LoadTooltip({ active, payload }: LoadTooltipProps) {
       {forecastSegments.length > 0 ? (
         <div className="mt-3 space-y-1.5 border-t border-slate-800 pt-3">
           {forecastSegments.map((type) => (
-            <div key={`${type}_p`} className="flex items-center justify-between gap-3 text-[11px] font-bold text-slate-300">
+            <div key={`${type}_p`} className="flex items-center justify-between gap-3 text-xs font-medium text-slate-300">
               <span className="inline-flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full opacity-60" style={{ backgroundColor: LOAD_TYPE_COLORS[type] }} />
                 {t('load.chart.typeForecast', { type: loadTypeLabel(type) })}
@@ -231,7 +231,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
         <CartesianGrid stroke="rgba(148,163,184,0.10)" vertical={false} />
         <XAxis
           dataKey="label"
-          tick={{ fill: '#64748b', fontSize: fullscreen ? 11 : isMobile ? 9 : 11, fontWeight: 800 }}
+          tick={{ fill: '#a0a5ae', fontSize: fullscreen ? 12 : isMobile ? 11 : 12, fontWeight: 500 }}
           tickLine={false}
           axisLine={false}
           interval={range === 7 ? 0 : isMobile ? 1 : range === 14 ? 1 : range === 30 ? 4 : 9}
@@ -242,7 +242,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
         <YAxis
           yAxisId="load"
           domain={[0, Math.ceil(maxLoad / 100) * 100]}
-          tick={{ fill: '#64748b', fontSize: fullscreen ? 11 : isMobile ? 9 : 11, fontWeight: 800 }}
+          tick={{ fill: '#a0a5ae', fontSize: fullscreen ? 12 : isMobile ? 11 : 12, fontWeight: 500 }}
           tickLine={false}
           axisLine={false}
           width={fullscreen ? 58 : isMobile ? 38 : 72}
@@ -252,7 +252,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
           orientation="right"
           domain={[0, 2.5]}
           ticks={[0.8, 1, 1.3, 2]}
-          tick={{ fill: '#64748b', fontSize: fullscreen ? 11 : isMobile ? 9 : 11, fontWeight: 800 }}
+          tick={{ fill: '#a0a5ae', fontSize: fullscreen ? 12 : isMobile ? 11 : 12, fontWeight: 500 }}
           tickLine={false}
           axisLine={false}
           width={fullscreen ? 38 : isMobile ? 26 : 34}
@@ -324,7 +324,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
           dataKey="acwr"
           stroke="#f472b6"
           strokeWidth={3}
-          dot={{ r: range === 7 ? 4 : 2, fill: '#0f172a', stroke: '#f472b6', strokeWidth: 2 }}
+          dot={{ r: range === 7 ? 4 : 2, fill: '#17191c', stroke: '#f472b6', strokeWidth: 2 }}
           activeDot={{ r: 6, fill: '#fdf2f8', stroke: '#f472b6', strokeWidth: 3 }}
           connectNulls={false}
           name="ACWR"
@@ -337,7 +337,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
           stroke="#a78bfa"
           strokeWidth={2}
           strokeDasharray="5 5"
-          dot={{ r: 3, fill: '#0f172a', stroke: '#a78bfa', strokeWidth: 2 }}
+          dot={{ r: 3, fill: '#17191c', stroke: '#a78bfa', strokeWidth: 2 }}
           activeDot={{ r: 5, fill: '#faf5ff', stroke: '#a78bfa', strokeWidth: 3 }}
           connectNulls={false}
           name={t('load.chart.forecastAcwr')}
@@ -348,7 +348,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
 
   if (entries.length === 0) {
     return (
-      <div className="flex min-h-64 items-center justify-center rounded-3xl border border-dashed border-slate-800 bg-slate-950/50 text-sm font-bold text-slate-500">
+      <div className="flex min-h-64 items-center justify-center rounded-3xl border border-dashed border-slate-800 bg-slate-950/50 text-sm font-medium text-slate-400">
         {t('load.chart.noLoad')}
       </div>
     );
@@ -364,7 +364,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
                 key={item}
                 type="button"
                 onClick={() => setRange(item)}
-                className={`rounded-full px-3 py-1.5 text-xs font-black transition ${range === item ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${range === item ? 'bg-slate-100 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}
               >
                 {t('load.chart.days', { count: item })}
               </button>
@@ -373,15 +373,15 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
           <button
             type="button"
             onClick={() => setShowLoadLines((current) => !current)}
-            className={`rounded-full border px-2.5 py-1 text-[10px] font-black transition ${showLoadLines ? 'border-amber-300 bg-amber-300 text-slate-950' : 'border-slate-800 bg-slate-950/80 text-slate-400 hover:text-slate-100'}`}
+            className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition ${showLoadLines ? 'border-amber-300 bg-amber-300 text-slate-950' : 'border-slate-800 bg-slate-950/80 text-slate-400 hover:text-slate-100'}`}
           >
             A/C
           </button>
         </div>
-        <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
-          <span className="hidden items-center gap-1.5 sm:inline-flex"><span className="h-px w-5 bg-sky-300" /> {t('load.chart.low', { value: formatDecimal(ACWR_ZONES.low, 1) })}</span>
+        <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
+          <span className="hidden items-center gap-1.5 sm:inline-flex"><span className="h-px w-5 bg-slate-100" /> {t('load.chart.low', { value: formatDecimal(ACWR_ZONES.low, 1) })}</span>
           <span className="hidden items-center gap-1.5 sm:inline-flex"><span className="h-px w-5 bg-rose-300" /> {t('load.chart.high', { value: formatDecimal(ACWR_ZONES.high, 1) })}</span>
-          <button type="button" onClick={openFullscreen} aria-label={t('load.chart.openFullscreen')} className="inline-grid h-8 w-8 place-items-center bg-transparent text-lg font-black text-slate-300 transition hover:text-white sm:hidden">
+          <button type="button" onClick={openFullscreen} aria-label={t('load.chart.openFullscreen')} className="inline-grid h-8 w-8 place-items-center bg-transparent text-lg font-semibold text-slate-300 transition hover:text-white sm:hidden">
             ⛶
           </button>
         </div>
@@ -393,16 +393,16 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
       </div>
       <div className="mt-2 flex flex-wrap gap-2 px-1 pb-1">
         {LOAD_TRAINING_TYPES.slice(0, 5).map((type) => (
-          <span key={type} className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
+          <span key={type} className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: LOAD_TYPE_COLORS[type] }} />
             {loadTypeLabel(type)}
           </span>
         ))}
-        <span className="ml-auto text-[11px] font-bold text-slate-500">{t('load.chart.legend')}</span>
+        <span className="ml-auto text-xs font-medium text-slate-400">{t('load.chart.legend')}</span>
       </div>
       {isFullscreen ? (
         <div
-          className="fixed inset-0 z-[100] h-dvh overflow-hidden bg-[#050712]"
+          className="fixed inset-0 z-[100] h-dvh overflow-hidden bg-ground"
           role="dialog"
           aria-modal="true"
           style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
@@ -410,11 +410,11 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
           {!isLandscape ? (
             <div className="flex min-h-dvh flex-col items-center justify-center gap-5 p-6 text-center">
               <div className="rounded-[2rem] border border-slate-800 bg-slate-950/80 p-6">
-                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-300">{t('load.chart.fullscreen')}</p>
-                <h3 className="mt-2 text-2xl font-black">{t('load.chart.turnPhone')}</h3>
-                <p className="mt-2 text-sm font-bold text-slate-400">{t('load.chart.landscapeNote')}</p>
+                <p className="text-xs font-semibold text-emerald-300">{t('load.chart.fullscreen')}</p>
+                <h3 className="mt-2 text-2xl font-semibold">{t('load.chart.turnPhone')}</h3>
+                <p className="mt-2 text-sm font-medium text-slate-400">{t('load.chart.landscapeNote')}</p>
               </div>
-              <button type="button" onClick={closeFullscreen} className="rounded-full border border-slate-700 bg-slate-950 px-4 py-2 text-xs font-black text-slate-100">
+              <button type="button" onClick={closeFullscreen} className="rounded-full border border-slate-700 bg-slate-950 px-4 py-2 text-xs font-semibold text-slate-100">
                 {t('load.chart.close')}
               </button>
             </div>
@@ -422,8 +422,8 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
             <div className="flex h-full min-h-0 flex-col gap-1.5 p-2">
               <div className="flex shrink-0 items-center justify-between gap-2 px-1">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">{t('load.chart.title')}</p>
-                  <p className="truncate text-sm font-black text-white">{t('load.chart.rangeEwma', { count: range })}</p>
+                  <p className="text-xs font-semibold text-emerald-300">{t('load.chart.title')}</p>
+                  <p className="truncate text-sm font-semibold text-white">{t('load.chart.rangeEwma', { count: range })}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                   <div className="flex rounded-full border border-slate-800 bg-slate-950/80 p-0.5">
@@ -432,7 +432,7 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
                         key={item}
                         type="button"
                         onClick={() => setRange(item)}
-                        className={`rounded-full px-2.5 py-1 text-[10px] font-black transition ${range === item ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${range === item ? 'bg-slate-100 text-slate-950' : 'text-slate-400'}`}
                       >
                         {t('load.chart.days', { count: item })}
                       </button>
@@ -441,14 +441,14 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
                   <button
                     type="button"
                     onClick={() => setShowLoadLines((current) => !current)}
-                    className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${showLoadLines ? 'border-amber-300 bg-amber-300 text-slate-950' : 'border-slate-700 bg-slate-950 text-slate-300'}`}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${showLoadLines ? 'border-amber-300 bg-amber-300 text-slate-950' : 'border-slate-700 bg-slate-950 text-slate-300'}`}
                   >
                     A/C
                   </button>
                   <button
                     type="button"
                     onClick={closeFullscreen}
-                    className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1.5 text-[10px] font-black text-slate-100"
+                    className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs font-semibold text-slate-100"
                   >
                     {t('load.chart.close')}
                   </button>
@@ -507,11 +507,11 @@ export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoa
   }
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
+    <div className="rounded-2xl bg-white/[0.04] p-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          {title === '' ? null : <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{title ?? t('load.week.defaultTitle')}</p>}
-          <p className={`${title === '' ? '' : 'mt-1 '}text-sm font-bold text-slate-300`}>{t('load.week.tapHint')}</p>
+          {title === '' ? null : <p className="text-xs font-semibold text-slate-400">{title ?? t('load.week.defaultTitle')}</p>}
+          <p className={`${title === '' ? '' : 'mt-1 '}text-sm font-medium text-slate-300`}>{t('load.week.tapHint')}</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(WEEKLY_LOAD_METRICS) as WeeklyLoadMetric[]).map((item) => (
@@ -519,7 +519,7 @@ export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoa
               key={item}
               type="button"
               onClick={() => setMetric(item)}
-              className={`rounded-full border px-2.5 py-1 text-[11px] font-black transition ${metric === item ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
+              className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition ${metric === item ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
             >
               {t(WEEKLY_LOAD_METRICS[item].label)}
             </button>
@@ -528,7 +528,7 @@ export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoa
       </div>
       <div className="mt-3 h-72 sm:h-72">
         {!isMounted ? (
-          <div className="h-full rounded-xl border border-slate-800 bg-slate-950/60" />
+          <div className="h-full rounded-xl bg-white/[0.04]" />
         ) : (
         <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
           <ComposedChart
@@ -540,10 +540,10 @@ export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoa
             barCategoryGap="18%"
           >
             <CartesianGrid stroke="rgba(148,163,184,0.12)" vertical={false} />
-            <XAxis dataKey="label" tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 800 }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="label" tick={{ fill: '#a0a5ae', fontSize: 12, fontWeight: 500 }} axisLine={false} tickLine={false} />
             <YAxis
               domain={domain}
-              tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 800 }}
+              tick={{ fill: '#a0a5ae', fontSize: 12, fontWeight: 500 }}
               axisLine={false}
               tickLine={false}
               width={42}
@@ -551,7 +551,7 @@ export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoa
             />
             <Tooltip
               cursor={{ stroke: 'rgba(148,163,184,0.2)' }}
-              contentStyle={{ background: '#020617', border: '1px solid rgba(148,163,184,0.25)', borderRadius: 16 }}
+              contentStyle={{ background: '#1f2226', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
               labelStyle={{ color: '#e2e8f0', fontWeight: 900 }}
               labelFormatter={(label) => {
                 const point = points.find((candidate) => candidate.label === label);
@@ -582,7 +582,7 @@ export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoa
               stroke={meta.color}
               strokeWidth={2}
               strokeOpacity={0.58}
-              dot={{ r: 3, fill: '#020617', stroke: meta.color, strokeWidth: 2 }}
+              dot={{ r: 3, fill: '#17191c', stroke: meta.color, strokeWidth: 2 }}
               activeDot={{ r: 5, fill: '#f8fafc', stroke: meta.color, strokeWidth: 2 }}
             />
           </ComposedChart>
@@ -590,15 +590,15 @@ export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoa
         )}
       </div>
       {selectedWeek ? (
-        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/82 p-3 backdrop-blur-xl sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="weekly-load-detail-title" onClick={() => setSelectedWeekKey(null)}>
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-950 p-4 text-white shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:rounded-[2rem] sm:p-5" onClick={(event) => event.stopPropagation()}>
+        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="weekly-load-detail-title" onClick={() => setSelectedWeekKey(null)}>
+          <div className="os-sheet max-h-[90vh] w-full max-w-3xl overflow-y-auto p-4 text-white sm:p-5" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">{t('load.week.detail')}</p>
-                <h3 id="weekly-load-detail-title" className="mt-1 text-2xl font-black">{selectedWeek.label}</h3>
-                <p className="mt-1 text-sm font-bold text-slate-500">{selectedWeek.dateRange} · {t('load.week.sessions', { count: selectedWeek.sessions })}</p>
+                <p className="text-xs font-semibold text-emerald-300">{t('load.week.detail')}</p>
+                <h3 id="weekly-load-detail-title" className="mt-1 text-2xl font-semibold">{selectedWeek.label}</h3>
+                <p className="mt-1 text-sm font-medium text-slate-400">{selectedWeek.dateRange} · {t('load.week.sessions', { count: selectedWeek.sessions })}</p>
               </div>
-              <button type="button" onClick={() => setSelectedWeekKey(null)} className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-black text-slate-200 transition hover:border-emerald-300/50">
+              <button type="button" onClick={() => setSelectedWeekKey(null)} className="rounded-2xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-emerald-300/50">
                 {t('load.week.close')}
               </button>
             </div>
@@ -608,13 +608,13 @@ export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoa
                   key={item}
                   type="button"
                   onClick={() => setMetric(item)}
-                  className={`rounded-full border px-3 py-1.5 text-[11px] font-black transition ${metric === item ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${metric === item ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300 hover:border-slate-500'}`}
                 >
                   {t(WEEKLY_LOAD_METRICS[item].label)}
                 </button>
               ))}
             </div>
-            <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
+            <div className="mt-4 rounded-2xl bg-white/[0.04] p-3">
               <div className="grid grid-cols-7 items-end gap-1.5 sm:gap-2">
                 {dayPoints.map((day) => {
                   const rawValue = day[meta.dataKey];
@@ -623,17 +623,17 @@ export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoa
                   const height = value === null ? 4 : Math.max(10, Math.round((Math.min(value, max) / max) * 170));
                   return (
                     <div key={day.key} className="min-w-0 text-center" title={`${day.label}: ${value === null ? '-' : metric === 'acwr' || metric === 'rpe' ? formatDecimal(value, 1) : Math.round(value)}`}>
-                      <div className="flex h-44 items-end justify-center rounded-xl border border-slate-800 bg-slate-900/55 px-1 py-1.5">
+                      <div className="flex h-44 items-end justify-center rounded-xl bg-white/[0.04] px-1 py-1.5">
                         <div className="w-full max-w-9 rounded-t-lg" style={{ height, backgroundColor: meta.color, opacity: value === null ? 0.16 : 0.86 }} />
                       </div>
-                      <p className="mt-1 truncate text-[10px] font-black text-slate-300">{day.label}</p>
-                      <p className="text-[9px] font-bold text-slate-600">{value === null ? '-' : metric === 'acwr' || metric === 'rpe' ? formatDecimal(value, 1) : Math.round(value)}</p>
+                      <p className="mt-1 truncate text-xs font-semibold text-slate-300">{day.label}</p>
+                      <p className="text-[11px] font-medium tracking-tight text-slate-400">{value === null ? '-' : metric === 'acwr' || metric === 'rpe' ? formatDecimal(value, 1) : Math.round(value)}</p>
                     </div>
                   );
                 })}
               </div>
               {metric === 'acwr' ? (
-                <div className="mt-3 flex items-center gap-3 text-[10px] font-black text-slate-500">
+                <div className="mt-3 flex items-center gap-3 text-xs font-semibold text-slate-400">
                   <span className="inline-flex items-center gap-1"><span className="h-px w-5 border-t border-dashed border-sky-300" />{t('load.week.low', { value: formatDecimal(ACWR_ZONES.low, 1) })}</span>
                   <span className="inline-flex items-center gap-1"><span className="h-px w-5 border-t border-dashed border-rose-300" />{t('load.week.high', { value: formatDecimal(ACWR_ZONES.high, 1) })}</span>
                 </div>

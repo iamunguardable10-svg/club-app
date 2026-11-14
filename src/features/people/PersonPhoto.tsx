@@ -81,7 +81,7 @@ function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('');
 }
 
-const SIZE = { sm: 'h-8 w-8 text-[11px]', md: 'h-10 w-10 text-xs', lg: 'h-20 w-20 text-xl' } as const;
+const SIZE = { sm: 'h-8 w-8 text-xs', md: 'h-10 w-10 text-xs', lg: 'h-20 w-20 text-xl' } as const;
 
 /**
  * The person's round picture. `fallback` replaces the initials while there
@@ -94,7 +94,7 @@ export function PersonAvatar({ personId, name, size = 'md', fallback, badge, src
   const shown = src ?? url;
   if (!shown && fallback) return <>{fallback}</>;
   return (
-    <span className={`relative grid shrink-0 place-items-center rounded-full bg-slate-800 font-black text-slate-200 ${SIZE[size]}`}>
+    <span className={`relative grid shrink-0 place-items-center rounded-full bg-slate-800 font-semibold text-slate-200 ${SIZE[size]}`}>
       {shown ? (
         // eslint-disable-next-line @next/next/no-img-element -- signed links and data URLs, not optimisable
         <img src={shown} alt="" className="h-full w-full rounded-full object-cover" />
@@ -129,8 +129,8 @@ export function PhotoPicker({ name, src, onPick, onRemove, busy = false }: { nam
         <button type="button" disabled={busy} onClick={() => input.current?.click()} className="os-secondary justify-self-start px-4 py-2 text-sm disabled:opacity-60">
           {busy ? t('common.oneMoment') : src ? t('photo.change') : t('photo.add')}
         </button>
-        {src && onRemove ? <button type="button" disabled={busy} onClick={() => void onRemove()} className="justify-self-start text-xs font-bold text-slate-400 underline">{t('photo.remove')}</button> : null}
-        {error ? <p role="alert" className="text-xs font-bold text-red-200">{t('photo.error')}</p> : <p className="text-xs text-slate-500">{t('photo.hint')}</p>}
+        {src && onRemove ? <button type="button" disabled={busy} onClick={() => void onRemove()} className="justify-self-start text-xs font-medium text-slate-400 underline">{t('photo.remove')}</button> : null}
+        {error ? <p role="alert" className="text-xs font-medium text-red-200">{t('photo.error')}</p> : <p className="text-xs text-slate-400">{t('photo.hint')}</p>}
       </div>
     </div>
   );

@@ -31,7 +31,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#050712',
+  themeColor: '#0e0f11',
 };
 
 // Inter, shipped with the app so every device shows the same letters (audit 2026-11, 9; OFL, see fonts/Inter-LICENSE.txt).

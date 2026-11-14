@@ -62,7 +62,7 @@ import { useSmartCalendar } from '@/features/calendar/useSmartCalendar';
 
 /** A placeholder of the chart's own size while its code loads, so nothing jumps. */
 function ChartPlaceholder({ height }: { height: string }) {
-  return <div aria-hidden className={`${height} w-full rounded-2xl border border-slate-800 bg-slate-950/60 motion-safe:animate-pulse`} />;
+  return <div aria-hidden className={`${height} w-full rounded-2xl bg-white/[0.04] motion-safe:animate-pulse`} />;
 }
 
 // recharts is the largest part of this page; it loads only where a chart is shown.
@@ -242,18 +242,18 @@ function statusForPending(session: AthletePendingSession) {
 
 function Metric({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'ready' | 'high' | 'low' | 'neutral' }) {
   const toneClass = tone === 'ready'
-    ? 'border-emerald-400/35 bg-emerald-400/10 text-emerald-100'
+    ? 'border-transparent bg-white/[0.04] text-emerald-300'
     : tone === 'high'
-      ? 'border-rose-400/35 bg-rose-400/10 text-rose-100'
+      ? 'border-transparent bg-white/[0.04] text-rose-300'
       : tone === 'low'
-        ? 'border-sky-400/35 bg-sky-400/10 text-sky-100'
-        : 'border-slate-800 bg-slate-950/55 text-white';
+        ? 'border-transparent bg-white/[0.04] text-sky-300'
+        : 'border-transparent bg-white/[0.04] text-white';
   const dotClass = tone === 'ready' ? 'bg-emerald-400' : tone === 'high' ? 'bg-rose-400' : tone === 'low' ? 'bg-sky-400' : 'bg-slate-500';
   return (
     <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-2.5 sm:p-4 ${toneClass}`}>
       <div>
-        <p className="text-[10px] font-black leading-tight text-slate-400 sm:text-[11px]">{label}</p>
-        <p className="mt-2 flex items-start gap-1.5 text-lg font-black leading-tight tracking-tight sm:text-2xl">
+        <p className="text-xs font-semibold leading-tight text-slate-400 sm:text-xs">{label}</p>
+        <p className="mt-2 flex items-start gap-1.5 text-lg font-semibold leading-tight tracking-tight sm:text-2xl">
           <span aria-hidden="true" className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} />
           {/* Words like "Im Aufbau" wrap instead of being cut off in the narrow card. */}
           <span className="min-w-0 break-words">{value}</span>
@@ -362,7 +362,7 @@ function buildLoadRoomSummary(latest: ReturnType<typeof getLatestACWR>, entries:
 
 function LoadRoomGauge({ room, compact = false }: { room: LoadRoomSummary; compact?: boolean }) {
   const highlightClass = room.mode === 'underload'
-    ? 'bg-sky-300/65'
+    ? 'bg-slate-100/65'
     : room.mode === 'overload'
       ? 'bg-rose-300/75'
       : room.mode === 'ready'
@@ -387,7 +387,7 @@ function LoadRoomGauge({ room, compact = false }: { room: LoadRoomSummary; compa
         ) : null}
       </div>
       {!compact ? (
-        <div className="relative h-4 text-[10px] font-black text-slate-500">
+        <div className="relative h-4 text-xs font-semibold text-slate-400">
           <span className="absolute -translate-x-1/2" style={{ left: `${room.lowPercent}%` }}>{formatDecimal(ACWR_ZONES.low, 1)}</span>
           <span className="absolute -translate-x-1/2" style={{ left: `${room.highPercent}%` }}>{formatDecimal(ACWR_ZONES.high, 1)}</span>
         </div>
@@ -409,7 +409,7 @@ function MonotonyGauge({ value }: { value: number }) {
         </div>
         <span className="absolute top-0 z-20 h-5 w-5 -translate-x-1/2 rounded-full border-[3px] border-slate-950 bg-white shadow-[0_8px_22px_rgba(0,0,0,0.45)]" style={{ left: `${pct(value)}%` }} />
       </div>
-      <div className="relative h-4 text-[10px] font-black text-slate-500">
+      <div className="relative h-4 text-xs font-semibold text-slate-400">
         <span className="absolute left-0">0</span>
         <span className="absolute -translate-x-1/2" style={{ left: `${pct(1.5)}%` }}>{formatDecimal(1.5, 1)}</span>
         <span className="absolute -translate-x-1/2" style={{ left: `${pct(2)}%` }}>{formatDecimal(2, 1)}</span>
@@ -422,21 +422,21 @@ function MonotonyGauge({ value }: { value: number }) {
 function LoadRoomMetric({ latest, entries, baselineReady }: { latest: ReturnType<typeof getLatestACWR>; entries: AthleteLoadEntry[]; baselineReady: boolean }) {
   const room = buildLoadRoomSummary(latest, entries, baselineReady);
   const toneClass = room.tone === 'ready'
-    ? 'border-emerald-400/35 bg-emerald-400/10 text-emerald-100'
+    ? 'border-transparent bg-white/[0.04] text-emerald-300'
     : room.tone === 'high'
-      ? 'border-rose-400/35 bg-rose-400/10 text-rose-100'
+      ? 'border-transparent bg-white/[0.04] text-rose-300'
       : room.tone === 'low'
-        ? 'border-sky-400/35 bg-sky-400/10 text-sky-100'
-        : 'border-slate-800 bg-slate-950/55 text-white';
+        ? 'border-transparent bg-white/[0.04] text-sky-300'
+        : 'border-transparent bg-white/[0.04] text-white';
   return (
     <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-2.5 sm:p-4 ${toneClass}`}>
       <div>
-        <p className="text-[10px] font-black leading-tight text-slate-400 sm:text-[11px]">{room.label}</p>
-        <p className="mt-2 truncate text-lg font-black tracking-tight sm:text-2xl">{room.value}</p>
+        <p className="text-xs font-semibold leading-tight text-slate-400 sm:text-xs">{room.label}</p>
+        <p className="mt-2 truncate text-lg font-semibold tracking-tight sm:text-2xl">{room.value}</p>
       </div>
       <div>
         <LoadRoomGauge room={room} compact />
-        <p className="mt-1 text-[10px] font-bold leading-tight text-slate-400">{room.detail}</p>
+        <p className="mt-1 text-xs font-medium leading-tight text-slate-400">{room.detail}</p>
       </div>
     </div>
   );
@@ -444,7 +444,7 @@ function LoadRoomMetric({ latest, entries, baselineReady }: { latest: ReturnType
 
 function AvailabilityPill({ label }: { label: { text: string; tone: 'in' | 'late' | 'out' | 'open' | 'plain' } }) {
   const tone = label.tone === 'in' ? 'bg-emerald-400/15 text-emerald-200' : label.tone === 'late' || label.tone === 'open' ? 'bg-amber-300/15 text-amber-200' : label.tone === 'out' ? 'bg-rose-400/15 text-rose-200' : 'bg-slate-800 text-slate-300';
-  return <span data-testid="availability-pill" className={`mt-3 inline-flex max-w-full rounded-full px-3 py-1 text-xs font-black ${tone}`}><span className="truncate">{label.text}{label.tone === 'in' ? ' ✓' : ''}</span></span>;
+  return <span data-testid="availability-pill" className={`mt-3 inline-flex max-w-full rounded-full px-3 py-1 text-xs font-semibold ${tone}`}><span className="truncate">{label.text}{label.tone === 'in' ? ' ✓' : ''}</span></span>;
 }
 
 function AcwrMetric({ latest, baselineReady, tone }: { latest: ReturnType<typeof getLatestACWR>; baselineReady: boolean; tone: 'default' | 'ready' | 'high' | 'low' | 'neutral' }) {
@@ -463,21 +463,21 @@ function AcwrMetric({ latest, baselineReady, tone }: { latest: ReturnType<typeof
     roomWidthPercent: 0,
   };
   const toneClass = tone === 'ready'
-    ? 'border-emerald-400/35 bg-emerald-400/10 text-emerald-100'
+    ? 'border-transparent bg-white/[0.04] text-emerald-300'
     : tone === 'high'
-      ? 'border-rose-400/35 bg-rose-400/10 text-rose-100'
+      ? 'border-transparent bg-white/[0.04] text-rose-300'
       : tone === 'low'
-        ? 'border-sky-400/35 bg-sky-400/10 text-sky-100'
-        : 'border-slate-800 bg-slate-950/55 text-white';
+        ? 'border-transparent bg-white/[0.04] text-sky-300'
+        : 'border-transparent bg-white/[0.04] text-white';
   return (
     <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-2.5 sm:p-4 ${toneClass}`}>
       <div>
-        <p className="text-[10px] font-black leading-tight text-slate-400 sm:text-[11px]">ACWR</p>
-        <p className="mt-2 truncate text-lg font-black tracking-tight sm:text-2xl">{room.value}</p>
+        <p className="text-xs font-semibold leading-tight text-slate-400 sm:text-xs">ACWR</p>
+        <p className="mt-2 truncate text-lg font-semibold tracking-tight sm:text-2xl">{room.value}</p>
       </div>
       <div>
         <LoadRoomGauge room={room} compact />
-        <p className="mt-1 text-[10px] font-bold leading-tight text-slate-400">{room.detail}</p>
+        <p className="mt-1 text-xs font-medium leading-tight text-slate-400">{room.detail}</p>
       </div>
     </div>
   );
@@ -792,32 +792,32 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     const save = async (status: 'late' | 'out', reason: string, minutes: number | null = null) => {
       if (await setTeamSessionAvailability(session, status, reason, minutes)) close();
     };
-    const chip = 'rounded-xl border px-2 py-2.5 text-sm font-bold';
+    const chip = 'rounded-xl border px-2 py-2.5 text-sm font-medium';
     if (chosen && !panel && answerOpen !== session.id) {
       const text = { in: 'text-emerald-200', late: 'text-amber-200', out: 'text-rose-200' } as const;
       return (
-        <div className="mt-2 flex items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/50 px-3.5 py-2.5">
-          <p className={`min-w-0 text-sm font-black ${text[chosen]}`}>{pill.text}</p>
-          <button type="button" onClick={() => setAnswerOpen(session.id)} className="shrink-0 text-sm font-black text-sky-300">{t('composer.change')}</button>
+        <div className="mt-2 flex items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-3.5 py-2.5">
+          <p className={`min-w-0 text-sm font-semibold ${text[chosen]}`}>{pill.text}</p>
+          <button type="button" onClick={() => setAnswerOpen(session.id)} className="shrink-0 text-sm font-semibold text-sky-300">{t('composer.change')}</button>
         </div>
       );
     }
     return (
       <div className={`mt-2 grid gap-2 rounded-2xl border p-2 ${open ? 'border-amber-300/40 bg-amber-300/[0.08]' : 'border-slate-800 bg-slate-950/50'}`}>
-        {open ? <p className="px-1.5 pt-0.5 text-sm font-black text-amber-100">{t('athlete.rsvp.question')}</p> : null}
+        {open ? <p className="px-1.5 pt-0.5 text-sm font-semibold text-amber-100">{t('athlete.rsvp.question')}</p> : null}
         <div role="group" aria-label={t('athlete.rsvp.question')} className="grid grid-cols-3 gap-1.5">
           {options.map((option) => (
-            <button key={option.id} type="button" aria-pressed={marked === option.id} aria-expanded={option.id === 'in' ? undefined : option.id === 'late' ? panel === 'late' || (panel === 'other' && otherFromLate) : panel === 'out' || (panel === 'other' && !otherFromLate)} onClick={option.run} className={`rounded-xl border px-2 py-2.5 text-sm font-black transition active:scale-95 ${marked === option.id ? tone[option.id] : 'border-slate-700 text-slate-200 hover:border-slate-500'}`}>{option.label}</button>
+            <button key={option.id} type="button" aria-pressed={marked === option.id} aria-expanded={option.id === 'in' ? undefined : option.id === 'late' ? panel === 'late' || (panel === 'other' && otherFromLate) : panel === 'out' || (panel === 'other' && !otherFromLate)} onClick={option.run} className={`rounded-xl border px-2 py-2.5 text-sm font-semibold transition active:scale-95 ${marked === option.id ? tone[option.id] : 'border-slate-700 text-slate-200 hover:border-slate-500'}`}>{option.label}</button>
           ))}
         </div>
         {lateReasons ? (
-          <label className="block px-1.5 text-sm font-bold text-slate-300">
-            <span className="flex items-baseline justify-between gap-2">{t('composer.lateMinutes')}<span className="font-black tabular-nums text-white">{t('composer.minutes', { count: lateMinutes })}</span></span>
+          <label className="block px-1.5 text-sm font-medium text-slate-300">
+            <span className="flex items-baseline justify-between gap-2">{t('composer.lateMinutes')}<span className="font-semibold tabular-nums text-white">{t('composer.minutes', { count: lateMinutes })}</span></span>
             <input type="range" min="5" max="60" step="1" value={lateMinutes} onChange={(event) => setLateMinutes(Number(event.target.value))} className="mt-2 w-full accent-amber-300" />
           </label>
         ) : null}
         {panel === 'late' && !healthAllowed ? (
-          <button type="button" onClick={() => void save('late', '', lateMinutes)} className="w-full rounded-xl bg-amber-300 px-4 py-2.5 text-sm font-black text-slate-950">{t('composer.saveAvailability')}</button>
+          <button type="button" onClick={() => void save('late', '', lateMinutes)} className="w-full rounded-xl bg-amber-300 px-4 py-2.5 text-sm font-semibold text-slate-950">{t('composer.saveAvailability')}</button>
         ) : panel ? (
           <div className="grid gap-1.5">
             <div className="grid grid-cols-2 gap-1.5" role="group" aria-label={t('composer.reason')}>
@@ -828,15 +828,15 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             </div>
             {panel === 'other' ? (
               <>
-                <textarea autoFocus value={cardReason} onChange={(event) => setCardReason(event.target.value)} aria-label={t('composer.reason')} placeholder={t('composer.reasonPlaceholder')} className="min-h-16 w-full resize-y rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none placeholder:text-slate-500 focus:border-slate-400" />
-                <button type="button" disabled={!cardReason.trim()} onClick={() => void save(lateReasons ? 'late' : 'out', cardReason.trim(), lateReasons ? lateMinutes : null)} className={`w-full rounded-xl px-4 py-2.5 text-sm font-black text-slate-950 disabled:opacity-40 ${lateReasons ? 'bg-amber-300' : 'bg-rose-300'}`}>{t('composer.saveAvailability')}</button>
+                <textarea autoFocus value={cardReason} onChange={(event) => setCardReason(event.target.value)} aria-label={t('composer.reason')} placeholder={t('composer.reasonPlaceholder')} className="min-h-16 w-full resize-y rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-medium text-white outline-none placeholder:text-slate-500 focus:border-slate-400" />
+                <button type="button" disabled={!cardReason.trim()} onClick={() => void save(lateReasons ? 'late' : 'out', cardReason.trim(), lateReasons ? lateMinutes : null)} className={`w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-40 ${lateReasons ? 'bg-amber-300' : 'bg-rose-300'}`}>{t('composer.saveAvailability')}</button>
               </>
             ) : null}
           </div>
         ) : healthAllowed && mark?.reason && (chosen === 'out' || chosen === 'late') ? (
-          <p className="px-1.5 text-xs font-bold text-slate-400">{chosen === 'late' && mark.lateMinutes ? `${t('composer.minutes', { count: mark.lateMinutes })} · ` : ''}{mark.reason}</p>
+          <p className="px-1.5 text-xs font-medium text-slate-400">{chosen === 'late' && mark.lateMinutes ? `${t('composer.minutes', { count: mark.lateMinutes })} · ` : ''}{mark.reason}</p>
         ) : chosen === 'late' && mark?.lateMinutes ? (
-          <p className="px-1.5 text-xs font-bold text-slate-400">{t('composer.minutes', { count: mark.lateMinutes })}</p>
+          <p className="px-1.5 text-xs font-medium text-slate-400">{t('composer.minutes', { count: mark.lateMinutes })}</p>
         ) : null}
       </div>
     );
@@ -1428,7 +1428,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       <main className="os-page">
         <div className="os-container max-w-xl space-y-4">
           <section className="os-panel p-6 text-white">
-            <p className="font-bold">{t('athlete.noAthlete')}</p>
+            <p className="font-medium">{t('athlete.noAthlete')}</p>
             <p className="mt-2 text-sm text-slate-400">{t('athlete.switchToAthlete')}</p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <IdentitySwitcher />
@@ -1463,17 +1463,17 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       subtitle={activeView === 'home' ? formatLongDay(new Date()) : undefined}
       menuAction={hasLoad ? { label: shareStatus === 'copied' ? t('athlete.share.copied') : shareStatus === 'error' ? t('athlete.share.error') : shareActive ? t('athlete.share.on') : t('athlete.share.off'), onSelect: () => { void copyTrainerShareLink(); } } : undefined}
     >
-        {error ? <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 px-4 py-3 text-sm font-bold text-rose-100">{error}</div> : null}
+        {error ? <div className="rounded-2xl border border-rose-500/30 bg-rose-950/30 px-4 py-3 text-sm font-medium text-rose-100">{error}</div> : null}
 
         {activeView === 'load' && !hasLoad && teamTracksLoad && database && activePerson ? (
           <HealthConsentPanel database={database} person={activePerson} />
         ) : null}
 
         {activeView === 'load' && !hasLoad && !teamTracksLoad ? (
-          <section className="rounded-3xl border border-slate-800 bg-slate-950/65 p-5">
-            <h2 className="text-lg font-black">{t('athlete.noTracking.title')}</h2>
+          <section className="os-panel p-5">
+            <h2 className="text-lg font-semibold">{t('athlete.noTracking.title')}</h2>
             <p className="mt-1 text-sm text-slate-400">{t('athlete.noTracking.detail')}</p>
-            <Link href="/athlete/home" className="mt-4 inline-block text-sm font-black text-sky-300">{t('athlete.noTracking.back')}</Link>
+            <Link href="/athlete/home" className="mt-4 inline-block text-sm font-semibold text-sky-300">{t('athlete.noTracking.back')}</Link>
           </section>
         ) : null}
 
@@ -1500,30 +1500,29 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         {activeView === 'home' && todayRisk ? (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl border border-rose-400/30 bg-rose-400/[0.06] px-3 py-2.5">
             <LoadRiskBadge before={todayRisk.before} after={todayRisk.after} label={t('load.risk.today')} />
-            <span className="text-xs font-bold text-slate-300">{t('load.risk.lowerIntensity')}</span>
+            <span className="text-xs font-medium text-slate-300">{t('load.risk.lowerIntensity')}</span>
           </div>
         ) : null}
 
         {activeView === 'load' && hasLoad ? (
-          <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/65 p-4 sm:p-5">
-            <h2 className="mb-3 text-lg font-black">{t('athlete.trend')}</h2>
+          <section className="min-w-0 overflow-hidden os-panel p-4 sm:p-5">
+            <h2 className="mb-3 text-lg font-semibold">{t('athlete.trend')}</h2>
             <LoadChart entries={sortedEntries} pendingSessions={loadPendingSessions} />
           </section>
         ) : null}
 
         {hasLoad && entriesToCheck.length > 0 && (activeView === 'home' || activeView === 'load') ? (
-          <section aria-label={t('athlete.check.title')} className="rounded-3xl border border-amber-300/35 bg-amber-300/[0.07] p-4 sm:p-5">
-            <h2 className="text-lg font-black text-white">{t('athlete.check.title')}</h2>
-            <p className="mt-1 text-sm text-slate-400">{t('athlete.check.detail', { count: entriesToCheck.length })}</p>
+          <section aria-label={t('athlete.check.title')} className="os-panel p-4 sm:p-5">
+            <h2 className="text-lg font-semibold text-white">{t('athlete.check.title')}</h2>
             <ul className="mt-3 grid gap-2">
               {entriesToCheck.map(({ entry, review, coachName }) => (
-                <li key={entry.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
-                  <p className="font-black text-white">{displayTitle(entry.title)}</p>
-                  <p className="text-xs font-bold text-slate-400">{t('athlete.entryLine', { date: formatEntryDate(entry.date), rpe: entry.rpe, minutes: entry.durationMinutes, load: entry.load })}</p>
-                  {review.note ? <p className="mt-2 rounded-xl bg-slate-900 px-3 py-2 text-sm text-amber-100">“{review.note}”{coachName ? <span className="text-xs text-slate-400"> – {coachName}</span> : null}</p> : coachName ? <p className="mt-1 text-xs text-slate-400">{t('athlete.check.askedBy', { name: coachName })}</p> : null}
+                <li key={entry.id} className="rounded-2xl bg-white/[0.04] p-3">
+                  <p className="font-semibold text-white">{displayTitle(entry.title)}</p>
+                  <p className="text-xs font-medium text-slate-400">{t('athlete.entryLine', { date: formatEntryDate(entry.date), rpe: entry.rpe, minutes: entry.durationMinutes, load: entry.load })}</p>
+                  {review.note ? <p className="mt-2 rounded-xl bg-white/[0.05] px-3 py-2 text-sm text-slate-100">“{review.note}”{coachName ? <span className="text-xs text-slate-400"> – {coachName}</span> : null}</p> : coachName ? <p className="mt-1 text-xs text-slate-400">{t('athlete.check.askedBy', { name: coachName })}</p> : null}
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <button type="button" onClick={() => openEntryEditor(entry)} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-slate-950">{t('athlete.check.edit')}</button>
-                    <button type="button" onClick={() => clearEntryReview(entry.id)} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-black text-slate-200">{t('athlete.check.correct')}</button>
+                    <button type="button" onClick={() => openEntryEditor(entry)} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-semibold text-slate-950">{t('athlete.check.edit')}</button>
+                    <button type="button" onClick={() => clearEntryReview(entry.id)} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200">{t('athlete.check.correct')}</button>
                   </div>
                 </li>
               ))}
@@ -1534,7 +1533,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         {activeView === 'load' && hasLoad ? (
           // Everything beyond the light and the chart, one tap away (audit 2026-11, proposal 10).
           <details className="group" data-testid="load-more">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/65 px-4 py-3.5 text-sm font-black text-slate-200 [&::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-4 py-3.5 text-sm font-semibold text-slate-200 [&::-webkit-details-marker]:hidden">
               {t('load.more')}
               <span aria-hidden className="text-slate-400 transition-transform group-open:rotate-180">⌄</span>
             </summary>
@@ -1544,7 +1543,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             <AcwrMetric latest={latest} baselineReady={isBaselineReady} tone={zone.tone} />
             <Metric label={t('athlete.metric.status')} value={zone.tone === 'neutral' ? t('athlete.metric.building') : zoneLabel(zone.tone)} tone={zone.tone} />
               </div>
-              <button type="button" onClick={loadIntro.show} className="justify-self-start text-left text-xs font-black text-sky-300 underline">{t('loadIntro.again')}</button>
+              <button type="button" onClick={loadIntro.show} className="justify-self-start text-left text-xs font-semibold text-sky-300 underline">{t('loadIntro.again')}</button>
               <LoadDetailsPanel
                 entries={sortedEntries}
                 pendingSessions={loadPendingSessions}
@@ -1562,13 +1561,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         ) : activeView === 'home' ? (
           <section className={`grid min-w-0 items-stretch gap-5 ${todayPending.length > 0 ? 'lg:grid-cols-[0.9fr_1.1fr]' : ''}`}>
             {todayPending.length > 0 ? (
-            <div className="h-full min-w-0 rounded-3xl border border-amber-300/25 bg-slate-950/65 p-4 sm:p-5">
+            <div className="h-full min-w-0 os-panel p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="min-w-0 truncate text-lg font-black">{t('athlete.rate.title')}</h2>
-                <span className="shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300">{allToRate.length}</span>
+                <h2 className="min-w-0 truncate text-lg font-semibold">{t('athlete.rate.title')}</h2>
+                <span className="os-chip os-chip-warn shrink-0 tabular-nums">{allToRate.length}</span>
               </div>
               {rateQueue.length > 0 ? (
-                <button type="button" onClick={() => setRatePromptOpen(true)} className="mt-3 w-full rounded-2xl bg-emerald-300 px-4 py-2.5 text-sm font-black text-slate-950">
+                <button type="button" onClick={() => setRatePromptOpen(true)} className="mt-3 w-full rounded-2xl bg-emerald-300 px-4 py-2.5 text-sm font-semibold text-slate-950">
                   {t('athlete.rate.now', { count: rateQueue.length })}
                 </button>
               ) : null}
@@ -1577,13 +1576,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   const active = activePendingId === session.id;
                   const defaultDuration = session.expectedDurationMinutes ?? (session.endsAt ? Math.max(30, Math.round((new Date(session.endsAt).getTime() - new Date(session.startsAt).getTime()) / 60000)) : 90);
                   return (
-                    <article key={session.id} className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-3">
+                    <article key={session.id} className="rounded-2xl bg-white/[0.04] p-3">
                       <button type="button" onClick={() => setActivePendingId(active ? null : session.id)} className="flex w-full items-center justify-between gap-3 text-left">
                         <div>
-                          <p className="text-base font-black text-white">{displayTitle(session.title)}</p>
-                          <p className="mt-1 text-xs font-bold text-slate-500">{formatEntryDate(session.date)} · {formatTime(session.startsAt)} · {session.teamName ?? t('athlete.solo')}</p>
+                          <p className="text-base font-semibold text-white">{displayTitle(session.title)}</p>
+                          <p className="mt-1 text-xs font-medium text-slate-400">{formatEntryDate(session.date)} · {formatTime(session.startsAt)} · {session.teamName ?? t('athlete.solo')}</p>
                         </div>
-                        <span className="rounded-full border border-amber-300/40 bg-amber-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-amber-100">{statusForPending(session)}</span>
+                        <span className="os-chip os-chip-warn shrink-0">{statusForPending(session)}</span>
                       </button>
                       {active ? <PendingInlineForm trainingType={session.trainingType} defaultRpe={session.trainingType === 'game' ? 10 : session.expectedRpe ?? 6} defaultDuration={defaultDuration} onSubmit={(rpe, duration) => submitPending(session, session.trainingType === 'game' ? 10 : rpe, duration)} /> : null}
                     </article>
@@ -1593,52 +1592,52 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             </div>
             ) : null}
 
-            <div className="h-full min-w-0 rounded-3xl border border-slate-800/80 bg-slate-950/65 p-4 sm:p-5">
+            <div className="h-full min-w-0 os-panel p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-lg font-black">{t('athlete.nextUp')}</h2>
-                <Link href="/athlete/calendar" className="text-xs font-black text-sky-300 hover:text-sky-200">{t('athlete.calendarLink')}</Link>
+                <h2 className="text-lg font-semibold">{t('athlete.nextUp')}</h2>
+                <Link href="/athlete/calendar" className="text-xs font-semibold text-sky-300 hover:text-sky-200">{t('athlete.calendarLink')}</Link>
               </div>
               {nextSession ? (
                 <>
-                <button type="button" data-session-id={nextSession.id} onClick={() => openCalendarItem(nextSessionItem(nextSession))} className="mt-4 w-full rounded-3xl border border-emerald-300/25 bg-emerald-300/[0.06] p-5 text-left transition hover:border-emerald-300/55">
+                <button type="button" data-session-id={nextSession.id} onClick={() => openCalendarItem(nextSessionItem(nextSession))} className="mt-4 w-full rounded-2xl bg-white/[0.04] p-4 text-left transition-colors hover:bg-white/[0.07]">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="min-w-0 text-2xl font-black tracking-tight">{displayTitle(nextSession.title)}</p>
+                    <p className="min-w-0 text-2xl font-semibold tracking-tight">{displayTitle(nextSession.title)}</p>
                     {landingAfter.has(nextSession.id) ? <LoadLandingChip value={landingAfter.get(nextSession.id)!} large /> : null}
                   </div>
-                  <p className="mt-1 text-sm font-bold text-slate-300">{formatDay(nextSession.startsAt)} · {formatTime(nextSession.startsAt)}{nextSession.endsAt && nextSession.trainingType !== 'game' ? `–${formatTime(nextSession.endsAt)}` : ''} · {nextSession.teamName ?? t('athlete.ownPlan')}</p>
+                  <p className="mt-1 text-sm font-medium text-slate-300">{formatDay(nextSession.startsAt)} · {formatTime(nextSession.startsAt)}{nextSession.endsAt && nextSession.trainingType !== 'game' ? `–${formatTime(nextSession.endsAt)}` : ''} · {nextSession.teamName ?? t('athlete.ownPlan')}</p>
                   {nextSession.info ? (() => {
                     const info = { ...nextSession.info, startsAt: nextSession.startsAt };
                     const place = info.homeAway === 'away' ? info.venueAddress : info.facilityName;
                     const lines = [info.squad ? squadLine(info.squad) : null, gameLine(info), place, info.squad === 'not_selected' ? null : meetLine(info)].filter(Boolean);
-                    return lines.length > 0 ? <p className="mt-1 text-sm font-bold text-amber-100/90">{lines.join(' · ')}</p> : null;
+                    return lines.length > 0 ? <p className="mt-1 text-sm text-slate-300">{lines.join(' · ')}</p> : null;
                   })() : null}
                   <CarpoolSummary sessionId={nextSession.id} />
-                  {nextSession.info?.notes ? <p className="mt-1 line-clamp-2 text-xs font-bold text-slate-400">{nextSession.info.notes}</p> : null}
+                  {nextSession.info?.notes ? <p className="mt-1 line-clamp-2 text-xs font-medium text-slate-400">{nextSession.info.notes}</p> : null}
                   {nextSession.source !== 'team_session' ? <AvailabilityPill label={availabilityPillFor(nextSession)} /> : null}
                 </button>
                 {answerBar(nextSession)}
                 </>
-              ) : <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">{t('athlete.noSessions')}</div>}
-              {nextGame && nextGame.id !== nextSession?.id ? <button type="button" data-session-id={nextGame.id} onClick={() => openCalendarItem(nextSessionItem(nextGame))} className="mt-3 w-full rounded-2xl border border-sky-300/25 bg-sky-300/[0.05] p-4 text-left hover:border-sky-300/50">
-                <p className="text-sm font-black">{[displayTitle(nextGame.title), nextGame.info ? gameLine(nextGame.info) : null].filter(Boolean).join(' · ')}</p>
-                <p className="mt-1 text-xs font-bold text-slate-400">{formatDay(nextGame.startsAt)} · {formatTime(nextGame.startsAt)}</p>
+              ) : <div className="mt-4 rounded-2xl bg-white/[0.04] p-4 text-sm font-medium text-slate-400">{t('athlete.noSessions')}</div>}
+              {nextGame && nextGame.id !== nextSession?.id ? <button type="button" data-session-id={nextGame.id} onClick={() => openCalendarItem(nextSessionItem(nextGame))} className="mt-3 w-full rounded-2xl bg-white/[0.04] p-4 text-left transition-colors hover:bg-white/[0.07]">
+                <p className="text-sm font-semibold">{[displayTitle(nextGame.title), nextGame.info ? gameLine(nextGame.info) : null].filter(Boolean).join(' · ')}</p>
+                <p className="mt-1 text-xs font-medium text-slate-400">{formatDay(nextGame.startsAt)} · {formatTime(nextGame.startsAt)}</p>
                 <CarpoolSummary sessionId={nextGame.id} />
               </button> : null}
               {nextGame && nextGame.id !== nextSession?.id ? answerBar(nextGame) : null}
               {hasLoad && plans.length > 0 ? (
                 <div className="mt-4 space-y-2">
                   {plans.slice(0, 4).map((plan) => (
-                    <div key={plan.id} className="relative rounded-2xl border border-violet-300/20 bg-violet-300/[0.06] py-2 pl-3 pr-9">
+                    <div key={plan.id} className="relative rounded-2xl bg-white/[0.04] py-2.5 pl-3 pr-9">
                       <div className="min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="min-w-0 text-sm font-black text-white">{displayTitle(plan.title)}</p>
+                          <p className="min-w-0 text-sm font-semibold text-white">{displayTitle(plan.title)}</p>
                           {landingAfter.has(plan.id) ? <span className="shrink-0"><LoadLandingChip value={landingAfter.get(plan.id)!} /></span> : null}
                         </div>
-                        <p className="mt-0.5 text-xs font-bold text-slate-500">
+                        <p className="mt-0.5 text-xs font-medium text-slate-400">
                           {formatEntryDate(plan.date)} · {plan.startsAt ? formatTime(plan.startsAt) : t('athlete.noTime')}
                         </p>
                       </div>
-                      <button type="button" onClick={() => setDeleteTarget({ kind: 'plan', id: plan.id, title: plan.title })} aria-label={t('athlete.delete')} title={t('athlete.delete')} className="absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full text-lg leading-none text-slate-500 hover:bg-rose-400/10 hover:text-rose-200">
+                      <button type="button" onClick={() => setDeleteTarget({ kind: 'plan', id: plan.id, title: plan.title })} aria-label={t('athlete.delete')} title={t('athlete.delete')} className="absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full text-lg leading-none text-slate-400 hover:bg-rose-400/10 hover:text-rose-200">
                         ×
                       </button>
                     </div>
@@ -1649,39 +1648,39 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
           </section>
         ) : null}
       {activeDetailItem ? (
-        <div className="fixed inset-0 z-[100] flex items-end bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
-          <div className="max-h-[88vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-md">
+        <div className="fixed inset-0 z-[100] flex items-end bg-black/60 px-3 pb-3 pt-10 sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
+          <div className="os-sheet max-h-[88vh] w-full overflow-y-auto p-4 sm:max-w-md">
             <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4">
               <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-300">{t('athlete.detail.kicker')}</p>
-                <h2 className="mt-1 text-2xl font-black tracking-tight">{activeDetailItem.source === 'private_event' ? activeDetailItem.title : displayTitle(activeDetailItem.title)}</h2>
-                <p className="mt-1 text-sm font-bold text-slate-500">
+                <p className="text-xs font-semibold text-emerald-300">{t('athlete.detail.kicker')}</p>
+                <h2 className="mt-1 text-2xl font-semibold tracking-tight">{activeDetailItem.source === 'private_event' ? activeDetailItem.title : displayTitle(activeDetailItem.title)}</h2>
+                <p className="mt-1 text-sm font-medium text-slate-400">
                   {formatEntryDate(activeDetailItem.date)} · {formatTime(activeDetailItem.startsAt)}{activeDetailItem.endsAt && activeDetailItem.trainingType !== 'game' ? ` - ${formatTime(activeDetailItem.endsAt)}` : ''}
                 </p>
               </div>
-              <button type="button" onClick={() => setActiveDetailItem(null)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-black text-slate-300">{t('athlete.close')}</button>
+              <button type="button" onClick={() => setActiveDetailItem(null)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300">{t('athlete.close')}</button>
             </div>
             <div className="mt-4 grid grid-cols-3 gap-2">
-              <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('athlete.detail.load')}</p>
-                <p className="mt-2 text-xl font-black text-amber-200">{activeDetailItem.entry?.load ?? '—'}</p>
+              <div className="rounded-2xl bg-white/[0.04] p-3">
+                <p className="text-xs font-semibold text-slate-400">{t('athlete.detail.load')}</p>
+                <p className="mt-2 text-xl font-semibold text-white">{activeDetailItem.entry?.load ?? '—'}</p>
               </div>
-              <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 opacity-75">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('athlete.detail.rpe')}</p>
-                <p className="mt-2 text-xl font-black text-white">{activeDetailItem.entry?.rpe ?? '—'}</p>
+              <div className="rounded-2xl bg-white/[0.04] p-3 opacity-75">
+                <p className="text-xs font-semibold text-slate-400">{t('athlete.detail.rpe')}</p>
+                <p className="mt-2 text-xl font-semibold text-white">{activeDetailItem.entry?.rpe ?? '—'}</p>
               </div>
-              <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 opacity-75">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t('athlete.detail.duration')}</p>
-                <p className="mt-2 text-xl font-black text-white">{activeDetailItem.entry?.durationMinutes ?? '—'}</p>
+              <div className="rounded-2xl bg-white/[0.04] p-3 opacity-75">
+                <p className="text-xs font-semibold text-slate-400">{t('athlete.detail.duration')}</p>
+                <p className="mt-2 text-xl font-semibold text-white">{activeDetailItem.entry?.durationMinutes ?? '—'}</p>
               </div>
             </div>
             {activeDetailItem.entry?.sessionId ? <Carpools key={activeDetailItem.entry.sessionId} sessionId={activeDetailItem.entry.sessionId} /> : null}
             {activeDetailItem.entry ? (
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                <button type="button" onClick={() => { const item = activeDetailItem; setActiveDetailItem(null); openCalendarItem(item, 'edit'); }} className="rounded-2xl border border-sky-400/50 bg-sky-400/10 px-4 py-3 text-sm font-black text-sky-100">
+                <button type="button" onClick={() => { const item = activeDetailItem; setActiveDetailItem(null); openCalendarItem(item, 'edit'); }} className="rounded-2xl border border-sky-400/50 bg-sky-400/10 px-4 py-3 text-sm font-semibold text-sky-100">
                   {t('athlete.detail.editLoad')}
                 </button>
-                <button type="button" onClick={() => setDeleteTarget({ kind: 'entry', id: activeDetailItem.entry!.id, title: activeDetailItem.title })} className="rounded-2xl border border-rose-400/45 bg-rose-400/10 px-4 py-3 text-sm font-black text-rose-100">
+                <button type="button" onClick={() => setDeleteTarget({ kind: 'entry', id: activeDetailItem.entry!.id, title: activeDetailItem.title })} className="rounded-2xl border border-rose-400/45 bg-rose-400/10 px-4 py-3 text-sm font-semibold text-rose-100">
                   {t('athlete.detail.deleteLoad')}
                 </button>
               </div>
@@ -1691,8 +1690,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       ) : null}
 
       {composerOpen ? (
-        <div className="fixed inset-0 z-[100] flex items-end bg-slate-950/80 px-3 pb-3 pt-10 backdrop-blur-xl sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
-          <div data-session-id={activeComposerSession?.id} className="max-h-[88vh] w-full overflow-y-auto rounded-[1.75rem] border border-slate-700 bg-slate-900 p-4 shadow-[0_30px_120px_rgba(0,0,0,0.55)] sm:max-w-xl">
+        <div className="fixed inset-0 z-[100] flex items-end bg-black/60 px-3 pb-3 pt-10 sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true">
+          <div data-session-id={activeComposerSession?.id} className="os-sheet max-h-[88vh] w-full overflow-y-auto p-4 sm:max-w-xl">
             {(() => {
               const close = () => { setComposerOpen(false); setActiveComposerSession(null); setActiveEntry(null); };
               const closeButton = (
@@ -1702,9 +1701,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 return (
                   <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4">
                     <div>
-                      <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-300">{t('athlete.composer.kicker')}</p>
-                      <h2 className="mt-1 text-2xl font-black tracking-tight">{composerTitle}</h2>
-                      <p className="mt-1 text-sm font-bold text-slate-500">{formatEntryDate(planForm.date)}</p>
+                      <p className="text-xs font-semibold text-amber-300">{t('athlete.composer.kicker')}</p>
+                      <h2 className="mt-1 text-2xl font-semibold tracking-tight">{composerTitle}</h2>
+                      <p className="mt-1 text-sm font-medium text-slate-400">{formatEntryDate(planForm.date)}</p>
                     </div>
                     {closeButton}
                   </div>
@@ -1720,12 +1719,12 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               return (
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-black">
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
                       {chips.map((chip) => <span key={chip} className="rounded-full bg-slate-800 px-2 py-0.5 text-slate-200">{chip}</span>)}
                       {activeComposerSession?.teamName ? <span className="text-slate-400">{activeComposerSession.teamName}</span> : null}
                     </div>
-                    <h2 className="mt-2 break-words text-2xl font-black tracking-tight">{title}</h2>
-                    <p className="mt-1 text-sm font-bold text-slate-400">
+                    <h2 className="mt-2 break-words text-2xl font-semibold tracking-tight">{title}</h2>
+                    <p className="mt-1 text-sm font-medium text-slate-400">
                       {formatEntryDate(planForm.date)}
                       {planForm.time ? ` · ${planForm.time}${planForm.trainingType !== 'game' && activeComposerSession?.endsAt ? `–${timeInputFromISO(activeComposerSession.endsAt)}` : ''}` : ''}
                     </p>
@@ -1742,7 +1741,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             {activeTeamSessionLocked ? null : (
               <div className="mt-4 grid grid-cols-2 gap-2">
                 {LOAD_TRAINING_TYPES.slice(0, 6).map((type) => (
-                  <button key={type} type="button" onClick={() => setSessionTrainingType(type)} className={`rounded-2xl border px-3 py-2 text-left text-xs font-black transition ${planForm.trainingType === type ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-300'}`}>
+                  <button key={type} type="button" onClick={() => setSessionTrainingType(type)} className={`rounded-2xl border px-3 py-2 text-left text-xs font-semibold transition ${planForm.trainingType === type ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-300'}`}>
                     {loadTypeLabel(type)}
                   </button>
                 ))}
@@ -1751,21 +1750,21 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
             {activeTeamSessionLocked ? null : (
               <div className="mt-4 flex max-w-full flex-wrap gap-2">
-                <label className="w-[9rem] max-w-[calc(100vw-2rem)] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500 sm:w-[10rem]">
+                <label className="w-[9rem] max-w-[calc(100vw-2rem)] min-w-0 text-xs font-semibold text-slate-400 sm:w-[10rem]">
                   {t('composer.date')}
-                  <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value, expectedRpe: current.trainingType === 'game' ? 10 : averageRpeFor(current.trainingType, event.target.value) }))} className="mt-2 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-0 text-center text-[14px] font-black leading-normal text-white outline-none focus:border-emerald-300 sm:text-[15px] [color-scheme:dark] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:min-h-[2.25rem] [&::-webkit-date-and-time-value]:text-center [&::-webkit-date-and-time-value]:leading-[2.25rem]" />
+                  <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value, expectedRpe: current.trainingType === 'game' ? 10 : averageRpeFor(current.trainingType, event.target.value) }))} className="mt-2 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-0 text-center text-[14px] font-semibold leading-normal text-white outline-none focus:border-emerald-300 sm:text-[15px] [color-scheme:dark] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:min-h-[2.25rem] [&::-webkit-date-and-time-value]:text-center [&::-webkit-date-and-time-value]:leading-[2.25rem]" />
                 </label>
-                <label className="w-[5.9rem] min-w-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500 sm:w-[7rem]">
+                <label className="w-[5.9rem] min-w-0 text-xs font-semibold text-slate-400 sm:w-[7rem]">
                   {t('composer.time')}
-                  <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-0 text-center text-[14px] font-black leading-normal text-white outline-none focus:border-emerald-300 sm:text-[15px] [color-scheme:dark] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:min-h-[2.25rem] [&::-webkit-date-and-time-value]:text-center [&::-webkit-date-and-time-value]:leading-[2.25rem]" />
+                  <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-0 text-center text-[14px] font-semibold leading-normal text-white outline-none focus:border-emerald-300 sm:text-[15px] [color-scheme:dark] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:min-h-[2.25rem] [&::-webkit-date-and-time-value]:text-center [&::-webkit-date-and-time-value]:leading-[2.25rem]" />
                 </label>
               </div>
             )}
 
             {!activeEntry && !activeComposerSession && sessionMode === 'plan' ? (
               <div className="mt-4 grid gap-2">
-                <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-1">
-                  <button type="button" onClick={() => setRepeat('once')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${repeat === 'once' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.once')}</button>
+                <div className="grid grid-cols-2 gap-2 rounded-2xl bg-white/[0.04] p-1">
+                  <button type="button" onClick={() => setRepeat('once')} className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${repeat === 'once' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.once')}</button>
                   <button
                     type="button"
                     onClick={() => {
@@ -1773,7 +1772,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                       setRepeatDays([weekdayOf(planForm.date)]);
                       setRepeatUntil(seriesEnd(planForm.date));
                     }}
-                    className={`rounded-xl px-3 py-2 text-xs font-black transition ${repeat === 'weekly' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}
+                    className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${repeat === 'weekly' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}
                   >
                     {t('composer.weekly')}
                   </button>
@@ -1787,13 +1786,13 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                           type="button"
                           aria-pressed={repeatDays.includes(day)}
                           onClick={() => setRepeatDays((current) => (current.includes(day) ? current.filter((item) => item !== day) : [...current, day]))}
-                          className={`h-9 w-10 rounded-xl border text-xs font-black transition ${repeatDays.includes(day) ? 'border-violet-300 bg-violet-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-300'}`}
+                          className={`h-9 w-10 rounded-xl border text-xs font-semibold transition ${repeatDays.includes(day) ? 'border-violet-300 bg-violet-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-300'}`}
                         >
                           {t(label)}
                         </button>
                       ))}
                     </div>
-                    <label className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-400">
                       {t('composer.until')}
                       <input
                         type="date"
@@ -1801,10 +1800,10 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                         min={planForm.date}
                         max={latestSeriesEnd(planForm.date)}
                         onChange={(event) => setRepeatUntil(event.target.value)}
-                        className="h-9 min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-2 text-sm font-black normal-case tracking-normal text-white outline-none focus:border-violet-300 [color-scheme:dark]"
+                        className="h-9 min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-2 text-sm font-semibold normal-case tracking-normal text-white outline-none focus:border-violet-300 [color-scheme:dark]"
                       />
                     </label>
-                    <p className="text-xs font-bold text-slate-400">
+                    <p className="text-xs font-medium text-slate-400">
                       {seriesCount === 0 ? t('composer.pickDay') : t('composer.seriesCount', { count: seriesCount })}
                     </p>
                   </>
@@ -1814,28 +1813,28 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
             {editingSeriesPlan ? (
               <div className="mt-4 grid gap-1.5">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('composer.seriesChange')}</p>
-                <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-1">
-                  <button type="button" onClick={() => setSeriesScope('one')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${seriesScope === 'one' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.onlyThis')}</button>
-                  <button type="button" onClick={() => setSeriesScope('following')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${seriesScope === 'following' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.thisAndFollowing')}</button>
+                <p className="text-xs font-semibold text-slate-400">{t('composer.seriesChange')}</p>
+                <div className="grid grid-cols-2 gap-2 rounded-2xl bg-white/[0.04] p-1">
+                  <button type="button" onClick={() => setSeriesScope('one')} className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${seriesScope === 'one' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.onlyThis')}</button>
+                  <button type="button" onClick={() => setSeriesScope('following')} className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${seriesScope === 'following' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.thisAndFollowing')}</button>
                 </div>
               </div>
             ) : null}
 
             {!activeComposerSession && planForm.date === todayISO() ? (
-              <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-1">
-                <button type="button" onClick={() => setTodayAction('plan')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${todayAction === 'plan' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.planLater')}</button>
-                <button type="button" onClick={() => setTodayAction('report')} className={`rounded-xl px-3 py-2 text-xs font-black transition ${todayAction === 'report' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.alreadyDone')}</button>
+              <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl bg-white/[0.04] p-1">
+                <button type="button" onClick={() => setTodayAction('plan')} className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${todayAction === 'plan' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.planLater')}</button>
+                <button type="button" onClick={() => setTodayAction('report')} className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${todayAction === 'report' ? 'bg-slate-100 text-slate-950' : 'text-slate-400'}`}>{t('composer.alreadyDone')}</button>
               </div>
             ) : null}
 
             {activeComposerSession?.loadTracked === false && !activeTeamSessionIsFuture ? (
-              <p className="mt-5 rounded-2xl border border-slate-700 bg-slate-950/70 p-4 text-sm font-bold text-slate-300">
+              <p className="mt-5 rounded-2xl bg-white/[0.04] p-4 text-sm font-medium text-slate-300">
                 {activeComposerSession.info?.sessionType === 'meeting' ? t('session.meetingNotRated') : t('composer.noTracking', { team: activeComposerSession.teamName ?? t('composer.thisTeam') })}
               </p>
             ) : activeTeamSessionIsFuture ? (
-              <div className="mt-3 space-y-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-4 text-sm font-bold text-slate-300">
-                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">{t('composer.yourAnswer')}</p>
+              <div className="mt-3 space-y-3 rounded-2xl bg-white/[0.04] p-4 text-sm font-medium text-slate-300">
+                <p className="text-xs font-semibold text-slate-400">{t('composer.yourAnswer')}</p>
                 {(() => {
                   const mark = activeComposerSession ? availabilityForSession(activeComposerSession.id) : undefined;
                   const isWarmup = activeComposerSession?.trainingType === 'warmup';
@@ -1858,40 +1857,40 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                       </p> : null}
                       {activeComposerSession && !isWarmup ? collapsed ? (
                         <div className="flex items-center justify-between gap-3" role="status">
-                          <span className={`min-w-0 break-words rounded-2xl px-3 py-2 text-sm font-bold [overflow-wrap:anywhere] ${mark?.status === 'out' ? 'bg-rose-400/15 text-rose-200' : mark?.status === 'late' ? 'bg-amber-300/15 text-amber-200' : 'bg-emerald-300/15 text-emerald-200'}`}>
+                          <span className={`min-w-0 break-words rounded-2xl px-3 py-2 text-sm font-medium [overflow-wrap:anywhere] ${mark?.status === 'out' ? 'bg-rose-400/15 text-rose-200' : mark?.status === 'late' ? 'bg-amber-300/15 text-amber-200' : 'bg-emerald-300/15 text-emerald-200'}`}>
                             {mark?.status === 'out' ? t('composer.out') : mark?.status === 'late' ? t('composer.late') : t('composer.youAreIn')}
                             {mark?.status === 'late' && mark.lateMinutes != null ? ` · ${t('composer.minutes', { count: mark.lateMinutes })}` : ''}
                             {healthAllowed && mark?.reason ? ` · ${mark.reason}` : ''}
                           </span>
-                          <button type="button" onClick={() => setAvailabilityEditing(true)} aria-expanded={false} className="shrink-0 rounded-full px-2 py-2 text-xs font-bold text-sky-300">{t('composer.change')}</button>
+                          <button type="button" onClick={() => setAvailabilityEditing(true)} aria-expanded={false} className="shrink-0 rounded-full px-2 py-2 text-xs font-medium text-sky-300">{t('composer.change')}</button>
                         </div>
                       ) : (
                         <div className="space-y-3">
                           <div className="grid grid-cols-3 gap-2">
-                            <button type="button" aria-pressed={availabilityDraft === 'expected'} onClick={() => setAvailabilityDraft('expected')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'expected' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.available')}</button>
-                            <button type="button" aria-pressed={availabilityDraft === 'late'} onClick={() => setAvailabilityDraft('late')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'late' ? 'border-amber-300 bg-amber-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.late')}</button>
-                            <button type="button" aria-pressed={availabilityDraft === 'out'} onClick={() => setAvailabilityDraft('out')} className={`rounded-xl border px-3 py-2 text-xs font-black ${availabilityDraft === 'out' ? 'border-rose-300 bg-rose-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.out')}</button>
+                            <button type="button" aria-pressed={availabilityDraft === 'expected'} onClick={() => setAvailabilityDraft('expected')} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${availabilityDraft === 'expected' ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.available')}</button>
+                            <button type="button" aria-pressed={availabilityDraft === 'late'} onClick={() => setAvailabilityDraft('late')} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${availabilityDraft === 'late' ? 'border-amber-300 bg-amber-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.late')}</button>
+                            <button type="button" aria-pressed={availabilityDraft === 'out'} onClick={() => setAvailabilityDraft('out')} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${availabilityDraft === 'out' ? 'border-rose-300 bg-rose-300 text-slate-950' : 'border-slate-700 text-slate-300'}`}>{t('composer.out')}</button>
                           </div>
                           {healthAllowed && (availabilityDraft === 'late' || availabilityDraft === 'out') ? (
                             // One tap for the usual reasons, typing only for "Other" (audit 2026-11, 6).
                             <div className="grid gap-2">
-                              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">{t('composer.reason')}</p>
+                              <p className="text-xs font-semibold text-slate-400">{t('composer.reason')}</p>
                               <div className="grid grid-cols-2 gap-2" role="group" aria-label={t('composer.reason')}>
                                 {(availabilityDraft === 'out' ? (['composer.reason.ill', 'composer.reason.school', 'composer.reason.family'] as const) : (['composer.reason.school', 'composer.reason.travel', 'composer.reason.work'] as const)).map((key) => {
                                   const word = t(key);
                                   const chosen = !reasonTyped && availabilityReason === word;
-                                  return <button key={key} type="button" aria-pressed={chosen} onClick={() => { setReasonTyped(false); setAvailabilityReason(word); }} className={`rounded-xl border px-3 py-2.5 text-sm font-bold ${chosen ? 'border-sky-300 bg-sky-300/15 text-white' : 'border-slate-700 text-slate-300'}`}>{word}</button>;
+                                  return <button key={key} type="button" aria-pressed={chosen} onClick={() => { setReasonTyped(false); setAvailabilityReason(word); }} className={`rounded-xl border px-3 py-2.5 text-sm font-medium ${chosen ? 'border-sky-300 bg-slate-100/15 text-white' : 'border-slate-700 text-slate-300'}`}>{word}</button>;
                                 })}
-                                <button type="button" aria-pressed={reasonTyped} onClick={() => { setReasonTyped(true); setAvailabilityReason(''); }} className={`rounded-xl border px-3 py-2.5 text-sm font-bold ${reasonTyped ? 'border-sky-300 bg-sky-300/15 text-white' : 'border-slate-700 text-slate-300'}`}>{t('composer.reason.other')}</button>
+                                <button type="button" aria-pressed={reasonTyped} onClick={() => { setReasonTyped(true); setAvailabilityReason(''); }} className={`rounded-xl border px-3 py-2.5 text-sm font-medium ${reasonTyped ? 'border-sky-300 bg-slate-100/15 text-white' : 'border-slate-700 text-slate-300'}`}>{t('composer.reason.other')}</button>
                               </div>
-                              {reasonTyped ? <textarea autoFocus value={availabilityReason} onChange={(event) => setAvailabilityReason(event.target.value)} aria-label={t('composer.reason')} placeholder={t('composer.reasonPlaceholder')} className="min-h-16 w-full resize-y rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none placeholder:text-slate-500 focus:border-emerald-300" /> : null}
+                              {reasonTyped ? <textarea autoFocus value={availabilityReason} onChange={(event) => setAvailabilityReason(event.target.value)} aria-label={t('composer.reason')} placeholder={t('composer.reasonPlaceholder')} className="min-h-16 w-full resize-y rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-medium text-white outline-none placeholder:text-slate-500 focus:border-emerald-300" /> : null}
                             </div>
                           ) : null}
                           {availabilityDraft === 'late' ? (
-                            <label className="block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                            <label className="block text-xs font-semibold text-slate-400">
                               {t('composer.lateMinutes')}
                               <input type="range" min="5" max="60" step="1" aria-label={t('composer.lateMinutes')} value={lateMinutes} onChange={(event) => setLateMinutes(Number(event.target.value))} className="mt-2 w-full accent-sky-300" />
-                              <span className="mt-1 block text-sm font-black normal-case tracking-normal text-white">{t('composer.minutes', { count: lateMinutes })}</span>
+                              <span className="mt-1 block text-sm font-semibold normal-case tracking-normal text-white">{t('composer.minutes', { count: lateMinutes })}</span>
                             </label>
                           ) : null}
                           <button
@@ -1901,12 +1900,12 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                               if (!saved) return;
                               setAvailabilityEditing(false);
                             }}
-                            className="w-full rounded-2xl bg-emerald-300 px-4 py-3 text-sm font-black text-slate-950"
+                            className="w-full rounded-2xl bg-emerald-300 px-4 py-3 text-sm font-semibold text-slate-950"
                           >
                             {t('composer.saveAvailability')}
                           </button>
                           {/* Shown here too: the page's own message is hidden behind this sheet. */}
-                          {error ? <p role="alert" className="text-xs font-bold text-rose-200">{error}</p> : null}
+                          {error ? <p role="alert" className="text-xs font-medium text-rose-200">{error}</p> : null}
                         </div>
                       ) : null}
                     </>
@@ -1919,41 +1918,41 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   {isPlanning ? null : planForm.trainingType === 'game' ? (
                     <div className="rounded-2xl border border-violet-300/25 bg-violet-300/[0.08] p-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('composer.rpe')}</span>
-                        <span className="text-2xl font-black text-white">10</span>
+                        <span className="text-xs font-semibold text-slate-400">{t('composer.rpe')}</span>
+                        <span className="text-2xl font-semibold text-white">10</span>
                       </div>
-                      <p className="mt-1 text-xs font-bold text-slate-400">{t('composer.gameRpe')}</p>
+                      <p className="mt-1 text-xs font-medium text-slate-400">{t('composer.gameRpe')}</p>
                     </div>
                   ) : (
                     <label className="block">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('composer.rpe')}</span>
-                        <span className="text-2xl font-black text-white">{planForm.expectedRpe}</span>
+                        <span className="text-xs font-semibold text-slate-400">{t('composer.rpe')}</span>
+                        <span className="text-2xl font-semibold text-white">{planForm.expectedRpe}</span>
                       </div>
                       <input type="range" min="1" max="10" step="1" value={planForm.expectedRpe} onChange={(event) => setPlanForm((current) => ({ ...current, expectedRpe: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
                     </label>
                   )}
                   <label className="block">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{isPlanning ? t('composer.plannedLength') : planForm.trainingType === 'game' ? t('composer.playingMinutes') : t('composer.duration')}</span>
-                      <span className="text-xl font-black text-white">{t('composer.minutes', { count: planForm.expectedDurationMinutes })}</span>
+                      <span className="text-xs font-semibold text-slate-400">{isPlanning ? t('composer.plannedLength') : planForm.trainingType === 'game' ? t('composer.playingMinutes') : t('composer.duration')}</span>
+                      <span className="text-xl font-semibold text-white">{t('composer.minutes', { count: planForm.expectedDurationMinutes })}</span>
                     </div>
                     <input type="range" min={planForm.trainingType === 'game' ? '0' : '5'} max={planForm.trainingType === 'game' ? '120' : '240'} step={planForm.trainingType === 'game' ? '1' : '5'} value={planForm.expectedDurationMinutes} onChange={(event) => setPlanForm((current) => ({ ...current, expectedDurationMinutes: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
                   </label>
                 </div>
 
                 {isPlanning ? (
-                  <p className="mt-4 text-xs font-bold text-slate-400">{t('composer.planNote')}</p>
+                  <p className="mt-4 text-xs font-medium text-slate-400">{t('composer.planNote')}</p>
                 ) : (
-                  <div className="mt-5 rounded-2xl border border-slate-700 bg-slate-950/70 p-4">
+                  <div className="mt-5 rounded-2xl bg-white/[0.04] p-4">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-bold text-slate-400">{t('composer.trainingLoad')}</span>
-                      <span className="text-3xl font-black text-amber-200">{t('composer.au', { value: sessionLoadPreview })}</span>
+                      <span className="text-sm font-medium text-slate-400">{t('composer.trainingLoad')}</span>
+                      <span className="text-3xl font-semibold text-white">{t('composer.au', { value: sessionLoadPreview })}</span>
                     </div>
                   </div>
                 )}
 
-                <button type="button" onClick={submitUnifiedSession} disabled={sessionMode === 'plan' && !activeComposerSession && !activeEntry && seriesCount === 0} className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-black text-slate-950 transition disabled:opacity-50 ${sessionMode === 'plan' && !activeComposerSession && !activeEntry ? 'bg-violet-300' : 'bg-emerald-300'}`}>
+                <button type="button" onClick={submitUnifiedSession} disabled={sessionMode === 'plan' && !activeComposerSession && !activeEntry && seriesCount === 0} className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-semibold text-slate-950 transition disabled:opacity-50 ${sessionMode === 'plan' && !activeComposerSession && !activeEntry ? 'bg-violet-300' : 'bg-emerald-300'}`}>
                   {sessionMode === 'plan' && !activeComposerSession && !activeEntry
                     ? (repeat === 'weekly' ? t('composer.planCount', { count: seriesCount }) : t('composer.planIt'))
                     : isPlanning
@@ -1961,11 +1960,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                       : t('composer.saveLoad', { value: sessionLoadPreview })}
                 </button>
                 {activeEntry ? (
-                  <button type="button" onClick={() => setDeleteTarget({ kind: 'entry', id: activeEntry.id, title: activeEntry.title })} className="mt-2 w-full rounded-2xl border border-rose-400/45 bg-rose-400/10 px-4 py-3 text-sm font-black text-rose-100">
+                  <button type="button" onClick={() => setDeleteTarget({ kind: 'entry', id: activeEntry.id, title: activeEntry.title })} className="mt-2 w-full rounded-2xl border border-rose-400/45 bg-rose-400/10 px-4 py-3 text-sm font-semibold text-rose-100">
                     {t('composer.deleteLoad')}
                   </button>
                 ) : activeComposerSession?.source === 'athlete_plan' ? (
-                  <button type="button" onClick={() => setDeleteTarget({ kind: 'plan', id: activeComposerSession.id, title: activeComposerSession.title })} className="mt-2 w-full rounded-2xl border border-rose-400/45 bg-rose-400/10 px-4 py-3 text-sm font-black text-rose-100">
+                  <button type="button" onClick={() => setDeleteTarget({ kind: 'plan', id: activeComposerSession.id, title: activeComposerSession.title })} className="mt-2 w-full rounded-2xl border border-rose-400/45 bg-rose-400/10 px-4 py-3 text-sm font-semibold text-rose-100">
                     {editingSeriesPlan && seriesScope === 'following' ? t('composer.deleteFollowing') : t('composer.deletePlan')}
                   </button>
                 ) : null}
@@ -2170,7 +2169,7 @@ function LoadVerdict({ latest, entries, baselineReady }: { latest: ReturnType<ty
     <section className={`flex items-start gap-4 rounded-3xl border ${look.ring} bg-slate-950/65 p-5`} data-testid="load-verdict">
       <span aria-hidden className={`mt-1.5 h-4 w-4 shrink-0 rounded-full ${look.dot}`} />
       <div className="min-w-0">
-        <p className="text-xl font-black leading-snug text-white">{t(look.title as MessageKey)}</p>
+        <p className="text-xl font-semibold leading-snug text-white">{t(look.title as MessageKey)}</p>
         {look.detail ? <p className="mt-1 text-sm text-slate-300">{t(look.detail as MessageKey)}</p> : null}
       </div>
     </section>
@@ -2217,11 +2216,11 @@ function LoadDetailsPanel({
         ? { label: t('load.stability.watch'), tone: 'low' as const, detail: t('load.stability.watchDetail') }
         : { label: t('load.stability.varied'), tone: 'ready' as const, detail: t('load.stability.variedDetail') };
   const stabilityToneClass = monotonyState.tone === 'high'
-    ? 'border-rose-400/35 bg-rose-400/10 text-rose-100'
+    ? 'border-transparent bg-white/[0.04] text-rose-300'
     : monotonyState.tone === 'low'
       ? 'border-amber-300/35 bg-amber-300/10 text-amber-100'
       : monotonyState.tone === 'ready'
-        ? 'border-emerald-400/35 bg-emerald-400/10 text-emerald-100'
+        ? 'border-transparent bg-white/[0.04] text-emerald-300'
         : 'border-slate-800 bg-slate-950/75 text-slate-300';
   const guidance = roomSummary.mode === 'overload'
     ? t('load.guidance.overload')
@@ -2245,24 +2244,24 @@ function LoadDetailsPanel({
       <div className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-black">{t('load.details.roomAndRisk')}</h2>
+            <h2 className="text-lg font-semibold">{t('load.details.roomAndRisk')}</h2>
             <LoadInfoButton />
           </div>
-          <span className={`rounded-full border px-3 py-1.5 text-xs font-black ${zone.tone === 'high' ? 'border-rose-400/45 bg-rose-400/10 text-rose-100' : zone.tone === 'low' ? 'border-sky-400/45 bg-sky-400/10 text-sky-100' : zone.tone === 'ready' ? 'border-emerald-400/45 bg-emerald-400/10 text-emerald-100' : 'border-slate-700 text-slate-300'}`}>
+          <span className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${zone.tone === 'high' ? 'border-rose-400/45 bg-rose-400/10 text-rose-100' : zone.tone === 'low' ? 'border-sky-400/45 bg-sky-400/10 text-sky-100' : zone.tone === 'ready' ? 'border-emerald-400/45 bg-emerald-400/10 text-emerald-100' : 'border-slate-700 text-slate-300'}`}>
             {currentAcwr !== null && baselineReady ? t('load.details.acwrValue', { value: formatDecimal(currentAcwr) }) : t('load.details.building')}
           </span>
         </div>
 
-        <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/75 p-4">
+        <div className="mt-5 rounded-2xl bg-white/[0.04] p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{t('load.details.lane')}</p>
-              <p className="mt-1 text-sm font-bold text-slate-400">{guidance}</p>
+              <p className="text-xs font-semibold text-slate-400">{t('load.details.lane')}</p>
+              <p className="mt-1 text-sm font-medium text-slate-400">{guidance}</p>
             </div>
-            <span className="text-2xl font-black text-white">{roomSummary.value}</span>
+            <span className="text-2xl font-semibold text-white">{roomSummary.value}</span>
           </div>
           <LoadRoomGauge room={roomSummary} />
-          <div className="mt-2 flex justify-between text-[10px] font-black uppercase tracking-[0.12em] text-slate-600">
+          <div className="mt-2 flex justify-between text-xs font-semibold text-slate-400">
             <span>{t('load.details.low')}</span>
             <span>{formatDecimal(ACWR_ZONES.low, 1)}-{formatDecimal(ACWR_ZONES.high, 1)}</span>
             <span>{t('load.details.high')}</span>
@@ -2275,18 +2274,18 @@ function LoadDetailsPanel({
               <LoadRiskBadge before={currentAcwr} after={riskDay.acwr} label={riskDay.date === today ? t('load.risk.today') : formatWeekday(`${riskDay.date}T00:00:00`)} />
             ) : null}
             {weekChange !== null ? (
-              <span title={t('load.details.weekChangeTitle')} className={`rounded-full border px-2.5 py-1 text-xs font-black tabular-nums ${weekChange >= 15 ? 'border-amber-300/45 bg-amber-300/10 text-amber-100' : 'border-slate-700 text-slate-300'}`}>
+              <span title={t('load.details.weekChangeTitle')} className={`rounded-full border px-2.5 py-1 text-xs font-semibold tabular-nums ${weekChange >= 15 ? 'border-amber-300/45 bg-amber-300/10 text-amber-100' : 'border-slate-700 text-slate-300'}`}>
                 {t('load.details.weekChange', { value: `${weekChange > 0 ? '+' : ''}${weekChange}` })}
               </span>
             ) : null}
             {afterBreak ? (
-              <span className="rounded-full border border-sky-400/40 bg-sky-400/10 px-2.5 py-1 text-xs font-black text-sky-100">{t('load.details.backFromBreak')}</span>
+              <span className="rounded-full border border-sky-400/40 bg-sky-400/10 px-2.5 py-1 text-xs font-semibold text-sky-100">{t('load.details.backFromBreak')}</span>
             ) : null}
           </div>
         ) : null}
 
         {baselineDays < 30 ? (
-          <div className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-300/[0.08] p-3 text-sm font-bold text-amber-100">
+          <div className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-300/[0.08] p-3 text-sm font-medium text-amber-100">
             {t('load.details.reliableAfter')}
           </div>
         ) : null}
@@ -2294,18 +2293,18 @@ function LoadDetailsPanel({
         <div className={`mt-4 rounded-2xl border p-4 ${stabilityToneClass}`}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{t('load.details.weekStability')}</p>
-              <p className="mt-1 text-lg font-black text-white">{monotonyState.label}</p>
-              <p className="mt-1 text-xs font-bold text-slate-400">{monotonyState.detail}</p>
+              <p className="text-xs font-semibold text-slate-400">{t('load.details.weekStability')}</p>
+              <p className="mt-1 text-lg font-semibold text-white">{monotonyState.label}</p>
+              <p className="mt-1 text-xs font-medium text-slate-400">{monotonyState.detail}</p>
             </div>
             <div className="grid grid-cols-2 gap-2 text-right">
               <div className="rounded-xl border border-white/10 bg-slate-950/45 px-3 py-2">
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">{t('load.details.monotony')}</p>
-                <p className="mt-1 text-base font-black text-white">{stabilityReady ? formatDecimal(monotony) : '-'}</p>
+                <p className="text-[11px] font-medium text-slate-400">{t('load.details.monotony')}</p>
+                <p className="mt-1 text-base font-semibold text-white">{stabilityReady ? formatDecimal(monotony) : '-'}</p>
               </div>
               <div className="rounded-xl border border-white/10 bg-slate-950/45 px-3 py-2">
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">{t('load.details.strain')}</p>
-                <p className="mt-1 text-base font-black text-white">{stabilityReady ? t('load.room.au', { value: formatCompactNumber(strain) }) : '-'}</p>
+                <p className="text-[11px] font-medium text-slate-400">{t('load.details.strain')}</p>
+                <p className="mt-1 text-base font-semibold text-white">{stabilityReady ? t('load.room.au', { value: formatCompactNumber(strain) }) : '-'}</p>
               </div>
             </div>
           </div>
@@ -2316,15 +2315,15 @@ function LoadDetailsPanel({
       <div className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">
         <details className="group" open>
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-          <h2 className="text-base font-black">{t('load.details.mix')}</h2>
-          <span className="flex shrink-0 items-center whitespace-nowrap gap-2 text-xs font-black text-slate-500">{t('load.room.au', { value: recentLoad })} <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-180">▾</span></span>
+          <h2 className="text-base font-semibold">{t('load.details.mix')}</h2>
+          <span className="flex shrink-0 items-center whitespace-nowrap gap-2 text-xs font-semibold text-slate-400">{t('load.room.au', { value: recentLoad })} <span aria-hidden="true" className="text-slate-400 transition-transform group-open:rotate-180">▾</span></span>
         </summary>
         <div className="mt-5 space-y-3">
           {trainingMix.length > 0 ? trainingMix.slice(0, 6).map((item) => {
             const percent = Math.round((item.load / Math.max(recentLoad, 1)) * 100);
             return (
-              <div key={item.type} className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
-                <div className="flex justify-between text-xs font-black text-slate-300">
+              <div key={item.type} className="rounded-2xl bg-white/[0.04] p-3">
+                <div className="flex justify-between text-xs font-semibold text-slate-300">
                   <span>{item.label}</span>
                   <span>{percent}%</span>
                 </div>
@@ -2334,15 +2333,15 @@ function LoadDetailsPanel({
               </div>
             );
           }) : (
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4 text-sm font-bold text-slate-500">{t('load.details.noRecent')}</div>
+            <div className="rounded-2xl bg-white/[0.04] p-4 text-sm font-medium text-slate-400">{t('load.details.noRecent')}</div>
           )}
         </div>
         </details>
 
         <details className="group mt-5 border-t border-slate-800/80 pt-4" onToggle={(event) => { if (event.currentTarget.open) setWeeklyOpen(true); }}>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-            <h2 className="text-base font-black">{t('load.details.weeklyProfile')}</h2>
-            <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-180">▾</span>
+            <h2 className="text-base font-semibold">{t('load.details.weeklyProfile')}</h2>
+            <span aria-hidden="true" className="text-slate-400 transition-transform group-open:rotate-180">▾</span>
           </summary>
           <div className="mt-4">
             {weeklyOpen ? <WeeklyLoadProfileGraph entries={entries} title="" /> : null}
@@ -2351,27 +2350,27 @@ function LoadDetailsPanel({
 
         <div className="mt-5">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-black text-white">{t('load.details.completed')}</p>
-            <span className="text-xs font-black text-slate-500">{completedEntries.length}</span>
+            <p className="text-sm font-semibold text-white">{t('load.details.completed')}</p>
+            <span className="text-xs font-semibold text-slate-400">{completedEntries.length}</span>
           </div>
           <div className="mt-3 grid gap-2">
-            {completedEntries.length === 0 ? <div className="rounded-2xl border border-slate-800 bg-slate-950/75 p-4 text-sm font-bold text-slate-500">{t('load.details.noCompleted')}</div> : null}
+            {completedEntries.length === 0 ? <div className="rounded-2xl bg-white/[0.04] p-4 text-sm font-medium text-slate-400">{t('load.details.noCompleted')}</div> : null}
             {(showAllCompleted ? completedEntries : completedEntries.slice(0, 3)).map((entry) => (
-              <div key={entry.id} className="rounded-2xl border border-slate-800 bg-slate-950/75 p-3">
+              <div key={entry.id} className="rounded-2xl bg-white/[0.04] p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-black text-white">{displayTitle(entry.title)}</p>
-                    <p className="mt-1 text-xs font-bold text-slate-500">{formatEntryDate(entry.date)} · {loadTypeLabel(entry.trainingType)}</p>
+                    <p className="truncate text-sm font-semibold text-white">{displayTitle(entry.title)}</p>
+                    <p className="mt-1 text-xs font-medium text-slate-400">{formatEntryDate(entry.date)} · {loadTypeLabel(entry.trainingType)}</p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-sm font-black text-slate-100">{t('load.details.minutes', { count: entry.durationMinutes })}</p>
-                    <p className="mt-1 text-xs font-black text-slate-500">{t('load.details.rpeLoad', { rpe: entry.rpe, load: entry.load })}</p>
+                    <p className="text-sm font-semibold text-slate-100">{t('load.details.minutes', { count: entry.durationMinutes })}</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-400">{t('load.details.rpeLoad', { rpe: entry.rpe, load: entry.load })}</p>
                   </div>
                 </div>
               </div>
             ))}
             {!showAllCompleted && completedEntries.length > 3 ? (
-              <button type="button" onClick={() => setShowAllCompleted(true)} className="rounded-2xl border border-slate-700 px-4 py-2.5 text-xs font-black text-slate-200">{t('load.details.showAll', { count: completedEntries.length })}</button>
+              <button type="button" onClick={() => setShowAllCompleted(true)} className="rounded-2xl border border-slate-700 px-4 py-2.5 text-xs font-semibold text-slate-200">{t('load.details.showAll', { count: completedEntries.length })}</button>
             ) : null}
           </div>
         </div>
@@ -2387,31 +2386,31 @@ function PendingInlineForm({ trainingType, defaultRpe, defaultDuration, onSubmit
   const [duration, setDuration] = useState(defaultDuration);
   const effectiveInlineRpe = fixedGameRpe ? 10 : rpe;
   return (
-    <div className="mt-3 space-y-3 rounded-2xl border border-slate-800/80 bg-slate-950/70 p-3">
+    <div className="mt-3 space-y-3 rounded-2xl bg-white/[0.04] p-3">
       {fixedGameRpe ? (
         <div className="rounded-xl border border-violet-300/25 bg-violet-300/[0.08] p-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('load.inline.rpe')}</span>
-            <span className="text-xl font-black text-white">10</span>
+            <span className="text-xs font-semibold text-slate-400">{t('load.inline.rpe')}</span>
+            <span className="text-xl font-semibold text-white">10</span>
           </div>
         </div>
       ) : (
         <label className="block">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{t('load.inline.rpe')}</span>
-            <span className="text-xl font-black text-white">{rpe}</span>
+            <span className="text-xs font-semibold text-slate-400">{t('load.inline.rpe')}</span>
+            <span className="text-xl font-semibold text-white">{rpe}</span>
           </div>
           <input type="range" min="1" max="10" step="1" value={rpe} onChange={(event) => setRpe(Number(event.target.value))} className="mt-1 w-full accent-emerald-300" aria-label={t('load.inline.rpe')} />
         </label>
       )}
       <label className="block">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{fixedGameRpe ? t('load.inline.playingMinutes') : t('load.inline.duration')}</span>
-          <span className="text-sm font-black text-white">{t('load.inline.minutes', { count: duration })}</span>
+          <span className="text-xs font-semibold text-slate-400">{fixedGameRpe ? t('load.inline.playingMinutes') : t('load.inline.duration')}</span>
+          <span className="text-sm font-semibold text-white">{t('load.inline.minutes', { count: duration })}</span>
         </div>
         <input type="range" min={fixedGameRpe ? '0' : '5'} max={fixedGameRpe ? '120' : '240'} step={fixedGameRpe ? '1' : '5'} value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="mt-1 w-full accent-emerald-300" aria-label={t('load.inline.durationAria')} />
       </label>
-      <button type="button" onClick={() => onSubmit(effectiveInlineRpe, duration)} className="w-full rounded-xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950">{t('load.inline.save', { value: effectiveInlineRpe * duration })}</button>
+      <button type="button" onClick={() => onSubmit(effectiveInlineRpe, duration)} className="w-full rounded-xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950">{t('load.inline.save', { value: effectiveInlineRpe * duration })}</button>
     </div>
   );
 }
