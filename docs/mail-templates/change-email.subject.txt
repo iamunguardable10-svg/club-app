@@ -1,1 +1,1 @@
-{{$u:=print "en" .Data.locale (or .RedirectTo "")}}{{$l:=slice $u (len (slice $u 2))}}Club OS – {{if eq $l "de"}}Neue E-Mail bestätigen{{else if eq $l "fr"}}Confirme ton e-mail{{else if eq $l "es"}}Confirma tu correo{{else}}Confirm new email{{end}}
+{{$:=.Data.locale}}{{with .RedirectTo}}{{$s:=slice . (len (slice . 7))}}{{if eq (slice $s 0 5) "lang="}}{{$ =slice $s 5}}{{end}}{{end}}Club OS: {{if eq $ "de"}}Neue E-Mail bestätigen{{else if eq $ "es"}}Confirma tu correo{{else}}Confirmation{{end}}
