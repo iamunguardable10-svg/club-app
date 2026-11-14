@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { authEmailRedirect } from './authEmailRedirect';
+const origin = 'https://clubos.hebinova.de';
+const simple = new URL(authEmailRedirect(origin, '/reset-password', 'de'));
+assert.equal(simple.pathname, '/reset-password');
+assert.equal(simple.search, '?lang=de');
+const join = new URL(authEmailRedirect(origin, '/join?code=TEAM%2B1&go=1&lang=en', 'fr'));
+assert.equal(join.pathname, '/join');
+assert.equal(join.searchParams.get('code'), 'TEAM+1');
+assert.equal(join.searchParams.get('go'), '1');
+assert.equal(join.searchParams.getAll('lang').length, 1);
+assert.ok(join.href.endsWith('&lang=fr'));
+assert.equal(authEmailRedirect(origin, '/settings', undefined), `${origin}/settings`);
+assert.equal(authEmailRedirect(origin, '/settings', 'unknown'), `${origin}/settings`);
+console.log('PASS auth mail return paths, invitation query and request language');

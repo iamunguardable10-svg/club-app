@@ -1,80 +1,64 @@
-/**
- * Builds the Supabase auth mail templates in every app language
- * (docs/mail-templates/, docs/i18n.md area 6b). Supabase has one template
- * per mail; each file here picks the text by the account's language
- * (`.Data.locale`, set by the app at sign-up and when the language changes)
- * and falls back to English. Paste them in the Supabase dashboard:
- * Authentication → Emails → Templates. `--check` fails when a file is out of
- * date (`npm run check:i18n`).
- */
-
+/** Generate all Supabase account mails from the four app catalogs. */
 import fs from 'node:fs';
 import path from 'node:path';
-
 import { LOCALES } from '../src/shared/i18n/locales';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
-const messagesDir = path.join(root, 'src/shared/i18n/messages');
 const outDir = path.join(root, 'docs/mail-templates');
-
+const catalogs = Object.fromEntries(LOCALES.map(({ code }) => [code, JSON.parse(fs.readFileSync(path.join(root, `src/shared/i18n/messages/${code}.json`), 'utf8')) as Record<string, string>]));
 const MAILS = [
-  { file: 'confirm-signup', key: 'mail.confirm' },
-  { file: 'reset-password', key: 'mail.reset' },
-  { file: 'change-email', key: 'mail.change' },
+  { file: 'confirm-signup', key: 'mail.confirm', kind: 'link', dashboard: 'confirm-sign-up', requestLanguage: true, notes: ['mail.confirm.validity', 'mail.ignore'] },
+  { file: 'invite-user', key: 'mail.invite', kind: 'link', dashboard: 'invite-user', requestLanguage: false, notes: ['mail.reset.validity', 'mail.ignore'] },
+  { file: 'magic-link', key: 'mail.magic', kind: 'link', dashboard: 'magic-link-or-otp', requestLanguage: true, notes: ['mail.reset.validity', 'mail.ignore'] },
+  { file: 'change-email', key: 'mail.change', kind: 'link', dashboard: 'change-email-address', requestLanguage: true, notes: ['mail.change.validity', 'mail.ignore'] },
+  { file: 'reset-password', key: 'mail.reset', kind: 'link', dashboard: 'reset-password', requestLanguage: true, notes: ['mail.reset.validity', 'mail.reset.ignore'] },
+  { file: 'reauthentication', key: 'mail.reauth', kind: 'code', dashboard: 'reauthentication', requestLanguage: false, notes: ['mail.codeSafety'] },
+  { file: 'password-changed', key: 'mail.passwordChanged', kind: 'notice', dashboard: 'password-changed', requestLanguage: false, notes: ['mail.securityUnexpected'] },
+  { file: 'email-address-changed', key: 'mail.emailChanged', kind: 'notice', dashboard: 'email-address-changed', requestLanguage: false, notes: ['mail.securityUnexpected'] },
+  { file: 'phone-number-changed', key: 'mail.phoneChanged', kind: 'notice', dashboard: 'phone-number-changed', requestLanguage: false, notes: ['mail.securityUnexpected'] },
+  { file: 'sign-in-method-linked', key: 'mail.identityLinked', kind: 'notice', dashboard: 'sign-in-method-linked', requestLanguage: false, notes: ['mail.securityUnexpected'] },
+  { file: 'sign-in-method-removed', key: 'mail.identityUnlinked', kind: 'notice', dashboard: 'sign-in-method-removed', requestLanguage: false, notes: ['mail.securityUnexpected'] },
+  { file: 'mfa-method-added', key: 'mail.mfaAdded', kind: 'notice', dashboard: 'mfa-method-added', requestLanguage: false, notes: ['mail.securityUnexpected'] },
+  { file: 'mfa-method-removed', key: 'mail.mfaRemoved', kind: 'notice', dashboard: 'mfa-method-removed', requestLanguage: false, notes: ['mail.securityUnexpected'] },
 ] as const;
-
-/** `{email}` in a text becomes the template variable. */
-const GO_VARIABLES: Record<string, string> = { email: '{{ .Email }}', newEmail: '{{ .NewEmail }}' };
-
-const catalogs = Object.fromEntries(
-  LOCALES.map(({ code }) => [code, JSON.parse(fs.readFileSync(path.join(messagesDir, `${code}.json`), 'utf8')) as Record<string, string>]),
-);
-const english = catalogs.en;
-
-function escapeHtml(text: string) {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
+const VARIABLES: Record<string, string> = { email: 'Email', newEmail: 'NewEmail', oldEmail: 'OldEmail', phone: 'Phone', oldPhone: 'OldPhone', provider: 'Provider' };
 function text(code: string, key: string) {
-  const value = catalogs[code]?.[key] ?? english[key];
-  if (value === undefined) throw new Error(`${key} is missing in en.json`);
-  return escapeHtml(value).replace(/\{(\w+)\}/g, (match, name: string) => GO_VARIABLES[name] ?? match);
+  const value = catalogs[code]?.[key] ?? catalogs.en[key];
+  if (value === undefined) throw new Error(`Missing mail text: ${code}/${key}`);
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    .replace(/\{(\w+)\}/g, (match, name: string) => VARIABLES[name] ? `{{ .${VARIABLES[name]} }}` : match);
 }
-
-/** English last, as the fallback for every other or unknown language. */
-function byLanguage(render: (code: string) => string, locale = ".Data.locale", valuePrefix = "") {
-  const others = LOCALES.map(({ code }) => code).filter((code) => code !== 'en');
-  if (others.length === 0) return render('en');
+function byLanguage(render: (code: string) => string, selector = '$locale') {
   return [
-    ...others.map((code, index) => `{{ ${index === 0 ? 'if' : 'else if'} eq ${locale} "${valuePrefix}${code}" }}\n${render(code)}`),
+    ...LOCALES.filter(({ code }) => code !== 'en').map(({ code }, i) => `{{ ${i === 0 ? 'if' : 'else if'} eq ${selector} "${code}" }}\n${render(code)}`),
     `{{ else }}\n${render('en')}\n{{ end }}`,
   ].join('\n');
 }
-
-/** Read the supported lang suffix without assuming a host. Padding makes empty redirects safe. */
-const resetLocale = [
-  '{{ $locale := .Data.locale }}{{$url := print "????????" .RedirectTo}}{{$query := slice $url (len (slice $url 8))}}',
-  ...LOCALES.map(({ code }, index) => `{{ ${index === 0 ? 'if' : 'else if'} eq $query "?lang=${code}" }}{{ $locale = "${code}" }}`),
-  '{{ end }}',
+// The language parameter is last, whether introduced by ? or &. Padding also
+// handles empty/missing redirects. A missing or unsupported hint keeps account locale.
+const requestLocale = [
+  '{{$locale:=.Data.locale}}{{$u:=print "???????" (or .RedirectTo "")}}{{$q:=slice $u (len (slice $u 7))}}',
+  ...LOCALES.map(({ code }, i) => `{{${i === 0 ? 'if' : 'else if'} eq $q "lang=${code}"}}{{$locale = "${code}"}}`),
+  '{{end}}',
 ].join('');
-
-// Supabase limits the subject template itself to 255 characters. Share the brand
-// prefix and use compact Go actions; old/unknown redirects keep an English subject.
-const resetSubjectLocale = '{{$u:=print "????????" .RedirectTo}}{{$l:=slice $u (len (slice $u 8))}}';
-
-/**
- * One branded layout for every auth mail (2026-11-13: the reset mail first,
- * then sign-up and e-mail change): table layout, inline styles, no external
- * images, exactly one auth link. Sign-off and help line are shared.
- */
-function brandedBody(code: string, key: string, notes: string[]) {
+// Subjects have their own 255-character SOURCE limit in the hosted dashboard.
+// Current app requests end in a supported language. Without a redirect, the
+// stored account language is used. Old redirects without a hint fall back to English.
+const subjectRequestLocale = '{{$u:=print "en" .Data.locale (or .RedirectTo "")}}{{$l:=slice $u (len (slice $u 2))}}';
+const compact = (s: string) => s.replace(/\n/g, '').replace(/{{ /g, '{{').replace(/ }}/g, '}}');
+function body(code: string, mail: (typeof MAILS)[number]) {
+  const action = mail.kind === 'link'
+    ? `<p style="margin:0 0 24px"><a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 22px;background:#6ee7b7;border-radius:8px;color:#052e22;font-size:16px;font-weight:700;text-decoration:none">${text(code, `${mail.key}.button`)}</a></p>`
+    : mail.kind === 'code'
+      ? '<p style="margin:0 0 24px;font-size:32px;font-weight:700;letter-spacing:6px">{{ .Token }}</p>'
+      : '';
   return `<table role="presentation" lang="${code}" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f5f7;font-family:Arial,Helvetica,sans-serif;color:#16212e;line-height:1.6"><tr><td align="center" style="padding:32px 16px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px"><tr><td style="padding:32px">
 <p style="margin:0 0 28px;font-size:20px;font-weight:800;letter-spacing:1px;color:#16212e">CLUB OS</p>
-<h1 style="margin:0 0 20px;font-size:26px;line-height:1.25">${text(code, `${key}.heading`)}</h1>
-<p style="margin:0 0 24px;font-size:16px">${text(code, `${key}.text`)}</p>
-<p style="margin:0 0 24px"><a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 22px;background:#6ee7b7;border-radius:8px;color:#052e22;font-size:16px;font-weight:700;text-decoration:none">${text(code, `${key}.button`)}</a></p>
-${notes.map((note, index) => `<p style="margin:0 0 ${index === notes.length - 1 ? 24 : 16}px;font-size:14px;color:#475569">${text(code, note)}</p>`).join('\n')}
+<h1 style="margin:0 0 20px;font-size:26px;line-height:1.25">${text(code, `${mail.key}.heading`)}</h1>
+<p style="margin:0 0 24px;font-size:16px">${text(code, `${mail.key}.text`)}</p>
+${action}
+${mail.notes.map((note, i) => `<p style="margin:0 0 ${i === mail.notes.length - 1 ? 24 : 16}px;font-size:14px;color:#475569">${text(code, note)}</p>`).join('\n')}
 <p style="margin:0;font-size:16px">${text(code, 'mail.reset.signoff')}</p>
 </td></tr><tr><td style="padding:20px 32px;border-top:1px solid #e2e8f0;font-size:13px;color:#475569">
 <p style="margin:0 0 6px">${text(code, 'mail.reset.support')}</p>
@@ -82,42 +66,21 @@ ${notes.map((note, index) => `<p style="margin:0 0 ${index === notes.length - 1 
 </td></tr></table>
 </td></tr></table>`;
 }
-
-const NOTES: Record<(typeof MAILS)[number]['file'], string[]> = {
-  'confirm-signup': ['mail.confirm.validity', 'mail.ignore'],
-  'reset-password': ['mail.reset.validity', 'mail.reset.ignore'],
-  'change-email': ['mail.change.validity', 'mail.ignore'],
-};
-
 const files: Record<string, string> = {};
 for (const mail of MAILS) {
-  const reset = mail.file === 'reset-password';
-  const prefix = reset ? resetLocale : '';
-  const selector = reset ? '$locale' : '.Data.locale';
-  files[`${mail.file}.html`] = `<!-- Generated by \`npm run mail-templates\` from the app texts (${mail.key}.*). Paste into Supabase → Authentication → Emails. -->\n${prefix}${byLanguage((code) => brandedBody(code, mail.key, NOTES[mail.file]), selector)}\n`;
-  // Supabase limits the subject template itself to 255 characters: one shared
-  // brand prefix, compact Go actions.
-  const compact = (template: string) => template.replace(/\n/g, '').replace(/{{ /g, '{{').replace(/ }}/g, '}}');
-  const subjectText = (code: string) => text(code, `${mail.key}.subject`).replace(/^Club OS – /, '');
-  const subject = reset
-    ? `${resetSubjectLocale}Club OS – ${compact(byLanguage(subjectText, '$l', '?lang='))}`
-    : `Club OS – ${compact(byLanguage(subjectText, selector))}`;
-  if (subject.length > 255) throw new Error(`${mail.file} subject template exceeds Supabase's 255-character limit`);
+  const prefix = mail.requestLanguage ? requestLocale : '{{$locale:=.Data.locale}}';
+  files[`${mail.file}.html`] = `<!-- Generated by npm run mail-templates. -->\n${prefix}${byLanguage((code) => body(code, mail))}\n`;
+  const subject = `${mail.requestLanguage ? subjectRequestLocale : ''}Club OS – ${compact(byLanguage((code) => text(code, `${mail.key}.subject`).replace(/^Club OS – /, ''), mail.requestLanguage ? '$l' : '.Data.locale'))}`;
+  if (subject.length > 255) throw new Error(`${mail.file} subject template: ${subject.length} characters, maximum 255`);
   files[`${mail.file}.subject.txt`] = `${subject}\n`;
 }
-
+files['manifest.json'] = `${JSON.stringify(MAILS, null, 2)}\n`;
 if (process.argv.includes('--check')) {
-  const stale = Object.entries(files).filter(([name, content]) => {
-    const full = path.join(outDir, name);
-    return !fs.existsSync(full) || fs.readFileSync(full, 'utf8') !== content;
-  });
-  if (stale.length > 0) {
-    console.log(`FAIL  docs/mail-templates is out of date (${stale.map(([name]) => name).join(', ')}): run \`npm run mail-templates\` and paste the changed templates into Supabase.`);
-    process.exit(1);
-  }
-  console.log('mail templates up to date');
+  const stale = Object.entries(files).filter(([name, value]) => !fs.existsSync(path.join(outDir, name)) || fs.readFileSync(path.join(outDir, name), 'utf8') !== value);
+  if (stale.length) throw new Error(`Mail templates out of date: ${stale.map(([name]) => name).join(', ')}; run npm run mail-templates`);
+  console.log('all 13 account mail templates up to date');
 } else {
   fs.mkdirSync(outDir, { recursive: true });
-  for (const [name, content] of Object.entries(files)) fs.writeFileSync(path.join(outDir, name), content);
-  console.log(`wrote ${Object.keys(files).length} files to docs/mail-templates`);
+  for (const [name, value] of Object.entries(files)) fs.writeFileSync(path.join(outDir, name), value);
+  console.log(`wrote ${MAILS.length} account mail templates in ${LOCALES.length} languages`);
 }

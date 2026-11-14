@@ -28,7 +28,7 @@ import { InstallHint } from '@/features/install/InstallHint';
 import { SignOutButton } from '@/features/access/SignOutButton';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
 import { LanguagePicker } from '@/shared/i18n/LanguagePicker';
-import { errorText, useT, type MessageKey } from '@/shared/i18n';
+import { currentLocale, errorText, useT, type MessageKey } from '@/shared/i18n';
 import { displayRoleName } from '@/features/teams/roleLabels';
 import { ActiveRoleShell, CoachSection } from '@/features/role-workspaces/RoleShell';
 import {
@@ -314,7 +314,7 @@ function EmailForm() {
           onSubmit={(event) => {
             event.preventDefault();
             void run(async () => {
-              await changeEmail(email);
+              await changeEmail(email, currentLocale());
               setEditing(false);
               setEmail('');
             }, 'settings.emailSent');

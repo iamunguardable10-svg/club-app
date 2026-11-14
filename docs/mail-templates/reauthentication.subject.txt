@@ -1,0 +1,1 @@
+Club OS – {{if eq .Data.locale "de"}}Dein Bestätigungscode{{else if eq .Data.locale "fr"}}Ton code de sécurité{{else if eq .Data.locale "es"}}Tu código de seguridad{{else}}Your verification code{{end}}

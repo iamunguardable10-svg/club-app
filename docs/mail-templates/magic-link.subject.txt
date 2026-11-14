@@ -1,0 +1,1 @@
+{{$u:=print "en" .Data.locale (or .RedirectTo "")}}{{$l:=slice $u (len (slice $u 2))}}Club OS – {{if eq $l "de"}}Dein Anmeldelink{{else if eq $l "fr"}}Ton lien de connexion{{else if eq $l "es"}}Tu enlace de acceso{{else}}Your sign-in link{{end}}

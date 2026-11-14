@@ -1,0 +1,1 @@
+Club OS – {{if eq .Data.locale "de"}}E-Mail geändert{{else if eq .Data.locale "fr"}}E-mail modifié{{else if eq .Data.locale "es"}}Correo cambiado{{else}}Email changed{{end}}

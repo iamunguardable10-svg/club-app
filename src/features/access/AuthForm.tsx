@@ -197,7 +197,7 @@ export function AuthForm({
       {step === 'password' && status === 'unconfirmed' ? (
         <div className="grid gap-2 rounded-2xl border border-amber-300/30 bg-amber-300/[0.06] p-3 text-sm text-amber-100">
           <p className="font-bold">{t('auth.unconfirmed')}</p>
-          <button type="button" disabled={busy} onClick={() => void run(async () => { await resendConfirmation(email, returnTo); setNotice(t('auth.resent')); })} className="justify-self-start text-xs font-black text-amber-200 underline disabled:opacity-60">
+          <button type="button" disabled={busy} onClick={() => void run(async () => { await resendConfirmation(email, returnTo, currentLocale()); setNotice(t('auth.resent')); })} className="justify-self-start text-xs font-black text-amber-200 underline disabled:opacity-60">
             {t('auth.resend')}
           </button>
         </div>

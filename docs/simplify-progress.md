@@ -3421,3 +3421,41 @@ Audit-Vorschläge 6 und 4, Entscheidung Ben.
 - **Verlauf (Trainer):** jede vergangene Einheit ist eine Zeile wie bei „Demnächst“: Wochentag und Tag, Titel und Team, Uhrzeit und Halle, „12/12 da · 1 verspätet“ (bei geteilter Belastung auch RPE und „92 % bewertet“). Ein Tipp öffnet dieselbe Einheiten-Ansicht wie auf Heute und im Kalender, mit Anwesenheit, RPE und Belastung im Detail. Die Kacheln je Einheit entfallen; die Seite ist auf dem Handy 2370 statt 3518 px lang.
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke; Vorher-/Nachher-Bilder.
+
+## Run 127 — Alle Kontomails in Club-OS-Gestaltung und vier Sprachen (2026-11-14)
+
+Bens Freigabe erweitert die bisherige Passwortmail auf alle Kontomails.
+
+- Ein Generator für alle 13 Supabase-Typen: Konto bestätigen, Einladung, Anmeldelink,
+  E-Mail ändern, Passwort zurücksetzen, Bestätigungscode und sieben Sicherheitsmeldungen.
+  Einheitliche Gestaltung, kurze aktionsbezogene Texte, erreichbarer Absender und
+  `support.clubos@hebinova.com`. Texte in allen vier Sprachdateien; bestehende
+  Impressumsangaben unverändert (Übertragung ausdrücklich freigegeben).
+- Registrierung und erneute Bestätigung sowie E-Mail-Änderung übergeben nun die
+  aktuelle Sprache wie bereits die Passwortmail. Ein gemeinsamer Helfer bewahrt
+  bestehende Pfade und Beitrittsparameter. Ereignisse ohne Anfrage verwenden die
+  gespeicherte Kontosprache; ohne bekannte Sprache Englisch.
+- Auth-Link bleibt unverändert; Bestätigungscode und Ereignisdaten werden pro Mailtyp
+  verwendet. Keine Migration, Rechteänderung, Secrets oder Aktivierung neuer Mailtypen.
+  Die sieben bestehenden ausgeschalteten Sicherheitsmeldungen bleiben ausgeschaltet.
+- Go-Test rendert 195 echte Betreff-/Inhaltsfälle plus 13 Fallbacks ohne Metadaten;
+  prüft Links, Code, HTML-Escaping, Sprache, Support und Betrefflimit. Rücksprungadressen
+  separat geprüft; beide Checks in CI.
+- `docs/ui-before-pilot.md` hält Bens nächsten UI-Auftrag fest, aufbauend auf dem
+  bestehenden Fable-Audit und Runs 112–126. Keine parallele neue UI in diesem Mail-PR.
+
+Lokal bestanden: Generator, Go-Rendering, Rücksprungadressen, Typecheck, Sprachprüfung,
+i18n-Tests und Produktions-Build. Browser-Smoke und Datenbankprüfungen folgen in CI
+(lokaler Browserstart durch Betriebssystem blockiert). Live-Vorlagen und echte Testmails
+werden separat dokumentiert; ein Commit allein ändert Supabase nicht.
+
+Live-Abnahme Run 127: Alle 13 Inhalte im Supabase-Dashboard gespeichert und nach
+Neuladen vollständig mit der generierten HTML-Quelle verglichen. Sieben
+Sicherheitsbenachrichtigungen weiter ausgeschaltet. Einige Betreff-Felder werden
+von der Browsersteuerung maskiert; dort wurde der passende Eingabefeld-Identifier
+geprüft und der bekannte Betreff eingefügt, der gespeicherte Inhalt exakt verglichen.
+Echte Einladung direkt an Gmail (englischer Fallback) und deutsche Passwortmail über
+GMX: Posteingang, SPF/DKIM/DMARC bestanden, GMX `X-Spam-Flag: NO`. Keine Auth-Links
+geöffnet, keine Passwörter geändert. Temporäres Einladungskonto separat bereinigen.
+CI für den integrierten Codestand bestand vollständig, einschließlich Browser-Smoke
+und Datenbank-/CalDAV-Tests. Nachfolgende Hauptzweigänderungen erneut integrieren.

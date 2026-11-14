@@ -1,0 +1,1 @@
+Club OS – {{if eq .Data.locale "de"}}Zwei-Faktor entfernt{{else if eq .Data.locale "fr"}}Protection supprimée{{else if eq .Data.locale "es"}}Protección eliminada{{else}}MFA removed{{end}}
