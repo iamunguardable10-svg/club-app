@@ -390,11 +390,9 @@ Spieler ohne Konto nötig).
 - Supabase: E-Mail-Bestätigung / SMTP, Site URL und Redirect-URLs.
 - Vercel-Projekt und Adresse.
 - Gründungs-Code für den eigenen Verein (kommt mit Stück 8).
-- **Mail-Vorlagen in vier Sprachen (zurückgestellt, Ben 2026-09-26):** Die Mails von Supabase
-  (Bestätigen und E-Mail ändern) bleiben vorerst Englisch. Passwort zurücksetzen wurde
-  am 2026-11-13 mit Club-OS-Gestaltung und Sprache der Anfrage aktiviert (Run 109). Später die übrigen
-  Vorlagen aus `docs/mail-templates/` in Supabase → Authentication → Emails einfügen (Inhalt `.html`,
-  Betreff `.subject.txt`); Anleitung in `docs/i18n.md`, Abschnitt „Mails (6b)“. Bis dahin nichts tun.
+- **Mail-Vorlagen in vier Sprachen (Ben freigegeben, 2026-11-14):** Alle 13
+  Kontomail-Typen im Club-OS-Stil vorbereitet (Run 126). Anleitung: `docs/i18n.md`,
+  Abschnitt „Mails (6b)“. Gehostete Vorlagen müssen separat gespeichert und geprüft werden.
 
 ## Owner-Feedback 2026-10-08 — erledigt, Run 75
 
@@ -421,12 +419,21 @@ Impressum und öffentliche Datenschutzseite; keine Änderungen an Supabase.
 - [x] Supabase Site URL und Redirect-Allowlist auf die neue Adresse ergänzt.
 - [x] Brevo-Domain `hebinova.de` authentifiziert; Absender
   `Club OS <clubos@hebinova.de>` verifiziert. MX/SPF und Root-Website unverändert.
-- [ ] App-Code mit Canonical-/Vorschaulinks und Weiterleitung der bisherigen
+- [x] App-Code mit Canonical-/Vorschaulinks und Weiterleitung der bisherigen
   Vercel-Adressen veröffentlichen und live prüfen.
-- [ ] Supabase über den neuen SMTP-Schlüssel anbinden und Testmail prüfen.
+- [x] Supabase über den neuen SMTP-Schlüssel angebunden; echte Mails bei GMX und Gmail geprüft.
 
 ## Passwortmail 2026-11-13 (Run 109)
 
 - [x] Club-OS-Passwortmail in Deutsch, Englisch, Französisch und Spanisch; Sprache der aktuellen Anfrage.
 - [x] Sprachübergabe beim Anfordern und Übernahme auf der Reset-Seite, bestehender Auth-Link bleibt unverändert.
-- [ ] Vorlage live einsetzen und empfangene echte Mails bei GMX und Gmail prüfen.
+- [x] Vorlage live eingesetzt; echte neue deutsche Mails bei GMX und Gmail im Posteingang bestätigt (2026-11-13).
+
+## Alle Kontomails und UI vor dem Pilot (Ben, 2026-11-14)
+
+- [x] Alle 13 Kontomail-Vorlagen im gleichen Stil, vier Sprachen, echte Go-Renderingtests.
+- [x] Aktuelle App-Sprache auch bei Anmeldung/Bestätigung und E-Mail-Änderung übergeben.
+- [ ] Alle Vorlagen im Supabase-Dashboard speichern und Live-Ergebnis prüfen.
+- [ ] Vor dem Pilot in einigen Wochen: bestehendes Fable-Audit mit Runs 112–125
+  abgleichen, verbleibende Oberflächen und Abläufe mit Claude Fable 5.2 überarbeiten.
+  Auftrag und Abnahmekriterien: `docs/ui-before-pilot.md`. Kein Neustart des Produkts.
