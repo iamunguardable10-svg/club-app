@@ -2501,5 +2501,11 @@
   "push.consentReminder.body": "Your coach asks you to sort out consent for your training load.",
   "playerTeam.nextGame": "Next game",
   "playerTeam.coaches": "Coaches",
-  "playerTeam.headCoach": "Head coach"
+  "playerTeam.headCoach": "Head coach",
+  "calendar.listTitle": "This week",
+  "calendar.gridView": "Grid",
+  "calendar.listView": "List",
+  "calendar.listEmpty": "Nothing this week.",
+  "history.thereShort": "{there}/{total} there",
+  "history.reportedShort": "{value} rated"
 }

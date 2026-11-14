@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+
+import { readCalendarView, saveCalendarView } from '@/shared/data';
 import { tipEvent } from '@/features/tips/tipEvents';
 import { formatDateRange } from '@/shared/format';
 import type { SmartCalendarDragKind, SmartCalendarMode, SmartCalendarSession, SmartMobileCalendarView } from './SmartSessionCalendar';
@@ -113,7 +115,10 @@ export function useSmartCalendar({
   const days = useMemo(() => buildWeekDays(weekOffset), [weekOffset]);
   const [activeDayIndex, setActiveDayIndex] = useState(() => defaultActiveDayForWeekOffset(0));
   // Seven columns do not fit a phone; one day at a time does.
-  const [mobileCalendarView, setMobileCalendarView] = useState<SmartMobileCalendarView>('day');
+  // The day grid first; afterwards the view last chosen on this device.
+  const [mobileCalendarView, setMobileCalendarViewState] = useState<SmartMobileCalendarView>('day');
+  useEffect(() => { setMobileCalendarViewState(readCalendarView()); }, []);
+  const setMobileCalendarView = useCallback((view: SmartMobileCalendarView) => { setMobileCalendarViewState(view); saveCalendarView(view); }, []);
   const [dayTransitionDirection, setDayTransitionDirection] = useState<'next' | 'previous' | null>(null);
   const [desktopHourHeight, setDesktopHourHeight] = useState(baseDesktopHourHeight);
   const [mode, setMode] = useState<SmartCalendarMode>('view');

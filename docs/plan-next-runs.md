@@ -391,7 +391,7 @@ Spieler ohne Konto nötig).
 - Vercel-Projekt und Adresse.
 - Gründungs-Code für den eigenen Verein (kommt mit Stück 8).
 - **Mail-Vorlagen in vier Sprachen (Ben freigegeben, 2026-11-14):** Alle 13
-  Kontomail-Typen im Club-OS-Stil vorbereitet (Run 126). Anleitung: `docs/i18n.md`,
+  Kontomail-Typen im Club-OS-Stil vorbereitet (Run 127). Anleitung: `docs/i18n.md`,
   Abschnitt „Mails (6b)“. Gehostete Vorlagen müssen separat gespeichert und geprüft werden.
 
 ## Owner-Feedback 2026-10-08 — erledigt, Run 75
@@ -433,7 +433,7 @@ Impressum und öffentliche Datenschutzseite; keine Änderungen an Supabase.
 
 - [x] Alle 13 Kontomail-Vorlagen im gleichen Stil, vier Sprachen, echte Go-Renderingtests.
 - [x] Aktuelle App-Sprache auch bei Anmeldung/Bestätigung und E-Mail-Änderung übergeben.
-- [ ] Alle Vorlagen im Supabase-Dashboard speichern und Live-Ergebnis prüfen.
-- [ ] Vor dem Pilot in einigen Wochen: bestehendes Fable-Audit mit Runs 112–125
+- [x] Alle 13 Vorlagen live gespeichert; vollständige Inhalte nach Neuladen verglichen. Sieben ausgeschaltete Sicherheitsmeldungen bleiben aus.
+- [ ] Vor dem Pilot in einigen Wochen: bestehendes Fable-Audit mit Runs 112–126
   abgleichen, verbleibende Oberflächen und Abläufe mit Claude Fable 5.2 überarbeiten.
   Auftrag und Abnahmekriterien: `docs/ui-before-pilot.md`. Kein Neustart des Produkts.

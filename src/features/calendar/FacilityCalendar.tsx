@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
+import { SmartSessionCalendar, type SmartCalendarSession, type SmartMobileCalendarView } from '@/features/calendar/SmartSessionCalendar';
 import { FacilityConflictDialog } from '@/features/calendar/FacilityConflictDialog';
 import { findFacilityConflicts, formatConflictDescription, suggestFacilityConflictMoves, type ConflictCandidate, type ConflictSession, type ConflictSuggestion } from '@/features/calendar/sessionConflicts';
 import { ClubShell, CoachShell } from '@/features/role-workspaces/RoleShell';
@@ -186,7 +186,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
   const days = useMemo(() => buildWeekDays(weekOffset), [weekOffset]);
   const weekLabel = useMemo(() => formatWeekLabel(days), [days]);
   const [activeDayIndex, setActiveDayIndex] = useState(() => Math.max(0, buildWeekDays().findIndex((day) => sameDay(day, new Date()))));
-  const [mobileCalendarView, setMobileCalendarView] = useState<'week' | 'day'>('day');
+  const [mobileCalendarView, setMobileCalendarView] = useState<SmartMobileCalendarView>('day');
   const [dayTransitionDirection, setDayTransitionDirection] = useState<'next' | 'previous' | null>(null);
   const [desktopHourHeight, setDesktopHourHeight] = useState(hourHeight);
   const [draft, setDraft] = useState<DraftSession | null>(null);
