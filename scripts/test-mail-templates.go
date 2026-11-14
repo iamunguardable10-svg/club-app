@@ -56,6 +56,21 @@ func main() {
     n++
    }
   }
+  if mail.RequestLanguage {
+   for _,lang:=range []string{"en","de","fr","es"} {
+    for _,redirect:=range []string{"https://clubos.hebinova.de","https://clubos.hebinova.de/start","https://example.com/profilede","https://clubos.hebinova.de/start?lang=xx","https://clubos.hebinova.de/start?lang=es"} {
+     want:=lang
+     if strings.HasSuffix(redirect,"lang=xx") {want="en"}
+     if strings.HasSuffix(redirect,"lang=es") {want="es"}
+     data:=map[string]any{"Data":map[string]any{"locale":lang},"SiteURL":"https://clubos.hebinova.de","RedirectTo":redirect,"Email":"person@example.com","NewEmail":"new@example.com","ConfirmationURL":"https://example.com/verify?token=TEST_ONLY&type=email"}
+     subject:=render(filepath.Join(root,mail.File+".subject.txt"),data)
+     body:=render(filepath.Join(root,mail.File+".html"),data)
+     check(subject==catalogs[want][mail.Key+".subject"],mail.File+" legacy/hint subject mismatch: "+subject)
+     check(strings.Contains(body,`lang="`+want+`"`),mail.File+" legacy/hint body mismatch")
+     n++
+    }
+   }
+  }
   // Missing metadata and a missing redirect must render safely in English.
   data:=map[string]any{"Data":map[string]any{},"Email":"person@example.com","ConfirmationURL":"https://example.com/verify","Token":"123456"}
   check(render(filepath.Join(root,mail.File+".subject.txt"),data)==catalogs["en"][mail.Key+".subject"],"missing metadata fallback")

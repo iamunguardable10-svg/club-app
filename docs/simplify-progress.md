@@ -3459,3 +3459,21 @@ GMX: Posteingang, SPF/DKIM/DMARC bestanden, GMX `X-Spam-Flag: NO`. Keine Auth-Li
 geöffnet, keine Passwörter geändert. Temporäres Einladungskonto separat bereinigen.
 CI für den integrierten Codestand bestand vollständig, einschließlich Browser-Smoke
 und Datenbank-/CalDAV-Tests. Nachfolgende Hauptzweigänderungen erneut integrieren.
+
+## Run 128 — Betreff und Inhalt bei Verwaltungsversand abgleichen (2026-11-14)
+
+Der echte zusätzliche Bestätigungstest fand einen Randfall: Die alte kompakte
+Betrefflogik las `.de` am Ende der Site URL als Deutsch, während der Inhalt ohne
+Sprachhinweis korrekt die Kontosprache beziehungsweise Englisch verwendete.
+
+- Auch der Betreff erkennt jetzt ausschließlich einen abschließenden `lang=`-Hinweis;
+  ohne ihn verwenden beide Teile die Kontosprache, sonst Englisch. Ein unbekannter
+  zweistelliger Hinweis fällt in beiden Teilen auf Englisch zurück.
+- Kürzere Betrefftexte und gemeinsame englisch/französische Bestätigungsüberschriften
+  halten auch die vollständige Rückfalllogik innerhalb der 255-Zeichen-Quellgrenze.
+- 80 zusätzliche echte Go-Renderingfälle decken Site URL mit `.de`, alte Pfade, ähnlich
+  endende Pfade und unbekannte/unterstützte Sprachhinweise in allen vier Sprachen ab.
+  Insgesamt 275 Betreff-/Inhaltsfälle plus 13 Fallbacks ohne Metadaten.
+
+Keine Auth-, SMTP-, Rechte- oder Datenbankänderung. Vier anfragebezogene Vorlagen
+werden nach dieser Korrektur live erneut übernommen und mit echter Mail geprüft.
