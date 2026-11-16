@@ -129,7 +129,7 @@ function TeamsSection({ database, run }: { database: LocalDatabase; run: Run }) 
         const names = new Set(teams.map((team) => team.name.toLowerCase()));
         const add = (name: string, ageGroup = ageGroupOf(name)) => run(() => { createTeam(department.id, name, ageGroup); });
         return (
-          <div key={department.id} className="grid gap-2 rounded-xl bg-white/[0.04] p-3">
+          <div key={department.id} className="grid gap-2 rounded-xl os-tile p-3">
             <p className="text-xs font-semibold text-slate-400">{department.name}</p>
             <div className="flex flex-wrap gap-2">
               {teams.map((team) => <Choice key={team.id} label={team.name} selected onSelect={() => undefined} />)}
@@ -169,7 +169,7 @@ function HallsSection({ database, run }: { database: LocalDatabase; run: Run }) 
   return (
     <Section title={t('onboarding.setup.halls')} detail={t('onboarding.setup.hallsDetail')}>
       {database.facilities.length > 0 ? (
-        <ul className="divide-y divide-slate-800 rounded-xl bg-white/[0.04]">
+        <ul className="divide-y divide-slate-800 rounded-xl os-tile">
           {database.facilities.map((facility) => (
             <li key={facility.id} className="px-3 py-2 text-sm">
               <span className="font-semibold text-slate-100">✓ {facility.name}</span>

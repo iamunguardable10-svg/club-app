@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { formatDateRange, formatTimeRange as formatSharedTimeRange } from '@/shared/format';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { SessionDetailSheet, type SessionDetailFacilityOption, type SessionDetailGroup } from '@/features/sessions/SessionDetailSheet';
 import type { CoachEntryReview, CoachSession } from '@/features/role-workspaces/CoachTypes';
 import { clearEntryReview, confirmAttendance, publishSquad, remindOpenPlayers, requestEntryReview, setSquadStatus, type SquadStatus } from '@/shared/data';
@@ -14,6 +14,7 @@ import { errorText, tr, useT, type MessageKey } from '@/shared/i18n';
 import { formatDecimal, formatWeekday } from '@/shared/format';
 import { displayTitle } from '@/features/sessions/sessionTypeLabels';
 import { sessionTypeToLoadType, type AthletePendingSession } from '@/shared/data/loadTypes';
+import { useEscape } from '@/shared/hooks/useEscape';
 
 type HistoryTeamOption = { id: string; name: string; departmentName?: string };
 export type CoachSessionInsight = 'expected' | 'rpe' | 'au' | 'completion';
@@ -368,9 +369,21 @@ function CoachHistoryTrendGraph({
   const [activeMetric, setActiveMetric] = useState<CoachHistoryMetric>('au');
   const activePoint = selectedPeriodKey === null ? null : points.find((point) => point.key === selectedPeriodKey) ?? null;
   const maxValue = historyMetricMax(points, activeMetric);
-  const chartWidth = 760;
-  const chartHeight = 310;
-  const left = 52;
+  // The chart is drawn at the width it really has, so its labels keep their size on a phone.
+  const frame = useRef<HTMLDivElement>(null);
+  const [chartWidth, setChartWidth] = useState(760);
+  useEffect(() => {
+    const node = frame.current;
+    if (!node) return;
+    const measure = () => setChartWidth(Math.max(260, Math.round(node.clientWidth)));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  const narrow = chartWidth < 520;
+  const chartHeight = narrow ? 230 : 310;
+  const left = narrow ? 58 : 64;
   const right = 18;
   const top = 16;
   const bottom = 42;
@@ -379,7 +392,7 @@ function CoachHistoryTrendGraph({
   const yTicks = [maxValue, maxValue / 2, 0];
   const minChartWidth = '100%';
   const slotWidth = usableWidth / Math.max(points.length, 1);
-  const barWidth = Math.min(54, Math.max(18, slotWidth * 0.62));
+  const barWidth = Math.min(54, Math.max(12, slotWidth * 0.62));
   const color = HISTORY_METRIC_META[activeMetric].color;
   const activeDayMax = activePoint ? historyMetricMax(activePoint.days, activeMetric) : maxValue;
   const linePoints = points
@@ -393,16 +406,12 @@ function CoachHistoryTrendGraph({
     .filter(Boolean)
     .join(' ');
 
+  useEscape(() => onPeriodSelect(null), Boolean(selectedPeriodKey));
   useEffect(() => {
     if (!selectedPeriodKey) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onPeriodSelect(null);
-    };
-    window.addEventListener('keydown', onKeyDown);
     return () => {
-      window.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = previous;
     };
   }, [selectedPeriodKey, onPeriodSelect]);
@@ -432,14 +441,15 @@ function CoachHistoryTrendGraph({
       </div>
 
       <div className="mt-4 pb-1">
-        <div className="rounded-2xl bg-white/[0.04] p-3" style={{ minWidth: minChartWidth }}>
-          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-80 w-full overflow-visible">
+        <div className="rounded-2xl os-tile p-3" style={{ minWidth: minChartWidth }}>
+          <div ref={frame}>
+          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} width={chartWidth} height={chartHeight} className="block max-w-full overflow-visible">
             {yTicks.map((tick) => {
               const y = top + usableHeight - (tick / maxValue) * usableHeight;
               return (
                 <g key={tick.toFixed(2)}>
                   <line x1={left} x2={chartWidth - right} y1={y} y2={y} stroke="rgba(148,163,184,0.14)" strokeWidth="1" />
-                  <text x={left - 10} y={y + 4} textAnchor="end" className="fill-slate-500 text-xs font-semibold">
+                  <text x={left - 10} y={y + 4} textAnchor="end" className="fill-slate-400 text-xs font-medium">
                     {formatHistoryMetricValue(activeMetric, tick)}
                   </text>
                 </g>
@@ -468,7 +478,7 @@ function CoachHistoryTrendGraph({
                     y={y}
                     width={barWidth}
                     height={height}
-                    rx="8"
+                    rx={Math.min(8, barWidth / 3)}
                     fill={color}
                     opacity={value === null ? 0.12 : selected ? 1 : 0.72}
                     stroke={selected ? '#f8fafc' : 'transparent'}
@@ -476,7 +486,8 @@ function CoachHistoryTrendGraph({
                     className="cursor-pointer transition-opacity hover:opacity-100"
                     onClick={() => onPeriodSelect(selected ? null : point.key)}
                   />
-                  <text x={x + barWidth / 2} y={chartHeight - 18} textAnchor="middle" className="fill-slate-400 text-xs font-semibold">{point.label}</text>
+                  {/* Little room per week on a phone: the number alone ("46"), the full label is in the row below. */}
+                  <text x={x + barWidth / 2} y={chartHeight - 18} textAnchor="middle" className="fill-slate-400 text-xs font-medium">{slotWidth < 46 ? point.label.replace(/^\D+/, '') : point.label}</text>
                 </g>
               );
             })}
@@ -484,6 +495,7 @@ function CoachHistoryTrendGraph({
               <polyline points={linePoints} fill="none" stroke={color} strokeOpacity="0.58" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
             ) : null}
           </svg>
+          </div>
           <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
             {points.map((point) => {
               const selected = selectedPeriodKey === point.key;
@@ -528,14 +540,14 @@ function CoachHistoryTrendGraph({
                 </button>
               ))}
             </div>
-            <div className="mt-4 rounded-2xl bg-white/[0.04] p-3">
+            <div className="mt-4 rounded-2xl os-tile p-3">
               <div className="grid grid-cols-7 items-end gap-1.5 sm:gap-2">
                 {activePoint.days.map((day) => {
                   const value = valueForHistoryMetric(day, activeMetric);
                   const height = value === null ? 4 : Math.max(10, Math.round((Math.min(value, activeDayMax) / activeDayMax) * 170));
                   return (
                     <div key={day.key} className="min-w-0 text-center" title={`${day.label}: ${formatHistoryMetricValue(activeMetric, value)}`}>
-                      <div className="flex h-44 items-end justify-center rounded-xl bg-white/[0.04] px-1 py-1.5">
+                      <div className="flex h-44 items-end justify-center rounded-xl os-tile px-1 py-1.5">
                         <div className="w-full max-w-9 rounded-t-lg" style={{ height, backgroundColor: color, opacity: value === null ? 0.16 : 0.86 }} />
                       </div>
                       <p className="mt-1 truncate text-xs font-semibold text-slate-300">{day.label}</p>
@@ -708,7 +720,7 @@ function AttendanceConfirmation({ session }: { session: CoachSession }) {
                 type="button"
                 onClick={() => setAsking(player.id)}
                 aria-label={t('attendance.wasThereAria', { name: player.name })}
-                className="flex items-center justify-between gap-2 rounded-xl bg-white/[0.04] px-2.5 py-2 text-left"
+                className="flex items-center justify-between gap-2 rounded-xl os-tile px-2.5 py-2 text-left"
               >
                 <span className="flex min-w-0 items-center gap-2">
                   <span aria-hidden className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-300 text-xs font-semibold text-slate-950">✓</span>
@@ -779,7 +791,7 @@ export function OpenAnswers({ session, className = '' }: { session: CoachSession
     }
   }
   return (
-    <div className={`rounded-xl bg-white/[0.04] p-3 ${className}`}>
+    <div className={`rounded-xl os-tile p-3 ${className}`}>
       <div className="flex items-center gap-3">
         <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-800 text-sm font-semibold text-slate-300">?</span>
         <p className="min-w-0 flex-1">
@@ -1056,7 +1068,7 @@ export function CoachSessionDetailOverlay({
         answers={!isPast ? ((session.openPlayerIds?.length ?? 0) > 0 ? <OpenAnswers key={`open-${session.id}`} session={session} /> : null) : session.canConfirmAttendance && session.attendanceShared !== false && session.players.length > 0 ? <AttendanceConfirmation key={session.id} session={session} /> : null}
         insights={!isPast ? (session.sessionType === 'game' && (session.canPickSquad || session.squadPublishedAt) ? <SquadPicker key={session.id} session={session} /> : null) : isPast ? (<>
         {!sessionLoadDetailsShared(session) ? (
-          <p className="rounded-2xl bg-white/[0.04] p-3 text-xs font-medium text-slate-400">{session.sessionType === 'meeting' ? t('session.meetingNotRated') : session.loadTracked === false ? t('insight.noTracking', { team: session.teamName }) : t('insight.notShared')}</p>
+          <p className="rounded-2xl os-tile p-3 text-xs font-medium text-slate-400">{session.sessionType === 'meeting' ? t('session.meetingNotRated') : session.loadTracked === false ? t('insight.noTracking', { team: session.teamName }) : t('insight.notShared')}</p>
         ) : isPast ? (
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1077,21 +1089,21 @@ export function CoachSessionDetailOverlay({
                 </div>
                 <div className="mt-2 grid gap-1.5">
                   {activeInsight === 'expected' ? expectedInsightRows.map((row) => (
-                    <button key={row.id} type="button" onClick={() => setActivePlayerId(row.id)} className="flex items-center justify-between gap-2 rounded-xl bg-white/[0.04] px-2.5 py-2 text-left text-xs font-semibold text-slate-100 transition">
+                    <button key={row.id} type="button" onClick={() => setActivePlayerId(row.id)} className="flex items-center justify-between gap-2 rounded-xl os-tile px-2.5 py-2 text-left text-xs font-semibold text-slate-100 transition">
                       <span>{row.name}</span>
                       <span className={statusClassName(row.status)}>{t(row.status === 'late' ? 'insight.status.late' : row.status === 'out' ? 'insight.status.out' : 'insight.status.expected')}{row.detail ? ` · ${row.detail}` : ''}</span>
                     </button>
                   )) : null}
                   {activeInsight === 'rpe' ? (
                     rpeInsightRows.length > 0 ? rpeInsightRows.map(({ player, entry }) => (
-                      <button key={`${player.id}-${entry.id}`} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl bg-white/[0.04] px-2.5 py-2 text-left text-xs font-semibold text-slate-100 transition">
+                      <button key={`${player.id}-${entry.id}`} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl os-tile px-2.5 py-2 text-left text-xs font-semibold text-slate-100 transition">
                         <span>{player.name}</span>
                         <span>{t('insight.rpeLoad', { rpe: entry.rpe, load: entry.load })}</span>
                       </button>
-                    )) : <p className="rounded-xl bg-white/[0.04] px-2.5 py-2 text-xs font-medium text-slate-400">{t('insight.noRpe')}</p>
+                    )) : <p className="rounded-xl os-tile px-2.5 py-2 text-xs font-medium text-slate-400">{t('insight.noRpe')}</p>
                   ) : null}
                   {activeInsight === 'au' ? auInsightRows.map(({ player, report }) => (
-                    <div key={player.id} className="rounded-xl bg-white/[0.04]">
+                    <div key={player.id} className="rounded-xl os-tile">
                       <button type="button" onClick={() => setActivePlayerId(player.id)} className="flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-semibold text-slate-100 transition hover:bg-slate-900/60">
                         <span>{player.name}</span>
                         <span>{report ? t('insight.auRow', { load: report.entry.load, rpe: report.entry.rpe, minutes: report.entry.durationMinutes }) : t('insight.missingReport')}</span>
@@ -1102,7 +1114,7 @@ export function CoachSessionDetailOverlay({
                     </div>
                   )) : null}
                   {activeInsight === 'completion' ? completionInsightRows.map(({ player, report }) => (
-                    <button key={player.id} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl bg-white/[0.04] px-2.5 py-2 text-left text-xs font-semibold text-slate-100 transition">
+                    <button key={player.id} type="button" onClick={() => setActivePlayerId(player.id)} className="flex items-center justify-between gap-2 rounded-xl os-tile px-2.5 py-2 text-left text-xs font-semibold text-slate-100 transition">
                       <span>{player.name}</span>
                       <span className={report ? 'text-emerald-200' : 'text-amber-200'}>{report ? t('insight.completed', { rpe: report.entry.rpe, load: report.entry.load }) : t('insight.missingInput')}</span>
                     </button>
@@ -1265,7 +1277,7 @@ export function CoachHistoryInsights({
             <CoachHistorySessionCard key={session.id} session={session} onDetails={() => onDetails(session)} />
           ))
         ) : (
-          <div className="rounded-2xl bg-white/[0.04] p-4 text-sm font-medium text-slate-400">{t('history.none')}</div>
+          <div className="rounded-2xl os-tile p-4 text-sm font-medium text-slate-400">{t('history.none')}</div>
         )}
       </div>
       {filteredSessions.length > visibleSessions.length ? (
@@ -1297,7 +1309,7 @@ export function CoachHistorySessionCard({ session, onDetails }: { session: Coach
     loadShared ? t('history.reportedShort', { value: formatPercent(summary.reportRate) }) : null,
   ].filter(Boolean);
   return (
-    <button type="button" data-history-session onClick={onDetails} className="flex w-full items-center gap-3 rounded-2xl bg-white/[0.04] px-3 py-3 text-left transition hover:bg-white/[0.07]">
+    <button type="button" data-history-session onClick={onDetails} className="flex w-full items-center gap-3 rounded-2xl os-tile px-3 py-3 text-left transition hover:bg-white/[0.07]">
       <div className="w-12 shrink-0 text-center">
         <p className="text-xs font-semibold uppercase text-slate-400">{formatWeekday(start)}</p>
         <p className="text-lg font-semibold leading-tight text-white">{start.getDate()}.</p>

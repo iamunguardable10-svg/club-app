@@ -6,6 +6,7 @@ import { ACWR_ZONES } from '@/shared/data/loadTypes';
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 import { formatDecimal } from '@/shared/format';
 import { useT } from '@/shared/i18n';
+import { useEscape } from '@/shared/hooks/useEscape';
 
 /**
  * Load hints (2026-09-26): numbers and one symbol instead of sentences. A
@@ -129,11 +130,7 @@ export function ZoneScale() {
 export function LoadExplainer({ onClose }: { onClose: () => void }) {
   const t = useT();
   useBodyScrollLock(true);
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  useEscape(onClose);
 
   return (
     <div className="fixed inset-0 z-[130] flex items-end justify-center bg-black/60 px-3 pb-3 pt-10 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="load-explainer-title" onClick={onClose}>

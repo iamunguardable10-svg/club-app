@@ -12,10 +12,12 @@ import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 
 import { errorText, useT, type MessageKey } from '@/shared/i18n';
 import { reportContext, reportProblem } from './errorReporting';
+import { useEscape } from '@/shared/hooks/useEscape';
 
 const ROLE_LABEL = { coach: 'report.role.coach', athlete: 'report.role.athlete', club: 'report.role.club' } as const satisfies Record<string, MessageKey>;
 
 export function ReportProblemDialog({ isOpen, onClose, prefill = '' }: { isOpen: boolean; onClose: () => void; prefill?: string }) {
+  useEscape(onClose, isOpen);
   const t = useT();
   useBodyScrollLock(isOpen);
   const [text, setText] = useState(prefill);

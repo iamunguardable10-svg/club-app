@@ -154,7 +154,7 @@ function FoundForm({ code, account, profile }: { code: string; account: { email:
           })}
         </div>
         <input value={teamName} onChange={(event) => setTeamName(event.target.value)} placeholder={t('onboarding.found.otherTeam')} aria-label={t('onboarding.found.otherTeam')} className="os-field min-w-0" />
-        <label className="flex items-start gap-3 rounded-2xl bg-white/[0.04] p-3 text-sm text-slate-200">
+        <label className="flex items-start gap-3 rounded-2xl os-tile p-3 text-sm text-slate-200">
           <input type="checkbox" checked={coachTeam} onChange={(event) => setCoachTeam(event.target.checked)} className="mt-1 h-4 w-4" />
           <span>
             <span className="block font-semibold">{t('onboarding.found.coachTeam')}</span>

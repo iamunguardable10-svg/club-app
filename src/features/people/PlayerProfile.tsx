@@ -145,7 +145,7 @@ export function PositionPicker({ value, onChange, sport, label }: { value: strin
 export function SideSwitch({ value, onChange, label, large = false }: { value: StrongSide | null; onChange: (side: StrongSide | null) => void; label: string; large?: boolean }) {
   const t = useT();
   return (
-    <div role="radiogroup" aria-label={label} className={`grid grid-cols-3 rounded-2xl bg-white/[0.04] p-1 ${large ? 'gap-1' : ''}`}>
+    <div role="radiogroup" aria-label={label} className={`grid grid-cols-3 rounded-2xl os-tile p-1 ${large ? 'gap-1' : ''}`}>
       {STRONG_SIDES.map((side) => (
         <button
           key={side}

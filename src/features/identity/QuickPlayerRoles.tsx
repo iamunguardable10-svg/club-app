@@ -55,7 +55,7 @@ export function QuickPlayerRoles({ database }: { database: LocalDatabase }) {
           type="button"
           disabled={busy !== null}
           onClick={() => void joinAsPlayer(team.id, team.name)}
-          className="flex items-center justify-between rounded-2xl bg-white/[0.04] px-4 py-3 text-left text-sm font-semibold text-slate-100 disabled:opacity-60"
+          className="flex items-center justify-between rounded-2xl os-tile px-4 py-3 text-left text-sm font-semibold text-slate-100 disabled:opacity-60"
         >
           {busy === team.id ? t('quickRoles.oneMoment') : t('quickRoles.alsoPlay', { team: team.name })}
           <span aria-hidden className="text-emerald-300">+</span>

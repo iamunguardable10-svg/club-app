@@ -139,7 +139,7 @@ export function WhoAreYou({ signedIn = false, only, title }: {
         ))}
       </div> : null}
       {persona && current ? (
-        <form onSubmit={submit} className={`grid grid-cols-[minmax(0,1fr)] gap-3 ${only ? '' : 'rounded-2xl bg-white/[0.04] p-4'}`}>
+        <form onSubmit={submit} className={`grid grid-cols-[minmax(0,1fr)] gap-3 ${only ? '' : 'rounded-2xl os-tile p-4'}`}>
           {/* After "New here" asked the role, the field says enough (Ben: less text). */}
           {only ? null : <p className="text-sm text-slate-300">{current.text}</p>}
           <label className={`grid gap-1 text-sm font-medium text-slate-200 ${only ? '[&>span]:sr-only' : ''}`}>

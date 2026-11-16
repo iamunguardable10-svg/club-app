@@ -2498,5 +2498,11 @@
   "calendar.listView": "Lista",
   "calendar.listEmpty": "Nada esta semana.",
   "history.thereShort": "{there}/{total} presentes",
-  "history.reportedShort": "{value} valorado"
+  "history.reportedShort": "{value} valorado",
+  "command.open": "Buscar e ir a",
+  "command.placeholder": "¿Adónde?",
+  "command.empty": "Sin resultados",
+  "common.undo": "Deshacer",
+  "toast.planDeleted": "Entrenamiento eliminado",
+  "toast.rideLeft": "Ya no vas en este coche"
 }

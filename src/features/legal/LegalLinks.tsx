@@ -5,7 +5,7 @@ import { useT } from '@/shared/i18n';
 export function LegalLinks({ quiet = false }: { quiet?: boolean }) {
   const t = useT();
   if (quiet) {
-    return <nav aria-label={t('legal.terms')} className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs font-medium text-slate-400">
+    return <nav aria-label={t('legal.terms')} className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[12px] font-medium text-slate-400">
       <Link href="/imprint" target="_blank" rel="noopener" className="hover:text-slate-300">{t('landing.imprint')}</Link>
       <Link href="/privacy" target="_blank" rel="noopener" className="hover:text-slate-300">{t('legal.privacy')}</Link>
       <Link href="/terms" target="_blank" rel="noopener" className="hover:text-slate-300">{t('legal.terms')}</Link>

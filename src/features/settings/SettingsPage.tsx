@@ -569,7 +569,7 @@ function Switch({ label, detail, checked, disabled = false, onChange }: { label:
 
 function TeamRow({ name, detail, children }: { name: string; detail: string; children?: ReactNode }) {
   return (
-    <li className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white/[0.04] px-3 py-2.5">
+    <li className="flex flex-wrap items-center justify-between gap-2 rounded-2xl os-tile px-3 py-2.5">
       <span className="min-w-0">
         <span className="block truncate text-sm font-semibold text-slate-100">{name}</span>
         <span className="block truncate text-xs text-slate-400">{detail}</span>

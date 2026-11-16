@@ -10,6 +10,8 @@ import { formatDayShortMonth, formatDecimal, formatEntryDate } from '@/shared/fo
 import { useT } from '@/shared/i18n';
 import { LoadIntro, useLoadIntro } from '@/features/load/LoadIntro';
 import { displayTitle } from '@/features/sessions/sessionTypeLabels';
+import { useEscape } from '@/shared/hooks/useEscape';
+import { LoadDial } from '@/features/load/LoadDial';
 
 export type PlayerLoadDetailPlayer = PlayerLoadInput & {
   id: string;
@@ -73,7 +75,7 @@ function AttendanceCard({ player, events, sessionTimes, range, contextLabel, emp
           </div>
         ) : null}
       </div>
-      {!shared ? <p className="mt-3 rounded-2xl bg-white/[0.04] p-3 text-sm font-medium text-slate-400">{t('playerLoad.attendanceNotShared')}</p> : (
+      {!shared ? <p className="mt-3 rounded-2xl os-tile p-3 text-sm font-medium text-slate-400">{t('playerLoad.attendanceNotShared')}</p> : (
         <>
           {total !== null ? (
             <div className="mt-3 flex items-end gap-4">
@@ -153,7 +155,7 @@ function PlayerLoadRoom({ summary }: { summary: PlayerLoadSummary }) {
   const color = lowGap > 0 ? 'bg-slate-100' : value !== null && value < averageLoad * 0.5 ? 'bg-rose-300' : 'bg-emerald-300';
 
   return (
-    <div className="mt-4 rounded-2xl bg-white/[0.04] p-3">
+    <div className="mt-4 rounded-2xl os-tile p-3">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold text-slate-400">{label}</p>
         <span className="text-sm font-semibold text-white">{value === null ? '—' : t('playerLoad.au', { value })}</span>
@@ -165,26 +167,6 @@ function PlayerLoadRoom({ summary }: { summary: PlayerLoadSummary }) {
   );
 }
 
-function TeamAcwrGauge({ acwr }: { acwr: number | null }) {
-  const marker = acwr === null ? null : Math.min(100, Math.max(0, (acwr / 2) * 100));
-  return (
-    <div className="mt-4">
-      <div className="relative h-6">
-        <div className="absolute inset-x-0 top-2 h-2 rounded-full bg-[linear-gradient(90deg,#38bdf8_0%,#38bdf8_39%,#34d399_42%,#34d399_65%,#fb7185_70%,#fb7185_100%)]" />
-        {marker !== null ? (
-          <span
-            className="absolute top-0 z-10 h-6 w-6 -translate-x-1/2 rounded-full border-[3px] border-slate-950 bg-white shadow-[0_0_0_2px_rgba(255,255,255,0.18),0_10px_24px_rgba(0,0,0,0.45)]"
-            style={{ left: `${marker}%` }}
-          />
-        ) : null}
-      </div>
-      <div className="relative h-4 text-xs font-semibold text-slate-400">
-        <span className="absolute left-[40%] -translate-x-1/2">{formatDecimal(ACWR_ZONES.low, 1)}</span>
-        <span className="absolute left-[65%] -translate-x-1/2">{formatDecimal(ACWR_ZONES.high, 1)}</span>
-      </div>
-    </div>
-  );
-}
 
 export function PlayerLoadDetail({
   player,
@@ -211,6 +193,7 @@ export function PlayerLoadDetail({
   onClose: () => void;
 }) {
   const t = useT();
+  useEscape(onClose);
   const [attendanceRange, setAttendanceRange] = useState(30);
   const summary = playerLoadSummary(player);
   const { entries, zone, acwr } = summary;
@@ -273,19 +256,14 @@ export function PlayerLoadDetail({
                 <p className="mt-1 text-sm font-medium text-slate-400">{player.healthConsent === false ? t('consent.withdrawDetail') : loadTracked ? t('playerLoad.notSharedDetail') : t('playerLoad.noTrackingDetail', { team: teamName })}</p>
               </div>
             ) : (
-              <div className={`rounded-3xl border p-4 ${acwrToneClass(zone.tone)}`}>
+              <div className="os-panel p-4">
+                {/* The same dial as on the player's own pages: one picture of the load everywhere. */}
                 <div className="flex items-center gap-4">
-                  <div className="grid h-20 w-20 shrink-0 place-items-center rounded-3xl border border-current/25 bg-slate-950/40">
-                    <div className="text-center">
-                      <p className="text-2xl font-semibold leading-none">{acwr !== null ? formatDecimal(acwr) : '?'}</p>
-                      <p className="mt-1 text-xs font-semibold opacity-70">ACWR</p>
-                    </div>
-                  </div>
+                  <LoadDial acwr={acwr} tone={zone.tone === 'neutral' ? 'neutral' : zone.tone} />
                   <div className="min-w-0">
-                    <p className="text-xl font-semibold text-white">{acwrDisplayLabel(summary)}</p>
+                    <p className={`text-xl font-bold leading-snug tracking-tight ${zone.tone === 'high' ? 'text-rose-300' : zone.tone === 'low' ? 'text-sky-300' : zone.tone === 'ready' ? 'text-emerald-300' : 'text-white'}`}>{acwrDisplayLabel(summary)}</p>
                   </div>
                 </div>
-                <TeamAcwrGauge acwr={acwr} />
                 {showDetails ? <PlayerLoadRoom summary={summary} /> : null}
               </div>
             )}
@@ -380,9 +358,9 @@ export function PlayerLoadDetail({
                   <span className="text-xs font-semibold text-slate-400">{completedEntries.length}</span>
                 </div>
                 <div className="mt-3 grid gap-2">
-                  {completedEntries.length === 0 ? <p className="rounded-2xl bg-white/[0.04] p-3 text-sm font-medium text-slate-400">{t('playerLoad.noCompleted')}</p> : null}
+                  {completedEntries.length === 0 ? <p className="rounded-2xl os-tile p-3 text-sm font-medium text-slate-400">{t('playerLoad.noCompleted')}</p> : null}
                   {completedEntries.map((entry) => (
-                    <div key={entry.id} className="rounded-2xl bg-white/[0.04] p-3">
+                    <div key={entry.id} className="rounded-2xl os-tile p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-white">{displayTitle(entry.title)}</p>

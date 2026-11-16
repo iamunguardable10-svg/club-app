@@ -21,7 +21,7 @@ export function LanguagePicker({ compact = false }: { compact?: boolean }) {
       aria-label={t('language.label')}
       className={compact
         ? 'rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-xs font-semibold text-slate-200'
-        : 'w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm font-medium text-white sm:w-auto'}
+        : 'w-full rounded-2xl os-tile px-4 py-3 text-sm font-medium text-white sm:w-auto'}
     >
       {LOCALES.map((option) => <option key={option.code} value={option.code}>{option.name}</option>)}
     </select>

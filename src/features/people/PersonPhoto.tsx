@@ -97,7 +97,11 @@ export function PersonAvatar({ personId, name, size = 'md', fallback, badge, src
     <span className={`relative grid shrink-0 place-items-center rounded-full bg-slate-800 font-semibold text-slate-200 ${SIZE[size]}`}>
       {shown ? (
         // eslint-disable-next-line @next/next/no-img-element -- signed links and data URLs, not optimisable
-        <img src={shown} alt="" className="h-full w-full rounded-full object-cover" />
+        // The initials stay underneath until the picture has loaded, then it fades in: no empty circle, no jump.
+        <>
+          <span aria-hidden className="col-start-1 row-start-1">{initials(name)}</span>
+          <img src={shown} alt="" decoding="async" onLoad={(event) => { event.currentTarget.dataset.loaded = 'true'; }} ref={(node) => { if (node?.complete) node.dataset.loaded = 'true'; }} className="os-photo col-start-1 row-start-1 h-full w-full rounded-full object-cover" />
+        </>
       ) : <span aria-hidden>{initials(name)}</span>}
       {shown && badge ? <span className="absolute -bottom-1 -right-1">{badge}</span> : null}
     </span>

@@ -169,7 +169,7 @@ function RateForm({
           <button type="button" onClick={onLater} className="shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300">{t('rate.later')}</button>
         </div>
 
-        <div className="mt-4 rounded-2xl bg-white/[0.04] p-3">
+        <div className="mt-4 rounded-2xl os-tile p-3">
           <p className="text-base font-semibold">{stage === 'warmup' ? t('rate.warmupBefore', { title: displayTitle(session.title) }) : displayTitle(session.title)}</p>
           <p className="mt-0.5 text-sm font-medium text-slate-400">{formatSessionTime(session.startsAt, session.endsAt, session.trainingType)}{session.teamName ? ` · ${session.teamName}` : ''}</p>
         </div>
@@ -195,7 +195,7 @@ function RateForm({
             )}
             <MinutesSlider label={isGame ? t('rate.minutesPlayed') : t('rate.duration')} value={minutes} onChange={setMinutes} min={isGame ? 0 : 5} max={maxMinutes} step={isGame ? 1 : 5} />
             {isGame ? (
-              <button type="button" onClick={() => setStage('warmup')} className="mt-3 flex w-full items-center justify-between rounded-xl bg-white/[0.04] px-3 py-2 text-left text-sm font-medium text-slate-300">
+              <button type="button" onClick={() => setStage('warmup')} className="mt-3 flex w-full items-center justify-between rounded-xl os-tile px-3 py-2 text-left text-sm font-medium text-slate-300">
                 <span>{warmup ? t('rate.warmupSummary', { minutes: warmup.minutes, rpe: warmup.rpe }) : t('rate.warmupNone')}</span>
                 <span className="text-xs font-semibold text-sky-300">{t('rate.change')}</span>
               </button>

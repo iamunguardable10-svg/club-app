@@ -53,6 +53,10 @@ import { LoadIntro, useLoadIntro } from '@/features/load/LoadIntro';
 import { RatePrompt, WARMUP_MINUTES, WARMUP_RPE, type RateDefaults, type WarmupRating } from './RatePrompt';
 import { SmartSessionCalendar, type SmartCalendarSession } from '@/features/calendar/SmartSessionCalendar';
 import { useSmartCalendar } from '@/features/calendar/useSmartCalendar';
+import { LoadDial } from './LoadDial';
+import { DateChip } from '@/shared/components/DateChip';
+import { useEscape } from '@/shared/hooks/useEscape';
+import { showToast } from '@/shared/overlay/toast';
 
 /**
  * Players who were already asked in this visit, so moving between Today,
@@ -62,7 +66,7 @@ import { useSmartCalendar } from '@/features/calendar/useSmartCalendar';
 
 /** A placeholder of the chart's own size while its code loads, so nothing jumps. */
 function ChartPlaceholder({ height }: { height: string }) {
-  return <div aria-hidden className={`${height} w-full rounded-2xl bg-white/[0.04] motion-safe:animate-pulse`} />;
+  return <div aria-hidden className={`${height} w-full rounded-2xl os-tile motion-safe:animate-pulse`} />;
 }
 
 // recharts is the largest part of this page; it loads only where a chart is shown.
@@ -240,29 +244,6 @@ function statusForPending(session: AthletePendingSession) {
   return tr('load.pending.planned');
 }
 
-function Metric({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'ready' | 'high' | 'low' | 'neutral' }) {
-  const toneClass = tone === 'ready'
-    ? 'border-transparent bg-white/[0.04] text-emerald-300'
-    : tone === 'high'
-      ? 'border-transparent bg-white/[0.04] text-rose-300'
-      : tone === 'low'
-        ? 'border-transparent bg-white/[0.04] text-sky-300'
-        : 'border-transparent bg-white/[0.04] text-white';
-  const dotClass = tone === 'ready' ? 'bg-emerald-400' : tone === 'high' ? 'bg-rose-400' : tone === 'low' ? 'bg-sky-400' : 'bg-slate-500';
-  return (
-    <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-2.5 sm:p-4 ${toneClass}`}>
-      <div>
-        <p className="text-xs font-semibold leading-tight text-slate-400 sm:text-xs">{label}</p>
-        <p className="mt-2 flex items-start gap-1.5 text-lg font-semibold leading-tight tracking-tight sm:text-2xl">
-          <span aria-hidden="true" className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} />
-          {/* Words like "Im Aufbau" wrap instead of being cut off in the narrow card. */}
-          <span className="min-w-0 break-words">{value}</span>
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function averageRecentSessionLoad(entries: AthleteLoadEntry[]) {
   const active = entries.slice(-28).filter((entry) => entry.load > 0);
   if (active.length === 0) return 500;
@@ -419,68 +400,9 @@ function MonotonyGauge({ value }: { value: number }) {
   );
 }
 
-function LoadRoomMetric({ latest, entries, baselineReady }: { latest: ReturnType<typeof getLatestACWR>; entries: AthleteLoadEntry[]; baselineReady: boolean }) {
-  const room = buildLoadRoomSummary(latest, entries, baselineReady);
-  const toneClass = room.tone === 'ready'
-    ? 'border-transparent bg-white/[0.04] text-emerald-300'
-    : room.tone === 'high'
-      ? 'border-transparent bg-white/[0.04] text-rose-300'
-      : room.tone === 'low'
-        ? 'border-transparent bg-white/[0.04] text-sky-300'
-        : 'border-transparent bg-white/[0.04] text-white';
-  return (
-    <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-2.5 sm:p-4 ${toneClass}`}>
-      <div>
-        <p className="text-xs font-semibold leading-tight text-slate-400 sm:text-xs">{room.label}</p>
-        <p className="mt-2 truncate text-lg font-semibold tracking-tight sm:text-2xl">{room.value}</p>
-      </div>
-      <div>
-        <LoadRoomGauge room={room} compact />
-        <p className="mt-1 text-xs font-medium leading-tight text-slate-400">{room.detail}</p>
-      </div>
-    </div>
-  );
-}
-
 function AvailabilityPill({ label }: { label: { text: string; tone: 'in' | 'late' | 'out' | 'open' | 'plain' } }) {
   const tone = label.tone === 'in' ? 'bg-emerald-400/15 text-emerald-200' : label.tone === 'late' || label.tone === 'open' ? 'bg-amber-300/15 text-amber-200' : label.tone === 'out' ? 'bg-rose-400/15 text-rose-200' : 'bg-slate-800 text-slate-300';
   return <span data-testid="availability-pill" className={`mt-3 inline-flex max-w-full rounded-full px-3 py-1 text-xs font-semibold ${tone}`}><span className="truncate">{label.text}{label.tone === 'in' ? ' ✓' : ''}</span></span>;
-}
-
-function AcwrMetric({ latest, baselineReady, tone }: { latest: ReturnType<typeof getLatestACWR>; baselineReady: boolean; tone: 'default' | 'ready' | 'high' | 'low' | 'neutral' }) {
-  const acwr = latest?.acwr ?? null;
-  const displayAcwr = acwr !== null && baselineReady ? acwr : null;
-  const room = {
-    label: 'ACWR',
-    value: displayAcwr !== null ? formatDecimal(displayAcwr) : '-',
-    detail: displayAcwr !== null ? (tone === 'high' ? tr('load.zone.high') : tone === 'low' ? tr('load.zone.low') : tr('load.zone.optimal')) : tr('load.room.daysNeeded', { count: BASELINE_DAYS }),
-    tone,
-    mode: 'baseline' as LoadRoomMode,
-    markerPercent: acwrPercent(displayAcwr),
-    lowPercent: ACWR_ZONES.low * 50,
-    highPercent: ACWR_ZONES.high * 50,
-    roomStartPercent: 0,
-    roomWidthPercent: 0,
-  };
-  const toneClass = tone === 'ready'
-    ? 'border-transparent bg-white/[0.04] text-emerald-300'
-    : tone === 'high'
-      ? 'border-transparent bg-white/[0.04] text-rose-300'
-      : tone === 'low'
-        ? 'border-transparent bg-white/[0.04] text-sky-300'
-        : 'border-transparent bg-white/[0.04] text-white';
-  return (
-    <div className={`flex h-full min-w-0 flex-col justify-between rounded-2xl border p-2.5 sm:p-4 ${toneClass}`}>
-      <div>
-        <p className="text-xs font-semibold leading-tight text-slate-400 sm:text-xs">ACWR</p>
-        <p className="mt-2 truncate text-lg font-semibold tracking-tight sm:text-2xl">{room.value}</p>
-      </div>
-      <div>
-        <LoadRoomGauge room={room} compact />
-        <p className="mt-1 text-xs font-medium leading-tight text-slate-400">{room.detail}</p>
-      </div>
-    </div>
-  );
 }
 
 
@@ -598,6 +520,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   const [activeComposerSession, setActiveComposerSession] = useState<AthletePendingSession | null>(null);
   const [activeEntry, setActiveEntry] = useState<AthleteLoadEntry | null>(null);
   const [activeDetailItem, setActiveDetailItem] = useState<AthleteCalendarItem | null>(null);
+  useEscape(() => setActiveDetailItem(null), activeDetailItem !== null);
+  useEscape(() => { setComposerOpen(false); setActiveComposerSession(null); setActiveEntry(null); }, composerOpen);
   const [deleteTarget, setDeleteTarget] = useState<{ kind: 'entry' | 'plan'; id: string; title: string } | null>(null);
   // Own training as a weekly series (piece 22): how a new plan repeats, and
   // whether a change to a plan of a series is for it alone or the rest too.
@@ -796,7 +720,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     if (chosen && !panel && answerOpen !== session.id) {
       const text = { in: 'text-emerald-200', late: 'text-amber-200', out: 'text-rose-200' } as const;
       return (
-        <div className="mt-2 flex items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-3.5 py-2.5">
+        <div className="mt-2 flex items-center justify-between gap-3 rounded-2xl os-tile px-3.5 py-2.5">
           <p className={`min-w-0 text-sm font-semibold ${text[chosen]}`}>{pill.text}</p>
           <button type="button" onClick={() => setAnswerOpen(session.id)} className="shrink-0 text-sm font-semibold text-sky-300">{t('composer.change')}</button>
         </div>
@@ -1170,7 +1094,10 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         await deleteEntry(deleteTarget.id);
       } else {
         const target = plans.find((plan) => plan.id === deleteTarget.id);
-        replacePlans(target && seriesScope === 'following' ? thisAndFollowing(plans, target).map((plan) => plan.id) : [deleteTarget.id], []);
+        const removed = target && seriesScope === 'following' ? thisAndFollowing(plans, target) : target ? [target] : [];
+        replacePlans(removed.length > 0 ? removed.map((plan) => plan.id) : [deleteTarget.id], []);
+        // Removed by mistake: one tap brings it back as it was.
+        if (removed.length > 0) showToast(t('toast.planDeleted'), { label: t('common.undo'), run: () => replacePlans([], removed) });
         if (activeComposerSession?.id === deleteTarget.id) {
           setActiveComposerSession(null);
           setComposerOpen(false);
@@ -1478,11 +1405,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         ) : null}
 
         {activeView === 'home' && hasLoad ? (
-          <div className="grid w-full min-w-0 grid-cols-3 items-stretch gap-2 [&>*]:min-h-[104px]">
-            <LoadRoomMetric latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} />
-            <AcwrMetric latest={latest} baselineReady={isBaselineReady} tone={zone.tone} />
-            <Metric label={t('athlete.metric.status')} value={zone.tone === 'neutral' ? t('athlete.metric.building') : zoneLabel(zone.tone)} tone={zone.tone} />
-          </div>
+          <LoadGlance latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} tone={zone.tone} status={zone.tone === 'neutral' ? t('athlete.metric.building') : zoneLabel(zone.tone)} />
         ) : null}
         {activeView === 'load' && hasLoad ? <LoadVerdict latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} /> : null}
         {loadIntro.open ? <LoadIntro role="athlete" onClose={loadIntro.close} /> : null}
@@ -1516,7 +1439,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             <h2 className="text-lg font-semibold text-white">{t('athlete.check.title')}</h2>
             <ul className="mt-3 grid gap-2">
               {entriesToCheck.map(({ entry, review, coachName }) => (
-                <li key={entry.id} className="rounded-2xl bg-white/[0.04] p-3">
+                <li key={entry.id} className="rounded-2xl os-tile p-3">
                   <p className="font-semibold text-white">{displayTitle(entry.title)}</p>
                   <p className="text-xs font-medium text-slate-400">{t('athlete.entryLine', { date: formatEntryDate(entry.date), rpe: entry.rpe, minutes: entry.durationMinutes, load: entry.load })}</p>
                   {review.note ? <p className="mt-2 rounded-xl bg-white/[0.05] px-3 py-2 text-sm text-slate-100">“{review.note}”{coachName ? <span className="text-xs text-slate-400"> – {coachName}</span> : null}</p> : coachName ? <p className="mt-1 text-xs text-slate-400">{t('athlete.check.askedBy', { name: coachName })}</p> : null}
@@ -1533,16 +1456,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         {activeView === 'load' && hasLoad ? (
           // Everything beyond the light and the chart, one tap away (audit 2026-11, proposal 10).
           <details className="group" data-testid="load-more">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-4 py-3.5 text-sm font-semibold text-slate-200 [&::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl os-tile px-4 py-3.5 text-sm font-semibold text-slate-200 [&::-webkit-details-marker]:hidden">
               {t('load.more')}
               <span aria-hidden className="text-slate-400 transition-transform group-open:rotate-180">⌄</span>
             </summary>
             <div className="mt-4 grid gap-4">
-              <div className="grid w-full min-w-0 grid-cols-3 items-stretch gap-2 [&>*]:min-h-[104px]">
-            <LoadRoomMetric latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} />
-            <AcwrMetric latest={latest} baselineReady={isBaselineReady} tone={zone.tone} />
-            <Metric label={t('athlete.metric.status')} value={zone.tone === 'neutral' ? t('athlete.metric.building') : zoneLabel(zone.tone)} tone={zone.tone} />
-              </div>
               <button type="button" onClick={loadIntro.show} className="justify-self-start text-left text-xs font-semibold text-sky-300 underline">{t('loadIntro.again')}</button>
               <LoadDetailsPanel
                 entries={sortedEntries}
@@ -1576,7 +1494,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   const active = activePendingId === session.id;
                   const defaultDuration = session.expectedDurationMinutes ?? (session.endsAt ? Math.max(30, Math.round((new Date(session.endsAt).getTime() - new Date(session.startsAt).getTime()) / 60000)) : 90);
                   return (
-                    <article key={session.id} className="rounded-2xl bg-white/[0.04] p-3">
+                    <article key={session.id} className="rounded-2xl os-tile p-3">
                       <button type="button" onClick={() => setActivePendingId(active ? null : session.id)} className="flex w-full items-center justify-between gap-3 text-left">
                         <div>
                           <p className="text-base font-semibold text-white">{displayTitle(session.title)}</p>
@@ -1599,12 +1517,18 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               </div>
               {nextSession ? (
                 <>
-                <button type="button" data-session-id={nextSession.id} onClick={() => openCalendarItem(nextSessionItem(nextSession))} className="mt-4 w-full rounded-2xl bg-white/[0.04] p-4 text-left transition-colors hover:bg-white/[0.07]">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="min-w-0 text-2xl font-semibold tracking-tight">{displayTitle(nextSession.title)}</p>
-                    {landingAfter.has(nextSession.id) ? <LoadLandingChip value={landingAfter.get(nextSession.id)!} large /> : null}
+                <button type="button" data-session-id={nextSession.id} onClick={() => openCalendarItem(nextSessionItem(nextSession))} className="mt-4 w-full rounded-2xl os-tile p-4 text-left">
+                  <div className="flex items-start gap-3.5">
+                    <DateChip date={nextSession.startsAt} tone="go" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                        <p className="min-w-0 text-xl font-bold leading-7 tracking-tight">{displayTitle(nextSession.title)}</p>
+                        {landingAfter.has(nextSession.id) ? <LoadLandingChip value={landingAfter.get(nextSession.id)!} large /> : null}
+                      </div>
+                      <p className="mt-0.5 text-sm font-semibold text-slate-200">{formatTime(nextSession.startsAt)}{nextSession.endsAt && nextSession.trainingType !== 'game' ? `–${formatTime(nextSession.endsAt)}` : ''} · {nextSession.teamName ?? t('athlete.ownPlan')}</p>
+                    </div>
                   </div>
-                  <p className="mt-1 text-sm font-medium text-slate-300">{formatDay(nextSession.startsAt)} · {formatTime(nextSession.startsAt)}{nextSession.endsAt && nextSession.trainingType !== 'game' ? `–${formatTime(nextSession.endsAt)}` : ''} · {nextSession.teamName ?? t('athlete.ownPlan')}</p>
+                  <p className="sr-only">{formatDay(nextSession.startsAt)}</p>
                   {nextSession.info ? (() => {
                     const info = { ...nextSession.info, startsAt: nextSession.startsAt };
                     const place = info.homeAway === 'away' ? info.venueAddress : info.facilityName;
@@ -1617,8 +1541,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 </button>
                 {answerBar(nextSession)}
                 </>
-              ) : <div className="mt-4 rounded-2xl bg-white/[0.04] p-4 text-sm font-medium text-slate-400">{t('athlete.noSessions')}</div>}
-              {nextGame && nextGame.id !== nextSession?.id ? <button type="button" data-session-id={nextGame.id} onClick={() => openCalendarItem(nextSessionItem(nextGame))} className="mt-3 w-full rounded-2xl bg-white/[0.04] p-4 text-left transition-colors hover:bg-white/[0.07]">
+              ) : <div className="mt-4 rounded-2xl os-tile p-4 text-sm font-medium text-slate-400">{t('athlete.noSessions')}</div>}
+              {nextGame && nextGame.id !== nextSession?.id ? <button type="button" data-session-id={nextGame.id} onClick={() => openCalendarItem(nextSessionItem(nextGame))} className="mt-3 w-full rounded-2xl os-tile p-4 text-left transition-colors hover:bg-white/[0.07]">
                 <p className="text-sm font-semibold">{[displayTitle(nextGame.title), nextGame.info ? gameLine(nextGame.info) : null].filter(Boolean).join(' · ')}</p>
                 <p className="mt-1 text-xs font-medium text-slate-400">{formatDay(nextGame.startsAt)} · {formatTime(nextGame.startsAt)}</p>
                 <CarpoolSummary sessionId={nextGame.id} />
@@ -1627,7 +1551,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               {hasLoad && plans.length > 0 ? (
                 <div className="mt-4 space-y-2">
                   {plans.slice(0, 4).map((plan) => (
-                    <div key={plan.id} className="relative rounded-2xl bg-white/[0.04] py-2.5 pl-3 pr-9">
+                    <div key={plan.id} className="relative rounded-2xl os-tile py-2.5 pl-3 pr-9">
                       <div className="min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <p className="min-w-0 text-sm font-semibold text-white">{displayTitle(plan.title)}</p>
@@ -1661,15 +1585,15 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               <button type="button" onClick={() => setActiveDetailItem(null)} className="rounded-full border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300">{t('athlete.close')}</button>
             </div>
             <div className="mt-4 grid grid-cols-3 gap-2">
-              <div className="rounded-2xl bg-white/[0.04] p-3">
+              <div className="rounded-2xl os-tile p-3">
                 <p className="text-xs font-semibold text-slate-400">{t('athlete.detail.load')}</p>
                 <p className="mt-2 text-xl font-semibold text-white">{activeDetailItem.entry?.load ?? '—'}</p>
               </div>
-              <div className="rounded-2xl bg-white/[0.04] p-3 opacity-75">
+              <div className="rounded-2xl os-tile p-3 opacity-75">
                 <p className="text-xs font-semibold text-slate-400">{t('athlete.detail.rpe')}</p>
                 <p className="mt-2 text-xl font-semibold text-white">{activeDetailItem.entry?.rpe ?? '—'}</p>
               </div>
-              <div className="rounded-2xl bg-white/[0.04] p-3 opacity-75">
+              <div className="rounded-2xl os-tile p-3 opacity-75">
                 <p className="text-xs font-semibold text-slate-400">{t('athlete.detail.duration')}</p>
                 <p className="mt-2 text-xl font-semibold text-white">{activeDetailItem.entry?.durationMinutes ?? '—'}</p>
               </div>
@@ -1763,7 +1687,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
             {!activeEntry && !activeComposerSession && sessionMode === 'plan' ? (
               <div className="mt-4 grid gap-2">
-                <div className="grid grid-cols-2 gap-2 rounded-2xl bg-white/[0.04] p-1">
+                <div className="grid grid-cols-2 gap-2 rounded-2xl os-tile p-1">
                   <button type="button" onClick={() => setRepeat('once')} className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${repeat === 'once' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.once')}</button>
                   <button
                     type="button"
@@ -1814,7 +1738,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             {editingSeriesPlan ? (
               <div className="mt-4 grid gap-1.5">
                 <p className="text-xs font-semibold text-slate-400">{t('composer.seriesChange')}</p>
-                <div className="grid grid-cols-2 gap-2 rounded-2xl bg-white/[0.04] p-1">
+                <div className="grid grid-cols-2 gap-2 rounded-2xl os-tile p-1">
                   <button type="button" onClick={() => setSeriesScope('one')} className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${seriesScope === 'one' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.onlyThis')}</button>
                   <button type="button" onClick={() => setSeriesScope('following')} className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${seriesScope === 'following' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.thisAndFollowing')}</button>
                 </div>
@@ -1822,18 +1746,18 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             ) : null}
 
             {!activeComposerSession && planForm.date === todayISO() ? (
-              <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl bg-white/[0.04] p-1">
+              <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl os-tile p-1">
                 <button type="button" onClick={() => setTodayAction('plan')} className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${todayAction === 'plan' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.planLater')}</button>
                 <button type="button" onClick={() => setTodayAction('report')} className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${todayAction === 'report' ? 'bg-slate-100 text-slate-950' : 'text-slate-400'}`}>{t('composer.alreadyDone')}</button>
               </div>
             ) : null}
 
             {activeComposerSession?.loadTracked === false && !activeTeamSessionIsFuture ? (
-              <p className="mt-5 rounded-2xl bg-white/[0.04] p-4 text-sm font-medium text-slate-300">
+              <p className="mt-5 rounded-2xl os-tile p-4 text-sm font-medium text-slate-300">
                 {activeComposerSession.info?.sessionType === 'meeting' ? t('session.meetingNotRated') : t('composer.noTracking', { team: activeComposerSession.teamName ?? t('composer.thisTeam') })}
               </p>
             ) : activeTeamSessionIsFuture ? (
-              <div className="mt-3 space-y-3 rounded-2xl bg-white/[0.04] p-4 text-sm font-medium text-slate-300">
+              <div className="mt-3 space-y-3 rounded-2xl os-tile p-4 text-sm font-medium text-slate-300">
                 <p className="text-xs font-semibold text-slate-400">{t('composer.yourAnswer')}</p>
                 {(() => {
                   const mark = activeComposerSession ? availabilityForSession(activeComposerSession.id) : undefined;
@@ -1944,7 +1868,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 {isPlanning ? (
                   <p className="mt-4 text-xs font-medium text-slate-400">{t('composer.planNote')}</p>
                 ) : (
-                  <div className="mt-5 rounded-2xl bg-white/[0.04] p-4">
+                  <div className="mt-5 rounded-2xl os-tile p-4">
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-sm font-medium text-slate-400">{t('composer.trainingLoad')}</span>
                       <span className="text-3xl font-semibold text-white">{t('composer.au', { value: sessionLoadPreview })}</span>
@@ -2155,6 +2079,30 @@ export function weeklyLoadDomain(points: WeeklyLoadProfilePoint[], metric: Weekl
  * The load page in one sentence (audit 2026-11, proposal 10): a traffic light
  * and what it means for today. The numbers follow below and behind "Mehr Zahlen".
  */
+/**
+ * The player's load on the start page as one card: the dial, the word that
+ * says how they stand, and how much room is left. The whole card opens the
+ * load page.
+ */
+function LoadGlance({ latest, entries, baselineReady, tone, status }: { latest: ReturnType<typeof getLatestACWR>; entries: AthleteLoadEntry[]; baselineReady: boolean; tone: 'default' | 'ready' | 'high' | 'low' | 'neutral'; status: string }) {
+  const t = useT();
+  const room = buildLoadRoomSummary(latest, entries, baselineReady);
+  const acwr = latest?.acwr != null && baselineReady ? latest.acwr : null;
+  const word = tone === 'ready' ? 'text-emerald-300' : tone === 'high' ? 'text-rose-300' : tone === 'low' ? 'text-sky-300' : 'text-white';
+  return (
+    <Link href="/athlete/load" className="os-panel flex items-center gap-4 p-4 sm:gap-6 sm:p-5">
+      <LoadDial acwr={acwr} tone={tone} />
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs font-semibold text-slate-400">{t('athlete.metric.status')}</span>
+        <span className={`block text-2xl font-bold leading-tight tracking-tight ${word}`}>{status}</span>
+        <span className="mt-2 block text-sm font-medium text-slate-300">{room.label}</span>
+        <span className="block text-sm text-slate-400"><span className="font-semibold text-white">{room.value}</span>{room.detail ? ` · ${room.detail}` : ''}</span>
+      </span>
+      <span aria-hidden className="self-center text-lg leading-none text-slate-500">›</span>
+    </Link>
+  );
+}
+
 function LoadVerdict({ latest, entries, baselineReady }: { latest: ReturnType<typeof getLatestACWR>; entries: AthleteLoadEntry[]; baselineReady: boolean }) {
   const t = useT();
   const room = buildLoadRoomSummary(latest, entries, latest?.chronicFull ?? false);
@@ -2166,11 +2114,14 @@ function LoadVerdict({ latest, entries, baselineReady }: { latest: ReturnType<ty
     baseline: { dot: 'bg-slate-500', ring: 'border-slate-700', title: 'load.verdict.baseline', detail: 'athlete.baselineNote' },
   }[mode as 'overload' | 'underload' | 'ready' | 'baseline'] ?? { dot: 'bg-slate-500', ring: 'border-slate-700', title: 'load.verdict.baseline', detail: 'athlete.baselineNote' };
   return (
-    <section className={`flex items-start gap-4 rounded-3xl border ${look.ring} bg-slate-950/65 p-5`} data-testid="load-verdict">
-      <span aria-hidden className={`mt-1.5 h-4 w-4 shrink-0 rounded-full ${look.dot}`} />
+    <section className="os-panel flex items-center gap-4 p-4 sm:gap-6 sm:p-5" data-testid="load-verdict">
+      <LoadDial acwr={latest?.acwr != null && baselineReady ? latest.acwr : null} tone={mode === 'overload' ? 'high' : mode === 'underload' ? 'low' : mode === 'ready' ? 'ready' : 'neutral'} />
       <div className="min-w-0">
-        <p className="text-xl font-semibold leading-snug text-white">{t(look.title as MessageKey)}</p>
-        {look.detail ? <p className="mt-1 text-sm text-slate-300">{t(look.detail as MessageKey)}</p> : null}
+        <p className="flex items-start gap-2.5 text-xl font-bold leading-snug tracking-tight text-white">
+          <span aria-hidden className={`mt-2 h-2.5 w-2.5 shrink-0 rounded-full ${look.dot}`} />
+          {t(look.title as MessageKey)}
+        </p>
+        {look.detail ? <p className="mt-1.5 text-sm text-slate-300">{t(look.detail as MessageKey)}</p> : null}
       </div>
     </section>
   );
@@ -2216,11 +2167,11 @@ function LoadDetailsPanel({
         ? { label: t('load.stability.watch'), tone: 'low' as const, detail: t('load.stability.watchDetail') }
         : { label: t('load.stability.varied'), tone: 'ready' as const, detail: t('load.stability.variedDetail') };
   const stabilityToneClass = monotonyState.tone === 'high'
-    ? 'border-transparent bg-white/[0.04] text-rose-300'
+    ? 'border-transparent os-tile text-rose-300'
     : monotonyState.tone === 'low'
       ? 'border-amber-300/35 bg-amber-300/10 text-amber-100'
       : monotonyState.tone === 'ready'
-        ? 'border-transparent bg-white/[0.04] text-emerald-300'
+        ? 'border-transparent os-tile text-emerald-300'
         : 'border-slate-800 bg-slate-950/75 text-slate-300';
   const guidance = roomSummary.mode === 'overload'
     ? t('load.guidance.overload')
@@ -2252,7 +2203,7 @@ function LoadDetailsPanel({
           </span>
         </div>
 
-        <div className="mt-5 rounded-2xl bg-white/[0.04] p-4">
+        <div className="mt-5 rounded-2xl os-tile p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold text-slate-400">{t('load.details.lane')}</p>
@@ -2322,7 +2273,7 @@ function LoadDetailsPanel({
           {trainingMix.length > 0 ? trainingMix.slice(0, 6).map((item) => {
             const percent = Math.round((item.load / Math.max(recentLoad, 1)) * 100);
             return (
-              <div key={item.type} className="rounded-2xl bg-white/[0.04] p-3">
+              <div key={item.type} className="rounded-2xl os-tile p-3">
                 <div className="flex justify-between text-xs font-semibold text-slate-300">
                   <span>{item.label}</span>
                   <span>{percent}%</span>
@@ -2333,7 +2284,7 @@ function LoadDetailsPanel({
               </div>
             );
           }) : (
-            <div className="rounded-2xl bg-white/[0.04] p-4 text-sm font-medium text-slate-400">{t('load.details.noRecent')}</div>
+            <div className="rounded-2xl os-tile p-4 text-sm font-medium text-slate-400">{t('load.details.noRecent')}</div>
           )}
         </div>
         </details>
@@ -2354,9 +2305,9 @@ function LoadDetailsPanel({
             <span className="text-xs font-semibold text-slate-400">{completedEntries.length}</span>
           </div>
           <div className="mt-3 grid gap-2">
-            {completedEntries.length === 0 ? <div className="rounded-2xl bg-white/[0.04] p-4 text-sm font-medium text-slate-400">{t('load.details.noCompleted')}</div> : null}
+            {completedEntries.length === 0 ? <div className="rounded-2xl os-tile p-4 text-sm font-medium text-slate-400">{t('load.details.noCompleted')}</div> : null}
             {(showAllCompleted ? completedEntries : completedEntries.slice(0, 3)).map((entry) => (
-              <div key={entry.id} className="rounded-2xl bg-white/[0.04] p-3">
+              <div key={entry.id} className="rounded-2xl os-tile p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-white">{displayTitle(entry.title)}</p>
@@ -2386,7 +2337,7 @@ function PendingInlineForm({ trainingType, defaultRpe, defaultDuration, onSubmit
   const [duration, setDuration] = useState(defaultDuration);
   const effectiveInlineRpe = fixedGameRpe ? 10 : rpe;
   return (
-    <div className="mt-3 space-y-3 rounded-2xl bg-white/[0.04] p-3">
+    <div className="mt-3 space-y-3 rounded-2xl os-tile p-3">
       {fixedGameRpe ? (
         <div className="rounded-xl border border-violet-300/25 bg-violet-300/[0.08] p-2">
           <div className="flex items-center justify-between">

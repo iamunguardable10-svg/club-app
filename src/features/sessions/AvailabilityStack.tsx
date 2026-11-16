@@ -66,7 +66,7 @@ export function AvailabilityStack({ out, late, outLabel, lateLabel }: {
     ...late.map((item) => ({ ...item, status: 'late', label: lateLabel })),
   ];
   return (
-    <div className="mt-4 rounded-xl bg-white/[0.04] px-3 py-1">
+    <div className="mt-4 rounded-xl os-tile px-3 py-1">
       <ul className="divide-y divide-slate-800/80">
         {rows.slice(0, SHOWN).map((item) => (
           <li key={`${item.status}-${item.id}`} className="flex items-center gap-3 py-2.5">

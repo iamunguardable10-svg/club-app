@@ -140,7 +140,7 @@ export function FacilitiesManager({
           />
         ))}
         {facilities.length === 0 ? (
-          <p className="rounded-2xl bg-white/[0.04] p-4 text-sm font-medium text-slate-400">
+          <p className="rounded-2xl os-tile p-4 text-sm font-medium text-slate-400">
             {!isManager ? t('facilities.empty.notShared') : editMode ? t('facilities.empty.editing') : t('facilities.empty.reading')}
           </p>
         ) : null}

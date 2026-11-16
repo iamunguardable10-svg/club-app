@@ -114,13 +114,13 @@ function ClubFeatureRow({ database, feature, onError }: { database: LocalDatabas
   const unlockNote = useUnlockNote(database, feature);
   const locked = !featureUnlocked(database, database.club.id, feature);
   return (
-    <div className="grid gap-2 rounded-2xl bg-white/[0.04] px-3 py-2.5 sm:grid-cols-[1fr_auto] sm:items-center" data-feature={feature}>
+    <div className="grid gap-2 rounded-2xl os-tile px-3 py-2.5 sm:grid-cols-[1fr_auto] sm:items-center" data-feature={feature}>
       <div className="min-w-0">
         <p className="text-sm font-semibold text-slate-100">{t(TITLE[feature])}</p>
         <p className="text-xs text-slate-400">{t(DETAIL[feature])}</p>
         {unlockNote ? <p className="mt-0.5 text-xs font-medium text-amber-200/90">{unlockNote}</p> : null}
       </div>
-      <div role="radiogroup" aria-label={t(TITLE[feature])} className="grid grid-cols-3 gap-1 rounded-2xl bg-white/[0.04] p-1 text-xs font-semibold sm:flex sm:rounded-full">
+      <div role="radiogroup" aria-label={t(TITLE[feature])} className="grid grid-cols-3 gap-1 rounded-2xl os-tile p-1 text-xs font-semibold sm:flex sm:rounded-full">
         {MODES.map((option) => (
           <button
             key={option.mode}
@@ -147,7 +147,7 @@ export function ClubFeatureSettings({ database }: { database: LocalDatabase }) {
   // Closed by default, like the team's switches.
   return (
     <details className="group" data-testid="club-features">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-3 py-2.5 [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl os-tile px-3 py-2.5 [&::-webkit-details-marker]:hidden">
         <span className="text-sm font-medium text-slate-200">{fixed === 0 ? t('features.club.allTeams') : t('features.club.fixed', { count: fixed })}</span>
         <span aria-hidden="true" className="text-slate-400 transition-transform group-open:rotate-180">▾</span>
       </summary>

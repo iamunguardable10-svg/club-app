@@ -110,7 +110,7 @@ export function CalendarLinkPanel({ remote, appleConnected }: { remote: boolean;
               </a>
               <button type="button" disabled={busy} onClick={() => void copy()} className={buttonClass}>{t('calendarLink.copy')}</button>
             </div>
-            <p className="break-all rounded-2xl bg-white/[0.04] px-3 py-2 font-mono text-xs text-slate-400">{link.url}</p>
+            <p className="break-all rounded-2xl os-tile px-3 py-2 font-mono text-xs text-slate-400">{link.url}</p>
             <p className="text-xs text-slate-400">
               {t('calendarLink.howTo')}
               {link.lastFetchedAt ? ` ${t('calendarLink.lastFetched', { date: formatShortDate(link.lastFetchedAt), time: formatTime(link.lastFetchedAt) })}` : ''}

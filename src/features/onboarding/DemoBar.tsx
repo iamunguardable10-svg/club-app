@@ -83,9 +83,10 @@ export function DemoPill() {
   return (
     <div ref={menu} className="relative" data-demo-bar>
       <button type="button" data-demo-pill onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="menu" title={t('demo.bar.detail')}
-        className="flex h-10 items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900/80 pl-3 pr-2.5 text-xs font-semibold text-slate-200 transition hover:border-slate-500">
-        <span className=" text-amber-200">{t('demo.bar.label')}</span>
-        <span className="text-white">{t(current.label)}</span>
+        className="flex h-10 items-center gap-1.5 rounded-full border border-amber-300/25 bg-amber-300/[0.08] pl-3 pr-2.5 text-xs font-semibold text-slate-200 hover:bg-amber-300/[0.14]">
+        <span className="text-amber-200">{t('demo.bar.label')}</span>
+        {/* On a phone the page title needs the room; the tabs already say which role this is. */}
+        <span className="hidden text-white sm:inline">{t(current.label)}</span>
         <span aria-hidden className={`text-slate-400 transition ${open ? 'rotate-180' : ''}`}>▾</span>
       </button>
       {open ? (
@@ -160,7 +161,7 @@ function StartOwnSheet({ onClose }: { onClose: () => void }) {
           </div>
           <button type="button" onClick={onClose} aria-label={t('demo.nudge.close')} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-700 text-lg text-slate-300 hover:text-white">×</button>
         </div>
-        <ul className="mt-4 divide-y divide-slate-800 rounded-xl bg-white/[0.04]">
+        <ul className="mt-4 divide-y divide-slate-800 rounded-xl os-tile">
           {ways.map((way) => (
             <li key={way.path}>
               <button type="button" onClick={() => leaveDemoFor(way.path)} className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-900">

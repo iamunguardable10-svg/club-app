@@ -53,7 +53,7 @@ export function CoachTodo({ sessions, skipIds = [], onOpen }: { sessions: CoachS
         {/* Several sessions with open answers: one row that opens them (audit 2026-11, proposal 5). */}
         {answerRows.length > 1 && !expanded ? (
           <li>
-            <button type="button" onClick={() => setExpanded(true)} aria-expanded={false} className="flex w-full items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-3 py-3 text-left transition hover:bg-white/[0.07]">
+            <button type="button" onClick={() => setExpanded(true)} aria-expanded={false} className="flex w-full items-center justify-between gap-3 rounded-2xl os-tile px-3 py-3 text-left transition hover:bg-white/[0.07]">
               <span className="min-w-0 text-sm font-semibold text-white">{t('coach.todo.answersMany', { count: answerRows.length })}</span>
               <span aria-hidden className="text-lg font-semibold text-slate-400">⌄</span>
             </button>
@@ -65,7 +65,7 @@ export function CoachTodo({ sessions, skipIds = [], onOpen }: { sessions: CoachS
           const what = `${coachSessionTypeLabel(todo.session.sessionType)} ${day}`;
           return (
             <li key={todo.key}>
-              <button type="button" onClick={() => onOpen(todo.session)} className="flex w-full items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-3 py-3 text-left transition hover:bg-white/[0.07]">
+              <button type="button" onClick={() => onOpen(todo.session)} className="flex w-full items-center justify-between gap-3 rounded-2xl os-tile px-3 py-3 text-left transition hover:bg-white/[0.07]">
                 <span className="min-w-0 text-sm font-semibold text-white">
                   {todo.kind === 'answers' ? t('coach.todo.answers', { count: todo.count, what }) : t('coach.todo.attendance', { what })}
                 </span>

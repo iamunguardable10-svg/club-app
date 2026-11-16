@@ -8,6 +8,7 @@ import { formatDayMonth, formatDecimal, formatEntryDate } from '@/shared/format'
 import { useT } from '@/shared/i18n';
 import { loadTypeLabel } from './loadLabels';
 import { FORECAST_BASIS_KEY, WEEKLY_LOAD_METRICS, buildWeeklyLoadDayProfile, buildWeeklyLoadProfile, weeklyLoadDomain, type WeeklyLoadMetric, type WeeklyLoadProfilePoint } from './AthleteLoadWorkspace';
+import { useEscape } from '@/shared/hooks/useEscape';
 
 // Charts of the load view, split from AthleteLoadWorkspace so recharts loads only where a chart is shown.
 
@@ -43,7 +44,7 @@ function LoadTooltip({ active, payload }: LoadTooltipProps) {
   const forecastSegments = LOAD_TRAINING_TYPES.filter((type) => (Number(point[`${type}_p`]) || 0) > 0);
 
   return (
-    <div className="min-w-56 rounded-2xl bg-white/[0.04] p-3 shadow-[0_24px_80px_rgba(0,0,0,0.45)] ring-1 ring-white/[0.04] backdrop-blur-xl">
+    <div className="min-w-56 rounded-2xl os-tile p-3 shadow-[0_24px_80px_rgba(0,0,0,0.45)] ring-1 ring-white/[0.04] backdrop-blur-xl">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold text-white">{formatEntryDate(point.date)}</p>
@@ -55,15 +56,15 @@ function LoadTooltip({ active, payload }: LoadTooltipProps) {
         </div>
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2">
-        <div className="rounded-xl bg-white/[0.04] p-2">
+        <div className="rounded-xl os-tile p-2">
           <p className="text-[11px] font-medium text-slate-400">ACWR</p>
           <p className="mt-1 text-sm font-semibold text-white">{(point.acwr ?? point.projectedAcwr) ? formatDecimal((point.acwr ?? point.projectedAcwr)!) : '—'}</p>
         </div>
-        <div className="rounded-xl bg-white/[0.04] p-2">
+        <div className="rounded-xl os-tile p-2">
           <p className="text-[11px] font-medium text-slate-400">{t('load.chart.acute')}</p>
           <p className="mt-1 text-sm font-semibold text-white">{point.acuteLoad !== null && !point.isProjected ? Math.round(point.acuteLoad) : '—'}</p>
         </div>
-        <div className="rounded-xl bg-white/[0.04] p-2">
+        <div className="rounded-xl os-tile p-2">
           <p className="text-[11px] font-medium text-slate-400">{t('load.chart.chronic')}</p>
           <p className="mt-1 text-sm font-semibold text-white">{point.chronicLoad !== null && !point.isProjected ? Math.round(point.chronicLoad) : '—'}</p>
         </div>
@@ -481,16 +482,12 @@ export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoa
     setIsMounted(true);
   }, []);
 
+  useEscape(() => setSelectedWeekKey(null), Boolean(selectedWeekKey));
   useEffect(() => {
     if (!selectedWeekKey) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setSelectedWeekKey(null);
-    };
-    window.addEventListener('keydown', onKeyDown);
     return () => {
-      window.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = previous;
     };
   }, [selectedWeekKey]);
@@ -507,7 +504,7 @@ export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoa
   }
 
   return (
-    <div className="rounded-2xl bg-white/[0.04] p-3">
+    <div className="rounded-2xl os-tile p-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           {title === '' ? null : <p className="text-xs font-semibold text-slate-400">{title ?? t('load.week.defaultTitle')}</p>}
@@ -528,7 +525,7 @@ export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoa
       </div>
       <div className="mt-3 h-72 sm:h-72">
         {!isMounted ? (
-          <div className="h-full rounded-xl bg-white/[0.04]" />
+          <div className="h-full rounded-xl os-tile" />
         ) : (
         <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
           <ComposedChart
@@ -614,7 +611,7 @@ export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoa
                 </button>
               ))}
             </div>
-            <div className="mt-4 rounded-2xl bg-white/[0.04] p-3">
+            <div className="mt-4 rounded-2xl os-tile p-3">
               <div className="grid grid-cols-7 items-end gap-1.5 sm:gap-2">
                 {dayPoints.map((day) => {
                   const rawValue = day[meta.dataKey];
@@ -623,7 +620,7 @@ export function WeeklyLoadProfileGraph({ entries, title }: { entries: AthleteLoa
                   const height = value === null ? 4 : Math.max(10, Math.round((Math.min(value, max) / max) * 170));
                   return (
                     <div key={day.key} className="min-w-0 text-center" title={`${day.label}: ${value === null ? '-' : metric === 'acwr' || metric === 'rpe' ? formatDecimal(value, 1) : Math.round(value)}`}>
-                      <div className="flex h-44 items-end justify-center rounded-xl bg-white/[0.04] px-1 py-1.5">
+                      <div className="flex h-44 items-end justify-center rounded-xl os-tile px-1 py-1.5">
                         <div className="w-full max-w-9 rounded-t-lg" style={{ height, backgroundColor: meta.color, opacity: value === null ? 0.16 : 0.86 }} />
                       </div>
                       <p className="mt-1 truncate text-xs font-semibold text-slate-300">{day.label}</p>

@@ -2,62 +2,62 @@ import type { Config } from 'tailwindcss';
 
 /**
  * The Club OS palette (DESIGN.md "Colour"). The Tailwind names stay, their
- * values are ours: `slate` is a near-neutral graphite ramp (surfaces get
- * lighter as they rise, text sits at 400 and above), `emerald` the one brand
- * and action green, `sky` a quiet blue for links and information, `red` is
- * the same ramp as `rose` so "missing" has one colour.
+ * values are ours: `slate` is a midnight-ink ramp (surfaces get lighter as
+ * they rise, text sits at 400 and above and is brighter than Tailwind's),
+ * `emerald` the brand green, `sky` the second accent (an electric blue for
+ * links, focus and information), `red` is the same ramp as `rose`.
  */
-const graphite = {
-  50: '#f7f8fa',
-  100: '#eceef1',
-  200: '#dcdfe4',
-  300: '#c2c6cd',
-  400: '#a0a5ae',
-  500: '#7e848e',
-  600: '#4d525b',
-  700: '#33373e',
-  800: '#272a2f',
-  900: '#1f2226',
-  950: '#17191c',
+const ink = {
+  50: '#f6f8ff',
+  100: '#eaeefb',
+  200: '#d8def0',
+  300: '#c0c9e2',
+  400: '#a1acc9',
+  500: '#7985a8',
+  600: '#515c7e',
+  700: '#323d5b',
+  800: '#232c45',
+  900: '#182036',
+  950: '#111727',
 };
 const green = {
-  50: '#ebfdf4',
-  100: '#cffae3',
-  200: '#a3f2c9',
-  300: '#5fe3a6',
-  400: '#34cd8a',
-  500: '#1fae71',
-  600: '#168b5b',
-  700: '#136e4a',
-  800: '#12563c',
-  900: '#0f4331',
-  950: '#07271c',
+  50: '#e9fff5',
+  100: '#c8fde4',
+  200: '#93f7c9',
+  300: '#4eeda8',
+  400: '#22d48c',
+  500: '#12b274',
+  600: '#0c8f5d',
+  700: '#0c714c',
+  800: '#0d593e',
+  900: '#0b4633',
+  950: '#04271c',
 };
 const blue = {
-  50: '#f1f6fe',
-  100: '#dde9fd',
-  200: '#bdd4fa',
-  300: '#92b8f5',
-  400: '#6f9dee',
-  500: '#4f82e0',
-  600: '#3a68c2',
-  700: '#2f539c',
-  800: '#28457c',
-  900: '#223860',
-  950: '#15233d',
+  50: '#f0f5ff',
+  100: '#dfe9ff',
+  200: '#c0d4ff',
+  300: '#93b4ff',
+  400: '#6b93ff',
+  500: '#4a74f5',
+  600: '#3659d6',
+  700: '#2c47aa',
+  800: '#273d86',
+  900: '#22346a',
+  950: '#141f42',
 };
 const rose = {
-  50: '#fff2f3',
-  100: '#ffe2e5',
-  200: '#fdc9cf',
-  300: '#f9a3ad',
-  400: '#f27886',
-  500: '#e24f62',
-  600: '#c5364b',
-  700: '#a2293d',
-  800: '#832536',
-  900: '#6b2331',
-  950: '#3b0e17',
+  50: '#fff1f3',
+  100: '#ffe1e6',
+  200: '#ffc6ce',
+  300: '#ff9eab',
+  400: '#ff7385',
+  500: '#f24862',
+  600: '#d22d4a',
+  700: '#ad213c',
+  800: '#8b1f36',
+  900: '#701f32',
+  950: '#3f0c18',
 };
 
 const config: Config = {
@@ -71,24 +71,41 @@ const config: Config = {
     extend: {
       colors: {
         // The page itself; surfaces on it are `slate-950` and lighter.
-        ground: '#0e0f11',
-        slate: graphite,
+        ground: '#080b14',
+        slate: ink,
         emerald: green,
         sky: blue,
         rose,
         red: rose,
-        background: '#0e0f11',
-        surface: graphite[950],
-        muted: graphite[400],
+        background: '#080b14',
+        surface: ink[950],
+        muted: ink[400],
       },
-      // Three radii by size of the thing: panels and sheets (3xl), rows,
-      // tiles, fields and buttons (2xl, xl), small marks (lg, md).
+      // One step larger than Tailwind's small sizes: 13 px is the smallest
+      // text, 15 px the size of a sentence (DESIGN.md "Type").
+      fontSize: {
+        xs: ['0.8125rem', { lineHeight: '1.125rem' }],
+        sm: ['0.9375rem', { lineHeight: '1.375rem' }],
+        base: ['1.0625rem', { lineHeight: '1.5rem' }],
+        lg: ['1.1875rem', { lineHeight: '1.625rem' }],
+        xl: ['1.375rem', { lineHeight: '1.75rem' }],
+        '2xl': ['1.625rem', { lineHeight: '2rem' }],
+        '3xl': ['2rem', { lineHeight: '2.375rem' }],
+      },
+      // Inter is a variable font: the steps between the usual weights carry the hierarchy.
+      fontWeight: {
+        medium: '500',
+        semibold: '650',
+        bold: '760',
+      },
+      // Radii by the size of the thing: panels and sheets (3xl), tiles and
+      // rows (2xl), fields and buttons (xl), small marks (lg, md).
       borderRadius: {
-        md: '0.375rem',
-        lg: '0.5rem',
-        xl: '0.625rem',
-        '2xl': '0.75rem',
-        '3xl': '1.125rem',
+        md: '0.5rem',
+        lg: '0.625rem',
+        xl: '0.8125rem',
+        '2xl': '1rem',
+        '3xl': '1.375rem',
       },
     },
   },

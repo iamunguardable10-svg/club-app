@@ -91,7 +91,7 @@ function JoinCodeSection({ database, teamId, onRun }: { database: LocalDatabase;
   if (!code) return null;
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
   return (
-    <div className="grid gap-2 rounded-xl bg-white/[0.04] p-3">
+    <div className="grid gap-2 rounded-xl os-tile p-3">
       <p className="text-xs font-semibold text-slate-400">{t('staff.invitePlayers')}</p>
       <p className="font-mono text-2xl font-semibold tracking-[0.25em] text-white">{code.slice(0, 4)}-{code.slice(4)}</p>
       <p className="text-xs font-medium text-slate-400">{t('staff.invitePlayersDetail')}</p>
@@ -178,7 +178,7 @@ export function TeamStaffPanel({ database, teamId, canManage }: { database: Loca
 
       <div className="grid gap-2">
         {staff.map((member) => (
-          <div key={member.membershipId} className="grid gap-2 rounded-xl bg-white/[0.04] p-3">
+          <div key={member.membershipId} className="grid gap-2 rounded-xl os-tile p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-slate-100">{member.name}</p>
@@ -290,7 +290,7 @@ function RoleCard({
   const [name, setName] = useState(role.name);
 
   return (
-    <div className="rounded-xl bg-white/[0.04]">
+    <div className="rounded-xl os-tile">
       <button type="button" onClick={onToggleOpen} aria-expanded={open} className="flex w-full items-center justify-between gap-3 p-3 text-left">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-slate-100">{displayRoleName(role.name)}</p>

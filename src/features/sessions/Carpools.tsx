@@ -7,6 +7,7 @@ import { errorText, useT } from '@/shared/i18n';
 import { formatInteger, formatTime } from '@/shared/format';
 
 import type { MeetPin } from './MeetPointPicker';
+import { showToast } from '@/shared/overlay/toast';
 
 // The map (Leaflet) loads only when a driver edits a ride.
 const MeetPointPicker = dynamic(() => import('./MeetPointPicker'), {
@@ -114,7 +115,7 @@ export function Carpools({ sessionId }: { sessionId: string }) {
     setSeats(own?.seats ?? 3); setNote(own?.note ?? ''); setDepartTime(timeOf(own?.departAt)); setMeetPin({ label: own?.meetPoint ?? '', lat: own?.meetLat ?? null, lng: own?.meetLng ?? null }); setEditing(true); setError(null);
   }
   return (
-    <section className="mt-3 rounded-2xl bg-white/[0.04] p-4">
+    <section className="mt-3 rounded-2xl os-tile p-4">
       {session.homeAway === 'away' ? <h3 className={labelClass}>{t('carpools.title')}</h3> : (
         <button type="button" aria-expanded={open} onClick={() => setExpanded(!expanded)} className="-my-1 flex min-h-10 w-full items-center justify-between text-left">
           <span className={labelClass}>{t('carpools.optional')}</span>
@@ -136,7 +137,7 @@ export function Carpools({ sessionId }: { sessionId: string }) {
               {!past && offer.driverId === me ? <button type="button" aria-label={t('carpools.removeName', { name: name(r.personId) })} onClick={() => run(() => removeRider(offer.id, r.personId))} className="-my-1 -mr-1 grid h-7 w-7 place-items-center text-slate-400 hover:text-rose-200">×</button> : null}
             </li>)}</ul> : null}
             {!past ? <div className="mt-3 flex flex-wrap gap-2">
-              {offer.driverId === me ? <button type="button" onClick={edit} className={actionClass}>{t('carpools.edit')}</button> : joined?.id === offer.id ? <button type="button" onClick={() => run(() => leaveRide(offer.id))} className={actionClass}>{t('carpools.leave')}</button> : !own && !joined ? <button type="button" disabled={free <= 0} onClick={() => run(() => joinRide(offer.id))} className={primaryClass}>{free <= 0 ? t('carpools.full') : t('carpools.join')}</button> : null}
+              {offer.driverId === me ? <button type="button" onClick={edit} className={actionClass}>{t('carpools.edit')}</button> : joined?.id === offer.id ? <button type="button" onClick={() => run(() => { leaveRide(offer.id); showToast(t('toast.rideLeft'), { label: t('common.undo'), run: () => run(() => joinRide(offer.id)) }); })} className={actionClass}>{t('carpools.leave')}</button> : !own && !joined ? <button type="button" disabled={free <= 0} onClick={() => run(() => joinRide(offer.id))} className={primaryClass}>{free <= 0 ? t('carpools.full') : t('carpools.join')}</button> : null}
               {offer.driverId === me || canDelete ? <button type="button" onClick={() => run(() => { withdrawRide(offer.id); setEditing(false); })} className={actionClass}>{offer.driverId === me ? t('carpools.withdraw') : t('carpools.delete')}</button> : null}
             </div> : null}
           </li>;

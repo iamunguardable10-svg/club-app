@@ -225,7 +225,7 @@ function ServerStart() {
                 setActiveIdentity({ role: choice.role, personId: choice.personId });
                 router.push(HOME_FOR_ROLE[choice.role]);
               }}
-              className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-4 py-3 text-left transition"
+              className="flex items-center justify-between gap-3 rounded-2xl os-tile px-4 py-3 text-left transition"
             >
               <span className="min-w-0">
                 <span className="block text-sm font-semibold text-white">{choice.role === 'club' && !isClubAdmin(database, choice.personId) ? t('start.continueAs.departmentLead') : t(CONTINUE_KEY[choice.role])}</span>

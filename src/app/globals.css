@@ -5,22 +5,29 @@
 :root {
   color-scheme: dark;
   /* The page, the surfaces that rise from it, and the lines between them. */
-  --ground: #0e0f11;
-  --surface-1: #17191c;
-  --surface-2: #1f2226;
-  --surface-3: #282b31;
-  --line: rgba(255, 255, 255, 0.07);
-  --line-strong: rgba(255, 255, 255, 0.13);
-  --text: #f7f8fa;
-  --text-2: #c2c6cd;
-  --text-3: #a0a5ae;
-  --go: #5fe3a6;
-  --info: #92b8f5;
+  --ground: #080b14;
+  --surface-1: #111727;
+  --surface-2: #182036;
+  --surface-3: #232c45;
+  --line: rgba(190, 205, 255, 0.09);
+  --line-strong: rgba(190, 205, 255, 0.18);
+  --text: #f6f8ff;
+  --text-2: #c0c9e2;
+  --text-3: #a1acc9;
+  --go: #4eeda8;
+  --go-2: #1fd6b6;
+  --info: #93b4ff;
   --warn: #fcd34d;
-  --stop: #f27886;
+  --stop: #ff7385;
+  /* The light at the top of a page; each role has its own (see .os-page). */
+  --aura-1: 78, 237, 168;
+  --aura-2: 74, 116, 245;
   --background: var(--ground);
   --foreground: var(--text);
+  /* Motion: things leave fast and arrive softly; a spring for what lands. */
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.3, 1.4, 0.5, 1);
   /* The landing page reads these two. */
   --club-bg: var(--ground);
   --club-emerald: var(--go);
@@ -45,14 +52,24 @@ body {
     var(--font-inter), Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+  /* Digits keep their width, so counts and times do not jump when they change. */
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
 }
 
 h1,
 h2,
 h3 {
-  letter-spacing: -0.011em;
+  letter-spacing: -0.018em;
+  /* No single word left alone on the last line of a headline. */
+  text-wrap: balance;
+}
+
+p,
+li {
+  text-wrap: pretty;
 }
 
 a {
@@ -61,30 +78,54 @@ a {
 }
 
 ::selection {
-  background: rgba(146, 184, 245, 0.28);
-  color: #f7f8fa;
+  background: rgba(147, 180, 255, 0.32);
+  color: #f6f8ff;
+}
+
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+  accent-color: var(--go);
 }
 
 @layer components {
   .os-page {
     /* The visible height (dvh), not 100vh, which on phones is taller than what shows. */
     @apply min-h-screen min-h-dvh bg-ground text-white;
+    /* One soft light at the top, in the colour of the role you act as. It scrolls away with the page. */
+    background-image:
+      radial-gradient(52rem 26rem at 12% -9rem, rgba(var(--aura-1), 0.2), transparent 68%),
+      radial-gradient(44rem 22rem at 96% -7rem, rgba(var(--aura-2), 0.18), transparent 70%);
+    background-repeat: no-repeat;
   }
+  .os-page[data-role="coach"] { --aura-1: 74, 116, 245; --aura-2: 78, 237, 168; }
+  .os-page[data-role="club"] { --aura-1: 139, 108, 255; --aura-2: 74, 116, 245; }
 
   .os-container {
     @apply mx-auto w-full max-w-6xl px-4 py-6 sm:px-8;
   }
 
-  /* The one surface a section sits on: lighter than the page, no outline, no shadow. */
+  /* The surface a section sits on: lit from above (a lighter top edge), a soft shadow below. */
   .os-panel {
-    @apply rounded-3xl bg-[var(--surface-1)];
-    box-shadow: inset 0 0 0 1px var(--line);
+    @apply rounded-3xl;
+    background: linear-gradient(180deg, rgba(190, 205, 255, 0.075), rgba(190, 205, 255, 0.03) 42%), var(--surface-1);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.09),
+      inset 0 0 0 1px var(--line),
+      0 18px 40px -22px rgba(0, 0, 0, 0.75);
   }
 
-  /* A tile or group inside a panel: one step lighter, no border. */
-  .os-panel-soft {
-    @apply rounded-2xl bg-[var(--surface-2)];
+  /* A tile or group inside a panel: one step lighter, a hairline of light on top, no border. */
+  .os-tile,
+  .os-panel-soft,
+  .os-metric {
+    background-color: rgba(190, 205, 255, 0.065);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
+  .os-panel-soft { @apply rounded-2xl; }
+  .os-metric { @apply rounded-2xl p-3; }
+  :is(button, a).os-tile { transition: background-color 0.15s var(--ease), transform 0.12s var(--ease); }
+  :is(button, a).os-tile:hover { background-color: rgba(190, 205, 255, 0.1); }
 
   /* The head of an entry page: a plain bar (name, language, the question), not a box. */
   .os-hero {
@@ -92,7 +133,7 @@ a {
   }
 
   .os-kicker {
-    @apply text-xs font-semibold uppercase tracking-[0.14em] text-emerald-300;
+    @apply text-xs font-bold uppercase tracking-[0.16em] text-emerald-300;
   }
 
   .os-title {
@@ -100,53 +141,54 @@ a {
   }
 
   .os-copy {
-    @apply text-sm leading-6 text-slate-400;
+    @apply text-sm leading-6 text-slate-300;
   }
 
   .os-section {
-    @apply rounded-3xl bg-[var(--surface-1)] p-5;
-    box-shadow: inset 0 0 0 1px var(--line);
+    @apply os-panel p-5;
   }
 
   .os-label {
-    @apply text-sm font-medium text-slate-300;
+    @apply text-sm font-semibold text-slate-200;
   }
 
-  .os-field {
-    @apply mt-2 w-full rounded-xl border border-[var(--line-strong)] bg-[var(--surface-2)] px-4 py-3 text-[15px] text-slate-50 outline-none transition-colors placeholder:text-slate-500 focus:border-sky-300;
-  }
-
+  .os-field,
   .os-textarea {
-    @apply mt-2 min-h-36 w-full resize-y rounded-xl border border-[var(--line-strong)] bg-[var(--surface-2)] px-4 py-3 text-[15px] text-slate-50 outline-none transition-colors placeholder:text-slate-500 focus:border-sky-300;
+    @apply mt-2 w-full rounded-xl border border-[var(--line-strong)] bg-[#0b101d] px-4 py-3 text-base text-slate-50 outline-none placeholder:text-slate-500;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+    transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
   }
+  .os-field:focus,
+  .os-textarea:focus {
+    border-color: var(--info);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35), 0 0 0 4px rgba(147, 180, 255, 0.16);
+  }
+  .os-textarea { @apply min-h-36 resize-y; }
 
-  /* Buttons: one filled main action per surface, everything else quiet. A press sinks, nothing floats. */
+  /* Buttons: one filled main action per surface, everything else quiet. */
   .os-success {
-    @apply rounded-xl bg-emerald-300 px-5 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-200 active:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply rounded-xl px-5 py-3 text-sm font-bold text-[#03150d] disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .os-primary {
-    @apply rounded-xl bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-white active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply rounded-xl bg-slate-100 px-5 py-3 text-sm font-bold text-slate-950 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 10px 24px -12px rgba(0, 0, 0, 0.7);
   }
 
   .os-demo {
-    @apply rounded-xl bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply rounded-xl bg-amber-300 px-5 py-3 text-sm font-bold text-slate-950 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .os-secondary {
-    @apply rounded-xl border border-[var(--line-strong)] px-5 py-3 text-sm font-semibold text-slate-100 transition-colors hover:bg-white/[0.06] active:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply rounded-xl border border-[var(--line-strong)] bg-white/[0.04] px-5 py-3 text-sm font-semibold text-slate-100 hover:bg-white/[0.09] disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .os-danger {
-    @apply rounded-xl bg-rose-400/10 px-5 py-3 text-sm font-semibold text-rose-300 transition-colors hover:bg-rose-400/20 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply rounded-xl bg-rose-400/[0.12] px-5 py-3 text-sm font-semibold text-rose-300 hover:bg-rose-400/20 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .os-link {
-    @apply text-sm font-medium text-sky-300 hover:text-sky-200;
-  }
-
-  .os-metric {
-    @apply rounded-2xl bg-[var(--surface-2)] p-3;
+    @apply text-sm font-semibold text-sky-300 hover:text-sky-200;
   }
 
   /* A list row: the whole row is the target; rows are separated by a line, not boxed. */
@@ -164,31 +206,188 @@ a {
 
   /* A status: a word on a tint, never colour alone. */
   .os-chip {
-    @apply inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-3)] px-2.5 py-1 text-xs font-medium text-slate-200;
+    @apply inline-flex items-center gap-1.5 rounded-full bg-white/[0.09] px-2.5 py-1 text-xs font-semibold text-slate-100;
   }
-  .os-chip-go { @apply bg-emerald-300/[0.12] text-emerald-300; }
-  .os-chip-warn { @apply bg-amber-300/[0.12] text-amber-300; }
-  .os-chip-stop { @apply bg-rose-400/[0.12] text-rose-300; }
+  .os-chip-go { @apply bg-emerald-300/[0.14] text-emerald-300; }
+  .os-chip-warn { @apply bg-amber-300/[0.14] text-amber-300; }
+  .os-chip-stop { @apply bg-rose-400/[0.14] text-rose-300; }
 
   /* A section label inside a panel: small, quiet, sentence case. */
   .os-caption {
-    @apply text-xs font-medium text-slate-400;
+    @apply text-xs font-semibold text-slate-400;
   }
 
   /* Everything that opens over the page has this one frame (the scrim behind it is black/60). */
   .os-sheet {
-    @apply rounded-3xl bg-[var(--surface-1)];
-    box-shadow: inset 0 0 0 1px var(--line-strong), 0 24px 80px rgba(0, 0, 0, 0.55);
-    animation: os-rise 0.28s var(--ease) both;
+    @apply rounded-3xl;
+    background: linear-gradient(180deg, rgba(190, 205, 255, 0.085), rgba(190, 205, 255, 0.03) 30%), #121829;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 0 0 1px var(--line-strong),
+      0 30px 90px rgba(0, 0, 0, 0.7);
+    animation: os-rise 0.34s var(--ease-spring) both;
+    overscroll-behavior: contain;
   }
 
   .os-empty {
     @apply px-4 py-8 text-center text-sm text-slate-400;
   }
+
+  /* The phone's tab bar floats above the page: a rounded bar with its own light and shadow. */
+  .os-tabbar {
+    @apply rounded-[1.625rem] px-1.5 py-1.5;
+    background: linear-gradient(180deg, rgba(190, 205, 255, 0.1), rgba(190, 205, 255, 0.04)), rgba(15, 20, 36, 0.88);
+    -webkit-backdrop-filter: blur(22px) saturate(1.5);
+    backdrop-filter: blur(22px) saturate(1.5);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 0 1px var(--line-strong), 0 18px 44px rgba(0, 0, 0, 0.6);
+  }
+  .os-tab {
+    @apply relative flex min-w-0 flex-col items-center gap-0.5 rounded-[1.25rem] px-0.5 py-1.5 text-[11px] font-semibold leading-4 tracking-tight text-slate-400;
+  }
+  .os-tab[data-active="true"] {
+    @apply text-white;
+    background: rgba(190, 205, 255, 0.11);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+  .os-tab[data-active="true"] .os-tab-icon { color: var(--go); filter: drop-shadow(0 0 8px rgba(78, 237, 168, 0.55)); }
+
+  /* The side bar's entries on a wide screen. */
+  .os-nav-item {
+    @apply relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-400 hover:bg-white/[0.05] hover:text-white;
+  }
+  .os-nav-item[data-active="true"] {
+    @apply text-white;
+    background: linear-gradient(90deg, rgba(78, 237, 168, 0.16), rgba(190, 205, 255, 0.06) 70%);
+    box-shadow: inset 0 0 0 1px rgba(190, 205, 255, 0.1);
+  }
+  .os-nav-item[data-active="true"]::before {
+    content: "";
+    position: absolute;
+    left: -0.75rem;
+    top: 22%;
+    bottom: 22%;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--go);
+    box-shadow: 0 0 12px rgba(78, 237, 168, 0.8);
+  }
+  .os-nav-item[data-active="true"] .os-tab-icon { color: var(--go); }
+
+  /* A key on the keyboard, as text. */
+  .os-kbd {
+    @apply shrink-0 rounded-md border border-white/15 bg-white/[0.06] px-1.5 py-0.5 text-xs font-semibold text-slate-300;
+    font-family: inherit;
+  }
+
+  /* One line at the foot of the screen, with at most one action. */
+  .os-toast {
+    @apply flex max-w-md items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-white;
+    background: #1c2540;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 0 1px var(--line-strong), 0 18px 50px rgba(0, 0, 0, 0.6);
+    animation: os-toast-in 0.32s var(--ease-spring) both;
+  }
+  .os-toast-error { background: #3a1422; }
+  .os-toast-action {
+    @apply shrink-0 rounded-lg px-2.5 py-1.5 text-sm font-bold text-emerald-300 hover:bg-white/10;
+  }
+
+  /* A placeholder in the shape of what is coming, with one slow sweep of light. */
+  .os-skeleton {
+    background: linear-gradient(100deg, rgba(190, 205, 255, 0.06) 30%, rgba(190, 205, 255, 0.13) 50%, rgba(190, 205, 255, 0.06) 70%);
+    background-size: 220% 100%;
+    animation: os-shimmer 1.6s linear infinite;
+  }
+
+  /* A photo fades in over the initials once it has loaded. */
+  .os-photo {
+    opacity: 0;
+    transition: opacity 0.3s var(--ease);
+  }
+  .os-photo[data-loaded="true"] { opacity: 1; }
+
+  /* The content of a page arrives softly, block after block (the head and the tabs stay put). */
+  .os-enter > * {
+    animation: os-arrive 0.38s var(--ease) backwards;
+  }
+  .os-enter > *:nth-child(2) { animation-delay: 0.045s; }
+  .os-enter > *:nth-child(3) { animation-delay: 0.09s; }
+  .os-enter > *:nth-child(4) { animation-delay: 0.135s; }
+  .os-enter > *:nth-child(n + 5) { animation-delay: 0.18s; }
 }
 
-@keyframes os-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-@media (prefers-reduced-motion: reduce) { .os-sheet { animation: none; } }
+/* The main action: the brand green as a short gradient, lit from above, with its own glow.
+   Applies to `os-success` and to every button or link filled with the green. */
+.os-success,
+:is(button, a, label, [role="button"]).bg-emerald-300,
+:is(button, a, label, [role="button"]).bg-emerald-400 {
+  background-image: linear-gradient(135deg, #6cf5b8 0%, #36e3a2 48%, #1fd6b6 100%);
+  color: #03150d;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 10px 26px -12px rgba(78, 237, 168, 0.75);
+}
+.os-success:hover:not(:disabled),
+:is(button, a, label, [role="button"]).bg-emerald-300:hover:not(:disabled),
+:is(button, a, label, [role="button"]).bg-emerald-400:hover:not(:disabled) {
+  filter: brightness(1.07);
+}
+
+/* A press sinks a little and comes back (squash); it answers at once and can be interrupted. */
+:where(button, a[href], [role="button"], [role="tab"], summary, label[for]) {
+  transition: transform 0.14s var(--ease), background-color 0.15s var(--ease), border-color 0.15s var(--ease), color 0.15s var(--ease), filter 0.15s var(--ease);
+}
+:where(button, a[href], [role="button"], [role="tab"], summary):active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Small things are easier to hit than they look: the target reaches 8 px past the edge on touch screens. */
+@media (pointer: coarse) {
+  :where(button, a[href], [role="button"], [role="tab"], [role="switch"], summary) { position: relative; }
+  :where(button, a[href], [role="button"], [role="tab"], [role="switch"], summary)::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
+  }
+  /* Whole cards and wide buttons are large enough; an invisible layer over them would only cover their children. */
+  :where(.os-tile, .os-panel, .os-success, .os-secondary, .os-primary, [class*="w-full"], [data-calendar-session], .leaflet-container *)::after { content: none; }
+}
+
+/* A sheet on a phone shows that it can be pulled down. */
+@media (max-width: 639px) {
+  .os-sheet::before {
+    content: "";
+    display: block;
+    width: 2.5rem;
+    height: 0.3125rem;
+    margin: -0.375rem auto 0.625rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.22);
+  }
+  /* It sits on the bottom edge and keeps clear of the home indicator. */
+  .os-sheet { margin-bottom: env(safe-area-inset-bottom); }
+}
+
+/* Corners that curve continuously where the browser can (a squircle instead of a quarter circle). */
+@supports (corner-shape: squircle) {
+  .os-panel, .os-sheet, .os-tile, .os-panel-soft, .os-metric, .os-success, .os-primary, .os-secondary, .os-danger, .os-field, .os-textarea, .os-toast, .os-tabbar {
+    corner-shape: squircle;
+  }
+}
+
+@keyframes os-rise { from { opacity: 0; transform: translateY(28px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+/* Opacity only: a moved block would drag along the sheets and dialogs that open inside it. */
+@keyframes os-arrive { from { opacity: 0; } to { opacity: 1; } }
+@keyframes os-toast-in { from { opacity: 0; transform: translateY(14px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes os-shimmer { from { background-position: 120% 0; } to { background-position: -100% 0; } }
+@keyframes os-pop { 0% { transform: scale(0.9); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
+/* Something just changed to "yes": it lands with a small overshoot (follow through). */
+.os-pop { animation: os-pop 0.32s var(--ease-spring) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .os-sheet, .os-toast, .os-enter > *, .os-pop { animation: none; }
+  .os-skeleton { animation: none; }
+  .os-photo { transition: none; }
+  :where(button, a[href], [role="button"], [role="tab"], summary) { transition: none; }
+  :where(button, a[href], [role="button"], [role="tab"], summary):active:not(:disabled) { transform: none; }
+}
 
 @keyframes landing-float {
   0%,

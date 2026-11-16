@@ -36,7 +36,7 @@ export function OwnTrainingList({ items }: { items: OwnTrainingItem[] }) {
   return (
     <ul className="grid gap-1.5">
       {items.map((item) => (
-        <li key={item.planId} className="flex items-baseline justify-between gap-3 rounded-xl bg-white/[0.04] px-3 py-2 text-sm">
+        <li key={item.planId} className="flex items-baseline justify-between gap-3 rounded-xl os-tile px-3 py-2 text-sm">
           <span className="font-semibold text-slate-100">{ownTrainingLine(item)}</span>
           <span className="shrink-0 text-xs font-medium text-slate-400">{formatDay(`${item.date}T12:00:00`)}</span>
         </li>

@@ -42,6 +42,7 @@ import {
 } from '@/shared/data';
 import { clubRoleText } from '@/features/club/clubRoleText';
 import { useT, type MessageKey } from '@/shared/i18n';
+import { useEscape } from '@/shared/hooks/useEscape';
 
 const ROLE_LABEL: Record<IdentityRole, MessageKey> = {
   coach: 'role.coach',
@@ -84,14 +85,7 @@ export function IdentitySwitcher({ className = '', variant = 'card', extraAction
 
   // Escape should close the sheet; a modal that traps the person on a phone is
   // worse than no modal.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
+  useEscape(() => setOpen(false), open);
 
   if (!database) return null;
 

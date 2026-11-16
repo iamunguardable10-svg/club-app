@@ -34,7 +34,7 @@ const CATEGORY_KEY: Record<PlaybookCategory, MessageKey> = {
   other: 'playbook.category.other',
 };
 
-const card = 'rounded-xl bg-white/[0.04]';
+const card = 'rounded-xl os-tile';
 const primary = 'rounded-full bg-emerald-300 px-3.5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-200 active:scale-95 disabled:opacity-60';
 const quiet = 'rounded-full border border-slate-700 px-3.5 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 active:scale-95';
 

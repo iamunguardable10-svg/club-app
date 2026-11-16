@@ -19,6 +19,7 @@ import { CoachSessionDetailOverlay } from '@/features/role-workspaces/CoachSessi
 import type { CoachFacility, CoachGroup, CoachSession, CoachTeam } from '@/features/role-workspaces/CoachTypes';
 import { formatDecimal, formatSessionTime } from '@/shared/format';
 import { errorText, tr, useT } from '@/shared/i18n';
+import { useEscape } from '@/shared/hooks/useEscape';
 
 export type TeamWorkspaceRole = 'admin' | 'department_lead' | 'coach' | 'viewer';
 export type TeamWorkspaceSection = 'dashboard' | 'players' | 'groups' | 'tactics' | 'settings';
@@ -121,7 +122,7 @@ function sectionLabel(section: TeamWorkspaceSection, short = false) {
 
 function EmptyCard({ title, description }: { title: string; description?: string }) {
   return (
-    <div className="rounded-2xl bg-white/[0.04] p-4">
+    <div className="rounded-2xl os-tile p-4">
       <p className="text-sm font-semibold text-slate-100">{title}</p>
       {description ? <p className="mt-1 text-sm text-slate-400">{description}</p> : null}
     </div>
@@ -201,7 +202,7 @@ function TeamDashboardSessionCard({
   const late = session.availability.filter((entry) => entry.status === 'late');
 
   return (
-    <button type="button" onClick={onOpen} className="mt-4 block w-full rounded-2xl bg-white/[0.04] p-4 text-left text-white transition hover:bg-white/[0.07]">
+    <button type="button" onClick={onOpen} className="mt-4 block w-full rounded-2xl os-tile p-4 text-left text-white transition hover:bg-white/[0.07]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-xl font-semibold">{displayTitle(session.title)}</h3>
@@ -224,7 +225,7 @@ function StaffRoleGrid({ roles }: { roles: TeamWorkspaceStaffRole[] }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       {roles.map((role) => (
-        <div key={role.id} className="rounded-xl bg-white/[0.04] p-3">
+        <div key={role.id} className="rounded-xl os-tile p-3">
           <p className="text-xs font-medium text-slate-400">{role.label}</p>
           <p className="mt-2 text-sm text-slate-200">{role.status === 'accepted' ? role.value ?? t('team.assigned') : <span className="text-slate-400">{t('team.notAssigned')}</span>}</p>
         </div>
@@ -343,6 +344,7 @@ export function TeamWorkspaceView({
   const [isGroupEditMode, setIsGroupEditMode] = useState(false);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const activeGroup = useMemo(() => data.groups.find((group) => group.id === activeGroupId) ?? null, [activeGroupId, data.groups]);
+  useEscape(() => setActiveGroupId(null), activeGroup !== null);
   const activeGroupPlayers = useMemo(() => {
     if (!activeGroup) return [];
     return players.filter((player) => activeGroup.playerIds?.includes(player.id) || player.groups?.includes(activeGroup.id) || player.groups?.includes(activeGroup.name));
@@ -473,7 +475,7 @@ export function TeamWorkspaceView({
     <div className="space-y-4">
       {/* Sections of this team: one row, never sideways scrolling. Phones get
           the icon with a short word under it (Ben, 2026-11-13: icons alone say too little). */}
-      <div role="tablist" aria-label={t('team.sectionsLabel')} className="grid auto-cols-fr grid-flow-col gap-1 rounded-2xl bg-white/[0.04] p-1 sm:flex sm:w-max">
+      <div role="tablist" aria-label={t('team.sectionsLabel')} className="grid auto-cols-fr grid-flow-col gap-1 rounded-2xl os-tile p-1 sm:flex sm:w-max">
         {sections.map((section) => (
           <button
             key={section}
@@ -483,7 +485,7 @@ export function TeamWorkspaceView({
             aria-label={sectionLabel(section)}
             title={sectionLabel(section)}
             onClick={() => setActiveSection(section)}
-            className={`flex min-w-0 flex-col items-center gap-0.5 rounded-xl px-1 py-2.5 text-xs font-semibold transition sm:flex-row sm:gap-0 sm:whitespace-nowrap sm:px-3.5 sm:py-2 sm:text-sm ${activeSection === section ? 'bg-slate-100 text-slate-950' : 'text-slate-300 hover:bg-slate-900 hover:text-white'}`}
+            className={`flex min-w-0 flex-col items-center gap-0.5 rounded-xl px-0.5 py-2.5 text-[11px] font-semibold tracking-tight transition sm:flex-row sm:tracking-normal sm:gap-0 sm:whitespace-nowrap sm:px-3.5 sm:py-2 sm:text-sm ${activeSection === section ? 'bg-slate-100 text-slate-950' : 'text-slate-300 hover:bg-slate-900 hover:text-white'}`}
           >
             <SectionIcon section={section} />
             <span className="block max-w-full truncate sm:hidden">{sectionLabel(section, true)}</span>
@@ -517,7 +519,7 @@ export function TeamWorkspaceView({
                 <ul className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2">
                   {upcomingSessions.map((session) => (
                     <li key={session.id}>
-                      <button type="button" onClick={() => setDashboardSession(session)} className="flex w-full items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-3 py-2.5 text-left transition">
+                      <button type="button" onClick={() => setDashboardSession(session)} className="flex w-full items-center justify-between gap-3 rounded-2xl os-tile px-3 py-2.5 text-left transition">
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-semibold text-white">{displayTitle(session.title)}</span>
                           <span className="block truncate text-xs font-medium text-slate-400">{formatSessionTime(session.startsAt, session.endsAt, session.sessionType)}{session.facilityName ? ` · ${session.facilityName}` : ''}</span>
@@ -564,7 +566,7 @@ export function TeamWorkspaceView({
             ) : null}
           </div>
           {consentFilter && missingConsent.length > 0 && onRemindConsent ? (
-            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-white/[0.04] p-3">
+            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl os-tile p-3">
               <p className="min-w-0 flex-1 text-sm text-slate-300">{t('team.consentRemindDetail')}</p>
               {consentReminded !== null
                 ? <span role="status" className="text-sm font-semibold text-emerald-200">{t('team.consentReminded', { count: consentReminded })}</span>
@@ -580,7 +582,7 @@ export function TeamWorkspaceView({
                 const summary = playerLoadSummary(player);
                 const groupNames = (player.groups ?? []).map((id) => groupNameById.get(id) ?? id);
                 return (
-                  <button key={player.id} type="button" onClick={() => setActivePlayer(player)} className="min-w-0 rounded-2xl bg-white/[0.04] p-4 text-left transition hover:bg-white/[0.07]">
+                  <button key={player.id} type="button" onClick={() => setActivePlayer(player)} className="min-w-0 rounded-2xl os-tile p-4 text-left transition hover:bg-white/[0.07]">
                     <div className="flex items-center gap-2.5">
                       <PersonAvatar personId={player.id} name={player.name} size="sm" />
                       {/* Name on top, the small facts under it, so the row never runs wider than the phone. */}
@@ -712,7 +714,7 @@ export function TeamWorkspaceView({
               <button type="button" onClick={() => setActiveGroupId(null)} className="rounded-xl border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-900">{t('team.close')}</button>
             </div>
             <div className="mt-5 grid gap-3">
-              <div className="rounded-2xl bg-white/[0.04] p-3">
+              <div className="rounded-2xl os-tile p-3">
                 <p className="text-xs font-semibold text-slate-400">{t('team.loadFlagsTitle')}</p>
                 <div className="mt-3 space-y-2">
                   {activeGroupLoadFlags.length === 0 ? <p className="text-sm font-medium text-slate-400">{t('team.noLoadFlags')}</p> : null}
@@ -722,7 +724,7 @@ export function TeamWorkspaceView({
                 </div>
               </div>
             </div>
-            <div className="mt-4 rounded-2xl bg-white/[0.04] p-4">
+            <div className="mt-4 rounded-2xl os-tile p-4">
               <p className="text-sm font-semibold text-slate-100">{t('team.players')}</p>
               {activeGroupPlayers.length > 0 ? (
                 <div className="mt-3 flex flex-wrap gap-1.5">
@@ -747,7 +749,7 @@ export function TeamWorkspaceView({
         <section className="os-panel p-5">
           <h2 className="text-lg font-semibold">{t('team.section.settings')}</h2>
           <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-3">
-            <div className="rounded-2xl bg-white/[0.04] p-4">
+            <div className="rounded-2xl os-tile p-4">
               <p className="text-sm font-semibold text-slate-100">{t('team.defaultHall')}</p>
               {data.availableFacilities && data.availableFacilities.length > 0 ? (
                 <select
@@ -764,7 +766,7 @@ export function TeamWorkspaceView({
               )}
             </div>
             {featuresPanel}
-            <div className="rounded-2xl bg-white/[0.04] p-4">
+            <div className="rounded-2xl os-tile p-4">
               <p className="text-sm font-semibold text-slate-100">{t('team.staffRoles')}</p>
               <div className="mt-4">
                 {staffPanel ?? <StaffRoleGrid roles={staffRoles} />}

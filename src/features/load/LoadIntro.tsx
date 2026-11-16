@@ -15,6 +15,7 @@ import { ZoneScale } from '@/features/load/LoadHints';
 import { dismissHint, isHintDismissed } from '@/shared/data';
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 import { useT, type MessageKey } from '@/shared/i18n';
+import { useEscape } from '@/shared/hooks/useEscape';
 
 export type LoadIntroRole = 'athlete' | 'coach';
 
@@ -53,7 +54,7 @@ function RpeScale() {
   return (
     <div className="mt-4 grid grid-cols-3 gap-2 text-center">
       {([[1, 'rpe.1'], [5, 'rpe.5'], [10, 'rpe.10']] as const).map(([value, word]) => (
-        <div key={value} className="rounded-2xl bg-white/[0.04] px-2 py-3">
+        <div key={value} className="rounded-2xl os-tile px-2 py-3">
           <p className="text-2xl font-semibold tabular-nums text-emerald-200">{value}</p>
           <p className="mt-0.5 text-xs font-medium text-slate-400">{t(word)}</p>
         </div>
@@ -69,11 +70,7 @@ export function LoadIntro({ role, onClose }: { role: LoadIntroRole; onClose: () 
   const page = pages[index];
   const last = index === pages.length - 1;
   useBodyScrollLock(true);
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  useEscape(onClose);
 
   const lines: ReactNode = page.body.length === 1
     ? <p className="mt-2 text-sm leading-relaxed text-slate-300">{t(page.body[0])}</p>

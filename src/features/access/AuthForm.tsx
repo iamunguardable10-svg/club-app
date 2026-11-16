@@ -188,7 +188,7 @@ export function AuthForm({
           className="os-field text-lg"
         />
       ) : (
-        <div className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-4 py-3">
+        <div className="flex items-center justify-between gap-3 rounded-2xl os-tile px-4 py-3">
           <span className="min-w-0 truncate text-sm font-medium text-slate-200">{email.trim()}</span>
           <button type="button" onClick={() => goTo('email')} className="shrink-0 text-xs font-semibold text-sky-300">{t('auth.changeEmail')}</button>
         </div>

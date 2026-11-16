@@ -12,7 +12,7 @@
  */
 
 import Link from 'next/link';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { NotificationsHint } from '@/features/notifications/NotificationsHint';
@@ -27,6 +27,7 @@ import { DemoNudge, DemoPill } from '@/features/onboarding/DemoBar';
 import { AfterJoin } from '@/features/onboarding/AfterJoin';
 import { countToRate } from '@/features/load/athleteLocalStore';
 import { useT, type MessageKey } from '@/shared/i18n';
+import { CommandMenu, commandKeyLabel, type Command } from './CommandMenu';
 
 export type CoachNavItem = 'today' | 'calendar' | 'team' | 'messages' | 'halls' | 'history';
 export type AthleteNavItem = 'today' | 'calendar' | 'load' | 'team' | 'messages';
@@ -156,6 +157,16 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
     }
     return null;
   };
+  // Everything this role can open, for the keyboard (⌘K, Alt+number).
+  const role = database?.activeIdentity?.role;
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [commandKey, setCommandKey] = useState('');
+  useEffect(() => setCommandKey(commandKeyLabel()), []);
+  const commands = useMemo<Command[]>(() => [
+    ...nav.map(({ item, label, href }) => ({ id: item, label: t(item === 'team' && teamCount > 1 ? 'nav.teams' : label), href })),
+    ...(role === 'coach' ? [{ id: 'halls', label: t('nav.halls'), href: '/coach/facilities' }, { id: 'history', label: t('nav.history'), href: '/coach/history' }] : []),
+    { id: 'settings', label: t('nav.settings'), href: '/settings' },
+  ], [nav, role, t, teamCount]);
   // A single destination needs no tab bar on phones.
   const tabBar = nav.length > 1;
   // The photo and player card given while joining go on the person once the club has loaded.
@@ -163,11 +174,16 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
   useEffect(() => { if (loaded) void applyPendingProfile().catch(() => undefined); }, [loaded]);
 
   return (
-    <main className={`os-page md:pb-10 md:pl-60 ${tabBar ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))]' : 'pb-10'}`}>
-      <aside className="fixed bottom-0 left-0 top-0 z-[70] hidden w-60 flex-col border-r border-white/[0.06] bg-[var(--surface-1)] p-3 text-white md:flex" aria-label={t('nav.main')}>
-        <div className="px-3 pb-3 pt-2">
-          <p className="text-xs font-semibold text-emerald-300">{t('start.kicker')}</p>
-          {database ? <p className="mt-1 truncate text-sm font-semibold text-white">{database.club.name}</p> : null}
+    <main data-role={role ?? undefined} className={`os-page md:pb-10 md:pl-60 ${tabBar ? 'pb-[calc(6.5rem+env(safe-area-inset-bottom))]' : 'pb-10'}`}>
+      <aside className="fixed bottom-0 left-0 top-0 z-[70] hidden w-60 flex-col border-r border-white/[0.07] bg-[#0b0f1b]/90 p-3 text-white backdrop-blur-xl md:flex" aria-label={t('nav.main')}>
+        <div className="flex items-center gap-2.5 px-2 pb-4 pt-2">
+          <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[#03150d]" style={{ backgroundImage: 'linear-gradient(135deg, #6cf5b8, #1fd6b6)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), 0 8px 20px -8px rgba(78,237,168,0.7)' }}>
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round"><path d="M6.5 18 9 6" /><path d="M11 18 13.5 6" /><path d="M15.5 18 18 6" /></svg>
+          </span>
+          <span className="min-w-0">
+            <span className="block text-xs font-bold uppercase tracking-[0.14em] text-emerald-300">{t('start.kicker')}</span>
+            {database ? <span className="block truncate text-sm font-semibold text-white">{database.club.name}</span> : null}
+          </span>
         </div>
         <nav className="grid gap-1">
           {nav.map(({ item, label, href }) => (
@@ -177,20 +193,24 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
               data-tip={`nav-${item}`}
               onClick={() => setTapped(item)}
               aria-current={current === item ? 'page' : undefined}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                active === item ? 'bg-white/[0.08] text-white' : 'text-slate-400 hover:bg-white/[0.04] hover:text-white'
-              }`}
+              data-active={active === item}
+              className="os-nav-item"
             >
-              <span className={`relative ${active === item ? 'text-emerald-300' : ''}`}><NavIcon item={item} />{badge(item)}</span>
+              <span className="os-tab-icon relative"><NavIcon item={item} />{badge(item)}</span>
               {labelFor(item, label)}
             </Link>
           ))}
         </nav>
+        <button type="button" onClick={() => setCommandOpen(true)} className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-left text-sm font-medium text-slate-400 hover:bg-white/[0.07] hover:text-white">
+          <span>{t('command.open')}</span>
+          {commandKey ? <kbd className="os-kbd">{commandKey}</kbd> : null}
+        </button>
         <div className="mt-auto grid gap-1 p-1">
           <Link
             href="/settings"
             aria-current={active === null ? 'page' : undefined}
-            className={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${active === null ? 'bg-white/[0.08] text-white' : 'text-slate-400 hover:bg-white/[0.04] hover:text-white'}`}
+            data-active={active === null}
+            className="os-nav-item py-2"
           >
             {t('nav.settings')}
           </Link>
@@ -198,12 +218,12 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
         </div>
       </aside>
 
-      <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-ground/85 backdrop-blur-xl md:static md:border-0 md:bg-transparent md:backdrop-blur-0">
+      <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-ground/75 backdrop-blur-xl md:static md:border-0 md:bg-transparent md:backdrop-blur-0">
         <div className="mx-auto flex w-full max-w-6xl items-start justify-between gap-3 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] sm:px-8 md:pb-0 md:pt-8">
           <div className="min-w-0">
             {back ? <Link href={back.href} className="text-xs font-semibold text-sky-300 hover:text-sky-200">‹ {back.label}</Link> : null}
-            <h1 data-tip="page" className="truncate text-[22px] font-bold leading-7 tracking-tight text-white md:text-[28px] md:leading-9">{title}</h1>
-            {subtitle ? <div className="truncate text-[13px] text-slate-400 md:mt-0.5 md:text-sm">{subtitle}</div> : null}
+            <h1 data-tip="page" className="truncate text-2xl font-bold leading-8 tracking-tight text-white md:text-[34px] md:leading-10">{title}</h1>
+            {subtitle ? <div className="truncate text-sm font-medium text-slate-300 md:mt-0.5">{subtitle}</div> : null}
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {actions ? <div className="hidden items-center gap-2 md:flex">{actions}</div> : null}
@@ -219,7 +239,7 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
         {actions ? <div className="flex flex-wrap items-center gap-2 px-4 pb-3 md:hidden">{actions}</div> : null}
       </header>
 
-      <div className="mx-auto w-full max-w-6xl space-y-5 px-4 pt-4 sm:px-8 md:pt-6">
+      <div className="os-enter mx-auto w-full max-w-6xl space-y-5 px-4 pt-4 sm:px-8 md:pt-6">
         <DemoNudge />
         {/* Keep notification opt-in reachable from each role’s first page. */}
         {active === 'today' || active === 'club' ? <NotificationsHint variant="card" /> : null}
@@ -234,11 +254,12 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
         {database && person && database.activeIdentity?.role === 'athlete' && active !== 'load' ? <LimitedConsentNote database={database} person={person} /> : null}
         {children}
       </div>
+      <CommandMenu commands={commands} open={commandOpen} onOpenChange={setCommandOpen} />
       <AfterJoin />
       <TipLayer tips={tipsFor(database?.activeIdentity?.role, current)} />
 
-      {tabBar ? <nav className="fixed inset-x-0 bottom-0 z-[70] border-t border-white/[0.06] bg-[#141618]/90 px-1 pb-[calc(0.4rem+env(safe-area-inset-bottom))] pt-1.5 text-white backdrop-blur-xl md:hidden" aria-label={t('nav.main')}>
-        <div className={`mx-auto grid max-w-lg ${columns}`}>
+      {tabBar ? <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] px-3 pb-[calc(0.625rem+env(safe-area-inset-bottom))] md:hidden" aria-label={t('nav.main')}>
+        <div className={`os-tabbar pointer-events-auto mx-auto grid max-w-md ${columns}`}>
           {nav.map(({ item, label, href }) => (
             <Link
               key={item}
@@ -246,11 +267,10 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
               data-tip={`nav-${item}`}
               onClick={() => setTapped(item)}
               aria-current={current === item ? 'page' : undefined}
-              className={`flex min-w-0 flex-col items-center gap-1 rounded-xl py-1.5 text-xs font-medium tracking-tight transition-colors ${
-                active === item ? 'text-white' : 'text-slate-400 hover:text-white'
-              }`}
+              data-active={active === item}
+              className="os-tab"
             >
-              <span className={`relative ${active === item ? 'text-emerald-300' : ''}`}><NavIcon item={item} />{badge(item)}</span>
+              <span className="os-tab-icon relative"><NavIcon item={item} />{badge(item)}</span>
               <span className="block max-w-full truncate">{labelFor(item, label)}</span>
             </Link>
           ))}

@@ -99,7 +99,7 @@ export function PlayerMessagesPage() {
     const pinnedUntil = messagePinnedUntil(message);
     const isPinned = pinnedUntil !== null && Date.parse(pinnedUntil) > now;
     return (
-      <li key={message.id} data-message-id={message.id} className="rounded-2xl bg-white/[0.04] p-4">
+      <li key={message.id} data-message-id={message.id} className="rounded-2xl os-tile p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="flex items-center gap-2 text-sm font-semibold text-white">

@@ -8,6 +8,7 @@ import { coachSessionTypes, normalizeCoachSessionType } from '@/features/session
 import { gameDurationMinutes, gameEndAt } from '@/features/sessions/gameTiming';
 import { formatDecimal } from '@/shared/format';
 import { useT } from '@/shared/i18n';
+import { useEscape } from '@/shared/hooks/useEscape';
 
 type CoachCalendarDraft = { startsAt: string; endsAt: string; teamId: string | null; facilityId: string | null; groupIds: string[]; sessionType: string };
 
@@ -46,6 +47,7 @@ export function CoachSessionEditSheet({
   onDraftUpdate?: (value: Partial<CoachCalendarDraft>) => void;
 }) {
   const t = useT();
+  useEscape(onClose);
   useBodyScrollLock(true);
 
   const [teamId, setTeamId] = useState(initial.teamId ?? (allowTeamChange && teams.length > 1 ? '' : teams[0]?.id ?? ''));
@@ -235,7 +237,7 @@ export function CoachSessionEditSheet({
           )}
         </div>
 
-        <div className="mt-3 grid gap-2.5 rounded-xl bg-white/[0.04] p-3">
+        <div className="mt-3 grid gap-2.5 rounded-xl os-tile p-3">
           <p className="text-xs font-semibold text-slate-400">{t('sessionForm.forPlayers')}</p>
           {isGame ? (
             <div className="grid gap-2">

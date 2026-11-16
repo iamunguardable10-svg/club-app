@@ -204,7 +204,7 @@ export function WeeklySeriesBoard({
   }
 
   return (
-    <section className="rounded-2xl bg-white/[0.04] p-2.5 text-slate-100 shadow-2xl shadow-slate-950/30 ring-1 ring-white/[0.03] sm:p-3">
+    <section className="rounded-2xl os-tile p-2.5 text-slate-100 shadow-2xl shadow-slate-950/30 ring-1 ring-white/[0.03] sm:p-3">
       <div className="flex flex-col gap-2.5 border-b border-slate-800/80 pb-2.5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold text-slate-400">{t('seriesBoard.title')}</p>

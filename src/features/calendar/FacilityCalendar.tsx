@@ -1003,7 +1003,7 @@ export function FacilityCalendar({ facilityId, from, departmentId, teamId, depar
           </div>
         ) : null}
         {facilityAssignmentNotice ? (
-          <p className="rounded-2xl bg-white/[0.04] px-4 py-3 text-sm font-medium text-slate-300">{facilityAssignmentNotice}</p>
+          <p className="rounded-2xl os-tile px-4 py-3 text-sm font-medium text-slate-300">{facilityAssignmentNotice}</p>
         ) : null}
 
         <SmartSessionCalendar

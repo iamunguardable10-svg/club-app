@@ -38,10 +38,19 @@ export function AttendanceTally({ session }: { session: CoachSession }) {
     missing > 0 ? { key: 'missing', text: t('coach.board.missing', { count: missing }), tone: 'text-rose-200' } : null,
     open > 0 ? { key: 'open', text: t('coach.board.open', { count: open }), tone: 'text-amber-200' } : null,
   ].filter((part): part is { key: string; text: string; tone: string } => part !== null);
+  const total = Math.max(1, coming + missing + open);
   return (
-    <p className="mt-3 flex flex-wrap gap-x-2 text-base font-semibold tabular-nums" data-testid="attendance-tally">
-      {parts.map((part, index) => <span key={part.key} className={part.tone}>{index > 0 ? <span aria-hidden className="mr-2 text-slate-400">·</span> : null}{part.text}</span>)}
-    </p>
+    <div className="mt-4">
+      {/* The same three numbers as one bar: how much of the team is coming, at a glance. */}
+      <div aria-hidden className="flex h-2 gap-0.5 overflow-hidden rounded-full">
+        {coming > 0 ? <span className="rounded-full bg-emerald-300" style={{ width: `${(coming / total) * 100}%` }} /> : null}
+        {missing > 0 ? <span className="rounded-full bg-rose-400" style={{ width: `${(missing / total) * 100}%` }} /> : null}
+        {open > 0 ? <span className="rounded-full bg-amber-300" style={{ width: `${(open / total) * 100}%` }} /> : null}
+      </div>
+      <p className="mt-2.5 flex flex-wrap gap-x-2 text-base font-semibold tabular-nums" data-testid="attendance-tally">
+        {parts.map((part, index) => <span key={part.key} className={part.tone}>{index > 0 ? <span aria-hidden className="mr-2 text-slate-400">·</span> : null}{part.text}</span>)}
+      </p>
+    </div>
   );
 }
 
@@ -71,7 +80,7 @@ export function WhoWasThere({ session, onChange }: { session: CoachSession; onCh
   }
 
   return (
-    <div className="mx-4 mb-4 -mt-1 rounded-xl bg-white/[0.04] p-3">
+    <div className="mx-4 mb-4 -mt-1 rounded-xl os-tile p-3">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <p className="min-w-0 text-sm">
           <span className="font-semibold text-white">{confirmed || saved ? t('coach.board.confirmed', { there, total: session.players.length }) : t('coach.board.whoWasThere')}</span>

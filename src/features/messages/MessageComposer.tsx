@@ -185,7 +185,7 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
   ].filter(Boolean);
   if (!expanded) {
     return (
-      <button type="button" onClick={() => setExpanded(true)} data-testid="composer-collapsed" className="flex w-full items-center gap-3 rounded-2xl bg-white/[0.04] px-4 py-3.5 text-left text-sm font-medium text-slate-400 transition">
+      <button type="button" onClick={() => setExpanded(true)} data-testid="composer-collapsed" className="flex w-full items-center gap-3 rounded-2xl os-tile px-4 py-3.5 text-left text-sm font-medium text-slate-400 transition">
         <span className="min-w-0 flex-1 truncate">{toNames.length > 0 ? t('writeMessage.collapsedTo', { to: toNames.join(', ') }) : t('writeMessage.collapsed')}</span>
         <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-300 text-lg font-semibold text-slate-950">+</span>
       </button>
@@ -193,7 +193,7 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
   }
 
   return (
-    <form className="grid gap-2 rounded-2xl bg-white/[0.04] p-3" onSubmit={(event) => { event.preventDefault(); send(); }}>
+    <form className="grid gap-2 rounded-2xl os-tile p-3" onSubmit={(event) => { event.preventDefault(); send(); }}>
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-xs font-semibold text-slate-400">{t('writeMessage.to')}</span>
         {targets.wholeClub ? chip('club', database.club.name, () => setTargets({ ...targets, wholeClub: false })) : null}
@@ -206,7 +206,7 @@ export function MessageComposer({ initialTeamIds = [] }: { initialTeamIds?: Id[]
       </div>
 
       {picking ? (
-        <div className="grid gap-3 rounded-xl bg-white/[0.04] p-3">
+        <div className="grid gap-3 rounded-xl os-tile p-3">
           {allowed.wholeClub || allowed.departmentIds.length > 0 ? (
             <div className="grid gap-1.5">
               <p className="text-xs font-semibold text-slate-400">{t('writeMessage.clubAndDepartments')}</p>

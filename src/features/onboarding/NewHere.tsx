@@ -115,7 +115,7 @@ export function NewHere({ onDemo, canSignIn, startAt = 'choose' }: { onDemo: (ro
                 setRole(entry.role);
                 setStep('way');
               }}
-              className="flex w-full items-center gap-3 rounded-2xl bg-white/[0.04] px-3 py-3 text-left transition hover:bg-white/[0.07] active:scale-[0.99]"
+              className="flex w-full items-center gap-3 rounded-2xl os-tile px-3 py-3 text-left transition hover:bg-white/[0.07] active:scale-[0.99]"
             >
               <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-300/10 text-emerald-200">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">{entry.icon}</svg>

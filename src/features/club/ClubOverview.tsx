@@ -167,7 +167,7 @@ function RoleHolders({
     <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
       {holders.length === 0 ? <p className="text-sm font-medium text-amber-200">{t(role === 'admin' ? 'club.noAdmin' : 'club.noLead')}</p> : null}
       {holders.map((clubRole) => (
-        <div key={clubRole.id} className="grid gap-2 rounded-xl bg-white/[0.04] p-3">
+        <div key={clubRole.id} className="grid gap-2 rounded-xl os-tile p-3">
           <div className="flex items-center justify-between gap-2">
             <p className="min-w-0 truncate text-sm font-semibold text-slate-100">
               {nameOf(clubRole)}
@@ -289,7 +289,7 @@ function MessageWritersPanel({
       .map((person) => ({ person, detail: '', lead: false })),
   ];
   return (
-    <div className="grid gap-2 rounded-2xl bg-white/[0.04] p-3">
+    <div className="grid gap-2 rounded-2xl os-tile p-3">
       <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="flex items-center justify-between gap-3 text-left">
         <span className="grid gap-0.5">
           <span className="text-sm font-semibold text-slate-100">{departmentId === null ? t('club.writers.clubTitle') : t('club.writers.title')}</span>
@@ -344,7 +344,7 @@ function TeamCard({
   const hasHeadCoach = staff.some((entry) => entry.role?.locked);
 
   return (
-    <li data-club-team-id={team.id} className="rounded-2xl bg-white/[0.04]">
+    <li data-club-team-id={team.id} className="rounded-2xl os-tile">
       <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left">
         <span className="min-w-0">
           <span className="flex flex-wrap items-center gap-2">

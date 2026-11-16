@@ -77,7 +77,7 @@ export function SessionInfo({ info, className = '', hideGame = false }: { info: 
   const online = info.onlineUrl?.trim() || null;
   if (!game && !meetTime && !meetPoint && !place && !online && !info.notes && !info.squad) return null;
   return (
-    <div className={`grid gap-2.5 rounded-2xl bg-white/[0.04] p-4 text-sm ${className}`}>
+    <div className={`grid gap-2.5 rounded-2xl os-tile p-4 text-sm ${className}`}>
       {info.squad ? (
         <p className={`justify-self-start rounded-full px-2.5 py-0.5 text-xs font-semibold ${info.squad === 'squad' ? 'bg-slate-100 text-slate-950' : info.squad === 'reserve' ? 'bg-slate-100 text-slate-950' : 'bg-slate-700 text-slate-100'}`}>
           {squadLine(info.squad)}

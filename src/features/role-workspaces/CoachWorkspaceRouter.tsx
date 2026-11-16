@@ -96,7 +96,7 @@ function CoachSessionCard({ session, showTeam, onDetails }: { session: CoachSess
   const t = useT();
   const { out, late } = summarizeAvailability(session);
   return (
-    <div className="rounded-2xl bg-white/[0.04] transition hover:bg-white/[0.07]">
+    <div className="rounded-2xl os-tile transition hover:bg-white/[0.07]">
     <button type="button" onClick={onDetails} className="block w-full p-4 text-left text-white">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -130,7 +130,7 @@ function UpcomingSessionRow({ session, showTeam, onOpen }: { session: CoachSessi
     openCount > 0 ? { key: 'open', className: 'text-amber-100', text: t('coach.row.open', { count: openCount }) } : null,
   ].filter((badge): badge is { key: string; className: string; text: string } => badge !== null);
   return (
-    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl bg-white/[0.04] px-3 py-3 text-left transition hover:bg-white/[0.07]">
+    <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl os-tile px-3 py-3 text-left transition hover:bg-white/[0.07]">
       <div className="w-12 shrink-0 text-center">
         <p className="text-xs font-semibold uppercase text-slate-400">{formatWeekday(start)}</p>
         <p className="text-lg font-semibold leading-tight text-white">{start.getDate()}</p>

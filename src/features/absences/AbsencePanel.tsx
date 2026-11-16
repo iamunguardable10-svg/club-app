@@ -111,7 +111,7 @@ export function AbsencePanel({
       })}
 
       {draft ? (
-        <form className="grid gap-2 rounded-2xl bg-white/[0.04] p-3" onSubmit={(event) => { event.preventDefault(); save(); }}>
+        <form className="grid gap-2 rounded-2xl os-tile p-3" onSubmit={(event) => { event.preventDefault(); save(); }}>
           <div className="grid grid-cols-2 gap-2">
             <label className="min-w-0 text-xs font-semibold text-slate-400">
               {t('absence.from')}

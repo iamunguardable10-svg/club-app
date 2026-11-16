@@ -3,6 +3,7 @@
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 import { useT } from '@/shared/i18n';
 import type { ConflictSuggestion } from '@/features/calendar/sessionConflicts';
+import { useEscape } from '@/shared/hooks/useEscape';
 
 type FacilityConflictDialogProps = {
   isOpen: boolean;
@@ -31,6 +32,7 @@ export function FacilityConflictDialog({
 }: FacilityConflictDialogProps) {
   const t = useT();
   useBodyScrollLock(isOpen);
+  useEscape(onCancel, isOpen);
   if (!isOpen) return null;
 
   return (

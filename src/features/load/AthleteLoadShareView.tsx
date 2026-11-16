@@ -65,15 +65,15 @@ export function AthleteLoadShareView() {
               <p className="mt-2 text-sm font-medium text-slate-400">{t('share.view.generated', { date: formatDateTime(payload.generatedAt) })}</p>
             </div>
             <div className="grid grid-cols-3 gap-2 sm:min-w-[420px]">
-              <div className="rounded-2xl bg-white/[0.04] p-3">
+              <div className="rounded-2xl os-tile p-3">
                 <p className="text-xs font-semibold text-slate-400">{t('share.view.sevenDays')}</p>
                 <p className="mt-2 text-xl font-semibold">{weeklyLoad}</p>
               </div>
-              <div className="rounded-2xl bg-white/[0.04] p-3">
+              <div className="rounded-2xl os-tile p-3">
                 <p className="text-xs font-semibold text-slate-400">ACWR</p>
                 <p className="mt-2 text-xl font-semibold">{latest?.acwr && isBaselineReady ? formatDecimal(latest.acwr) : '—'}</p>
               </div>
-              <div className="rounded-2xl bg-white/[0.04] p-3">
+              <div className="rounded-2xl os-tile p-3">
                 <p className="text-xs font-semibold text-slate-400">{t('share.view.state')}</p>
                 <p className="mt-2 text-xl font-semibold">{zoneLabel(zone.tone)}</p>
               </div>

@@ -424,7 +424,7 @@ export function SmartSessionCalendar({
                 <div data-smart-day={smartIsoDate(day)} data-density="mobile" data-tip={mode === 'edit' ? 'calendar-day' : undefined} ref={(element) => setDayRef(activeDayIndex, element)} onPointerDown={(event) => onSlotPointerDown(day, event)} className={`relative border-l border-slate-900 transition-colors ${isDragPreviewDay ? 'bg-slate-100/[0.07] ring-1 ring-inset ring-sky-300/35' : ''}`} style={{ height: mobileGridHeight, touchAction: 'pan-y' }}>
                   {mobileVisibleHours.map((hour, index) => <div key={hour} className={`border-b border-slate-900 ${index === 0 ? 'border-t' : ''}`} style={{ height: mobileHourHeight }} />)}
                   {daySessions.length === 0 && !draftIsOnDay && mode === 'view' ? (
-                    <p className="pointer-events-none absolute inset-x-3 top-3 rounded-xl bg-white/[0.04] px-3 py-2 text-center text-xs font-medium text-slate-400">{t('calendar.noSessionsDay')}</p>
+                    <p className="pointer-events-none absolute inset-x-3 top-3 rounded-xl os-tile px-3 py-2 text-center text-xs font-medium text-slate-400">{t('calendar.noSessionsDay')}</p>
                   ) : null}
                   {daySessions.map((session) => {
                     const start = new Date(session.startsAt);

@@ -31,6 +31,7 @@ import {
 import { formatShortDate, formatTime } from '@/shared/format';
 import { errorText, useT, type MessageKey } from '@/shared/i18n';
 import { rich } from '@/shared/i18n/rich';
+import { useEscape } from '@/shared/hooks/useEscape';
 
 const buttonClass = 'rounded-2xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 disabled:opacity-50';
 const primaryClass = 'rounded-2xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50';
@@ -122,7 +123,7 @@ export function AppleCalendarPanel({ canRead, onConnectedChange }: { canRead: bo
               <p className="text-xs text-slate-400">{t('apple.ownDetail')}</p>
               {sources.length === 0 ? <p className="text-sm text-slate-400">{t('apple.noCalendars')}</p> : null}
               {sources.map((source) => (
-                <label key={source.url} className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.04] px-3 py-2.5">
+                <label key={source.url} className="flex items-center justify-between gap-3 rounded-2xl os-tile px-3 py-2.5">
                   <span className="flex min-w-0 items-center gap-2">
                     <span aria-hidden className="h-3 w-3 shrink-0 rounded-full" style={{ background: source.color ?? '#64748b' }} />
                     <span className="truncate text-sm font-semibold text-slate-100">{source.name}</span>
@@ -179,6 +180,7 @@ const strong = (chunk: string) => <span className="font-semibold text-white">{ch
 /** The guided connection: what it does, the app-specific password, then connect. */
 export function ConnectGuide({ initialAppleId, onClose, onConnected }: { initialAppleId: string; onClose: () => void; onConnected: () => Promise<void> }) {
   const t = useT();
+  useEscape(onClose);
   const [step, setStep] = useState<1 | 2 | 3>(initialAppleId ? 3 : 1);
   const [appleId, setAppleId] = useState(initialAppleId);
   const [password, setPassword] = useState('');

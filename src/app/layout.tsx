@@ -8,6 +8,7 @@ import { NoZoomInApp } from '@/features/install/NoZoomInApp';
 import { LoginHandoff } from '@/features/install/LoginHandoff';
 import { ErrorReporter } from '@/features/errors/ErrorReporter';
 import { AccountLocaleSync } from '@/shared/i18n/AccountLocaleSync';
+import { OverlayRuntime } from '@/shared/overlay/OverlayRuntime';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://clubos.hebinova.de'),
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <LoginHandoff />
         <AccountLocaleSync />
         <ErrorReporter />
+        <OverlayRuntime />
       </body>
     </html>
   );

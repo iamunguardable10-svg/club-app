@@ -88,7 +88,7 @@ function AttendanceFlags({ notes, onSelect }: { notes: NonNullable<SessionDetail
   const sorted = [...notes].sort((a, b) => (FLAG_ORDER[a.status] ?? 9) - (FLAG_ORDER[b.status] ?? 9) || a.name.localeCompare(b.name));
   const statusText = (status: string) => t(STATUS_KEY[status] ?? 'sessionSheet.status.present');
   return (
-    <div className="mt-2.5 rounded-xl bg-white/[0.04] p-3">
+    <div className="mt-2.5 rounded-xl os-tile p-3">
       <p className="text-xs font-semibold text-slate-400">{t('sessionSheet.attendanceFlags')}</p>
       <ul className="mt-1.5 divide-y divide-slate-800/80">
         {sorted.map((note) => {
@@ -259,7 +259,7 @@ export function SessionDetailSheet({
         </div>
         {info ? <div className="mt-3">{info}</div> : null}
 
-        <div className="mt-4 rounded-xl bg-white/[0.04] p-3">
+        <div className="mt-4 rounded-xl os-tile p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-semibold text-slate-400">{t('sessionSheet.participants')}</p>
             {expectedLabel ? (
@@ -315,27 +315,27 @@ export function SessionDetailSheet({
         {sessionId ? <Carpools key={sessionId} sessionId={sessionId} /> : null}
 
         {insights ? (
-          <div className="mt-2.5 rounded-xl bg-white/[0.04] p-3">
+          <div className="mt-2.5 rounded-xl os-tile p-3">
             {insights}
           </div>
         ) : null}
 
         {load ? (
-          <div className="mt-2.5 rounded-xl bg-white/[0.04] p-3">
+          <div className="mt-2.5 rounded-xl os-tile p-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs font-semibold text-slate-400">{t('sessionSheet.load')}</p>
               {load.status ? <span className="rounded-full border border-slate-700 px-2.5 py-1 text-xs font-semibold text-slate-200">{load.status}</span> : null}
             </div>
             <div className="mt-2.5 grid grid-cols-3 gap-2 text-center">
-              {typeof load.reported === 'number' ? <div className="rounded-xl bg-white/[0.04] p-2"><p className="text-xs font-semibold text-slate-400">{t('sessionSheet.reported')}</p><p className="mt-1 text-lg font-semibold text-emerald-200">{load.reported}</p></div> : null}
-              {typeof load.missing === 'number' ? <div className="rounded-xl bg-white/[0.04] p-2"><p className="text-xs font-semibold text-slate-400">{t('sessionSheet.missing')}</p><p className="mt-1 text-lg font-semibold text-amber-200">{load.missing}</p></div> : null}
-              {typeof load.planned === 'number' ? <div className="rounded-xl bg-white/[0.04] p-2"><p className="text-xs font-semibold text-slate-400">{t('sessionSheet.planned')}</p><p className="mt-1 text-lg font-semibold text-slate-100">{load.planned}</p></div> : null}
+              {typeof load.reported === 'number' ? <div className="rounded-xl os-tile p-2"><p className="text-xs font-semibold text-slate-400">{t('sessionSheet.reported')}</p><p className="mt-1 text-lg font-semibold text-emerald-200">{load.reported}</p></div> : null}
+              {typeof load.missing === 'number' ? <div className="rounded-xl os-tile p-2"><p className="text-xs font-semibold text-slate-400">{t('sessionSheet.missing')}</p><p className="mt-1 text-lg font-semibold text-amber-200">{load.missing}</p></div> : null}
+              {typeof load.planned === 'number' ? <div className="rounded-xl os-tile p-2"><p className="text-xs font-semibold text-slate-400">{t('sessionSheet.planned')}</p><p className="mt-1 text-lg font-semibold text-slate-100">{load.planned}</p></div> : null}
             </div>
           </div>
         ) : null}
 
         {loadRisks.length > 0 ? (
-          <div className="mt-2.5 rounded-xl bg-white/[0.04] p-3">
+          <div className="mt-2.5 rounded-xl os-tile p-3">
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs font-semibold text-slate-400">{t('sessionSheet.loadRisk')}</p>
               <LoadInfoButton />
@@ -354,7 +354,7 @@ export function SessionDetailSheet({
         ) : null}
 
         {editDetails || (canEditTime && onTimeChange) ? (
-          <div className="mt-2.5 rounded-xl bg-white/[0.04] p-3">
+          <div className="mt-2.5 rounded-xl os-tile p-3">
             <button
               type="button"
               onClick={() => setShowEditDetails((current) => !current)}
@@ -388,7 +388,7 @@ export function SessionDetailSheet({
         ) : null}
 
         {showExpectedParticipants && expectedParticipants.length > 0 ? (
-          <div className="mt-2.5 rounded-xl bg-white/[0.04] p-3">
+          <div className="mt-2.5 rounded-xl os-tile p-3">
             <button type="button" onClick={() => setShowParticipants((current) => !current)} className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-900">
               {showParticipants ? t('sessionSheet.hideExpected') : t('sessionSheet.expectedPlayers', { count: expectedParticipants.length })}
             </button>

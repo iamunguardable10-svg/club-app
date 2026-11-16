@@ -2,6 +2,7 @@
 
 import { useBodyScrollLock } from '@/shared/hooks/useBodyScrollLock';
 import { useT } from '@/shared/i18n';
+import { useEscape } from '@/shared/hooks/useEscape';
 
 type AppConfirmDialogProps = {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export function AppConfirmDialog({
 }: AppConfirmDialogProps) {
   const t = useT();
   useBodyScrollLock(isOpen);
+  useEscape(onCancel, isOpen);
 
   if (!isOpen) return null;
 
