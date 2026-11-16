@@ -131,14 +131,14 @@ export function TipLayer({ tips }: { tips: Tip[] }) {
         style={{ width, left, ...place }}
       >
         <span aria-hidden className="absolute h-3 w-3 rotate-45 border-emerald-300/40 bg-slate-900" style={pointer} />
-        <p className="text-sm font-bold leading-snug">{t(current.tip.text)}</p>
+        <p className="text-sm font-medium leading-snug">{t(current.tip.text)}</p>
         <div className="mt-3 flex items-center justify-between gap-3">
-          <button type="button" onClick={off} className="text-xs font-bold text-slate-400 underline">{t('tips.off')}</button>
+          <button type="button" onClick={off} className="text-xs font-medium text-slate-400 underline">{t('tips.off')}</button>
           <div className="flex items-center gap-3">
-            {current.total > 1 ? <span className="text-xs font-black tabular-nums text-slate-500">{current.index}/{current.total}</span> : null}
+            {current.total > 1 ? <span className="text-xs font-semibold tabular-nums text-slate-400">{current.index}/{current.total}</span> : null}
             {current.tip.until
-              ? <button type="button" onClick={done} className="rounded-xl border border-slate-600 px-3 py-2 text-xs font-black text-slate-200">{t('tips.skip')}</button>
-              : <button type="button" onClick={done} className="rounded-xl bg-emerald-300 px-4 py-2 text-sm font-black text-slate-950">{t('tips.gotIt')}</button>}
+              ? <button type="button" onClick={done} className="rounded-xl border border-slate-600 px-3 py-2 text-xs font-semibold text-slate-200">{t('tips.skip')}</button>
+              : <button type="button" onClick={done} className="rounded-xl bg-emerald-300 px-4 py-2 text-sm font-semibold text-slate-950">{t('tips.gotIt')}</button>}
           </div>
         </div>
       </div>

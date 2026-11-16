@@ -9,7 +9,7 @@
 type BlockProps = { className?: string };
 
 export function SkeletonBlock({ className = '' }: BlockProps) {
-  return <div aria-hidden className={`rounded-3xl border border-slate-800/80 bg-slate-900/50 motion-safe:animate-pulse ${className}`} />;
+  return <div aria-hidden className={`os-skeleton rounded-3xl ${className}`} />;
 }
 
 /** The content of a typical screen: a large card and two rows below it. */

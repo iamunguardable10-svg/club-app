@@ -24,7 +24,7 @@ export function LoginHandoff() {
   }, []);
   if (!busy) return null;
   return (
-    <div className="fixed inset-0 z-[200] grid place-items-center bg-slate-950 text-sm font-black text-slate-200" role="status">
+    <div className="fixed inset-0 z-[200] grid place-items-center bg-slate-950 text-sm font-semibold text-slate-200" role="status">
       {t('handoff.signingIn')}
     </div>
   );

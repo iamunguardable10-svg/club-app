@@ -107,11 +107,11 @@ export function ProfileStep({ staff = false, askName, knownName, player, termsAc
         <>
           <p className="-mb-1 text-sm text-slate-400">{t('onboarding.join.nameHelp')}</p>
           <div className="grid grid-cols-2 gap-3">
-            <label className="grid min-w-0 gap-1 text-sm font-bold text-slate-200">
+            <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-200">
               {t('common.firstName')}
               <input required value={firstName} onChange={(event) => setFirstName(event.target.value)} autoComplete="given-name" className="os-field min-w-0" />
             </label>
-            <label className="grid min-w-0 gap-1 text-sm font-bold text-slate-200">
+            <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-200">
               {t('common.lastName')}
               <input required value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" className="os-field min-w-0" />
             </label>

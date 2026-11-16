@@ -67,14 +67,14 @@ export function ErrorReportsPage() {
         <CoachSection
           actions={(
             <div className="flex gap-2">
-              <button type="button" onClick={() => setShowResolved((value) => !value)} aria-pressed={showResolved} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-200">
+              <button type="button" onClick={() => setShowResolved((value) => !value)} aria-pressed={showResolved} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200">
                 {showResolved ? t('reports.openOnly') : t('reports.showResolved')}
               </button>
-              <button type="button" onClick={load} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-200">{t('reports.refresh')}</button>
+              <button type="button" onClick={load} className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200">{t('reports.refresh')}</button>
             </div>
           )}
         >
-          {error ? <p role="alert" className="mb-3 text-sm font-bold text-red-200">{errorText(t, error)}</p> : null}
+          {error ? <p role="alert" className="mb-3 text-sm font-medium text-red-200">{errorText(t, error)}</p> : null}
           {reports === null ? <p className="text-sm text-slate-400">{t('reports.loading')}</p> : reports.length === 0 ? (
             <p className="text-sm text-slate-400">{t('reports.nothingOpen')}</p>
           ) : (
@@ -89,30 +89,30 @@ export function ErrorReportsPage() {
                   report.appVersion ? `v ${report.appVersion}` : null,
                 ].filter(Boolean).join(' · ');
                 return (
-                  <li key={report.id} className={`rounded-2xl border p-3 ${report.resolvedAt ? 'border-slate-800 opacity-60' : report.kind === 'problem' ? 'border-sky-300/40 bg-sky-300/[0.05]' : 'border-slate-800 bg-slate-950/55'}`}>
+                  <li key={report.id} className={`rounded-2xl border p-3 ${report.resolvedAt ? 'border-slate-800 opacity-60' : report.kind === 'problem' ? 'border-sky-300/40 bg-slate-100/[0.05]' : 'border-slate-800 bg-slate-950/55'}`}>
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                        <p className="text-xs font-semibold text-slate-400">
                           {t(KIND_LABEL[report.kind])}{report.reporter ? ` · ${report.reporter}` : ''}{report.count > 1 ? ` · ${report.count}×` : ''}
                         </p>
-                        <p className="mt-1 break-words text-sm font-bold text-slate-100">{report.message}</p>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 break-words text-sm font-medium text-slate-100">{report.message}</p>
+                        <p className="mt-1 text-xs text-slate-400">
                           {report.count > 1 ? `${when(report.firstSeen)} – ${when(report.lastSeen)}` : when(report.lastSeen)}{meta ? ` · ${meta}` : ''}
                         </p>
                       </div>
                       <div className="flex shrink-0 gap-2">
                         {report.detail && report.detail !== report.message ? (
-                          <button type="button" onClick={() => setOpenId(expanded ? null : report.id)} aria-expanded={expanded} className="text-xs font-bold text-sky-300 underline">
+                          <button type="button" onClick={() => setOpenId(expanded ? null : report.id)} aria-expanded={expanded} className="text-xs font-medium text-sky-300 underline">
                             {expanded ? t('reports.less') : t('reports.more')}
                           </button>
                         ) : null}
-                        <button type="button" onClick={() => void toggle(report)} className="rounded-full border border-slate-700 px-3 py-1 text-xs font-black text-slate-200">
+                        <button type="button" onClick={() => void toggle(report)} className="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-200">
                           {report.resolvedAt ? t('reports.reopen') : t('reports.resolved')}
                         </button>
                       </div>
                     </div>
                     {expanded ? (
-                      <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-900 p-2 text-[11px] text-slate-300">{report.detail}</pre>
+                      <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-900 p-2 text-xs text-slate-300">{report.detail}</pre>
                     ) : null}
                   </li>
                 );

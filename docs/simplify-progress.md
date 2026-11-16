@@ -3477,3 +3477,45 @@ Sprachhinweis korrekt die Kontosprache beziehungsweise Englisch verwendete.
 
 Keine Auth-, SMTP-, Rechte- oder Datenbankänderung. Vier anfragebezogene Vorlagen
 werden nach dieser Korrektur live erneut übernommen und mit echter Mail geprüft.
+
+## Run 129 — Neue Designsprache „Graphite“ (2026-11-14)
+
+Ben: UI, Farbskala, Schrift und Sheets noch einmal deutlich überarbeiten; ruhiger, übersichtlicher, intuitiver; volle Freiheit bis zu einem neuen Designsystem, nur dürfen keine Funktionen wegfallen. Ein Text bleibt, wenn er eine Entscheidung ermöglicht, einen echten Fehler erklärt oder einen nicht offensichtlichen Ablauf verständlich macht.
+
+- **Farben** (`tailwind.config.ts`, `globals.css`): neutrales Graphit statt Marineblau. Die Seite ist am dunkelsten, Flächen werden nach oben heller; Rahmen gruppieren nicht mehr. Ein Grün für die Hauptaktion, Blau nur für Links und Fokus, Gelb und Rot nur für Status. Auswahl (Tab, Segment, Tag) ist hell und neutral, nicht blau oder grün. Rot und Rosé sind eine Skala.
+- **Schrift:** drei Gewichte statt „alles fett“ (730× `font-black` → `font-semibold`, 391× `font-bold` → `font-medium`), nichts unter 12 px außer Diagrammachsen (11 px) und dem 7-Tage-Raster auf dem Handy (10 px), keine gesperrten Großbuchstaben mehr als Abschnittslabel, Nebentext mindestens `slate-400`.
+- **Flächen:** rund 150 umrandete Kästen sind randlose Kacheln (`bg-white/[0.04]`) oder `os-panel`; getönte Kästen für Hinweise sind neutral, der Status sitzt im Chip oder im Wert. Kleinere Radien (18 / 12 / 10 px).
+- **Sheets:** alle 19 Dialoge und Sheets haben einen Rahmen (`os-sheet`) über einem schwarzen Schleier ohne Unschärfe.
+- **Gerüst:** Tab-Leiste und Seitenleiste neutral, aktiver Eintrag weiß mit grünem Symbol; „Nachrichten“ passt mit 12 px in fünf Tabs. Seitenkopf der Einstiegsseiten ist eine Zeile, kein Kasten.
+- **Heute:** neue Nachrichten, Spielerkarten-Hinweis und Playbook sind Zeilen eines Panels statt drei Karten in drei Stilen; die Belastungskacheln sind neutral, der Wert trägt die Farbe.
+- **Texte entfernt** (acht Sätze, in allen vier Sprachen): u. a. „Deine Karte, so wie dein Trainer sie sieht“, „So sehen dich dein Team und dein Verein“, „Wähle eine Möglichkeit“, die Erklärsätze unter „Deine Teams“, „Vereinsadmins“, der Trainer-Prüfung und den ersten Bewertungen. Geblieben sind Sätze, die eine Wahl erklären (Zusage-Modus, wer das Foto sieht, antippbare Diagramme).
+- Nachrichten-Verlauf auf dem Desktop in Lesebreite. Landing-Bilder neu aufgenommen; `landing-shots.mjs` schaltet dafür die Tipps aus.
+- `DESIGN.md`: Abschnitte Feel, Foundations und Components neu (Graphite), Regel „Ein Text bleibt, wenn …“.
+
+Keine Funktion entfernt, keine Änderung an Daten, Rechten oder Migrationen.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke voll (256 Seitenaufrufe, 4 Sprachen, Handy und Desktop), `test:landing`, `test:load`, `test:series`, `test:features`, `test:consent`, `test:carpools`, `test:store`; alle Hauptseiten, Sheets und Dialoge je Rolle bei 390 und 1280 px angesehen.
+
+## Run 130 — „Floodlight“: neue Identität und Premium-Bedienung (2026-11-16)
+
+Ben: Graphite wirkt langweilig und eintönig, der Kontrast ist schlechter; dazu eine Premium-UX-Checkliste (P0–P3): erst prüfen, was es gibt, nur Fehlendes ergänzen, das Design deutlich weiterentwickeln, mit Bildern prüfen.
+
+**Schon vorhanden (nur geprüft):** Platzhalter statt Lade-Kreisel (`ScreenSkeleton`), sofortiges Speichern mit Rücknahme bei Ablehnung und Offline-Stand (`remoteStore`), doppelte Einträge sind ausgeschlossen (IDs entstehen auf dem Gerät, ein zweites Senden wird erkannt), Sperre gegen Doppeltipp bei Serveraufrufen, Vorladen über `next/link` und den Service Worker, sichere Bereiche am iPhone.
+
+**Neu, Bedienung:**
+- `src/shared/overlay`: ein Stapel für alles, was über der Seite aufgeht. Escape schließt nur das Oberste; „Zurück“ am Android-Handy schließt es ebenfalls (`CloseWatcher`, ohne Verlaufseinträge); auf dem Handy folgt ein Sheet dem Finger und schließt beim Herunterziehen. Acht Sheets hatten bisher kein Escape. Ein erster Versuch mit Verlaufseinträgen hat Seitenwechsel aus einem Sheet heraus abgebrochen und ist verworfen.
+- Rückgängig-Zeile (`showToast`): Fahrt verlassen, eigenes Training löschen.
+- Befehlsmenü: ⌘K / Strg+K, Tippen filtert, Enter springt; Alt+1 … 9 direkt; in der Seitenleiste als „Suchen“.
+- Größere Trefferflächen auf Touch-Geräten (8 px über den Rand), Druck-Rückmeldung an jedem Knopf, Seiteninhalt erscheint gestaffelt, Fotos blenden über den Initialen ein, `LoadingPage` ist ein Platzhalter in Seitenform, Ziffern überall gleich breit, ausgeglichene Überschriften, fließende Ecken, wo der Browser sie kann.
+
+**Neu, Aussehen („Floodlight“ statt Graphite):**
+- Mitternachtsblauer Grund mit einem weichen Licht in der Rollenfarbe oben auf jeder Seite (Spieler grün, Trainer blau, Verein violett); Flächen sind von oben beleuchtet und heben sich in klaren Stufen ab; Text heller (Nebentext etwa 7:1) und eine Stufe größer (13 px kleinste Schrift, 15 px Fließtext).
+- Hauptaktion als grüner Verlauf mit eigenem Schein; schwebende Tab-Leiste auf dem Handy; Seitenleiste mit Marke.
+- `LoadDial`: die Belastung als Halbkreis-Skala auf Spieler-Heute, der Belastungsseite und im Spielerblatt des Trainers (statt dreier Kacheln bzw. eines Balkens). Unter „Mehr Zahlen“ entfallen die drei doppelten Kacheln.
+- Trainer-Heute: Zusagen als ein Balken (kommen, fehlen, offen) über den drei Zahlen. Spieler-Heute: nächste Einheit mit Datumsblatt.
+- Verlaufsdiagramm wird in seiner echten Breite gezeichnet (auf dem Handy waren die Beschriftungen etwa 5 px groß).
+- Landing-Bilder neu; `DESIGN.md` neu gefasst.
+
+Offen: echtes BlurHash für Fotos (bräuchte eine Spalte und eine Migration), „Zurück“ schließt Sheets nur, wo der Browser `CloseWatcher` kennt (nicht Safari), Seitenwechsel als echte Überblendung (View Transitions), Einmalcode-Autofill und Untermenü-Dreieck sind nicht einschlägig (kein Code-Feld, keine Hover-Untermenüs).
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke voll (256 Seitenaufrufe), `test:landing`, `test:load`, `test:series`, `test:features`, `test:consent`, `test:carpools`, `test:store`, `test:build`, `test:address`; 13 Verhaltensprüfungen im Browser (Sheet öffnen, schließen, Escape, Herunterziehen, kurzer Zug federt zurück, Rückgängig, Befehlsmenü, Alt+Zahl); Vorher-/Nachher-Bilder aller Hauptansichten für Spieler und Trainer auf Handy und Desktop. Keine Änderung an Daten, Rechten oder Migrationen.

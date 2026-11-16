@@ -73,7 +73,7 @@ export function PollView({
                 {personId ? (
                   <span
                     aria-hidden="true"
-                    className={`grid h-4 w-4 shrink-0 place-items-center border text-[10px] font-black ${message.pollMultiple ? 'rounded' : 'rounded-full'} ${chosen ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-500'}`}
+                    className={`grid h-4 w-4 shrink-0 place-items-center border text-xs font-semibold ${message.pollMultiple ? 'rounded' : 'rounded-full'} ${chosen ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-500'}`}
                   >
                     {chosen ? '✓' : ''}
                   </span>
@@ -83,7 +83,7 @@ export function PollView({
               {showResult ? <span className="relative shrink-0 tabular-nums text-slate-300">{count}</span> : null}
             </>
           );
-          const className = `relative flex min-h-10 w-full items-center justify-between gap-3 overflow-hidden rounded-xl border px-3 py-2 text-left text-sm font-bold ${chosen ? 'border-emerald-300/70 text-white' : 'border-slate-700 text-slate-100'}`;
+          const className = `relative flex min-h-10 w-full items-center justify-between gap-3 overflow-hidden rounded-xl border px-3 py-2 text-left text-sm font-medium ${chosen ? 'border-emerald-300/70 text-white' : 'border-slate-700 text-slate-100'}`;
           return (
             <div key={index} className="grid gap-1">
               {canVote ? (
@@ -104,7 +104,7 @@ export function PollView({
           );
         })}
       </div>
-      <p className="px-1 text-xs font-bold text-slate-400">
+      <p className="px-1 text-xs font-medium text-slate-400">
         {closed
           ? t('poll.closed')
           : !personId
@@ -114,7 +114,7 @@ export function PollView({
               : message.pollMultiple ? t('poll.pickSeveral') : t('poll.pickOne')}
         {showResult && !message.pollMultiple ? ` · ${t('poll.votes', { count: total })}` : ''}
       </p>
-      {error ? <p role="alert" className="px-1 text-xs font-bold text-red-200">{error}</p> : null}
+      {error ? <p role="alert" className="px-1 text-xs font-medium text-red-200">{error}</p> : null}
     </div>
   );
 }

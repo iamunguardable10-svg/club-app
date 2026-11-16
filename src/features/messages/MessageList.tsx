@@ -65,7 +65,7 @@ export function MessageList({
 
   return (
     <>
-      {error ? <p role="alert" className="text-xs font-bold text-red-200">{error}</p> : null}
+      {error ? <p role="alert" className="text-xs font-medium text-red-200">{error}</p> : null}
       {/* A feed, not boxes (audit 2026-11, proposal 11): rows divided by a line. */}
       <ul className="grid divide-y divide-slate-800/80">
         {messages.map((message) => {
@@ -88,21 +88,21 @@ export function MessageList({
             <li data-message-id={message.id} key={message.id} className="py-4 first:pt-1 last:pb-1">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="flex items-center gap-2 text-sm font-black text-white">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-white">
                     {unread ? <NewDot label={t('messages.new')} /> : null}
                     <span className="truncate">{authorName(database, message)}</span>
                   </p>
-                  <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs font-bold text-slate-500">
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs font-medium text-slate-400">
                     <span>→ {messageLabel(database, message)}</span>
                     {message.audience !== 'all' ? <span>· {t(message.audience === 'staff' ? 'messages.onlyStaff' : 'messages.onlyPlayers')}</span> : null}
                   </p>
                   {pinned ? (
-                    <p className="mt-0.5 flex items-center gap-1 text-xs font-bold text-slate-500">
+                    <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-slate-400">
                       <PinIcon className="h-3.5 w-3.5 text-amber-200/80" />{t('messages.pinnedUntil', { date: formatShortDate(pinnedUntil) })}
                     </p>
                   ) : null}
                 </div>
-                <span className="shrink-0 text-xs font-bold text-slate-500">{whenPosted(message.createdAt)}</span>
+                <span className="shrink-0 text-xs font-medium text-slate-400">{whenPosted(message.createdAt)}</span>
               </div>
               <p className="mt-2.5 whitespace-pre-wrap text-[15px] leading-relaxed text-slate-100">{message.body}</p>
               {poll ? (
@@ -115,25 +115,25 @@ export function MessageList({
               ) : null}
               {stats ? (
                 <>
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs font-bold">
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs font-medium">
                     {(() => {
                       const done = votes ? votes.voted === votes.total : stats.read === stats.total;
                       const label = votes ? t('poll.voted', { voted: votes.voted, total: votes.total }) : t('teamMessages.read', { read: stats.read, total: stats.total });
                       // Opens the reminder, closing and deleting, and the names where they are known.
                       return (
                         <button type="button" onClick={() => setOpenId(open ? null : message.id)} aria-expanded={open} className={`flex items-center gap-1 ${done ? 'text-emerald-300' : 'text-sky-300'}`}>
-                          {label}<span aria-hidden className={`text-slate-500 transition ${open ? 'rotate-180' : ''}`}>⌄</span>
+                          {label}<span aria-hidden className={`text-slate-400 transition ${open ? 'rotate-180' : ''}`}>⌄</span>
                         </button>
                       );
                     })()}
                     {open ? <div className="flex flex-wrap gap-3">
                       {pending > 0 && !message.remindedAt && !message.pollClosedAt ? (
                         <button type="button" onClick={() => run(() => remindUnread(message.id))} className="text-slate-300 underline decoration-slate-600 underline-offset-2 hover:text-white">{votes ? t('poll.remind', { count: pending }) : t('teamMessages.remind', { count: pending })}</button>
-                      ) : message.remindedAt ? <span className="text-slate-500">{t('teamMessages.reminded')}</span> : null}
+                      ) : message.remindedAt ? <span className="text-slate-400">{t('teamMessages.reminded')}</span> : null}
                       {votes && !message.pollClosedAt ? (
                         <button type="button" onClick={() => run(() => closePoll(message.id))} className="text-slate-300 underline decoration-slate-600 underline-offset-2 hover:text-white">{t('poll.close')}</button>
                       ) : null}
-                      <button type="button" onClick={() => setDeleting(message)} className="text-slate-500 underline decoration-slate-700 underline-offset-2 hover:text-slate-300">{t('teamMessages.delete')}</button>
+                      <button type="button" onClick={() => setDeleting(message)} className="text-slate-400 underline decoration-slate-700 underline-offset-2 hover:text-slate-300">{t('teamMessages.delete')}</button>
                     </div> : null}
                   </div>
                   {open && pending > 0 && named ? (

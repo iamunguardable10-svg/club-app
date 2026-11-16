@@ -76,7 +76,7 @@ function CardFront({ name, photo, team, value, fixedNumbers, sport, light }: { n
       <div className="reveal-shine relative aspect-[5/7] w-[min(76vw,300px)] overflow-hidden rounded-[1.55rem] bg-[radial-gradient(circle_at_50%_25%,#115e59_0%,#052e2b_40%,#020617_85%)]">
         <div aria-hidden className="absolute inset-0 bg-[repeating-linear-gradient(135deg,rgba(110,231,183,0.07)_0_2px,transparent_2px_14px)]" />
         {number !== null ? (
-          <span aria-hidden className="absolute -right-4 top-6 text-[12rem] font-black leading-none tabular-nums text-transparent [-webkit-text-stroke:2px_rgba(253,230,138,0.16)]">{number}</span>
+          <span aria-hidden className="absolute -right-4 top-6 text-[12rem] font-semibold leading-none tabular-nums text-transparent [-webkit-text-stroke:2px_rgba(253,230,138,0.16)]">{number}</span>
         ) : null}
         <div className="absolute inset-x-0 top-0 h-[76%]">
           {photo ? (
@@ -102,7 +102,7 @@ function CardFront({ name, photo, team, value, fixedNumbers, sport, light }: { n
         ))}
         <div className="relative flex items-start justify-between p-4">
           {number !== null ? (
-            <span className="reveal-step reveal-stamp reveal-glow bg-gradient-to-b from-amber-100 via-amber-300 to-amber-600 bg-clip-text text-6xl font-black leading-none tabular-nums text-transparent">{number}</span>
+            <span className="reveal-step reveal-stamp reveal-glow bg-gradient-to-b from-amber-100 via-amber-300 to-amber-600 bg-clip-text text-6xl font-semibold leading-none tabular-nums text-transparent">{number}</span>
           ) : <span />}
           <span className="reveal-step reveal-up grid max-w-[55%] justify-items-end gap-1" style={delay(2.0)}>
             {team.logoUrl ? (
@@ -113,22 +113,22 @@ function CardFront({ name, photo, team, value, fixedNumbers, sport, light }: { n
                 </span>
               </span>
             ) : null}
-            {team.name ? <span className="max-w-full truncate rounded-full border border-amber-200/40 bg-slate-950/75 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-amber-100">{team.name}</span> : null}
+            {team.name ? <span className="max-w-full truncate rounded-full border border-amber-200/40 bg-slate-950/75 px-2.5 py-1 text-xs font-semibold text-amber-100">{team.name}</span> : null}
           </span>
         </div>
         <div className="absolute inset-x-0 bottom-0 p-4">
-          {position ? <p className="reveal-step reveal-slide truncate text-[11px] font-black uppercase tracking-[0.24em] text-amber-300" style={delay(2.2)}>{position}</p> : null}
-          {firstName ? <p className="reveal-step reveal-slide truncate text-sm font-black uppercase tracking-[0.12em] text-emerald-100/90" style={delay(2.3)}>{firstName}</p> : null}
-          <p className="reveal-step reveal-slide reveal-holo truncate bg-[linear-gradient(90deg,#ffffff,#fef3c7,#fbbf24,#ffffff,#a7f3d0,#ffffff)] bg-clip-text pb-0.5 text-[2rem] font-black uppercase leading-none tracking-tight text-transparent" style={delay(2.35)}>{lastName}</p>
+          {position ? <p className="reveal-step reveal-slide truncate text-xs font-semibold text-amber-300" style={delay(2.2)}>{position}</p> : null}
+          {firstName ? <p className="reveal-step reveal-slide truncate text-sm font-semibold text-emerald-100/90" style={delay(2.3)}>{firstName}</p> : null}
+          <p className="reveal-step reveal-slide reveal-holo truncate bg-[linear-gradient(90deg,#ffffff,#fef3c7,#fbbf24,#ffffff,#a7f3d0,#ffffff)] bg-clip-text pb-0.5 text-[2rem] font-semibold uppercase leading-none tracking-tight text-transparent" style={delay(2.35)}>{lastName}</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             {stats.map(([label, stat], index) => (
               <div key={label} className="reveal-step reveal-up rounded-xl border border-amber-200/25 bg-slate-950/70 px-2 py-1.5 text-center backdrop-blur" style={delay(2.5 + index * 0.12)}>
-                <p className="text-lg font-black tabular-nums text-white">{stat}</p>
-                <p className="truncate text-[9px] font-black uppercase tracking-[0.14em] text-amber-100/70">{label}</p>
+                <p className="text-lg font-semibold tabular-nums text-white">{stat}</p>
+                <p className="truncate text-[9px] font-semibold text-amber-100/70">{label}</p>
               </div>
             ))}
           </div>
-          <p className="mt-2.5 flex items-center justify-between gap-2 border-t border-amber-200/20 pt-2 text-[9px] font-black uppercase tracking-[0.18em] text-amber-100/60">
+          <p className="mt-2.5 flex items-center justify-between gap-2 border-t border-amber-200/20 pt-2 text-[9px] font-semibold text-amber-100/60">
             <span className="min-w-0 truncate">{origin}</span>
             <span className="shrink-0">{t('profile.reveal.season', { season: season() })}</span>
           </p>
@@ -156,11 +156,11 @@ function CardBack({ team }: { team: CardTeam }) {
             </span>
           ) : (
             <span className="grid h-24 w-24 rotate-45 place-items-center rounded-3xl border-2 border-amber-200/70 bg-slate-950/60 shadow-[0_0_40px_rgba(251,191,36,0.5)]">
-              <span className="-rotate-45 bg-gradient-to-b from-amber-100 to-amber-500 bg-clip-text text-4xl font-black text-transparent">OS</span>
+              <span className="-rotate-45 bg-gradient-to-b from-amber-100 to-amber-500 bg-clip-text text-4xl font-semibold text-transparent">OS</span>
             </span>
           )}
-          {team.clubName ? <span className="mt-2 max-w-full truncate text-sm font-black uppercase tracking-[0.14em] text-amber-100">{team.clubName}</span> : null}
-          <span className="text-[11px] font-black uppercase tracking-[0.3em] text-amber-100/70">{t('profile.reveal.kicker')}</span>
+          {team.clubName ? <span className="mt-2 max-w-full truncate text-sm font-semibold text-amber-100">{team.clubName}</span> : null}
+          <span className="text-xs font-semibold text-amber-100/70">{t('profile.reveal.kicker')}</span>
         </div>
       </div>
     </div>
@@ -223,7 +223,7 @@ export function CardReveal({ name, photo, personId, team, value, fixedNumbers, s
       className={`reveal-backdrop fixed inset-0 z-[200] flex touch-none flex-col items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_45%,#0b2a24_0%,#020617_70%)] px-4 text-white ${skipped ? 'reveal-skip' : ''}`}
     >
       <div aria-hidden className="reveal-rays pointer-events-none absolute left-1/2 top-[45%] h-[170vmax] w-[170vmax] bg-[repeating-conic-gradient(from_0deg,rgba(253,230,138,0.13)_0deg_5deg,transparent_5deg_15deg)] [mask-image:radial-gradient(circle,black_8%,transparent_55%)]" style={{ transform: 'translate(-50%, -50%)' }} />
-      <p className="reveal-step reveal-up relative mb-5 text-[11px] font-black uppercase tracking-[0.3em] text-amber-200" style={delay(2.1)}>{t('profile.reveal.kicker')}</p>
+      <p className="reveal-step reveal-up relative mb-5 text-xs font-semibold text-amber-200" style={delay(2.1)}>{t('profile.reveal.kicker')}</p>
       <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-full">
         {EMBERS.map((ember, index) => (
           <span key={index} className="reveal-ember absolute bottom-0 rounded-full bg-amber-200 shadow-[0_0_8px_rgba(253,230,138,0.9)]" style={{ left: ember.left, width: ember.size, height: ember.size, '--delay': `${ember.delay}s`, '--duration': `${ember.duration}s` } as CSSProperties} />
@@ -254,7 +254,7 @@ export function CardReveal({ name, photo, personId, team, value, fixedNumbers, s
           </div>
         </div>
       </div>
-      <h2 className="reveal-step reveal-up relative mt-7 text-center text-2xl font-black" style={delay(2.7)}>{t('profile.reveal.title')}</h2>
+      <h2 className="reveal-step reveal-up relative mt-7 text-center text-2xl font-semibold" style={delay(2.7)}>{t('profile.reveal.title')}</h2>
       <p className="reveal-step reveal-up relative mt-1 text-center text-sm text-slate-300" style={delay(2.8)}>{t('profile.reveal.detail')}</p>
       <button
         type="button"

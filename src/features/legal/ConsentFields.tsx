@@ -24,7 +24,7 @@ export function ConsentFields({ value, onChange, staff = false, knownBirthYear, 
     {hideTerms ? null : <label className="flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" required checked={value.terms} onChange={(e) => onChange({ ...value, terms: e.target.checked })} className="mt-1 h-4 w-4 shrink-0" /><AcceptText /></label>}
     {!staff && adult ? <label className="flex items-start gap-3 text-sm text-slate-200"><input type="checkbox" checked={value.health} onChange={(e) => onChange({ ...value, health: e.target.checked })} className="mt-1 h-4 w-4 shrink-0" />{t('consent.health')}</label> : null}
     {/* The small print stays one tap away instead of on the screen (Ben, 2026-11-11). */}
-    {!staff ? <details className="group text-xs text-slate-400"><summary className="cursor-pointer list-none font-bold text-slate-400 underline [&::-webkit-details-marker]:hidden">{t('consent.whatMeans')}</summary><div className="mt-2 grid gap-2 leading-relaxed">{adult ? <p>{t('consent.why')}</p> : null}<p>{t('consent.limited')}</p></div></details> : null}
+    {!staff ? <details className="group text-xs text-slate-400"><summary className="cursor-pointer list-none font-medium text-slate-400 underline [&::-webkit-details-marker]:hidden">{t('consent.whatMeans')}</summary><div className="mt-2 grid gap-2 leading-relaxed">{adult ? <p>{t('consent.why')}</p> : null}<p>{t('consent.limited')}</p></div></details> : null}
   </fieldset>;
 }
 
@@ -33,8 +33,8 @@ export function AcceptText() {
   const t = useT();
   const text = t('consent.acceptLinked', { terms: '\u0001', privacy: '\u0002' });
   return <span>{text.split(/(\u0001|\u0002)/).map((part, index) => (
-    part === '\u0001' ? <Link key={index} href="/terms" target="_blank" rel="noopener" className="font-bold text-sky-300 underline">{t('consent.termsLink')}</Link>
-    : part === '\u0002' ? <Link key={index} href="/privacy" target="_blank" rel="noopener" className="font-bold text-sky-300 underline">{t('consent.privacyLink')}</Link>
+    part === '\u0001' ? <Link key={index} href="/terms" target="_blank" rel="noopener" className="font-medium text-sky-300 underline">{t('consent.termsLink')}</Link>
+    : part === '\u0002' ? <Link key={index} href="/privacy" target="_blank" rel="noopener" className="font-medium text-sky-300 underline">{t('consent.privacyLink')}</Link>
     : part
   ))}</span>;
 }
@@ -48,7 +48,7 @@ export function BirthMonthSelect({ value, onChange }: { value: number | null; on
   const locale = useLocale();
   const names = Array.from({ length: 12 }, (_, index) => new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(2000, index, 15)));
   return (
-    <label className="grid gap-1.5 text-sm font-bold text-slate-200">
+    <label className="grid gap-1.5 text-sm font-medium text-slate-200">
       {t('consent.birthMonth')}
       <select required value={value ?? ''} onChange={(event) => onChange(Number(event.target.value))} className="os-field">
         <option value="" disabled>{t('consent.birthMonthPick')}</option>
@@ -68,14 +68,14 @@ function BirthYearSlider({ value, locked, year, onChange }: { value: number | nu
   return (
     <div className="grid gap-2">
       <div className="flex items-baseline justify-between">
-        <span className="text-sm font-bold text-slate-200">{t('consent.birthYear')}</span>
-        <span className={`text-4xl font-black tabular-nums ${value === null ? 'text-slate-600' : 'text-white'}`}>{value ?? '––––'}</span>
+        <span className="text-sm font-medium text-slate-200">{t('consent.birthYear')}</span>
+        <span className={`text-4xl font-semibold tabular-nums ${value === null ? 'text-slate-400' : 'text-white'}`}>{value ?? '––––'}</span>
       </div>
       {locked ? null : (
         <div className="flex items-center gap-3">
-          <button type="button" onClick={() => step(-1)} aria-label={t('consent.yearEarlier')} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-slate-700 text-lg font-black text-slate-200">−</button>
+          <button type="button" onClick={() => step(-1)} aria-label={t('consent.yearEarlier')} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-slate-700 text-lg font-semibold text-slate-200">−</button>
           <input type="range" min={min} max={max} value={shown} onChange={(event) => onChange(Number(event.target.value))} aria-label={t('consent.birthYear')} className={`min-w-0 flex-1 accent-emerald-300 ${value === null ? 'opacity-50' : ''}`} />
-          <button type="button" onClick={() => step(1)} aria-label={t('consent.yearLater')} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-slate-700 text-lg font-black text-slate-200">+</button>
+          <button type="button" onClick={() => step(1)} aria-label={t('consent.yearLater')} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-slate-700 text-lg font-semibold text-slate-200">+</button>
         </div>
       )}
     </div>

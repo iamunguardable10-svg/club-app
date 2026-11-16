@@ -51,10 +51,11 @@ export function StaffMessagesPage() {
 
   if (!database || role === 'athlete') return null;
   const content = (
-    <>
+    // A feed reads best at a column's width, also on a wide screen (DESIGN.md "Space").
+    <div className="max-w-3xl space-y-5">
       <MessageComposer />
       <MessageList database={database} messages={messages} viewerId={personId} emptyText={t('staffMessages.empty')} />
-    </>
+    </div>
   );
   return role === 'club'
     ? <ClubShell active="messages" title={t('staffMessages.title')}>{content}</ClubShell>

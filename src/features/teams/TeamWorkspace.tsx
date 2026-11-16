@@ -339,7 +339,7 @@ export function TeamWorkspace({
   }
 
   if (!data) {
-    return <main className="os-page"><div className="os-container"><section className="rounded-3xl border border-slate-800 bg-slate-950/70 p-6 text-white">{t('team.notFound')}</section></div></main>;
+    return <main className="os-page"><div className="os-container"><section className="os-panel p-6 text-white">{t('team.notFound')}</section></div></main>;
   }
 
   const canEditSessions = permissions.has('editSessions');

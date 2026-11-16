@@ -21,15 +21,15 @@ export function PlaybookTeaser({ database, personId }: { database: LocalDatabase
     .sort((a, b) => (b.releaseAt ?? b.releasedAt ?? '').localeCompare(a.releaseAt ?? a.releasedAt ?? ''))[0];
   if (!fresh) return null;
   return (
-    <Link href="/athlete/team" className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/45 px-3 py-2.5 transition hover:border-slate-600">
-      <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-800 text-slate-300">
+    <Link href="/athlete/team" className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]">
+      <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/[0.06] text-slate-300">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M6 3h9l4 4v14H6z" /><path d="M15 3v4h4" /></svg>
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-bold text-slate-100">{t('tactics.playbook')}</span>
+        <span className="block text-sm font-medium text-slate-100">{t('tactics.playbook')}</span>
         <span className="block truncate text-xs text-slate-400">{t('playbook.new', { title: fresh.title })}</span>
       </span>
-      <span aria-hidden className="text-lg font-black text-slate-500">›</span>
+      <span aria-hidden className="text-lg leading-none text-slate-400">›</span>
     </Link>
   );
 }

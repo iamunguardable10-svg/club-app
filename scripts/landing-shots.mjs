@@ -34,7 +34,9 @@ try {
   await go('/start');
   await page.evaluate(() => {
     localStorage.setItem('club-app.locale', 'de');
-    for (const role of ['coach', 'athlete', 'club']) localStorage.setItem(`club-app.tour-seen.demo.welcome.${role}.practice-v1`, '1');
+    // The screens as they are in daily use: no first-use tips, no load introduction.
+    localStorage.setItem('club-app.tips-off', '1');
+    for (const hint of ['loadIntroPlayer', 'loadIntroCoach']) localStorage.setItem(`club-app.hint-dismissed.${hint}`, '1');
   });
   await go('/start?demo=coach');
   await page.waitForURL('**/coach/today');
@@ -62,7 +64,9 @@ try {
   await shot('today');
   await go('/athlete/load');
   if (await page.getByRole('button', { name: 'Später', exact: true }).isVisible()) await page.getByRole('button', { name: 'Später', exact: true }).click();
-  await page.waitForTimeout(300);
+  // No chart tooltip in the picture: the pointer rests in a corner.
+  await page.mouse.move(2, 2);
+  await page.waitForTimeout(400);
   await shot('load');
   await go('/start?demo=club');
   await page.waitForURL('**/club');

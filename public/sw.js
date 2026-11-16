@@ -72,9 +72,9 @@ self.addEventListener('activate', (event) => {
 });
 
 const OFFLINE_PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Offline · Club OS</title></head>
-<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#020617;color:#e2e8f0;font-family:system-ui,sans-serif;padding:24px;text-align:center">
-<div><p style="font-weight:900;font-size:20px;margin:0 0 8px">You're offline</p><p style="margin:0 0 16px;color:#94a3b8">This page is not saved on this device yet.</p>
-<a href="/start" style="color:#7dd3fc;font-weight:700">Open the app</a></div></body></html>`;
+<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#0e0f11;color:#eceef1;font-family:system-ui,sans-serif;padding:24px;text-align:center">
+<div><p style="font-weight:600;font-size:20px;margin:0 0 8px">You're offline</p><p style="margin:0 0 16px;color:#a0a5ae">This page is not saved on this device yet.</p>
+<a href="/start" style="color:#92b8f5;font-weight:600">Open the app</a></div></body></html>`;
 
 function timeout(ms) {
   return new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));

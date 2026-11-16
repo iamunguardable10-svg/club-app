@@ -14,7 +14,7 @@ export function OnboardingSteps({ labels, current }: { labels: string[]; current
       {labels.map((label, index) => (
         <li key={label} aria-current={index === current ? 'step' : undefined} className="min-w-0">
           <span className={`block h-1 rounded-full ${index <= current ? 'bg-emerald-300' : 'bg-slate-800'}`} />
-          <span className={`mt-1.5 block truncate text-[11px] font-black ${index === current ? 'text-white' : index < current ? 'text-emerald-200/80' : 'text-slate-500'}`}>{label}</span>
+          <span className={`mt-1.5 block truncate text-xs font-semibold ${index === current ? 'text-white' : index < current ? 'text-emerald-200/80' : 'text-slate-400'}`}>{label}</span>
         </li>
       ))}
     </ol>
@@ -28,7 +28,7 @@ export function OnboardingShell({ title, steps, children }: { title: string; ste
     <main className="os-page overflow-x-clip">
       <div className="os-container flex min-h-[100dvh] max-w-md flex-col pb-6">
         <div className="space-y-5">
-        <header className="os-hero p-6">
+        <header className="os-hero">
           <div className="flex items-center justify-between gap-3">
             <p className="os-kicker">{t('start.kicker')}</p>
             <LanguagePicker compact />
@@ -48,7 +48,7 @@ export function OnboardingShell({ title, steps, children }: { title: string; ste
 }
 
 export function ErrorLine({ message }: { message: string | null }) {
-  return message ? <p role="alert" className="rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-bold text-red-100">{message}</p> : null;
+  return message ? <p role="alert" className="rounded-xl border border-red-500/45 bg-red-950/35 px-3 py-2 text-sm font-medium text-red-100">{message}</p> : null;
 }
 
 export function AccountLine({ account }: { account: { email: string } }) {

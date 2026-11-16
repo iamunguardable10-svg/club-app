@@ -13,7 +13,7 @@ export function LocalModeLink({ className = '' }: { className?: string }) {
         setBackendChoice('local');
         window.location.assign('/start');
       }}
-      className={`text-xs font-bold text-slate-400 underline ${className}`}
+      className={`text-xs font-medium text-slate-400 underline ${className}`}
     >
       {t('auth.demoLink')}
     </button>
