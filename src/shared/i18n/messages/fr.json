@@ -2504,5 +2504,6 @@
   "command.empty": "Aucun résultat",
   "common.undo": "Annuler",
   "toast.planDeleted": "Entraînement supprimé",
-  "toast.rideLeft": "Tu ne fais plus partie du trajet"
+  "toast.rideLeft": "Tu ne fais plus partie du trajet",
+  "command.short": "Rechercher"
 }

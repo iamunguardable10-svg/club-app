@@ -64,7 +64,9 @@ try {
   await shot('today');
   await go('/athlete/load');
   if (await page.getByRole('button', { name: 'Später', exact: true }).isVisible()) await page.getByRole('button', { name: 'Später', exact: true }).click();
-  await page.waitForTimeout(300);
+  // No chart tooltip in the picture: the pointer rests in a corner.
+  await page.mouse.move(2, 2);
+  await page.waitForTimeout(400);
   await shot('load');
   await go('/start?demo=club');
   await page.waitForURL('**/club');

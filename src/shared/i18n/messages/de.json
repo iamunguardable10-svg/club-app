@@ -2504,5 +2504,6 @@
   "command.empty": "Nichts gefunden",
   "common.undo": "Rückgängig",
   "toast.planDeleted": "Training entfernt",
-  "toast.rideLeft": "Du fährst nicht mehr mit"
+  "toast.rideLeft": "Du fährst nicht mehr mit",
+  "command.short": "Suchen"
 }

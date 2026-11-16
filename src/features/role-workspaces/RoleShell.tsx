@@ -201,8 +201,11 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
             </Link>
           ))}
         </nav>
-        <button type="button" onClick={() => setCommandOpen(true)} className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-left text-sm font-medium text-slate-400 hover:bg-white/[0.07] hover:text-white">
-          <span>{t('command.open')}</span>
+        <button type="button" onClick={() => setCommandOpen(true)} aria-label={t('command.open')} className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-left text-sm font-medium text-slate-400 hover:bg-white/[0.07] hover:text-white">
+          <span className="flex items-center gap-2.5">
+            <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
+            {t('command.short')}
+          </span>
           {commandKey ? <kbd className="os-kbd">{commandKey}</kbd> : null}
         </button>
         <div className="mt-auto grid gap-1 p-1">

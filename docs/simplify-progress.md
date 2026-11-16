@@ -3495,3 +3495,27 @@ Ben: UI, Farbskala, Schrift und Sheets noch einmal deutlich überarbeiten; ruhig
 Keine Funktion entfernt, keine Änderung an Daten, Rechten oder Migrationen.
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke voll (256 Seitenaufrufe, 4 Sprachen, Handy und Desktop), `test:landing`, `test:load`, `test:series`, `test:features`, `test:consent`, `test:carpools`, `test:store`; alle Hauptseiten, Sheets und Dialoge je Rolle bei 390 und 1280 px angesehen.
+
+## Run 130 — „Floodlight“: neue Identität und Premium-Bedienung (2026-11-16)
+
+Ben: Graphite wirkt langweilig und eintönig, der Kontrast ist schlechter; dazu eine Premium-UX-Checkliste (P0–P3): erst prüfen, was es gibt, nur Fehlendes ergänzen, das Design deutlich weiterentwickeln, mit Bildern prüfen.
+
+**Schon vorhanden (nur geprüft):** Platzhalter statt Lade-Kreisel (`ScreenSkeleton`), sofortiges Speichern mit Rücknahme bei Ablehnung und Offline-Stand (`remoteStore`), doppelte Einträge sind ausgeschlossen (IDs entstehen auf dem Gerät, ein zweites Senden wird erkannt), Sperre gegen Doppeltipp bei Serveraufrufen, Vorladen über `next/link` und den Service Worker, sichere Bereiche am iPhone.
+
+**Neu, Bedienung:**
+- `src/shared/overlay`: ein Stapel für alles, was über der Seite aufgeht. Escape schließt nur das Oberste; „Zurück“ am Android-Handy schließt es ebenfalls (`CloseWatcher`, ohne Verlaufseinträge); auf dem Handy folgt ein Sheet dem Finger und schließt beim Herunterziehen. Acht Sheets hatten bisher kein Escape. Ein erster Versuch mit Verlaufseinträgen hat Seitenwechsel aus einem Sheet heraus abgebrochen und ist verworfen.
+- Rückgängig-Zeile (`showToast`): Fahrt verlassen, eigenes Training löschen.
+- Befehlsmenü: ⌘K / Strg+K, Tippen filtert, Enter springt; Alt+1 … 9 direkt; in der Seitenleiste als „Suchen“.
+- Größere Trefferflächen auf Touch-Geräten (8 px über den Rand), Druck-Rückmeldung an jedem Knopf, Seiteninhalt erscheint gestaffelt, Fotos blenden über den Initialen ein, `LoadingPage` ist ein Platzhalter in Seitenform, Ziffern überall gleich breit, ausgeglichene Überschriften, fließende Ecken, wo der Browser sie kann.
+
+**Neu, Aussehen („Floodlight“ statt Graphite):**
+- Mitternachtsblauer Grund mit einem weichen Licht in der Rollenfarbe oben auf jeder Seite (Spieler grün, Trainer blau, Verein violett); Flächen sind von oben beleuchtet und heben sich in klaren Stufen ab; Text heller (Nebentext etwa 7:1) und eine Stufe größer (13 px kleinste Schrift, 15 px Fließtext).
+- Hauptaktion als grüner Verlauf mit eigenem Schein; schwebende Tab-Leiste auf dem Handy; Seitenleiste mit Marke.
+- `LoadDial`: die Belastung als Halbkreis-Skala auf Spieler-Heute, der Belastungsseite und im Spielerblatt des Trainers (statt dreier Kacheln bzw. eines Balkens). Unter „Mehr Zahlen“ entfallen die drei doppelten Kacheln.
+- Trainer-Heute: Zusagen als ein Balken (kommen, fehlen, offen) über den drei Zahlen. Spieler-Heute: nächste Einheit mit Datumsblatt.
+- Verlaufsdiagramm wird in seiner echten Breite gezeichnet (auf dem Handy waren die Beschriftungen etwa 5 px groß).
+- Landing-Bilder neu; `DESIGN.md` neu gefasst.
+
+Offen: echtes BlurHash für Fotos (bräuchte eine Spalte und eine Migration), „Zurück“ schließt Sheets nur, wo der Browser `CloseWatcher` kennt (nicht Safari), Seitenwechsel als echte Überblendung (View Transitions), Einmalcode-Autofill und Untermenü-Dreieck sind nicht einschlägig (kein Code-Feld, keine Hover-Untermenüs).
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke voll (256 Seitenaufrufe), `test:landing`, `test:load`, `test:series`, `test:features`, `test:consent`, `test:carpools`, `test:store`, `test:build`, `test:address`; 13 Verhaltensprüfungen im Browser (Sheet öffnen, schließen, Escape, Herunterziehen, kurzer Zug federt zurück, Rückgängig, Befehlsmenü, Alt+Zahl); Vorher-/Nachher-Bilder aller Hauptansichten für Spieler und Trainer auf Handy und Desktop. Keine Änderung an Daten, Rechten oder Migrationen.

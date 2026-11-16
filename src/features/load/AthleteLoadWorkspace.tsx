@@ -721,7 +721,11 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       const text = { in: 'text-emerald-200', late: 'text-amber-200', out: 'text-rose-200' } as const;
       return (
         <div className="mt-2 flex items-center justify-between gap-3 rounded-2xl os-tile px-3.5 py-2.5">
-          <p className={`min-w-0 text-sm font-semibold ${text[chosen]}`}>{pill.text}</p>
+          <p className={`flex min-w-0 items-center gap-2 text-sm font-semibold ${text[chosen]}`}>
+            {/* The answer lands with a small overshoot when it changes. */}
+            <span key={chosen} aria-hidden className={`os-pop h-2.5 w-2.5 shrink-0 rounded-full ${chosen === 'in' ? 'bg-emerald-300' : chosen === 'late' ? 'bg-amber-300' : 'bg-rose-400'}`} />
+            <span className="min-w-0">{pill.text}</span>
+          </p>
           <button type="button" onClick={() => setAnswerOpen(session.id)} className="shrink-0 text-sm font-semibold text-sky-300">{t('composer.change')}</button>
         </div>
       );

@@ -2504,5 +2504,6 @@
   "command.empty": "Sin resultados",
   "common.undo": "Deshacer",
   "toast.planDeleted": "Entrenamiento eliminado",
-  "toast.rideLeft": "Ya no vas en este coche"
+  "toast.rideLeft": "Ya no vas en este coche",
+  "command.short": "Buscar"
 }
