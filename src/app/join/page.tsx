@@ -16,10 +16,11 @@
  * the project asks for one) leads back to the same step.
  */
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 import { AuthForm } from '@/features/access/AuthForm';
+import { InstallFirst } from '@/features/install/InstallFirst';
 import { AccountLine, ErrorLine, OnboardingShell as Shell, continueAs } from '@/features/onboarding/OnboardingShell';
 import { useAccount, type Account } from '@/features/onboarding/useAccount';
 import { ProfileStep, type Profile } from '@/features/onboarding/ProfileStep';
@@ -57,6 +58,9 @@ function InviteFlow({ token, account }: { token: string; account: Account }) {
   // Kept as caught and put into words when shown: it can arrive before the language is applied.
   const [loadError, setLoadError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  // Install first on a phone (InstallFirst.tsx); the way in goes on once skipped or not offered.
+  const [inBrowser, setInBrowser] = useState(false);
+  const goOn = useCallback(() => setInBrowser(true), []);
   const labels = [t('onboarding.step.invitation'), t('onboarding.step.account'), t('onboarding.step.done')];
 
   useEffect(() => {
@@ -126,6 +130,8 @@ function InviteFlow({ token, account }: { token: string; account: Account }) {
           />
           <button type="button" onClick={() => setDraft(null)} className="justify-self-start px-1 text-xs font-medium text-slate-400 underline">{t('onboarding.back')}</button>
         </>
+      ) : !inBrowser ? (
+        <InstallFirst onSkip={goOn} />
       ) : (
         <ProfileStep
           staff askName={false} knownName={`${preview.firstName} ${preview.lastName}`} initial={null} submitLabel={t('common.continue')}
@@ -206,6 +212,8 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
   // "Join" pressed; the confirmation mail comes back with `go=1`.
   const [joining, setJoining] = useState(() => params.get('go') === '1');
   const [error, setError] = useState<string | null>(null);
+  const [inBrowser, setInBrowser] = useState(false);
+  const goOn = useCallback(() => setInBrowser(true), []);
   const labels = [t('onboarding.step.team'), t('onboarding.step.account'), t('onboarding.step.you')];
 
   useEffect(() => {
@@ -240,7 +248,9 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
   return (
     <Shell title={current === 2 ? preview.teamName : title} steps={{ labels, current }}>
       {current < 2 ? <TeamCard preview={preview} /> : null}
-      {!joining ? (
+      {!joining && !inBrowser ? (
+        <InstallFirst code={code} onSkip={goOn} />
+      ) : !joining ? (
         <button type="button" onClick={() => setJoining(true)} className="os-success w-full justify-center text-base">{t('onboarding.join.joinTeam')}</button>
       ) : !account ? (
         <>

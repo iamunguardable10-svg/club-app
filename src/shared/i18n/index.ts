@@ -14,7 +14,7 @@ import { readStoredLocale, storeLocale, subscribeLocale } from '@/shared/data/re
 import { DEFAULT_LOCALE, isLocale, matchLocale, type Locale } from './locales';
 import { isMessageKey, translate, type MessageKey, type MessageParams } from './translate';
 
-export { LOCALES, intlLocale, type Locale } from './locales';
+export { LOCALES, intlLocale, isLocale, type Locale } from './locales';
 export type { MessageKey, MessageParams } from './translate';
 
 /** The language for this device: the picked one, else the browser's. */

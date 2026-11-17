@@ -20,6 +20,7 @@ import type { CoachFacility, CoachGroup, CoachSession, CoachTeam } from '@/featu
 import { formatDecimal, formatSessionTime } from '@/shared/format';
 import { errorText, tr, useT } from '@/shared/i18n';
 import { useEscape } from '@/shared/hooks/useEscape';
+import { dismissHint, isHintDismissed, type HintName } from '@/shared/data';
 
 export type TeamWorkspaceRole = 'admin' | 'department_lead' | 'coach' | 'viewer';
 export type TeamWorkspaceSection = 'dashboard' | 'players' | 'groups' | 'tactics' | 'settings';
@@ -85,6 +86,8 @@ export type TeamWorkspaceData = {
   staff: TeamWorkspaceStaff;
   sessions: TeamWorkspaceSession[];
   groups: { id: string; name: string; description: string; playerCount: number; playerIds?: string[] }[];
+  /** Playbooks of the team (first steps: "fill the playbook"). */
+  playbookCount?: number;
   /** Missing means shared; `false` for roles without `viewAttendance`. */
   attendanceShared?: boolean;
   /** The coach calendar filtered to this team. */
@@ -186,6 +189,33 @@ function coachSessionFromTeamWorkspace(session: TeamWorkspaceSession, data: Team
       };
     }),
   };
+}
+
+type FirstStep = { id: string; title: string; why: string; done: boolean; section: TeamWorkspaceSection; skip?: HintName };
+
+/** The next open first step of the team, with why it helps; hidden once all are done. */
+function FirstStepsCard({ steps, onOpen, onSkip }: { steps: FirstStep[]; onOpen: (step: FirstStep) => void; onSkip: (step: FirstStep) => void }) {
+  const t = useT();
+  const next = steps.find((step) => !step.done);
+  if (!next) return null;
+  const done = steps.filter((step) => step.done).length;
+  return (
+    <section className="os-panel p-4 sm:p-5" data-testid="first-steps">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold text-white">{t('team.first.title')}</h2>
+        <span className="text-sm font-medium tabular-nums text-slate-400">{t('team.first.progress', { done, total: steps.length })}</span>
+      </div>
+      <div aria-hidden className="mt-3 grid gap-1.5" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
+        {steps.map((step) => <span key={step.id} className={`h-1 rounded-full ${step.done ? 'bg-emerald-300' : step === next ? 'bg-slate-400' : 'bg-slate-800'}`} />)}
+      </div>
+      <p className="mt-4 text-base font-semibold text-white">{next.title}</p>
+      <p className="mt-1 text-sm text-slate-300">{next.why}</p>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <button type="button" onClick={() => onOpen(next)} className="os-success px-4 py-2 text-sm">{t('team.first.open')}</button>
+        {next.skip ? <button type="button" onClick={() => onSkip(next)} className="text-sm font-medium text-slate-400 underline">{t('team.first.skip')}</button> : null}
+      </div>
+    </section>
+  );
 }
 
 function TeamDashboardSessionCard({
@@ -357,17 +387,18 @@ export function TeamWorkspaceView({
   const notOverSessions = useMemo(() => sessionsNotOver(data.sessions), [data.sessions]);
   const nextSession = notOverSessions[0] ?? null;
 
-  const setupActions = [
-    data.staff.headCoaches.length === 0
-      ? { id: 'head-coach', label: t('team.setup.noCoach'), action: 'none' as const }
-      : null,
-    !data.defaultFacilityName
-      ? { id: 'default-facility', label: t('team.setup.defaultHall'), action: 'settings' as const }
-      : null,
-    data.playerCount === 0
-      ? { id: 'players', label: t('team.setup.noPlayers'), action: 'players' as const }
-      : null,
-  ].filter(Boolean) as { id: string; label: string; action: 'settings' | 'players' | 'none' }[];
+  // First steps (onboarding 2026-11-17): one at a time, each with why it
+  // helps; groups and the playbook are optional and can be skipped.
+  const [skippedSteps, setSkippedSteps] = useState<HintName[]>([]);
+  useEffect(() => setSkippedSteps((['setupGroups', 'setupPlaybook'] as HintName[]).filter(isHintDismissed)), []);
+  const canSetUp = Boolean(onDefaultFacilityChange);
+  const firstSteps: FirstStep[] = [
+    { id: 'hall', title: t('team.setup.defaultHall'), why: t('team.first.hallWhy'), done: Boolean(data.defaultFacilityName), section: 'settings' },
+    { id: 'players', title: t('team.setup.noPlayers'), why: t('team.first.playersWhy'), done: data.playerCount > 0, section: 'settings' },
+    ...(canSetUp ? [{ id: 'groups', title: t('team.first.groups'), why: t('team.first.groupsWhy'), done: data.groups.length > 0 || skippedSteps.includes('setupGroups'), section: 'groups' as const, skip: 'setupGroups' as HintName }] : []),
+    ...(canSetUp && playbookPanel ? [{ id: 'playbook', title: t('team.first.playbook'), why: t('team.first.playbookWhy'), done: (data.playbookCount ?? 0) > 0 || skippedSteps.includes('setupPlaybook'), section: 'tactics' as const, skip: 'setupPlaybook' as HintName }] : []),
+  ];
+  const setupOpen = data.staff.headCoaches.length === 0 || firstSteps.some((step) => !step.done);
 
   const sections: TeamWorkspaceSection[] = playbookPanel ? ['dashboard', 'players', 'groups', 'tactics', 'settings'] : ['dashboard', 'players', 'groups', 'settings'];
   const coachSessionById = useMemo(() => new Map(coachSessions.map((session) => [session.id, session])), [coachSessions]);
@@ -496,7 +527,7 @@ export function TeamWorkspaceView({
       </div>
 
       {activeSection === 'dashboard' ? (
-        <div className={`grid grid-cols-[minmax(0,1fr)] gap-4 ${setupActions.length > 0 ? 'lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]' : ''}`}>
+        <div className={`grid grid-cols-[minmax(0,1fr)] gap-4 ${setupOpen ? 'lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]' : ''}`}>
           <div className="min-w-0 space-y-4">
             <section className="os-panel p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
@@ -533,18 +564,18 @@ export function TeamWorkspaceView({
             ) : null}
           </div>
 
-          {setupActions.length > 0 ? (
-            <section className="rounded-3xl border border-amber-500/30 bg-amber-950/10 p-4 sm:p-5">
-              <h2 className="text-lg font-semibold text-amber-100">{t('team.stillToSetUp')}</h2>
-              <div className="mt-3 grid gap-2">
-                {setupActions.map((item) => {
-                  const className = 'rounded-xl border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-left text-sm font-medium text-amber-100 transition hover:border-amber-300/60';
-                  if (item.action === 'settings') return <button key={item.id} type="button" onClick={() => setActiveSection('settings')} className={className}>{item.label}</button>;
-                  if (item.action === 'players') return <button key={item.id} type="button" onClick={() => setActiveSection('settings')} className={className}>{item.label}</button>;
-                  return <div key={item.id} className={className}>{item.label}</div>;
-                })}
-              </div>
-            </section>
+          {setupOpen ? (
+            // On the phone above the sessions: the first thing a new team needs.
+            <div className="order-first min-w-0 space-y-4 lg:order-none">
+              {data.staff.headCoaches.length === 0 ? (
+                <p className="rounded-2xl os-tile px-4 py-3 text-sm font-medium text-amber-100">{t('team.setup.noCoach')}</p>
+              ) : null}
+              <FirstStepsCard
+                steps={firstSteps}
+                onOpen={(step) => setActiveSection(step.section)}
+                onSkip={(step) => { if (step.skip) { dismissHint(step.skip); setSkippedSteps((current) => [...current, step.skip!]); } }}
+              />
+            </div>
           ) : null}
         </div>
       ) : null}

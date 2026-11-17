@@ -68,6 +68,11 @@ try {
   }
   const handoff = 'a'.repeat(64);
   assert.equal((await (await context.request.get(`${base}/install.webmanifest?handoff=${handoff}`)).json()).start_url, `/start?handoff=${handoff}`);
+  // Install first: the app starts at the way in, in the language; anything else starts at /start.
+  const resume = await (await context.request.get(`${base}/install.webmanifest?next=${encodeURIComponent('/join?code=ABCD2345')}&lang=de`)).json();
+  assert.equal(resume.start_url, '/join?code=ABCD2345&lang=de&src=app');
+  const foreign = await (await context.request.get(`${base}/install.webmanifest?next=${encodeURIComponent('//example.com/join')}`)).json();
+  assert.equal(foreign.start_url, '/start');
   const legacy = await context.request.get(base + '/?add=1', { maxRedirects: 0 });
   assert.equal(legacy.headers().location, '/start?add=1');
   await context.close();

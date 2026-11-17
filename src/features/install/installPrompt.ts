@@ -78,3 +78,23 @@ export function installPlatform(): InstallPlatform {
 export function isAppleDevice(): boolean {
   return installPlatform() === 'ios' || (typeof navigator !== 'undefined' && /Macintosh/.test(navigator.userAgent));
 }
+
+/**
+ * Store apps, once they exist: the install steps then lead to the store
+ * instead of the home-screen steps. Null while Club OS is a web app only.
+ */
+export const STORE_LINKS: Record<'ios' | 'android', string | null> = { ios: null, android: null };
+
+export function storeLink(platform: InstallPlatform): string | null {
+  return platform === 'desktop' ? null : STORE_LINKS[platform];
+}
+
+/**
+ * An app's own browser (Instagram, Facebook, LinkedIn, Snapchat, TikTok,
+ * Line): it cannot add to the home screen, the page has to be opened in the
+ * real browser first.
+ */
+export function inAppBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /FBAN|FBAV|FB_IAB|Instagram|LinkedInApp|Snapchat|musical_ly|BytedanceWebview|Line\//.test(navigator.userAgent);
+}

@@ -17,6 +17,7 @@
 import { AbsencePanel } from '@/features/absences/AbsencePanel';
 import { HealthConsentPanel, ExportDataButton } from '@/features/legal/HealthConsentPanel';
 import { LegalLinks } from '@/features/legal/LegalLinks';
+import { RsvpOptions } from './RsvpOptions';
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
 
@@ -47,8 +48,6 @@ import {
   renameOwnPerson,
   removeOwnPhoto,
   setOwnPhoto,
-  rsvpModeOf,
-  setOwnRsvpMode,
   saveNotificationSettings,
   signOut,
   updatePassword,
@@ -58,7 +57,6 @@ import {
   type MutablePushKind,
   type NotificationSettings,
   type Person,
-  type RsvpMode,
   setTipsOff,
   isRpePrefillOn,
   readSessionLength,
@@ -188,35 +186,9 @@ function TipsAgain() {
 
 function RsvpSection({ database, person }: { database: LocalDatabase; person: Person }) {
   const t = useT();
-  const mode = rsvpModeOf(database, person.id);
-  const [error, setError] = useState<string | null>(null);
-  const options: { value: RsvpMode; title: MessageKey; detail: MessageKey }[] = [
-    { value: 'auto', title: 'settings.rsvp.auto', detail: 'settings.rsvp.autoDetail' },
-    { value: 'manual', title: 'settings.rsvp.manual', detail: 'settings.rsvp.manualDetail' },
-  ];
   return (
     <CoachSection title={t('settings.rsvp.title')}>
-      <div role="radiogroup" aria-label={t('settings.rsvp.title')} className="grid gap-2">
-        {options.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            role="radio"
-            aria-checked={mode === option.value}
-            onClick={() => { try { setOwnRsvpMode(option.value); setError(null); } catch (caught) { setError(errorText(t, caught)); } }}
-            className={`flex items-start gap-3 rounded-2xl border p-3 text-left transition ${mode === option.value ? 'border-emerald-300/60 bg-emerald-300/[0.08]' : 'border-slate-800 hover:border-slate-600'}`}
-          >
-            <span aria-hidden className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 ${mode === option.value ? 'border-emerald-300' : 'border-slate-600'}`}>
-              {mode === option.value ? <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" /> : null}
-            </span>
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold text-white">{t(option.title)}</span>
-              <span className="mt-0.5 block text-xs font-medium text-slate-400">{t(option.detail)}</span>
-            </span>
-          </button>
-        ))}
-      </div>
-      {error ? <p role="alert" className="mt-2 text-xs font-medium text-red-200">{error}</p> : null}
+      <RsvpOptions database={database} personId={person.id} />
     </CoachSection>
   );
 }
