@@ -336,7 +336,6 @@
   "load.pending.today": "Aujourd’hui",
   "load.pending.planned": "Planifié",
   "load.room.label": "Marge de charge",
-  "load.room.daysNeeded": "{count} jours nécessaires",
   "load.room.overload": "Surcharge",
   "load.room.aboveSafe": "au-dessus de la zone sûre",
   "load.room.underloadGap": "Manque de charge",
@@ -533,7 +532,6 @@
   "load.details.weekChangeTitle": "Charge des 7 derniers jours comparée aux 7 jours précédents",
   "load.details.weekChange": "{value}% par rapport à la semaine dernière",
   "load.details.backFromBreak": "Reprise après une pause · augmente progressivement",
-  "load.details.reliableAfter": "Les indications deviennent fiables après environ 30 jours enregistrés.",
   "load.details.weekStability": "Stabilité de la semaine",
   "load.details.monotony": "Monotonie",
   "load.details.strain": "Contrainte",
@@ -2508,5 +2506,14 @@
   "command.short": "Rechercher",
   "composer.endsAt": "Fin",
   "settings.sessionLength": "Durée des nouvelles séances",
-  "settings.sessionLengthDetail": "Quand tu touches un créneau libre du calendrier"
+  "settings.sessionLengthDetail": "Quand tu touches un créneau libre du calendrier",
+  "load.basis.none": "Évalue ta première séance. Ta base se construit à partir de là.",
+  "load.basis.short_one": "Première estimation dans 1 jour",
+  "load.basis.short_other": "Première estimation dans {count} jours",
+  "load.basis.few_one": "Trop peu d’évaluations ces 4 dernières semaines : encore 1 jour à évaluer",
+  "load.basis.few_other": "Trop peu d’évaluations ces 4 dernières semaines : encore {count} jours à évaluer",
+  "load.basis.provisional": "Provisoire",
+  "load.basis.provisionalDays_one": "Provisoire : fiable dans 1 jour",
+  "load.basis.provisionalDays_other": "Provisoire : fiable dans {count} jours",
+  "load.basis.provisionalFew": "Provisoire : évalue plus régulièrement pour une estimation fiable"
 }

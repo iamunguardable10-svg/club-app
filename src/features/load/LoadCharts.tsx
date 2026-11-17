@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bar, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ACWR_ZONES, LOAD_TRAINING_TYPES, LOAD_TYPE_COLORS, type ACWRDataPoint, type AthleteLoadEntry, type AthletePendingSession, type LoadTrainingType } from './loadTypes';
-import { BASELINE_DAYS, aggregateDailyLoads, calculateACWR, fillMissingDays, projectFutureACWR, todayISO } from './loadCalculations';
+import { PROVISIONAL_DAYS, aggregateDailyLoads, calculateACWR, fillMissingDays, loadBasis, projectFutureACWR, todayISO } from './loadCalculations';
 import { formatDayMonth, formatDecimal, formatEntryDate } from '@/shared/format';
 import { useT } from '@/shared/i18n';
 import { loadTypeLabel } from './loadLabels';
@@ -71,7 +71,7 @@ function LoadTooltip({ active, payload }: LoadTooltipProps) {
       </div>
       {!point.chronicFull ? (
         <div className="mt-3 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-xs font-medium text-amber-100">
-          {t('load.chart.baselineBuilding', { count: BASELINE_DAYS })}
+          {(point.acwr ?? point.projectedAcwr) === null ? t('load.chart.baselineBuilding', { count: PROVISIONAL_DAYS }) : t('load.basis.provisional')}
         </div>
       ) : null}
       {segments.length > 0 ? (
@@ -153,8 +153,10 @@ export function LoadChart({ entries, pendingSessions }: { entries: AthleteLoadEn
 
   const chartData = useMemo(() => {
     const daily = fillMissingDays(aggregateDailyLoads(entries), Math.max(range, 84));
-    const acwr = calculateACWR(entries);
-    const projected = projectFutureACWR(entries, pendingSessions, 14);
+    // While the basis is building the bars stay, the ratio lines do not (`loadBasis`).
+    const building = loadBasis(entries).stage === 'building';
+    const acwr = building ? [] : calculateACWR(entries);
+    const projected = projectFutureACWR(entries, pendingSessions, 14).map((point) => (building ? { ...point, acwr: null } : point));
     const acwrByDate = new Map(acwr.map((point) => [point.date, point]));
     const projectedByDate = new Map(projected.map((point) => [point.date, point]));
     const entriesByDate = new Map<string, AthleteLoadEntry[]>();

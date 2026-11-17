@@ -326,9 +326,9 @@ async function main() {
   {
     const jonasEntries = db().loadEntries.filter((entry) => entry.personId === P.jonas);
     const client = data.summarizeLoadEntries(jonasEntries);
-    const server = (await pool.query('select acwr, chronic_full from app.load_summary($1, $2::date)', [P.jonas, data.todayISO()])).rows[0];
+    const server = (await pool.query('select acwr, chronic_full, basis from app.load_basis_summary($1, $2::date)', [P.jonas, data.todayISO()])).rows[0];
     check('nightly job: the server computes the same traffic light as the app',
-      server.chronic_full === client.chronicFull && (server.acwr === null ? client.acwr === null : Math.abs(Number(server.acwr) - (client.acwr ?? -1)) < 0.005),
+      server.chronic_full === client.chronicFull && server.basis === client.basis && (server.acwr === null ? client.acwr === null : Math.abs(Number(server.acwr) - (client.acwr ?? -1)) < 0.005),
       { server, client });
     const refreshed = (await pool.query('select app.refresh_load_summaries($1::date) as n', [data.todayISO()])).rows[0].n;
     check('… and writes it for every athlete with load', Number(refreshed) >= 1, refreshed);
@@ -354,9 +354,9 @@ async function main() {
     }));
     const today = (await pool.query("select to_char(current_date, 'YYYY-MM-DD') as d")).rows[0].d as string;
     const client = data.summarizeLoadEntries(synthetic);
-    const server = (await pool.query('select acwr, chronic_full from app.load_summary($1, $2::date)', [P.ben, today])).rows[0];
+    const server = (await pool.query('select acwr, chronic_full, basis from app.load_basis_summary($1, $2::date)', [P.ben, today])).rows[0];
     check('nightly job: same traffic light as the app over 60 uneven days',
-      today === data.todayISO() && server.chronic_full === client.chronicFull && Number(server.acwr) === client.acwr,
+      today === data.todayISO() && server.chronic_full === client.chronicFull && server.basis === client.basis && Number(server.acwr) === client.acwr,
       { server, client, today });
   }
   check('… no refusals', store.getStatus().rejected === null, store.getStatus().rejected);

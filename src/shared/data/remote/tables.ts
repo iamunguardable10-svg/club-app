@@ -220,7 +220,7 @@ export function toServerRows(database: LocalDatabase): ServerRows {
       note: e.note ?? null, source: e.source, created_at: e.createdAt,
     })),
     load_summaries: database.loadSummaries.map((s) => ({
-      person_id: s.personId, acwr: s.acwr, chronic_full: s.chronicFull, updated_at: s.updatedAt,
+      person_id: s.personId, acwr: s.acwr, chronic_full: s.chronicFull, basis: s.basis ?? null, updated_at: s.updatedAt,
     })),
     athlete_plans: database.athletePlans.map((p) => ({
       id: p.id, person_id: p.personId, team_id: p.teamId, title: p.title, date: p.date, starts_at: p.startsAt ?? null,
@@ -388,7 +388,8 @@ export function fromServerRows(
       }))
       .sort((a, b) => a.date.localeCompare(b.date)),
     loadSummaries: rows.load_summaries.map((x): LoadSummaryRow => ({
-      personId: s(x.person_id), acwr: x.acwr === null ? null : Number(x.acwr), chronicFull: Boolean(x.chronic_full), updatedAt: s(x.updated_at),
+      personId: s(x.person_id), acwr: x.acwr === null || !Number.isFinite(Number(x.acwr)) ? null : Number(x.acwr), chronicFull: Boolean(x.chronic_full),
+      basis: x.basis === 'building' || x.basis === 'provisional' || x.basis === 'regular' ? x.basis : null, updatedAt: s(x.updated_at),
     })),
     athletePlans: rows.athlete_plans.map((p) => ({
       id: s(p.id), personId: s(p.person_id), teamId: sn(p.team_id), teamName: p.team_id ? teamNameById.get(s(p.team_id)) ?? null : null,

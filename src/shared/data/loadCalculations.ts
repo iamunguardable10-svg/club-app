@@ -16,6 +16,16 @@
  *
  * Session load is RPE × minutes (Foster's session-RPE). Every view reads the
  * numbers from here; nothing else computes a ratio.
+ *
+ * Short history (2026-11-17): one rule for every view and the nightly server
+ * summary, `loadBasis`. Under 14 days of history (or too few rated days) the
+ * app builds the basis and shows no ratio, zone or risk; 14–29 days give a
+ * provisional reading; from 30 days the regular one. Only rated entries up to
+ * today count: days filled with 0 and future entries do not make a basis.
+ * Changed with it, for a reason: the ratio starts after 14 days instead of 8
+ * (with a week of history the chronic value is a guess and the ratio jumps),
+ * needs at least 1 AU a day of chronic load (no spikes from dividing by
+ * almost nothing), and non-finite values never reach the screen.
  */
 
 import type { ACWRDataPoint, AthleteLoadEntry, AthletePendingSession, DayLoad, LoadTrainingType } from './loadTypes';
@@ -25,8 +35,15 @@ const ACUTE_DAYS = 7;
 const CHRONIC_DAYS = 28;
 const LAMBDA_ACUTE = 2 / (ACUTE_DAYS + 1);
 const LAMBDA_CHRONIC = 2 / (CHRONIC_DAYS + 1);
-/** Days of history before the chronic value is trusted (the light shows "Baseline" until then). */
-export const BASELINE_DAYS = CHRONIC_DAYS;
+/** Days of history before any ratio is shown (provisional until `BASELINE_DAYS`). */
+export const PROVISIONAL_DAYS = 14;
+/** Days of history before the reading is regular (the light shows "Baseline" or "provisional" until then). */
+export const BASELINE_DAYS = 30;
+/** Rated days within the last 28 that a provisional / regular reading needs. */
+export const PROVISIONAL_RATED_DAYS = 4;
+export const REGULAR_RATED_DAYS = 8;
+/** Below this chronic load (AU per day) the ratio is not computed. */
+const MIN_CHRONIC = 1;
 
 function localISO(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -42,10 +59,20 @@ export function todayISO() {
   return localISO(new Date());
 }
 
+/** Entries with a real load (finite, above 0). */
+function withLoad(entries: AthleteLoadEntry[]) {
+  return entries.filter((entry) => Number.isFinite(entry.load) && entry.load > 0);
+}
+
+/** Rated entries up to today: what the ratio and the basis are computed from. */
+function countedEntries(entries: AthleteLoadEntry[], today = todayISO()) {
+  return withLoad(entries).filter((entry) => entry.date <= today);
+}
+
 export function aggregateDailyLoads(entries: AthleteLoadEntry[]): DayLoad[] {
   const map = new Map<string, DayLoad>();
 
-  for (const entry of entries) {
+  for (const entry of withLoad(entries)) {
     if (!map.has(entry.date)) {
       map.set(entry.date, { date: entry.date, loads: {}, totalLoad: 0 });
     }
@@ -90,7 +117,7 @@ function median(values: number[]) {
 }
 
 function roundRatio(value: number | null) {
-  return value === null ? null : Math.round(value * 100) / 100;
+  return value === null || !Number.isFinite(value) ? null : Math.round(value * 100) / 100;
 }
 
 // ---------------------------------------------------------------------------
@@ -107,7 +134,7 @@ function ewmaSeries(loads: number[]): Trend[] {
   return loads.map((load, index) => {
     acute = LAMBDA_ACUTE * load + (1 - LAMBDA_ACUTE) * acute;
     chronic = LAMBDA_CHRONIC * load + (1 - LAMBDA_CHRONIC) * chronic;
-    return { acute, chronic, ratio: index >= ACUTE_DAYS && chronic > 0 ? acute / chronic : null, full: index >= BASELINE_DAYS - 1 };
+    return { acute, chronic, ratio: index >= PROVISIONAL_DAYS - 1 && chronic >= MIN_CHRONIC ? acute / chronic : null, full: index >= BASELINE_DAYS - 1 };
   });
 }
 
@@ -142,14 +169,55 @@ function buildSeries(days: DayLoad[]): ACWRDataPoint[] {
   });
 }
 
-export function baselineAgeDays(entries: AthleteLoadEntry[]) {
-  return fillMissingDays(aggregateDailyLoads(entries)).length;
+function daysBetweenISO(from: string, to: string) {
+  return Math.round((new Date(`${to}T00:00:00`).getTime() - new Date(`${from}T00:00:00`).getTime()) / 86_400_000);
 }
 
-/** The ratio series, one point per day from the first entry to today. */
+export type LoadBasisStage = 'building' | 'provisional' | 'regular';
+
+export type LoadBasis = {
+  stage: LoadBasisStage;
+  /** Why it is still building: no rated entry, history too short, or too few rated days. */
+  reason: 'none' | 'short' | 'few' | null;
+  /** Days from the first rated entry to today, today included. */
+  spanDays: number;
+  /** Days with a rated entry within the last 28 days. */
+  ratedDays: number;
+  /** Days of history still missing for the next stage (0 when only rated days are missing). */
+  daysToNext: number;
+};
+
+/**
+ * How far the history carries a reading — the one rule every view and the
+ * server use. Only rated entries up to today count (no filled-in days, no
+ * future entries):
+ * - regular: 30 days of history and 8 rated days in the last 28;
+ * - provisional: 14 days and 4 rated days in the last 28;
+ * - otherwise building: entries and history are shown, no ratio.
+ */
+export function loadBasis(entries: AthleteLoadEntry[], today = todayISO()): LoadBasis {
+  const counted = countedEntries(entries, today);
+  if (counted.length === 0) return { stage: 'building', reason: 'none', spanDays: 0, ratedDays: 0, daysToNext: PROVISIONAL_DAYS };
+  const dates = [...new Set(counted.map((entry) => entry.date))].sort();
+  const spanDays = daysBetweenISO(dates[0], today) + 1;
+  const ratedDays = dates.filter((date) => daysBetweenISO(date, today) < CHRONIC_DAYS).length;
+  if (spanDays >= BASELINE_DAYS && ratedDays >= REGULAR_RATED_DAYS) return { stage: 'regular', reason: null, spanDays, ratedDays, daysToNext: 0 };
+  if (spanDays >= PROVISIONAL_DAYS && ratedDays >= PROVISIONAL_RATED_DAYS) {
+    return { stage: 'provisional', reason: null, spanDays, ratedDays, daysToNext: Math.max(0, BASELINE_DAYS - spanDays) };
+  }
+  return { stage: 'building', reason: spanDays < PROVISIONAL_DAYS ? 'short' : 'few', spanDays, ratedDays, daysToNext: Math.max(0, PROVISIONAL_DAYS - spanDays) };
+}
+
+/** Days of rated history up to today (future entries do not count). */
+export function baselineAgeDays(entries: AthleteLoadEntry[]) {
+  return loadBasis(entries).spanDays;
+}
+
+/** The ratio series, one point per day from the first rated entry to today. */
 export function calculateACWR(entries: AthleteLoadEntry[]): ACWRDataPoint[] {
-  if (entries.length === 0) return [];
-  return buildSeries(fillMissingDays(aggregateDailyLoads(entries)));
+  const counted = countedEntries(entries);
+  if (counted.length === 0) return [];
+  return buildSeries(fillMissingDays(aggregateDailyLoads(counted)));
 }
 
 /** Same as `calculateACWR` (kept for older imports). */
@@ -162,11 +230,23 @@ export function getLatestACWR(entries: AthleteLoadEntry[]) {
   return upToToday[upToToday.length - 1] ?? null;
 }
 
-export function loadZone(acwr: number | null, chronicFull = false) {
-  if (acwr === null || !chronicFull) return { label: 'Baseline', tone: 'neutral' as const };
-  if (acwr < ACWR_ZONES.low) return { label: 'Low', tone: 'low' as const };
-  if (acwr <= ACWR_ZONES.high) return { label: 'Ready', tone: 'ready' as const };
-  return { label: 'High', tone: 'high' as const };
+/**
+ * The traffic light. `basis` is the stage from `loadBasis` (or the stored
+ * one); `true` / `false` still mean regular / building for older callers.
+ * A provisional reading has a zone and `provisional: true`.
+ */
+export function loadZone(acwr: number | null, basis: LoadBasisStage | boolean = false) {
+  const stage: LoadBasisStage = basis === true ? 'regular' : basis === false ? 'building' : basis;
+  if (acwr === null || !Number.isFinite(acwr) || stage === 'building') return { label: 'Baseline', tone: 'neutral' as const, provisional: false };
+  const provisional = stage === 'provisional';
+  if (acwr < ACWR_ZONES.low) return { label: 'Low', tone: 'low' as const, provisional };
+  if (acwr <= ACWR_ZONES.high) return { label: 'Ready', tone: 'ready' as const, provisional };
+  return { label: 'High', tone: 'high' as const, provisional };
+}
+
+/** The stage of a stored summary row; rows from before the stage existed fall back to `chronicFull`. */
+export function summaryBasis(row: { basis?: LoadBasisStage | null; chronicFull?: boolean } | null | undefined): LoadBasisStage {
+  return row?.basis ?? (row?.chronicFull ? 'regular' : 'building');
 }
 
 /**
@@ -177,7 +257,8 @@ export function loadZone(acwr: number | null, chronicFull = false) {
  * EWMA values: today's load moves acute and chronic together.
  */
 export function loadRoom(entries: AthleteLoadEntry[]) {
-  const days = fillMissingDays(aggregateDailyLoads(entries));
+  if (loadBasis(entries).stage === 'building') return null;
+  const days = fillMissingDays(aggregateDailyLoads(countedEntries(entries)));
   const index = days.findIndex((day) => day.date === todayISO());
   if (index < 1) return null;
   const trends = ewmaSeries(days.map((day) => day.totalLoad));
@@ -197,7 +278,7 @@ export function loadRoom(entries: AthleteLoadEntry[]) {
 export function sevenDayLoad(entries: AthleteLoadEntry[]) {
   const today = new Date(`${todayISO()}T00:00:00`);
   const start = addDays(today, -6);
-  return entries.reduce((total, entry) => {
+  return withLoad(entries).reduce((total, entry) => {
     const date = new Date(`${entry.date}T00:00:00`);
     return date >= start && date <= today ? total + entry.load : total;
   }, 0);
@@ -212,9 +293,10 @@ export function formatLoadDate(date: string) {
  * chronic window is full. What a summary-only coach role gets; the server
  * computes the same numbers every night (app.refresh_load_summaries).
  */
-export function summarizeLoadEntries(entries: AthleteLoadEntry[]): { acwr: number | null; chronicFull: boolean } {
-  const latest = getLatestACWR(entries);
-  return { acwr: latest?.acwr ?? null, chronicFull: latest?.chronicFull ?? false };
+export function summarizeLoadEntries(entries: AthleteLoadEntry[]): { acwr: number | null; chronicFull: boolean; basis: LoadBasisStage } {
+  const basis = loadBasis(entries).stage;
+  const latest = basis === 'building' ? null : getLatestACWR(entries);
+  return { acwr: latest?.acwr ?? null, chronicFull: basis === 'regular', basis };
 }
 
 // ---------------------------------------------------------------------------
@@ -285,8 +367,9 @@ function weekdayPattern(history: { date: string; load: number }[]) {
  * - Past sessions of the last 7 days that are not rated yet count with their
  *   expected load, so a missing rating does not drag the forecast down.
  */
-export function projectFutureACWR(entries: AthleteLoadEntry[], plannedSessions: AthletePendingSession[], daysAhead = 14): ACWRDataPoint[] {
+export function projectFutureACWR(allEntries: AthleteLoadEntry[], plannedSessions: AthletePendingSession[], daysAhead = 14): ACWRDataPoint[] {
   const today = todayISO();
+  const entries = countedEntries(allEntries, today);
   const historicalDays = fillMissingDays(aggregateDailyLoads(entries), 84);
   if (entries.length === 0 && plannedSessions.length === 0) return [];
 
@@ -388,19 +471,15 @@ export function projectFutureACWR(entries: AthleteLoadEntry[], plannedSessions: 
  */
 export const HIGH_RISK_ACWR = 1.5;
 
-function daysBetweenISO(from: string, to: string) {
-  return Math.round((new Date(`${to}T00:00:00`).getTime() - new Date(`${from}T00:00:00`).getTime()) / 86_400_000);
-}
-
 /**
  * The ratio now and at the end of the day of the last planned session, with
  * those sessions done as estimated (same forecast as the chart). Null while
  * the baseline is still building or without planned sessions.
  */
 export function acwrAfter(entries: AthleteLoadEntry[], planned: AthletePendingSession[]): { before: number; after: number; date: string } | null {
-  if (planned.length === 0) return null;
+  if (planned.length === 0 || loadBasis(entries).stage === 'building') return null;
   const latest = getLatestACWR(entries);
-  if (!latest?.chronicFull || latest.acwr === null) return null;
+  if (latest?.acwr == null) return null;
   const date = planned.map((session) => session.date).sort().at(-1)!;
   const days = Math.max(0, daysBetweenISO(todayISO(), date));
   const point = projectFutureACWR(entries, planned, days).find((candidate) => candidate.date === date);
@@ -409,8 +488,7 @@ export function acwrAfter(entries: AthleteLoadEntry[], planned: AthletePendingSe
 
 /** The first day in the forecast above `HIGH_RISK_ACWR`, if any. */
 export function firstHighRiskDay(entries: AthleteLoadEntry[], planned: AthletePendingSession[], daysAhead = 7): { date: string; acwr: number } | null {
-  const latest = getLatestACWR(entries);
-  if (!latest?.chronicFull) return null;
+  if (loadBasis(entries).stage === 'building') return null;
   const today = todayISO();
   const point = projectFutureACWR(entries, planned, daysAhead).find((candidate) => candidate.date >= today && (candidate.acwr ?? 0) > HIGH_RISK_ACWR);
   return point?.acwr != null ? { date: point.date, acwr: point.acwr } : null;
@@ -424,7 +502,7 @@ export function weekChangePercent(entries: AthleteLoadEntry[]): number | null {
   const today = todayISO();
   let current = 0;
   let previous = 0;
-  for (const entry of entries) {
+  for (const entry of withLoad(entries)) {
     const age = daysBetweenISO(entry.date, today);
     if (age >= 0 && age <= 6) current += entry.load;
     else if (age >= 7 && age <= 13) previous += entry.load;

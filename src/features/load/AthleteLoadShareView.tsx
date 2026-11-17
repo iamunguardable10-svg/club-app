@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { LoadChart } from './AthleteLoadWorkspace';
+import { LoadChart, basisText } from './AthleteLoadWorkspace';
 import { decodeAthleteLoadShare } from './athleteLoadShare';
-import { baselineAgeDays, getLatestACWR, loadZone, sevenDayLoad } from './loadCalculations';
+import { getLatestACWR, loadBasis, loadZone, sevenDayLoad } from './loadCalculations';
 import { zoneLabel } from './loadLabels';
 import { formatDateTime, formatDecimal } from '@/shared/format';
 import { useT } from '@/shared/i18n';
@@ -32,9 +32,11 @@ export function AthleteLoadShareView() {
   const payload = useMemo(() => (token ? decodeAthleteLoadShare(token) : null), [token]);
   const entries = useMemo(() => [...(payload?.entries ?? [])].sort((a, b) => a.date.localeCompare(b.date)), [payload]);
   const latest = useMemo(() => getLatestACWR(entries), [entries]);
-  const baselineDays = useMemo(() => baselineAgeDays(entries), [entries]);
-  const isBaselineReady = (latest?.chronicFull ?? false) && baselineDays >= 30;
-  const zone = loadZone(latest?.acwr ?? null, isBaselineReady);
+  // The same rule as the player's own view (`loadBasis`).
+  const basis = useMemo(() => loadBasis(entries), [entries]);
+  const shownAcwr = basis.stage === 'building' ? null : latest?.acwr ?? null;
+  const zone = loadZone(shownAcwr, basis.stage);
+  const basisLine = basisText(basis);
   const weeklyLoad = useMemo(() => sevenDayLoad(entries), [entries]);
 
   if (token === null) {
@@ -71,7 +73,7 @@ export function AthleteLoadShareView() {
               </div>
               <div className="rounded-2xl os-tile p-3">
                 <p className="text-xs font-semibold text-slate-400">ACWR</p>
-                <p className="mt-2 text-xl font-semibold">{latest?.acwr && isBaselineReady ? formatDecimal(latest.acwr) : '—'}</p>
+                <p className="mt-2 text-xl font-semibold">{shownAcwr !== null ? formatDecimal(shownAcwr) : '—'}</p>
               </div>
               <div className="rounded-2xl os-tile p-3">
                 <p className="text-xs font-semibold text-slate-400">{t('share.view.state')}</p>
@@ -79,6 +81,7 @@ export function AthleteLoadShareView() {
               </div>
             </div>
           </div>
+          {basisLine ? <p className="mt-4 text-sm font-medium text-amber-200" data-testid="load-basis">{basisLine}</p> : null}
         </header>
 
         <section className="rounded-[1.75rem] border border-slate-800/80 bg-slate-950/65 p-4 sm:rounded-[2rem] sm:p-5">

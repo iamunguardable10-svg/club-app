@@ -481,6 +481,8 @@ export type LoadSummaryRow = {
   personId: Id;
   acwr: number | null;
   chronicFull: boolean;
+  /** How far the history carries the reading (`loadBasis`); missing on rows written before it existed. */
+  basis?: 'building' | 'provisional' | 'regular' | null;
   updatedAt: Timestamp;
 };
 

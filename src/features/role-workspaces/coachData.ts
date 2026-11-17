@@ -22,6 +22,7 @@ import {
   teamHasFeature,
   displayName,
   loadZone,
+  summaryBasis,
   sessionTypeToLoadType,
   type AthleteLoadEntry,
   type CoachPermission,
@@ -81,8 +82,8 @@ function toCoachPlayer(database: LocalDatabase, personId: Id, teamId: Id, access
     ? null
     : access === 'full'
       ? summarizeLoadEntries(entries)
-      : { acwr: storedSummary?.acwr ?? null, chronicFull: storedSummary?.chronicFull ?? false };
-  const zone = loadZone(loadSummary?.acwr ?? null, loadSummary?.chronicFull ?? false);
+      : { acwr: storedSummary?.acwr ?? null, chronicFull: storedSummary?.chronicFull ?? false, basis: summaryBasis(storedSummary) };
+  const zone = loadZone(loadSummary?.acwr ?? null, summaryBasis(loadSummary));
 
   const reviews: Record<string, CoachEntryReview> = {};
   if (access === 'full') {
