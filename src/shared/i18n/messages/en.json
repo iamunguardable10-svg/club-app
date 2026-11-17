@@ -452,8 +452,6 @@
   "composer.seriesChange": "Weekly series · change",
   "composer.onlyThis": "Only this one",
   "composer.thisAndFollowing": "This and following",
-  "composer.planLater": "Plan later",
-  "composer.alreadyDone": "Already done",
   "composer.thisTeam": "This team",
   "composer.noTracking": "{team} does not track training load, so there is nothing to rate for this session.",
   "composer.warmupAttached": "Warmup is attached to the game. Change availability on the game session.",
@@ -472,7 +470,6 @@
   "composer.saveAvailability": "Save availability",
   "composer.rpe": "RPE",
   "composer.gameRpe": "Game load uses RPE 10. Enter playing minutes below.",
-  "composer.plannedLength": "Planned length",
   "composer.playingMinutes": "Playing minutes",
   "composer.duration": "Duration",
   "composer.planNote": "After the session the app asks “How hard was it?”: effort and how long it really took.",
@@ -2539,5 +2536,6 @@
   "team.first.playbook": "Fill the playbook",
   "team.first.playbookWhy": "Plays and documents as files. Drafts are for the staff, released ones for the team. Optional.",
   "team.first.open": "Go",
-  "team.first.skip": "Skip"
+  "team.first.skip": "Skip",
+  "composer.rateAfter": "You can rate it once the session is over."
 }

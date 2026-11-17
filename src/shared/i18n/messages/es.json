@@ -452,8 +452,6 @@
   "composer.seriesChange": "Serie semanal · modificar",
   "composer.onlyThis": "Solo esta",
   "composer.thisAndFollowing": "Esta y las siguientes",
-  "composer.planLater": "Planificar más tarde",
-  "composer.alreadyDone": "Ya completada",
   "composer.thisTeam": "Este equipo",
   "composer.noTracking": "{team} no registra la carga de entrenamiento, así que no hay nada que valorar para esta sesión.",
   "composer.warmupAttached": "El calentamiento está asociado al partido. Cambia tu disponibilidad en la sesión del partido.",
@@ -472,7 +470,6 @@
   "composer.saveAvailability": "Guardar disponibilidad",
   "composer.rpe": "RPE",
   "composer.gameRpe": "La carga del partido usa RPE 10. Introduce abajo los minutos que has jugado.",
-  "composer.plannedLength": "Duración prevista",
   "composer.playingMinutes": "Minutos jugados",
   "composer.duration": "Duración",
   "composer.planNote": "Después de la sesión, la app te preguntará: «¿Qué esfuerzo te ha supuesto?». Indica el esfuerzo y cuánto ha durado realmente.",
@@ -2539,5 +2536,6 @@
   "team.first.playbook": "Llenar el playbook",
   "team.first.playbookWhy": "Jugadas y documentos como archivo. Los borradores son para el staff, los publicados para el equipo. Opcional.",
   "team.first.open": "Vamos",
-  "team.first.skip": "Omitir"
+  "team.first.skip": "Omitir",
+  "composer.rateAfter": "Podrás valorarla cuando termine la sesión."
 }
