@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { WhoAreYou, type Persona } from '@/features/onboarding/WhoAreYou';
+import { InstallFirst } from '@/features/install/InstallFirst';
 import { PILOT_MAIL } from '@/features/landing/pilotMail';
 import type { IdentityRole } from '@/shared/data';
 import { useT, type MessageKey } from '@/shared/i18n';
@@ -86,6 +87,7 @@ export function NewHere({ onDemo, canSignIn, startAt = 'choose' }: { onDemo: (ro
           <button type="button" onClick={() => setStep('role')} className="os-success text-center text-base">{t('start.new.button')}</button>
           {canSignIn ? <Link href="/login" className="os-secondary text-center text-base">{t('start.signIn.button')}</Link> : null}
         </section>
+        {canSignIn ? <InstallFirst variant="compact" /> : null}
         <ScreenStrip />
       </>
     );

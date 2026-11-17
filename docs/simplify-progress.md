@@ -3547,3 +3547,16 @@ Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke; im Browser: Se
 Offen: Nicht bewertete Teameinheiten senken die Basis nicht automatisch (die Bewertungsabfrage fragt sie ab); Genauigkeitsangaben gibt es bewusst keine.
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `test:load` (10 neue Fälle: Schwellen 13/14/29/30, leer, Lücken, Nullen, Zukunft, NaN/Infinity, alte Zeilen), `test:consent`, `build`, Smoke (64), SQL-Tests lokal inkl. `37_load_basis_test.sql`, `test:pilot` (App und Server gleich, auch die Stufe); Vorher/Nachher im Browser mit 10, 20 und 60 Tagen Verlauf.
+
+## Run 129 — Onboarding: App zuerst, Schritte nach dem Beitritt, erste Schritte im Team (2026-11-17)
+
+Übernommen aus Fables Auftrag. Das Konzept steht in `docs/onboarding-v2.md`.
+
+- **App zuerst:** Am Handy im Browser bieten Team-Link, Einladung und Startseite zuerst die App auf dem Home-Bildschirm an (`InstallFirst`): Android mit Installieren-Knopf, iPhone mit den Safari-Schritten, ein Hinweis für Browser in anderen Apps, „Hast du die App schon?“ mit Code oder Link und „Im Browser weitermachen“ (eine Woche gemerkt). Am Desktop und in der App gibt es den Schritt nicht.
+- **Übergabe:** Die installierte App startet am selben Weg hinein, in derselben Sprache und, wenn man im Browser schon angemeldet war, angemeldet (`installHandoff.ts`, `/install.webmanifest?next=&lang=&handoff=`). Wer den Weg auf dem Gerät schon erledigt hat, landet bei einem späteren Start auf `/start`. Ist der Anmeldecode abgelaufen, bleibt man im Weg und meldet sich dort an. Für Store-Apps später ist `STORE_LINKS` vorbereitet.
+- **Nach dem Beitritt** ein Schritt pro Bildschirm (`AfterJoin`): im ersten Team „Wie sagst du zu?“ (dieselbe Einstellung, gilt für alle Teams), dann Home-Bildschirm und Benachrichtigungen, jeweils mit „Später“. Bei einem weiteren Team bleibt die frühere Wahl (`alignOwnRsvpModes`). `RsvpOptions` wird mit den Einstellungen geteilt.
+- **Erste Schritte im Team** statt „Noch einzurichten“: immer nur der nächste offene Schritt, mit Fortschritt und dem Grund. Standardhalle und Spieler sind Pflicht, Gruppen und Playbook optional und überspringbar. Auf dem Handy steht die Karte über den Einheiten.
+
+Offen: auf echten Geräten prüfen, ob iOS und Android die Startadresse aus dem Manifest übernehmen (Rückfall: Code unter „Hast du die App schon?“). Den Onboarding-Punkt in `CLAUDE.md` auf `docs/onboarding-v2.md` umstellen, wenn Ben zustimmt.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke (64), `test:load`. Im Browser (iPhone-Emulation, Server-Antworten gemockt, nichts geht an das Live-Projekt): Startadresse im Manifest `/join?code=…&lang=de&src=app`, die App übernimmt die Sprache und bereinigt die Adresse, Zusage-Wahl wird gespeichert, erste Schritte auf Handy und Desktop. Vorher/Nachher-Bilder.

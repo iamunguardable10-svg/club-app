@@ -1,25 +1,33 @@
 'use client';
 
 /**
- * First start of the app from the home screen with a sign-in code (see
- * installHandoff.ts): signs in, then loads the app afresh in server mode.
- * Covers the screen meanwhile, so the demo never flashes up.
+ * Every start of the app (see installHandoff.ts): with a sign-in code from
+ * the browser, signs in first and loads the app afresh in server mode
+ * (covering the screen meanwhile, so the demo never flashes up); otherwise
+ * takes over the language and, from the home screen, skips a way in that is
+ * already done.
  */
 
 import { useEffect, useState } from 'react';
 
 import { useT } from '@/shared/i18n';
 
-import { finishLoginHandoff, hasLoginHandoff } from './installHandoff';
+import { finishLaunch, finishLoginHandoff, hasLoginHandoff, isResumablePath } from './installHandoff';
 
 export function LoginHandoff() {
   const t = useT();
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (!hasLoginHandoff()) return;
+    if (!hasLoginHandoff()) {
+      const next = finishLaunch();
+      if (next) window.location.replace(next);
+      return;
+    }
     setBusy(true);
     void finishLoginHandoff().then((result) => {
-      window.location.replace(result === 'expired' ? '/login' : window.location.href);
+      // Code used up: a way in has its own sign-in step; anywhere else, sign in once.
+      const here = `${window.location.pathname}${window.location.search}`;
+      window.location.replace(result === 'expired' && !isResumablePath(here.replace(/[?&](lang|src)=[^&]*/g, '')) ? '/login' : window.location.href);
     });
   }, []);
   if (!busy) return null;

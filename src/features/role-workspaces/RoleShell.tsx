@@ -258,7 +258,7 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
         {children}
       </div>
       <CommandMenu commands={commands} open={commandOpen} onOpenChange={setCommandOpen} />
-      <AfterJoin />
+      <AfterJoin database={database ?? null} />
       <TipLayer tips={tipsFor(database?.activeIdentity?.role, current)} />
 
       {tabBar ? <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] px-3 pb-[calc(0.625rem+env(safe-area-inset-bottom))] md:hidden" aria-label={t('nav.main')}>

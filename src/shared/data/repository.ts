@@ -186,7 +186,7 @@ export function setBackendChoice(choice: BackendChoice): void {
  * Functional notification opt-in can be put away with "Not now" on this device;
  * the calendar's edit hint shows only the first time, the demo's "Like it?" once.
  */
-export type HintName = 'notifications' | 'demoNudge' | 'profileNudge' | 'cardReveal' | 'loadIntroPlayer' | 'loadIntroCoach' | 'rpeHowTo' | 'coachFirstRatings';
+export type HintName = 'notifications' | 'demoNudge' | 'profileNudge' | 'cardReveal' | 'loadIntroPlayer' | 'loadIntroCoach' | 'rpeHowTo' | 'coachFirstRatings' | 'setupGroups' | 'setupPlaybook';
 
 const hintKey = (name: HintName) => `club-app.hint-dismissed.${name}`;
 
@@ -279,7 +279,33 @@ const AFTER_JOIN_KEY = 'club-app.after-join';
 
 export function markAfterJoin(): void {
   if (!isBrowser()) return;
-  try { window.localStorage.setItem(AFTER_JOIN_KEY, '1'); } catch { /* the hints in settings stay */ }
+  try {
+    window.localStorage.setItem(AFTER_JOIN_KEY, '1');
+    window.localStorage.setItem(JOINED_KEY, '1');
+  } catch { /* the hints in settings stay */ }
+}
+
+// "Continue in the browser" on the install-first step (InstallFirst.tsx):
+// asked again after a week, so a later visit can still install.
+const INSTALL_SKIP_KEY = 'club-app.install-skipped';
+
+export function isInstallSkipped(now = Date.now()): boolean {
+  if (!isBrowser()) return false;
+  try { return now - Number(window.localStorage.getItem(INSTALL_SKIP_KEY) ?? 0) < 7 * 86_400_000; } catch { return false; }
+}
+
+export function skipInstall(): void {
+  if (!isBrowser()) return;
+  try { window.localStorage.setItem(INSTALL_SKIP_KEY, String(Date.now())); } catch { /* asked again next time */ }
+}
+
+// Joined, accepted or founded on this device once: a later start of the
+// installed app from its join link goes to the start page instead (installHandoff.ts).
+const JOINED_KEY = 'club-app.joined-here';
+
+export function hasJoinedOnThisDevice(): boolean {
+  if (!isBrowser()) return false;
+  try { return window.localStorage.getItem(JOINED_KEY) === '1'; } catch { return false; }
 }
 
 export function isAfterJoinPending(): boolean {
@@ -2507,6 +2533,28 @@ export function setOwnRsvpMode(mode: RsvpMode): void {
     const own = ownPersonIds(database);
     for (const person of database.people) if (own.includes(person.id)) person.rsvpMode = mode;
   });
+}
+
+/**
+ * After joining a further team: the new person takes the way this account
+ * already answers. 'auto' is only the default, so a 'manual' anywhere is
+ * the choice that was made (one setting for all teams, `setOwnRsvpMode`).
+ */
+export function alignOwnRsvpModes(): void {
+  const database = readDatabase();
+  if (!database) return;
+  const own = ownPersonIds(database);
+  const modes = new Set(database.people.filter((person) => own.includes(person.id)).map((person) => person.rsvpMode ?? 'auto'));
+  if (modes.size > 1) setOwnRsvpMode('manual');
+}
+
+/**
+ * Whether the way of answering is still to be chosen: a player in exactly
+ * one team who has not chosen 'manual' (asked once, right after joining).
+ */
+export function isFirstPlayerTeam(database: LocalDatabase): boolean {
+  const own = ownPersonIds(database);
+  return database.memberships.filter((membership) => own.includes(membership.personId) && membership.role === 'athlete').length === 1;
 }
 
 /**
