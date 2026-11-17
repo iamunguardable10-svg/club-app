@@ -452,8 +452,6 @@
   "composer.seriesChange": "Série hebdomadaire · modifier",
   "composer.onlyThis": "Cette séance uniquement",
   "composer.thisAndFollowing": "Celle-ci et les suivantes",
-  "composer.planLater": "Planifier plus tard",
-  "composer.alreadyDone": "Déjà terminé",
   "composer.thisTeam": "Cette équipe",
   "composer.noTracking": "{team} ne suit pas la charge d’entraînement. Il n’y a donc rien à évaluer pour cette séance.",
   "composer.warmupAttached": "L’échauffement est associé au match. Modifie ta disponibilité sur la séance du match.",
@@ -472,7 +470,6 @@
   "composer.saveAvailability": "Enregistrer ma disponibilité",
   "composer.rpe": "RPE",
   "composer.gameRpe": "La charge du match utilise un RPE de 10. Saisis tes minutes de jeu ci-dessous.",
-  "composer.plannedLength": "Durée prévue",
   "composer.playingMinutes": "Minutes de jeu",
   "composer.duration": "Durée",
   "composer.planNote": "Après la séance, l’app te demandera : « À quel point était-ce difficile ? » Indique l’effort et la durée réelle.",
@@ -2539,5 +2536,6 @@
   "team.first.playbook": "Remplir le playbook",
   "team.first.playbookWhy": "Systèmes et documents en fichiers. Les brouillons sont pour le staff, les publiés pour l’équipe. Facultatif.",
   "team.first.open": "C’est parti",
-  "team.first.skip": "Passer"
+  "team.first.skip": "Passer",
+  "composer.rateAfter": "Tu pourras l’évaluer une fois la séance terminée."
 }

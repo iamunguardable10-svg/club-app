@@ -3560,3 +3560,11 @@ Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `test:load` (10 neue Fälle: S
 Offen: auf echten Geräten prüfen, ob iOS und Android die Startadresse aus dem Manifest übernehmen (Rückfall: Code unter „Hast du die App schon?“). Den Onboarding-Punkt in `CLAUDE.md` auf `docs/onboarding-v2.md` umstellen, wenn Ben zustimmt.
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke (64), `test:load`. Im Browser (iPhone-Emulation, Server-Antworten gemockt, nichts geht an das Live-Projekt): Startadresse im Manifest `/join?code=…&lang=de&src=app`, die App übernimmt die Sprache und bereinigt die Adresse, Zusage-Wahl wird gespeichert, erste Schritte auf Handy und Desktop. Vorher/Nachher-Bilder.
+
+## Run 130 — Eigenes Training wie beim Trainer planen, erst nach dem Ende bewerten (2026-11-17)
+
+- **Planungsfenster der Spieler** wie das der Trainer: „Art“ als Auswahl statt sechs Knöpfen, dann Datum, Beginn und Ende. Der Dauer-Slider ist weg. Minuten gibt es nur noch als Zahl, wo es kein Ende gibt: Teameinheit, Spiel (Spielminuten), ohne Uhrzeit.
+- **Bewerten erst nach der Einheit:** Ob ein Fenster „Plan speichern“ oder „Belastung speichern“ zeigt, hängt jetzt am geplanten Ende, nicht mehr am Datum mit „Später planen / Schon erledigt“. Eine eigene Einheit heute um 19 Uhr lässt sich vorher nicht bewerten. Eine Teameinheit zeigt bis zu ihrem Ende die Antwort statt der Bewertung. Ein Eintrag, der in die Zukunft verschoben wird, lässt sich nicht als erledigt speichern.
+- **Kein Fenster nach dem Ziehen:** Nach dem Verschieben oder Verlängern einer bestehenden Einheit (Spieler und Trainer) öffnet sich das Fenster nicht mehr. Ursache: iOS schickt den Tipp nach dem Loslassen verspätet, die Sperre dafür war schon aufgehoben. Sie gilt jetzt 0,7 s. Beim Anlegen öffnet sich das Fenster wie bisher.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke (64), `test:landing`, `test:load`; im Browser: Plan in zwei Stunden zeigt nur Art/Datum/Beginn/Ende und „Plan speichern“, nach Längerziehen kein Fenster (Länge gespeichert), vergangener Plan zeigt RPE mit Beginn/Ende.

@@ -238,6 +238,9 @@ function weekStart(date = new Date()) {
   return start;
 }
 
+/** The fields of the session sheet, as in the coach's (CoachSessionEditSheet). */
+const COMPOSER_FIELD = 'mt-1 block h-10 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-center text-[15px] font-semibold tabular-nums text-slate-100 outline-none transition focus:border-emerald-300 [color-scheme:dark] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:text-center';
+
 function durationMinutesFromSession(session: AthletePendingSession) {
   if (session.expectedDurationMinutes) return session.expectedDurationMinutes;
   if (!session.endsAt) return DEFAULT_DURATION_BY_TYPE[session.trainingType] ?? 90;
@@ -543,7 +546,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   // Declined a game you drive to: ask whether the ride goes too (audit 2026-11, 4).
   const [rideToWithdraw, setRideToWithdraw] = useState<string | null>(null);
   const [activePendingId, setActivePendingId] = useState<string | null>(null);
-  const [todayAction, setTodayAction] = useState<'plan' | 'report'>('plan');
   const [athleteName, setAthleteName] = useState('Athlete');
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const [activeShareUrl, setActiveShareUrl] = useState<string | null>(null);
@@ -955,12 +957,21 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     return Math.max(1, Math.min(10, Math.round(sample.reduce((sum, entry) => sum + entry.rpe, 0) / sample.length)));
   }
   const activeTeamSessionLocked = Boolean(activeComposerSession?.source === 'team_session' || (activeEntry?.source === 'planned_session' && activeEntry.sessionId));
-  const activeTeamSessionIsFuture = Boolean(activeComposerSession?.source === 'team_session' && new Date(activeComposerSession.startsAt).getTime() > Date.now());
-  const sessionMode = planForm.date < todayISO() ? 'report' : planForm.date > todayISO() ? 'plan' : todayAction;
+  // Rated only once it is over (Ben, 2026-11-17): a team session until its
+  // end shows the answer, an own session until its planned end is a plan.
+  const activeTeamSessionIsFuture = Boolean(activeComposerSession?.source === 'team_session'
+    && (activeComposerSession.endsAt ? new Date(activeComposerSession.endsAt).getTime() : new Date(activeComposerSession.startsAt).getTime() + durationMinutesFromSession(activeComposerSession) * 60_000) > Date.now());
+  const plannedEnd = planForm.time
+    ? new Date(`${planForm.date}T${planForm.time}`).getTime() + planForm.expectedDurationMinutes * 60_000
+    : new Date(`${planForm.date}T23:59:59`).getTime();
+  const isOver = plannedEnd <= Date.now();
+  const sessionMode: 'plan' | 'report' = isOver ? 'report' : 'plan';
   // Planning own training asks for the length only; effort and the real
   // length are asked after the session ("How hard was it?"). The plan keeps
   // the usual effort for this kind of training, for the load forecast.
   const isPlanning = sessionMode === 'plan' && !activeEntry && (!activeComposerSession || activeComposerSession.source === 'athlete_plan');
+  // An entry moved to a time still to come cannot be saved as done yet.
+  const ratesTooEarly = Boolean(activeEntry) && !isOver;
   const effectiveRpe = planForm.trainingType === 'game' ? 10 : isPlanning ? averageRpeFor(planForm.trainingType, planForm.date) : planForm.expectedRpe;
   const sessionLoadPreview = effectiveRpe * planForm.expectedDurationMinutes;
   const seriesCount = repeat === 'weekly' ? seriesDates(planForm.date, repeatDays, repeatUntil || seriesEnd(planForm.date)).length : 1;
@@ -1302,7 +1313,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       expectedRpe: averageRpeFor(current.trainingType, date),
       expectedDurationMinutes: durationMinutes ?? averageDurationByType.get(current.trainingType) ?? DEFAULT_DURATION_BY_TYPE[current.trainingType],
     }));
-    setTodayAction(date === todayISO() ? 'plan' : todayAction);
     setComposerOpen(true);
   }
 
@@ -1321,7 +1331,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
       expectedRpe: entry.trainingType === 'game' ? 10 : entry.rpe,
       expectedDurationMinutes: entry.durationMinutes,
     });
-    setTodayAction('report');
     setComposerOpen(true);
   }
 
@@ -1355,7 +1364,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         expectedRpe: item.trainingType === 'game' ? 10 : item.session.expectedRpe ?? averageRpeFor(item.trainingType, item.date),
         expectedDurationMinutes: duration,
       });
-      setTodayAction('report');
       setComposerOpen(true);
       return;
     }
@@ -1698,25 +1706,39 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
             ) : null}
 
             {activeTeamSessionLocked ? null : (
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                {LOAD_TRAINING_TYPES.slice(0, 6).map((type) => (
-                  <button key={type} type="button" onClick={() => setSessionTrainingType(type)} className={`rounded-2xl border px-3 py-2 text-left text-xs font-semibold transition ${planForm.trainingType === type ? 'border-emerald-300 bg-emerald-300 text-slate-950' : 'border-slate-700 bg-slate-950/70 text-slate-300'}`}>
-                    {loadTypeLabel(type)}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {activeTeamSessionLocked ? null : (
-              <div className="mt-4 flex max-w-full flex-wrap gap-2">
-                <label className="w-[9rem] max-w-[calc(100vw-2rem)] min-w-0 text-xs font-semibold text-slate-400 sm:w-[10rem]">
-                  {t('composer.date')}
-                  <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value, expectedRpe: current.trainingType === 'game' ? 10 : averageRpeFor(current.trainingType, event.target.value) }))} className="mt-2 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-0 text-center text-[14px] font-semibold leading-normal text-white outline-none focus:border-emerald-300 sm:text-[15px] [color-scheme:dark] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:min-h-[2.25rem] [&::-webkit-date-and-time-value]:text-center [&::-webkit-date-and-time-value]:leading-[2.25rem]" />
+              // Like the coach's session sheet (Ben, 2026-11-17): the kind, then date, start and end.
+              <div className="mt-4 grid gap-2.5">
+                <label className="min-w-0 text-xs font-semibold text-slate-400">
+                  {t('sessionForm.type')}
+                  <select value={planForm.trainingType} onChange={(event) => setSessionTrainingType(event.target.value as LoadTrainingType)} className="mt-1 h-10 w-full min-w-0 truncate rounded-lg border border-slate-700/90 bg-slate-950 px-2.5 text-[15px] font-semibold text-slate-100 outline-none transition focus:border-emerald-300">
+                    {LOAD_TRAINING_TYPES.slice(0, 6).map((type) => <option key={type} value={type}>{loadTypeLabel(type)}</option>)}
+                  </select>
                 </label>
-                <label className="w-[5.9rem] min-w-0 text-xs font-semibold text-slate-400 sm:w-[7rem]">
-                  {t('composer.time')}
-                  <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className="mt-2 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-xl border border-slate-700 bg-slate-950 px-2 py-0 text-center text-[14px] font-semibold leading-normal text-white outline-none focus:border-emerald-300 sm:text-[15px] [color-scheme:dark] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:min-h-[2.25rem] [&::-webkit-date-and-time-value]:text-center [&::-webkit-date-and-time-value]:leading-[2.25rem]" />
-                </label>
+                <div className={`grid min-w-0 gap-2 ${planForm.trainingType === 'game' ? 'grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]' : 'grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)]'}`}>
+                  <label className="min-w-0 text-xs font-semibold text-slate-400">
+                    {t('composer.date')}
+                    <input type="date" value={planForm.date} onChange={(event) => setPlanForm((current) => ({ ...current, date: event.target.value, expectedRpe: current.trainingType === 'game' ? 10 : averageRpeFor(current.trainingType, event.target.value) }))} className={COMPOSER_FIELD} />
+                  </label>
+                  <label className="min-w-0 text-xs font-semibold text-slate-400">
+                    {t('sessionForm.start')}
+                    <input type="time" value={planForm.time} onChange={(event) => setPlanForm((current) => ({ ...current, time: event.target.value }))} className={COMPOSER_FIELD} />
+                  </label>
+                  {planForm.trainingType === 'game' ? null : (
+                    <label className="min-w-0 text-xs font-semibold text-slate-400">
+                      {t('composer.endsAt')}
+                      <input
+                        type="time"
+                        disabled={!planForm.time}
+                        value={planForm.time ? clockAfter(planForm.time, planForm.expectedDurationMinutes) : ''}
+                        onChange={(event) => {
+                          const minutes = minutesBetween(planForm.time, event.target.value);
+                          if (minutes !== null) setPlanForm((current) => ({ ...current, expectedDurationMinutes: Math.min(240, Math.max(5, Math.round(minutes / 5) * 5)) }));
+                        }}
+                        className={`${COMPOSER_FIELD} disabled:opacity-50`}
+                      />
+                    </label>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1780,12 +1802,6 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
               </div>
             ) : null}
 
-            {!activeComposerSession && planForm.date === todayISO() ? (
-              <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl os-tile p-1">
-                <button type="button" onClick={() => setTodayAction('plan')} className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${todayAction === 'plan' ? 'bg-violet-300 text-slate-950' : 'text-slate-400'}`}>{t('composer.planLater')}</button>
-                <button type="button" onClick={() => setTodayAction('report')} className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${todayAction === 'report' ? 'bg-slate-100 text-slate-950' : 'text-slate-400'}`}>{t('composer.alreadyDone')}</button>
-              </div>
-            ) : null}
 
             {activeComposerSession?.loadTracked === false && !activeTeamSessionIsFuture ? (
               <p className="mt-5 rounded-2xl os-tile p-4 text-sm font-medium text-slate-300">
@@ -1891,25 +1907,15 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                       <input type="range" min="1" max="10" step="1" value={planForm.expectedRpe} onChange={(event) => setPlanForm((current) => ({ ...current, expectedRpe: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
                     </label>
                   )}
-                  <label className="block">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-400">{isPlanning ? t('composer.plannedLength') : planForm.trainingType === 'game' ? t('composer.playingMinutes') : t('composer.duration')}</span>
-                      <span className="text-xl font-semibold text-white">{t('composer.minutes', { count: planForm.expectedDurationMinutes })}</span>
-                    </div>
-                    <input type="range" min={planForm.trainingType === 'game' ? '0' : '5'} max={planForm.trainingType === 'game' ? '120' : '240'} step={planForm.trainingType === 'game' ? '1' : '5'} value={planForm.expectedDurationMinutes} onChange={(event) => setPlanForm((current) => ({ ...current, expectedDurationMinutes: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
-                  </label>
-                  {/* The end follows the length and moves it back (Ben, 2026-11-17). */}
-                  {planForm.time && planForm.trainingType !== 'game' ? (
+                  {/* Minutes as a number where there is no end to set: a team session, a game (minutes played), no start time. */}
+                  {!isPlanning && (activeTeamSessionLocked || planForm.trainingType === 'game' || !planForm.time) ? (
                     <label className="flex items-center justify-between gap-3 text-xs font-semibold text-slate-400">
-                      {t('composer.endsAt')}
+                      {planForm.trainingType === 'game' ? t('composer.playingMinutes') : t('composer.duration')}
                       <input
-                        type="time"
-                        value={clockAfter(planForm.time, planForm.expectedDurationMinutes)}
-                        onChange={(event) => {
-                          const minutes = minutesBetween(planForm.time, event.target.value);
-                          if (minutes !== null) setPlanForm((current) => ({ ...current, expectedDurationMinutes: Math.min(240, Math.max(5, Math.round(minutes / 5) * 5)) }));
-                        }}
-                        className="h-10 w-28 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-center text-[15px] font-semibold tabular-nums text-slate-100 [color-scheme:dark]"
+                        type="number" inputMode="numeric" min={planForm.trainingType === 'game' ? 0 : 5} max={240} step={planForm.trainingType === 'game' ? 1 : 5}
+                        value={planForm.expectedDurationMinutes}
+                        onChange={(event) => { const value = Number(event.target.value); if (Number.isFinite(value)) setPlanForm((current) => ({ ...current, expectedDurationMinutes: Math.min(240, Math.max(0, Math.round(value))) })); }}
+                        className="h-10 w-24 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-center text-[15px] font-semibold tabular-nums text-slate-100 [color-scheme:dark]"
                       />
                     </label>
                   ) : null}
@@ -1926,7 +1932,8 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   </div>
                 )}
 
-                <button type="button" onClick={submitUnifiedSession} disabled={sessionMode === 'plan' && !activeComposerSession && !activeEntry && seriesCount === 0} className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-semibold text-slate-950 transition disabled:opacity-50 ${sessionMode === 'plan' && !activeComposerSession && !activeEntry ? 'bg-violet-300' : 'bg-emerald-300'}`}>
+                {ratesTooEarly ? <p className="mt-4 text-sm font-medium text-amber-200">{t('composer.rateAfter')}</p> : null}
+                <button type="button" onClick={submitUnifiedSession} disabled={ratesTooEarly || (sessionMode === 'plan' && !activeComposerSession && !activeEntry && seriesCount === 0)} className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-semibold text-slate-950 transition disabled:opacity-50 ${sessionMode === 'plan' && !activeComposerSession && !activeEntry ? 'bg-violet-300' : 'bg-emerald-300'}`}>
                   {sessionMode === 'plan' && !activeComposerSession && !activeEntry
                     ? (repeat === 'weekly' ? t('composer.planCount', { count: seriesCount }) : t('composer.planIt'))
                     : isPlanning

@@ -128,6 +128,9 @@ export function useSmartCalendar({
   const [mode, setMode] = useState<SmartCalendarMode>('view');
   const [drag, setDrag] = useState<CalendarDrag | null>(null);
   const didDragRef = useRef(false);
+  // When the last drag ended: iOS sends the tap after the release late, and that
+  // tap must not open the session (only creating one opens the sheet; Ben, 2026-11-17).
+  const dragEndedAtRef = useRef(0);
   // On touch the click after the tap lands on the draft that tap just put down.
   const draftPlacedAtRef = useRef(0);
   const calendarScrollRef = useRef<HTMLDivElement | null>(null);
@@ -212,7 +215,7 @@ export function useSmartCalendar({
     window.addEventListener('pointerup', createDraftFromTap, { once: true });
   }
   function handleSessionClick(session: SmartCalendarSession, event: MouseEvent<HTMLElement>) {
-    event.stopPropagation(); if (didDragRef.current) { didDragRef.current = false; return; }
+    event.stopPropagation(); if (didDragRef.current || Date.now() - dragEndedAtRef.current < 700) { didDragRef.current = false; return; }
     handlersRef.current.onOpenSession(session, mode);
     tipEvent('calendar.open');
   }
@@ -263,7 +266,7 @@ export function useSmartCalendar({
   /** A tap on the draft, but not the release after dragging it. */
   function draftTap(open: () => void) {
     return () => {
-      if (didDragRef.current) { didDragRef.current = false; return; }
+      if (didDragRef.current || Date.now() - dragEndedAtRef.current < 700) { didDragRef.current = false; return; }
       if (Date.now() - draftPlacedAtRef.current < 500) return;
       open();
       tipEvent('calendar.open');
@@ -307,7 +310,7 @@ export function useSmartCalendar({
     }
     function handlePointerUp() {
       setDrag(null);
-      if (didDragRef.current) tipEvent(activeDrag.kind === 'resize' ? 'calendar.resize' : 'calendar.move');
+      if (didDragRef.current) { dragEndedAtRef.current = Date.now(); tipEvent(activeDrag.kind === 'resize' ? 'calendar.resize' : 'calendar.move'); }
       // The click right after the release is swallowed; one that never comes must not swallow the next tap.
       window.setTimeout(() => { didDragRef.current = false; }, 0);
       if (activeDrag.target === 'session' && activeDrag.sessionId && didDragRef.current) handlersRef.current.onSessionDrop(activeDrag.sessionId, latestStart, latestEnd);

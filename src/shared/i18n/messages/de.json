@@ -452,8 +452,6 @@
   "composer.seriesChange": "Wöchentliche Serie · ändern",
   "composer.onlyThis": "Nur diese",
   "composer.thisAndFollowing": "Diese und alle folgenden",
-  "composer.planLater": "Später planen",
-  "composer.alreadyDone": "Schon erledigt",
   "composer.thisTeam": "Dieses Team",
   "composer.noTracking": "{team} erfasst keine Trainingsbelastung. Für diese Einheit gibt es daher nichts zu bewerten.",
   "composer.warmupAttached": "Das Aufwärmen gehört zum Spiel. Ändere deine Verfügbarkeit bei der Spieleinheit.",
@@ -472,7 +470,6 @@
   "composer.saveAvailability": "Antwort speichern",
   "composer.rpe": "RPE",
   "composer.gameRpe": "Die Spielbelastung wird mit RPE 10 berechnet. Gib unten deine Spielminuten ein.",
-  "composer.plannedLength": "Geplante Dauer",
   "composer.playingMinutes": "Spielminuten",
   "composer.duration": "Dauer",
   "composer.planNote": "Nach der Einheit fragt die App: „Wie anstrengend war es?“ Gib die Anstrengung und die tatsächliche Dauer an.",
@@ -2539,5 +2536,6 @@
   "team.first.playbook": "Playbook füllen",
   "team.first.playbookWhy": "Spielzüge und Unterlagen als Datei. Entwürfe sieht nur der Staff, freigegebene das Team. Optional.",
   "team.first.open": "Los",
-  "team.first.skip": "Überspringen"
+  "team.first.skip": "Überspringen",
+  "composer.rateAfter": "Bewerten geht, sobald die Einheit vorbei ist."
 }
