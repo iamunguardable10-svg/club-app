@@ -25,6 +25,7 @@ import {
   readLastCoachTeam,
   dismissHint,
   isHintDismissed,
+  readDefaultSessionType,
 } from '@/shared/data';
 import { LoadIntro } from '@/features/load/LoadIntro';
 import { buildCoachData, EMPTY_COACH_DATA } from '@/features/role-workspaces/coachData';
@@ -32,7 +33,7 @@ import type { CoachAvailability, CoachFacility, CoachGroup, CoachMode, CoachPlay
 import { FacilitiesManager } from '@/features/facilities/FacilitiesManager';
 import { CoachHistoryInsights, CoachSessionDetailOverlay, OpenAnswers, type CoachSessionInsight } from '@/features/role-workspaces/CoachSessionSurfaces';
 import { CoachSessionEditSheet } from '@/features/role-workspaces/CoachSessionEditSheet';
-import { labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
+import { coachSessionTypes, labelForCoachSessionType, normalizeCoachSessionType } from '@/features/sessions/sessionTypeLabels';
 import { WeeklySeriesBoard } from '@/features/sessions/WeeklySeriesBoard';
 import { SeriesTemplateEditSheet, type SeriesTemplateInput } from '@/features/sessions/SeriesTemplateEditSheet';
 import { gameLine, meetLine } from '@/features/sessions/SessionInfo';
@@ -232,7 +233,10 @@ export function CoachCalendarSurface({
     handlers: {
       onCreateDraft: (start, end) => {
         const team = editableTeams.length === 1 ? editableTeams[0] : editableTeams.find((candidate) => candidate.id === teamFilter) ?? null;
-        setDraft({ startsAt: start.toISOString(), endsAt: end.toISOString(), teamId: team?.id ?? null, facilityId: defaultFacilityForTeam(team), groupIds: [], sessionType: 'training' });
+        // The kind from the settings (Ben, 2026-11-17), so ✓ can put it down at once.
+        const stored = readDefaultSessionType('coach');
+        const sessionType = coachSessionTypes.some((type) => type.value === stored) ? stored! : 'training';
+        setDraft({ startsAt: start.toISOString(), endsAt: end.toISOString(), teamId: team?.id ?? null, facilityId: defaultFacilityForTeam(team), groupIds: [], sessionType });
       },
       onDraftTimes: (start, end) => setDraft((current) => current ? { ...current, startsAt: start.toISOString(), endsAt: end.toISOString() } : current),
       onSessionTimes: (sessionId, start, end) => setLocalSessions((current) => current.map((session) => session.id === sessionId ? { ...session, startsAt: start.toISOString(), endsAt: end.toISOString() } : session)),
@@ -249,6 +253,12 @@ export function CoachCalendarSurface({
     },
   });
   const { days, setMode, setWeekOffset, setActiveDayIndex } = calendar;
+  /** ✓ on the draft: with a team and a hall it is saved as it is; otherwise the sheet asks for them. */
+  function confirmDraft() {
+    if (!draft) return;
+    if (!draft.teamId || !draft.facilityId) { setEditor({ kind: 'draft' }); return; }
+    void requestCoachCalendarSaveRef.current({ kind: 'create', input: { startsAt: draft.startsAt, endsAt: draft.endsAt, teamId: draft.teamId, facilityId: draft.facilityId, groupIds: draft.groupIds ?? [], sessionType: draft.sessionType } });
+  }
   const visibleWeekStart = useMemo(() => getIsoWeekStart(localDateKey(days[0] ?? new Date())), [days]);
 
   useEffect(() => { if (!calendar.isDragging) setLocalSessions(sessions); }, [calendar.isDragging, sessions]);
@@ -599,7 +609,7 @@ export function CoachCalendarSurface({
         {surfaceMode === 'series' ? viewSwitch : null}
       </div> : null}
       {surfaceMode === 'week' ? (
-        <SmartSessionCalendar {...calendar.calendarProps} canCreateSessions={editableTeams.length > 0 && facilities.length > 0} createBlockedHint={editableTeams.length > 0 && facilities.length === 0 ? <>{t('coach.calendar.needsHall')} <Link href="/coach/facilities" className="underline">{t('coach.calendar.addFirstHall')}</Link>{t('coach.calendar.thenEdit')}</> : undefined} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, sessionType: draft.sessionType, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} onClearDraft={() => setDraft(null)} onDraftClick={calendar.draftTap(() => setEditor({ kind: 'draft' }))} onDraftCancel={() => setDraft(null)} toolbarAccessory={viewSwitch} />
+        <SmartSessionCalendar {...calendar.calendarProps} canCreateSessions={editableTeams.length > 0 && facilities.length > 0} createBlockedHint={editableTeams.length > 0 && facilities.length === 0 ? <>{t('coach.calendar.needsHall')} <Link href="/coach/facilities" className="underline">{t('coach.calendar.addFirstHall')}</Link>{t('coach.calendar.thenEdit')}</> : undefined} sessions={smartSessions} draft={draft ? { startsAt: draft.startsAt, endsAt: draft.endsAt, sessionType: draft.sessionType, teamLabel: teams.find((team) => team.id === draft.teamId)?.name ?? null } : null} onClearDraft={() => setDraft(null)} onDraftClick={calendar.draftTap(() => setEditor({ kind: 'draft' }))} onDraftConfirm={confirmDraft} onDraftCancel={() => setDraft(null)} toolbarAccessory={viewSwitch} />
       ) : (
         <div className="mt-7 sm:mt-5">
           <WeeklySeriesBoard

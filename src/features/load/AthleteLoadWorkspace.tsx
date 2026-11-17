@@ -23,7 +23,7 @@ import { PROVISIONAL_RATED_DAYS, acwrAfter, aggregateDailyLoads, backFromBreak, 
 import { LoadInfoButton, LoadLandingChip, LoadRiskBadge } from './LoadHints';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
 import { HealthConsentPanel } from '@/features/legal/HealthConsentPanel';
-import { athleteHasLoad, athleteTeamTracksLoad, hasHealthConsent, clearEntryReview, displayName, drivenRide, getActivePerson, newId, readDatabase, reportAvailability, sessionDate, withdrawRide, reviewsForPerson, rsvpModeOf, isRemoteMode, useLocalDatabase } from '@/shared/data';
+import { athleteHasLoad, athleteTeamTracksLoad, hasHealthConsent, clearEntryReview, displayName, drivenRide, getActivePerson, newId, readDatabase, readDefaultSessionType, readSessionLength, reportAvailability, sessionDate, withdrawRide, reviewsForPerson, rsvpModeOf, isRemoteMode, useLocalDatabase } from '@/shared/data';
 import { IdentitySwitcher } from '@/features/identity/IdentitySwitcher';
 import { AthleteShell } from '@/features/role-workspaces/RoleShell';
 import { formatDay, formatDayMonth, formatDecimal, formatEntryDate, formatInteger, formatLongDay, formatTime as formatSharedTime, formatWeekday } from '@/shared/format';
@@ -239,7 +239,7 @@ function weekStart(date = new Date()) {
 }
 
 /** The fields of the session sheet, as in the coach's (CoachSessionEditSheet). */
-const COMPOSER_FIELD = 'mt-1 block h-10 w-full min-w-0 appearance-none rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-center text-[15px] font-semibold tabular-nums text-slate-100 outline-none transition focus:border-emerald-300 [color-scheme:dark] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:text-center';
+const COMPOSER_FIELD = 'mt-1 block h-10 w-full min-w-0 appearance-none overflow-hidden rounded-lg border border-slate-700/90 bg-slate-950 px-2 py-0 text-center text-[15px] font-semibold leading-normal tabular-nums text-slate-100 outline-none transition focus:border-emerald-300 [color-scheme:dark] [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:min-h-[2.25rem] [&::-webkit-date-and-time-value]:text-center [&::-webkit-date-and-time-value]:leading-[2.25rem]';
 
 function durationMinutesFromSession(session: AthletePendingSession) {
   if (session.expectedDurationMinutes) return session.expectedDurationMinutes;
@@ -445,8 +445,11 @@ function AthleteCalendar({
   onEmptySlot,
   onItemSelect,
   onPlanTimeChange,
+  onQuickPlan,
 }: {
   items: AthleteCalendarItem[];
+  /** ✓ on the draft: plan it at once with the default kind (settings). */
+  onQuickPlan?: (date: string, time: string, durationMinutes?: number) => void;
   /** Missing for players without load tracking: own plans are part of load. */
   onEmptySlot?: (date: string, time: string, durationMinutes?: number) => void;
   onItemSelect: (item: AthleteCalendarItem, intent: 'view' | 'edit') => void;
@@ -468,7 +471,6 @@ function AthleteCalendar({
   const calendar = useSmartCalendar({
     draft,
     canCreate: Boolean(onEmptySlot),
-    draftMinutes: 60,
     handlers: {
       onCreateDraft: (start, end) => setDraft({ startsAt: start.toISOString(), endsAt: end.toISOString() }),
       onDraftTimes: (start, end) => setDraft((current) => current ? { startsAt: start.toISOString(), endsAt: end.toISOString() } : current),
@@ -487,10 +489,10 @@ function AthleteCalendar({
   useEffect(() => { if (!calendar.isDragging) setPreview(null); }, [calendar.isDragging]);
   // What a tap and a drag do is said once, the first time the edit mode opens.
 
-  function confirmDraft() {
-    if (!draft || !onEmptySlot) return;
+  function confirmDraft(handler = onEmptySlot) {
+    if (!draft || !handler) return;
     const start = new Date(draft.startsAt);
-    onEmptySlot(isoDate(start), timeInputFromISO(draft.startsAt), Math.round((new Date(draft.endsAt).getTime() - start.getTime()) / 60_000));
+    handler(isoDate(start), timeInputFromISO(draft.startsAt), Math.round((new Date(draft.endsAt).getTime() - start.getTime()) / 60_000));
     setDraft(null);
   }
 
@@ -527,7 +529,8 @@ function AthleteCalendar({
         sessions={sessions}
         draft={draft ? { ...draft, title: t('calendar.ownDraft'), teamLabel: t('calendar.ownDraftHint') } : null}
         onClearDraft={() => setDraft(null)}
-        onDraftClick={calendar.draftTap(confirmDraft)}
+        onDraftClick={calendar.draftTap(() => confirmDraft())}
+        onDraftConfirm={onQuickPlan ? () => confirmDraft(onQuickPlan) : undefined}
         onDraftCancel={() => setDraft(null)}
       />
     </section>
@@ -1070,6 +1073,17 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     };
   }
 
+  /** ✓ on a calendar draft: an own plan with the default kind from the settings, no sheet (Ben, 2026-11-17). */
+  function quickPlan(date: string, time: string, durationMinutes = readSessionLength()) {
+    const stored = readDefaultSessionType('athlete');
+    const type: LoadTrainingType = (LOAD_TRAINING_TYPES as readonly string[]).includes(stored ?? '') ? stored as LoadTrainingType : emptyPlanForm.trainingType;
+    replacePlans([], [{
+      id: newId(), teamId: null, teamName: null, note: null, seriesId: null,
+      title: LOAD_TYPE_LABELS[type], date, startsAt: new Date(`${date}T${time}`).toISOString(), trainingType: type,
+      expectedRpe: type === 'game' ? 10 : averageRpeFor(type, date), expectedDurationMinutes: durationMinutes,
+    }]);
+  }
+
   /** Removes plans (with their warmups) and adds others, in the plans, the calendar and the queue. */
   function replacePlans(removeIds: readonly string[], add: AthleteLoadPlan[]) {
     const removed = new Set(removeIds.flatMap((id) => [id, `${id}-warmup`]));
@@ -1517,7 +1531,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
         {activeView === 'calendar' ? (
           <div id="athlete-calendar" className="scroll-mt-24">
-            <AthleteCalendar items={calendarItems} onEmptySlot={hasLoad ? openComposer : undefined} onItemSelect={openCalendarItem} onPlanTimeChange={updatePlanTimeFromCalendar} />
+            <AthleteCalendar items={calendarItems} onEmptySlot={hasLoad ? openComposer : undefined} onItemSelect={openCalendarItem} onPlanTimeChange={updatePlanTimeFromCalendar} onQuickPlan={hasLoad ? quickPlan : undefined} />
           </div>
         ) : activeView === 'home' ? (
           <section className={`grid min-w-0 items-stretch gap-5 ${todayPending.length > 0 ? 'lg:grid-cols-[0.9fr_1.1fr]' : ''}`}>
@@ -1921,9 +1935,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                   ) : null}
                 </div>
 
-                {isPlanning ? (
-                  <p className="mt-4 text-xs font-medium text-slate-400">{t('composer.planNote')}</p>
-                ) : (
+                {isPlanning ? null : (
                   <div className="mt-5 rounded-2xl os-tile p-4">
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-sm font-medium text-slate-400">{t('composer.trainingLoad')}</span>

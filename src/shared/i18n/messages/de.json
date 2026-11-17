@@ -472,7 +472,6 @@
   "composer.gameRpe": "Die Spielbelastung wird mit RPE 10 berechnet. Gib unten deine Spielminuten ein.",
   "composer.playingMinutes": "Spielminuten",
   "composer.duration": "Dauer",
-  "composer.planNote": "Nach der Einheit fragt die App: „Wie anstrengend war es?“ Gib die Anstrengung und die tatsächliche Dauer an.",
   "composer.trainingLoad": "Trainingsbelastung",
   "composer.au": "{value} AU",
   "composer.planCount_one": "{count} Einheit planen",
@@ -2501,8 +2500,7 @@
   "toast.rideLeft": "Du fährst nicht mehr mit",
   "command.short": "Suchen",
   "composer.endsAt": "Ende",
-  "settings.sessionLength": "Länge neuer Einheiten",
-  "settings.sessionLengthDetail": "Wenn du im Kalender auf eine freie Zeit tippst",
+  "settings.sessionLength": "Länge",
   "load.basis.none": "Bewerte deine erste Einheit. Ab dann baut sich deine Basis auf.",
   "load.basis.short_one": "Erste Einschätzung in 1 Tag",
   "load.basis.short_other": "Erste Einschätzung in {count} Tagen",
@@ -2537,5 +2535,7 @@
   "team.first.playbookWhy": "Spielzüge und Unterlagen als Datei. Entwürfe sieht nur der Staff, freigegebene das Team. Optional.",
   "team.first.open": "Los",
   "team.first.skip": "Überspringen",
-  "composer.rateAfter": "Bewerten geht, sobald die Einheit vorbei ist."
+  "composer.rateAfter": "Bewerten geht, sobald die Einheit vorbei ist.",
+  "settings.newSessions": "Neue Einheiten",
+  "settings.newSessionsDetail": "Freie Zeit im Kalender antippen, dann ✓: so gespeichert. Tipp auf den Entwurf für mehr."
 }

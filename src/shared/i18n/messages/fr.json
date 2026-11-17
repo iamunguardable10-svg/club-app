@@ -472,7 +472,6 @@
   "composer.gameRpe": "La charge du match utilise un RPE de 10. Saisis tes minutes de jeu ci-dessous.",
   "composer.playingMinutes": "Minutes de jeu",
   "composer.duration": "Durée",
-  "composer.planNote": "Après la séance, l’app te demandera : « À quel point était-ce difficile ? » Indique l’effort et la durée réelle.",
   "composer.trainingLoad": "Charge d’entraînement",
   "composer.au": "{value} AU",
   "composer.planCount_one": "Planifier {count} séance",
@@ -2501,8 +2500,7 @@
   "toast.rideLeft": "Tu ne fais plus partie du trajet",
   "command.short": "Rechercher",
   "composer.endsAt": "Fin",
-  "settings.sessionLength": "Durée des nouvelles séances",
-  "settings.sessionLengthDetail": "Quand tu touches un créneau libre du calendrier",
+  "settings.sessionLength": "Durée",
   "load.basis.none": "Évalue ta première séance. Ta base se construit à partir de là.",
   "load.basis.short_one": "Première estimation dans 1 jour",
   "load.basis.short_other": "Première estimation dans {count} jours",
@@ -2537,5 +2535,7 @@
   "team.first.playbookWhy": "Systèmes et documents en fichiers. Les brouillons sont pour le staff, les publiés pour l’équipe. Facultatif.",
   "team.first.open": "C’est parti",
   "team.first.skip": "Passer",
-  "composer.rateAfter": "Tu pourras l’évaluer une fois la séance terminée."
+  "composer.rateAfter": "Tu pourras l’évaluer une fois la séance terminée.",
+  "settings.newSessions": "Nouvelles séances",
+  "settings.newSessionsDetail": "Touche une heure libre du calendrier, puis ✓ : enregistrée ainsi. Touche le brouillon pour plus."
 }

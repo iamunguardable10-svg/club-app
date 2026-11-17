@@ -3568,3 +3568,10 @@ Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke (64), `test:loa
 - **Kein Fenster nach dem Ziehen:** Nach dem Verschieben oder Verlängern einer bestehenden Einheit (Spieler und Trainer) öffnet sich das Fenster nicht mehr. Ursache: iOS schickt den Tipp nach dem Loslassen verspätet, die Sperre dafür war schon aufgehoben. Sie gilt jetzt 0,7 s. Beim Anlegen öffnet sich das Fenster wie bisher.
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke (64), `test:landing`, `test:load`; im Browser: Plan in zwei Stunden zeigt nur Art/Datum/Beginn/Ende und „Plan speichern“, nach Längerziehen kein Fenster (Länge gespeichert), vergangener Plan zeigt RPE mit Beginn/Ende.
+
+## Run 131 — Neue Einheiten mit einem Haken, Felder auf dem iPhone (2026-11-17)
+
+- **Standard für neue Einheiten** (Einstellungen → Dieses Gerät → „Neue Einheiten“): Art und Länge, für Trainer als Einheitsart, für Spieler als Trainingsart. Ein Tipp in eine freie Zeit legt den Entwurf mit dieser Länge hin, **✓** speichert ihn so, ein Tipp auf den Entwurf öffnet das Fenster für alles Weitere. Beim Trainer braucht ✓ ein Team und eine Halle (Kalenderfilter oder einziges Team, Standardhalle), sonst öffnet sich das Fenster. Der ✓ steht jetzt auch in kurzen Entwürfen auf dem Handy.
+- **Felder auf dem iPhone:** Datum, Beginn und Ende im Planungsfenster der Spieler sind wieder senkrecht mittig (die iOS-Anpassung von vorher war beim Umbau verloren gegangen). Der Hinweis „Nach der Einheit fragt die App …“ ist weg.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke (64), `test:landing`; im Browser als Spieler und Trainer: Tipp, ✓, neue Einheit ohne Fenster mit Art und Länge aus den Einstellungen.

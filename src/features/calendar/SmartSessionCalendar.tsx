@@ -88,6 +88,8 @@ type SmartSessionCalendarProps = {
   onSessionKeyDown: (session: SmartCalendarSession, event: KeyboardEvent<HTMLElement>) => void;
   onDraftPointerDown: (kind: SmartCalendarDragKind, event: PointerEvent<HTMLElement>) => void;
   onDraftClick: () => void;
+  /** ✓ on the draft: put it down as it is (defaults); without it ✓ opens the sheet like a tap. */
+  onDraftConfirm?: () => void;
   onDraftCancel: () => void;
 };
 
@@ -205,6 +207,7 @@ export function SmartSessionCalendar({
   onSessionKeyDown,
   onDraftPointerDown,
   onDraftClick,
+  onDraftConfirm,
   onDraftCancel,
 }: SmartSessionCalendarProps) {
   const t = useT();
@@ -452,7 +455,7 @@ export function SmartSessionCalendar({
                     const start = new Date(draft.startsAt);
                     const top = Math.max(0, ((start.getHours() - mobileFirstHour) * 60 + start.getMinutes()) * (mobileHourHeight / 60));
                     const height = Math.min(Math.max(24, smartDurationMinutes(new Date(draft.startsAt), new Date(draft.endsAt)) * (mobileHourHeight / 60)), mobileGridHeight - top);
-                    return <article data-calendar-session="true" data-tip="calendar-draft" onPointerDown={(event) => onDraftPointerDown('move', event)} onClick={onDraftClick} style={{ top, height, touchAction: 'none' }} className="absolute left-2 right-2 z-20 cursor-grab rounded-xl border border-sky-300 bg-sky-500/40 px-2 py-1 text-xs font-semibold text-sky-50">{height < 40 ? <span className="block truncate">{draft.title ?? draft.teamLabel ?? t('calendar.chooseTeam')} <span className="text-xs font-medium opacity-80">· {smartFormatTimeRange(draft.startsAt, draft.endsAt, draft.sessionType)}</span></span> : <><span className="block truncate">{draft.title ?? draft.teamLabel ?? t('calendar.chooseTeam')}</span><span className="block truncate text-xs font-medium opacity-80">{smartFormatTimeRange(draft.startsAt, draft.endsAt, draft.sessionType)}</span></>}{draft.sessionType !== 'game' ? <ResizeGrip label={t('calendar.resizeDraft')} onPointerDown={(event) => onDraftPointerDown('resize', event)} /> : null}</article>;
+                    return <article data-calendar-session="true" data-tip="calendar-draft" onPointerDown={(event) => onDraftPointerDown('move', event)} onClick={onDraftClick} style={{ top, height, touchAction: 'none' }} className={`absolute left-2 right-2 z-20 cursor-grab rounded-xl border border-sky-300 bg-sky-500/40 py-1 pl-2 text-xs font-semibold text-sky-50 ${onDraftConfirm ? 'pr-10' : 'pr-2'}`}>{height < 40 ? <span className="block truncate">{draft.title ?? draft.teamLabel ?? t('calendar.chooseTeam')} <span className="text-xs font-medium opacity-80">· {smartFormatTimeRange(draft.startsAt, draft.endsAt, draft.sessionType)}</span></span> : <><span className="block truncate">{draft.title ?? draft.teamLabel ?? t('calendar.chooseTeam')}</span><span className="block truncate text-xs font-medium opacity-80">{smartFormatTimeRange(draft.startsAt, draft.endsAt, draft.sessionType)}</span></>}{onDraftConfirm ? <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onDraftConfirm(); }} className={`absolute right-1.5 grid h-7 w-7 place-items-center rounded-full bg-slate-100 text-sm font-semibold text-slate-950 hover:bg-white ${height < 40 ? 'top-1/2 -translate-y-1/2' : 'top-1.5'}`} aria-label={t('calendar.confirmDraft')}>{'\u2713'}</button> : null}{draft.sessionType !== 'game' ? <ResizeGrip label={t('calendar.resizeDraft')} onPointerDown={(event) => onDraftPointerDown('resize', event)} /> : null}</article>;
                   })() : null}
                 </div>
               );
@@ -503,7 +506,7 @@ export function SmartSessionCalendar({
                           {/* Above the draft, so a short one keeps room for its text. */}
                           <div className="absolute -top-4 right-1 flex gap-1 rounded-full border border-slate-700 bg-slate-950 p-0.5 shadow-lg">
                             <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onDraftCancel(); }} className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-slate-600 bg-slate-950/85 text-xs font-semibold text-slate-200 hover:border-red-300 hover:text-red-200" aria-label={t('calendar.cancelDraft')}>{'\u00d7'}</button>
-                            <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onDraftClick(); }} className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-semibold text-slate-950 hover:bg-white" aria-label={t('calendar.confirmDraft')}>{'\u2713'}</button>
+                            <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); (onDraftConfirm ?? onDraftClick)(); }} className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-semibold text-slate-950 hover:bg-white" aria-label={t('calendar.confirmDraft')}>{'\u2713'}</button>
                           </div>
                           {height >= 76 ? <p className="mt-0.5 truncate text-xs text-sky-100/80">{draft.teamLabel ?? t('calendar.tapToChooseTeam')}</p> : null}
                           {draft.sessionType !== 'game' ? <ResizeGrip label={t('calendar.resizeDraft')} onPointerDown={(event) => onDraftPointerDown('resize', event)} /> : null}
