@@ -143,7 +143,7 @@ function loadRiskLine(player: TeamWorkspacePlayer) {
     id: player.id,
     name: player.name,
     status: summary.zone.tone,
-    detail: summary.acwr !== null ? tr('team.acwrValue', { value: formatDecimal(summary.acwr) }) : null,
+    detail: summary.acwr !== null ? `${tr('team.acwrValue', { value: formatDecimal(summary.acwr) })}${summary.zone.provisional ? ` · ${tr('load.basis.provisional')}` : ''}` : null,
   };
 }
 
@@ -594,7 +594,7 @@ export function TeamWorkspaceView({
                           <span className="block truncate text-xs font-medium text-amber-200">{t('consent.noConsent')}</span>
                         ) : null}
                       </span>
-                      {data.loadTracked !== false && summary.access !== 'none' && summary.acwr !== null && (summary.acwr < ACWR_ZONES.low || summary.acwr > ACWR_ZONES.high) ? <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold ${acwrToneClass(summary.zone.tone)}`}>{t('team.acwrBadge', { value: formatDecimal(summary.acwr) })}</span> : null}
+                      {data.loadTracked !== false && summary.access !== 'none' && summary.acwr !== null && (summary.acwr < ACWR_ZONES.low || summary.acwr > ACWR_ZONES.high) ? <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold ${acwrToneClass(summary.zone.tone)}`}>{t('team.acwrBadge', { value: formatDecimal(summary.acwr) })}{summary.zone.provisional ? ` · ${t('load.basis.provisional')}` : ''}</span> : null}
                     </div>
                     {groupNames.length > 0 ? <p className="mt-1 truncate text-xs font-medium text-slate-400">{groupNames.join(' · ')}</p> : null}
                     {player.awayUntil ? <p className="mt-2 inline-flex rounded-full border border-amber-300/40 bg-amber-300/10 px-2 py-0.5 text-xs font-semibold text-amber-100">{t('team.awayUntil', { date: shortDate(player.awayUntil) })}</p> : null}

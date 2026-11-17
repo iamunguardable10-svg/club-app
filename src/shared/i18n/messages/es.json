@@ -336,7 +336,6 @@
   "load.pending.today": "Hoy",
   "load.pending.planned": "Planificado",
   "load.room.label": "Margen de carga",
-  "load.room.daysNeeded": "Se necesitan {count} días",
   "load.room.overload": "Sobrecarga",
   "load.room.aboveSafe": "por encima de la zona segura",
   "load.room.underloadGap": "Falta de carga",
@@ -533,7 +532,6 @@
   "load.details.weekChangeTitle": "Carga de los últimos 7 días frente a los 7 anteriores",
   "load.details.weekChange": "{value}% respecto a la semana pasada",
   "load.details.backFromBreak": "Vuelta tras una pausa · aumenta poco a poco",
-  "load.details.reliableAfter": "Las indicaciones son fiables tras unos 30 días registrados.",
   "load.details.weekStability": "Estabilidad semanal",
   "load.details.monotony": "Monotonía",
   "load.details.strain": "Esfuerzo",
@@ -2508,5 +2506,14 @@
   "command.short": "Buscar",
   "composer.endsAt": "Fin",
   "settings.sessionLength": "Duración de las nuevas sesiones",
-  "settings.sessionLengthDetail": "Cuando tocas una hora libre en el calendario"
+  "settings.sessionLengthDetail": "Cuando tocas una hora libre en el calendario",
+  "load.basis.none": "Valora tu primera sesión. A partir de ahí se construye tu base.",
+  "load.basis.short_one": "Primera valoración en 1 día",
+  "load.basis.short_other": "Primera valoración en {count} días",
+  "load.basis.few_one": "Pocas valoraciones en las últimas 4 semanas: valora 1 día más",
+  "load.basis.few_other": "Pocas valoraciones en las últimas 4 semanas: valora {count} días más",
+  "load.basis.provisional": "Provisional",
+  "load.basis.provisionalDays_one": "Provisional: fiable en 1 día",
+  "load.basis.provisionalDays_other": "Provisional: fiable en {count} días",
+  "load.basis.provisionalFew": "Provisional: valora con más regularidad para una valoración fiable"
 }

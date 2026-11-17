@@ -336,7 +336,6 @@
   "load.pending.today": "Today",
   "load.pending.planned": "Planned",
   "load.room.label": "Load room",
-  "load.room.daysNeeded": "{count} days needed",
   "load.room.overload": "Overload",
   "load.room.aboveSafe": "above safe lane",
   "load.room.underloadGap": "Underload gap",
@@ -533,7 +532,6 @@
   "load.details.weekChangeTitle": "Load of the last 7 days against the 7 days before",
   "load.details.weekChange": "{value}% vs last week",
   "load.details.backFromBreak": "Back after a break · build up gradually",
-  "load.details.reliableAfter": "Reliable guidance starts after about 30 recorded days.",
   "load.details.weekStability": "Week stability",
   "load.details.monotony": "Monotony",
   "load.details.strain": "Strain",
@@ -2508,5 +2506,14 @@
   "command.short": "Search",
   "composer.endsAt": "Ends",
   "settings.sessionLength": "Length of new sessions",
-  "settings.sessionLengthDetail": "When you tap a free time in the calendar"
+  "settings.sessionLengthDetail": "When you tap a free time in the calendar",
+  "load.basis.none": "Rate your first session. From then on your baseline builds up.",
+  "load.basis.short_one": "First reading in 1 day",
+  "load.basis.short_other": "First reading in {count} days",
+  "load.basis.few_one": "Too few ratings in the last 4 weeks: rate 1 more day",
+  "load.basis.few_other": "Too few ratings in the last 4 weeks: rate {count} more days",
+  "load.basis.provisional": "Provisional",
+  "load.basis.provisionalDays_one": "Provisional: reliable in 1 day",
+  "load.basis.provisionalDays_other": "Provisional: reliable in {count} days",
+  "load.basis.provisionalFew": "Provisional: rate more regularly for a reliable reading"
 }

@@ -57,6 +57,7 @@ import {
   storeLastCoachTeam,
   updateSession,
   todayISO,
+  summaryBasis,
   useLocalDatabase,
   type AthleteLoadEntry,
   type CoachPermission,
@@ -166,7 +167,7 @@ export function TeamWorkspace({
     const loadAccess = loadAccessFor(permissions);
     const storedSummary = (personId: Id) => {
       const row = database.loadSummaries.find((candidate) => candidate.personId === personId);
-      return { acwr: row?.acwr ?? null, chronicFull: row?.chronicFull ?? false };
+      return { acwr: row?.acwr ?? null, chronicFull: row?.chronicFull ?? false, basis: summaryBasis(row) };
     };
     const attendanceShared = permissions.has('viewAttendance');
     const reasonsShared = permissions.has('viewAbsenceReasons');

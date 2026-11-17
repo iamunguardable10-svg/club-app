@@ -12,7 +12,7 @@
  * light from raw entries on their own; both now call `playerLoadSummary`.
  */
 
-import { getLatestACWR, loadZone, type AthleteLoadEntry, type CoachPermission } from '@/shared/data';
+import { getLatestACWR, loadZone, summarizeLoadEntries, summaryBasis, type AthleteLoadEntry, type CoachPermission, type LoadBasisStage } from '@/shared/data';
 import { tr } from '@/shared/i18n';
 
 export { summarizeLoadEntries } from '@/shared/data';
@@ -20,7 +20,7 @@ export { summarizeLoadEntries } from '@/shared/data';
 export type LoadAccess = 'full' | 'summary' | 'none';
 
 /** What a summary-only role gets instead of the entries it was computed from. */
-export type LoadSummary = { acwr: number | null; chronicFull: boolean };
+export type LoadSummary = { acwr: number | null; chronicFull: boolean; basis?: LoadBasisStage | null };
 
 export type PlayerLoadInput = {
   healthConsent?: boolean;
@@ -42,11 +42,12 @@ export function playerLoadSummary(player: PlayerLoadInput) {
   const entries = access === 'full' ? player.loadEntries ?? [] : [];
   // EWMA, matching what the coach views showed before.
   const latest = access === 'full' ? getLatestACWR(entries) : null;
-  const acwr = access === 'full' ? latest?.acwr ?? null : access === 'summary' ? player.loadSummary?.acwr ?? null : null;
-  const chronicFull = access === 'full' ? latest?.chronicFull ?? false : access === 'summary' ? player.loadSummary?.chronicFull ?? false : false;
-  const zone = loadZone(acwr, chronicFull);
+  const own = access === 'full' ? summarizeLoadEntries(entries) : null;
+  const basis: LoadBasisStage = own ? own.basis : access === 'summary' ? summaryBasis(player.loadSummary) : 'building';
+  const acwr = basis === 'building' ? null : own ? own.acwr : access === 'summary' ? player.loadSummary?.acwr ?? null : null;
+  const zone = loadZone(acwr, basis);
   const riskRank = zone.tone === 'high' ? 0 : zone.tone === 'low' ? 1 : zone.tone === 'ready' ? 2 : 3;
-  return { access, entries, latest, zone, acwr, riskRank, healthConsent: player.healthConsent };
+  return { access, entries, latest, zone, acwr, basis, riskRank, healthConsent: player.healthConsent };
 }
 
 export type PlayerLoadSummary = ReturnType<typeof playerLoadSummary>;
@@ -55,8 +56,13 @@ export function acwrDisplayLabel(summary: PlayerLoadSummary) {
   if (summary.healthConsent === false) return tr('consent.noConsent');
   if (summary.access === 'none') return tr('playerLoad.label.notShared');
   if (summary.acwr === null) return tr('playerLoad.label.noAcwr');
-  if (summary.zone.tone === 'low') return tr('playerLoad.label.low');
-  if (summary.zone.tone === 'high') return tr('playerLoad.label.high');
-  if (summary.zone.tone === 'ready') return tr('playerLoad.label.ready');
-  return tr('playerLoad.label.building');
+  const label = summary.zone.tone === 'low'
+    ? tr('playerLoad.label.low')
+    : summary.zone.tone === 'high'
+      ? tr('playerLoad.label.high')
+      : summary.zone.tone === 'ready'
+        ? tr('playerLoad.label.ready')
+        : tr('playerLoad.label.building');
+  // 14–29 days of history: the reading is provisional, and says so.
+  return summary.zone.provisional ? `${label} · ${tr('load.basis.provisional')}` : label;
 }

@@ -19,7 +19,7 @@ import {
   type LoadTrainingType,
   sessionTypeToLoadType,
 } from './loadTypes';
-import { BASELINE_DAYS, acwrAfter, aggregateDailyLoads, backFromBreak, baselineAgeDays, calculateACWR, fillMissingDays, firstHighRiskDay, getLatestACWR, HIGH_RISK_ACWR, loadRoom, loadZone, projectFutureACWR, todayISO, weekChangePercent } from './loadCalculations';
+import { PROVISIONAL_RATED_DAYS, acwrAfter, aggregateDailyLoads, backFromBreak, calculateACWR, loadBasis, type LoadBasis, fillMissingDays, firstHighRiskDay, getLatestACWR, HIGH_RISK_ACWR, loadRoom, loadZone, projectFutureACWR, todayISO, weekChangePercent } from './loadCalculations';
 import { LoadInfoButton, LoadLandingChip, LoadRiskBadge } from './LoadHints';
 import { encodeAthleteLoadShare } from './athleteLoadShare';
 import { HealthConsentPanel } from '@/features/legal/HealthConsentPanel';
@@ -286,16 +286,30 @@ function acwrPercent(acwr: number | null) {
   return Math.min(100, Math.max(0, (acwr / 2) * 100));
 }
 
-function buildLoadRoomSummary(latest: ReturnType<typeof getLatestACWR>, entries: AthleteLoadEntry[], baselineReady: boolean) {
+/**
+ * One line on how far the history carries the reading (`loadBasis`): what is
+ * missing while building, and that it is provisional until 30 days.
+ */
+export function basisText(basis: LoadBasis) {
+  if (basis.stage === 'regular') return null;
+  if (basis.stage === 'provisional') {
+    return basis.daysToNext > 0 ? tr('load.basis.provisionalDays', { count: basis.daysToNext }) : tr('load.basis.provisionalFew');
+  }
+  if (basis.reason === 'none') return tr('load.basis.none');
+  if (basis.reason === 'short') return tr('load.basis.short', { count: basis.daysToNext });
+  return tr('load.basis.few', { count: Math.max(1, PROVISIONAL_RATED_DAYS - basis.ratedDays) });
+}
+
+function buildLoadRoomSummary(latest: ReturnType<typeof getLatestACWR>, entries: AthleteLoadEntry[], basis: LoadBasis) {
   const averageSessionLoad = averageRecentSessionLoad(entries);
-  const currentAcwr = latest?.acwr ?? null;
+  const currentAcwr = basis.stage === 'building' ? null : latest?.acwr ?? null;
   const markerPercent = acwrPercent(currentAcwr);
 
-  if (!latest || !baselineReady || currentAcwr === null) {
+  if (!latest || currentAcwr === null) {
     return {
       label: tr('load.room.label'),
       value: '-',
-      detail: tr('load.room.daysNeeded', { count: BASELINE_DAYS }),
+      detail: basisText(basis) ?? '',
       tone: 'neutral' as const,
       mode: 'baseline' as LoadRoomMode,
       markerPercent,
@@ -621,9 +635,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
 
   const sortedEntries = useMemo(() => [...entries].sort((a, b) => a.date.localeCompare(b.date)), [entries]);
   const latest = useMemo(() => getLatestACWR(sortedEntries), [sortedEntries]);
-  const baselineDays = useMemo(() => baselineAgeDays(sortedEntries), [sortedEntries]);
-  const isBaselineReady = (latest?.chronicFull ?? false) && baselineDays >= 30;
-  const zone = loadZone(latest?.acwr ?? null, isBaselineReady);
+  // One rule for every view (`loadBasis`): building, provisional, regular.
+  const basis = useMemo(() => loadBasis(sortedEntries), [sortedEntries]);
+  const zone = loadZone(latest?.acwr ?? null, basis.stage);
   function isSessionCancelled(sessionId: string) {
     if (cancelledSessionIds.has(sessionId)) return true;
     return sessionId.endsWith('-warmup') && cancelledSessionIds.has(sessionId.replace(/-warmup$/, ''));
@@ -1426,9 +1440,9 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
         ) : null}
 
         {activeView === 'home' && hasLoad ? (
-          <LoadGlance latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} tone={zone.tone} status={zone.tone === 'neutral' ? t('athlete.metric.building') : zoneLabel(zone.tone)} />
+          <LoadGlance latest={latest} entries={sortedEntries} basis={basis} tone={zone.tone} status={zone.tone === 'neutral' ? t('athlete.metric.building') : zoneLabel(zone.tone)} />
         ) : null}
-        {activeView === 'load' && hasLoad ? <LoadVerdict latest={latest} entries={sortedEntries} baselineReady={isBaselineReady} /> : null}
+        {activeView === 'load' && hasLoad ? <LoadVerdict latest={latest} entries={sortedEntries} basis={basis} /> : null}
         {loadIntro.open ? <LoadIntro role="athlete" onClose={loadIntro.close} /> : null}
         <AppConfirmDialog
           isOpen={rideToWithdraw !== null}
@@ -1487,7 +1501,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                 entries={sortedEntries}
                 pendingSessions={loadPendingSessions}
                 latestEwma={latest}
-                baselineDays={baselineDays}
+                basis={basis}
               />
             </div>
           </details>
@@ -2120,17 +2134,20 @@ export function weeklyLoadDomain(points: WeeklyLoadProfilePoint[], metric: Weekl
  * says how they stand, and how much room is left. The whole card opens the
  * load page.
  */
-function LoadGlance({ latest, entries, baselineReady, tone, status }: { latest: ReturnType<typeof getLatestACWR>; entries: AthleteLoadEntry[]; baselineReady: boolean; tone: 'default' | 'ready' | 'high' | 'low' | 'neutral'; status: string }) {
+function LoadGlance({ latest, entries, basis, tone, status }: { latest: ReturnType<typeof getLatestACWR>; entries: AthleteLoadEntry[]; basis: LoadBasis; tone: 'default' | 'ready' | 'high' | 'low' | 'neutral'; status: string }) {
   const t = useT();
-  const room = buildLoadRoomSummary(latest, entries, baselineReady);
-  const acwr = latest?.acwr != null && baselineReady ? latest.acwr : null;
+  const room = buildLoadRoomSummary(latest, entries, basis);
+  const acwr = latest?.acwr != null && basis.stage !== 'building' ? latest.acwr : null;
   const word = tone === 'ready' ? 'text-emerald-300' : tone === 'high' ? 'text-rose-300' : tone === 'low' ? 'text-sky-300' : 'text-white';
   return (
     <Link href="/athlete/load" className="os-panel flex items-center gap-4 p-4 sm:gap-6 sm:p-5">
       <LoadDial acwr={acwr} tone={tone} />
       <span className="min-w-0 flex-1">
         <span className="block text-xs font-semibold text-slate-400">{t('athlete.metric.status')}</span>
-        <span className={`block text-2xl font-bold leading-tight tracking-tight ${word}`}>{status}</span>
+        <span className={`flex flex-wrap items-baseline gap-x-2 text-2xl font-bold leading-tight tracking-tight ${word}`}>
+          {status}
+          {basis.stage === 'provisional' ? <ProvisionalTag /> : null}
+        </span>
         <span className="mt-2 block text-sm font-medium text-slate-300">{room.label}</span>
         <span className="block text-sm text-slate-400"><span className="font-semibold text-white">{room.value}</span>{room.detail ? ` · ${room.detail}` : ''}</span>
       </span>
@@ -2139,10 +2156,17 @@ function LoadGlance({ latest, entries, baselineReady, tone, status }: { latest: 
   );
 }
 
-function LoadVerdict({ latest, entries, baselineReady }: { latest: ReturnType<typeof getLatestACWR>; entries: AthleteLoadEntry[]; baselineReady: boolean }) {
+/** "Vorläufig" next to a reading from 14–29 days of history. */
+function ProvisionalTag() {
   const t = useT();
-  const room = buildLoadRoomSummary(latest, entries, latest?.chronicFull ?? false);
-  const mode = baselineReady ? room.mode : 'baseline';
+  return <span className="rounded-full border border-amber-300/40 px-2 py-0.5 text-xs font-semibold tracking-normal text-amber-200">{t('load.basis.provisional')}</span>;
+}
+
+function LoadVerdict({ latest, entries, basis }: { latest: ReturnType<typeof getLatestACWR>; entries: AthleteLoadEntry[]; basis: LoadBasis }) {
+  const t = useT();
+  const room = buildLoadRoomSummary(latest, entries, basis);
+  const mode = room.mode;
+  const basisLine = basisText(basis);
   const look = {
     overload: { dot: 'bg-rose-400', ring: 'border-rose-400/35', title: 'load.verdict.overload', detail: 'load.guidance.overload' },
     underload: { dot: 'bg-amber-300', ring: 'border-amber-300/35', title: 'load.verdict.underload', detail: 'load.guidance.underload' },
@@ -2151,13 +2175,14 @@ function LoadVerdict({ latest, entries, baselineReady }: { latest: ReturnType<ty
   }[mode as 'overload' | 'underload' | 'ready' | 'baseline'] ?? { dot: 'bg-slate-500', ring: 'border-slate-700', title: 'load.verdict.baseline', detail: 'athlete.baselineNote' };
   return (
     <section className="os-panel flex items-center gap-4 p-4 sm:gap-6 sm:p-5" data-testid="load-verdict">
-      <LoadDial acwr={latest?.acwr != null && baselineReady ? latest.acwr : null} tone={mode === 'overload' ? 'high' : mode === 'underload' ? 'low' : mode === 'ready' ? 'ready' : 'neutral'} />
+      <LoadDial acwr={latest?.acwr != null && basis.stage !== 'building' ? latest.acwr : null} tone={mode === 'overload' ? 'high' : mode === 'underload' ? 'low' : mode === 'ready' ? 'ready' : 'neutral'} />
       <div className="min-w-0">
         <p className="flex items-start gap-2.5 text-xl font-bold leading-snug tracking-tight text-white">
           <span aria-hidden className={`mt-2 h-2.5 w-2.5 shrink-0 rounded-full ${look.dot}`} />
           {t(look.title as MessageKey)}
         </p>
-        {look.detail ? <p className="mt-1.5 text-sm text-slate-300">{t(look.detail as MessageKey)}</p> : null}
+        {mode === 'baseline' ? null : look.detail ? <p className="mt-1.5 text-sm text-slate-300">{t(look.detail as MessageKey)}</p> : null}
+        {basisLine ? <p className={`mt-1.5 text-sm font-medium ${basis.stage === 'provisional' ? 'text-amber-200' : 'text-slate-300'}`} data-testid="load-basis">{basisLine}</p> : null}
       </div>
     </section>
   );
@@ -2167,12 +2192,12 @@ function LoadDetailsPanel({
   entries,
   pendingSessions,
   latestEwma,
-  baselineDays,
+  basis,
 }: {
   entries: AthleteLoadEntry[];
   pendingSessions: AthletePendingSession[];
   latestEwma: ReturnType<typeof getLatestACWR>;
-  baselineDays: number;
+  basis: LoadBasis;
 }) {
   const t = useT();
   const [showAllCompleted, setShowAllCompleted] = useState(false);
@@ -2184,10 +2209,10 @@ function LoadDetailsPanel({
   const last28ISO = `${last28Start.getFullYear()}-${String(last28Start.getMonth() + 1).padStart(2, '0')}-${String(last28Start.getDate()).padStart(2, '0')}`;
   const recentEntries = entries.filter((entry) => entry.date >= last28ISO);
   const recentLoad = recentEntries.reduce((sum, entry) => sum + entry.load, 0);
-  const baselineReady = latestEwma?.chronicFull ?? false;
-  const currentAcwr = latestEwma?.acwr ?? null;
-  const zone = loadZone(currentAcwr, baselineReady);
-  const roomSummary = buildLoadRoomSummary(latestEwma, entries, baselineReady);
+  const currentAcwr = basis.stage === 'building' ? null : latestEwma?.acwr ?? null;
+  const zone = loadZone(currentAcwr, basis.stage);
+  const roomSummary = buildLoadRoomSummary(latestEwma, entries, basis);
+  const basisLine = basisText(basis);
   const riskDay = firstHighRiskDay(entries, pendingSessions);
   const afterBreak = backFromBreak(entries);
   // Right after a break any week is a big jump; the break chip says it better.
@@ -2235,7 +2260,7 @@ function LoadDetailsPanel({
             <LoadInfoButton />
           </div>
           <span className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${zone.tone === 'high' ? 'border-rose-400/45 bg-rose-400/10 text-rose-100' : zone.tone === 'low' ? 'border-sky-400/45 bg-sky-400/10 text-sky-100' : zone.tone === 'ready' ? 'border-emerald-400/45 bg-emerald-400/10 text-emerald-100' : 'border-slate-700 text-slate-300'}`}>
-            {currentAcwr !== null && baselineReady ? t('load.details.acwrValue', { value: formatDecimal(currentAcwr) }) : t('load.details.building')}
+            {currentAcwr !== null ? `${t('load.details.acwrValue', { value: formatDecimal(currentAcwr) })}${zone.provisional ? ` · ${t('load.basis.provisional')}` : ''}` : t('load.details.building')}
           </span>
         </div>
 
@@ -2271,9 +2296,9 @@ function LoadDetailsPanel({
           </div>
         ) : null}
 
-        {baselineDays < 30 ? (
+        {basisLine ? (
           <div className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-300/[0.08] p-3 text-sm font-medium text-amber-100">
-            {t('load.details.reliableAfter')}
+            {basisLine}
           </div>
         ) : null}
 

@@ -3416,16 +3416,19 @@ export function closePoll(messageId: Id): void {
 export function loadSummaryForPerson(database: LocalDatabase, personId: Id) {
   const entries = loadEntriesForPerson(database, personId);
   const latest = getLatestACWR(entries);
+  const { acwr, chronicFull, basis } = summarizeLoadEntries(entries);
   return {
     entries,
     series: calculateACWR(entries),
-    acwr: latest?.acwr ?? null,
+    /** Null while the basis is still building (`loadBasis`). */
+    acwr,
     acuteLoad: latest?.acuteLoad ?? 0,
     chronicLoad: latest?.chronicLoad ?? 0,
-    /** False while fewer than 28 days of history exist; show no ratio then. */
-    chronicFull: latest?.chronicFull ?? false,
+    /** True only with a regular basis (30 days, enough rated days). */
+    chronicFull,
+    basis,
     sevenDayLoad: sevenDayLoad(entries),
-    zone: loadZone(latest?.acwr ?? null, latest?.chronicFull ?? false),
+    zone: loadZone(acwr, basis),
   };
 }
 

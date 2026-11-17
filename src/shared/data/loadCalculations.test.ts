@@ -7,7 +7,7 @@
 
 import assert from 'node:assert/strict';
 
-import { BASELINE_DAYS, HIGH_RISK_ACWR, acwrAfter, backFromBreak, calculateACWR, firstHighRiskDay, getLatestACWR, loadRoom, loadZone, projectFutureACWR, summarizeLoadEntries, todayISO, weekChangePercent } from './loadCalculations';
+import { BASELINE_DAYS, HIGH_RISK_ACWR, PROVISIONAL_DAYS, acwrAfter, backFromBreak, baselineAgeDays, calculateACWR, firstHighRiskDay, getLatestACWR, loadBasis, loadRoom, loadZone, projectFutureACWR, summarizeLoadEntries, summaryBasis, todayISO, weekChangePercent } from './loadCalculations';
 import type { AthleteLoadEntry, AthletePendingSession, LoadTrainingType } from './loadTypes';
 
 let failures = 0;
@@ -112,7 +112,106 @@ check('load room counts what is already logged today', () => {
 
 check('summary for coaches = the athlete\'s own traffic light', () => {
   const entries = steadyWeeks(8, 500, 0);
-  assert.deepEqual(summarizeLoadEntries(entries), { acwr: getLatestACWR(entries)!.acwr, chronicFull: true });
+  assert.deepEqual(summarizeLoadEntries(entries), { acwr: getLatestACWR(entries)!.acwr, chronicFull: true, basis: 'regular' });
+});
+
+// ---------------------------------------------------------------------------
+// Short history (2026-11-17): one rule, `loadBasis`
+// ---------------------------------------------------------------------------
+
+/** One rated entry every `every` days from `firstOffset` to `lastOffset`. */
+function every(firstOffset: number, lastOffset: number, everyDays = 2, load = 400) {
+  const out: AthleteLoadEntry[] = [];
+  for (let offset = firstOffset; offset <= lastOffset; offset += everyDays) out.push(entry(offset, load));
+  return out;
+}
+
+check('basis: no entries is building, with no ratio, zone or risk', () => {
+  assert.deepEqual(loadBasis([]), { stage: 'building', reason: 'none', spanDays: 0, ratedDays: 0, daysToNext: PROVISIONAL_DAYS });
+  assert.equal(calculateACWR([]).length, 0);
+  assert.equal(getLatestACWR([]), null);
+  assert.deepEqual(summarizeLoadEntries([]), { acwr: null, chronicFull: false, basis: 'building' });
+  assert.equal(loadRoom([]), null);
+  assert.equal(firstHighRiskDay([], [session(1)]), null);
+});
+
+check('basis: 13 days of history is building, day 14 provisional, day 30 regular', () => {
+  const at13 = every(-12, 0);
+  assert.equal(loadBasis(at13).spanDays, 13);
+  assert.equal(loadBasis(at13).stage, 'building');
+  assert.equal(loadBasis(at13).reason, 'short');
+  assert.equal(loadBasis(at13).daysToNext, 1);
+  assert.equal(loadBasis(every(-13, 0)).stage, 'provisional');
+  assert.equal(loadBasis(every(-13, 0)).daysToNext, BASELINE_DAYS - 14);
+  assert.equal(loadBasis(every(-28, 0)).stage, 'provisional');
+  assert.equal(loadBasis(every(-29, 0)).stage, 'regular');
+});
+
+check('building: entries and the series stay, but no ratio, zone, room or forecast risk', () => {
+  const entries = every(-12, 0, 1, 900);
+  const summary = summarizeLoadEntries(entries);
+  assert.equal(summary.acwr, null);
+  assert.equal(loadZone(getLatestACWR(entries)?.acwr ?? null, summary.basis).tone, 'neutral');
+  assert.equal(calculateACWR(entries).length, 13);
+  assert.ok(calculateACWR(entries).every((point) => point.acwr === null), 'ratio before 14 days');
+  assert.equal(loadRoom(entries), null);
+  assert.equal(acwrAfter(entries, [session(0, 'game', 120)]), null);
+});
+
+check('provisional: a zone with provisional: true; regular: provisional false', () => {
+  const provisional = every(-20, 0);
+  const summary = summarizeLoadEntries(provisional);
+  assert.equal(summary.basis, 'provisional');
+  assert.equal(summary.chronicFull, false);
+  assert.ok(summary.acwr !== null);
+  const zone = loadZone(summary.acwr, summary.basis);
+  assert.notEqual(zone.tone, 'neutral');
+  assert.equal(zone.provisional, true);
+  assert.equal(loadZone(1, 'regular').provisional, false);
+});
+
+check('gaps: a long span with too few rated days stays building, then provisional', () => {
+  // First entry 40 days ago, then only three rated days in the last 28.
+  const sparse = [entry(-40, 500), entry(-20, 500), entry(-10, 500), entry(-2, 500)];
+  assert.equal(loadBasis(sparse).stage, 'building');
+  assert.equal(loadBasis(sparse).reason, 'few');
+  assert.equal(loadBasis(sparse).daysToNext, 0);
+  // Four rated days give a provisional reading, not a regular one.
+  assert.equal(loadBasis([...sparse, entry(-5, 500)]).stage, 'provisional');
+});
+
+check('filled-in days and zero loads do not count as rated', () => {
+  const zeros = Array.from({ length: 40 }, (_, index) => entry(-index, 0));
+  assert.equal(loadBasis(zeros).stage, 'building');
+  assert.equal(loadBasis([...zeros, entry(-35, 500)]).ratedDays, 0);
+});
+
+check('future entries do not extend the history or the ratio', () => {
+  const past = every(-12, 0);
+  const withFuture = [...past, entry(5, 600), entry(20, 600)];
+  assert.deepEqual(loadBasis(withFuture), loadBasis(past));
+  assert.equal(baselineAgeDays(withFuture), 13);
+  assert.ok(calculateACWR(withFuture).every((point) => point.date <= todayISO()), 'future point in the series');
+});
+
+check('no NaN or Infinity: broken loads are ignored, tiny chronic gives no ratio', () => {
+  const broken = [...steadyWeeks(6), { ...entry(-3, 0), load: Number.NaN }, { ...entry(-2, 0), load: Number.POSITIVE_INFINITY }];
+  for (const point of calculateACWR(broken)) {
+    assert.ok(point.acwr === null || Number.isFinite(point.acwr), `acwr ${point.acwr} on ${point.date}`);
+    assert.ok(Number.isFinite(point.acuteLoad) && Number.isFinite(point.chronicLoad));
+  }
+  // 30 days with almost nothing, then one session: no 50× spike.
+  const tiny = [entry(-40, 1), ...every(-30, -2, 3, 1), entry(0, 600)];
+  assert.ok(calculateACWR(tiny).every((point) => point.acwr === null || point.acwr < 50), 'spike from a near-zero chronic load');
+  assert.equal(weekChangePercent([{ ...entry(-8, 0), load: Number.NaN }, entry(-1, 100)]), null);
+  assert.equal(loadZone(Number.NaN, 'regular').tone, 'neutral');
+});
+
+check('stored rows from before the stage existed fall back to chronicFull', () => {
+  assert.equal(summaryBasis({ chronicFull: true }), 'regular');
+  assert.equal(summaryBasis({ chronicFull: false }), 'building');
+  assert.equal(summaryBasis({ chronicFull: false, basis: 'provisional' }), 'provisional');
+  assert.equal(summaryBasis(null), 'building');
 });
 
 check('forecast: a game is estimated from past games (minutes played), not RPE 10 × the whole slot', () => {

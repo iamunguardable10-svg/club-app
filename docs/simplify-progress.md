@@ -3529,3 +3529,21 @@ Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke voll (256 Seite
 - **Länge neuer Einheiten:** Einstellung unter „Dieses Gerät“ für Trainer und Vereinsrollen (45–120 Min., Standard 90); gilt, wenn man im Kalender auf eine freie Zeit tippt.
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke; im Browser: Seite gesperrt bei offener RPE-Abfrage und wieder frei nach dem Schließen, Entwurf mit 60 Min. nach der Einstellung.
+
+## Run 128 — Belastung bei kurzer Historie: eine Regel (2026-11-17)
+
+Übernommen aus Fables Auftrag (WP1 war nie gepusht und ist neu gemacht).
+
+**Vorher:** Das Verhältnis erschien ab Tag 8, die Kopfzeile wartete auf 28 Tage (Rechnung) bzw. 30 Tage (Ansicht), das Diagramm zeigte die Linie trotzdem; Einträge in der Zukunft verlängerten den Verlauf; ein Tag ohne Bewertung zählte wie ein Ruhetag, so dass zwei Einträge im Abstand von 40 Tagen als volle Basis galten.
+
+**Jetzt:** `loadBasis(entries)` in `loadCalculations.ts` ist die einzige Regel für Spieler-Heute, Belastungsseite, Diagramm, Prognose, geteilte Ansicht, Trainer-Kader, Spielerblatt und die nächtliche Server-Zusammenfassung.
+- „Ausreichende Historie“: gezählt werden nur bewertete Einträge bis heute (Last über 0, endlich). Spanne = erster solcher Eintrag bis heute; bewertete Tage = Tage mit Eintrag in den letzten 28.
+- **Im Aufbau:** unter 14 Tagen oder unter 4 bewerteten Tagen. Keine Kennzahl, keine Zone, kein Spielraum, keine Risikowarnung; Einträge und Balken bleiben sichtbar, die ACWR-Linien nicht. Zeile: „Erste Einschätzung in X Tagen“ bzw. „Zu wenige Bewertungen … noch X Tage bewerten“.
+- **Vorläufig:** ab 14 Tagen und 4 bewerteten Tagen. Zone und Zahl mit „Vorläufig“ (Heute, Belastungsseite, Mehr Zahlen, Trainer-Kader, Spielerblatt), Warnungen laufen mit.
+- **Regulär:** ab 30 Tagen und 8 bewerteten Tagen. `chronicFull` heißt jetzt genau das (der 28/30-Unterschied ist weg).
+- Formeln (mit Grund geändert): Verhältnis erst ab Tag 14 statt 8 (mit einer Woche Historie ist der chronische Wert geraten und das Verhältnis springt); nur bei chronischer Last ≥ 1 AU/Tag (kein Sprung durch Teilen durch fast nichts); `NaN`/`Infinity` werden ignoriert bzw. nie angezeigt. EWMA, λ und der Start aus dem Mittel der ersten 7/28 Tage bleiben.
+- Server: Migration `0059` (additiv) — Spalte `load_summaries.basis` (leer = alte Zeile, die App nimmt dann `chronic_full`), `app.load_basis_summary` als Spiegel der App-Regel, `refresh_load_summaries` schreibt die Stufe; einmal neu berechnet.
+
+Offen: Nicht bewertete Teameinheiten senken die Basis nicht automatisch (die Bewertungsabfrage fragt sie ab); Genauigkeitsangaben gibt es bewusst keine.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `test:load` (10 neue Fälle: Schwellen 13/14/29/30, leer, Lücken, Nullen, Zukunft, NaN/Infinity, alte Zeilen), `test:consent`, `build`, Smoke (64), SQL-Tests lokal inkl. `37_load_basis_test.sql`, `test:pilot` (App und Server gleich, auch die Stufe); Vorher/Nachher im Browser mit 10, 20 und 60 Tagen Verlauf.

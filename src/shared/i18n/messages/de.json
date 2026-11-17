@@ -336,7 +336,6 @@
   "load.pending.today": "Heute",
   "load.pending.planned": "Geplant",
   "load.room.label": "Belastungsraum",
-  "load.room.daysNeeded": "Noch {count} Tage nötig",
   "load.room.overload": "Überlastung",
   "load.room.aboveSafe": "über dem sicheren Bereich",
   "load.room.underloadGap": "Unterbelastung",
@@ -533,7 +532,6 @@
   "load.details.weekChangeTitle": "Belastung der letzten 7 Tage im Vergleich zu den 7 Tagen davor",
   "load.details.weekChange": "{value}% im Vergleich zur Vorwoche",
   "load.details.backFromBreak": "Zurück nach einer Pause · langsam steigern",
-  "load.details.reliableAfter": "Eine verlässliche Einschätzung gibt es nach etwa 30 erfassten Tagen.",
   "load.details.weekStability": "Wochenstabilität",
   "load.details.monotony": "Monotonie",
   "load.details.strain": "Beanspruchung",
@@ -2508,5 +2506,14 @@
   "command.short": "Suchen",
   "composer.endsAt": "Ende",
   "settings.sessionLength": "Länge neuer Einheiten",
-  "settings.sessionLengthDetail": "Wenn du im Kalender auf eine freie Zeit tippst"
+  "settings.sessionLengthDetail": "Wenn du im Kalender auf eine freie Zeit tippst",
+  "load.basis.none": "Bewerte deine erste Einheit. Ab dann baut sich deine Basis auf.",
+  "load.basis.short_one": "Erste Einschätzung in 1 Tag",
+  "load.basis.short_other": "Erste Einschätzung in {count} Tagen",
+  "load.basis.few_one": "Zu wenige Bewertungen in den letzten 4 Wochen: noch 1 Tag bewerten",
+  "load.basis.few_other": "Zu wenige Bewertungen in den letzten 4 Wochen: noch {count} Tage bewerten",
+  "load.basis.provisional": "Vorläufig",
+  "load.basis.provisionalDays_one": "Vorläufig – verlässlich in 1 Tag",
+  "load.basis.provisionalDays_other": "Vorläufig – verlässlich in {count} Tagen",
+  "load.basis.provisionalFew": "Vorläufig – bewerte regelmäßiger für eine verlässliche Einschätzung"
 }
