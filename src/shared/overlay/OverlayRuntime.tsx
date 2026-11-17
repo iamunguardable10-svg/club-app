@@ -33,6 +33,15 @@ export function OverlayRuntime() {
     let startAt = 0;
     let dragging = false;
     let offset = 0;
+    let frame = 0;
+    let backdrop: HTMLElement | null = null;
+    // One write per screen frame, on the compositor (transform and opacity only).
+    const paint = () => {
+      frame = 0;
+      if (!sheet) return;
+      sheet.style.transform = `translate3d(0, ${offset}px, 0)`;
+      if (backdrop) backdrop.style.opacity = String(Math.max(0.35, 1 - offset / 600));
+    };
 
     const scrolledInside = (from: Element, until: HTMLElement) => {
       for (let node: Element | null = from; node; node = node.parentElement) {
@@ -67,31 +76,46 @@ export function OverlayRuntime() {
         dragging = true;
         sheet.style.transition = 'none';
         sheet.style.animation = 'none';
+        sheet.style.willChange = 'transform';
+        backdrop = sheet.parentElement && sheet.parentElement !== document.body ? sheet.parentElement : null;
+        if (backdrop) { backdrop.style.transition = 'none'; backdrop.style.willChange = 'opacity'; }
       }
-      offset = Math.max(0, dy);
-      sheet.style.transform = `translateY(${offset}px)`;
+      // A little resistance at the start, so a small pull does not look like a jump.
+      offset = Math.max(0, dy < 40 ? dy * 0.85 : dy - 6);
+      if (!frame) frame = window.requestAnimationFrame(paint);
       if (event.cancelable) event.preventDefault();
     };
 
     const onEnd = (event: TouchEvent) => {
       const moved = sheet;
       sheet = null;
+      if (frame) { window.cancelAnimationFrame(frame); frame = 0; }
       if (!moved || !dragging) return;
       dragging = false;
+      const shade = backdrop;
+      backdrop = null;
+      const settle = () => { moved.style.willChange = ''; if (shade) { shade.style.willChange = ''; } };
       const speed = offset / Math.max(1, event.timeStamp - startAt);
       const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       if (offset > PULL_DISTANCE || (offset > 24 && speed > PULL_SPEED)) {
         // It keeps going the way it was thrown, then closes.
-        moved.style.transition = reduce ? 'none' : 'transform 0.18s cubic-bezier(0.4, 0, 1, 1)';
-        moved.style.transform = 'translateY(110%)';
+        moved.style.transition = reduce ? 'none' : 'transform 0.2s cubic-bezier(0.4, 0, 1, 1)';
+        moved.style.transform = 'translate3d(0, 110%, 0)';
+        if (shade) { shade.style.transition = reduce ? 'none' : 'opacity 0.2s linear'; shade.style.opacity = '0'; }
         window.setTimeout(() => {
           if (!closeTopSheet()) return;
           // A sheet that asked to stay (unsaved text) comes back.
-          window.setTimeout(() => { if (moved.isConnected) { moved.style.transition = 'transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1)'; moved.style.transform = ''; } }, 60);
-        }, reduce ? 0 : 170);
+          window.setTimeout(() => {
+            if (moved.isConnected) { moved.style.transition = 'transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1)'; moved.style.transform = ''; }
+            if (shade?.isConnected) { shade.style.transition = 'opacity 0.2s linear'; shade.style.opacity = ''; }
+            settle();
+          }, 60);
+        }, reduce ? 0 : 190);
       } else {
         moved.style.transition = reduce ? 'none' : 'transform 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.15)';
         moved.style.transform = '';
+        if (shade) { shade.style.transition = reduce ? 'none' : 'opacity 0.25s ease-out'; shade.style.opacity = ''; }
+        window.setTimeout(settle, 340);
       }
     };
 

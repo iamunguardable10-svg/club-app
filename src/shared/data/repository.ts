@@ -257,6 +257,23 @@ export function saveCalendarView(view: 'day' | 'week' | 'list'): void {
   try { window.localStorage.setItem(CALENDAR_VIEW_KEY, view); } catch { /* starts with the grid next time */ }
 }
 
+// How long a session drawn by a tap in the calendar starts out (Ben, 2026-11-17); per device.
+const SESSION_LENGTH_KEY = 'club-app.session-length';
+export const SESSION_LENGTH_CHOICES = [45, 60, 75, 90, 105, 120] as const;
+
+export function readSessionLength(): number {
+  if (!isBrowser()) return 90;
+  try {
+    const value = Number(window.localStorage.getItem(SESSION_LENGTH_KEY));
+    return (SESSION_LENGTH_CHOICES as readonly number[]).includes(value) ? value : 90;
+  } catch { return 90; }
+}
+
+export function saveSessionLength(minutes: number): void {
+  if (!isBrowser() || !(SESSION_LENGTH_CHOICES as readonly number[]).includes(minutes)) return;
+  try { window.localStorage.setItem(SESSION_LENGTH_KEY, String(minutes)); } catch { /* 90 minutes next time */ }
+}
+
 // Right after joining a team: one screen to install the app and allow notifications (audit 2026-11, 14).
 const AFTER_JOIN_KEY = 'club-app.after-join';
 

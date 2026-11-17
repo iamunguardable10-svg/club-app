@@ -3519,3 +3519,13 @@ Ben: Graphite wirkt langweilig und eintönig, der Kontrast ist schlechter; dazu 
 Offen: echtes BlurHash für Fotos (bräuchte eine Spalte und eine Migration), „Zurück“ schließt Sheets nur, wo der Browser `CloseWatcher` kennt (nicht Safari), Seitenwechsel als echte Überblendung (View Transitions), Einmalcode-Autofill und Untermenü-Dreieck sind nicht einschlägig (kein Code-Feld, keine Hover-Untermenüs).
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke voll (256 Seitenaufrufe), `test:landing`, `test:load`, `test:series`, `test:features`, `test:consent`, `test:carpools`, `test:store`, `test:build`, `test:address`; 13 Verhaltensprüfungen im Browser (Sheet öffnen, schließen, Escape, Herunterziehen, kurzer Zug federt zurück, Rückgängig, Befehlsmenü, Alt+Zahl); Vorher-/Nachher-Bilder aller Hauptansichten für Spieler und Trainer auf Handy und Desktop. Keine Änderung an Daten, Rechten oder Migrationen.
+
+## Run 127 — Fünf Punkte von Ben (2026-11-17)
+
+- **Seite steht hinter Sheets:** Alles, was sich über die Seite legt und sich über `useEscape` anmeldet (RPE-Abfrage, Einheiten, eigenes Training, Spielerdetails, Kalender-Export, Befehlsmenü, Gruppen, Wochen-Details …), sperrt jetzt das Scrollen dahinter (`useBodyScrollLock` in `useEscape`, mit Zähler, doppelt schadet nicht).
+- **Benachrichtigungen nicht doppelt:** Die Karte „Benachrichtigungen einschalten“ erscheint nur, wenn sie auf diesem Gerät noch nicht erlaubt sind, und nicht, solange der Schritt „Damit du nichts verpasst“ nach dem Beitritt ansteht.
+- **Runterziehen flüssiger:** eine Bewegung pro Bildschirm-Frame (`requestAnimationFrame`), `translate3d` und `will-change` nur während des Ziehens, der Hintergrund blendet mit aus, ein kleiner Widerstand am Anfang.
+- **Kalender-Griff:** sitzt als Griff auf der Unterkante der Einheit, halb außerhalb, mit großer Fläche (28 px hoch, drei Viertel der Breite), deckt den Text nicht mehr zu. Eigenes Training (Spieler): neben der Dauer ein Feld **Ende**; das eine stellt das andere.
+- **Länge neuer Einheiten:** Einstellung unter „Dieses Gerät“ für Trainer und Vereinsrollen (45–120 Min., Standard 90); gilt, wenn man im Kalender auf eine freie Zeit tippt.
+
+Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke; im Browser: Seite gesperrt bei offener RPE-Abfrage und wieder frei nach dem Schließen, Entwurf mit 60 Min. nach der Einstellung.

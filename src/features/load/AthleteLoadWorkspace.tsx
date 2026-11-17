@@ -90,6 +90,23 @@ type AthleteLoadWorkspaceProps = {
   initialView?: AthleteView;
 };
 
+/** "17:30" plus 90 minutes is "19:00" (wraps after midnight). */
+function clockAfter(time: string, minutes: number) {
+  const [h, m] = time.split(':').map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return '';
+  const total = (((h * 60 + m + minutes) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+
+/** Minutes from one clock time to a later one the same evening; null when not a time. */
+function minutesBetween(from: string, to: string) {
+  const [fh, fm] = from.split(':').map(Number);
+  const [th, tm] = to.split(':').map(Number);
+  if (![fh, fm, th, tm].every(Number.isFinite)) return null;
+  const diff = th * 60 + tm - (fh * 60 + fm);
+  return diff > 0 ? diff : diff + 1440;
+}
+
 type PlanFormState = {
   trainingType: LoadTrainingType;
   date: string;
@@ -1867,6 +1884,21 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
                     </div>
                     <input type="range" min={planForm.trainingType === 'game' ? '0' : '5'} max={planForm.trainingType === 'game' ? '120' : '240'} step={planForm.trainingType === 'game' ? '1' : '5'} value={planForm.expectedDurationMinutes} onChange={(event) => setPlanForm((current) => ({ ...current, expectedDurationMinutes: Number(event.target.value) }))} className="mt-2 w-full accent-emerald-300" />
                   </label>
+                  {/* The end follows the length and moves it back (Ben, 2026-11-17). */}
+                  {planForm.time && planForm.trainingType !== 'game' ? (
+                    <label className="flex items-center justify-between gap-3 text-xs font-semibold text-slate-400">
+                      {t('composer.endsAt')}
+                      <input
+                        type="time"
+                        value={clockAfter(planForm.time, planForm.expectedDurationMinutes)}
+                        onChange={(event) => {
+                          const minutes = minutesBetween(planForm.time, event.target.value);
+                          if (minutes !== null) setPlanForm((current) => ({ ...current, expectedDurationMinutes: Math.min(240, Math.max(5, Math.round(minutes / 5) * 5)) }));
+                        }}
+                        className="h-10 w-28 rounded-lg border border-slate-700/90 bg-slate-950 px-2 text-center text-[15px] font-semibold tabular-nums text-slate-100 [color-scheme:dark]"
+                      />
+                    </label>
+                  ) : null}
                 </div>
 
                 {isPlanning ? (

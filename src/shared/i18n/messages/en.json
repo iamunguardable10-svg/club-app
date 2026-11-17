@@ -2505,5 +2505,8 @@
   "common.undo": "Undo",
   "toast.planDeleted": "Training removed",
   "toast.rideLeft": "You left the ride",
-  "command.short": "Search"
+  "command.short": "Search",
+  "composer.endsAt": "Ends",
+  "settings.sessionLength": "Length of new sessions",
+  "settings.sessionLengthDetail": "When you tap a free time in the calendar"
 }

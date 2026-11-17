@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { dismissHint, isHintDismissed, isRemoteMode } from '@/shared/data';
+import { dismissHint, isAfterJoinPending, isHintDismissed, isRemoteMode } from '@/shared/data';
 import { installPlatform, isStandalone } from '@/features/install/installPrompt';
 import { reportError } from '@/features/errors/errorReporting';
 import { errorText, useT } from '@/shared/i18n';
@@ -111,7 +111,9 @@ export function NotificationsHint({ variant }: { variant: 'card' | 'menu' | 'set
     );
   }
 
-  if (state !== 'off' || dismissed) return null;
+  // Once allowed on this device it is never asked again here (renewing happens quietly),
+  // and right after joining the "Damit du nichts verpasst" step asks instead (Ben, 2026-11-17).
+  if (state !== 'off' || dismissed || pushPermission() === 'granted' || isAfterJoinPending()) return null;
 
   return (
     <section aria-label={t('notifications.turnOn')} className="grid gap-3 os-panel p-4 text-sm text-slate-300">
