@@ -472,7 +472,6 @@
   "composer.gameRpe": "La carga del partido usa RPE 10. Introduce abajo los minutos que has jugado.",
   "composer.playingMinutes": "Minutos jugados",
   "composer.duration": "Duración",
-  "composer.planNote": "Después de la sesión, la app te preguntará: «¿Qué esfuerzo te ha supuesto?». Indica el esfuerzo y cuánto ha durado realmente.",
   "composer.trainingLoad": "Carga de entrenamiento",
   "composer.au": "{value} AU",
   "composer.planCount_one": "Planificar {count} sesión",
@@ -2501,8 +2500,7 @@
   "toast.rideLeft": "Ya no vas en este coche",
   "command.short": "Buscar",
   "composer.endsAt": "Fin",
-  "settings.sessionLength": "Duración de las nuevas sesiones",
-  "settings.sessionLengthDetail": "Cuando tocas una hora libre en el calendario",
+  "settings.sessionLength": "Duración",
   "load.basis.none": "Valora tu primera sesión. A partir de ahí se construye tu base.",
   "load.basis.short_one": "Primera valoración en 1 día",
   "load.basis.short_other": "Primera valoración en {count} días",
@@ -2537,5 +2535,7 @@
   "team.first.playbookWhy": "Jugadas y documentos como archivo. Los borradores son para el staff, los publicados para el equipo. Opcional.",
   "team.first.open": "Vamos",
   "team.first.skip": "Omitir",
-  "composer.rateAfter": "Podrás valorarla cuando termine la sesión."
+  "composer.rateAfter": "Podrás valorarla cuando termine la sesión.",
+  "settings.newSessions": "Sesiones nuevas",
+  "settings.newSessionsDetail": "Toca una hora libre del calendario y luego ✓: se guarda así. Toca el borrador para más."
 }

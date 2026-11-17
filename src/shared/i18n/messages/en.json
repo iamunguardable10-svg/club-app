@@ -472,7 +472,6 @@
   "composer.gameRpe": "Game load uses RPE 10. Enter playing minutes below.",
   "composer.playingMinutes": "Playing minutes",
   "composer.duration": "Duration",
-  "composer.planNote": "After the session the app asks “How hard was it?”: effort and how long it really took.",
   "composer.trainingLoad": "Training load",
   "composer.au": "{value} AU",
   "composer.planCount_one": "Plan {count} session",
@@ -2501,8 +2500,7 @@
   "toast.rideLeft": "You left the ride",
   "command.short": "Search",
   "composer.endsAt": "Ends",
-  "settings.sessionLength": "Length of new sessions",
-  "settings.sessionLengthDetail": "When you tap a free time in the calendar",
+  "settings.sessionLength": "Length",
   "load.basis.none": "Rate your first session. From then on your baseline builds up.",
   "load.basis.short_one": "First reading in 1 day",
   "load.basis.short_other": "First reading in {count} days",
@@ -2537,5 +2535,7 @@
   "team.first.playbookWhy": "Plays and documents as files. Drafts are for the staff, released ones for the team. Optional.",
   "team.first.open": "Go",
   "team.first.skip": "Skip",
-  "composer.rateAfter": "You can rate it once the session is over."
+  "composer.rateAfter": "You can rate it once the session is over.",
+  "settings.newSessions": "New sessions",
+  "settings.newSessionsDetail": "Tap a free time in the calendar, then ✓: saved like this. Tap the draft for more."
 }

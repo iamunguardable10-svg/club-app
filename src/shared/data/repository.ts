@@ -274,6 +274,20 @@ export function saveSessionLength(minutes: number): void {
   try { window.localStorage.setItem(SESSION_LENGTH_KEY, String(minutes)); } catch { /* 90 minutes next time */ }
 }
 
+// The kind a new session gets when it is put down with ✓ in the calendar
+// (Ben, 2026-11-17), per role: a coach's session type, a player's training type.
+const SESSION_TYPE_KEYS = { coach: 'club-app.session-type.coach', athlete: 'club-app.session-type.athlete' } as const;
+
+export function readDefaultSessionType(role: 'coach' | 'athlete'): string | null {
+  if (!isBrowser()) return null;
+  try { return window.localStorage.getItem(SESSION_TYPE_KEYS[role]); } catch { return null; }
+}
+
+export function saveDefaultSessionType(role: 'coach' | 'athlete', value: string): void {
+  if (!isBrowser()) return;
+  try { window.localStorage.setItem(SESSION_TYPE_KEYS[role], value); } catch { /* the usual kind next time */ }
+}
+
 // Right after joining a team: one screen to install the app and allow notifications (audit 2026-11, 14).
 const AFTER_JOIN_KEY = 'club-app.after-join';
 

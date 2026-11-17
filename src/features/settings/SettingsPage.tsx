@@ -18,6 +18,8 @@ import { AbsencePanel } from '@/features/absences/AbsencePanel';
 import { HealthConsentPanel, ExportDataButton } from '@/features/legal/HealthConsentPanel';
 import { LegalLinks } from '@/features/legal/LegalLinks';
 import { RsvpOptions } from './RsvpOptions';
+import { coachSessionTypes } from '@/features/sessions/sessionTypeLabels';
+import { loadTypeLabel } from '@/features/load/loadLabels';
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
 
@@ -61,6 +63,9 @@ import {
   isRpePrefillOn,
   readSessionLength,
   saveSessionLength,
+  readDefaultSessionType,
+  saveDefaultSessionType,
+  LOAD_TRAINING_TYPES,
   SESSION_LENGTH_CHOICES,
   setRpePrefill,
 } from '@/shared/data';
@@ -135,7 +140,8 @@ export function SettingsPage() {
                 ? <NotificationsHint variant="settings" />
                 : <p className="text-sm text-slate-400">{t('settings.demoNotifications')}</p>}
               <InstallHint variant="settings" />
-              {role === 'athlete' ? <RpePrefill /> : <SessionLength />}
+              <NewSessionDefaults role={role === 'athlete' ? 'athlete' : 'coach'} />
+              {role === 'athlete' ? <RpePrefill /> : null}
               <TipsAgain />
             </div>
           </CoachSection>
@@ -156,19 +162,43 @@ function RpePrefill() {
   return <Switch label={t('settings.rpePrefill')} detail={t('settings.rpePrefillDetail')} checked={on} onChange={() => { setRpePrefill(!on); setOn(!on); }} />;
 }
 
-/** How long a session drawn by a tap in the calendar starts out (coaches and club roles). */
-function SessionLength() {
+/**
+ * New sessions (Ben, 2026-11-17): the kind and length a session gets when it
+ * is put down in the calendar; ✓ on the draft saves it like that, a tap on
+ * it opens the sheet. Coaches pick a session type, players a training type.
+ */
+function NewSessionDefaults({ role }: { role: 'coach' | 'athlete' }) {
   const t = useT();
   const [minutes, setMinutes] = useState(90);
-  useEffect(() => setMinutes(readSessionLength()), []);
+  const types = role === 'coach'
+    ? coachSessionTypes.map((type) => ({ value: type.value, label: t(type.key) }))
+    : LOAD_TRAINING_TYPES.filter((type) => type !== 'warmup').map((type) => ({ value: type, label: loadTypeLabel(type) }));
+  const fallback = role === 'coach' ? 'training' : 'team_training';
+  const [kind, setKind] = useState(fallback);
+  useEffect(() => {
+    setMinutes(readSessionLength());
+    const stored = readDefaultSessionType(role);
+    if (stored && types.some((type) => type.value === stored)) setKind(stored);
+  }, [role]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <label className="grid gap-1.5">
-      <span className="text-sm font-semibold text-slate-100">{t('settings.sessionLength')}</span>
-      <span className="text-xs text-slate-400">{t('settings.sessionLengthDetail')}</span>
-      <select value={minutes} onChange={(event) => { const value = Number(event.target.value); setMinutes(value); saveSessionLength(value); }} className="os-field mt-1">
-        {SESSION_LENGTH_CHOICES.map((value) => <option key={value} value={value}>{t('composer.minutes', { count: value })}</option>)}
-      </select>
-    </label>
+    <div className="grid gap-1.5">
+      <span className="text-sm font-semibold text-slate-100">{t('settings.newSessions')}</span>
+      <span className="text-xs text-slate-400">{t('settings.newSessionsDetail')}</span>
+      <div className="mt-1 grid grid-cols-2 gap-2">
+        <label className="grid min-w-0 gap-1 text-xs font-semibold text-slate-400">
+          {t('sessionForm.type')}
+          <select value={kind} onChange={(event) => { setKind(event.target.value); saveDefaultSessionType(role, event.target.value); }} className="os-field min-w-0">
+            {types.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+          </select>
+        </label>
+        <label className="grid min-w-0 gap-1 text-xs font-semibold text-slate-400">
+          {t('settings.sessionLength')}
+          <select value={minutes} onChange={(event) => { const value = Number(event.target.value); setMinutes(value); saveSessionLength(value); }} className="os-field min-w-0">
+            {SESSION_LENGTH_CHOICES.map((value) => <option key={value} value={value}>{t('composer.minutes', { count: value })}</option>)}
+          </select>
+        </label>
+      </div>
+    </div>
   );
 }
 
