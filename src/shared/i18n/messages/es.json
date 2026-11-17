@@ -2505,5 +2505,8 @@
   "common.undo": "Deshacer",
   "toast.planDeleted": "Entrenamiento eliminado",
   "toast.rideLeft": "Ya no vas en este coche",
-  "command.short": "Buscar"
+  "command.short": "Buscar",
+  "composer.endsAt": "Fin",
+  "settings.sessionLength": "Duración de las nuevas sesiones",
+  "settings.sessionLengthDetail": "Cuando tocas una hora libre en el calendario"
 }

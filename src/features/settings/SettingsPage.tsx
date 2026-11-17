@@ -61,6 +61,9 @@ import {
   type RsvpMode,
   setTipsOff,
   isRpePrefillOn,
+  readSessionLength,
+  saveSessionLength,
+  SESSION_LENGTH_CHOICES,
   setRpePrefill,
 } from '@/shared/data';
 import { clubRoleText } from '@/features/club/clubRoleText';
@@ -134,7 +137,7 @@ export function SettingsPage() {
                 ? <NotificationsHint variant="settings" />
                 : <p className="text-sm text-slate-400">{t('settings.demoNotifications')}</p>}
               <InstallHint variant="settings" />
-              {role === 'athlete' ? <RpePrefill /> : null}
+              {role === 'athlete' ? <RpePrefill /> : <SessionLength />}
               <TipsAgain />
             </div>
           </CoachSection>
@@ -153,6 +156,22 @@ function RpePrefill() {
   const [on, setOn] = useState(false);
   useEffect(() => setOn(isRpePrefillOn()), []);
   return <Switch label={t('settings.rpePrefill')} detail={t('settings.rpePrefillDetail')} checked={on} onChange={() => { setRpePrefill(!on); setOn(!on); }} />;
+}
+
+/** How long a session drawn by a tap in the calendar starts out (coaches and club roles). */
+function SessionLength() {
+  const t = useT();
+  const [minutes, setMinutes] = useState(90);
+  useEffect(() => setMinutes(readSessionLength()), []);
+  return (
+    <label className="grid gap-1.5">
+      <span className="text-sm font-semibold text-slate-100">{t('settings.sessionLength')}</span>
+      <span className="text-xs text-slate-400">{t('settings.sessionLengthDetail')}</span>
+      <select value={minutes} onChange={(event) => { const value = Number(event.target.value); setMinutes(value); saveSessionLength(value); }} className="os-field mt-1">
+        {SESSION_LENGTH_CHOICES.map((value) => <option key={value} value={value}>{t('composer.minutes', { count: value })}</option>)}
+      </select>
+    </label>
+  );
 }
 
 /** The first-use tips (`TipLayer`), all back from the start. */

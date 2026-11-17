@@ -2505,5 +2505,8 @@
   "common.undo": "Rückgängig",
   "toast.planDeleted": "Training entfernt",
   "toast.rideLeft": "Du fährst nicht mehr mit",
-  "command.short": "Suchen"
+  "command.short": "Suchen",
+  "composer.endsAt": "Ende",
+  "settings.sessionLength": "Länge neuer Einheiten",
+  "settings.sessionLengthDetail": "Wenn du im Kalender auf eine freie Zeit tippst"
 }

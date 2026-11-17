@@ -2505,5 +2505,8 @@
   "common.undo": "Annuler",
   "toast.planDeleted": "Entraînement supprimé",
   "toast.rideLeft": "Tu ne fais plus partie du trajet",
-  "command.short": "Rechercher"
+  "command.short": "Rechercher",
+  "composer.endsAt": "Fin",
+  "settings.sessionLength": "Durée des nouvelles séances",
+  "settings.sessionLengthDetail": "Quand tu touches un créneau libre du calendrier"
 }

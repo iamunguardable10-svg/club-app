@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 
-import { readCalendarView, saveCalendarView } from '@/shared/data';
+import { readCalendarView, readSessionLength, saveCalendarView } from '@/shared/data';
 import { tipEvent } from '@/features/tips/tipEvents';
 import { formatDateRange } from '@/shared/format';
 import type { SmartCalendarDragKind, SmartCalendarMode, SmartCalendarSession, SmartMobileCalendarView } from './SmartSessionCalendar';
@@ -103,7 +103,7 @@ export type SmartCalendarHandlers = {
 export function useSmartCalendar({
   draft,
   canCreate,
-  draftMinutes = 90,
+  draftMinutes: fixedDraftMinutes,
   handlers,
 }: {
   draft: CalendarDraftTimes | null;
@@ -111,6 +111,10 @@ export function useSmartCalendar({
   draftMinutes?: number;
   handlers: SmartCalendarHandlers;
 }) {
+  // Without a fixed length: the one chosen in the settings (default 90 minutes).
+  const [savedLength, setSavedLength] = useState(90);
+  useEffect(() => { setSavedLength(readSessionLength()); }, []);
+  const draftMinutes = fixedDraftMinutes ?? savedLength;
   const [weekOffset, setWeekOffset] = useState(0);
   const days = useMemo(() => buildWeekDays(weekOffset), [weekOffset]);
   const [activeDayIndex, setActiveDayIndex] = useState(() => defaultActiveDayForWeekOffset(0));

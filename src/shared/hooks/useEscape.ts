@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { isTopSheet, openSheet } from '@/shared/overlay/sheetStack';
+import { useBodyScrollLock } from './useBodyScrollLock';
 
 /** The browser's own "close what is open" signal: Escape, and "back" on Android. */
 type Watcher = { onclose: (() => void) | null; destroy(): void };
@@ -14,6 +15,8 @@ type WatcherClass = new () => Watcher;
  * moving between pages), and on a swipe down (`OverlayRuntime`).
  */
 export function useEscape(onEscape: () => void, active = true) {
+  // What is open over the page holds the page still behind it (Ben, 2026-11-17: the RPE prompt scrolled the page).
+  useBodyScrollLock(active);
   const handler = useRef(onEscape);
   handler.current = onEscape;
   useEffect(() => {
