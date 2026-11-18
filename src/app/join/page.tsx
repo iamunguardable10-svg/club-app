@@ -244,6 +244,19 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
     }
   }
 
+  // One account belongs to one club: say so right after signing in, not after
+  // the whole player card (field test 2026-11-18). The server checks it again.
+  const otherClub = Boolean(account && me && database && database.club.name !== preview.clubName);
+  if (otherClub) {
+    return (
+      <Shell title={title} steps={{ labels, current: 1 }}>
+        <TeamCard preview={preview} />
+        <ErrorLine message={t('server.yourAccountAlreadyBelongsTo2')} />
+        {account ? <AccountLine account={account} /> : null}
+      </Shell>
+    );
+  }
+
   // From "You" on, the team's name is the page's title; its card would only repeat it.
   return (
     <Shell title={current === 2 ? preview.teamName : title} steps={{ labels, current }}>

@@ -2167,8 +2167,15 @@ function LoadGlance({ latest, entries, basis, tone, status }: { latest: ReturnTy
           {status}
           {basis.stage === 'provisional' ? <ProvisionalTag /> : null}
         </span>
-        <span className="mt-2 block text-sm font-medium text-slate-300">{room.label}</span>
-        <span className="block text-sm text-slate-400"><span className="font-semibold text-white">{room.value}</span>{room.detail ? ` · ${room.detail}` : ''}</span>
+        {room.mode === 'baseline' ? (
+          // Still building: only what is missing, no empty "room" line (field test 2026-11-18).
+          <span className="mt-2 block text-sm text-slate-300">{room.detail}</span>
+        ) : (
+          <>
+            <span className="mt-2 block text-sm font-medium text-slate-300">{room.label}</span>
+            <span className="block text-sm text-slate-400"><span className="font-semibold text-white">{room.value}</span>{room.detail ? ` · ${room.detail}` : ''}</span>
+          </>
+        )}
       </span>
       <span aria-hidden className="self-center text-lg leading-none text-slate-500">›</span>
     </Link>

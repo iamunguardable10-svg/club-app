@@ -108,18 +108,25 @@ function formatTimeRange(startsAt: string, endsAt: string | null, sessionType?: 
  * only see the traffic light gets no entries, so the insights would read as
  * "nobody reported" rather than "not shared with you".
  */
+/**
+ * Whether the role sees load details for this session. A player without
+ * consent is 'none' too, but that is not the role's limit: one player with
+ * full access is enough (field test 2026-11-18, the message named the role).
+ */
 function sessionLoadDetailsShared(session: CoachSession) {
-  return session.players.length > 0 && session.players.every((player) => (player.loadAccess ?? 'full') === 'full');
+  return session.players.some((player) => (player.loadAccess ?? 'full') === 'full');
 }
 
 function summarizeCoachSession(session: CoachSession) {
   const late = session.availability.filter((item) => item.status === 'late');
   const out = session.availability.filter((item) => item.status === 'out');
   const loadReports = session.players.flatMap((player) => player.loadEntries.filter((entry) => entry.sessionId === session.id && entry.trainingType !== 'warmup').map((entry) => ({ player, entry })));
-  const reportRate = session.players.length > 0 ? loadReports.length / session.players.length : 0;
+  // Only players who can rate count (no consent: no rating, not "missing").
+  const reporters = session.players.filter((player) => (player.loadAccess ?? 'full') === 'full').length;
+  const reportRate = reporters > 0 ? loadReports.length / reporters : 0;
   const avgRpe = loadReports.length > 0 ? loadReports.reduce((sum, item) => sum + item.entry.rpe, 0) / loadReports.length : null;
   const avgLoad = loadReports.length > 0 ? loadReports.reduce((sum, item) => sum + item.entry.load, 0) / loadReports.length : null;
-  return { late, out, loadReports, reportRate, avgRpe, avgLoad };
+  return { late, out, loadReports, reporters, reportRate, avgRpe, avgLoad };
 }
 
 type CoachSessionLoadReport = ReturnType<typeof summarizeCoachSession>['loadReports'][number];
@@ -1074,12 +1081,12 @@ export function CoachSessionDetailOverlay({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-semibold text-violet-300">{t('insight.title')}</p>
               <span className="rounded-full border border-slate-700 px-2 py-1 text-xs font-semibold text-slate-300">
-                {t('insight.reportCount', { done: summary.loadReports.length, total: session.players.length })}
+                {t('insight.reportCount', { done: summary.loadReports.length, total: summary.reporters })}
               </span>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <InsightMetricCard label={t('insight.loadSignal')} value={summary.avgRpe !== null && summary.avgLoad !== null ? t('insight.loadSignalValue', { rpe: formatDecimal(summary.avgRpe, 1), load: Math.round(summary.avgLoad) }) : '-'} detail={summary.reportRate >= 0.8 ? t('insight.signalReady') : t('insight.waiting')} active={activeInsight === 'au'} onClick={() => setActiveInsight((current) => current === 'au' ? null : 'au')} />
-              <InsightMetricCard label={t('insight.completion')} value={formatPercent(summary.reportRate)} detail={t('insight.reports', { done: summary.loadReports.length, total: session.players.length })} active={activeInsight === 'completion'} onClick={() => setActiveInsight((current) => current === 'completion' ? null : 'completion')} />
+              <InsightMetricCard label={t('insight.completion')} value={formatPercent(summary.reportRate)} detail={t('insight.reports', { done: summary.loadReports.length, total: summary.reporters })} active={activeInsight === 'completion'} onClick={() => setActiveInsight((current) => current === 'completion' ? null : 'completion')} />
             </div>
             {activeInsight ? (
               <div className="mt-3 rounded-2xl border border-violet-300/25 bg-violet-300/10 p-3">

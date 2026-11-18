@@ -3575,3 +3575,17 @@ Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke (64), `test:lan
 - **Felder auf dem iPhone:** Datum, Beginn und Ende im Planungsfenster der Spieler sind wieder senkrecht mittig (die iOS-Anpassung von vorher war beim Umbau verloren gegangen). Der Hinweis „Nach der Einheit fragt die App …“ ist weg.
 
 Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke (64), `test:landing`; im Browser als Spieler und Trainer: Tipp, ✓, neue Einheit ohne Fenster mit Art und Länge aus den Einstellungen.
+
+## Run 132 — Pilot-Check: Team-Ablauf live mit Testkonten, alle Ansichten (2026-11-18)
+
+**Geprüft:** alle Tests (`typecheck`, `check:i18n`, `test:i18n`, `test:load`, `test:consent`, `test:store`, `test:carpools`, `test:features`, `test:calendar`, `test:series`, `test:build`, `test:address`; `test:caldav` braucht lokal einen CalDAV-Server, in der CI grün), 37 Datenbank-Testdateien, `test:pilot`; Live: Produktion auf dem aktuellen Stand, 7 Tage ohne Serverfehler, alle Migrationen eingespielt. Demo: 48 Seitenaufrufe (Spieler, Trainer, Verein, öffentlich; Handy und Desktop) ohne Konsolenfehler und ohne seitliches Überstehen, Bilder durchgesehen.
+
+**Team-Ablauf live** (Testverein „Claude Run4“, Wegwerfkonten): Trainer legt Standardhalle fest, plant zwei Einheiten mit ✓, zwei neue Spielerinnen treten per Team-Link bei (eine unter 16 mit Elternlink, eine 17 mit eigener Einwilligung und „Selbst zusagen“), Antworten mit Grund, Trainer sieht „2 kommen · 1 fehlt“ und „1 ohne Antwort“, Nachricht an das Team mit Lesezähler, eigenes Training gestern bewerten („Erste Einschätzung in 12 Tagen“), Anwesenheit bestätigen, Vereinssicht.
+
+**Behoben:**
+1. Konto schon in einem anderen Verein: Die Meldung kam erst nach allen Schritten der Spielerkarte; jetzt direkt nach dem Anmelden.
+2. Einwilligungs-Hinweis der Spieler: stand auf jeder Seite und sagte zweimal dasselbe; jetzt nur auf Heute, ein Absatz.
+3. Belastung im Aufbau auf Heute: „Belastungsraum - · …“ → nur der Satz, was fehlt.
+4. Spielerblatt beim Trainer ohne Einwilligung: Text richtete sich an den Spieler („deinen Export“) und darunter „für deine Rolle nicht freigegeben“; jetzt ein Satz für den Trainer, der falsche Hinweis entfällt.
+5. Einheit beim Trainer: „Belastungsrückmeldungen … für deine Rolle nicht freigegeben“, sobald ein Spieler keine Einwilligung hatte; jetzt nur, wenn die Rolle sie wirklich nicht sieht. Die Bewertungsquote zählt nur Spieler, die bewerten können.
+6. Erste Schritte, Gruppen: „Reha oder Guards“ passte nicht zu Fußball; jetzt sportneutral.

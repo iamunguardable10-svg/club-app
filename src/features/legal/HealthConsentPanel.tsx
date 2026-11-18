@@ -17,7 +17,7 @@ export function AskParent({ personId }: { personId: string }) {
 export function LimitedConsentNote({ database, person }: { database: LocalDatabase; person: Person }) {
   const t = useT(); if (hasHealthConsent(database, person.id)) return null;
   const minor = person.birthYear != null && !canSelfConsent(person.birthYear, person.birthMonth) && !(needsBirthMonth(person.birthYear) && person.birthMonth == null);
-  return <aside className="os-panel mb-4 grid gap-3 border-amber-200/30 p-4" data-testid="limited-consent"><p className="text-sm font-semibold text-amber-100">{t(minor ? 'consent.waiting' : 'consent.noConsent')}</p><p className="text-xs text-slate-300">{t('consent.why')}</p><p className="text-xs text-slate-300">{t('consent.limited')}</p>{minor ? <AskParent personId={person.id} /> : <Link href="/settings#health-data" className="text-xs font-medium text-sky-300 underline">{t('consent.healthTitle')}</Link>}</aside>;
+  return <aside className="os-panel mb-4 grid gap-3 border-amber-200/30 p-4" data-testid="limited-consent"><p className="text-sm font-semibold text-amber-100">{t(minor ? 'consent.waiting' : 'consent.noConsent')}</p><p className="text-xs text-slate-300">{t('consent.why')}</p>{minor ? <AskParent personId={person.id} /> : <Link href="/settings#health-data" className="text-xs font-medium text-sky-300 underline">{t('consent.healthTitle')}</Link>}</aside>;
 }
 export function HealthConsentPanel({ database, person, hideLegalLinks = false }: { database: LocalDatabase; person: Person; hideLegalLinks?: boolean }) {
   const t = useT(); const active = hasHealthConsent(database, person.id); const adult = canSelfConsent(person.birthYear, person.birthMonth);
