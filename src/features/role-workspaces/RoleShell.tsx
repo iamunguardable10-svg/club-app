@@ -254,7 +254,8 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
             {database.activeIdentity?.role === 'athlete' ? <PlaybookTeaser database={database} personId={person.id} /> : null}
           </div>
         ) : null}
-        {database && person && database.activeIdentity?.role === 'athlete' && active !== 'load' ? <LimitedConsentNote database={database} person={person} /> : null}
+        {/* Once, on Today: the other pages work without consent (field test 2026-11-18). */}
+        {database && person && database.activeIdentity?.role === 'athlete' && active === 'today' ? <LimitedConsentNote database={database} person={person} /> : null}
         {children}
       </div>
       <CommandMenu commands={commands} open={commandOpen} onOpenChange={setCommandOpen} />

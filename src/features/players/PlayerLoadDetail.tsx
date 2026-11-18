@@ -253,7 +253,7 @@ export function PlayerLoadDetail({
             {summary.access === 'none' ? (
               <div className="os-panel p-4">
                 <p className="text-sm font-semibold text-white">{player.healthConsent === false ? t('consent.noConsent') : loadTracked ? t('playerLoad.notSharedTitle') : t('playerLoad.noTrackingTitle')}</p>
-                <p className="mt-1 text-sm font-medium text-slate-400">{player.healthConsent === false ? t('consent.withdrawDetail') : loadTracked ? t('playerLoad.notSharedDetail') : t('playerLoad.noTrackingDetail', { team: teamName })}</p>
+                <p className="mt-1 text-sm font-medium text-slate-400">{player.healthConsent === false ? t('playerLoad.noConsentDetail') : loadTracked ? t('playerLoad.notSharedDetail') : t('playerLoad.noTrackingDetail', { team: teamName })}</p>
               </div>
             ) : (
               <div className="os-panel p-4">
@@ -376,7 +376,8 @@ export function PlayerLoadDetail({
                 </div>
               </div>
             </div>
-          ) : (
+          ) : player.healthConsent === false ? null : (
+            // Without consent the card above says why; "not shared for your role" would be wrong.
             <div className="min-w-0">
               <div className="rounded-3xl border border-dashed border-slate-700 bg-slate-950/50 p-6 text-sm font-medium text-slate-400">
                 {summary.access === 'summary'

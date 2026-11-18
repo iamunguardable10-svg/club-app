@@ -2530,12 +2530,13 @@
   "team.first.hallWhy": "Las sesiones nuevas van ahí automáticamente. Otro pabellón lo eliges por sesión.",
   "team.first.playersWhy": "Los jugadores se unen con el código o enlace del equipo. Sin invitación por persona.",
   "team.first.groups": "Usar grupos",
-  "team.first.groupsWhy": "Para parte del equipo, p. ej. readaptación o bases: planifica sesiones solo para ese grupo. Opcional.",
+  "team.first.groupsWhy": "Para parte del equipo, p. ej. un grupo de readaptación: planifica sesiones solo para ese grupo. Opcional.",
   "team.first.playbook": "Llenar el playbook",
   "team.first.playbookWhy": "Jugadas y documentos como archivo. Los borradores son para el staff, los publicados para el equipo. Opcional.",
   "team.first.open": "Vamos",
   "team.first.skip": "Omitir",
   "composer.rateAfter": "Podrás valorarla cuando termine la sesión.",
   "settings.newSessions": "Sesiones nuevas",
-  "settings.newSessionsDetail": "Toca una hora libre del calendario y luego ✓: se guarda así. Toca el borrador para más."
+  "settings.newSessionsDetail": "Toca una hora libre del calendario y luego ✓: se guarda así. Toca el borrador para más.",
+  "playerLoad.noConsentDetail": "Sin consentimiento no ves la carga ni los motivos de salud. Las respuestas y la asistencia se ven como para todos."
 }

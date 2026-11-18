@@ -2530,12 +2530,13 @@
   "team.first.hallWhy": "Les nouvelles séances y sont placées automatiquement. Tu choisis une autre salle par séance.",
   "team.first.playersWhy": "Les joueurs rejoignent avec le code ou le lien de l’équipe. Pas d’invitation par personne.",
   "team.first.groups": "Utiliser des groupes",
-  "team.first.groupsWhy": "Pour une partie de l’équipe, p. ex. réathlétisation ou meneurs : planifie des séances pour ce groupe seulement. Facultatif.",
+  "team.first.groupsWhy": "Pour une partie de l’équipe, p. ex. un groupe de réathlétisation : planifie des séances pour ce groupe seulement. Facultatif.",
   "team.first.playbook": "Remplir le playbook",
   "team.first.playbookWhy": "Systèmes et documents en fichiers. Les brouillons sont pour le staff, les publiés pour l’équipe. Facultatif.",
   "team.first.open": "C’est parti",
   "team.first.skip": "Passer",
   "composer.rateAfter": "Tu pourras l’évaluer une fois la séance terminée.",
   "settings.newSessions": "Nouvelles séances",
-  "settings.newSessionsDetail": "Touche une heure libre du calendrier, puis ✓ : enregistrée ainsi. Touche le brouillon pour plus."
+  "settings.newSessionsDetail": "Touche une heure libre du calendrier, puis ✓ : enregistrée ainsi. Touche le brouillon pour plus.",
+  "playerLoad.noConsentDetail": "Sans consentement, tu ne vois ni la charge ni les motifs de santé. Les réponses et la présence s’affichent comme pour tous."
 }
