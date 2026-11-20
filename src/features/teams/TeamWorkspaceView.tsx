@@ -88,6 +88,8 @@ export type TeamWorkspaceData = {
   groups: { id: string; name: string; description: string; playerCount: number; playerIds?: string[] }[];
   /** Playbooks of the team (first steps: "fill the playbook"). */
   playbookCount?: number;
+  /** Weekly series of the team (first step "weekly plan"). */
+  seriesCount?: number;
   /** Missing means shared; `false` for roles without `viewAttendance`. */
   attendanceShared?: boolean;
   /** The coach calendar filtered to this team. */
@@ -191,7 +193,7 @@ function coachSessionFromTeamWorkspace(session: TeamWorkspaceSession, data: Team
   };
 }
 
-type FirstStep = { id: string; title: string; why: string; done: boolean; section: TeamWorkspaceSection; skip?: HintName };
+type FirstStep = { id: string; title: string; why: string; done: boolean; section: TeamWorkspaceSection; skip?: HintName; href?: string };
 
 /** The next open first step of the team, with why it helps; hidden once all are done. */
 function FirstStepsCard({ steps, onOpen, onSkip }: { steps: FirstStep[]; onOpen: (step: FirstStep) => void; onSkip: (step: FirstStep) => void }) {
@@ -211,7 +213,9 @@ function FirstStepsCard({ steps, onOpen, onSkip }: { steps: FirstStep[]; onOpen:
       <p className="mt-4 text-base font-semibold text-white">{next.title}</p>
       <p className="mt-1 text-sm text-slate-300">{next.why}</p>
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button type="button" onClick={() => onOpen(next)} className="os-success px-4 py-2 text-sm">{t('team.first.open')}</button>
+        {next.href
+          ? <Link href={next.href} className="os-success px-4 py-2 text-sm">{t('team.first.open')}</Link>
+          : <button type="button" onClick={() => onOpen(next)} className="os-success px-4 py-2 text-sm">{t('team.first.open')}</button>}
         {next.skip ? <button type="button" onClick={() => onSkip(next)} className="text-sm font-medium text-slate-400 underline">{t('team.first.skip')}</button> : null}
       </div>
     </section>
@@ -390,9 +394,11 @@ export function TeamWorkspaceView({
   // First steps (onboarding 2026-11-17): one at a time, each with why it
   // helps; groups and the playbook are optional and can be skipped.
   const [skippedSteps, setSkippedSteps] = useState<HintName[]>([]);
-  useEffect(() => setSkippedSteps((['setupGroups', 'setupPlaybook'] as HintName[]).filter(isHintDismissed)), []);
+  useEffect(() => setSkippedSteps((['setupPlan', 'setupGroups', 'setupPlaybook'] as HintName[]).filter(isHintDismissed)), []);
   const canSetUp = Boolean(onDefaultFacilityChange);
   const firstSteps: FirstStep[] = [
+    // The fixed training times first: then the season is in the calendar (Ben, 2026-11-20).
+    ...(canSetUp ? [{ id: 'plan', title: t('team.first.plan'), why: t('team.first.planWhy'), done: (data.seriesCount ?? 0) > 0 || skippedSteps.includes('setupPlan'), section: 'dashboard' as const, skip: 'setupPlan' as HintName, href: `${data.calendarHref}&view=plan` }] : []),
     { id: 'hall', title: t('team.setup.defaultHall'), why: t('team.first.hallWhy'), done: Boolean(data.defaultFacilityName), section: 'settings' },
     { id: 'players', title: t('team.setup.noPlayers'), why: t('team.first.playersWhy'), done: data.playerCount > 0, section: 'settings' },
     ...(canSetUp ? [{ id: 'groups', title: t('team.first.groups'), why: t('team.first.groupsWhy'), done: data.groups.length > 0 || skippedSteps.includes('setupGroups'), section: 'groups' as const, skip: 'setupGroups' as HintName }] : []),

@@ -2541,5 +2541,8 @@
   "playerLoad.noConsentDetail": "Sans consentement, tu ne vois ni la charge ni les motifs de santé. Les réponses et la présence s’affichent comme pour tous.",
   "profile.error.numberTakenShort": "Quelqu’un de l’équipe porte déjà le {number}.",
   "server.numberTaken": "Ce numéro est déjà pris dans l’équipe.",
-  "start.loadErrorOffline": "Pas de connexion au serveur. Vérifie ta connexion internet et réessaie."
+  "start.loadErrorOffline": "Pas de connexion au serveur. Vérifie ta connexion internet et réessaie.",
+  "athlete.availability.youDeclined": "Tu as dit non",
+  "team.first.plan": "Créer le planning de la semaine",
+  "team.first.planWhy": "Saisis une fois les horaires fixes d’entraînement, chaque semaine de la saison arrive alors dans le calendrier."
 }

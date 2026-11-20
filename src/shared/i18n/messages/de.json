@@ -2541,5 +2541,8 @@
   "playerLoad.noConsentDetail": "Ohne Einwilligung siehst du keine Belastung und keine Gesundheitsgründe. Zusagen und Anwesenheit siehst du wie bei allen.",
   "profile.error.numberTakenShort": "Die {number} trägt schon jemand im Team.",
   "server.numberTaken": "Diese Nummer ist im Team schon vergeben.",
-  "start.loadErrorOffline": "Keine Verbindung zum Server. Prüf dein Internet und versuch es noch einmal."
+  "start.loadErrorOffline": "Keine Verbindung zum Server. Prüf dein Internet und versuch es noch einmal.",
+  "athlete.availability.youDeclined": "Du hast abgesagt",
+  "team.first.plan": "Wochenplan anlegen",
+  "team.first.planWhy": "Trag die festen Trainingszeiten einmal ein, dann steht jede Woche der Saison im Kalender."
 }

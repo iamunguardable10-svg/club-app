@@ -2541,5 +2541,8 @@
   "playerLoad.noConsentDetail": "Without consent you see no load and no health reasons. Answers and attendance show as for everyone.",
   "profile.error.numberTakenShort": "Someone in the team already wears {number}.",
   "server.numberTaken": "This number is already taken in the team.",
-  "start.loadErrorOffline": "No connection to the server. Check your internet and try again."
+  "start.loadErrorOffline": "No connection to the server. Check your internet and try again.",
+  "athlete.availability.youDeclined": "You declined",
+  "team.first.plan": "Set up the weekly plan",
+  "team.first.planWhy": "Enter the fixed training times once; every week of the season then lands in the calendar."
 }

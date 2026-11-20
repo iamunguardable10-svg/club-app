@@ -682,9 +682,16 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
   // Today's warning: only when today's sessions would take the ratio above 1.5.
   const todayForecast = hasLoad ? acwrAfter(sortedEntries, loadPendingSessions.filter((session) => session.date === todayISO())) : null;
   const todayRisk = todayForecast && todayForecast.after > HIGH_RISK_ACWR ? todayForecast : null;
+  // A team session the player declined stays on Today until it starts, with
+  // "You declined · Change" (Ben, 2026-11-20): it does not just vanish.
+  function declinedAhead(session: AthletePendingSession) {
+    return (session.source ?? 'team_session') === 'team_session' && session.trainingType !== 'warmup'
+      && availabilityForSession(session.id)?.status === 'out' && Date.parse(session.startsAt) > Date.now();
+  }
+  const todaySessions = pendingSessions.filter((session) => !isSessionCancelled(session.id) || declinedAhead(session));
   // A warmup belongs to its game; the game is what comes next.
-  const nextSession = activePendingSessions.find((session) => session.date >= todayISO() && session.trainingType !== 'warmup') ?? activePendingSessions[0] ?? null;
-  const nextGame = calendarSessions.find((session) => session.trainingType === 'game' && Date.parse(session.startsAt) > Date.now() && !isSessionCancelled(session.id));
+  const nextSession = todaySessions.find((session) => session.date >= todayISO() && session.trainingType !== 'warmup') ?? todaySessions[0] ?? null;
+  const nextGame = calendarSessions.find((session) => session.trainingType === 'game' && Date.parse(session.startsAt) > Date.now() && (!isSessionCancelled(session.id) || declinedAhead(session)));
   // Where the ratio lands after each session shown on Today ("~1.05"), with
   // everything planned before it done as estimated (same forecast as the chart).
   // Only for the next four sessions Today shows: further out the estimates are
@@ -720,7 +727,7 @@ export function AthleteLoadWorkspace({ initialView = 'home' }: AthleteLoadWorksp
     if (session.source === 'athlete_plan') return { text: t('athlete.availability.ownPlan'), tone: 'plain' };
     if (session.trainingType === 'warmup') return { text: t('athlete.availability.warmup'), tone: 'plain' };
     const mark = availabilityForSession(session.id);
-    if (mark?.status === 'out') return { text: t('composer.out') + (mark.reason ? ` · ${mark.reason}` : ''), tone: 'out' };
+    if (mark?.status === 'out') return { text: t('athlete.availability.youDeclined') + (mark.reason ? ` · ${mark.reason}` : ''), tone: 'out' };
     if (mark?.status === 'late') return { text: t('composer.late') + (mark.lateMinutes ? ` · ${t('composer.minutes', { count: mark.lateMinutes })}` : ''), tone: 'late' };
     if (isOpenSession(session)) return { text: t('athlete.availability.open'), tone: 'open' };
     return { text: t('composer.youAreIn'), tone: 'in' };

@@ -260,6 +260,7 @@ export function TeamWorkspace({
       calendarHref: `/coach/sessions?teamId=${encodeURIComponent(team.id)}`,
       loadTracked: team.features.includes('load'),
       playbookCount: (database.playbooks ?? []).filter((playbook) => playbook.teamId === team.id).length,
+      seriesCount: (database.sessionSeries ?? []).filter((series) => series.teamId === team.id).length,
     };
   }, [database, permissions, teamId]);
 

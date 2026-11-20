@@ -3605,3 +3605,12 @@ Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke (64), `test:lan
 **Bewusst nicht geändert (Ben):** Hallen-Beschriftung in der Kopfzeile und ein Einladen-Knopf im Reiter „Spieler“. Auffindbarkeit kommt ins Onboarding (`docs/plan-next-runs.md`, „Später: aus Papas Live-Test“, dort auch Installations-Animation und Mail-Spam-Befund).
 
 **Geprüft:** `typecheck`, `check:i18n`, `test:i18n`, `build`, `test:smoke`, Landing-Check, Datenbanktests lokal (alle Dateien), Vorher/Nachher-Bild der Linkzeile bei 375 px.
+
+## Run 134 — Abgesagt bleibt sichtbar, Wochenplan als erster Trainer-Schritt, B6 (2026-11-20)
+
+1. **Abgesagte Einheit auf Heute:** verschwand bisher aus „Als Nächstes“. Jetzt bleibt eine abgesagte Team-Einheit bis zu ihrem Beginn stehen, mit „Du hast abgesagt · Grund — Ändern“ (`declinedAhead` in `AthleteLoadWorkspace`).
+2. **Erste Schritte des Trainers:** „Wochenplan anlegen“ steht vorn (überspringbar, `setupPlan`), erledigt, sobald das Team eine wöchentliche Serie hat. „Los“ öffnet den Kalender direkt im Wochenplan (`/coach/sessions?teamId=…&view=plan`).
+3. **B6 („Not saved (Rides)“, 2026-10-23):** der einzige Bericht; seitdem keiner mehr. Der sichtbare Grund (Mitfahren in einem Auto, das gerade zurückgezogen wurde oder voll war) ist seit Run 112 abgefangen; die Fehlalarme durch vom Server gesetzte Spalten seit Run 133 allgemein. Kein Trigger der Fahrgemeinschafts-Tabellen setzt Spalten selbst. Geschlossen.
+4. **CI:** `ubuntu-latest` ist jetzt 26.04, dort installiert Playwright 1.56 kein Chromium; der Browser-Job läuft auf `ubuntu-24.04`.
+
+**Geprüft:** `typecheck`, `check:i18n`, `test:i18n`, `build`, `test:smoke`; Bilder: Heute nach dem Absagen, Erste Schritte ohne Serie, Kalender öffnet im Wochenplan.
