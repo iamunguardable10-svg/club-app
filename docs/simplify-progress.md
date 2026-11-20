@@ -3589,3 +3589,17 @@ Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke (64), `test:lan
 4. Spielerblatt beim Trainer ohne Einwilligung: Text richtete sich an den Spieler („deinen Export“) und darunter „für deine Rolle nicht freigegeben“; jetzt ein Satz für den Trainer, der falsche Hinweis entfällt.
 5. Einheit beim Trainer: „Belastungsrückmeldungen … für deine Rolle nicht freigegeben“, sobald ein Spieler keine Einwilligung hatte; jetzt nur, wenn die Rolle sie wirklich nicht sieht. Die Bewertungsquote zählt nur Spieler, die bewerten können.
 6. Erste Schritte, Gruppen: „Reha oder Guards“ passte nicht zu Fußball; jetzt sportneutral.
+
+## Run 133 — Fixes aus dem Live-Test mit einem echten Spieler (2026-11-20)
+
+**Anlass:** erster echter Spieler (Papa) im Live-Team. Ausgewertet aus Screenshots, `postgres_logs` und den Tabellen.
+
+1. **Trikotnummer schon vergeben:** Spieler sehen die Nummern der anderen nicht (RLS), der eindeutige Index lehnte still ab, die Meldung „Nicht gespeichert (team_player_details)“ blieb stehen, bis man „OK“ drückt, und lag später über dem Apple-Kalender-Blatt. Neu: Migration `0060_pilot_taken_numbers` (Prüfung mit klarem Text im Trigger, `join_code_numbers` für die Beitrittsseite mit Rate-Limit, `team_taken_numbers` nur für Mitglieder, ohne eigene Nummer). Assistent und Profil zeigen vergebene Nummern sofort und lassen sie nicht speichern; der Servertext ist übersetzt (`server.numberTaken`). Test `38_taken_numbers_test.sql`.
+2. **Blätter auf dem iPhone oben abgeschnitten:** `.os-sheet` nimmt mit `100dvh` und den sicheren Rändern Maß statt `vh`.
+3. **Anmeldung beim späteren Hinzufügen zum Home-Bildschirm verloren:** `HandoffKeeper` hält auf jeder angemeldeten Seite in Safari (iPhone/iPad) einen frischen Übergabecode im Manifest bereit, nie in der Adresszeile.
+4. **Rote Fehlermeldung beim ersten Öffnen des Beitrittslinks:** halb Englisch. Jetzt übersetzt, mit „Nochmal versuchen“; die App versucht es nach 1,5 s einmal selbst, wenn noch nichts auf dem Gerät liegt.
+5. **Einladungslink unter Team → Optionen lief auf dem Handy rechts über („QR-Code“ abgeschnitten, 90 px):** Link in eigener Zeile, Knöpfe darunter (`ShareLink`, gilt für alle geteilten Links).
+
+**Bewusst nicht geändert (Ben):** Hallen-Beschriftung in der Kopfzeile und ein Einladen-Knopf im Reiter „Spieler“. Auffindbarkeit kommt ins Onboarding (`docs/plan-next-runs.md`, „Später: aus Papas Live-Test“, dort auch Installations-Animation und Mail-Spam-Befund).
+
+**Geprüft:** `typecheck`, `check:i18n`, `test:i18n`, `build`, `test:smoke`, Landing-Check, Datenbanktests lokal (alle Dateien), Vorher/Nachher-Bild der Linkzeile bei 375 px.

@@ -437,3 +437,15 @@ Impressum und öffentliche Datenschutzseite; keine Änderungen an Supabase.
 - [ ] Vor dem Pilot in einigen Wochen: bestehendes Fable-Audit mit Runs 112–126
   abgleichen, verbleibende Oberflächen und Abläufe mit Claude Fable 5.2 überarbeiten.
   Auftrag und Abnahmekriterien: `docs/ui-before-pilot.md`. Kein Neustart des Produkts.
+
+## Später: aus Papas Live-Test (Ben, 2026-11-20)
+
+- [ ] Kurze Animation „Zum Home-Bildschirm hinzufügen“ für iPhone (Teilen → Zum Home-Bildschirm)
+  und Android (Menü → App installieren); im Installationsschritt des Onboardings statt reinem Text.
+- [ ] Onboarding: Trainer finden die Hallen (Kopfzeile, Symbol) und den Einladungslink
+  (Team → Optionen) ohne Hilfe. Keine Umbauten an der Oberfläche, sondern über die ersten Schritte
+  und Hinweise (Ben: „das ist eine Sache des Onboardings“).
+- [ ] Bestätigungsmail landete einmal im Spam. DNS geprüft: DKIM über Brevo (`brevo1/2._domainkey`)
+  und DMARC (`p=none`) stehen; SPF nennt nur IONOS. Vorschlag für Ben im IONOS-DNS:
+  `v=spf1 include:_spf-eu.ionos.com include:spf.brevo.com ~all`. Die Domain ist neu, ihr Ruf
+  wächst mit jeder zugestellten Mail; im Pilot den Hinweis „Schau auch im Spam nach“ beibehalten.

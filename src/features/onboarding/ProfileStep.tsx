@@ -25,6 +25,8 @@ export type PlayerContext = {
   teamName: string | null;
   sport: SportKey | null;
   fixedNumbers: boolean;
+  /** Numbers already worn in the team (0060): they cannot be picked. */
+  takenNumbers?: number[];
   clubName?: string | null;
   departmentName?: string | null;
   logoUrl?: string | null;

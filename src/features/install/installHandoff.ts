@@ -80,6 +80,25 @@ export async function prepareLoginHandoff(): Promise<void> {
   prepareInstallResume();
 }
 
+/**
+ * On every signed-in page in Safari on an iPhone (field test 2026-11-20: a
+ * person added the app later, from another page, and had to sign in again):
+ * a fresh code in the manifest only, never in the address bar, so a copied
+ * link does not carry it. Renewed before the 10 minutes run out.
+ */
+export async function keepHandoffReady(): Promise<void> {
+  if (typeof window === 'undefined' || isStandalone() || getBackendChoice() !== 'server') return;
+  if (!prepared || Date.now() - prepared.at > 8 * 60_000) {
+    if (!(await hasSignedInAccount())) return;
+    prepared = { code: await createLoginHandoff(), at: Date.now() };
+  }
+  // Signed in and inside the app: start on the start page, not at an old way in.
+  const path = currentPath();
+  resume = isResumablePath(path) ? path : null;
+  const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+  if (link) link.href = manifestHref();
+}
+
 /** Whether this start carries a code to trade (installed app only). */
 export function hasLoginHandoff(): boolean {
   return typeof window !== 'undefined' && isStandalone() && new URL(window.location.href).searchParams.has(PARAM);

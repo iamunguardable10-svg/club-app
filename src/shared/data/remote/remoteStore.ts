@@ -410,9 +410,17 @@ export class RemoteStore {
    */
   load(): Promise<void> {
     if (!this.loading) {
-      this.loading = this.loadOnce().finally(() => {
-        this.loading = null;
-      });
+      this.loading = this.loadOnce()
+        .then(async () => {
+          // Nothing kept yet and the first request failed (field test 2026-11-20:
+          // a join link opened twice at once): one more try before the error stays.
+          if (this.status.phase !== 'error' || !this.status.offline || this.document) return;
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          await this.loadOnce();
+        })
+        .finally(() => {
+          this.loading = null;
+        });
     }
     return this.loading;
   }

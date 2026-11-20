@@ -19,9 +19,10 @@ export function ShareLink({ label, url, shareText, qr = false }: { label: string
   useEffect(() => setCanShare(typeof navigator !== 'undefined' && typeof navigator.share === 'function'), []);
 
   return (
-    <div className="grid gap-2">
-      <div className="flex items-center gap-2">
-        <input readOnly value={url} aria-label={label} onFocus={(event) => event.currentTarget.select()} className="min-w-0 flex-1 rounded-lg border border-slate-800 bg-slate-950 px-2 py-1.5 font-mono text-xs text-slate-300" />
+    <div className="grid min-w-0 gap-2">
+      {/* Phones: the link on its own line, the buttons below (field test 2026-11-20: "QR" was cut off). */}
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <input readOnly value={url} aria-label={label} onFocus={(event) => event.currentTarget.select()} className="w-full min-w-0 rounded-lg border border-slate-800 bg-slate-950 px-2 py-1.5 font-mono text-xs text-slate-300 sm:w-auto sm:flex-1" />
         <button
           type="button"
           onClick={() => navigator.clipboard?.writeText(url).then(() => setCopied(true)).catch(() => undefined)}

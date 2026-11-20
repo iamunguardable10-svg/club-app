@@ -2538,5 +2538,8 @@
   "composer.rateAfter": "Podrás valorarla cuando termine la sesión.",
   "settings.newSessions": "Sesiones nuevas",
   "settings.newSessionsDetail": "Toca una hora libre del calendario y luego ✓: se guarda así. Toca el borrador para más.",
-  "playerLoad.noConsentDetail": "Sin consentimiento no ves la carga ni los motivos de salud. Las respuestas y la asistencia se ven como para todos."
+  "playerLoad.noConsentDetail": "Sin consentimiento no ves la carga ni los motivos de salud. Las respuestas y la asistencia se ven como para todos.",
+  "profile.error.numberTakenShort": "Alguien del equipo ya lleva el {number}.",
+  "server.numberTaken": "Este número ya está ocupado en el equipo.",
+  "start.loadErrorOffline": "No hay conexión con el servidor. Revisa tu internet e inténtalo de nuevo."
 }

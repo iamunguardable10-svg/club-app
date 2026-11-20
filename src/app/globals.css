@@ -365,6 +365,15 @@ input[type="range"] {
   .os-sheet { margin-bottom: env(safe-area-inset-bottom); }
 }
 
+/*
+ * No sheet is taller than what is really visible: "vh" on an iPhone counts the
+ * hidden browser bars, so a 92vh sheet ran under the status bar and its title
+ * was cut off (field test 2026-11-20). dvh is the visible height.
+ */
+@supports (height: 100dvh) {
+  .os-sheet { max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 2.5rem) !important; }
+}
+
 /* Corners that curve continuously where the browser can (a squircle instead of a quarter circle). */
 @supports (corner-shape: squircle) {
   .os-panel, .os-sheet, .os-tile, .os-panel-soft, .os-metric, .os-success, .os-primary, .os-secondary, .os-danger, .os-field, .os-textarea, .os-toast, .os-tabbar {

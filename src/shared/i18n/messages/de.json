@@ -2538,5 +2538,8 @@
   "composer.rateAfter": "Bewerten geht, sobald die Einheit vorbei ist.",
   "settings.newSessions": "Neue Einheiten",
   "settings.newSessionsDetail": "Freie Zeit im Kalender antippen, dann ✓: so gespeichert. Tipp auf den Entwurf für mehr.",
-  "playerLoad.noConsentDetail": "Ohne Einwilligung siehst du keine Belastung und keine Gesundheitsgründe. Zusagen und Anwesenheit siehst du wie bei allen."
+  "playerLoad.noConsentDetail": "Ohne Einwilligung siehst du keine Belastung und keine Gesundheitsgründe. Zusagen und Anwesenheit siehst du wie bei allen.",
+  "profile.error.numberTakenShort": "Die {number} trägt schon jemand im Team.",
+  "server.numberTaken": "Diese Nummer ist im Team schon vergeben.",
+  "start.loadErrorOffline": "Keine Verbindung zum Server. Prüf dein Internet und versuch es noch einmal."
 }

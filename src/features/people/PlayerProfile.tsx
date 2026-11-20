@@ -17,7 +17,7 @@ import { CardReveal } from '@/features/people/CardReveal';
 
 import { PersonAvatar, usePhotoUrl } from '@/features/people/PersonPhoto';
 import { isKnownPosition, positionField, positionGroups, positionShort, sportOfTeam, strongSideLabel, wearsNumbers } from '@/features/sports/sports';
-import { STRONG_SIDES, dismissHint, teamLogoUrl, displayName, isHintDismissed, profileCompleteness, personDetailsFor, playerDetailsFor, setOwnPersonDetails, setTeamFixedNumbers, setTeamPlayerDetails, type LocalDatabase, type Person, type ProfilePart, type SportKey, type StrongSide, type Team } from '@/shared/data';
+import { STRONG_SIDES, dismissHint, teamLogoUrl, displayName, isHintDismissed, profileCompleteness, personDetailsFor, playerDetailsFor, setOwnPersonDetails, setTeamFixedNumbers, setTeamPlayerDetails, takenNumbers, type LocalDatabase, type Person, type ProfilePart, type SportKey, type StrongSide, type Team } from '@/shared/data';
 import { errorText, useT, type MessageKey } from '@/shared/i18n';
 
 export type PlayerProfileValue = { jerseyNumber: number | null; position: string | null; heightCm: number | null; strongSide: StrongSide | null };
@@ -163,7 +163,7 @@ export function SideSwitch({ value, onChange, label, large = false }: { value: S
 }
 
 /** Number (if the team has fixed ones), position, height, strong side. */
-export function PlayerProfileFields({ value, onChange, sport, fixedNumbers }: { value: PlayerProfileValue; onChange: (value: PlayerProfileValue) => void; sport: SportKey | null; fixedNumbers: boolean }) {
+export function PlayerProfileFields({ value, onChange, sport, fixedNumbers, takenNumbers = [] }: { value: PlayerProfileValue; onChange: (value: PlayerProfileValue) => void; sport: SportKey | null; fixedNumbers: boolean; /** Worn by others in the team (0060). */ takenNumbers?: number[] }) {
   const t = useT();
   const set = (change: Partial<PlayerProfileValue>) => onChange({ ...value, ...change });
   const numberOrNull = (raw: string, min: number, max: number) => {
@@ -177,11 +177,14 @@ export function PlayerProfileFields({ value, onChange, sport, fixedNumbers }: { 
         {fixedNumbers ? (
           <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-200">
             {t('profile.number')}
-            <input type="number" inputMode="numeric" min={0} max={99} value={value.jerseyNumber ?? ''} onChange={(event) => set({ jerseyNumber: numberOrNull(event.target.value, 0, 99) })} placeholder="7" className="os-field min-w-0 text-center font-semibold" />
+            <input type="number" inputMode="numeric" min={0} max={99} value={value.jerseyNumber ?? ''} onChange={(event) => set({ jerseyNumber: numberOrNull(event.target.value, 0, 99) })} placeholder="7" aria-invalid={value.jerseyNumber !== null && takenNumbers.includes(value.jerseyNumber)} className="os-field min-w-0 text-center font-semibold" />
           </label>
         ) : null}
         <PositionPicker value={value.position} onChange={(position) => set({ position })} sport={sport} label />
       </div>
+      {fixedNumbers && value.jerseyNumber !== null && takenNumbers.includes(value.jerseyNumber) ? (
+        <p role="alert" className="-mt-2 text-sm font-medium text-rose-200">{t('profile.error.numberTakenShort', { number: value.jerseyNumber })}</p>
+      ) : null}
       <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3">
         <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-200">
           {t('profile.height')}
@@ -217,6 +220,14 @@ export function PlayerProfileEditor({ database, person }: { database: LocalDatab
   const [value, setValue] = useState<PlayerProfileValue>(saved);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [revealing, setRevealing] = useState(false);
+  // Numbers others in the team wear: a player cannot read them row by row (0060).
+  const [taken, setTaken] = useState<number[]>([]);
+  useEffect(() => {
+    if (!team) return;
+    let live = true;
+    void takenNumbers(team.id, person.id).then((numbers) => { if (live) setTaken(numbers); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [team?.id, person.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const photo = usePhotoUrl(person);
   // Completed here for the first time (saved, the photo included): the card's big moment.
   const savedComplete = team ? readyForReveal(missingParts(saved(), Boolean(person.photoAt), wearsNumbers(team, sportOfTeam(database, team.id)), sportOfTeam(database, team.id))) : false;
@@ -278,9 +289,9 @@ export function PlayerProfileEditor({ database, person }: { database: LocalDatab
       <PlayerCard name={displayName(person)} photo={photo} teamName={team.name} teamLogo={teamLogoUrl(team)} value={value} fixedNumbers={fixedNumbers} sport={sport} />
       <ProfileMeter missing={missing} total={fixedNumbers ? 5 : 4} />
       {savedComplete && !dirty ? <button type="button" onClick={() => setRevealing(true)} className="justify-self-start text-xs font-semibold text-emerald-300 underline">{t('profile.reveal.show')}</button> : null}
-      <PlayerProfileFields value={value} onChange={(next) => { setValue(next); setMessage(null); }} sport={sport} fixedNumbers={fixedNumbers} />
+      <PlayerProfileFields value={value} onChange={(next) => { setValue(next); setMessage(null); }} sport={sport} fixedNumbers={fixedNumbers} takenNumbers={taken} />
       <div className="flex flex-wrap items-center gap-3">
-        {dirty ? <button type="submit" disabled={!heightOk} className="os-success px-4 py-2 text-sm disabled:opacity-60">{t('profile.save')}</button> : null}
+        {dirty ? <button type="submit" disabled={!heightOk || (fixedNumbers && value.jerseyNumber !== null && taken.includes(value.jerseyNumber))} className="os-success px-4 py-2 text-sm disabled:opacity-60">{t('profile.save')}</button> : null}
         {message ? <p role={message.error ? 'alert' : 'status'} className={`text-xs font-medium ${message.error ? 'text-red-200' : 'text-emerald-200'}`}>{message.text}</p> : null}
       </div>
     </form>

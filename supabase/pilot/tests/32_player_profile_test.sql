@@ -23,7 +23,7 @@ select test.act_as('10000000-0000-0000-0000-000000000012');
 select test.expect_count('Ben does not see Jonas'' number', $q$select 1 from public.team_player_details$q$, 0);
 select test.expect_count('… nor his height', $q$select 1 from public.person_details$q$, 0);
 select test.expect_rows('Ben takes number 12', $q$insert into public.team_player_details (team_id, person_id, jersey_number) values ('70000000-0000-0000-0000-000000000016', 'a0000000-0000-0000-0000-000000000012', 12)$q$, 1);
-select test.expect_error('… but not 7, which is Jonas''', $q$update public.team_player_details set jersey_number = 7 where person_id = 'a0000000-0000-0000-0000-000000000012'$q$, 'duplicate key');
+select test.expect_error('… but not 7, which is Jonas''', $q$update public.team_player_details set jersey_number = 7 where person_id = 'a0000000-0000-0000-0000-000000000012'$q$, 'already taken');
 
 select test.act_as('10000000-0000-0000-0000-000000000005');
 select test.expect_count('the team manager sees both numbers', $q$select 1 from public.team_player_details$q$, 2);
