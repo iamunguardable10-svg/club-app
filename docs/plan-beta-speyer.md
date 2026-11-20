@@ -56,7 +56,7 @@ Kalender-Führung sind frisch überarbeitet.
   Anwesenheit, Einstellungen). Mit Wort darunter oder als Text-Reiter.
 - B5 **Verlauf auf dem Handy:** die Kacheln je Einheit sind abgeschnitten („Anwes… 10/12
   2 abwes…“), die Diagrammbeschriftung ist zu klein zum Lesen.
-- B6 **Fehler aus dem Pilot:** Am 2026-10-23 wurde auf einem iPhone eine
+- B6 (erledigt, Run 134) **Fehler aus dem Pilot:** Am 2026-10-23 wurde auf einem iPhone eine
   Fahrgemeinschafts-Aktion eines Spielers vom Server abgelehnt („Not saved (Rides)“).
   Mit einem Testkonto nachstellen, Ursache in den Datenbankregeln finden, Test dazu.
 

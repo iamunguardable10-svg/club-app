@@ -6,7 +6,9 @@
  * - loads asked for at the same time share one request per table,
  * - a timeout while renewing the sign-in keeps the data (no sign-out),
  * - a clear "not signed in" from the server removes it,
- * - a live change reloads only the tables whose version moved.
+ * - a live change reloads only the tables whose version moved,
+ * - a first load without connection tries once more,
+ * - a time the server sets itself is no refusal.
  *
  *   npx tsx src/shared/data/remote/remoteStore.cache.test.ts
  */
@@ -14,8 +16,8 @@
 import assert from 'node:assert/strict';
 
 import type { LocalDatabase } from '../schema';
-import { OfflineError, RemoteStore, tablesToReload, type ChangeVersion, type OfflineCache, type OfflineSnapshot, type RemoteClient } from './remoteStore';
-import { TABLES, type Row } from './tables';
+import { differsFromSent, OfflineError, RemoteStore, tablesToReload, type ChangeVersion, type OfflineCache, type OfflineSnapshot, type RemoteClient } from './remoteStore';
+import { normalizeRow, TABLES, type Row } from './tables';
 
 const VERSION = 'test-version';
 
@@ -179,6 +181,33 @@ await run('dependent tables and views reload with their table', async () => {
   assert.deepEqual(tablesToReload(before, new Map([['c1:messages', 2]])), ['messages', 'message_reads', 'message_stats', 'message_votes']);
   assert.deepEqual(tablesToReload(before, new Map([['c1:messages', 1], ['c2:unknown_table', 1]])), []);
   assert.equal(tablesToReload(new Map(), new Map([['c1:consents', 1]])), 'all');
+});
+
+await run('a first load without connection tries once more', async () => {
+  let attempts = 0;
+  const { client } = fakeClient({ stored: null, userId: async () => { attempts += 1; if (attempts === 1) throw new OfflineError(); return 'u1'; } });
+  const store = new RemoteStore(client, VERSION, null, memoryCache(null));
+  await store.load();
+  assert.equal(attempts, 2);
+  assert.notEqual(store.getStatus().phase, 'error');
+  assert.equal(store.getStatus().offline, false);
+});
+
+await run('still offline after the second try: the error stays', async () => {
+  let attempts = 0;
+  const { client } = fakeClient({ stored: null, userId: async () => { attempts += 1; throw new OfflineError(); } });
+  const store = new RemoteStore(client, VERSION, null, memoryCache(null));
+  await store.load();
+  assert.equal(attempts, 2);
+  assert.equal(store.getStatus().phase, 'error');
+});
+
+await run('a time the server sets itself is no refusal', async () => {
+  const sent = { team_id: 't1', person_id: 'p1', jersey_number: 23, position: 'SG', updated_at: '2026-11-20T19:21:00.000Z' };
+  const found = normalizeRow('team_player_details', { ...sent, jersey_number: '23', updated_at: '2026-11-20T19:21:01.234+00:00' });
+  assert.equal(differsFromSent('team_player_details', sent, found), false);
+  assert.equal(differsFromSent('team_player_details', sent, { ...found, jersey_number: 10 }), true, 'a changed number still counts');
+  assert.equal(differsFromSent('person_details', { person_id: 'p1', height_cm: 190 }, { person_id: 'p1', height_cm: 185 }), true);
 });
 
 console.log('all server store start checks passed');

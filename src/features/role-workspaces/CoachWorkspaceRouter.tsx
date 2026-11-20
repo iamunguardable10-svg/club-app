@@ -178,6 +178,7 @@ export function CoachCalendarSurface({
   editableTeamIds,
   seriesTeamIds,
   initialTeamId = null,
+  initialSurface = 'week',
 }: {
   teams: CoachTeam[];
   sessions: CoachSession[];
@@ -204,12 +205,14 @@ export function CoachCalendarSurface({
   seriesTeamIds?: ReadonlySet<string>;
   /** Show only this team at first (coming from a team's page). */
   initialTeamId?: string | null;
+  /** Open on the weekly plan (`?view=plan`, first step on the team page). */
+  initialSurface?: 'week' | 'series';
 }) {
   const t = useT();
   const canEditTeam = (teamId: string) => !editableTeamIds || editableTeamIds.has(teamId);
   const editableTeams = teams.filter((team) => canEditTeam(team.id));
   const seriesTeams = teams.filter((team) => !seriesTeamIds || seriesTeamIds.has(team.id));
-  const [surfaceMode, setSurfaceMode] = useState<'week' | 'series'>('week');
+  const [surfaceMode, setSurfaceMode] = useState<'week' | 'series'>(initialSurface === 'series' && seriesTeams.length > 0 ? 'series' : 'week');
   const [seriesWeekStart, setSeriesWeekStart] = useState(() => getIsoWeekStart());
   const [seriesEditor, setSeriesEditor] = useState<{ kind: 'new'; weekday: number } | { kind: 'edit'; template: SeriesTemplate } | null>(null);
   const [pendingSeriesConflict, setPendingSeriesConflict] = useState<{ items: SeriesWeekItem[]; item: SeriesWeekItem; description: string; suggestions: ConflictSuggestion[] } | null>(null);
@@ -1150,6 +1153,7 @@ export function CoachWorkspaceRouter({ mode }: { mode: CoachMode }) {
             onConfirmSeriesWeek={seriesTeamIds.size > 0 ? handleCoachSeriesWeekConfirm : undefined}
             onDetails={openSessionDetails}
             initialTeamId={selectedTeamId}
+            initialSurface={searchParams.get('view') === 'plan' ? 'series' : 'week'}
           />
         ) : null}
 

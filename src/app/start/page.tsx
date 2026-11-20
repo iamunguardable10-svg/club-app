@@ -34,6 +34,7 @@ import {
   isServerAvailable,
   ownPersonIds,
   readDatabase,
+  serverMessageKey,
   setActiveIdentity,
   setBackendChoice,
   signOut,
@@ -191,10 +192,18 @@ function ServerStart() {
   }
 
   if (status.phase === 'error' || !database) {
+    // Server texts are English; known ones in the app language (field test 2026-11-20).
+    const known = status.error ? serverMessageKey(status.error) : null;
+    const loadErrorText = status.offline
+      ? t('start.loadErrorOffline')
+      : t('start.loadError', { error: known ? t(known.key, known.params) : status.error ?? '' });
     return (
       <Page>
-        <section className="rounded-3xl border border-red-500/40 bg-red-950/30 p-5 text-sm text-red-100">
-          {t('start.loadError', { error: status.error ?? '' })}
+        <section className="grid gap-3 rounded-3xl border border-red-500/40 bg-red-950/30 p-5 text-sm text-red-100">
+          <p>{loadErrorText}</p>
+          <button type="button" onClick={() => window.location.reload()} className="justify-self-start rounded-full border border-red-300/50 px-4 py-2 text-sm font-semibold text-red-50">
+            {t('crash.tryAgain')}
+          </button>
         </section>
         <DemoCard prominent={false} onStart={startDemoFromServer} />
       </Page>

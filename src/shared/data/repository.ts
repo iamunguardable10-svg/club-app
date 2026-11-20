@@ -186,7 +186,7 @@ export function setBackendChoice(choice: BackendChoice): void {
  * Functional notification opt-in can be put away with "Not now" on this device;
  * the calendar's edit hint shows only the first time, the demo's "Like it?" once.
  */
-export type HintName = 'notifications' | 'demoNudge' | 'profileNudge' | 'cardReveal' | 'loadIntroPlayer' | 'loadIntroCoach' | 'rpeHowTo' | 'coachFirstRatings' | 'setupGroups' | 'setupPlaybook';
+export type HintName = 'notifications' | 'demoNudge' | 'profileNudge' | 'cardReveal' | 'loadIntroPlayer' | 'loadIntroCoach' | 'rpeHowTo' | 'coachFirstRatings' | 'setupPlan' | 'setupGroups' | 'setupPlaybook';
 
 const hintKey = (name: HintName) => `club-app.hint-dismissed.${name}`;
 
@@ -1411,6 +1411,8 @@ export type JoinCodePreview = {
   /** For the card (`join_code_card`, 0054): the department, and the team's logo link. */
   departmentName?: string | null;
   logoUrl?: string | null;
+  /** Shirt numbers already worn in the team (0060), numbers only. */
+  takenNumbers?: number[];
 };
 
 /** Which club and team a join code belongs to; works before signing in. Null for an unknown code. */
@@ -1430,7 +1432,25 @@ export async function previewJoinCode(code: string): Promise<JoinCodePreview | n
     fixedNumbers: profile ? profile.fixed_numbers !== false : true,
     departmentName: card?.department_name ? String(card.department_name) : null,
     logoUrl: card?.logo ? teamLogoLink(String(card.logo)) : null,
+    takenNumbers: await supabase.rpc('join_code_numbers', { p_code: code }).then(({ data: numbers }) => (Array.isArray(numbers) ? numbers.map(Number) : []), () => []),
   };
+}
+
+/**
+ * Shirt numbers other players of the team wear (0060). A player cannot read
+ * them row by row, so the server gives the numbers only; the local test mode
+ * reads them from the data it has.
+ */
+export async function takenNumbers(teamId: Id, personId: Id): Promise<number[]> {
+  if (isRemoteMode()) {
+    const supabase = await authClient();
+    const { data } = await supabase.rpc('team_taken_numbers', { p_team: teamId });
+    return Array.isArray(data) ? data.map(Number) : [];
+  }
+  const database = readDatabase();
+  return (database?.teamPlayerDetails ?? [])
+    .filter((row) => row.teamId === teamId && row.personId !== personId && row.jerseyNumber !== null)
+    .map((row) => row.jerseyNumber as number);
 }
 
 /** Whether a founding code can still be used; works before signing in. */

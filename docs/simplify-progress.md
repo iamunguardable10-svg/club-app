@@ -3589,3 +3589,28 @@ Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke (64), `test:lan
 4. Spielerblatt beim Trainer ohne Einwilligung: Text richtete sich an den Spieler („deinen Export“) und darunter „für deine Rolle nicht freigegeben“; jetzt ein Satz für den Trainer, der falsche Hinweis entfällt.
 5. Einheit beim Trainer: „Belastungsrückmeldungen … für deine Rolle nicht freigegeben“, sobald ein Spieler keine Einwilligung hatte; jetzt nur, wenn die Rolle sie wirklich nicht sieht. Die Bewertungsquote zählt nur Spieler, die bewerten können.
 6. Erste Schritte, Gruppen: „Reha oder Guards“ passte nicht zu Fußball; jetzt sportneutral.
+
+## Run 133 — Fixes aus dem Live-Test mit einem echten Spieler (2026-11-20)
+
+**Anlass:** erster echter Spieler (Papa) im Live-Team. Ausgewertet aus Screenshots, `postgres_logs` und den Tabellen.
+
+1. **Trikotnummer schon vergeben:** Spieler sehen die Nummern der anderen nicht (RLS), der eindeutige Index lehnte still ab, die Meldung „Nicht gespeichert (team_player_details)“ blieb stehen, bis man „OK“ drückt, und lag später über dem Apple-Kalender-Blatt. Neu: Migration `0060_pilot_taken_numbers` (Prüfung mit klarem Text im Trigger, `join_code_numbers` für die Beitrittsseite mit Rate-Limit, `team_taken_numbers` nur für Mitglieder, ohne eigene Nummer). Assistent und Profil zeigen vergebene Nummern sofort und lassen sie nicht speichern; der Servertext ist übersetzt (`server.numberTaken`). Test `38_taken_numbers_test.sql`.
+2. **Blätter auf dem iPhone oben abgeschnitten:** `.os-sheet` nimmt mit `100dvh` und den sicheren Rändern Maß statt `vh`.
+3. **Anmeldung beim späteren Hinzufügen zum Home-Bildschirm verloren:** `HandoffKeeper` hält auf jeder angemeldeten Seite in Safari (iPhone/iPad) einen frischen Übergabecode im Manifest bereit, nie in der Adresszeile.
+4. **Rote Fehlermeldung beim ersten Öffnen des Beitrittslinks:** halb Englisch. Jetzt übersetzt, mit „Nochmal versuchen“; die App versucht es nach 1,5 s einmal selbst, wenn noch nichts auf dem Gerät liegt.
+5. **Einladungslink unter Team → Optionen lief auf dem Handy rechts über („QR-Code“ abgeschnitten, 90 px):** Link in eigener Zeile, Knöpfe darunter (`ShareLink`, gilt für alle geteilten Links).
+
+6. **„Nicht gespeichert (team_player_details)“ nach erfolgreichem Speichern** (Screenshot 20:21, Position war gespeichert): Der Trigger setzt `updated_at := now()`, die App verglich nach dem Neuladen auch diese Spalte und meldete jede vollständige Neuladung als Ablehnung. Neu: `serverSet` je Tabelle (`team_player_details`, `playbooks`), `differsFromSent` lässt diese Spalten aus; Test in `test:store` (dazu die zweite Ladeprobe).
+
+**Bewusst nicht geändert (Ben):** Hallen-Beschriftung in der Kopfzeile und ein Einladen-Knopf im Reiter „Spieler“. Auffindbarkeit kommt ins Onboarding (`docs/plan-next-runs.md`, „Später: aus Papas Live-Test“, dort auch Installations-Animation und Mail-Spam-Befund).
+
+**Geprüft:** `typecheck`, `check:i18n`, `test:i18n`, `build`, `test:smoke`, Landing-Check, Datenbanktests lokal (alle Dateien), Vorher/Nachher-Bild der Linkzeile bei 375 px.
+
+## Run 134 — Abgesagt bleibt sichtbar, Wochenplan als erster Trainer-Schritt, B6 (2026-11-20)
+
+1. **Abgesagte Einheit auf Heute:** verschwand bisher aus „Als Nächstes“. Jetzt bleibt eine abgesagte Team-Einheit bis zu ihrem Beginn stehen, mit „Du hast abgesagt · Grund — Ändern“ (`declinedAhead` in `AthleteLoadWorkspace`).
+2. **Erste Schritte des Trainers:** „Wochenplan anlegen“ steht vorn (überspringbar, `setupPlan`), erledigt, sobald das Team eine wöchentliche Serie hat. „Los“ öffnet den Kalender direkt im Wochenplan (`/coach/sessions?teamId=…&view=plan`).
+3. **B6 („Not saved (Rides)“, 2026-10-23):** der einzige Bericht; seitdem keiner mehr. Der sichtbare Grund (Mitfahren in einem Auto, das gerade zurückgezogen wurde oder voll war) ist seit Run 112 abgefangen; die Fehlalarme durch vom Server gesetzte Spalten seit Run 133 allgemein. Kein Trigger der Fahrgemeinschafts-Tabellen setzt Spalten selbst. Geschlossen.
+4. **CI:** `ubuntu-latest` ist jetzt 26.04, dort installiert Playwright 1.56 kein Chromium; der Browser-Job läuft auf `ubuntu-24.04`.
+
+**Geprüft:** `typecheck`, `check:i18n`, `test:i18n`, `build`, `test:smoke`; Bilder: Heute nach dem Absagen, Erste Schritte ohne Serie, Kalender öffnet im Wochenplan.

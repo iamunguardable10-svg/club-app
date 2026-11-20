@@ -125,9 +125,12 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
   const backTo = (step: number) => { if (step < index) window.history.go(step - index); };
   const back = () => backTo(index - 1);
 
+  const numberTaken = details.jerseyNumber !== null && (player.takenNumbers ?? []).includes(details.jerseyNumber);
   const canGoOn = step === 'name' ? Boolean(firstName.trim() && lastName.trim())
     : step === 'body' ? details.heightCm === null || (details.heightCm >= 100 && details.heightCm <= 230)
     : step === 'consent' ? consentComplete(consent, false)
+    // A number someone in the team wears already is not taken (field test 2026-11-20).
+    : step === 'number' ? !numberTaken
     : true;
   const answered = step === 'photo' ? Boolean(photo)
     : step === 'role' ? Boolean(details.position)
@@ -217,9 +220,11 @@ export function PlayerWizard({ player, askName, knownName, firstName, lastName, 
               set({ jerseyNumber: raw === '' ? null : Number(raw) });
             }}
             placeholder="00"
+            aria-invalid={numberTaken}
             className="relative mt-8 w-28 bg-transparent text-center text-7xl font-semibold tabular-nums text-white placeholder:text-emerald-200/20 focus:outline-none"
           />
         </label>
+        {numberTaken ? <p role="alert" className="text-center text-sm font-medium text-rose-200">{t('profile.error.numberTakenShort', { number: details.jerseyNumber ?? '' })}</p> : null}
       </div>
     );
   } else if (step === 'body') {

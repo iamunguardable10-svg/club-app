@@ -31,6 +31,7 @@ export const SERVER_MESSAGES: Record<string, MessageKey> = {
   "First and last name are required.": 'server.firstAndLastNameAre',
   "Invitations are only for members of the staff.": 'server.invitationsAreOnlyForMembers',
   "Not allowed.": 'server.notAllowed',
+  "This number is already taken in the team.": 'server.numberTaken',
   "Not signed in.": 'server.notSignedIn',
   "Only a department without teams can be deleted.": 'server.onlyADepartmentWithoutTeams',
   "Only operators can change reports.": 'server.onlyOperatorsCanChangeReports',

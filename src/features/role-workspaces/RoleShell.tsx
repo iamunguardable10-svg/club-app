@@ -25,6 +25,7 @@ import { PlaybookTeaser } from '@/features/playbook/PlaybookTeaser';
 import { UnreadMessagesCard } from '@/features/messages/UnreadMessagesCard';
 import { DemoNudge, DemoPill } from '@/features/onboarding/DemoBar';
 import { AfterJoin } from '@/features/onboarding/AfterJoin';
+import { HandoffKeeper } from '@/features/install/HandoffKeeper';
 import { countToRate } from '@/features/load/athleteLocalStore';
 import { useT, type MessageKey } from '@/shared/i18n';
 import { CommandMenu, commandKeyLabel, type Command } from './CommandMenu';
@@ -260,6 +261,7 @@ function RoleShell({ nav, active: current, tab, title, subtitle, back, actions, 
       </div>
       <CommandMenu commands={commands} open={commandOpen} onOpenChange={setCommandOpen} />
       <AfterJoin database={database ?? null} />
+      <HandoffKeeper />
       <TipLayer tips={tipsFor(database?.activeIdentity?.role, current)} />
 
       {tabBar ? <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] px-3 pb-[calc(0.625rem+env(safe-area-inset-bottom))] md:hidden" aria-label={t('nav.main')}>

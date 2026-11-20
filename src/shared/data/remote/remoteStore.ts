@@ -183,6 +183,12 @@ function sameValue(a: unknown, b: unknown) {
   return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 }
 
+/** Whether a row read back after a save differs from what was sent, leaving out what the server sets itself. */
+export function differsFromSent(table: TableName, sent: Row, found: Row): boolean {
+  const serverSet = tableSpec(table).serverSet ?? [];
+  return Object.entries(normalizeRow(table, sent)).some(([column, value]) => !serverSet.includes(column) && !sameValue(value, found[column]));
+}
+
 function keyOf(table: TableName, row: Row): Row {
   return Object.fromEntries(tableSpec(table).key.map((column) => [column, row[column]]));
 }
@@ -410,9 +416,17 @@ export class RemoteStore {
    */
   load(): Promise<void> {
     if (!this.loading) {
-      this.loading = this.loadOnce().finally(() => {
-        this.loading = null;
-      });
+      this.loading = this.loadOnce()
+        .then(async () => {
+          // Nothing kept yet and the first request failed (field test 2026-11-20:
+          // a join link opened twice at once): one more try before the error stays.
+          if (this.status.phase !== 'error' || !this.status.offline || this.document) return;
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          await this.loadOnce();
+        })
+        .finally(() => {
+          this.loading = null;
+        });
     }
     return this.loading;
   }
@@ -726,10 +740,7 @@ export class RemoteStore {
       // there, its time does not matter: read on another device first, or
       // sent twice (found in the walkthrough, 2026-09-26).
       if (operation.kind === 'insert' && MARK_TABLES.has(operation.table)) continue;
-      const sent = normalizeRow(operation.table, operation.kind === 'update' ? operation.changes : operation.row);
-      for (const [column, value] of Object.entries(sent)) {
-        if (!sameValue(value, found[column])) return operation.table;
-      }
+      if (differsFromSent(operation.table, operation.kind === 'update' ? operation.changes : operation.row, found)) return operation.table;
     }
     return null;
   }

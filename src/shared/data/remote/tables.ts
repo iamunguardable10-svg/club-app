@@ -39,6 +39,12 @@ type TableSpec = {
   kinds?: Record<string, ColumnKind>;
   /** The app never changes these; nothing is sent for them. */
   readOnly?: boolean;
+  /**
+   * Columns a database trigger sets itself (e.g. `updated_at := now()`): the
+   * value read back never equals the one sent, so a save is not checked on them
+   * (field test 2026-11-20: a saved profile showed "Not saved").
+   */
+  serverSet?: string[];
 };
 
 /** Known feature keys only, in the app's order. */
@@ -88,9 +94,9 @@ export const TABLES: readonly TableSpec[] = [
   { name: 'carpools', key: ['id'], kinds: { created_at: 'timestamp', depart_at: 'timestamp', seats: 'number', meet_lat: 'number', meet_lng: 'number' } },
   { name: 'carpool_riders', key: ['carpool_id', 'person_id'], kinds: { created_at: 'timestamp' } },
   { name: 'carpool_requests', key: ['session_id', 'person_id'], kinds: { created_at: 'timestamp' } },
-  { name: 'team_player_details', key: ['team_id', 'person_id'], kinds: { updated_at: 'timestamp', jersey_number: 'number' } },
+  { name: 'team_player_details', key: ['team_id', 'person_id'], kinds: { updated_at: 'timestamp', jersey_number: 'number' }, serverSet: ['updated_at'] },
   { name: 'person_details', key: ['person_id'], kinds: { updated_at: 'timestamp', height_cm: 'number' } },
-  { name: 'playbooks', key: ['id'], kinds: { created_at: 'timestamp', updated_at: 'timestamp', release_at: 'timestamp', released_at: 'timestamp', file_size: 'number', position: 'number' } },
+  { name: 'playbooks', key: ['id'], kinds: { created_at: 'timestamp', updated_at: 'timestamp', release_at: 'timestamp', released_at: 'timestamp', file_size: 'number', position: 'number' }, serverSet: ['created_at', 'created_by', 'updated_at', 'released_at'] },
   { name: 'squad_entries', key: ['session_id', 'person_id'], kinds: { set_at: 'timestamp' } },
   { name: 'messages', key: ['id'], kinds: { created_at: 'timestamp', reminded_at: 'timestamp', pinned_until: 'timestamp', poll_closed_at: 'timestamp' } },
   { name: 'message_reads', key: ['message_id', 'person_id'], kinds: { read_at: 'timestamp' } },
