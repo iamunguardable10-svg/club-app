@@ -3600,6 +3600,8 @@ Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke (64), `test:lan
 4. **Rote Fehlermeldung beim ersten Öffnen des Beitrittslinks:** halb Englisch. Jetzt übersetzt, mit „Nochmal versuchen“; die App versucht es nach 1,5 s einmal selbst, wenn noch nichts auf dem Gerät liegt.
 5. **Einladungslink unter Team → Optionen lief auf dem Handy rechts über („QR-Code“ abgeschnitten, 90 px):** Link in eigener Zeile, Knöpfe darunter (`ShareLink`, gilt für alle geteilten Links).
 
+6. **„Nicht gespeichert (team_player_details)“ nach erfolgreichem Speichern** (Screenshot 20:21, Position war gespeichert): Der Trigger setzt `updated_at := now()`, die App verglich nach dem Neuladen auch diese Spalte und meldete jede vollständige Neuladung als Ablehnung. Neu: `serverSet` je Tabelle (`team_player_details`, `playbooks`), `differsFromSent` lässt diese Spalten aus; Test in `test:store` (dazu die zweite Ladeprobe).
+
 **Bewusst nicht geändert (Ben):** Hallen-Beschriftung in der Kopfzeile und ein Einladen-Knopf im Reiter „Spieler“. Auffindbarkeit kommt ins Onboarding (`docs/plan-next-runs.md`, „Später: aus Papas Live-Test“, dort auch Installations-Animation und Mail-Spam-Befund).
 
 **Geprüft:** `typecheck`, `check:i18n`, `test:i18n`, `build`, `test:smoke`, Landing-Check, Datenbanktests lokal (alle Dateien), Vorher/Nachher-Bild der Linkzeile bei 375 px.

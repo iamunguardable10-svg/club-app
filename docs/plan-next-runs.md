@@ -449,3 +449,7 @@ Impressum und öffentliche Datenschutzseite; keine Änderungen an Supabase.
   und DMARC (`p=none`) stehen; SPF nennt nur IONOS. Vorschlag für Ben im IONOS-DNS:
   `v=spf1 include:_spf-eu.ionos.com include:spf.brevo.com ~all`. Die Domain ist neu, ihr Ruf
   wächst mit jeder zugestellten Mail; im Pilot den Hinweis „Schau auch im Spam nach“ beibehalten.
+- [ ] Apple-Kalender ohne App-Passwort (Papa: „Face ID statt Passwort?“): über das Web geht iCloud nur mit
+  App-Passwort (CalDAV). Ohne Passwort gibt es den Abo-Link („Zum Apple-Kalender hinzufügen“, nur lesend).
+  Face ID und Zugriff ohne Passwort erst mit der Store-App (EventKit). Offen für Ben: den Abo-Link für Apple
+  zuerst zeigen, Verbinden mit Passwort als zweite Wahl.
