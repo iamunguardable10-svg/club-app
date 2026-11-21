@@ -251,7 +251,25 @@ export function netOperations(operations: Operation[]): Operation[] {
 const MARK_TABLES = new Set<TableName>(['message_reads', 'acknowledged_sessions']);
 
 /** What a table is called in "Not saved (…)"; text keys (docs/i18n.md). */
-const TABLE_KEY: Partial<Record<TableName, MessageKey>> = {
+// Every table has a readable name, so a refusal never shows a table name
+// (field test 2026-11-20: "Not saved (team_player_details)").
+const TABLE_KEY: Record<TableName, MessageKey> = {
+  clubs: 'sync.table.club',
+  club_entitlements: 'sync.table.clubSettings',
+  club_feature_settings: 'sync.table.clubSettings',
+  departments: 'sync.table.departments',
+  team_join_codes: 'sync.table.joinCodes',
+  consents: 'sync.table.consents',
+  health_consent_status: 'sync.table.consents',
+  person_birth_years: 'sync.table.playerProfile',
+  team_player_details: 'sync.table.playerProfile',
+  person_details: 'sync.table.playerProfile',
+  club_roles: 'sync.table.clubRoles',
+  club_role_invites: 'sync.table.invites',
+  staff_invites: 'sync.table.invites',
+  playbooks: 'sync.table.playbook',
+  message_stats: 'sync.table.messages',
+  private_events: 'sync.table.privateEvents',
   facilities: 'sync.table.facilities',
   teams: 'sync.table.teams',
   department_facilities: 'sync.table.departmentFacilities',
@@ -666,7 +684,7 @@ export class RemoteStore {
         // Kept as a text key for the banner (app language) and in English for error reports.
         const notice: RejectedNotice = failure
           ? { messageKey: 'sync.notSaved', messageParams: { reason: serverMessageKey(failure)?.key ?? failure } }
-          : { messageKey: 'sync.notSavedTable', messageParams: { table: TABLE_KEY[mismatch!] ?? mismatch! } };
+          : { messageKey: 'sync.notSavedTable', messageParams: { table: TABLE_KEY[mismatch!] } };
         const english = Object.fromEntries(Object.entries(notice.messageParams).map(([name, value]) => [name, isMessageKey(value) ? translate('en', value) : value]));
         this.setStatus({
           rejected: failure ? `Not saved: ${failure}` : translate('en', notice.messageKey, english),

@@ -2544,5 +2544,15 @@
   "start.loadErrorOffline": "No hay conexión con el servidor. Revisa tu internet e inténtalo de nuevo.",
   "athlete.availability.youDeclined": "Has dicho que no",
   "team.first.plan": "Crear el plan semanal",
-  "team.first.planWhy": "Introduce una vez los horarios fijos de entrenamiento y cada semana de la temporada aparecerá en el calendario."
+  "team.first.planWhy": "Introduce una vez los horarios fijos de entrenamiento y cada semana de la temporada aparecerá en el calendario.",
+  "sync.table.club": "club",
+  "sync.table.clubSettings": "ajustes del club",
+  "sync.table.departments": "secciones",
+  "sync.table.joinCodes": "código de equipo",
+  "sync.table.consents": "consentimientos",
+  "sync.table.playerProfile": "perfil del jugador",
+  "sync.table.clubRoles": "roles del club",
+  "sync.table.invites": "invitaciones",
+  "sync.table.playbook": "playbook",
+  "sync.table.privateEvents": "calendario"
 }
