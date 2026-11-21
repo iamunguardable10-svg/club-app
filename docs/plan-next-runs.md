@@ -453,3 +453,7 @@ Impressum und öffentliche Datenschutzseite; keine Änderungen an Supabase.
   App-Passwort (CalDAV). Ohne Passwort gibt es den Abo-Link („Zum Apple-Kalender hinzufügen“, nur lesend).
   Face ID und Zugriff ohne Passwort erst mit der Store-App (EventKit). Offen für Ben: den Abo-Link für Apple
   zuerst zeigen, Verbinden mit Passwort als zweite Wahl.
+- [ ] Ben: nach dem Deploy von Run 136 die fünf Link-Vorlagen im Supabase-Dashboard neu einfügen
+  (Authentication → Emails: Confirm sign up, Invite user, Magic link, Change email address, Reset password;
+  Inhalt aus `docs/mail-templates/*.html`). Site URL muss `https://clubos.hebinova.de` sein. Danach
+  eine Test-Registrierung mit einer iCloud-Adresse.

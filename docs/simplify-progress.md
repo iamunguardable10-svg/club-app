@@ -3627,3 +3627,11 @@ Alle offenen Einträge in `app.error_reports`:
 Neu: Jede Tabelle hat in der Meldung „Nicht gespeichert (…)“ einen lesbaren Namen (`TABLE_KEY` vollständig, vom Typ erzwungen), etwa „Spielerprofil“ statt `team_player_details`.
 
 **Geprüft:** `typecheck`, `check:i18n`, `test:i18n`, `test:store`, `build`, `test:smoke`.
+
+## Run 136 — Apple-Kalender ohne Passwort zuerst, Mail-Links über die eigene Adresse (2026-11-21)
+
+1. **Handykalender auf iPhone, iPad und Mac:** zuerst „Zum Apple-Kalender hinzufügen“ (ein Tipp, kein Passwort; legt den Kalenderlink an und öffnet das Abo). „In beide Richtungen verbinden“ (App-Passwort von Apple) folgt als zweite Wahl mit einem Satz und schlichtem Knopf. Ist Apple schon verbunden, bleibt die bisherige Reihenfolge.
+2. **Mail-Links (iCloud-Spam):** Die fünf Link-Mails (Konto bestätigen, Einladung, Anmeldelink, neue E-Mail, neues Passwort) führen auf `clubos.hebinova.de/auth/confirm?token_hash=…&type=…&next=…` statt auf die Supabase-Adresse. Die Seite tauscht den Code (`verifyOtp`) gegen eine Anmeldung, nimmt den Code aus der Adresse und folgt nur Adressen dieser App. Nebeneffekt: Link-Vorschauen von Mailprogrammen verbrauchen den Code nicht mehr (sie führen kein JavaScript aus). Der Go-Test rendert alle Fälle und prüft Adresse, Code, Typ und Rücksprung.
+3. **Live erst nach dem Einfügen der Vorlagen:** Bis die neuen HTML-Vorlagen im Supabase-Dashboard stehen, gelten die alten Links weiter; beide Wege funktionieren.
+
+**Geprüft:** `typecheck`, `check:i18n`, `test:i18n`, `go run scripts/test-mail-templates.go` (275 Fälle), `build`, `test:smoke`, `test:landing`; `/auth/confirm` mit ungültigem Code zeigt „Der Link gilt nicht mehr“ und entfernt den Code aus der Adresse. Der Kalender-Bereich ist nur im Vereinsserver sichtbar; kein Bild aus der Demo.

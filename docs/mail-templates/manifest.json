@@ -1,6 +1,7 @@
 [
   {
     "file": "confirm-signup",
+    "otp": "email",
     "key": "mail.confirm",
     "kind": "link",
     "dashboard": "confirm-sign-up",
@@ -12,6 +13,7 @@
   },
   {
     "file": "invite-user",
+    "otp": "invite",
     "key": "mail.invite",
     "kind": "link",
     "dashboard": "invite-user",
@@ -23,6 +25,7 @@
   },
   {
     "file": "magic-link",
+    "otp": "email",
     "key": "mail.magic",
     "kind": "link",
     "dashboard": "magic-link-or-otp",
@@ -34,6 +37,7 @@
   },
   {
     "file": "change-email",
+    "otp": "email_change",
     "key": "mail.change",
     "kind": "link",
     "dashboard": "change-email-address",
@@ -45,6 +49,7 @@
   },
   {
     "file": "reset-password",
+    "otp": "recovery",
     "key": "mail.reset",
     "kind": "link",
     "dashboard": "reset-password",

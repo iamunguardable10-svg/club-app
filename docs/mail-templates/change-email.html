@@ -5,7 +5,7 @@
 <p style="margin:0 0 28px;font-size:20px;font-weight:800;letter-spacing:1px;color:#16212e">CLUB OS</p>
 <h1 style="margin:0 0 20px;font-size:26px;line-height:1.25">Neue E-Mail-Adresse</h1>
 <p style="margin:0 0 24px;font-size:16px">Tippe auf die Schaltfläche, um die E-Mail-Adresse deines Club-OS-Kontos von {{ .Email }} in {{ .NewEmail }} zu ändern.</p>
-<p style="margin:0 0 24px"><a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 22px;background:#6ee7b7;border-radius:8px;color:#052e22;font-size:16px;font-weight:700;text-decoration:none">Neue E-Mail-Adresse bestätigen</a></p>
+<p style="margin:0 0 24px"><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email_change&amp;next={{ .RedirectTo }}" style="display:inline-block;padding:14px 22px;background:#6ee7b7;border-radius:8px;color:#052e22;font-size:16px;font-weight:700;text-decoration:none">Neue E-Mail-Adresse bestätigen</a></p>
 <p style="margin:0 0 16px;font-size:14px;color:#475569">Der Link funktioniert einmal. Bis du bestätigst, behält dein Konto die bisherige Adresse.</p>
 <p style="margin:0 0 24px;font-size:14px;color:#475569">Falls du das nicht angefordert hast, kannst du diese E-Mail ignorieren.</p>
 <p style="margin:0;font-size:16px">Dein Club-OS-Team</p>
@@ -20,7 +20,7 @@
 <p style="margin:0 0 28px;font-size:20px;font-weight:800;letter-spacing:1px;color:#16212e">CLUB OS</p>
 <h1 style="margin:0 0 20px;font-size:26px;line-height:1.25">Nouvelle adresse e-mail</h1>
 <p style="margin:0 0 24px;font-size:16px">Appuie sur le bouton pour modifier l’adresse e-mail de ton compte Club OS : de {{ .Email }} à {{ .NewEmail }}.</p>
-<p style="margin:0 0 24px"><a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 22px;background:#6ee7b7;border-radius:8px;color:#052e22;font-size:16px;font-weight:700;text-decoration:none">Confirmer la nouvelle adresse e-mail</a></p>
+<p style="margin:0 0 24px"><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email_change&amp;next={{ .RedirectTo }}" style="display:inline-block;padding:14px 22px;background:#6ee7b7;border-radius:8px;color:#052e22;font-size:16px;font-weight:700;text-decoration:none">Confirmer la nouvelle adresse e-mail</a></p>
 <p style="margin:0 0 16px;font-size:14px;color:#475569">Le lien fonctionne une fois. Tant que tu ne confirmes pas, ton compte garde l’ancienne adresse.</p>
 <p style="margin:0 0 24px;font-size:14px;color:#475569">Si tu n’as pas demandé cette modification, tu peux ignorer cet e-mail.</p>
 <p style="margin:0;font-size:16px">Ton équipe Club OS</p>
@@ -35,7 +35,7 @@
 <p style="margin:0 0 28px;font-size:20px;font-weight:800;letter-spacing:1px;color:#16212e">CLUB OS</p>
 <h1 style="margin:0 0 20px;font-size:26px;line-height:1.25">Nueva dirección de correo electrónico</h1>
 <p style="margin:0 0 24px;font-size:16px">Pulsa el botón para cambiar el correo de tu cuenta de Club OS de {{ .Email }} a {{ .NewEmail }}.</p>
-<p style="margin:0 0 24px"><a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 22px;background:#6ee7b7;border-radius:8px;color:#052e22;font-size:16px;font-weight:700;text-decoration:none">Confirmar el nuevo correo electrónico</a></p>
+<p style="margin:0 0 24px"><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email_change&amp;next={{ .RedirectTo }}" style="display:inline-block;padding:14px 22px;background:#6ee7b7;border-radius:8px;color:#052e22;font-size:16px;font-weight:700;text-decoration:none">Confirmar el nuevo correo electrónico</a></p>
 <p style="margin:0 0 16px;font-size:14px;color:#475569">El enlace funciona una vez. Hasta que confirmes, tu cuenta mantiene la dirección anterior.</p>
 <p style="margin:0 0 24px;font-size:14px;color:#475569">Si no has solicitado esto, puedes ignorar este correo.</p>
 <p style="margin:0;font-size:16px">Tu equipo de Club OS</p>
@@ -50,7 +50,7 @@
 <p style="margin:0 0 28px;font-size:20px;font-weight:800;letter-spacing:1px;color:#16212e">CLUB OS</p>
 <h1 style="margin:0 0 20px;font-size:26px;line-height:1.25">New email address</h1>
 <p style="margin:0 0 24px;font-size:16px">Tap the button to change the email of your Club OS account from {{ .Email }} to {{ .NewEmail }}.</p>
-<p style="margin:0 0 24px"><a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 22px;background:#6ee7b7;border-radius:8px;color:#052e22;font-size:16px;font-weight:700;text-decoration:none">Confirm the new email</a></p>
+<p style="margin:0 0 24px"><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email_change&amp;next={{ .RedirectTo }}" style="display:inline-block;padding:14px 22px;background:#6ee7b7;border-radius:8px;color:#052e22;font-size:16px;font-weight:700;text-decoration:none">Confirm the new email</a></p>
 <p style="margin:0 0 16px;font-size:14px;color:#475569">The link works once. Until you confirm, your account keeps the old address.</p>
 <p style="margin:0 0 24px;font-size:14px;color:#475569">If you did not ask for this, you can ignore this mail.</p>
 <p style="margin:0;font-size:16px">Your Club OS team</p>
