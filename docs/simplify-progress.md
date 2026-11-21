@@ -3614,3 +3614,16 @@ Geprüft: `typecheck`, `check:i18n`, `test:i18n`, `build`, Smoke (64), `test:lan
 4. **CI:** `ubuntu-latest` ist jetzt 26.04, dort installiert Playwright 1.56 kein Chromium; der Browser-Job läuft auf `ubuntu-24.04`.
 
 **Geprüft:** `typecheck`, `check:i18n`, `test:i18n`, `build`, `test:smoke`; Bilder: Heute nach dem Absagen, Erste Schritte ohne Serie, Kalender öffnet im Wochenplan.
+
+## Run 135 — Fehlerberichte durchgesehen (2026-11-21)
+
+Alle offenen Einträge in `app.error_reports`:
+- „Not saved (team_player_details)“ (5×): Fehlalarm, behoben in Run 133 (`serverSet`).
+- „Not saved (Rides)“ (1×, 2026-10-23): geschlossen in Run 134.
+- „Rendered more hooks …“ (6×, 2026-10-24, lokale Entwicklungsversion): im aktuellen Stand kein Verstoß gegen die Hook-Regeln (`react-hooks/rules-of-hooks` über `src/`).
+- „e[o].call“ (2×, September): veraltete Programmteile nach einem Update; seit Run 89 lädt die App dann einmal neu (`isStaleBuildError`).
+- „Notifications were not allowed“ (2×): eine Antwort, kein Fehler; wird nicht mehr gemeldet.
+
+Neu: Jede Tabelle hat in der Meldung „Nicht gespeichert (…)“ einen lesbaren Namen (`TABLE_KEY` vollständig, vom Typ erzwungen), etwa „Spielerprofil“ statt `team_player_details`.
+
+**Geprüft:** `typecheck`, `check:i18n`, `test:i18n`, `test:store`, `build`, `test:smoke`.

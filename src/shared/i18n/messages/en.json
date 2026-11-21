@@ -2544,5 +2544,15 @@
   "start.loadErrorOffline": "No connection to the server. Check your internet and try again.",
   "athlete.availability.youDeclined": "You declined",
   "team.first.plan": "Set up the weekly plan",
-  "team.first.planWhy": "Enter the fixed training times once; every week of the season then lands in the calendar."
+  "team.first.planWhy": "Enter the fixed training times once; every week of the season then lands in the calendar.",
+  "sync.table.club": "club",
+  "sync.table.clubSettings": "club settings",
+  "sync.table.departments": "departments",
+  "sync.table.joinCodes": "team code",
+  "sync.table.consents": "consents",
+  "sync.table.playerProfile": "player profile",
+  "sync.table.clubRoles": "club roles",
+  "sync.table.invites": "invitations",
+  "sync.table.playbook": "playbook",
+  "sync.table.privateEvents": "calendar"
 }

@@ -56,8 +56,13 @@ function describe(error: unknown): { message: string; detail: string | null } {
   return { message: typeof error === 'string' ? error : JSON.stringify(error) ?? String(error), detail: null };
 }
 
+/** Answers a person gave, not faults: not reported (a "Don't allow" for notifications, field test 2026-11-16). */
+const NOT_FAULTS = new Set(['notifications.error.notAllowed']);
+
 export function reportError(kind: ErrorReportKind, error: unknown): void {
   try {
+    const messageKey = (error as { messageKey?: unknown } | null)?.messageKey;
+    if (typeof messageKey === 'string' && NOT_FAULTS.has(messageKey)) return;
     const { message, detail } = describe(error);
     const text = clean(message, 500) || 'Unknown error';
     const key = `${kind}|${text}`;

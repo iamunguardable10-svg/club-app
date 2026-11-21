@@ -2544,5 +2544,15 @@
   "start.loadErrorOffline": "Keine Verbindung zum Server. Prüf dein Internet und versuch es noch einmal.",
   "athlete.availability.youDeclined": "Du hast abgesagt",
   "team.first.plan": "Wochenplan anlegen",
-  "team.first.planWhy": "Trag die festen Trainingszeiten einmal ein, dann steht jede Woche der Saison im Kalender."
+  "team.first.planWhy": "Trag die festen Trainingszeiten einmal ein, dann steht jede Woche der Saison im Kalender.",
+  "sync.table.club": "Verein",
+  "sync.table.clubSettings": "Vereinseinstellungen",
+  "sync.table.departments": "Abteilungen",
+  "sync.table.joinCodes": "Teamcode",
+  "sync.table.consents": "Einwilligungen",
+  "sync.table.playerProfile": "Spielerprofil",
+  "sync.table.clubRoles": "Vereinsrollen",
+  "sync.table.invites": "Einladungen",
+  "sync.table.playbook": "Playbook",
+  "sync.table.privateEvents": "Kalender"
 }
