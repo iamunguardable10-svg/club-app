@@ -45,7 +45,7 @@ function when(value: string) {
   return new Date().toDateString() === date.toDateString() ? formatTime(date) : `${formatShortDate(date)} ${formatTime(date)}`;
 }
 
-export function AppleCalendarPanel({ canRead, onConnectedChange }: { canRead: boolean; onConnectedChange: (connected: boolean) => void }) {
+export function AppleCalendarPanel({ canRead, onConnectedChange, quiet = false }: { canRead: boolean; onConnectedChange: (connected: boolean) => void; /** Second choice after the one-tap subscription: one sentence, a plain button. */ quiet?: boolean }) {
   const t = useT();
   const [status, setStatus] = useState<AppleCalendarStatus | null | undefined>(undefined);
   const [sources, setSources] = useState<CalendarSource[]>([]);
@@ -89,11 +89,18 @@ export function AppleCalendarPanel({ canRead, onConnectedChange }: { canRead: bo
 
   return (
     <div id="apple-calendar" className="grid scroll-mt-24 gap-3">
-      <p className="text-xs font-semibold text-slate-400">{t('apple.heading')}</p>
+      <p className="text-xs font-semibold text-slate-400">{t(quiet ? 'apple.headingMore' : 'apple.heading')}</p>
       <div className="grid gap-4">
         {status === undefined ? <p className="text-sm text-slate-400">{t('apple.loading')}</p> : null}
 
-        {status === null ? (
+        {status === null && quiet ? (
+          <div className="grid gap-3">
+            <p className="text-sm text-slate-300">{t(canRead ? 'apple.moreIntroRead' : 'apple.moreIntro')}</p>
+            <button type="button" onClick={() => setGuideOpen(true)} className={`justify-self-start ${buttonClass}`}>{t('apple.connect')}</button>
+          </div>
+        ) : null}
+
+        {status === null && !quiet ? (
           <div className="grid gap-3">
             <ul className="grid gap-1.5 text-sm text-slate-300">
               <li>{t('apple.benefit.sessions')}</li>

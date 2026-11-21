@@ -26,7 +26,7 @@ const primaryClass = 'rounded-2xl bg-emerald-300 px-4 py-2 text-xs font-semibold
 /** A line under the panel; a caught error is turned into text while rendering (docs/i18n.md, rule 9). */
 type Note = { key: MessageKey } | { caught: unknown };
 
-export function CalendarLinkPanel({ remote, appleConnected }: { remote: boolean; appleConnected: boolean }) {
+export function CalendarLinkPanel({ remote, appleConnected, appleDevice = false }: { remote: boolean; appleConnected: boolean; appleDevice?: boolean }) {
   const t = useT();
   const [link, setLink] = useState<CalendarLink | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -52,7 +52,9 @@ export function CalendarLinkPanel({ remote, appleConnected }: { remote: boolean;
     };
   }, [remote]);
 
-  const heading = <p className="text-xs font-semibold text-slate-400">{t('calendarLink.heading')}</p>;
+  // On an Apple device without the connection: the subscription is the simple way to Apple Calendar.
+  const appleFirst = appleDevice && !appleConnected;
+  const heading = <p className="text-xs font-semibold text-slate-400">{t(appleFirst ? 'calendarLink.headingApple' : 'calendarLink.heading')}</p>;
 
   if (!remote) {
     return (
@@ -94,11 +96,18 @@ export function CalendarLinkPanel({ remote, appleConnected }: { remote: boolean;
             <p className="text-sm text-slate-300">
               {appleConnected
                 ? t('calendarLink.notNeeded')
-                : t('calendarLink.intro')}
+                : appleFirst ? t('calendarLink.appleIntro') : t('calendarLink.intro')}
             </p>
-            <button type="button" disabled={busy} className={`justify-self-start ${appleConnected ? buttonClass : primaryClass}`} onClick={() => void run(async () => setLink(await createCalendarLink()), null)}>
-              {t('calendarLink.get')}
-            </button>
+            {appleFirst ? (
+              // One tap: the link is made and Apple Calendar asks to subscribe.
+              <button type="button" disabled={busy} className={`justify-self-start ${primaryClass}`} onClick={() => void run(async () => { const created = await createCalendarLink(); setLink(created); window.location.href = created.webcalUrl; }, null)}>
+                {t('calendarLink.addApple')}
+              </button>
+            ) : (
+              <button type="button" disabled={busy} className={`justify-self-start ${appleConnected ? buttonClass : primaryClass}`} onClick={() => void run(async () => setLink(await createCalendarLink()), null)}>
+                {t('calendarLink.get')}
+              </button>
+            )}
           </div>
         ) : null}
         {link ? (

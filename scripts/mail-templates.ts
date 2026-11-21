@@ -6,12 +6,14 @@ import { LOCALES } from '../src/shared/i18n/locales';
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const outDir = path.join(root, 'docs/mail-templates');
 const catalogs = Object.fromEntries(LOCALES.map(({ code }) => [code, JSON.parse(fs.readFileSync(path.join(root, `src/shared/i18n/messages/${code}.json`), 'utf8')) as Record<string, string>]));
+// Link mails lead to our own address (`/auth/confirm`), not the auth server's
+// `ConfirmationURL`: mail filters trust it more (iCloud spam, 2026-11-20).
 const MAILS = [
-  { file: 'confirm-signup', key: 'mail.confirm', kind: 'link', dashboard: 'confirm-sign-up', requestLanguage: true, notes: ['mail.confirm.validity', 'mail.ignore'] },
-  { file: 'invite-user', key: 'mail.invite', kind: 'link', dashboard: 'invite-user', requestLanguage: false, notes: ['mail.reset.validity', 'mail.ignore'] },
-  { file: 'magic-link', key: 'mail.magic', kind: 'link', dashboard: 'magic-link-or-otp', requestLanguage: true, notes: ['mail.reset.validity', 'mail.ignore'] },
-  { file: 'change-email', key: 'mail.change', kind: 'link', dashboard: 'change-email-address', requestLanguage: true, notes: ['mail.change.validity', 'mail.ignore'] },
-  { file: 'reset-password', key: 'mail.reset', kind: 'link', dashboard: 'reset-password', requestLanguage: true, notes: ['mail.reset.validity', 'mail.reset.ignore'] },
+  { file: 'confirm-signup', otp: 'email', key: 'mail.confirm', kind: 'link', dashboard: 'confirm-sign-up', requestLanguage: true, notes: ['mail.confirm.validity', 'mail.ignore'] },
+  { file: 'invite-user', otp: 'invite', key: 'mail.invite', kind: 'link', dashboard: 'invite-user', requestLanguage: false, notes: ['mail.reset.validity', 'mail.ignore'] },
+  { file: 'magic-link', otp: 'email', key: 'mail.magic', kind: 'link', dashboard: 'magic-link-or-otp', requestLanguage: true, notes: ['mail.reset.validity', 'mail.ignore'] },
+  { file: 'change-email', otp: 'email_change', key: 'mail.change', kind: 'link', dashboard: 'change-email-address', requestLanguage: true, notes: ['mail.change.validity', 'mail.ignore'] },
+  { file: 'reset-password', otp: 'recovery', key: 'mail.reset', kind: 'link', dashboard: 'reset-password', requestLanguage: true, notes: ['mail.reset.validity', 'mail.reset.ignore'] },
   { file: 'reauthentication', key: 'mail.reauth', kind: 'code', dashboard: 'reauthentication', requestLanguage: false, notes: ['mail.codeSafety'] },
   { file: 'password-changed', key: 'mail.passwordChanged', kind: 'notice', dashboard: 'password-changed', requestLanguage: false, notes: ['mail.securityUnexpected'] },
   { file: 'email-address-changed', key: 'mail.emailChanged', kind: 'notice', dashboard: 'email-address-changed', requestLanguage: false, notes: ['mail.securityUnexpected'] },
@@ -47,7 +49,7 @@ const subjectRequestLocale = '{{$:=.Data.locale}}{{with .RedirectTo}}{{$s:=slice
 const compact = (s: string) => s.replace(/\n/g, '').replace(/{{ /g, '{{').replace(/ }}/g, '}}');
 function body(code: string, mail: (typeof MAILS)[number]) {
   const action = mail.kind === 'link'
-    ? `<p style="margin:0 0 24px"><a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 22px;background:#6ee7b7;border-radius:8px;color:#052e22;font-size:16px;font-weight:700;text-decoration:none">${text(code, `${mail.key}.button`)}</a></p>`
+    ? `<p style="margin:0 0 24px"><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=${'otp' in mail ? mail.otp : ''}&amp;next={{ .RedirectTo }}" style="display:inline-block;padding:14px 22px;background:#6ee7b7;border-radius:8px;color:#052e22;font-size:16px;font-weight:700;text-decoration:none">${text(code, `${mail.key}.button`)}</a></p>`
     : mail.kind === 'code'
       ? '<p style="margin:0 0 24px;font-size:32px;font-weight:700;letter-spacing:6px">{{ .Token }}</p>'
       : '';

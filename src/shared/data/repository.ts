@@ -1168,6 +1168,23 @@ export async function completeLoginHandoff(code: string): Promise<boolean> {
   return !error;
 }
 
+/** The kinds of link in the account mails (`docs/mail-templates`). */
+export const EMAIL_LINK_TYPES = ['email', 'invite', 'recovery', 'email_change'] as const;
+export type EmailLinkType = (typeof EMAIL_LINK_TYPES)[number];
+
+/**
+ * A link from an account mail, opened on our own address (`/auth/confirm`)
+ * instead of the auth server's (iCloud put the mail in spam, 2026-11-20):
+ * trades the one-time code for a sign-in on the club server.
+ */
+export async function confirmEmailLink(tokenHash: string, type: EmailLinkType): Promise<boolean> {
+  if (!isServerAvailable()) return false;
+  setBackendChoice('server');
+  const supabase = await authClient();
+  const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+  return !error;
+}
+
 /** Whether this device has a signed-in account (server mode). */
 export async function hasSignedInAccount(): Promise<boolean> {
   if (!isServerAvailable()) return false;

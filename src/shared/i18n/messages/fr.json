@@ -2554,5 +2554,13 @@
   "sync.table.clubRoles": "rôles du club",
   "sync.table.invites": "invitations",
   "sync.table.playbook": "playbook",
-  "sync.table.privateEvents": "calendrier"
+  "sync.table.privateEvents": "calendrier",
+  "calendarLink.headingApple": "Calendrier Apple",
+  "calendarLink.appleIntro": "Un geste, sans mot de passe : tes séances apparaissent dans le calendrier de ton iPhone et restent à jour.",
+  "apple.headingMore": "Connecter dans les deux sens",
+  "apple.moreIntro": "Club OS écrit tes séances dans son propre calendrier iCloud. Il faut pour cela un mot de passe d’app d’Apple.",
+  "apple.moreIntroRead": "Club OS affiche alors aussi tes propres rendez-vous à côté de tes séances, pour planifier ton entraînement. Il faut pour cela un mot de passe d’app d’Apple.",
+  "auth.confirm.title": "Vérification du lien",
+  "auth.confirm.failedTitle": "Ce lien ne fonctionne plus",
+  "auth.confirm.failed": "Il a expiré ou a déjà été utilisé. Connecte-toi ; si ton compte n’est pas encore confirmé, tu peux y demander un nouvel e-mail."
 }

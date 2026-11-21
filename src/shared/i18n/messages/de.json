@@ -2554,5 +2554,13 @@
   "sync.table.clubRoles": "Vereinsrollen",
   "sync.table.invites": "Einladungen",
   "sync.table.playbook": "Playbook",
-  "sync.table.privateEvents": "Kalender"
+  "sync.table.privateEvents": "Kalender",
+  "calendarLink.headingApple": "Apple-Kalender",
+  "calendarLink.appleIntro": "Ein Tipp, kein Passwort: Deine Einheiten erscheinen im Kalender deines iPhones und bleiben aktuell.",
+  "apple.headingMore": "In beide Richtungen verbinden",
+  "apple.moreIntro": "Club OS schreibt deine Einheiten in einen eigenen iCloud-Kalender. Dafür brauchst du ein App-Passwort von Apple.",
+  "apple.moreIntroRead": "Club OS zeigt dann auch deine eigenen Termine neben deinen Einheiten, damit du dein Training danach planen kannst. Dafür brauchst du ein App-Passwort von Apple.",
+  "auth.confirm.title": "Link wird geprüft",
+  "auth.confirm.failedTitle": "Der Link gilt nicht mehr",
+  "auth.confirm.failed": "Er ist abgelaufen oder wurde schon benutzt. Melde dich an; ist dein Konto noch nicht bestätigt, kannst du dort eine neue Mail anfordern."
 }

@@ -5,18 +5,35 @@ import (
  "bytes"
  "encoding/json"
  "fmt"
+ "html"
  "html/template"
+ "net/url"
+ "regexp"
  "os"
  "path/filepath"
  "strings"
 )
-type Mail struct { File, Key, Kind string; RequestLanguage bool }
+type Mail struct { File, Key, Kind, Otp string; RequestLanguage bool }
 func check(ok bool, message string) { if !ok { panic(message) } }
 func render(path string, data map[string]any) string {
  b, err := os.ReadFile(path); if err != nil { panic(err) }
  t, err := template.New(path).Parse(string(b)); if err != nil { panic(err) }
  var out bytes.Buffer; if err=t.Execute(&out,data); err!=nil { panic(err) }
  return strings.TrimSpace(out.String())
+}
+// The one auth link: our own confirm page with the one-time code, the link
+// type and the return address as one query value (not the auth server's URL).
+var hrefPattern = regexp.MustCompile(`<a href="([^"]*)"`)
+func checkLink(body string, mail Mail, data map[string]any) {
+ m := hrefPattern.FindStringSubmatch(body); check(m != nil, mail.File+" link missing")
+ u, err := url.Parse(html.UnescapeString(m[1])); check(err == nil, mail.File+" link does not parse")
+ site, _ := data["SiteURL"].(string)
+ check(u.String() != "" && strings.HasPrefix(u.String(), site+"/auth/confirm?"), mail.File+" link is not on our own address: "+u.String())
+ q := u.Query()
+ check(q.Get("token_hash") == "TEST_HASH" && q.Get("type") == mail.Otp && mail.Otp != "", mail.File+" link code or type wrong: "+u.RawQuery)
+ redirect, _ := data["RedirectTo"].(string)
+ check(q.Get("next") == redirect, mail.File+" return address changed: "+q.Get("next"))
+ check(!strings.Contains(body, "TEST_ONLY"), mail.File+" still uses the auth server's link")
 }
 func main() {
  root := "docs/mail-templates"
@@ -36,7 +53,7 @@ func main() {
    for _,mode:=range []string{"account","request","query"} {
     want:=lang;if want=="unknown"{want="en"}
     locale:=lang
-    data:=map[string]any{"Data":map[string]any{"locale":locale},"SiteURL":"https://clubos.hebinova.de","RedirectTo":"","Email":"person@example.com","NewEmail":"new@example.com","OldEmail":"old@example.com","Phone":"+490000000002","OldPhone":"+490000000001","Provider":"Example <unsafe>","Token":"123456","ConfirmationURL":"https://example.com/verify?token=TEST_ONLY&type=email"}
+    data:=map[string]any{"Data":map[string]any{"locale":locale},"SiteURL":"https://clubos.hebinova.de","RedirectTo":"","Email":"person@example.com","NewEmail":"new@example.com","OldEmail":"old@example.com","Phone":"+490000000002","OldPhone":"+490000000001","Provider":"Example <unsafe>","Token":"123456","TokenHash":"TEST_HASH","ConfirmationURL":"https://example.com/verify?token=TEST_ONLY&type=email"}
     if mode!="account" && mail.RequestLanguage && lang!="unknown" {
      data["Data"]=map[string]any{"locale":"xx"}
      data["RedirectTo"]="https://preview.example.com/join?lang="+lang
@@ -49,7 +66,7 @@ func main() {
     check(strings.Contains(body,"CLUB OS")&&strings.Contains(body,"support.clubos@hebinova.com"),"missing brand/support")
     check(!strings.Contains(body,"<img")&&!strings.Contains(body,"{{"),"unexpected remote image or unrendered action")
     links:=strings.Count(body,"<a ")
-    if mail.Kind=="link" {check(links==1&&strings.Contains(body,"token=TEST_ONLY&amp;type=email"),"auth link was changed or duplicated")
+    if mail.Kind=="link" {check(links==1,"auth link duplicated");checkLink(body,mail,data)
     } else {check(links==0,"unexpected auth link in code/notification")}
     if mail.Kind=="code" {check(strings.Contains(body,"123456"),"missing confirmation code")}
     if strings.Contains(mail.Key,"identity") {check(strings.Contains(body,"Example &lt;unsafe&gt;")&&!strings.Contains(body,"Example <unsafe>"),"provider is not escaped")}
@@ -62,11 +79,12 @@ func main() {
      want:=lang
      if strings.HasSuffix(redirect,"lang=xx") {want="en"}
      if strings.HasSuffix(redirect,"lang=es") {want="es"}
-     data:=map[string]any{"Data":map[string]any{"locale":lang},"SiteURL":"https://clubos.hebinova.de","RedirectTo":redirect,"Email":"person@example.com","NewEmail":"new@example.com","ConfirmationURL":"https://example.com/verify?token=TEST_ONLY&type=email"}
+     data:=map[string]any{"Data":map[string]any{"locale":lang},"SiteURL":"https://clubos.hebinova.de","RedirectTo":redirect,"Email":"person@example.com","NewEmail":"new@example.com","TokenHash":"TEST_HASH","ConfirmationURL":"https://example.com/verify?token=TEST_ONLY&type=email"}
      subject:=render(filepath.Join(root,mail.File+".subject.txt"),data)
      body:=render(filepath.Join(root,mail.File+".html"),data)
      check(subject==catalogs[want][mail.Key+".subject"],mail.File+" legacy/hint subject mismatch: "+subject)
      check(strings.Contains(body,`lang="`+want+`"`),mail.File+" legacy/hint body mismatch")
+     if mail.Kind=="link" {checkLink(body,mail,data)}
      n++
     }
    }
