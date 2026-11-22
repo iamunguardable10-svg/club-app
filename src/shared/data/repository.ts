@@ -945,6 +945,8 @@ function authError(message: string): LocalDataError {
     [/email not confirmed/i, 'Please confirm your email address first, using the link we sent you.', 'auth.error.notConfirmed'],
     [/already registered|already exists/i, 'There is already an account with this email. Please sign in.', 'auth.error.alreadyRegistered'],
     [/password should be at least (\d+)/i, 'The password is too short.', 'auth.error.passwordTooShort'],
+    [/should be different from the old password/i, 'Choose a password different from the old one.', 'auth.error.samePassword'],
+    [/password is known to be weak|weak.?password|pwned/i, 'This password is too easy to guess. Choose another one.', 'auth.error.weakPassword'],
     [/rate limit|too many/i, 'Too many attempts. Please wait a moment and try again.', 'auth.error.tooManyAttempts'],
     [/not authorized/i, 'The server cannot send mail to this address right now.', 'auth.error.cannotSendMail'],
     // Supabase says 'Email address "x@y" is invalid' for addresses it will not take (e.g. made-up domains).
@@ -1063,12 +1065,13 @@ export async function saveAccountLocale(locale: string): Promise<void> {
 }
 
 /** Sends a link to choose a new password; it leads to /reset-password. */
-export async function requestPasswordReset(email: string, locale?: Locale): Promise<void> {
+/** `returnTo`: where the person was (e.g. joining a team); the new password leads back there. */
+export async function requestPasswordReset(email: string, locale?: Locale, returnTo?: string): Promise<void> {
   // Each request sends a mail: three per address in the window.
   countAuthAttempt(guardAuthAttempt('reset', email, 3));
   const supabase = await authClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: authEmailRedirect(window.location.origin, '/reset-password', locale),
+    redirectTo: authEmailRedirect(window.location.origin, returnTo ? `/reset-password?next=${encodeURIComponent(returnTo)}` : '/reset-password', locale),
   });
   if (error) throw authError(error.message);
 }

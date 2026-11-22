@@ -92,9 +92,6 @@
   "auth.resend": "Send the email again",
   "auth.resent": "The email is on its way.",
   "auth.choosePassword": "Password",
-  "auth.repeatPassword": "Repeat password",
-  "auth.check.length": "At least {count} characters",
-  "auth.check.match": "Both passwords match",
   "auth.noAccountYet": "No account yet?",
   "auth.backToStart": "Back",
   "auth.password": "Password",
@@ -2578,5 +2575,7 @@
   "mail.appCode": "Using the app on your home screen? Enter this code there:",
   "auth.mail.codeTo": "Enter the code we sent to {email}.",
   "auth.passwordRule": "At least {count} characters",
-  "consent.acceptByCreating": "By creating an account you accept the {terms} and the {privacy}."
+  "consent.acceptByCreating": "By creating an account you accept the {terms} and the {privacy}.",
+  "auth.error.samePassword": "Choose a password different from the old one.",
+  "auth.error.weakPassword": "This password is too easy to guess. Choose another one."
 }
