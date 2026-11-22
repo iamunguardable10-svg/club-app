@@ -30,10 +30,10 @@ export const metadata: Metadata = {
     siteName: 'Club OS',
     type: 'website',
     title: 'Club OS',
-    description: 'Training, RSVPs, messages and load for your team, in one place.',
-    images: [{ url: '/og?lang=en', width: 1200, height: 630, alt: 'Club OS' }],
+    description: 'Training, Zusagen, Nachrichten und Belastung für dein Team, an einem Ort.',
+    images: [{ url: '/og?lang=de', width: 1200, height: 630, alt: 'Club OS' }],
   },
-  twitter: { card: 'summary_large_image', images: ['/og?lang=en'] },
+  twitter: { card: 'summary_large_image', images: ['/og?lang=de'] },
 };
 
 

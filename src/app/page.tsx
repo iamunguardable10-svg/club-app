@@ -6,12 +6,13 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://clubos.hebinova.de' },
   title: 'Club OS — Your whole club. One app.',
   description: 'Training plans, RSVPs, halls, messages and player load. One calm place for your sports club. Join the first Club OS pilots.',
+  // The card a shared link shows, in German like the pilot clubs (Ben, 2026-11-22); the page itself switches language.
   openGraph: {
-    title: 'Club OS — Your whole club. One app.',
-    description: 'Less organising. More sport. Discover Club OS and try the demo.',
-    images: [{ url: '/og?lang=en', width: 1200, height: 630, alt: 'Club OS' }],
+    title: 'Club OS – Dein Team, an einem Ort.',
+    description: 'Training, Zusagen, Nachrichten und Belastung für deinen Verein. Probier die Demo aus.',
+    images: [{ url: '/og?lang=de', width: 1200, height: 630, alt: 'Club OS' }],
   },
-  twitter: { card: 'summary_large_image', title: 'Club OS — Your whole club. One app.', description: 'Less organising. More sport. Discover Club OS and try the demo.', images: ['/og?lang=en'] },
+  twitter: { card: 'summary_large_image', title: 'Club OS – Dein Team, an einem Ort.', description: 'Training, Zusagen, Nachrichten und Belastung für deinen Verein. Probier die Demo aus.', images: ['/og?lang=de'] },
 };
 
 export default async function Home({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
