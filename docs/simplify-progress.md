@@ -3701,3 +3701,15 @@ Geprüft gegen den Vereinsserver mit einem Wegwerfkonto (danach gelöscht), Beit
 Die Seite „Neues Passwort“ hat wie die Registrierung ein Feld mit „Zeigen“ und „Mind. 8 Zeichen“; die Häkchenliste und drei Texte entfallen.
 
 **Geprüft:** die vier Wege oben im Browser; `typecheck`, `check:i18n`, `test:i18n`, `test:store`, `build`, `test:smoke`, `test:landing`.
+
+## Run 142 — Link-Vorschau und Trainer-Einladung geprüft (2026-11-22)
+
+**Link-Vorschau** (WhatsApp, iMessage, Mail): bisher nur die Startseite mit einem hohen Handybild; `/start` und `/join` ohne Vorschau.
+- `/og`: Bild 1200 × 630 im App-Stil (Inter fett, App-Symbol, grüner Schein). Mit `?code=` liest der Server das Team hinter dem Code (`join_code_preview`, zehn Minuten zwischengespeichert) und zeigt „Tritt Regio 2 bei“ mit dem Verein; Namen aus der Adresse werden nie gedruckt. Ohne Code oder bei unbekanntem Code: „Dein Team, an einem Ort.“
+- Titel und Beschreibung: Team-Link „Tritt {Team} bei“ / „{Verein} nutzt Club OS …“; Einladung ohne Namen („Deine Einladung zu Club OS“), weil sie in Gruppenchats landen kann; Start und Seite allgemein. Sprache aus `lang` im Link, sonst Deutsch; die Landingpage bleibt englisch.
+- `landing-check` prüft Bild und Karten-Tags auf `/`, `/start`, Team-Link und Einladung.
+
+**Trainer-Einladung** gegen den Vereinsserver geprüft (Test-Trainer in „Regio 2“ mit Wegwerfkonto, danach alles gelöscht): Link → Einladung mit Name, Rolle, Team, Verein → Konto (Anmelden) → zurück zur Einladung → „Einladung annehmen“ → „Heute“ als Trainer; Person verknüpft, Einladung angenommen, Zustimmung gespeichert.
+- Wie bei der Registrierung: statt zweier Checkboxen ein Satz unter dem Knopf („Damit bestätigst du, dass du mindestens 16 Jahre alt bist, und stimmst … zu.“); der Hinweis über dem E-Mail-Feld ist kurz („Nicht {Name}? Frag nach deinem eigenen Link.“).
+
+**Geprüft:** `typecheck`, `check:i18n`, `test:i18n`, `build`, `test:smoke`, `test:landing`; Vorschaubild auch ohne Server (allgemeine Karte).

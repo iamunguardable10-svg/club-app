@@ -79,6 +79,14 @@ try {
   assert.equal(await manifestLink(`/join?invite=tok_EN-1&handoff=${handoff}&lang=fr`), `/install.webmanifest?next=%2Fjoin%3Finvite%3Dtok_EN-1&handoff=${handoff}&lang=fr`);
   assert.equal(await manifestLink(`/settings?handoff=${handoff}`), `/install.webmanifest?handoff=${handoff}`);
   assert.equal(await manifestLink('/start?handoff=not-a-code'), '/install.webmanifest');
+  // Shared links show a card (2026-11-22): a 1200×630 picture and a title on every way in.
+  const og = await context.request.get(`${base}/og?lang=de`);
+  assert.equal(og.headers()['content-type'], 'image/png');
+  for (const path of ['/', '/start', '/join?code=ABCD2345', '/join?invite=00000000-0000-0000-0000-000000000000']) {
+    const html = await (await context.request.get(base + path)).text();
+    assert.match(html, /<meta property="og:image" content="[^"]*\/og\?lang=/, `${path}: preview picture`);
+    assert.match(html, /<meta name="twitter:card" content="summary_large_image"/, `${path}: large card`);
+  }
   const legacy = await context.request.get(base + '/?add=1', { maxRedirects: 0 });
   assert.equal(legacy.headers().location, '/start?add=1');
   await context.close();

@@ -125,7 +125,7 @@
   "onboarding.join.clubRoleNote": "Tu géreras ici les équipes et les invitations. Les coachs gardent les données des joueurs.",
   "onboarding.join.staffNote": "Tu rejoins le staff de cette équipe avec les droits associés à ce rôle.",
   "onboarding.join.accept": "Accepter l’invitation",
-  "onboarding.join.inviteIntro": "Ce n’est pas toi, {name} ? Demande ton propre lien. Sinon, crée un compte (ou connecte-toi), puis accepte l’invitation.",
+  "onboarding.join.inviteIntro": "Tu n’es pas {name} ? Demande ton propre lien.",
   "onboarding.join.title": "Rejoindre ton équipe",
   "onboarding.join.codeTitle": "Le code de ton équipe",
   "onboarding.join.codePlaceholder": "Code ou lien",
@@ -2577,5 +2577,15 @@
   "auth.passwordRule": "Au moins {count} caractères",
   "consent.acceptByCreating": "En créant ton compte, tu acceptes les {terms} et la {privacy}.",
   "auth.error.samePassword": "Choisis un mot de passe différent de l’ancien.",
-  "auth.error.weakPassword": "Ce mot de passe est trop facile à deviner. Choisis-en un autre."
+  "auth.error.weakPassword": "Ce mot de passe est trop facile à deviner. Choisis-en un autre.",
+  "preview.join.title": "Rejoins {team}",
+  "preview.join.description": "{club} utilise Club OS : entraînements, réponses et messages au même endroit. Touche pour rejoindre.",
+  "preview.joinAny.title": "Rejoins ton équipe",
+  "preview.invite.title": "Ton invitation à Club OS",
+  "preview.invite.description": "Ouvre le lien pour accepter ton invitation.",
+  "preview.default.title": "Club OS",
+  "preview.default.headline": "Ton équipe, au même endroit.",
+  "preview.default.description": "Entraînements, réponses, messages et charge pour ton équipe, au même endroit.",
+  "preview.image.line": "Entraînements · Réponses · Messages · Charge",
+  "consent.acceptStaff": "Tu confirmes ainsi avoir au moins 16 ans et accepter les {terms} et la {privacy}."
 }

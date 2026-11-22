@@ -125,7 +125,7 @@
   "onboarding.join.clubRoleNote": "Du verwaltest hier die Teams und Einladungen. Die Daten der Spieler bleiben bei den Trainern.",
   "onboarding.join.staffNote": "Du kommst mit den Rechten dieser Rolle ins Trainerteam.",
   "onboarding.join.accept": "Einladung annehmen",
-  "onboarding.join.inviteIntro": "Nicht {name}? Frag nach deinem eigenen Link. Sonst erstelle ein Konto (oder melde dich an) und nimm dann an.",
+  "onboarding.join.inviteIntro": "Nicht {name}? Frag nach deinem eigenen Link.",
   "onboarding.join.title": "Deinem Team beitreten",
   "onboarding.join.codeTitle": "Dein Team-Code",
   "onboarding.join.codePlaceholder": "Code oder Link",
@@ -2577,5 +2577,15 @@
   "auth.passwordRule": "Mind. {count} Zeichen",
   "consent.acceptByCreating": "Mit „Konto erstellen“ stimmst du den {terms} und der {privacy} zu.",
   "auth.error.samePassword": "Wähle ein anderes Passwort als das bisherige.",
-  "auth.error.weakPassword": "Dieses Passwort ist zu leicht zu erraten. Wähle ein anderes."
+  "auth.error.weakPassword": "Dieses Passwort ist zu leicht zu erraten. Wähle ein anderes.",
+  "preview.join.title": "Tritt {team} bei",
+  "preview.join.description": "{club} nutzt Club OS: Training, Zusagen und Nachrichten an einem Ort. Tippe, um beizutreten.",
+  "preview.joinAny.title": "Deinem Team beitreten",
+  "preview.invite.title": "Deine Einladung zu Club OS",
+  "preview.invite.description": "Öffne den Link, um deine Einladung anzunehmen.",
+  "preview.default.title": "Club OS",
+  "preview.default.headline": "Dein Team, an einem Ort.",
+  "preview.default.description": "Training, Zusagen, Nachrichten und Belastung für dein Team, an einem Ort.",
+  "preview.image.line": "Training · Zusagen · Nachrichten · Belastung",
+  "consent.acceptStaff": "Damit bestätigst du, dass du mindestens 16 Jahre alt bist, und stimmst den {terms} und der {privacy} zu."
 }
