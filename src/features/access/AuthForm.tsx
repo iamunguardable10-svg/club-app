@@ -13,7 +13,7 @@
  * nothing of the local test data is carried over.
  */
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { AcceptText, EMPTY_CONSENT, consentComplete } from '@/features/legal/ConsentFields';
 import {
@@ -37,9 +37,14 @@ import { currentLocale, errorText, useT } from '@/shared/i18n';
 type Step = 'email' | 'password' | 'create' | 'reset';
 
 export const MIN_PASSWORD = 8;
+/** The one-time code in the account mails (Supabase: 8 digits for this project, 2026-11-22). */
+const MAIL_CODE_LENGTH = 8;
 
-export function PasswordField({ label, value, onChange, show, onToggle, autoComplete, autoFocus = false }: {
+export function PasswordField({ label, value, onChange, show, onToggle, autoComplete, autoFocus = false, placeholder, hideLabel = false }: {
   label: string;
+  /** Shown in the empty field (e.g. the minimum length), with the label only for screen readers. */
+  placeholder?: string;
+  hideLabel?: boolean;
   value: string;
   onChange: (value: string) => void;
   show: boolean;
@@ -51,7 +56,7 @@ export function PasswordField({ label, value, onChange, show, onToggle, autoComp
   const id = useId();
   return (
     <div className="grid gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-slate-300">{label}</label>
+      <label htmlFor={id} className={hideLabel ? 'sr-only' : 'text-sm font-medium text-slate-300'}>{label}</label>
       <span className="relative block">
         <input
           id={id}
@@ -61,6 +66,7 @@ export function PasswordField({ label, value, onChange, show, onToggle, autoComp
           required
           value={value}
           onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
           className="os-field w-full pr-20 text-base"
         />
         {onToggle ? (
@@ -87,6 +93,7 @@ export function AuthForm({
   intro,
   staff = false,
   consent: givenConsent,
+  onBack,
 }: {
   /** Where to go after signing in, and where the confirmation mail leads back to. */
   returnTo: string;
@@ -95,21 +102,23 @@ export function AuthForm({
   staff?: boolean;
   /** Already given on the step before (with name and birth year): not asked again. */
   consent?: AccessConsent;
+  /** Back out of the account step (the page's step before); one "Back" link, inside the form. */
+  onBack?: () => void;
 }) {
   const t = useT();
-  const [ownConsent, setConsent] = useState(EMPTY_CONSENT);
-  const consent = givenConsent ?? ownConsent;
+  // Creating the account accepts the terms and the privacy policy; the sentence under the button says so (Ben, 2026-11-22).
+  const consent = givenConsent ?? { ...EMPTY_CONSENT, terms: true };
   const [step, setStep] = useState<Step>('email');
   const [status, setStatus] = useState<EmailAccountStatus>('none');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [repeat, setRepeat] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [mailSent, setMailSent] = useState<{ to: string; kind: 'confirm' | 'reset' } | null>(null);
   const [mailCode, setMailCode] = useState('');
+  const codeForm = useRef<HTMLFormElement>(null);
   // Back in the app after reading the mail (perhaps closed by the phone meanwhile): the code field again.
   useEffect(() => {
     const pending = readPendingMail();
@@ -144,14 +153,12 @@ export function AuthForm({
   }, [mailSent, returnTo]);
 
   const longEnough = password.length >= MIN_PASSWORD;
-  const matches = password.length > 0 && password === repeat;
 
   function goTo(next: Step) {
     setStep(next);
     setError(null);
     setNotice(null);
     setPassword('');
-    setRepeat('');
   }
 
   async function run(action: () => Promise<void>) {
@@ -194,12 +201,14 @@ export function AuthForm({
 
   if (mailSent) {
     return (
-      <section className="wizard-step os-panel grid gap-3 p-6 text-sm text-slate-300">
-        <span aria-hidden className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-300/15 text-2xl">✉</span>
-        <p className="text-2xl font-semibold text-white">{t('auth.mail.title')}</p>
-        <p>{t('auth.mail.sentTo', { email: mailSent.to })} {t(mailSent.kind === 'confirm' ? 'auth.mail.codeConfirm' : 'auth.mail.codeReset')}</p>
+      <section className="wizard-step os-panel grid gap-4 p-6 text-sm text-slate-300">
+        {/* Less is more (Ben, 2026-11-22): one sentence, the field; eight digits check by themselves. */}
+        <div>
+          <p className="text-2xl font-semibold leading-tight text-white">{t('auth.mail.title')}</p>
+          <p className="mt-1.5 text-slate-400">{t('auth.mail.codeTo', { email: mailSent.to })}</p>
+        </div>
         <form
-          className="grid gap-3"
+          ref={codeForm}
           onSubmit={(event) => {
             event.preventDefault();
             void run(async () => {
@@ -210,14 +219,18 @@ export function AuthForm({
         >
           <input
             value={mailCode}
-            onChange={(event) => { setMailCode(event.target.value.replace(/[^0-9]/g, '').slice(0, 10)); setError(null); }}
-            inputMode="numeric" autoComplete="one-time-code" aria-label={t('auth.mail.codeLabel')} placeholder="123456"
-            className="os-field text-center font-mono text-2xl tracking-[0.3em]"
+            onChange={(event) => {
+              const next = event.target.value.replace(/[^0-9]/g, '').slice(0, MAIL_CODE_LENGTH);
+              setMailCode(next);
+              setError(null);
+              if (next.length === MAIL_CODE_LENGTH && !busy) window.setTimeout(() => codeForm.current?.requestSubmit(), 0);
+            }}
+            inputMode="numeric" autoComplete="one-time-code" maxLength={MAIL_CODE_LENGTH} autoFocus aria-label={t('auth.mail.codeLabel')} placeholder="12345678"
+            className="os-field w-full text-center font-mono text-2xl tracking-[0.2em]"
           />
-          {error ? <p role="alert" className="text-sm font-medium text-red-200">{error}</p> : null}
-          <button type="submit" disabled={busy || mailCode.length < 6} className="os-success justify-center disabled:opacity-60">{t('auth.mail.codeSubmit')}</button>
         </form>
-        <p className="text-xs text-slate-400">{t(mailSent.kind === 'confirm' ? (isStandalone() ? 'auth.mail.confirmApp' : 'auth.mail.confirm') : 'auth.mail.reset')}</p>
+        {busy ? <p role="status" className="text-slate-400">{t('common.oneMoment')}</p> : null}
+        {error ? <p role="alert" className="font-medium text-red-200">{error}</p> : null}
         <button type="button" onClick={() => { clearPendingMail(); setMailSent(null); goTo('email'); }} className="justify-self-start text-xs font-medium text-slate-400 underline">
           {t('auth.backToStart')}
         </button>
@@ -228,7 +241,7 @@ export function AuthForm({
   const title = step === 'email' ? t('auth.step.email') : step === 'password' ? t('auth.step.password') : step === 'create' ? t('auth.step.create') : t('auth.reset.title');
   // Less is more: only a line where the step is not obvious.
   const detail = step === 'email' ? intro ?? null : step === 'reset' ? t('auth.reset.detail') : null;
-  const canSubmit = step === 'create' ? longEnough && matches && (givenConsent ? consentComplete(givenConsent, staff) : ownConsent.terms) : true;
+  const canSubmit = step === 'create' ? longEnough && (givenConsent ? consentComplete(givenConsent, staff) : true) : true;
 
   return (
     <form key={step} onSubmit={submit} className="wizard-step os-panel grid grid-cols-[minmax(0,1fr)] gap-5 p-6">
@@ -267,24 +280,13 @@ export function AuthForm({
       ) : null}
 
       {step === 'password' ? (
-        <PasswordField label={t('auth.password')} value={password} onChange={setPassword} show={showPassword} onToggle={() => setShowPassword((value) => !value)} autoComplete="current-password" autoFocus />
+        <PasswordField label={t('auth.password')} hideLabel placeholder={t('auth.password')} value={password} onChange={setPassword} show={showPassword} onToggle={() => setShowPassword((value) => !value)} autoComplete="current-password" autoFocus />
       ) : null}
 
       {step === 'create' ? (
         <div className="grid gap-3">
-          <PasswordField label={t('auth.choosePassword')} value={password} onChange={setPassword} show={showPassword} onToggle={() => setShowPassword((value) => !value)} autoComplete="new-password" autoFocus />
-          <PasswordField label={t('auth.repeatPassword')} value={repeat} onChange={setRepeat} show={showPassword} autoComplete="new-password" />
-          <ul className="grid gap-1">
-            <PasswordCheck ok={longEnough} label={t('auth.check.length', { count: MIN_PASSWORD })} />
-            <PasswordCheck ok={matches} label={t('auth.check.match')} />
-          </ul>
-          {/* Only the terms here; birth year and health data come with joining a team, where they matter. */}
-          {givenConsent ? null : (
-            <label className="flex items-start gap-3 text-sm text-slate-300">
-              <input type="checkbox" required checked={ownConsent.terms} onChange={(event) => setConsent({ ...ownConsent, terms: event.target.checked })} className="mt-0.5 h-5 w-5 shrink-0" />
-              <AcceptText />
-            </label>
-          )}
+          {/* One field with "show" and the rule inside it (less is more, 2026-11-22). */}
+          <PasswordField label={t('auth.choosePassword')} hideLabel placeholder={t('auth.passwordRule', { count: MIN_PASSWORD })} value={password} onChange={setPassword} show={showPassword} onToggle={() => setShowPassword((value) => !value)} autoComplete="new-password" autoFocus />
         </div>
       ) : null}
 
@@ -295,14 +297,17 @@ export function AuthForm({
         {busy ? t('common.oneMoment') : step === 'email' ? t('common.continue') : step === 'password' ? t('auth.submit.signIn') : step === 'create' ? t('auth.submit.signUp') : t('auth.submit.reset')}
       </button>
 
+      {/* Only the terms here; birth year and health data come with joining a team, where they matter. */}
+      {step === 'create' && !givenConsent ? <p className="-mt-2 text-xs text-slate-400"><AcceptText messageKey="consent.acceptByCreating" /></p> : null}
+
       {step === 'password' ? (
         <div className="flex flex-wrap justify-between gap-2 text-xs font-medium text-slate-400">
           <button type="button" onClick={() => goTo('reset')} className="underline">{t('auth.forgotPassword')}</button>
           <button type="button" onClick={() => goTo('create')} className="underline">{t('auth.noAccountYet')}</button>
         </div>
       ) : null}
-      {step === 'create' ? (
-        <button type="button" onClick={() => { setStatus('confirmed'); goTo('password'); }} className="justify-self-start text-xs font-medium text-slate-400 underline">{t('auth.haveAccount')}</button>
+      {step === 'email' && onBack ? (
+        <button type="button" onClick={onBack} className="justify-self-start text-xs font-medium text-slate-400 underline">{t('onboarding.back')}</button>
       ) : null}
       {step === 'reset' ? (
         <button type="button" onClick={() => goTo('password')} className="justify-self-start text-xs font-medium text-slate-400 underline">{t('auth.backToSignIn')}</button>

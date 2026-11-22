@@ -277,16 +277,16 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
 
   // From "You" on, the team's name is the page's title; its card would only repeat it.
   return (
-    <Shell title={current === 2 ? preview.teamName : title} steps={{ labels, current }}>
-      {current < 2 ? <TeamCard preview={preview} /> : null}
+    <Shell title={current >= 1 ? preview.teamName : title} steps={{ labels, current }}>
+      {/* The team's card once, on its own step; then its name is the title (less is more, 2026-11-22). */}
+      {current === 0 ? <TeamCard preview={preview} /> : null}
       {!joining && !inBrowser ? (
         <InstallFirst code={code} onSkip={goOn} />
       ) : !joining ? (
         <button type="button" onClick={() => setJoining(true)} className="os-success w-full justify-center text-base">{t('onboarding.join.joinTeam')}</button>
       ) : !account ? (
         <>
-          <AuthForm returnTo={`/join?code=${encodeURIComponent(code)}&go=1`} />
-          <button type="button" onClick={() => setJoining(false)} className="justify-self-start px-1 text-xs font-medium text-slate-400 underline">{t('onboarding.back')}</button>
+          <AuthForm returnTo={`/join?code=${encodeURIComponent(code)}&go=1`} onBack={() => setJoining(false)} />
         </>
       ) : (
         <>
