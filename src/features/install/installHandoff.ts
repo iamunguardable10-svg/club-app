@@ -70,14 +70,32 @@ export function prepareInstallResume(): void {
   apply();
 }
 
-/** Signed in in the browser: make sure the next home-screen app starts with a fresh code. */
+/** A code in the address this page was loaded with (after the reload below). */
+function codeFromAddress(): string | null {
+  const code = new URL(window.location.href).searchParams.get(PARAM);
+  return code && /^[0-9a-f]{64}$/.test(code) ? code : null;
+}
+
+/**
+ * Signed in in the browser: make sure the next home-screen app starts with a
+ * fresh code. The iPhone takes the start address from the manifest the page
+ * was loaded with (field test 2026-11-22), so a new code loads the page once
+ * more with the code in its address; the server puts it into the manifest
+ * (manifestHref.ts). The reloaded page finds the code and does not load again.
+ */
 export async function prepareLoginHandoff(): Promise<void> {
   if (typeof window === 'undefined' || isStandalone() || getBackendChoice() !== 'server') return;
-  if (prepared && Date.now() - prepared.at < 10 * 60_000) return;
+  const loaded = codeFromAddress();
+  if (!prepared && loaded) prepared = { code: loaded, at: Date.now() };
+  if (prepared && Date.now() - prepared.at < 9 * 60_000) {
+    prepareInstallResume();
+    return;
+  }
   if (!(await hasSignedInAccount())) return;
   const code = await createLoginHandoff();
   prepared = { code, at: Date.now() };
-  prepareInstallResume();
+  prepareInstallResume(); // puts the code into the address
+  window.location.reload();
 }
 
 /**
@@ -88,6 +106,8 @@ export async function prepareLoginHandoff(): Promise<void> {
  */
 export async function keepHandoffReady(): Promise<void> {
   if (typeof window === 'undefined' || isStandalone() || getBackendChoice() !== 'server') return;
+  const loaded = codeFromAddress();
+  if (!prepared && loaded) prepared = { code: loaded, at: Date.now() };
   if (!prepared || Date.now() - prepared.at > 8 * 60_000) {
     if (!(await hasSignedInAccount())) return;
     prepared = { code: await createLoginHandoff(), at: Date.now() };

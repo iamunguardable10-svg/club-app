@@ -13,7 +13,7 @@
  * nothing of the local test data is carried over.
  */
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 
 import { AcceptText, EMPTY_CONSENT, consentComplete } from '@/features/legal/ConsentFields';
 import {
@@ -21,11 +21,13 @@ import {
   requestPasswordReset,
   resendConfirmation,
   setBackendChoice,
+  signInOnceConfirmed,
   signInWithPassword,
   signUpWithPassword,
   type AccessConsent,
   type EmailAccountStatus,
 } from '@/shared/data';
+import { isStandalone } from '@/features/install/installPrompt';
 import { currentLocale, errorText, useT } from '@/shared/i18n';
 
 type Step = 'email' | 'password' | 'create' | 'reset';
@@ -104,6 +106,30 @@ export function AuthForm({
   const [notice, setNotice] = useState<string | null>(null);
   const [mailSent, setMailSent] = useState<{ to: string; kind: 'confirm' | 'reset' } | null>(null);
 
+  // Signed up in the app on the home screen: the confirmation link opens in
+  // the browser (an iPhone cannot open a link in a home-screen app). The app
+  // signs in by itself once the account is confirmed, when the person comes
+  // back (field test 2026-11-22). Email and password stay in memory only.
+  const waitingFor = mailSent?.kind === 'confirm' ? { email, password } : null;
+  useEffect(() => {
+    if (!waitingFor || !waitingFor.password) return;
+    let done = false;
+    let tries = 0;
+    const attempt = () => {
+      if (done || document.visibilityState !== 'visible' || tries >= 80) return;
+      tries += 1;
+      signInOnceConfirmed(waitingFor.email, waitingFor.password)
+        .then((ok) => { if (!ok || done) return; done = true; setBackendChoice('server'); window.location.assign(returnTo); })
+        .catch(() => undefined);
+    };
+    // Within the auth server's sign-in limit: every 15 s, and at once on coming back.
+    const timer = window.setInterval(attempt, 15_000);
+    document.addEventListener('visibilitychange', attempt);
+    window.addEventListener('focus', attempt);
+    return () => { done = true; window.clearInterval(timer); document.removeEventListener('visibilitychange', attempt); window.removeEventListener('focus', attempt); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mailSent, returnTo]);
+
   const longEnough = password.length >= MIN_PASSWORD;
   const matches = password.length > 0 && password === repeat;
 
@@ -134,7 +160,9 @@ export function AuthForm({
         setBackendChoice('server');
         window.location.assign(returnTo);
       } else if (step === 'create') {
-        const { confirmationNeeded } = await signUpWithPassword(email, password, returnTo, currentLocale(), consent);
+        // From the home-screen app, the confirmation page in the browser says to go back to the app.
+        const mailReturn = isStandalone() ? `${returnTo}${returnTo.includes('?') ? '&' : '?'}app=1` : returnTo;
+        const { confirmationNeeded } = await signUpWithPassword(email, password, mailReturn, currentLocale(), consent);
         // The confirmation link comes back to this device in server mode.
         setBackendChoice('server');
         if (!confirmationNeeded) {
@@ -154,7 +182,7 @@ export function AuthForm({
       <section className="wizard-step os-panel grid gap-3 p-6 text-sm text-slate-300">
         <span aria-hidden className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-300/15 text-2xl">✉</span>
         <p className="text-2xl font-semibold text-white">{t('auth.mail.title')}</p>
-        <p>{t('auth.mail.sentTo', { email: mailSent.to })} {mailSent.kind === 'confirm' ? t('auth.mail.confirm') : t('auth.mail.reset')}</p>
+        <p>{t('auth.mail.sentTo', { email: mailSent.to })} {mailSent.kind === 'confirm' ? t(isStandalone() ? 'auth.mail.confirmApp' : 'auth.mail.confirm') : t('auth.mail.reset')}</p>
         <button type="button" onClick={() => { setMailSent(null); goTo('email'); }} className="justify-self-start text-xs font-medium text-slate-400 underline">
           {t('auth.backToStart')}
         </button>
