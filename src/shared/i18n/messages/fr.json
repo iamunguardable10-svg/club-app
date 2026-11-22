@@ -92,9 +92,6 @@
   "auth.resend": "Renvoyer l'e-mail",
   "auth.resent": "L'e-mail est en route.",
   "auth.choosePassword": "Mot de passe",
-  "auth.repeatPassword": "Répète le mot de passe",
-  "auth.check.length": "Au moins {count} caractères",
-  "auth.check.match": "Les deux mots de passe correspondent",
   "auth.noAccountYet": "Pas encore de compte ?",
   "auth.backToStart": "Retour",
   "auth.password": "Mot de passe",
@@ -2578,5 +2575,7 @@
   "mail.appCode": "Tu utilises l’app sur ton écran d’accueil ? Saisis-y ce code :",
   "auth.mail.codeTo": "Saisis le code envoyé à {email}.",
   "auth.passwordRule": "Au moins {count} caractères",
-  "consent.acceptByCreating": "En créant ton compte, tu acceptes les {terms} et la {privacy}."
+  "consent.acceptByCreating": "En créant ton compte, tu acceptes les {terms} et la {privacy}.",
+  "auth.error.samePassword": "Choisis un mot de passe différent de l’ancien.",
+  "auth.error.weakPassword": "Ce mot de passe est trop facile à deviner. Choisis-en un autre."
 }

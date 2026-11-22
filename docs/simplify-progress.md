@@ -3685,3 +3685,19 @@ Neu: Jede Tabelle hat in der Meldung „Nicht gespeichert (…)“ einen lesbare
 - Acht nicht mehr genutzte Texte aus allen vier Katalogen entfernt.
 
 **Geprüft:** Bilder aller Schritte vorher/nachher; 7 Ziffern → nicht gesendet, 8 → sofort geprüft; Konto erstellen mit 8 Zeichen ohne Checkbox möglich. `typecheck`, `check:i18n`, `test:i18n`, `build`, `test:smoke`, `test:landing`.
+
+## Run 141 — Nach Anmelden und Konto genau dort weiter, wo man war (2026-11-22)
+
+Geprüft gegen den Vereinsserver mit einem Wegwerfkonto (danach gelöscht), Beitritt über den Team-Link:
+
+| Weg | vorher | jetzt |
+|---|---|---|
+| Anmelden im Schritt „Konto“ | Schritt „Du“ desselben Teams | unverändert richtig |
+| Konto erstellen, Code oder Link aus der Mail | Schritt „Du“ | unverändert richtig |
+| Passwort vergessen im Schritt „Konto“ | nach dem neuen Passwort auf der Startseite | zurück zum Beitritt, Schritt „Du“ (`next` durch Mail und Passwortseite) |
+| App geschlossen, Konto inzwischen im Browser bestätigt | Code-Feld, Code schon verbraucht | gleich die Passwortabfrage |
+| Neues Passwort gleich dem alten | englische Servermeldung | „Wähle ein anderes Passwort als das bisherige.“ (auch: zu leicht zu erratendes Passwort) |
+
+Die Seite „Neues Passwort“ hat wie die Registrierung ein Feld mit „Zeigen“ und „Mind. 8 Zeichen“; die Häkchenliste und drei Texte entfallen.
+
+**Geprüft:** die vier Wege oben im Browser; `typecheck`, `check:i18n`, `test:i18n`, `test:store`, `build`, `test:smoke`, `test:landing`.

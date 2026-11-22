@@ -79,14 +79,6 @@ export function PasswordField({ label, value, onChange, show, onToggle, autoComp
   );
 }
 
-export function PasswordCheck({ ok, label }: { ok: boolean; label: string }) {
-  return (
-    <li className={`flex items-center gap-2 text-xs font-medium ${ok ? 'text-emerald-300' : 'text-slate-400'}`}>
-      <span aria-hidden className={`grid h-4 w-4 place-items-center rounded-full text-xs ${ok ? 'bg-slate-100 text-slate-950' : 'border border-slate-600'}`}>{ok ? '✓' : ''}</span>
-      {label}
-    </li>
-  );
-}
 
 export function AuthForm({
   returnTo,
@@ -122,9 +114,18 @@ export function AuthForm({
   // Back in the app after reading the mail (perhaps closed by the phone meanwhile): the code field again.
   useEffect(() => {
     const pending = readPendingMail();
-    if (pending && pending.returnTo === returnTo) {
-      setEmail(pending.email);
-      setMailSent({ to: pending.email, kind: pending.kind });
+    if (!pending || pending.returnTo !== returnTo) return;
+    setEmail(pending.email);
+    setMailSent({ to: pending.email, kind: pending.kind });
+    // Confirmed with the link in the browser meanwhile: the code is used up, so ask for the password instead.
+    if (pending.kind === 'confirm') {
+      void emailAccountStatus(pending.email).then((found) => {
+        if (found !== 'confirmed') return;
+        clearPendingMail();
+        setMailSent(null);
+        setStatus('confirmed');
+        setStep('password');
+      }).catch(() => undefined);
     }
   }, [returnTo]);
 
@@ -192,7 +193,7 @@ export function AuthForm({
         setMailSent({ to: email.trim(), kind: 'confirm' });
         rememberPendingMail({ email: email.trim(), kind: 'confirm', returnTo });
       } else {
-        await requestPasswordReset(email, currentLocale());
+        await requestPasswordReset(email, currentLocale(), returnTo);
         setMailSent({ to: email.trim(), kind: 'reset' });
         rememberPendingMail({ email: email.trim(), kind: 'reset', returnTo });
       }
@@ -213,7 +214,7 @@ export function AuthForm({
             event.preventDefault();
             void run(async () => {
               if (!(await verifyMailCode(mailSent.to, mailCode, mailSent.kind))) throw new Error(t('auth.mail.codeWrong'));
-              window.location.assign(mailSent.kind === 'reset' ? `/reset-password?lang=${currentLocale()}` : returnTo);
+              window.location.assign(mailSent.kind === 'reset' ? `/reset-password?next=${encodeURIComponent(returnTo)}&lang=${currentLocale()}` : returnTo);
             });
           }}
         >

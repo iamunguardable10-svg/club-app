@@ -92,9 +92,6 @@
   "auth.resend": "Reenviar el correo",
   "auth.resent": "El correo está en camino.",
   "auth.choosePassword": "Contraseña",
-  "auth.repeatPassword": "Repite la contraseña",
-  "auth.check.length": "Al menos {count} caracteres",
-  "auth.check.match": "Las dos contraseñas coinciden",
   "auth.noAccountYet": "¿Aún sin cuenta?",
   "auth.backToStart": "Volver",
   "auth.password": "Contraseña",
@@ -2578,5 +2575,7 @@
   "mail.appCode": "¿Usas la app de tu pantalla de inicio? Introduce allí este código:",
   "auth.mail.codeTo": "Introduce el código que enviamos a {email}.",
   "auth.passwordRule": "Mín. {count} caracteres",
-  "consent.acceptByCreating": "Al crear la cuenta aceptas las {terms} y la {privacy}."
+  "consent.acceptByCreating": "Al crear la cuenta aceptas las {terms} y la {privacy}.",
+  "auth.error.samePassword": "Elige una contraseña distinta de la anterior.",
+  "auth.error.weakPassword": "Esta contraseña es demasiado fácil de adivinar. Elige otra."
 }

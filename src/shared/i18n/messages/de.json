@@ -92,9 +92,6 @@
   "auth.resend": "Mail nochmal senden",
   "auth.resent": "Die Mail ist unterwegs.",
   "auth.choosePassword": "Passwort",
-  "auth.repeatPassword": "Passwort wiederholen",
-  "auth.check.length": "Mindestens {count} Zeichen",
-  "auth.check.match": "Beide Passwörter stimmen überein",
   "auth.noAccountYet": "Noch kein Konto?",
   "auth.backToStart": "Zurück",
   "auth.password": "Passwort",
@@ -2578,5 +2575,7 @@
   "mail.appCode": "Nutzt du die App auf dem Home-Bildschirm? Gib dort diesen Code ein:",
   "auth.mail.codeTo": "Gib den Code ein, den wir an {email} geschickt haben.",
   "auth.passwordRule": "Mind. {count} Zeichen",
-  "consent.acceptByCreating": "Mit „Konto erstellen“ stimmst du den {terms} und der {privacy} zu."
+  "consent.acceptByCreating": "Mit „Konto erstellen“ stimmst du den {terms} und der {privacy} zu.",
+  "auth.error.samePassword": "Wähle ein anderes Passwort als das bisherige.",
+  "auth.error.weakPassword": "Dieses Passwort ist zu leicht zu erraten. Wähle ein anderes."
 }
