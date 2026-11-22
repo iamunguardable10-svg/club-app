@@ -24,7 +24,8 @@ import { InstallFirst } from '@/features/install/InstallFirst';
 import { AccountLine, ErrorLine, OnboardingShell as Shell, continueAs } from '@/features/onboarding/OnboardingShell';
 import { useAccount, type Account } from '@/features/onboarding/useAccount';
 import { ProfileStep, type Profile } from '@/features/onboarding/ProfileStep';
-import { joinCodeFrom } from '@/features/onboarding/WhoAreYou';
+import { QrScanner, ScanButton, joinTargetFrom } from '@/features/onboarding/QrScanner';
+import { inviteTokenFrom, joinCodeFrom } from '@/features/onboarding/WhoAreYou';
 import {
   acceptStaffInvite,
   clearOnboardingDraft,
@@ -151,7 +152,9 @@ function EnterCode({ initial, message }: { initial: string; message?: string }) 
   const t = useT();
   const [value, setValue] = useState(initial);
   const [error, setError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
   return (
+    <>
     <form
       className="wizard-step os-panel grid grid-cols-[minmax(0,1fr)] gap-4 p-6"
       onSubmit={(event) => {
@@ -162,8 +165,10 @@ function EnterCode({ initial, message }: { initial: string; message?: string }) 
       }}
     >
       <h2 className="text-2xl font-semibold leading-tight text-white">{t('onboarding.join.codeTitle')}</h2>
+      <ScanButton onClick={() => setScanning(true)} />
+      <p aria-hidden className="flex items-center gap-3 text-xs font-medium text-slate-500 before:h-px before:flex-1 before:bg-slate-800 after:h-px after:flex-1 after:bg-slate-800">{t('scan.orType')}</p>
       <input
-        required autoFocus value={value}
+        required value={value}
         onChange={(event) => { setValue(event.target.value); setError(null); }}
         placeholder={t('onboarding.join.codePlaceholder')} aria-label={t('onboarding.join.codeOrLink')}
         autoCapitalize="characters" autoComplete="off" spellCheck={false}
@@ -172,6 +177,14 @@ function EnterCode({ initial, message }: { initial: string; message?: string }) 
       <ErrorLine message={error ?? message ?? null} />
       <button type="submit" className="os-success justify-center text-base">{t('common.continue')}</button>
     </form>
+    {scanning ? (
+      <QrScanner
+        accept={(text) => joinTargetFrom(text, joinCodeFrom, inviteTokenFrom)}
+        onResult={(target) => window.location.assign(target)}
+        onClose={() => setScanning(false)}
+      />
+    ) : null}
+    </>
   );
 }
 
