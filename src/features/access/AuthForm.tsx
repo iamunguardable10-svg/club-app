@@ -17,13 +17,17 @@ import { useEffect, useId, useState } from 'react';
 
 import { AcceptText, EMPTY_CONSENT, consentComplete } from '@/features/legal/ConsentFields';
 import {
+  clearPendingMail,
   emailAccountStatus,
+  readPendingMail,
+  rememberPendingMail,
   requestPasswordReset,
   resendConfirmation,
   setBackendChoice,
   signInOnceConfirmed,
   signInWithPassword,
   signUpWithPassword,
+  verifyMailCode,
   type AccessConsent,
   type EmailAccountStatus,
 } from '@/shared/data';
@@ -105,6 +109,15 @@ export function AuthForm({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [mailSent, setMailSent] = useState<{ to: string; kind: 'confirm' | 'reset' } | null>(null);
+  const [mailCode, setMailCode] = useState('');
+  // Back in the app after reading the mail (perhaps closed by the phone meanwhile): the code field again.
+  useEffect(() => {
+    const pending = readPendingMail();
+    if (pending && pending.returnTo === returnTo) {
+      setEmail(pending.email);
+      setMailSent({ to: pending.email, kind: pending.kind });
+    }
+  }, [returnTo]);
 
   // Signed up in the app on the home screen: the confirmation link opens in
   // the browser (an iPhone cannot open a link in a home-screen app). The app
@@ -170,9 +183,11 @@ export function AuthForm({
           return;
         }
         setMailSent({ to: email.trim(), kind: 'confirm' });
+        rememberPendingMail({ email: email.trim(), kind: 'confirm', returnTo });
       } else {
         await requestPasswordReset(email, currentLocale());
         setMailSent({ to: email.trim(), kind: 'reset' });
+        rememberPendingMail({ email: email.trim(), kind: 'reset', returnTo });
       }
     });
   };
@@ -182,8 +197,28 @@ export function AuthForm({
       <section className="wizard-step os-panel grid gap-3 p-6 text-sm text-slate-300">
         <span aria-hidden className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-300/15 text-2xl">✉</span>
         <p className="text-2xl font-semibold text-white">{t('auth.mail.title')}</p>
-        <p>{t('auth.mail.sentTo', { email: mailSent.to })} {mailSent.kind === 'confirm' ? t(isStandalone() ? 'auth.mail.confirmApp' : 'auth.mail.confirm') : t('auth.mail.reset')}</p>
-        <button type="button" onClick={() => { setMailSent(null); goTo('email'); }} className="justify-self-start text-xs font-medium text-slate-400 underline">
+        <p>{t('auth.mail.sentTo', { email: mailSent.to })} {t(mailSent.kind === 'confirm' ? 'auth.mail.codeConfirm' : 'auth.mail.codeReset')}</p>
+        <form
+          className="grid gap-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void run(async () => {
+              if (!(await verifyMailCode(mailSent.to, mailCode, mailSent.kind))) throw new Error(t('auth.mail.codeWrong'));
+              window.location.assign(mailSent.kind === 'reset' ? `/reset-password?lang=${currentLocale()}` : returnTo);
+            });
+          }}
+        >
+          <input
+            value={mailCode}
+            onChange={(event) => { setMailCode(event.target.value.replace(/[^0-9]/g, '').slice(0, 10)); setError(null); }}
+            inputMode="numeric" autoComplete="one-time-code" aria-label={t('auth.mail.codeLabel')} placeholder="123456"
+            className="os-field text-center font-mono text-2xl tracking-[0.3em]"
+          />
+          {error ? <p role="alert" className="text-sm font-medium text-red-200">{error}</p> : null}
+          <button type="submit" disabled={busy || mailCode.length < 6} className="os-success justify-center disabled:opacity-60">{t('auth.mail.codeSubmit')}</button>
+        </form>
+        <p className="text-xs text-slate-400">{t(mailSent.kind === 'confirm' ? (isStandalone() ? 'auth.mail.confirmApp' : 'auth.mail.confirm') : 'auth.mail.reset')}</p>
+        <button type="button" onClick={() => { clearPendingMail(); setMailSent(null); goTo('email'); }} className="justify-self-start text-xs font-medium text-slate-400 underline">
           {t('auth.backToStart')}
         </button>
       </section>

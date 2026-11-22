@@ -1,6 +1,7 @@
 [
   {
     "file": "confirm-signup",
+    "appCode": true,
     "otp": "email",
     "key": "mail.confirm",
     "kind": "link",
@@ -49,6 +50,7 @@
   },
   {
     "file": "reset-password",
+    "appCode": true,
     "otp": "recovery",
     "key": "mail.reset",
     "kind": "link",

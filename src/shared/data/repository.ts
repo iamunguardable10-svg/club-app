@@ -359,6 +359,50 @@ const ONBOARDING_DRAFT_KEY = 'club-app.onboarding-draft';
 export type PendingPlayerDetails = { jerseyNumber: number | null; position: string | null; heightCm: number | null; strongSide: StrongSide | null };
 export type OnboardingDraft = { for: string; firstName: string; lastName: string; consent: AccessConsent; details?: PendingPlayerDetails };
 
+/**
+ * A mail the person waits for (confirm the account, new password), with
+ * where to go after it. Kept so that the app on the home screen, closed by
+ * the phone while the mail is read, opens at the code field again (field
+ * test 2026-11-22). The address only, never the password; a day at most.
+ */
+export type PendingMail = { email: string; kind: 'confirm' | 'reset'; returnTo: string; at: number };
+const PENDING_MAIL_KEY = 'club-app.pending-mail';
+
+export function rememberPendingMail(mail: Omit<PendingMail, 'at'>): void {
+  if (!isBrowser()) return;
+  try { window.localStorage.setItem(PENDING_MAIL_KEY, JSON.stringify({ ...mail, at: Date.now() })); } catch { /* not kept: the code is asked for again */ }
+}
+
+export function readPendingMail(): PendingMail | null {
+  if (!isBrowser()) return null;
+  try {
+    const mail = JSON.parse(window.localStorage.getItem(PENDING_MAIL_KEY) ?? 'null') as PendingMail | null;
+    return mail && typeof mail.email === 'string' && Date.now() - mail.at < 24 * 60 * 60_000 ? mail : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearPendingMail(): void {
+  if (!isBrowser()) return;
+  try { window.localStorage.removeItem(PENDING_MAIL_KEY); } catch { /* nothing kept */ }
+}
+
+/**
+ * The code from an account mail, typed in the app instead of opening the
+ * link (which an iPhone always opens in the browser, not in the app on the
+ * home screen). Signs in on the club server; false for a wrong or old code.
+ */
+export async function verifyMailCode(email: string, code: string, kind: 'confirm' | 'reset'): Promise<boolean> {
+  if (!isServerAvailable()) return false;
+  const supabase = await authClient();
+  const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.replace(/\s+/g, ''), type: kind === 'reset' ? 'recovery' : 'email' });
+  if (error) return false;
+  setBackendChoice('server');
+  clearPendingMail();
+  return true;
+}
+
 export function readOnboardingDraft(forWay: string): OnboardingDraft | null {
   if (!isBrowser()) return null;
   try {
@@ -947,6 +991,7 @@ export async function signInWithPassword(email: string, password: string): Promi
     throw authError(error.message);
   }
   authAttempts.delete(key);
+  clearPendingMail();
 }
 
 /**
@@ -957,6 +1002,7 @@ export async function signInWithPassword(email: string, password: string): Promi
 export async function signInOnceConfirmed(email: string, password: string): Promise<boolean> {
   const supabase = await authClient();
   const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+  if (!error) clearPendingMail();
   return !error;
 }
 

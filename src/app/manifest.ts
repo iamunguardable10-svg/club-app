@@ -5,7 +5,8 @@ import type { MetadataRoute } from 'next';
  * "Club OS" for every club: one app, the club is chosen by signing in.
  */
 export default function manifest(): MetadataRoute.Manifest {
-  return {
+  // `handle_links` and `launch_handler` are newer than Next's type.
+  const manifest: MetadataRoute.Manifest & { handle_links: string; launch_handler: { client_mode: string[] } } = {
     id: '/',
     name: 'Club OS',
     short_name: 'Club OS',
@@ -13,6 +14,9 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: '/start',
     scope: '/',
     display: 'standalone',
+    // Android and desktop: links of this app open in the installed app, reusing its window.
+    handle_links: 'preferred',
+    launch_handler: { client_mode: ['navigate-existing', 'auto'] },
     orientation: 'portrait',
     background_color: '#0e0f11',
     theme_color: '#0e0f11',
@@ -22,4 +26,5 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
   };
+  return manifest;
 }

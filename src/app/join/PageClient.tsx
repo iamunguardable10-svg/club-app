@@ -31,6 +31,7 @@ import {
   clearOnboardingDraft,
   markAfterJoin,
   readOnboardingDraft,
+  readPendingMail,
   storeOnboardingDraft,
   storePendingPlayerDetails,
   type AccessConsent,
@@ -224,6 +225,10 @@ function CodeFlow({ code, account }: { code: string; account: Account }) {
   const [loadError, setLoadError] = useState<unknown>(null);
   // "Join" pressed; the confirmation mail comes back with `go=1`.
   const [joining, setJoining] = useState(() => params.get('go') === '1');
+  // Waiting for the confirmation mail (the app was closed meanwhile): straight back to the code field.
+  useEffect(() => {
+    if (readPendingMail()?.returnTo === `/join?code=${encodeURIComponent(code)}&go=1`) setJoining(true);
+  }, [code]);
   const [error, setError] = useState<string | null>(null);
   const [inBrowser, setInBrowser] = useState(false);
   const goOn = useCallback(() => setInBrowser(true), []);
