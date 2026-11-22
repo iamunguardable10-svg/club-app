@@ -2566,5 +2566,16 @@
   "auth.mail.confirmApp": "Toca el enlace. Después vuelve aquí: se inicia la sesión sola y sigues donde lo dejaste.",
   "auth.confirm.backToApp": "Cuenta confirmada. Vuelve a la app Club OS de tu pantalla de inicio: allí sigues.",
   "auth.confirm.continueHere": "Seguir en el navegador",
-  "auth.confirm.doneTitle": "Confirmado"
+  "auth.confirm.doneTitle": "Confirmado",
+  "scan.button": "Escanear código QR",
+  "scan.orType": "o escribe el código",
+  "scan.title": "Escanear código QR",
+  "scan.close": "Cerrar",
+  "scan.hint": "Apunta la cámara al código QR de tu entrenador.",
+  "scan.starting": "Iniciando la cámara …",
+  "scan.notTeam": "No es un código de equipo de Club OS.",
+  "scan.denied": "La cámara no está permitida. Permítela en los ajustes de tu móvil o escribe el código.",
+  "scan.noCamera": "No se encontró ninguna cámara. Escribe el código.",
+  "scan.unsupported": "Aquí no se puede usar la cámara. Escribe el código.",
+  "scan.typeCode": "Escribir el código"
 }

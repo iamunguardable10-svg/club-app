@@ -2566,5 +2566,16 @@
   "auth.mail.confirmApp": "Tippe darin auf den Link. Komm danach hierher zurück: Du wirst von selbst angemeldet und es geht weiter.",
   "auth.confirm.backToApp": "Konto bestätigt. Wechsle zurück zur Club-OS-App auf deinem Home-Bildschirm, dort geht es weiter.",
   "auth.confirm.continueHere": "Im Browser weitermachen",
-  "auth.confirm.doneTitle": "Bestätigt"
+  "auth.confirm.doneTitle": "Bestätigt",
+  "scan.button": "QR-Code scannen",
+  "scan.orType": "oder Code eingeben",
+  "scan.title": "QR-Code scannen",
+  "scan.close": "Schließen",
+  "scan.hint": "Halte die Kamera auf den QR-Code deines Trainers.",
+  "scan.starting": "Kamera startet …",
+  "scan.notTeam": "Das ist kein Team-Code von Club OS.",
+  "scan.denied": "Die Kamera ist nicht erlaubt. Erlaube sie in den Einstellungen deines Handys oder gib den Code ein.",
+  "scan.noCamera": "Keine Kamera gefunden. Gib den Code ein.",
+  "scan.unsupported": "Die Kamera lässt sich hier nicht nutzen. Gib den Code ein.",
+  "scan.typeCode": "Code eingeben"
 }

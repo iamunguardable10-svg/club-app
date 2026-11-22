@@ -3646,3 +3646,13 @@ Neu: Jede Tabelle hat in der Meldung „Nicht gespeichert (…)“ einen lesbare
 4. **Grenze:** Links und QR-Codes, die außerhalb der App geöffnet werden, landen auf dem iPhone immer im Browser; Apple öffnet keine Web-App aus einem Link. Dafür kommt der QR-Scanner in der App (nächster Run).
 
 **Geprüft:** Simulation gegen den Vereinsserver (iPhone-Browser, danach App mit eigenem Speicher im Vollbild): ohne Anmeldung startet die App beim Team „Regio 2“ mit „Beitreten“; mit Anmeldung (Wegwerfkonto, danach gelöscht) lädt die Seite einmal neu, das Manifest trägt Team und Code, die App startet angemeldet beim Team. Dazu `typecheck`, `check:i18n`, `test:i18n`, `test:store`, `build`, `test:smoke`, `test:landing` (neu: Manifest-Link im ausgelieferten HTML). Auf einem echten iPhone noch nicht geprüft.
+
+## Run 138 — QR-Code des Trainers in der App scannen (2026-11-22)
+
+**Anlass (Ben, Noah):** Ein QR-Code oder Link, der außerhalb der App geöffnet wird, landet auf dem iPhone immer im Browser, auch wenn die App schon auf dem Home-Bildschirm liegt. Deshalb bringt die App ihre eigene Kamera mit.
+
+- „QR-Code scannen“ über dem Code-Feld (Start → Neu hier → Spieler, und `/join` ohne Link), darunter „oder Code eingeben“. Das Code-Feld öffnet nicht mehr von selbst die Tastatur.
+- `QrScanner`: Vollbild über allem (Portal an `body`), Rückkamera, Rahmen mit Ecken und Scan-Linie (ohne Bewegung bei „weniger Bewegung“). Liest mit dem eingebauten BarcodeDetector, sonst mit `jsqr` (nur geladen, wenn der Scanner öffnet). Folgt nur unseren Links auf `/join` (Team-Code oder Einladung); andere QR-Codes zeigen „Das ist kein Team-Code von Club OS“. Kamera nicht erlaubt / keine Kamera: ein Satz und „Code eingeben“. Die Kamera stoppt beim Schließen und nach dem Treffer.
+- Neue Abhängigkeit `jsqr` 1.4.0 (Apache-2.0).
+
+**Geprüft:** Kamera mit einem echten Trainer-QR (Team „Regio 2“) → `/join?code=…`; Kamera verweigert → Hinweis; Schließen stoppt den Scanner. `typecheck`, `check:i18n`, `test:i18n`, `build`, `test:smoke`, `test:landing`. Vorher-/Nachher-Bilder an Ben, Merge erst nach seinem OK.

@@ -648,3 +648,13 @@ label :is(input, select, textarea) {
   letter-spacing: normal;
   text-transform: none;
 }
+
+/* The line moving through the QR frame while the camera looks (QrScanner). */
+@keyframes os-scan {
+  0%, 100% { transform: translateY(0); opacity: 0.35; }
+  50% { transform: translateY(12.5rem); opacity: 1; }
+}
+.os-scan-line { animation: os-scan 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .os-scan-line { animation: none; top: 50%; }
+}

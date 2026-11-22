@@ -18,6 +18,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { isRemoteMode, isServerAvailable, setBackendChoice } from '@/shared/data';
+import { QrScanner, ScanButton, joinTargetFrom } from '@/features/onboarding/QrScanner';
 import { useT, type MessageKey } from '@/shared/i18n';
 
 export type Persona = 'player' | 'staff' | 'lead' | 'founder';
@@ -64,6 +65,7 @@ export function WhoAreYou({ signedIn = false, only, title }: {
   }
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
 
   function pick(next: Persona) {
     setPersona((current) => (current === next ? null : next));
@@ -142,6 +144,12 @@ export function WhoAreYou({ signedIn = false, only, title }: {
         <form onSubmit={submit} className={`grid grid-cols-[minmax(0,1fr)] gap-3 ${only ? '' : 'rounded-2xl os-tile p-4'}`}>
           {/* After "New here" asked the role, the field says enough (Ben: less text). */}
           {only ? null : <p className="text-sm text-slate-300">{current.text}</p>}
+          {persona === 'player' ? (
+            <>
+              <ScanButton onClick={() => setScanning(true)} />
+              <p aria-hidden className="flex items-center gap-3 text-xs font-medium text-slate-500 before:h-px before:flex-1 before:bg-slate-800 after:h-px after:flex-1 after:bg-slate-800">{t('scan.orType')}</p>
+            </>
+          ) : null}
           <label className={`grid gap-1 text-sm font-medium text-slate-200 ${only ? '[&>span]:sr-only' : ''}`}>
             <span>{current.field}</span>
             <input
@@ -158,6 +166,13 @@ export function WhoAreYou({ signedIn = false, only, title }: {
           <button type="submit" className="os-success justify-center">{t('onboarding.who.continue')}</button>
           {current.note && !only ? <p className="text-xs text-slate-400">{current.note}</p> : null}
         </form>
+      ) : null}
+      {scanning ? (
+        <QrScanner
+          accept={(text) => joinTargetFrom(text, joinCodeFrom, inviteTokenFrom)}
+          onResult={(target) => { setScanning(false); go(target); }}
+          onClose={() => setScanning(false)}
+        />
       ) : null}
     </section>
   );
