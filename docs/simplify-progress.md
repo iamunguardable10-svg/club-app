@@ -3676,3 +3676,12 @@ Neu: Jede Tabelle hat in der Meldung „Nicht gespeichert (…)“ einen lesbare
 **Live erst nach dem Einfügen** von „Confirm sign up“ und „Reset password“ im Supabase-Dashboard (nur diese zwei Vorlagen ändern sich).
 
 **Geprüft:** App wieder geöffnet mit wartender Mail → Code-Feld; falscher Code → „Der Code stimmt nicht oder ist abgelaufen.“ Go-Test (275 Fälle, Code nur in den zwei Mails), `typecheck`, `check:i18n`, `test:i18n`, `test:store`, `build`, `test:smoke`, `test:landing`. Ein echter Code aus einer echten Mail: nach dem Einfügen der Vorlagen.
+
+## Run 140 — Registrierung: weniger ist mehr, 8-stelliger Code (2026-11-22)
+
+- **Code:** Supabase schickt in diesem Projekt 8 Ziffern. Das Feld nimmt genau 8, prüft nach der achten Ziffer von selbst; kein „Bestätigen“-Knopf, kein Briefsymbol, ein Satz („Gib den Code ein, den wir an … geschickt haben.“).
+- **Konto erstellen:** ein Passwortfeld mit „Zeigen“ und „Mind. 8 Zeichen“ im Feld (kein zweites Feld, keine Häkchenliste); keine Checkbox mehr: „Mit „Konto erstellen“ stimmst du den Nutzungsbedingungen und der Datenschutzerklärung zu.“ unter dem Knopf (Ben). Die Gesundheits-Einwilligung bleibt beim Teambeitritt.
+- **Beitrittsseite:** die Teamkarte nur im ersten Schritt, danach ist der Teamname der Titel; ein „Zurück“ im Formular statt zwei; „Ich habe schon ein Konto“ entfällt (die E-Mail-Prüfung weiß es).
+- Acht nicht mehr genutzte Texte aus allen vier Katalogen entfernt.
+
+**Geprüft:** Bilder aller Schritte vorher/nachher; 7 Ziffern → nicht gesendet, 8 → sofort geprüft; Konto erstellen mit 8 Zeichen ohne Checkbox möglich. `typecheck`, `check:i18n`, `test:i18n`, `build`, `test:smoke`, `test:landing`.
