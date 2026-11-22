@@ -949,6 +949,17 @@ export async function signInWithPassword(email: string, password: string): Promi
   authAttempts.delete(key);
 }
 
+/**
+ * While a new account waits for its confirmation: signs in once it is
+ * confirmed (the home-screen app, AuthForm). Not counted as a wrong attempt,
+ * so the person's own sign-in is never blocked by it. False while unconfirmed.
+ */
+export async function signInOnceConfirmed(email: string, password: string): Promise<boolean> {
+  const supabase = await authClient();
+  const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+  return !error;
+}
+
 export type EmailAccountStatus = 'confirmed' | 'unconfirmed' | 'none';
 
 /** Whether an address has an account (0055), for the e-mail-first sign-in. */

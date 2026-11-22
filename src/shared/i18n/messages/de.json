@@ -2562,5 +2562,9 @@
   "apple.moreIntroRead": "Club OS zeigt dann auch deine eigenen Termine neben deinen Einheiten, damit du dein Training danach planen kannst. Dafür brauchst du ein App-Passwort von Apple.",
   "auth.confirm.title": "Link wird geprüft",
   "auth.confirm.failedTitle": "Der Link gilt nicht mehr",
-  "auth.confirm.failed": "Er ist abgelaufen oder wurde schon benutzt. Melde dich an; ist dein Konto noch nicht bestätigt, kannst du dort eine neue Mail anfordern."
+  "auth.confirm.failed": "Er ist abgelaufen oder wurde schon benutzt. Melde dich an; ist dein Konto noch nicht bestätigt, kannst du dort eine neue Mail anfordern.",
+  "auth.mail.confirmApp": "Tippe darin auf den Link. Komm danach hierher zurück: Du wirst von selbst angemeldet und es geht weiter.",
+  "auth.confirm.backToApp": "Konto bestätigt. Wechsle zurück zur Club-OS-App auf deinem Home-Bildschirm, dort geht es weiter.",
+  "auth.confirm.continueHere": "Im Browser weitermachen",
+  "auth.confirm.doneTitle": "Bestätigt"
 }

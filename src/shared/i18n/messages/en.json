@@ -2562,5 +2562,9 @@
   "apple.moreIntroRead": "Club OS also shows your own appointments next to your sessions, so you can plan training around them. This needs an app password from Apple.",
   "auth.confirm.title": "Checking your link",
   "auth.confirm.failedTitle": "This link no longer works",
-  "auth.confirm.failed": "It has expired or was already used. Sign in; if your account is not confirmed yet, you can ask for a new mail there."
+  "auth.confirm.failed": "It has expired or was already used. Sign in; if your account is not confirmed yet, you can ask for a new mail there.",
+  "auth.mail.confirmApp": "Tap the link in it. Then come back here: you are signed in by yourself and it goes on.",
+  "auth.confirm.backToApp": "Account confirmed. Go back to the Club OS app on your home screen: it goes on there.",
+  "auth.confirm.continueHere": "Continue in the browser",
+  "auth.confirm.doneTitle": "Confirmed"
 }

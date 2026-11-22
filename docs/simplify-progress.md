@@ -3635,3 +3635,14 @@ Neu: Jede Tabelle hat in der Meldung „Nicht gespeichert (…)“ einen lesbare
 3. **Live erst nach dem Einfügen der Vorlagen:** Bis die neuen HTML-Vorlagen im Supabase-Dashboard stehen, gelten die alten Links weiter; beide Wege funktionieren.
 
 **Geprüft:** `typecheck`, `check:i18n`, `test:i18n`, `go run scripts/test-mail-templates.go` (275 Fälle), `build`, `test:smoke`, `test:landing`; `/auth/confirm` mit ungültigem Code zeigt „Der Link gilt nicht mehr“ und entfernt den Code aus der Adresse. Der Kalender-Bereich ist nur im Vereinsserver sichtbar; kein Bild aus der Demo.
+
+## Run 137 — Beitritt geht nach dem Hinzufügen zum Home-Bildschirm weiter (2026-11-22)
+
+**Befund (Ben, Noah):** Wer den Team-Link öffnet und die App zum Home-Bildschirm hinzufügt, landete in der App auf der Startseite, ohne Team und ohne Anmeldung. Ursache: Die Seite wurde mit dem allgemeinen Manifest (`start_url: /start`) geladen; Team-Link und Anmeldecode wurden erst danach per JavaScript ins Manifest gesetzt. Ein iPhone nimmt die Startadresse aber aus dem Manifest, mit dem die Seite geladen wurde.
+
+1. **Manifest vom Server:** `/join`, `/found`, `/start` und `/settings` werden mit `/install.webmanifest?next=…&handoff=…&lang=…` ausgeliefert (`manifestHref.ts`, `generateMetadata`); die Seiten selbst liegen jetzt in `PageClient.tsx`.
+2. **Anmeldung mitnehmen:** Wer im Browser angemeldet ist, bekommt beim Installationsschritt einen Anmeldecode; die Seite lädt dafür einmal neu, damit der Code im Manifest steht. Die neu geladene Seite übernimmt den Code aus der Adresse und lädt nicht noch einmal.
+3. **E-Mail bestätigen aus der App:** Ein Link aus einer Mail öffnet auf dem iPhone immer den Browser. Wer sich in der App registriert, wird jetzt angemeldet, sobald er nach dem Bestätigen in die App zurückkommt (`signInOnceConfirmed`, alle 15 s und beim Zurückkommen; zählt nicht als Fehlversuch). Die Bestätigungsseite im Browser sagt dann „Wechsle zurück zur Club-OS-App“ (`app=1`), mit „Im Browser weitermachen“.
+4. **Grenze:** Links und QR-Codes, die außerhalb der App geöffnet werden, landen auf dem iPhone immer im Browser; Apple öffnet keine Web-App aus einem Link. Dafür kommt der QR-Scanner in der App (nächster Run).
+
+**Geprüft:** Simulation gegen den Vereinsserver (iPhone-Browser, danach App mit eigenem Speicher im Vollbild): ohne Anmeldung startet die App beim Team „Regio 2“ mit „Beitreten“; mit Anmeldung (Wegwerfkonto, danach gelöscht) lädt die Seite einmal neu, das Manifest trägt Team und Code, die App startet angemeldet beim Team. Dazu `typecheck`, `check:i18n`, `test:i18n`, `test:store`, `build`, `test:smoke`, `test:landing` (neu: Manifest-Link im ausgelieferten HTML). Auf einem echten iPhone noch nicht geprüft.

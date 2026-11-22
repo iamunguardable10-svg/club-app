@@ -2562,5 +2562,9 @@
   "apple.moreIntroRead": "Club OS affiche alors aussi tes propres rendez-vous à côté de tes séances, pour planifier ton entraînement. Il faut pour cela un mot de passe d’app d’Apple.",
   "auth.confirm.title": "Vérification du lien",
   "auth.confirm.failedTitle": "Ce lien ne fonctionne plus",
-  "auth.confirm.failed": "Il a expiré ou a déjà été utilisé. Connecte-toi ; si ton compte n’est pas encore confirmé, tu peux y demander un nouvel e-mail."
+  "auth.confirm.failed": "Il a expiré ou a déjà été utilisé. Connecte-toi ; si ton compte n’est pas encore confirmé, tu peux y demander un nouvel e-mail.",
+  "auth.mail.confirmApp": "Touche le lien qu’il contient. Puis reviens ici : tu es connecté automatiquement et ça continue.",
+  "auth.confirm.backToApp": "Compte confirmé. Retourne dans l’app Club OS sur ton écran d’accueil : ça continue là-bas.",
+  "auth.confirm.continueHere": "Continuer dans le navigateur",
+  "auth.confirm.doneTitle": "Confirmé"
 }

@@ -73,6 +73,12 @@ try {
   assert.equal(resume.start_url, '/join?code=ABCD2345&lang=de&src=app');
   const foreign = await (await context.request.get(`${base}/install.webmanifest?next=${encodeURIComponent('//example.com/join')}`)).json();
   assert.equal(foreign.start_url, '/start');
+  // The page is served with that manifest already: an iPhone keeps the one it loaded (2026-11-22).
+  const manifestLink = async (path) => (await (await context.request.get(base + path)).text()).match(/<link rel="manifest" href="([^"]*)"/)?.[1]?.replace(/&amp;/g, '&');
+  assert.equal(await manifestLink('/join?code=ABCD2345'), '/install.webmanifest?next=%2Fjoin%3Fcode%3DABCD2345');
+  assert.equal(await manifestLink(`/join?invite=tok_EN-1&handoff=${handoff}&lang=fr`), `/install.webmanifest?next=%2Fjoin%3Finvite%3Dtok_EN-1&handoff=${handoff}&lang=fr`);
+  assert.equal(await manifestLink(`/settings?handoff=${handoff}`), `/install.webmanifest?handoff=${handoff}`);
+  assert.equal(await manifestLink('/start?handoff=not-a-code'), '/install.webmanifest');
   const legacy = await context.request.get(base + '/?add=1', { maxRedirects: 0 });
   assert.equal(legacy.headers().location, '/start?add=1');
   await context.close();
