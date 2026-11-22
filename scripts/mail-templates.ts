@@ -9,11 +9,11 @@ const catalogs = Object.fromEntries(LOCALES.map(({ code }) => [code, JSON.parse(
 // Link mails lead to our own address (`/auth/confirm`), not the auth server's
 // `ConfirmationURL`: mail filters trust it more (iCloud spam, 2026-11-20).
 const MAILS = [
-  { file: 'confirm-signup', otp: 'email', key: 'mail.confirm', kind: 'link', dashboard: 'confirm-sign-up', requestLanguage: true, notes: ['mail.confirm.validity', 'mail.ignore'] },
+  { file: 'confirm-signup', appCode: true, otp: 'email', key: 'mail.confirm', kind: 'link', dashboard: 'confirm-sign-up', requestLanguage: true, notes: ['mail.confirm.validity', 'mail.ignore'] },
   { file: 'invite-user', otp: 'invite', key: 'mail.invite', kind: 'link', dashboard: 'invite-user', requestLanguage: false, notes: ['mail.reset.validity', 'mail.ignore'] },
   { file: 'magic-link', otp: 'email', key: 'mail.magic', kind: 'link', dashboard: 'magic-link-or-otp', requestLanguage: true, notes: ['mail.reset.validity', 'mail.ignore'] },
   { file: 'change-email', otp: 'email_change', key: 'mail.change', kind: 'link', dashboard: 'change-email-address', requestLanguage: true, notes: ['mail.change.validity', 'mail.ignore'] },
-  { file: 'reset-password', otp: 'recovery', key: 'mail.reset', kind: 'link', dashboard: 'reset-password', requestLanguage: true, notes: ['mail.reset.validity', 'mail.reset.ignore'] },
+  { file: 'reset-password', appCode: true, otp: 'recovery', key: 'mail.reset', kind: 'link', dashboard: 'reset-password', requestLanguage: true, notes: ['mail.reset.validity', 'mail.reset.ignore'] },
   { file: 'reauthentication', key: 'mail.reauth', kind: 'code', dashboard: 'reauthentication', requestLanguage: false, notes: ['mail.codeSafety'] },
   { file: 'password-changed', key: 'mail.passwordChanged', kind: 'notice', dashboard: 'password-changed', requestLanguage: false, notes: ['mail.securityUnexpected'] },
   { file: 'email-address-changed', key: 'mail.emailChanged', kind: 'notice', dashboard: 'email-address-changed', requestLanguage: false, notes: ['mail.securityUnexpected'] },
@@ -53,13 +53,17 @@ function body(code: string, mail: (typeof MAILS)[number]) {
     : mail.kind === 'code'
       ? '<p style="margin:0 0 24px;font-size:32px;font-weight:700;letter-spacing:6px">{{ .Token }}</p>'
       : '';
+  // In the app on the home screen the link would open the browser: the same code to type there.
+  const appCode = 'appCode' in mail && mail.appCode
+    ? `<p style="margin:0 0 6px;font-size:14px;color:#475569">${text(code, 'mail.appCode')}</p>\n<p style="margin:0 0 24px;font-size:28px;font-weight:700;letter-spacing:6px">{{ .Token }}</p>`
+    : '';
   return `<table role="presentation" lang="${code}" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f5f7;font-family:Arial,Helvetica,sans-serif;color:#16212e;line-height:1.6"><tr><td align="center" style="padding:32px 16px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px"><tr><td style="padding:32px">
 <p style="margin:0 0 28px;font-size:20px;font-weight:800;letter-spacing:1px;color:#16212e">CLUB OS</p>
 <h1 style="margin:0 0 20px;font-size:26px;line-height:1.25">${text(code, `${mail.key}.heading`)}</h1>
 <p style="margin:0 0 24px;font-size:16px">${text(code, `${mail.key}.text`)}</p>
 ${action}
-${mail.notes.map((note, i) => `<p style="margin:0 0 ${i === mail.notes.length - 1 ? 24 : 16}px;font-size:14px;color:#475569">${text(code, note)}</p>`).join('\n')}
+${appCode ? `${appCode}\n` : ''}${mail.notes.map((note, i) => `<p style="margin:0 0 ${i === mail.notes.length - 1 ? 24 : 16}px;font-size:14px;color:#475569">${text(code, note)}</p>`).join('\n')}
 <p style="margin:0;font-size:16px">${text(code, 'mail.reset.signoff')}</p>
 </td></tr><tr><td style="padding:20px 32px;border-top:1px solid #e2e8f0;font-size:13px;color:#475569">
 <p style="margin:0 0 6px">${text(code, 'mail.reset.support')}</p>

@@ -13,7 +13,7 @@ import (
  "path/filepath"
  "strings"
 )
-type Mail struct { File, Key, Kind, Otp string; RequestLanguage bool }
+type Mail struct { File, Key, Kind, Otp string; RequestLanguage, AppCode bool }
 func check(ok bool, message string) { if !ok { panic(message) } }
 func render(path string, data map[string]any) string {
  b, err := os.ReadFile(path); if err != nil { panic(err) }
@@ -69,6 +69,7 @@ func main() {
     if mail.Kind=="link" {check(links==1,"auth link duplicated");checkLink(body,mail,data)
     } else {check(links==0,"unexpected auth link in code/notification")}
     if mail.Kind=="code" {check(strings.Contains(body,"123456"),"missing confirmation code")}
+    if mail.Kind=="link" {check(strings.Contains(body,"123456")==mail.AppCode,mail.File+" app code shown where it should not be, or missing")}
     if strings.Contains(mail.Key,"identity") {check(strings.Contains(body,"Example &lt;unsafe&gt;")&&!strings.Contains(body,"Example <unsafe>"),"provider is not escaped")}
     n++
    }

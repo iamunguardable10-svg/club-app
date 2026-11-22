@@ -3656,3 +3656,23 @@ Neu: Jede Tabelle hat in der Meldung „Nicht gespeichert (…)“ einen lesbare
 - Neue Abhängigkeit `jsqr` 1.4.0 (Apache-2.0).
 
 **Geprüft:** Kamera mit einem echten Trainer-QR (Team „Regio 2“) → `/join?code=…`; Kamera verweigert → Hinweis; Schließen stoppt den Scanner. `typecheck`, `check:i18n`, `test:i18n`, `build`, `test:smoke`, `test:landing`. Vorher-/Nachher-Bilder an Ben, Merge erst nach seinem OK.
+
+## Run 139 — Weiterleitungen geprüft: Code aus der Mail in der App (2026-11-22)
+
+**Prüfung aller Wege in die App** (Ben: „die Links möglichst zur installierten App“):
+
+| Weg | iPhone | Android (Chrome) |
+|---|---|---|
+| Team-Link, Einladung, QR mit der Handykamera | öffnet immer Safari (Apple öffnet keine Web-App aus einem Link) → in der App: „QR-Code scannen“ (Run 138); Safari zeigt Code und Weg in die App | mit `handle_links: preferred` öffnet Chrome den Link in der installierten App, wenn das Handy es zulässt |
+| Hinzufügen zum Home-Bildschirm | Startadresse mit Weg und Anmeldung vom Server (Run 137) | dasselbe Manifest |
+| Mail: Konto bestätigen, Passwort | Link öffnet Safari → **neu: 6-stelliger Code in der Mail, in der App eintippen**; Link bleibt für den Browser | wie iPhone, oder Link in der App |
+| Mitteilungen | öffnen die App (Service Worker) | dito |
+
+1. **Code in der Mail:** „Konto bestätigen“ und „Passwort zurücksetzen“ zeigen unter dem Knopf „Nutzt du die App auf dem Home-Bildschirm? Gib dort diesen Code ein“ mit `{{ .Token }}`. In der App: Feld „Code aus der Mail“ auf dem Postfach-Schritt (`verifyMailCode`, `verifyOtp` mit Typ `email` bzw. `recovery`); danach weiter zum Team bzw. zu „Neues Passwort“.
+2. **Die App vergisst das Warten nicht:** Adresse, Art und Rücksprung (nie das Passwort) liegen einen Tag im Gerät (`rememberPendingMail`); schließt das iPhone die App, während die Mail gelesen wird, öffnet sie wieder am Code-Feld (auch auf der Beitrittsseite).
+3. **Manifest:** `handle_links: 'preferred'`, `launch_handler: navigate-existing` (Android, Desktop).
+4. Safari-Hinweis „Hast du die App schon?“ nennt jetzt „Neu hier“ → „Spieler“ → QR scannen oder Code.
+
+**Live erst nach dem Einfügen** von „Confirm sign up“ und „Reset password“ im Supabase-Dashboard (nur diese zwei Vorlagen ändern sich).
+
+**Geprüft:** App wieder geöffnet mit wartender Mail → Code-Feld; falscher Code → „Der Code stimmt nicht oder ist abgelaufen.“ Go-Test (275 Fälle, Code nur in den zwei Mails), `typecheck`, `check:i18n`, `test:i18n`, `test:store`, `build`, `test:smoke`, `test:landing`. Ein echter Code aus einer echten Mail: nach dem Einfügen der Vorlagen.

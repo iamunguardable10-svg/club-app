@@ -457,3 +457,5 @@ Impressum und öffentliche Datenschutzseite; keine Änderungen an Supabase.
   (Authentication → Emails: Confirm sign up, Invite user, Magic link, Change email address, Reset password;
   Inhalt aus `docs/mail-templates/*.html`). Site URL muss `https://clubos.hebinova.de` sein. Danach
   eine Test-Registrierung mit einer iCloud-Adresse.
+- [ ] Ben: nach Run 139 „Confirm sign up“ und „Reset password“ erneut aus `docs/mail-templates/` einfügen
+  (neu: Code für die App); danach in der App auf dem Home-Bildschirm registrieren und den Code eintippen.
