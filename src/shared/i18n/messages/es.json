@@ -125,7 +125,7 @@
   "onboarding.join.clubRoleNote": "Aquí gestionarás los equipos y las invitaciones. Los entrenadores conservan los datos de los jugadores.",
   "onboarding.join.staffNote": "Te incorporas al cuerpo técnico de este equipo con los permisos de este rol.",
   "onboarding.join.accept": "Aceptar invitación",
-  "onboarding.join.inviteIntro": "¿No eres {name}? Pide tu propio enlace. Si no, crea una cuenta (o inicia sesión) y acepta la invitación.",
+  "onboarding.join.inviteIntro": "¿No eres {name}? Pide tu propio enlace.",
   "onboarding.join.title": "Unirte a tu equipo",
   "onboarding.join.codeTitle": "El código de tu equipo",
   "onboarding.join.codePlaceholder": "Código o enlace",
@@ -2577,5 +2577,15 @@
   "auth.passwordRule": "Mín. {count} caracteres",
   "consent.acceptByCreating": "Al crear la cuenta aceptas las {terms} y la {privacy}.",
   "auth.error.samePassword": "Elige una contraseña distinta de la anterior.",
-  "auth.error.weakPassword": "Esta contraseña es demasiado fácil de adivinar. Elige otra."
+  "auth.error.weakPassword": "Esta contraseña es demasiado fácil de adivinar. Elige otra.",
+  "preview.join.title": "Únete a {team}",
+  "preview.join.description": "{club} usa Club OS: entrenamientos, asistencias y mensajes en un solo lugar. Toca para unirte.",
+  "preview.joinAny.title": "Únete a tu equipo",
+  "preview.invite.title": "Tu invitación a Club OS",
+  "preview.invite.description": "Abre el enlace para aceptar tu invitación.",
+  "preview.default.title": "Club OS",
+  "preview.default.headline": "Tu equipo, en un solo lugar.",
+  "preview.default.description": "Entrenamientos, asistencias, mensajes y carga para tu equipo, en un solo lugar.",
+  "preview.image.line": "Entrenamientos · Asistencias · Mensajes · Carga",
+  "consent.acceptStaff": "Con esto confirmas que tienes al menos 16 años y aceptas las {terms} y la {privacy}."
 }

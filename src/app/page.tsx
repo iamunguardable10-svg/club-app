@@ -9,8 +9,9 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Club OS — Your whole club. One app.',
     description: 'Less organising. More sport. Discover Club OS and try the demo.',
-    images: [{ url: '/landing/calendar.webp', width: 780, height: 1688, alt: 'Club OS team calendar' }],
+    images: [{ url: '/og?lang=en', width: 1200, height: 630, alt: 'Club OS' }],
   },
+  twitter: { card: 'summary_large_image', title: 'Club OS — Your whole club. One app.', description: 'Less organising. More sport. Discover Club OS and try the demo.', images: ['/og?lang=en'] },
 };
 
 export default async function Home({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {

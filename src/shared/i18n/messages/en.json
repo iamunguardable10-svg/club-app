@@ -125,7 +125,7 @@
   "onboarding.join.clubRoleNote": "You will manage the teams and invitations here. Player data stays with the coaches.",
   "onboarding.join.staffNote": "You join the staff of this team with the rights of this role.",
   "onboarding.join.accept": "Accept invitation",
-  "onboarding.join.inviteIntro": "Not {name}? Ask for your own link. Otherwise create an account (or sign in), then accept.",
+  "onboarding.join.inviteIntro": "Not {name}? Ask for your own link.",
   "onboarding.join.title": "Join your team",
   "onboarding.join.codeTitle": "Your team code",
   "onboarding.join.codePlaceholder": "Code or link",
@@ -2577,5 +2577,15 @@
   "auth.passwordRule": "At least {count} characters",
   "consent.acceptByCreating": "By creating an account you accept the {terms} and the {privacy}.",
   "auth.error.samePassword": "Choose a password different from the old one.",
-  "auth.error.weakPassword": "This password is too easy to guess. Choose another one."
+  "auth.error.weakPassword": "This password is too easy to guess. Choose another one.",
+  "preview.join.title": "Join {team}",
+  "preview.join.description": "{club} uses Club OS: training, RSVPs and messages in one place. Tap to join.",
+  "preview.joinAny.title": "Join your team",
+  "preview.invite.title": "Your invitation to Club OS",
+  "preview.invite.description": "Open the link to accept your invitation.",
+  "preview.default.title": "Club OS",
+  "preview.default.headline": "Your team, in one place.",
+  "preview.default.description": "Training, RSVPs, messages and load for your team, in one place.",
+  "preview.image.line": "Training · RSVPs · Messages · Load",
+  "consent.acceptStaff": "This confirms you are at least 16 and accept the {terms} and the {privacy}."
 }

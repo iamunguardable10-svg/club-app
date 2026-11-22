@@ -45,6 +45,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // The link preview image reads its font and icon from disk (src/app/og).
+  outputFileTracingIncludes: { '/og': ['./src/app/og/assets/*'] },
   reactStrictMode: true,
   poweredByHeader: false,
   env: {

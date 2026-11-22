@@ -13,7 +13,7 @@ import { useState } from 'react';
 import { PhotoPicker } from '@/features/people/PersonPhoto';
 import { PlayerWizard } from '@/features/onboarding/PlayerWizard';
 import { EMPTY_PLAYER_PROFILE, type PlayerProfileValue } from '@/features/people/PlayerProfile';
-import { ConsentFields, EMPTY_CONSENT, consentComplete } from '@/features/legal/ConsentFields';
+import { AcceptText, ConsentFields, EMPTY_CONSENT, consentComplete } from '@/features/legal/ConsentFields';
 import { readPendingPhoto, readWizardProgress, storePendingPhoto, storeWizardProgress, type AccessConsent, type SportKey } from '@/shared/data';
 import { useT } from '@/shared/i18n';
 
@@ -63,6 +63,8 @@ export function ProfileStep({ staff = false, askName, knownName, player, termsAc
   const [details, setDetails] = useState<PlayerProfileValue>(initial?.details ?? saved?.details ?? EMPTY_PLAYER_PROFILE);
   const [consent, setConsent] = useState<AccessConsent>(() => {
     const start = initial?.consent ?? saved?.consent ?? EMPTY_CONSENT;
+    // Staff: going on confirms 16+ and accepts the terms, said in one line under the button (2026-11-22).
+    if (staff) return { ...start, terms: true, staff16: true };
     return termsAccepted ? { ...start, terms: true } : start;
   });
   const [busy, setBusy] = useState(false);
@@ -120,10 +122,11 @@ export function ProfileStep({ staff = false, askName, knownName, player, termsAc
           </div>
         </>
       ) : null}
-      <ConsentFields value={consent} onChange={setConsent} staff={staff} knownBirthYear={knownBirthYear} knownBirthMonth={knownBirthMonth} hideTerms={termsAccepted} />
+      {staff ? null : <ConsentFields value={consent} onChange={setConsent} staff={staff} knownBirthYear={knownBirthYear} knownBirthMonth={knownBirthMonth} hideTerms={termsAccepted} />}
       <button type="submit" disabled={busy || !consentComplete(consent, staff)} className="os-success justify-center disabled:opacity-60">
         {busy ? t('common.oneMoment') : submitLabel}
       </button>
+      {staff ? <p className="-mt-1 text-xs text-slate-400"><AcceptText messageKey="consent.acceptStaff" /></p> : null}
     </form>
   );
 }

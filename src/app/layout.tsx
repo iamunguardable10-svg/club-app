@@ -25,6 +25,15 @@ export const metadata: Metadata = {
     apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180' }],
   },
   formatDetection: { telephone: false },
+  // A proper card wherever a link is pasted (WhatsApp, iMessage, mail); pages with more to say set their own.
+  openGraph: {
+    siteName: 'Club OS',
+    type: 'website',
+    title: 'Club OS',
+    description: 'Training, RSVPs, messages and load for your team, in one place.',
+    images: [{ url: '/og?lang=en', width: 1200, height: 630, alt: 'Club OS' }],
+  },
+  twitter: { card: 'summary_large_image', images: ['/og?lang=en'] },
 };
 
 

@@ -29,7 +29,7 @@ export function ConsentFields({ value, onChange, staff = false, knownBirthYear, 
 }
 
 /** "I accept the terms and the privacy policy", both links in the sentence (open in a new tab, the form stays). */
-export function AcceptText({ messageKey = 'consent.acceptLinked' }: { messageKey?: 'consent.acceptLinked' | 'consent.acceptByCreating' }) {
+export function AcceptText({ messageKey = 'consent.acceptLinked' }: { messageKey?: 'consent.acceptLinked' | 'consent.acceptByCreating' | 'consent.acceptStaff' }) {
   const t = useT();
   const text = t(messageKey, { terms: '\u0001', privacy: '\u0002' });
   return <span>{text.split(/(\u0001|\u0002)/).map((part, index) => (
