@@ -3713,3 +3713,9 @@ Die Seite „Neues Passwort“ hat wie die Registrierung ein Feld mit „Zeigen�
 - Wie bei der Registrierung: statt zweier Checkboxen ein Satz unter dem Knopf („Damit bestätigst du, dass du mindestens 16 Jahre alt bist, und stimmst … zu.“); der Hinweis über dem E-Mail-Feld ist kurz („Nicht {Name}? Frag nach deinem eigenen Link.“).
 
 **Geprüft:** `typecheck`, `check:i18n`, `test:i18n`, `build`, `test:smoke`, `test:landing`; Vorschaubild auch ohne Server (allgemeine Karte).
+
+## Run 143 — Vorschaubild der Startseite mit echten App-Screens (2026-11-24)
+
+Ben: die geteilte Startseite zeigte noch den alten Kalender-Ausschnitt („Interaktive Demo“) – das ist eine zwischengespeicherte Vorschau der Messenger-App; die Seite liefert seit Run 142 schon die neue Karte. Trotzdem besser als reiner Text: `/og` ohne Team zeigt links „Dein Team, / an einem Ort.“, die vier Bereiche und die Adresse, rechts drei echte Screens der deutschen Demo (Heute, Belastung, Nachrichten) als Handys. Die Screens liegen als kleine PNG in `src/app/og/assets` (je ~40 KB). Team-Links behalten ihre Karte.
+
+**Geprüft:** Bild in Deutsch und Englisch, `typecheck`, `check:i18n`, `build`, `test:smoke`, `test:landing`.
